@@ -54,10 +54,23 @@ export default function ReportLostPet() {
   const isLoggedIn = authStatus === 'authenticated';
 
   // Wizard state - everyone starts at step 1 (location first for engagement)
-  const [step, setStep] = useState(1); // 1=location, 2=pet, 3=name, 4=details, 5=when, 6=color, 7=photo, 8=contact (if not logged in), 9=confirm
+  // 1=location, 2=pet info (type+name+details), 3=photo, 4=contact (if not logged in),
+  // 5=when (optional), 6=color (optional), 7=review (optional), 8=success
+  // After required steps (3 or 4), footer shows "Submit Now" + "Add More Details"
+  const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [reportResult, setReportResult] = useState(null);
+  const [wantsTellMore, setWantsTellMore] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  // Detect desktop for layout
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 900);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   // Contact info (for non-logged-in users)
   const [contactEmail, setContactEmail] = useState('');
@@ -83,10 +96,14 @@ export default function ReportLostPet() {
   const [timeElapsed, setTimeElapsed] = useState('');
   const [color, setColor] = useState('');
   const [photos, setPhotos] = useState([]);
+  const [displayPhotoIndex, setDisplayPhotoIndex] = useState(0);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [addressSearch, setAddressSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [reporterLocation, setReporterLocation] = useState(null); // Reporter's initial GPS position
 
   // Load saved location from localStorage on mount
   useEffect(() => {
@@ -176,6 +193,10 @@ export default function ReportLostPet() {
         async (position) => {
           const { latitude, longitude } = position.coords;
           setCenter([latitude, longitude]);
+          // Store reporter's initial GPS position (separate from last-seen which user may change)
+          if (!reporterLocation) {
+            setReporterLocation([latitude, longitude]);
+          }
           const result = await reverseGeocode(latitude, longitude);
           setLastSeenAddress(result.address);
           setCityName(result.city);
@@ -279,6 +300,7 @@ export default function ReportLostPet() {
       });
 
       setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => map.invalidateSize(), 500);
     };
 
     initMap();
@@ -290,6 +312,13 @@ export default function ReportLostPet() {
       }
     };
   }, [center, step]);
+
+  // Re-validate map size when loading overlay disappears
+  useEffect(() => {
+    if (!isGettingLocation && mapInstanceRef.current) {
+      mapInstanceRef.current.invalidateSize();
+    }
+  }, [isGettingLocation]);
 
   const reverseGeocode = async (lat, lon) => {
     try {
@@ -415,7 +444,7 @@ export default function ReportLostPet() {
           _source: 'photon',
           _type: props.osm_value,
         };
-      }).filter(r => r.latitude && r.longitude);
+      }).filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
     } catch (err) {
       console.error('Photon search error:', err);
       return [];
@@ -506,7 +535,7 @@ export default function ReportLostPet() {
       let lat, lon, address;
 
       // If result already has coordinates (from Nominatim or Apple autocomplete with coords)
-      if (result.latitude && result.longitude) {
+      if (Number.isFinite(result.latitude) && Number.isFinite(result.longitude)) {
         lat = result.latitude;
         lon = result.longitude;
         address = result.address || result.name;
@@ -570,7 +599,12 @@ export default function ReportLostPet() {
     if (species === 'cat' && pet.isIndoor !== undefined && pet.isIndoor !== null) {
       setIsIndoorCat(pet.isIndoor);
     }
-    setStep(5); // Skip name and pet details steps since we have that info
+    // If pet already has a photo, skip to fork point; otherwise go to photo step
+    if (pet.primaryPhotoUrl) {
+      setStep(isLoggedIn ? 3 : 4); // Skip to fork point (photo for logged in, contact for not)
+    } else {
+      setStep(3); // Go to photo step
+    }
   };
 
   const handleSelectPetType = (type) => {
@@ -581,32 +615,80 @@ export default function ReportLostPet() {
     setIsIndoorCat(null);
     setColor('');
     setPhotos([]);
-    setStep(3); // Go to name step
+    // Stay on step 2 - user will fill in name and details on same page
+  };
+
+  const analyzePhoto = async (url) => {
+    setAnalyzingPhoto(true);
+    try {
+      const res = await fetch('/api/ai/analyze-pet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: url }),
+      });
+      if (res.ok) {
+        const analysis = await res.json();
+        setAiAnalysis(analysis);
+        // Auto-fill color since it's not on a previous step
+        if (analysis.colors?.length > 0 && !color) {
+          setColor(analysis.colors.join(', '));
+        }
+      }
+    } catch (err) {
+      console.error('Photo analysis failed:', err);
+    } finally {
+      setAnalyzingPhoto(false);
+    }
   };
 
   const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Photo must be under 10MB');
-      return;
-    }
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const isFirstPhoto = photos.length === 0;
 
-    setUploadingPhoto(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('context', 'pet');
-      const response = await fetch('/api/upload', { method: 'POST', body: formData });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.url) setPhotos([data.url]);
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Each photo must be under 10MB');
+        continue;
       }
-    } catch (err) {
-      setError('Failed to upload photo');
-    } finally {
-      setUploadingPhoto(false);
+
+      setUploadingPhoto(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('context', 'pet');
+        const response = await fetch('/api/upload', { method: 'POST', body: formData });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.url) {
+            setPhotos(prev => [...prev, data.url]);
+            // Analyze the first photo uploaded for auto-fill
+            if (isFirstPhoto && !aiAnalysis) {
+              analyzePhoto(data.url);
+            }
+          }
+        }
+      } catch (err) {
+        setError('Failed to upload photo');
+      } finally {
+        setUploadingPhoto(false);
+      }
     }
+    e.target.value = '';
+  };
+
+  const removePhoto = (index) => {
+    setPhotos(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      // Adjust display index if needed
+      if (displayPhotoIndex >= next.length) setDisplayPhotoIndex(Math.max(0, next.length - 1));
+      else if (index < displayPhotoIndex) setDisplayPhotoIndex(displayPhotoIndex - 1);
+      return next;
+    });
+  };
+
+  const setAsDisplay = (index) => {
+    setDisplayPhotoIndex(index);
   };
 
   const handleSubmit = async () => {
@@ -615,12 +697,11 @@ export default function ReportLostPet() {
 
     // Validate required fields before submission
     const hasContact = effectiveEmail || effectivePhone;
-    if (!hasContact || !effectiveName || !petName || !color || !lastSeenAddress || !center) {
+    if (!hasContact || !effectiveName || !petName || !lastSeenAddress || !center) {
       const missing = [];
       if (!hasContact) missing.push('email or phone');
       if (!effectiveName) missing.push('name');
       if (!petName) missing.push('pet name');
-      if (!color) missing.push('color');
       if (!lastSeenAddress) missing.push('location');
       if (!center) missing.push('map location');
       setError(`Please provide: ${missing.join(', ')}`);
@@ -645,12 +726,13 @@ export default function ReportLostPet() {
           petType: petType.toUpperCase(),
           petSize: petType === 'dog' ? petSize : undefined,
           isIndoorCat: petType === 'cat' ? isIndoorCat : undefined,
-          photos,
+          photos: [photos[displayPhotoIndex], ...photos.filter((_, i) => i !== displayPhotoIndex)],
           locationType: 'address',
           cityName,
           selectedPetId: selectedPet?.id,
           createAccount: !isLoggedIn && createAccount,
           password: !isLoggedIn && createAccount ? password : undefined,
+          reporterLocation: reporterLocation || null,
         }),
       });
 
@@ -675,7 +757,7 @@ export default function ReportLostPet() {
       }
 
       setReportResult(data);
-      setStep(10); // Success step
+      setStep(8); // Success step
     } catch (err) {
       setError(err.message);
     } finally {
@@ -688,66 +770,62 @@ export default function ReportLostPet() {
   const canProceed = () => {
     switch (step) {
       case 1: return !!center;
-      case 2: return !!petType;
-      case 3: return !!petName.trim();
-      case 4: // Pet details - size for dogs, indoor/outdoor for cats
-        if (petType === 'dog') return !!petSize;
-        if (petType === 'cat') return isIndoorCat !== null;
-        return true; // Birds/other skip this step
-      case 5: return !!timeElapsed;
-      case 6: return !!color;
-      case 7: return !uploadingPhoto; // Photo is optional but must finish uploading first
-      case 8: { // Contact info - only for non-logged-in users
-        if (isLoggedIn) return true; // Skip validation for logged-in users
-        // Name is required
+      case 2: { // Pet info - type + name + details
+        if (!petType || !petName.trim()) return false;
+        if (petType === 'dog' && !petSize) return false;
+        if (petType === 'cat' && isIndoorCat === null) return false;
+        return true;
+      }
+      case 3: return photos.length > 0 && !uploadingPhoto; // Photo is required
+      case 4: { // Contact info - only for non-logged-in users
+        if (isLoggedIn) return true;
         if (!contactName.trim()) return false;
-        // At least one contact method required
         const hasEmail = contactEmail.trim() && isValidEmail(contactEmail);
         const hasPhone = contactPhone.trim() && contactPhone.replace(/\D/g, '').length >= 10;
         if (!hasEmail && !hasPhone) return false;
-        // If email provided, confirmation must match
         if (hasEmail && contactEmail !== contactEmailConfirm) return false;
-        // If phone provided, confirmation must match
         if (hasPhone && contactPhone !== contactPhoneConfirm) return false;
-        // Password is required (always creating account)
         if (password.length < 8) return false;
         return true;
       }
-      case 9: return true; // Review step
+      case 5: return !!timeElapsed;
+      case 6: return !!color;
+      case 7: return true; // Review step
       default: return false;
     }
   };
 
-  const totalSteps = isLoggedIn ? 8 : 9; // Logged-in users skip contact step
-  const displayStep = step; // Step number as-is
+  // Steps shown in progress bar depend on path
+  // Required: location, pet, photo, (contact if not logged in)
+  // Optional (if tell more): when, color, review
+  const requiredSteps = isLoggedIn ? 3 : 4;
+  const totalSteps = wantsTellMore ? requiredSteps + 3 : requiredSteps;
+  const displayStep = step;
+  // The "fork point" - the step where we offer submit vs add more
+  const forkStep = isLoggedIn ? 3 : 4;
 
   const nextStep = () => {
-    // For birds/other, skip the pet details step (step 4)
-    if (step === 3 && petType !== 'dog' && petType !== 'cat') {
-      setStep(5); // Skip to "when" step
+    // For logged-in users, skip contact step (step 4)
+    if (step === 3 && isLoggedIn) {
+      // At fork point - don't auto-advance, let footer buttons handle it
       return;
     }
-    // For logged-in users, skip the contact step (step 8)
-    if (step === 7 && isLoggedIn) {
-      setStep(9); // Skip to review step
+    // At fork point for non-logged-in (after contact)
+    if (step === forkStep) return;
+    // Submit on review step
+    if (step === 7) {
+      handleSubmit();
       return;
     }
-    if (canProceed() && step < 9) setStep(step + 1);
-    if (step === 9) handleSubmit();
+    if (canProceed() && step < 7) setStep(step + 1);
   };
 
   const prevStep = () => {
-    const minStep = 1; // Everyone starts at location now
+    const minStep = 1;
     if (step > minStep) {
-      // If we came from selecting existing pet, go back to step 2
-      if (step === 5 && selectedPet) {
-        setStep(2);
-      // For birds/other, skip back over the pet details step
-      } else if (step === 5 && petType !== 'dog' && petType !== 'cat') {
-        setStep(3);
       // For logged-in users, skip back over the contact step
-      } else if (step === 9 && isLoggedIn) {
-        setStep(7);
+      if (step === 5 && isLoggedIn) {
+        setStep(3);
       } else {
         setStep(step - 1);
       }
@@ -757,7 +835,7 @@ export default function ReportLostPet() {
   // Loading state while checking auth
   if (authStatus === 'loading') {
     return (
-      <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center">
         <div className="text-center">
           <img
             src={SARAMA_AVATAR}
@@ -771,11 +849,11 @@ export default function ReportLostPet() {
   }
 
   // Success screen
-  if (step === 10 && reportResult) {
+  if (step === 8 && reportResult) {
     return (
-      <div className="h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex flex-col overflow-y-auto">
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
-          <div className="text-center max-w-md w-full">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 via-white to-emerald-50 flex flex-col overflow-y-auto">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12">
+          <div className="text-center max-w-lg w-full">
             {/* Success Icon */}
             <div className="relative mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-200">
@@ -918,13 +996,152 @@ export default function ReportLostPet() {
 
   const minStep = 1; // Everyone starts at location now
   const stepLabels = isLoggedIn
-    ? ['Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Review']
-    : ['Location', 'Pet', 'Name', 'Details', 'When', 'Color', 'Photo', 'Contact', 'Review'];
+    ? (wantsTellMore ? ['Location', 'Pet Info', 'Photo', 'When', 'Color', 'Review'] : ['Location', 'Pet Info', 'Photo'])
+    : (wantsTellMore ? ['Location', 'Pet Info', 'Photo', 'Contact', 'When', 'Color', 'Review'] : ['Location', 'Pet Info', 'Photo', 'Contact']);
+
+  // Desktop sidebar context - changes per step
+  const sidebarData = {
+    1: { title: 'Pin the location', subtitle: 'Drag the map to mark exactly where your pet was last seen.', Icon: MapPin },
+    2: { title: 'Tell us about your pet', subtitle: 'The more detail you share, the easier it is for neighbors to identify them.', Icon: Heart },
+    3: { title: 'A picture is worth 1,000 flyers', subtitle: 'Upload a clear, recent photo so searchers know exactly who to look for.', Icon: Camera },
+    4: { title: 'Stay connected', subtitle: 'We\'ll use this info to notify you the moment someone spots your pet.', Icon: Mail },
+    5: { title: 'Timeline matters', subtitle: 'Knowing when your pet went missing helps us prioritize the search radius.', Icon: Clock },
+    6: { title: 'Color identification', subtitle: 'Accurate colors help volunteers and AI match sightings to your pet.', Icon: Search },
+    7: { title: 'Final review', subtitle: 'Double-check everything before we blast the alert to nearby volunteers.', Icon: Check },
+  };
+  const sidebar = sidebarData[step] || sidebarData[1];
 
   return (
-    <div className="h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50 flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0">
+    <div
+      className={isDesktop ? '' : 'min-h-[100dvh] bg-gradient-to-br from-orange-50 via-white to-red-50'}
+      style={isDesktop ? {
+        minHeight: '100dvh',
+        display: 'flex',
+        background: '#f8fafc',
+      } : undefined}
+    >
+
+    {/* Desktop Left Panel - contextual sidebar */}
+    {isDesktop && (
+      <div style={{
+        width: '360px',
+        minHeight: '100dvh',
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '40px 36px',
+        background: 'linear-gradient(180deg, #0f172a 0%, #1e293b 100%)',
+        color: 'white',
+        position: 'sticky',
+        top: 0,
+      }}>
+        {/* Nav links */}
+        <div style={{ marginBottom: '40px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'white', textDecoration: 'none' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#facc15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Search size={16} style={{ color: '#0f172a' }} />
+              </div>
+              <span style={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>ReunitePets</span>
+            </Link>
+            <Link href="/dashboard" aria-label="Close and return to dashboard" style={{ color: 'rgba(255,255,255,0.5)', display: 'flex' }}>
+              <X size={20} />
+            </Link>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Link href="/dashboard" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)' }}>Dashboard</Link>
+            <Link href="/pets" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)' }}>My Pets</Link>
+            <Link href="/hub" style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', textDecoration: 'none', padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)' }}>Hub</Link>
+          </div>
+        </div>
+
+        {/* Step indicator - vertical */}
+        <div style={{ marginBottom: '40px' }}>
+          {stepLabels.map((label, i) => {
+            const stepNum = i + 1;
+            const isActive = stepNum <= Math.min(step, totalSteps);
+            const isCurrent = stepNum === Math.min(step, totalSteps);
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: i < stepLabels.length - 1 ? '8px' : 0 }}>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.8rem', fontWeight: 600,
+                  background: isCurrent ? '#facc15' : isActive ? 'rgba(250,204,21,0.2)' : 'rgba(255,255,255,0.08)',
+                  color: isCurrent ? '#0f172a' : isActive ? '#facc15' : 'rgba(255,255,255,0.3)',
+                  transition: 'all 0.3s',
+                  boxShadow: isCurrent ? '0 0 20px rgba(250,204,21,0.3)' : 'none',
+                }}>
+                  {isActive && !isCurrent ? <Check size={14} /> : stepNum}
+                </div>
+                <span style={{
+                  fontSize: '0.9rem', fontWeight: isCurrent ? 600 : 400,
+                  color: isCurrent ? 'white' : isActive ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
+                  transition: 'all 0.3s',
+                }}>{label}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Contextual message */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#facc15', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <sidebar.Icon size={24} style={{ color: '#0f172a' }} />
+          </div>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 700, lineHeight: 1.3, marginBottom: '12px', letterSpacing: '-0.02em' }}>{sidebar.title}</h2>
+          <p style={{ fontSize: '1rem', lineHeight: 1.6, color: 'rgba(255,255,255,0.6)' }}>{sidebar.subtitle}</p>
+
+          {/* Show collected info as it builds */}
+          {(petName || photos.length > 0 || lastSeenAddress) && step > 2 && (
+            <div style={{ marginTop: '32px', padding: '20px', background: 'rgba(255,255,255,0.06)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', fontWeight: 600 }}>Building your report</p>
+              {petName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  {petType === 'dog' ? <Dog size={16} style={{ color: '#facc15', flexShrink: 0 }} /> :
+                   petType === 'cat' ? <Cat size={16} style={{ color: '#facc15', flexShrink: 0 }} /> :
+                   petType === 'bird' ? <Bird size={16} style={{ color: '#facc15', flexShrink: 0 }} /> :
+                   <Rabbit size={16} style={{ color: '#facc15', flexShrink: 0 }} />}
+                  <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.8)' }}>{petName}</span>
+                </div>
+              )}
+              {lastSeenAddress && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <MapPin size={16} style={{ color: '#facc15', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lastSeenAddress}</span>
+                </div>
+              )}
+              {photos.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Camera size={16} style={{ color: '#facc15', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>Photo uploaded</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom decorative */}
+        <div style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.8rem', marginTop: '24px' }}>
+          Every minute counts — let's bring them home.
+        </div>
+      </div>
+    )}
+
+    {/* Right panel (main form) */}
+    <div
+      className={isDesktop ? 'w-full flex flex-col' : 'w-full flex flex-col min-h-[100dvh]'}
+      style={isDesktop ? {
+        flex: 1,
+        minHeight: '100dvh',
+        background: 'white',
+        overflow: 'hidden',
+      } : undefined}
+    >
+      {/* Header - mobile only shows dots, desktop shows minimal */}
+      <header className={`flex items-center justify-between px-4 pt-3 pb-2 flex-shrink-0 ${isDesktop ? '' : ''}`}
+        style={isDesktop ? { padding: '20px 40px 16px', borderBottom: '1px solid #f1f5f9' } : undefined}
+      >
         <div className="w-16">
           {step > minStep ? (
             <button
@@ -934,44 +1151,56 @@ export default function ReportLostPet() {
               <ChevronLeft size={20} />
               <span className="text-sm font-medium">Back</span>
             </button>
-          ) : (
-            <Link href="/dashboard" className="flex items-center gap-1 text-gray-600 hover:text-gray-900">
+          ) : !isDesktop ? (
+            <Link href="/dashboard" aria-label="Close and return to dashboard" className="flex items-center gap-1 text-gray-600 hover:text-gray-900">
               <X size={20} />
             </Link>
-          )}
+          ) : <div />}
         </div>
 
-        <div className="flex-1 mx-2">
-          <div className="flex justify-center gap-1">
-            {Array.from({ length: totalSteps }, (_, i) => {
-              let stepNum = i + 1;
-              if (isLoggedIn && i >= 7) stepNum = i + 2;
-              const isActive = stepNum <= step;
-              const isCurrent = stepNum === step;
-              return (
-                <div
-                  key={i}
-                  className={`h-1 rounded-full transition-all duration-300 ${
-                    isCurrent ? 'w-6 bg-gradient-to-r from-orange-400 to-red-500' :
-                    isActive ? 'w-3 bg-orange-300' : 'w-3 bg-gray-200'
-                  }`}
-                />
-              );
-            })}
+        {/* Progress dots - mobile only */}
+        {!isDesktop && (
+          <div className="flex-1 mx-2">
+            <div className="flex justify-center gap-1">
+              {Array.from({ length: totalSteps }, (_, i) => {
+                const isActive = i < totalSteps && (i + 1) <= Math.min(step, totalSteps);
+                const isCurrent = (i + 1) === Math.min(step, totalSteps);
+                return (
+                  <div
+                    key={i}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      isCurrent ? 'w-6 bg-gradient-to-r from-orange-400 to-red-500' :
+                      isActive ? 'w-3 bg-orange-300' : 'w-3 bg-gray-200'
+                    }`}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Desktop: step label */}
+        {isDesktop && (
+          <div style={{ flex: 1, textAlign: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
+              Step {Math.min(step, totalSteps)} of {totalSteps}
+            </span>
+          </div>
+        )}
 
         <div className="w-16" />
       </header>
 
       {/* Content - scrollable with room for footer */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto"
+        style={isDesktop ? { padding: '0' } : undefined}
+      >
 
-        {/* Step 8: Contact Info (non-logged-in users) - moved to end for better engagement */}
-        {step === 8 && !isLoggedIn && (
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
+        {/* Step 4: Contact Info (non-logged-in users) */}
+        {step === 4 && !isLoggedIn && (
+          <div className="flex-1 px-6 lg:px-8 py-4 lg:py-8 overflow-y-auto">
             <div className="mb-4">
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">Almost done!</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Almost done!</h1>
               <p className="text-gray-500 text-sm">How can volunteers reach you about {petName}?</p>
             </div>
 
@@ -1096,11 +1325,11 @@ export default function ReportLostPet() {
         {/* Step 1: Location */}
         {step === 1 && (
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-3 relative z-30">
-              <h1 className="text-xl font-bold text-gray-900 mb-1">Where was {petName || 'your pet'} last seen?</h1>
+            <div className="px-6 lg:px-8 py-3 lg:py-6 relative z-30">
+              <h1 className="text-xl font-bold text-gray-900 mb-1" style={isDesktop ? { fontSize: '1.75rem', marginBottom: '4px' } : undefined}>Where was {petName || 'your pet'} last seen?</h1>
 
               {/* Address Search */}
-              <div className="relative mt-2">
+              <div className="relative mt-2" style={isDesktop ? { maxWidth: '600px' } : undefined}>
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
@@ -1116,7 +1345,7 @@ export default function ReportLostPet() {
                   <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
                 )}
 
-                {/* Search Results Dropdown - Apple Maps autocomplete */}
+                {/* Search Results Dropdown */}
                 {searchResults.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto">
                     {searchResults.map((result, idx) => (
@@ -1134,9 +1363,12 @@ export default function ReportLostPet() {
               </div>
             </div>
 
-            <div className="flex-1 relative z-10 mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100 min-h-[300px]">
-              {isGettingLocation ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+            <div className="flex-1 relative z-10 mx-4 mb-2 rounded-2xl overflow-hidden shadow-lg border border-gray-100" style={isDesktop ? { minHeight: '500px', margin: '0 40px 16px', borderRadius: '16px' } : { minHeight: '250px' }}>
+              {/* Always render map div so Leaflet can initialize reliably */}
+              <div ref={mapRef} className="absolute inset-0" />
+              {/* Overlay loading/fallback states on top of map */}
+              {isGettingLocation && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
                   <div className="text-center">
                     <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
                       <Navigation size={28} className="text-blue-500 animate-pulse" />
@@ -1144,8 +1376,9 @@ export default function ReportLostPet() {
                     <p className="text-gray-600 font-medium">Finding your location...</p>
                   </div>
                 </div>
-              ) : !center ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
+              )}
+              {!isGettingLocation && !center && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-orange-50 to-red-50">
                   <div className="text-center px-6">
                     <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-3">
                       <MapPin size={28} className="text-orange-500" />
@@ -1154,8 +1387,6 @@ export default function ReportLostPet() {
                     <p className="text-gray-500 text-sm">Type an address or city in the search box above</p>
                   </div>
                 </div>
-              ) : (
-                <div ref={mapRef} className="absolute inset-0" />
               )}
             </div>
 
@@ -1189,24 +1420,25 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 2: Select Pet */}
+        {/* Step 2: Pet Info (type + name + details) */}
         {step === 2 && (
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center mb-3 shadow-lg shadow-purple-200">
-              <Heart size={24} className="text-white" />
+          <div className="flex-1 px-6 lg:px-8 py-4 lg:py-8 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-flash-400 flex items-center justify-center mb-3 shadow-lg shadow-flash-200">
+              <Heart size={24} className="text-midnight-900" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Who went missing?</h1>
-            <p className="text-gray-500 mb-6">Select your pet or tell us about them</p>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Who went missing?</h1>
+            <p className="text-gray-500 mb-4">Tell us about your pet</p>
 
+            {/* Existing pets (if logged in) */}
             {myPets.length > 0 && (
-              <div className="mb-8">
+              <div className="mb-6">
                 <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Pets</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                   {myPets.map(pet => (
                     <button
                       key={pet.id}
                       onClick={() => handleSelectPet(pet)}
-                      className="p-4 bg-white border-2 border-gray-100 rounded-2xl text-left hover:border-purple-300 hover:shadow-lg transition-all group"
+                      className="p-4 bg-white border-2 border-gray-100 rounded-2xl text-left hover:border-flash-400 hover:shadow-lg transition-all group"
                     >
                       <div className="w-16 h-16 rounded-xl bg-gray-100 mb-3 overflow-hidden group-hover:scale-105 transition-transform">
                         {pet.primaryPhotoUrl ? (
@@ -1227,114 +1459,77 @@ export default function ReportLostPet() {
               </div>
             )}
 
-            <div>
+            {/* Pet Type */}
+            <div className="mb-5">
               <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 {myPets.length > 0 ? 'Or Add New' : 'Pet Type'}
               </p>
               <div className="grid grid-cols-4 gap-2">
-                {PET_TYPES.map(pet => {
-                  return (
-                    <button
-                      key={pet.type}
-                      onClick={() => handleSelectPetType(pet.type)}
-                      className="py-4 px-2 bg-white border-2 border-gray-100 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all text-center group"
-                    >
-                      <span className="text-3xl block mb-1 group-hover:scale-110 transition-transform">{pet.emoji}</span>
-                      <span className="text-sm font-medium text-gray-700">{pet.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Pet Name */}
-        {step === 3 && (
-          <div className="flex-1 px-6 py-4 flex flex-col overflow-y-auto">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-200 flex-shrink-0">
-                <span className="text-xl">{PET_TYPES.find(p => p.type === petType)?.emoji || '🐾'}</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">What's their name?</h1>
-                <p className="text-sm text-gray-500">This helps identify your pet</p>
+                {PET_TYPES.map(pet => (
+                  <button
+                    key={pet.type}
+                    onClick={() => handleSelectPetType(pet.type)}
+                    className={`py-3 px-2 border-2 rounded-2xl text-center group transition-all ${
+                      petType === pet.type
+                        ? 'border-flash-400 bg-flash-50 shadow-lg shadow-flash-100'
+                        : 'bg-white border-gray-100 hover:border-flash-300 hover:shadow-lg'
+                    }`}
+                  >
+                    <pet.icon size={24} className={`mx-auto mb-1 group-hover:scale-110 transition-transform ${petType === pet.type ? 'text-midnight-800' : 'text-gray-500'}`} />
+                    <span className={`text-xs font-medium ${petType === pet.type ? 'text-midnight-800' : 'text-gray-700'}`}>{pet.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <input
-              type="text"
-              value={petName}
-              onChange={(e) => setPetName(e.target.value)}
-              onFocus={(e) => {
-                // Scroll input into view on mobile when keyboard opens
-                setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
-              }}
-              placeholder="Enter name..."
-              className="w-full text-base sm:text-2xl font-medium px-4 py-4 border-2 border-gray-200 rounded-xl focus:border-pink-400 outline-none bg-white placeholder:text-gray-300 transition-colors"
-              autoFocus
-            />
-            <p className="text-sm text-gray-400 mt-2">e.g., Max, Bella, Charlie</p>
+            {/* Pet Name - shown after type is selected */}
+            {petType && (
+              <div className="mb-5">
+                <label className="block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Pet Name</label>
+                <input
+                  type="text"
+                  value={petName}
+                  onChange={(e) => setPetName(e.target.value)}
+                  onFocus={(e) => {
+                    setTimeout(() => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+                  }}
+                  placeholder="e.g., Max, Bella, Charlie"
+                  className="w-full lg:max-w-lg text-lg font-medium px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-flash-400 outline-none bg-white placeholder:text-gray-300 transition-colors"
+                  autoFocus
+                />
+              </div>
+            )}
 
-            {/* Spacer for keyboard */}
-            <div className="flex-1 min-h-[200px]" />
-          </div>
-        )}
-
-        {/* Step 4: Pet Details (Size for dogs, Indoor/Outdoor for cats) */}
-        {step === 4 && (
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
-            {petType === 'dog' && (
-              <>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-200 flex-shrink-0">
-                    <Dog size={24} className="text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-xl font-bold text-gray-900">How big is {petName}?</h1>
-                    <p className="text-sm text-gray-500">This helps with search planning</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
+            {/* Dog Size - shown after name is entered */}
+            {petType === 'dog' && petName.trim() && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Size</label>
+                <div className="grid grid-cols-5 gap-2">
                   {DOG_SIZE_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => { setPetSize(opt.value); setStep(5); }}
-                      className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
+                      onClick={() => { setPetSize(opt.value); setTimeout(() => setStep(3), 300); }}
+                      className={`p-3 rounded-xl border-2 text-center transition-all ${
                         petSize === opt.value
-                          ? 'border-orange-400 bg-orange-50 shadow-lg shadow-orange-100'
-                          : 'border-gray-100 bg-white hover:border-orange-200 hover:shadow-md'
+                          ? 'border-orange-400 bg-orange-50 shadow-md'
+                          : 'border-gray-100 bg-white hover:border-orange-200'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className={`font-semibold text-lg ${petSize === opt.value ? 'text-orange-600' : 'text-gray-900'}`}>
-                            {opt.label}
-                          </p>
-                          <p className="text-sm text-gray-500">{opt.sublabel}</p>
-                        </div>
-                        <p className="text-xs text-gray-400">{opt.example}</p>
-                      </div>
+                      <p className={`font-semibold text-sm ${petSize === opt.value ? 'text-orange-600' : 'text-gray-900'}`}>
+                        {opt.label}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">{opt.sublabel}</p>
                     </button>
                   ))}
                 </div>
-              </>
+              </div>
             )}
 
-            {petType === 'cat' && (
-              <>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-200 flex-shrink-0">
-                    <Cat size={24} className="text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-xl font-bold text-gray-900">Is {petName} an indoor cat?</h1>
-                    <p className="text-sm text-gray-500">This affects where they may have gone</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
+            {/* Cat Indoor/Outdoor - shown after name is entered */}
+            {petType === 'cat' && petName.trim() && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Living Situation</label>
+                <div className="grid grid-cols-2 gap-3">
                   {CAT_LIVING_OPTIONS.map(opt => {
                     const Icon = opt.icon;
                     const isSelected = (opt.value === 'indoor' && isIndoorCat === true) ||
@@ -1342,45 +1537,41 @@ export default function ReportLostPet() {
                     return (
                       <button
                         key={opt.value}
-                        onClick={() => { setIsIndoorCat(opt.value === 'indoor'); setStep(5); }}
-                        className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
+                        onClick={() => { setIsIndoorCat(opt.value === 'indoor'); setTimeout(() => setStep(3), 300); }}
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${
                           isSelected
-                            ? 'border-purple-400 bg-purple-50 shadow-lg shadow-purple-100'
-                            : 'border-gray-100 bg-white hover:border-purple-200 hover:shadow-md'
+                            ? 'border-flash-400 bg-flash-50 shadow-md'
+                            : 'border-gray-100 bg-white hover:border-flash-300'
                         }`}
                       >
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                            isSelected ? 'bg-purple-100' : 'bg-gray-100'
-                          }`}>
-                            <Icon size={24} className={isSelected ? 'text-purple-600' : 'text-gray-500'} />
-                          </div>
+                        <div className="flex items-center gap-3">
+                          <Icon size={20} className={isSelected ? 'text-midnight-800' : 'text-gray-500'} />
                           <div>
-                            <p className={`font-semibold text-lg ${isSelected ? 'text-purple-600' : 'text-gray-900'}`}>
+                            <p className={`font-semibold text-sm ${isSelected ? 'text-midnight-800' : 'text-gray-900'}`}>
                               {opt.label}
                             </p>
-                            <p className="text-sm text-gray-500">{opt.sublabel}</p>
+                            <p className="text-xs text-gray-500">{opt.sublabel}</p>
                           </div>
                         </div>
                       </button>
                     );
                   })}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
 
-        {/* Step 5: When */}
+        {/* Step 5: When (optional - tell us more) */}
         {step === 5 && (
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mb-3 shadow-lg shadow-amber-200">
-              <Clock size={24} className="text-white" />
+          <div className="flex-1 px-6 lg:px-8 py-4 lg:py-8 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-flash-400 flex items-center justify-center mb-3 shadow-lg shadow-flash-200">
+              <Clock size={24} className="text-midnight-900" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">When did {petName} go missing?</h1>
-            <p className="text-gray-500 mb-6">This helps prioritize the search</p>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">When did {petName} go missing?</h1>
+            <p className="text-gray-500 lg:text-base mb-6">This helps prioritize the search</p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
               {TIME_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
@@ -1406,9 +1597,9 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 6: Color */}
+        {/* Step 6: Color (optional - tell us more) */}
         {step === 6 && (
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
+          <div className="flex-1 px-6 lg:px-8 py-4 lg:py-8 overflow-y-auto">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-200 flex-shrink-0">
                 <div className="grid grid-cols-2 gap-0.5">
@@ -1419,8 +1610,8 @@ export default function ReportLostPet() {
                 </div>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">What color is {petName}?</h1>
-                <p className="text-sm text-gray-500">Select one or more colors</p>
+                <h1 className="text-xl lg:text-2xl font-bold text-gray-900">What color is {petName}?</h1>
+                <p className="text-sm lg:text-base text-gray-500">Select one or more colors</p>
               </div>
             </div>
 
@@ -1431,75 +1622,171 @@ export default function ReportLostPet() {
           </div>
         )}
 
-        {/* Step 7: Photo */}
-        {step === 7 && (
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center mb-3 shadow-lg shadow-sky-200">
-              <Camera size={24} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Add a photo</h1>
-            <p className="text-gray-500 mb-6">A clear photo helps others spot {petName}</p>
-
-            {photos.length > 0 ? (
-              <div className="relative rounded-3xl overflow-hidden shadow-lg">
-                <img src={photos[0]} alt="Pet" className="w-full aspect-square object-cover" />
-                <button
-                  onClick={() => setPhotos([])}
-                  className="absolute top-3 right-3 w-10 h-10 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-black/60 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-                <div className="absolute bottom-3 left-3 px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-full flex items-center gap-1.5">
-                  <Check size={14} /> Photo added
-                </div>
+        {/* Step 3: Photo */}
+        {step === 3 && (
+          <div className="flex-1 px-6 py-4 overflow-y-auto flex flex-col items-center"
+            style={isDesktop ? { padding: '32px 40px' } : undefined}
+          >
+            <div className="w-full" style={isDesktop ? { maxWidth: '700px' } : { maxWidth: '500px' }}>
+              <div className="w-14 h-14 rounded-2xl bg-flash-400 flex items-center justify-center mb-3 shadow-lg shadow-flash-200">
+                <Camera size={24} className="text-midnight-900" />
               </div>
-            ) : (
-              <label className="block aspect-square bg-white border-2 border-dashed border-gray-200 rounded-3xl cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-all group">
-                <div className="h-full flex flex-col items-center justify-center">
-                  {uploadingPhoto ? (
-                    <div className="text-center">
-                      <Loader2 size={40} className="text-blue-500 animate-spin mx-auto mb-3" />
-                      <p className="text-gray-500">Uploading...</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <Camera size={32} className="text-blue-500" />
-                      </div>
-                      <p className="text-gray-900 font-medium text-lg">Tap to add photo</p>
-                      <p className="text-gray-500 text-sm mt-1">or drag & drop</p>
-                    </>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                  disabled={uploadingPhoto}
-                />
-              </label>
-            )}
+              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Add photos of {petName}</h1>
+              <p className="text-gray-500 lg:text-base mb-6">At least one photo is required. The display photo will be shown on the alert.</p>
 
-            <button
-              onClick={() => setStep(8)}
-              className="mt-6 w-full py-3 text-gray-500 text-sm hover:text-gray-700 transition-colors"
-            >
-              Skip for now — you can add later
-            </button>
+              {photos.length === 0 ? (
+                /* No photos yet - single large upload area */
+                <label className="block aspect-[4/3] bg-white border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:border-flash-400 hover:bg-flash-50/30 transition-all group"
+                  style={isDesktop ? { maxWidth: '500px' } : undefined}
+                >
+                  <div className="h-full flex flex-col items-center justify-center">
+                    {uploadingPhoto ? (
+                      <div className="text-center">
+                        <Loader2 size={40} className="text-flash-500 animate-spin mx-auto mb-3" />
+                        <p className="text-gray-500">Uploading...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-20 h-20 rounded-full bg-flash-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                          <Camera size={32} className="text-flash-600" />
+                        </div>
+                        <p className="text-gray-900 font-medium text-lg">Click to add photos</p>
+                        <p className="text-gray-500 text-sm mt-1">or drag and drop</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    disabled={uploadingPhoto}
+                  />
+                </label>
+              ) : (
+                /* Has photos - show display + thumbnails + add more */
+                <>
+                  {/* Display photo - large */}
+                  <div className="relative rounded-2xl overflow-hidden shadow-lg mb-4" style={isDesktop ? { maxWidth: '500px' } : undefined}>
+                    <img src={photos[displayPhotoIndex] || photos[0]} alt="Display photo" className="w-full aspect-[4/3] object-cover" />
+                    <div className="absolute top-3 left-3 px-3 py-1.5 bg-flash-400 text-midnight-900 text-xs font-semibold rounded-full flex items-center gap-1.5">
+                      <Check size={12} /> Display photo
+                    </div>
+                  </div>
+
+                  {/* Thumbnails + add more */}
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {photos.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <button
+                          onClick={() => setAsDisplay(i)}
+                          className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                            i === displayPhotoIndex ? 'border-flash-400 shadow-md' : 'border-gray-200 hover:border-gray-400'
+                          }`}
+                        >
+                          <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                        {i === displayPhotoIndex && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-flash-400 rounded-full flex items-center justify-center">
+                            <Check size={10} className="text-midnight-900" />
+                          </div>
+                        )}
+                        <button
+                          onClick={() => removePhoto(i)}
+                          className="absolute -top-2 -left-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Add more */}
+                    <label className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-flash-400 hover:bg-flash-50 transition-all">
+                      {uploadingPhoto ? (
+                        <Loader2 size={20} className="text-gray-400 animate-spin" />
+                      ) : (
+                        <>
+                          <Camera size={18} className="text-gray-400" />
+                          <span className="text-xs text-gray-400 mt-1">Add</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                        disabled={uploadingPhoto}
+                      />
+                    </label>
+                  </div>
+
+                  {photos.length > 1 && (
+                    <p className="text-sm text-gray-500 mb-2">Click a thumbnail to set it as the display photo.</p>
+                  )}
+                </>
+              )}
+
+              {/* AI Analysis indicator */}
+              {analyzingPhoto && (
+                <div className="flex items-center gap-2 mt-4 p-3 bg-flash-50 border border-flash-200 rounded-xl">
+                  <Loader2 size={16} className="text-flash-600 animate-spin" />
+                  <span className="text-sm text-midnight-700">Detecting species and colors...</span>
+                </div>
+              )}
+              {aiAnalysis && !analyzingPhoto && (
+                <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">AI Detection — edit if incorrect</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Species</label>
+                      <div className="flex gap-2">
+                        {PET_TYPES.map(pt => (
+                          <button
+                            key={pt.type}
+                            onClick={() => setPetType(pt.type)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                              petType === pt.type
+                                ? 'border-flash-400 bg-flash-50 text-midnight-800'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            <pt.icon size={14} className="inline mr-1" />
+                            {pt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Colors</label>
+                      <input
+                        type="text"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-flash-400 outline-none"
+                        placeholder="e.g. brown, tan"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-4 text-sm text-gray-400">At least one photo is required to help identify your pet</p>
+            </div>
           </div>
         )}
 
-        {/* Step 9: Confirm */}
-        {step === 9 && (
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center mb-3 shadow-lg shadow-violet-200">
-              <Sparkles size={24} className="text-white" />
+        {/* Step 7: Confirm (only shown for "tell us more" path) */}
+        {step === 7 && (
+          <div className="flex-1 px-6 lg:px-8 py-4 lg:py-8 overflow-y-auto">
+            <div className="w-14 h-14 rounded-2xl bg-flash-400 flex items-center justify-center mb-3 shadow-lg shadow-flash-200">
+              <Sparkles size={24} className="text-midnight-900" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Ready to send alert?</h1>
-            <p className="text-gray-500 mb-6">Review the details below</p>
+            <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">Ready to send alert?</h1>
+            <p className="text-gray-500 lg:text-base mb-6">Review the details below</p>
 
-            <div className="space-y-3">
+            <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
               {/* Location */}
               <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -1513,11 +1800,11 @@ export default function ReportLostPet() {
 
               {/* Pet */}
               <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="w-12 h-12 rounded-xl overflow-hidden bg-purple-100 flex items-center justify-center flex-shrink-0">
-                  {photos[0] ? (
-                    <img src={photos[0]} alt="" className="w-full h-full object-cover" />
+                <div className="w-12 h-12 rounded-xl overflow-hidden bg-flash-100 flex items-center justify-center flex-shrink-0">
+                  {photos.length > 0 ? (
+                    <img src={photos[displayPhotoIndex] || photos[0]} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-2xl">{PET_TYPES.find(p => p.type === petType)?.emoji}</span>
+                    <span className="text-midnight-600">{petType === 'dog' ? <Dog size={24} /> : petType === 'cat' ? <Cat size={24} /> : petType === 'bird' ? <Bird size={24} /> : <Rabbit size={24} />}</span>
                   )}
                 </div>
                 <div className="flex-1">
@@ -1573,54 +1860,67 @@ export default function ReportLostPet() {
       </div>
 
       {/* Footer with navigation - fixed at bottom */}
-      {step >= minStep && step < 10 && (
-        <div className="flex-shrink-0 px-4 sm:px-6 pb-4 pt-3 bg-white border-t border-gray-100" style={{ paddingBottom: 'max(1rem, calc(env(safe-area-inset-bottom, 0px) + 16px))' }}>
-          <div className="flex gap-3">
-            {/* Back button */}
-            {step > minStep && (
-              <button
-                onClick={prevStep}
-                className="px-5 py-3 rounded-2xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all flex items-center gap-1"
-              >
-                <ChevronLeft size={18} />
-                Back
-              </button>
-            )}
-
-            {/* Continue/Submit button */}
-            <button
-              onClick={nextStep}
-              disabled={!canProceed() || isSubmitting}
-              className={`flex-1 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all ${
-                canProceed() && !isSubmitting
-                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-200 hover:shadow-xl active:scale-[0.98]'
-                  : 'bg-gray-200 text-gray-400'
-              }`}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={18} className="animate-spin" />
-                  <span>Creating alert...</span>
-                </>
-              ) : step === 9 ? (
-                <>
-                  <Sparkles size={18} />
-                  <span>Send Alert</span>
-                </>
-              ) : (
-                <>
-                  <span>Continue</span>
-                  <ChevronRight size={18} />
-                </>
+      {step >= minStep && step < 8 && (
+        <div className="flex-shrink-0 px-4 sm:px-6 pb-4 pt-3 bg-white border-t border-gray-100"
+          style={isDesktop ? { padding: '16px 40px 24px' } : { paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+        >
+          {/* Fork point - show Submit Now + Add More Details */}
+          {step === forkStep && canProceed() ? (
+            <div>
+              <p className="text-sm text-gray-500 text-center mb-3">We have everything we need to send the alert.</p>
+              <div className="flex gap-3">
+                {step > minStep && (
+                  <button onClick={prevStep} className="px-5 py-3 rounded-2xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all flex items-center gap-1">
+                    <ChevronLeft size={18} /> Back
+                  </button>
+                )}
+                <button
+                  onClick={() => { setWantsTellMore(false); handleSubmit(); }}
+                  disabled={isSubmitting}
+                  className="flex-1 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-lg shadow-flash-200 hover:shadow-xl active:scale-[0.98]"
+                >
+                  {isSubmitting ? <><Loader2 size={18} className="animate-spin" /> Creating alert...</> : <><Sparkles size={18} /> Submit Now</>}
+                </button>
+                <button
+                  onClick={() => { setWantsTellMore(true); setStep(5); }}
+                  className="px-5 py-3 rounded-2xl font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all flex items-center gap-1"
+                >
+                  Add Details <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              {step > minStep && (
+                <button onClick={prevStep} className="px-5 py-3 rounded-2xl font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all flex items-center gap-1">
+                  <ChevronLeft size={18} /> Back
+                </button>
               )}
-            </button>
-          </div>
+              <button
+                onClick={step === 7 ? handleSubmit : nextStep}
+                disabled={!canProceed() || isSubmitting}
+                className={`flex-1 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 transition-all ${
+                  canProceed() && !isSubmitting
+                    ? step === 7
+                      ? 'bg-gradient-to-r from-flash-400 to-flash-500 text-midnight-900 shadow-lg shadow-flash-200 hover:shadow-xl active:scale-[0.98]'
+                      : 'bg-midnight-900 text-white shadow-lg hover:bg-midnight-800 active:scale-[0.98]'
+                    : 'bg-gray-200 text-gray-400'
+                }`}
+              >
+                {isSubmitting ? (
+                  <><Loader2 size={18} className="animate-spin" /> Creating alert...</>
+                ) : step === 7 ? (
+                  <><Sparkles size={18} /> Send Alert</>
+                ) : (
+                  <>Continue <ChevronRight size={18} /></>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      <style jsx global>{`
-        .custom-marker { background: transparent; border: none; }
-      `}</style>
+    </div>
     </div>
   );
 }

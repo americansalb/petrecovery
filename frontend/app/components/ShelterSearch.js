@@ -250,6 +250,7 @@ export default function ShelterSearch({ defaultLocation = '', className = '' }) 
               Distance
             </label>
             <select
+              aria-label="Distance"
               value={filters.distance}
               onChange={(e) => handleFilterChange('distance', parseInt(e.target.value))}
               className="w-full px-4 py-3 border border-midnight-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400 text-midnight-900"

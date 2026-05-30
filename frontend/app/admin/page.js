@@ -157,7 +157,7 @@ export default function AdminDashboard() {
           <AdminCard
             title="Reports"
             description="Review flagged content and user reports"
-            href="/admin/reports"
+            href="/admin/report-log"
             icon="🚩"
           />
           <AdminCard

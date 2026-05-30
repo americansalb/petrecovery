@@ -38,7 +38,7 @@ export async function GET(request) {
         sightings: true,
         _count: {
           select: {
-            squadAssignments: true,
+            assignments: true,
           },
         },
       },
@@ -58,7 +58,7 @@ export async function GET(request) {
       hasMicrochip: missionData.hasMicrochip,
       hasCollar: missionData.hasCollar,
       sightingsCount: missionData.sightings?.length || 0,
-      activeSearchers: missionData._count?.squadAssignments || 0,
+      activeSearchers: missionData._count?.assignments || 0,
       hasReward: missionData.rewardAmount > 0,
       isUrban: missionData.isUrban ?? true,
       checkedShelters: missionData.checkedShelters,

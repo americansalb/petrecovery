@@ -197,9 +197,9 @@ export default function AccountsSettingsPage() {
         {/* Help section */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500">
-            Need help?{' '}
-            <a href="/help/accounts" className="text-blue-600 hover:underline">
-              Learn more about connected accounts
+            Need help with connected accounts?{' '}
+            <a href="/contact" className="text-midnight-700 font-medium hover:text-flash-600 hover:underline">
+              Contact support
             </a>
           </p>
         </div>

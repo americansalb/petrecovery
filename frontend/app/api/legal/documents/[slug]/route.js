@@ -33,6 +33,8 @@ export async function GET(request, { params }) {
         content: true,
         summary: true,
         publishedAt: true,
+        isActive: true, // REQUIRED: checked below (line ~49). Without it the
+        // isActive guard reads undefined -> every document 404s as "inactive".
       }
     });
 

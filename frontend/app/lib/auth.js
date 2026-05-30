@@ -46,6 +46,22 @@ export const authOptions = {
           return null;
         }
 
+        // SEC-18 mitigation (defense-in-depth): the originally-seeded admin
+        // passwords are in git history. Block these accounts at the auth layer —
+        // regardless of password — until the live DB hashes are rotated. Covers
+        // BOTH seeded admins: contact@aalb.org (pw "winner") and
+        // sarama@petrecovery.app (seeded ADMIN by the SEC-16 seed-welcome route).
+        // Block-by-default (protects even with zero config); clear by setting
+        // SEC18_ROTATED=true AFTER rotating the live passwords. Tradeoff: the legit
+        // admin stays locked until that env is set — the correct safe default
+        // (briefly lock the owner out > leave a known backdoor open). Owner
+        // DB-rotation remains the real fix. Note: credentials-path only; an OAuth
+        // login for these emails is a separate low-risk path (needs account control).
+        const SEC18_SEEDED_ADMINS = ['contact@aalb.org', 'sarama@petrecovery.app'];
+        if (SEC18_SEEDED_ADMINS.includes(user.email) && process.env.SEC18_ROTATED !== 'true') {
+          return null;
+        }
+
         // Verify password
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) {

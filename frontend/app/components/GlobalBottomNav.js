@@ -36,8 +36,8 @@ export default function GlobalBottomNav() {
               href={item.href}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                 isActive
-                  ? 'text-blue-600'
-                  : 'text-slate-400 hover:text-slate-600'
+                  ? 'text-midnight-900'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : ''}`} />

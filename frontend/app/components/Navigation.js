@@ -345,7 +345,7 @@ export default function Navigation() {
                 <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
                 <span className="font-bold text-lg">Reunite<span className="text-flash-400">Pets</span></span>
               </div>
-              <button onClick={() => setMobileMenuOpen(false)} className="p-1 rounded-lg hover:bg-midnight-800 transition">
+              <button onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" className="p-1 rounded-lg hover:bg-midnight-800 transition">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -358,7 +358,7 @@ export default function Navigation() {
             <Link
               href="/report/new"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex flex-col items-center gap-2 p-3 bg-red-600 text-white rounded-xl"
+              className="flex flex-col items-center gap-2 p-3 bg-red-700 text-white rounded-xl"
             >
               <Bell className="w-5 h-5" />
               <span className="text-xs font-semibold">Lost Pet</span>
@@ -366,7 +366,7 @@ export default function Navigation() {
             <Link
               href="/found"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex flex-col items-center gap-2 p-3 bg-green-600 text-white rounded-xl"
+              className="flex flex-col items-center gap-2 p-3 bg-green-700 text-white rounded-xl"
             >
               <CheckCircle className="w-5 h-5" />
               <span className="text-xs font-semibold">Found Pet</span>
@@ -377,7 +377,7 @@ export default function Navigation() {
         {/* Mobile Nav Links */}
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
           {/* Browse section - Always visible */}
-          <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+          <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
           </div>
           <MobileNavLink href="/database" icon={Database} label="Pet Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
@@ -385,7 +385,7 @@ export default function Navigation() {
           <MobileNavLink href="/rescue-squads/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-squads/search'} onClick={() => setMobileMenuOpen(false)} />
 
           <div className="border-t border-midnight-100 my-2" />
-          <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+          <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Community
           </div>
           <MobileNavLink href="/hub" icon={Sparkles} label="Rescue Hub" active={pathname.startsWith('/hub')} onClick={() => setMobileMenuOpen(false)} />
@@ -394,7 +394,7 @@ export default function Navigation() {
           {session && (
             <>
               <div className="border-t border-midnight-100 my-2" />
-              <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+              <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
                 My Account
               </div>
               <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
@@ -405,7 +405,7 @@ export default function Navigation() {
               {userSquads.length > 0 && (
                 <>
                   <div className="border-t border-midnight-100 my-2" />
-                  <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+                  <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
                     My Rescue Forces
                   </div>
                   {userSquads.slice(0, 5).map(squad => (
@@ -430,7 +430,7 @@ export default function Navigation() {
               {session?.user?.role === 'ADMIN' && (
                 <>
                   <div className="border-t border-midnight-100 my-2" />
-                  <div className="px-4 py-2 text-xs font-semibold text-midnight-400 uppercase tracking-wider">
+                  <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
                     Admin
                   </div>
                   <MobileNavLink href="/admin" icon={BarChart3} label="Admin Dashboard" active={pathname === '/admin'} onClick={() => setMobileMenuOpen(false)} />
