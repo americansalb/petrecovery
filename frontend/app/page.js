@@ -679,7 +679,7 @@ export default function Home() {
       </section>
 
       {/* Live Search Preview */}
-      <section className="py-16 bg-gradient-to-b from-amber-50/50 to-white relative overflow-hidden">
+      <section className="py-16 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1217,7 +1217,7 @@ export default function Home() {
 
       {/* Pets Needing Help */}
       {!loading && casesNeedingHelp.length > 0 && (
-        <section className="py-16 bg-gradient-to-b from-white to-amber-50">
+        <section className="py-16 bg-gradient-to-b from-white to-slate-50">
           <div className="max-w-6xl mx-auto px-4">
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -1316,17 +1316,27 @@ export default function Home() {
       </section>
 
       {/* Join CTA */}
-      <section className="py-20 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400">
-        <div className="max-w-4xl mx-auto px-4 text-center">
+      <section className="py-24 relative overflow-hidden bg-gradient-to-b from-[#0c1a30] via-midnight-900 to-[#0a1526]">
+        {/* Flashlight spotlight glow — bookends the hero */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[680px] h-[680px] bg-flash-400/15 rounded-full blur-[140px] pointer-events-none" />
+        <div className="absolute -bottom-32 right-0 w-[420px] h-[420px] bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none" />
+        <div
+          className="absolute inset-0 opacity-[0.4] pointer-events-none"
+          style={{ backgroundImage: 'radial-gradient(1.5px 1.5px at 20% 30%, rgba(255,255,255,0.4) 50%, transparent), radial-gradient(1.5px 1.5px at 70% 60%, rgba(255,255,255,0.3) 50%, transparent), radial-gradient(1px 1px at 45% 80%, rgba(250,204,21,0.4) 50%, transparent)' }}
+        />
+        <div className="max-w-4xl mx-auto px-4 text-center relative">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Be Part of the Search
+            <h2 className="text-3xl md:text-5xl font-black text-white mb-4 tracking-tight">
+              Be Part of the{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-300 via-flash-400 to-amber-300 drop-shadow-[0_0_24px_rgba(250,204,21,0.35)]">
+                Search
+              </span>
             </h2>
-            <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">
+            <p className="text-midnight-200 text-lg mb-8 max-w-2xl mx-auto">
               Every reunion happens because someone chose to help. Join thousands who make a difference.
             </p>
 
