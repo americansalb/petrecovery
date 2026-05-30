@@ -376,13 +376,13 @@ export default function RescueSquadSearchPage() {
           <p className="text-midnight-500">
             Enter a city name or postal code to find or create a rescue force
           </p>
-          <div className="mt-3 inline-flex items-center gap-2 text-sm text-midnight-400">
+          <div className="mt-3 inline-flex items-center gap-2 text-sm text-midnight-500">
             <span className="text-lg">🌎</span>
             <span>35+ countries supported</span>
             <button
               type="button"
               onClick={() => setShowCountriesModal(true)}
-              className="text-flash-600 hover:text-flash-700 underline"
+              className="text-midnight-700 hover:text-flash-600 underline font-medium"
             >
               See list
             </button>
@@ -470,6 +470,7 @@ export default function RescueSquadSearchPage() {
                   Radius
                 </label>
                 <select
+                  aria-label="Search radius"
                   value={radius}
                   onChange={(e) => setRadius(Number(e.target.value))}
                   className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none"
