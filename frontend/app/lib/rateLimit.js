@@ -91,17 +91,32 @@ export const RateLimitPresets = {
 };
 
 /**
- * Get client IP from request headers
+ * Get client IP from request headers.
+ *
+ * SECURITY: the leftmost x-forwarded-for entry is fully client-controlled and
+ * spoofable, so an attacker can mint a fresh rate-limit bucket per request.
+ * In production set RATELIMIT_TRUSTED_IP_HEADER to the header your edge/proxy
+ * injects with the real client IP (e.g. 'x-real-ip', 'cf-connecting-ip',
+ * 'true-client-ip') — that value can't be forged past a trusted proxy.
+ * The leftmost-XFF path remains only as a last-resort fallback for local/dev.
  */
 function getClientIP(request) {
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
+  const trustedHeader = process.env.RATELIMIT_TRUSTED_IP_HEADER;
+  if (trustedHeader) {
+    const trusted = request.headers.get(trustedHeader.toLowerCase());
+    if (trusted) {
+      return trusted.split(',')[0].trim();
+    }
   }
 
   const realIP = request.headers.get('x-real-ip');
   if (realIP) {
     return realIP;
+  }
+
+  const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
   }
 
   return 'unknown';
@@ -314,6 +329,80 @@ export function addRateLimitHeaders(response, result) {
  */
 export function withRateLimit(request, preset, keyPrefix) {
   return checkRateLimit(request, { ...preset, keyPrefix });
+}
+
+/**
+ * Global (NOT per-IP) rate limit / spend ceiling.
+ *
+ * Unlike checkRateLimitAsync, this keys on a fixed name shared across ALL callers,
+ * so it acts as a hard per-window ceiling — a circuit breaker for expensive
+ * downstream work (e.g. paid AI calls). It defends total cost even when the
+ * per-IP limit is evaded via IP rotation or a spoofed x-forwarded-for header.
+ * Uses Redis when available, in-memory fallback otherwise.
+ *
+ * Usage:
+ * ```
+ * const ceiling = await checkGlobalLimitAsync('ai:analyze-pet', { windowMs: 60000, maxRequests: 100, blockDurationMs: 60000 });
+ * if (!ceiling.success) return new Response('at capacity', { status: 503 });
+ * ```
+ */
+export async function checkGlobalLimitAsync(name, options) {
+  const {
+    windowMs = 60000,
+    maxRequests = 100,
+    blockDurationMs = 60000,
+  } = options;
+
+  const key = `global:${name}`;
+  const redis = await getRedisClient();
+
+  if (redis) {
+    // IMPORTANT: a cost/abuse ceiling must FAIL CLOSED. Unlike checkRateLimitRedis
+    // (which swallows Redis errors and returns success:true — fine for an
+    // availability limiter), here a Redis blip must NOT remove the cap. On any
+    // Redis error we degrade to the in-memory counter (a real per-instance cap),
+    // never allow-all.
+    try {
+      const windowSeconds = Math.ceil(windowMs / 1000);
+      const count = await redis.incr(key);
+      if (count === 1) {
+        await redis.expire(key, windowSeconds);
+      }
+      if (count > maxRequests) {
+        const ttl = await redis.ttl(key);
+        return {
+          success: false,
+          remaining: 0,
+          resetAt: Date.now() + (ttl > 0 ? ttl * 1000 : windowMs),
+          blocked: true,
+          retryAfter: ttl > 0 ? ttl : Math.ceil(windowMs / 1000),
+        };
+      }
+      const ttl = await redis.ttl(key);
+      return {
+        success: true,
+        remaining: maxRequests - count,
+        resetAt: Date.now() + (ttl > 0 ? ttl * 1000 : windowMs),
+        blocked: false,
+      };
+    } catch (err) {
+      // FAIL CLOSED, hard: a cost ceiling must reject when it can't verify the
+      // count. An in-memory fallback would silently become a PER-INSTANCE cap
+      // (aggregate N×ceiling across instances) — not the global guarantee. Since
+      // callers of a global cost ceiling are expected to degrade gracefully
+      // (e.g. analyze-pet is best-effort), rejecting here costs no critical UX.
+      console.error('Global limit Redis op error — failing closed (reject):', err.message);
+      return {
+        success: false,
+        remaining: 0,
+        resetAt: Date.now() + windowMs,
+        blocked: true,
+        retryAfter: Math.ceil(windowMs / 1000),
+      };
+    }
+  }
+
+  return checkRateLimitMemory(key, { windowMs, maxRequests, blockDurationMs });
 }
 
 /**

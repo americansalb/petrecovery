@@ -144,7 +144,7 @@ function MobileChatView({
   const [newMessage, setNewMessage] = useState('');
 
   const divisionName = selectedDivisionId === 'ALL'
-    ? 'Squad'
+    ? 'Rescue Force'
     : divisions.find(d => d.id === selectedDivisionId)?.name || 'Division';
 
   const handleSend = async () => {

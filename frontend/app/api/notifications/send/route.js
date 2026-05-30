@@ -8,6 +8,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import webpush from 'web-push';
+import { isAdmin, userHasCaseAuthority, userIsSquadLeader } from '@/app/lib/authz';
 
 // Configure web-push with VAPID keys
 // These should be in environment variables
@@ -48,6 +49,23 @@ export async function POST(request) {
       );
     }
 
+    // AUTHORIZATION: this endpoint can push to our trusted notification channel,
+    // so the caller must be authorized for the chosen target scope. Otherwise any
+    // logged-in user could phish every user via targetUserIds.
+    let authorized = false;
+    if (targetUserIds && targetUserIds.length > 0) {
+      // Arbitrary fan-out to specific users → platform admins only.
+      authorized = await isAdmin(session.user.id);
+    } else if (squadId) {
+      authorized = await userIsSquadLeader(session.user.id, squadId);
+    } else if (missionId) {
+      // mission routes use the caseId as the mission identifier.
+      authorized = await userHasCaseAuthority(session.user.id, missionId);
+    }
+    if (!authorized) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     // Build the where clause for finding subscriptions
     let whereClause = {};
 
@@ -55,8 +73,9 @@ export async function POST(request) {
       // Send to specific users
       whereClause.userId = { in: targetUserIds };
     } else if (squadId) {
-      // Send to all squad members
-      const members = await prisma.squadMembership.findMany({
+      // Send to all active squad members. (Model is RescueSquadMember — the
+      // previous prisma.squadMembership doesn't exist and 500'd this path.)
+      const members = await prisma.rescueSquadMember.findMany({
         where: {
           rescueSquadId: squadId,
           isActive: true,
@@ -66,33 +85,27 @@ export async function POST(request) {
       });
       whereClause.userId = { in: members.map(m => m.userId) };
     } else if (missionId) {
-      // Send to all active volunteers in a mission
-      const volunteers = await prisma.missionVolunteer.findMany({
-        where: {
-          missionControlId: missionId,
-          status: 'ACTIVE',
+      // missionId is the CASE id. Resolve the case's MissionControl (caseId is
+      // @unique) and notify its active volunteers via the activeVolunteers
+      // relation. (Previously queried missionVolunteer by missionControlId =
+      // caseId → always 0 rows; a second dead branch used a nonexistent
+      // `volunteers` relation. Consolidated + corrected here.)
+      const mission = await prisma.missionControl.findUnique({
+        where: { caseId: missionId },
+        include: {
+          activeVolunteers: {
+            where: { status: 'ACTIVE' },
+            select: { userId: true },
+          },
         },
-        select: { userId: true },
       });
-      const userIds = volunteers.map(v => v.userId).filter(Boolean);
+      const userIds = (mission?.activeVolunteers || [])
+        .map(v => v.userId)
+        .filter(Boolean);
       if (userIds.length === 0) {
         return NextResponse.json({ sent: 0, failed: 0 });
       }
       whereClause.userId = { in: userIds };
-    } else if (missionId) {
-      // Send to all users who have interacted with this case
-      // (volunteers, squad members assigned, etc.)
-      const mission = await prisma.missionControl.findFirst({
-        where: { caseId: missionId },
-        include: {
-          volunteers: { select: { userId: true } },
-        },
-      });
-
-      if (mission?.volunteers) {
-        const userIds = mission.volunteers.map(v => v.userId).filter(Boolean);
-        whereClause.userId = { in: userIds };
-      }
     }
 
     // Get subscriptions

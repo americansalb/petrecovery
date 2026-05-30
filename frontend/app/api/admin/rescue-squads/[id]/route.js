@@ -26,7 +26,7 @@ export async function DELETE(request, { params }) {
 
     if (!squad) {
       return NextResponse.json(
-        { error: 'Rescue squad not found' },
+        { error: 'Rescue force not found' },
         { status: 404 }
       );
     }
@@ -59,7 +59,7 @@ export async function DELETE(request, { params }) {
     });
 
     return NextResponse.json({
-      message: 'Rescue squad deleted successfully',
+      message: 'Rescue force deleted successfully',
       metadata: {
         membersAffected: squad._count.members,
         divisionsAffected: squad._count.divisions,
@@ -70,7 +70,7 @@ export async function DELETE(request, { params }) {
   } catch (error) {
     console.error('Error deleting rescue squad:', error);
     return NextResponse.json(
-      { error: 'Failed to delete rescue squad' },
+      { error: 'Failed to delete rescue force' },
       { status: 500 }
     );
   }

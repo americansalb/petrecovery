@@ -5,12 +5,20 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, develop]
+    branches: [pet_main, report-wizard-v2]
   pull_request:
-    branches: [main, develop]
+    branches: [pet_main]
 
 env:
   NODE_VERSION: '20'
+  # SAFETY: force a dummy DB URL for ALL jobs so postinstall (`prisma generate`)
+  # and any step can never reach the SHARED remote Render Postgres. A real
+  # DATABASE_URL here would let an accidental db op nuke live data on every CI
+  # run. Never set repo secrets to the shared DB for CI. (EA/dev msg 465/472.)
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy
+  # Dummy auth secret so `next build` (production mode) doesn't throw on a missing
+  # NEXTAUTH_SECRET while prerendering. CI-only placeholder, never a real secret.
+  NEXTAUTH_SECRET: ci-dummy-secret-not-for-production
 
 jobs:
   # Job 1: Lint and Type Check
@@ -63,9 +71,16 @@ jobs:
         working-directory: frontend
         run: npx prisma generate
 
-      - name: Run tests
+      # REAL merge gate (blocking): the FULL unit suite must pass. The legacy
+      # mockPrisma TDZ failures are repaired; the only excluded file is the
+      # pre-Jest logging.test.js (jest.config testPathIgnorePatterns — pending an
+      # async-aware rewrite). No coverage threshold here so the gate blocks on
+      # correctness/security regressions without flaking on the 20% target.
+      # --forceExit: rateLimit.js's cleanup setInterval lacks .unref() and would
+      # otherwise keep jest alive — flagged for a one-line .unref() fix.
+      - name: Run unit tests (required)
         working-directory: frontend
-        run: npm test || echo "Tests not configured"
+        run: npx jest --ci --forceExit
 
   # Job 3: Build
   build:
@@ -109,7 +124,7 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/pet_main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -154,7 +169,7 @@ jobs:
     name: Docker Build
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/pet_main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

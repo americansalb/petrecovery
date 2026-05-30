@@ -26,7 +26,7 @@ export async function GET(request, { params }) {
     });
 
     if (!membership) {
-      return NextResponse.json({ error: 'Not a squad member' }, { status: 403 });
+      return NextResponse.json({ error: 'Not a rescue force member' }, { status: 403 });
     }
 
     // Fetch tasks

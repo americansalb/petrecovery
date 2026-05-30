@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { isAdmin } from '@/app/lib/authz';
 
 const execAsync = promisify(exec);
 
@@ -16,12 +17,17 @@ export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    // Only allow authenticated users
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
+    }
+
+    // In-handler admin re-check (fresh role): this runs a shell command, so it
+    // must not rely on middleware or a possibly-stale JWT alone.
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     console.log('[PRISMA-GENERATE] Starting Prisma client generation...');
@@ -51,12 +57,7 @@ export async function POST(request) {
       console.error('[PRISMA-GENERATE] Execution error:', execError);
 
       return NextResponse.json(
-        {
-          error: 'Prisma generation failed',
-          details: execError.message,
-          stdout: execError.stdout,
-          stderr: execError.stderr,
-        },
+        { error: 'Prisma generation failed' },
         { status: 500 }
       );
     }
@@ -65,10 +66,7 @@ export async function POST(request) {
     console.error('[PRISMA-GENERATE] Error:', error);
 
     return NextResponse.json(
-      {
-        error: 'Failed to regenerate Prisma client',
-        details: error.message,
-      },
+      { error: 'Failed to regenerate Prisma client' },
       { status: 500 }
     );
   }

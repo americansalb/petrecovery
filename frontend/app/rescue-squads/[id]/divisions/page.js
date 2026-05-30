@@ -152,7 +152,7 @@ export default function DivisionsManagementPage() {
   };
 
   const handleDeleteDivision = async (divisionId) => {
-    if (!confirm('Are you sure you want to delete this division? Members will be moved to general squad membership.')) {
+    if (!confirm('Are you sure you want to delete this division? Members will be moved to general rescue force membership.')) {
       return;
     }
 

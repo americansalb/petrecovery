@@ -61,7 +61,7 @@ export async function GET(request, { params }) {
         metadata: { squad_id: params.id }
       });
       return NextResponse.json(
-        { error: 'Rescue squad not found' },
+        { error: 'Rescue force not found' },
         { status: 404 }
       );
     }
@@ -102,7 +102,7 @@ export async function GET(request, { params }) {
       }
     });
     return NextResponse.json(
-      { error: 'Failed to fetch rescue squad' },
+      { error: 'Failed to fetch rescue force' },
       { status: 500 }
     );
   }
@@ -131,7 +131,7 @@ export async function PATCH(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only founders and leaders can update squad settings' },
+        { error: 'Only founders and leaders can update rescue force settings' },
         { status: 403 }
       );
     }
@@ -209,7 +209,7 @@ export async function PATCH(request, { params }) {
   } catch (error) {
     console.error('Error updating squad:', error);
     return NextResponse.json(
-      { error: 'Failed to update squad settings' },
+      { error: 'Failed to update rescue force settings' },
       { status: 500 }
     );
   }

@@ -26,14 +26,14 @@ export async function getDashboardStats(dateRange = 30) {
     // Total cases all time
     prisma.case.count(),
 
-    // Active cases (LOST status)
+    // Active (open) cases — CaseStatus has no 'LOST'; open = not yet resolved.
     prisma.case.count({
-      where: { status: 'LOST' },
+      where: { status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
     }),
 
-    // Resolved cases (FOUND or REUNITED)
+    // Resolved cases — CaseStatus has no 'FOUND'; resolved = REUNITED or CLOSED_OTHER.
     prisma.case.count({
-      where: { status: { in: ['FOUND', 'REUNITED'] } },
+      where: { status: { in: ['REUNITED', 'CLOSED_OTHER'] } },
     }),
 
     // Total users
@@ -112,7 +112,7 @@ export async function getCasesByStatusOverTime(days = 30) {
     const dateKey = c.createdAt.toISOString().split('T')[0];
     if (groupedByDate[dateKey]) {
       groupedByDate[dateKey].created++;
-      if (['FOUND', 'REUNITED'].includes(c.status)) {
+      if (['REUNITED', 'CLOSED_OTHER'].includes(c.status)) {
         groupedByDate[dateKey].resolved++;
       }
     }
@@ -133,13 +133,13 @@ export async function getCasesByStatusOverTime(days = 30) {
  */
 export async function getCasesByPetType() {
   const cases = await prisma.case.groupBy({
-    by: ['petType'],
+    by: ['petSpecies'],
     _count: { id: true },
     orderBy: { _count: { id: 'desc' } },
   });
 
   return cases.map((c) => ({
-    type: c.petType || 'Unknown',
+    type: c.petSpecies || 'Unknown',
     count: c._count.id,
   }));
 }
@@ -293,7 +293,7 @@ export async function getEngagementMetrics(days = 30) {
 export async function getResolutionTimeMetrics() {
   const resolvedCases = await prisma.case.findMany({
     where: {
-      status: { in: ['FOUND', 'REUNITED'] },
+      status: { in: ['REUNITED', 'CLOSED_OTHER'] },
     },
     select: {
       createdAt: true,

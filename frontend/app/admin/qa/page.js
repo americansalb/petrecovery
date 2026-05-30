@@ -302,7 +302,7 @@ async function testBlockedSquadCreate() {
   } else if (res.status === 201) {
     // User has waiver, squad created successfully
     const { squad } = await res.json();
-    return { blocked: false, squad_id: squad.id, note: 'User has waiver, squad created successfully' };
+    return { blocked: false, squad_id: squad.id, note: 'User has waiver, force created successfully' };
   } else {
     const errorData = await res.json();
     throw new Error(`Unexpected status ${res.status}: ${errorData.error || 'Unknown error'}`);
@@ -346,7 +346,7 @@ async function testCreateSquad() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      city: `[TEST] QA Squad ${Date.now()}`,
+      city: `[TEST] QA Force ${Date.now()}`,
       state: 'TX',
       zipCode: '78701'
     })
@@ -379,7 +379,7 @@ async function testJoinSquad() {
 
   const testCity = cities.find(c => c.exists && c.squad);
   if (!testCity) {
-    throw new Error('No test squad found - run Create Squad test first');
+    throw new Error('No test rescue force found - run Create Rescue Force test first');
   }
 
   const res = await fetch(`/api/rescue-squads/${testCity.squad.id}/join`, {
@@ -407,7 +407,7 @@ async function testLeaveSquad() {
 
   const memberSquad = cities.find(c => c.exists && c.squad && c.squad.isMember);
   if (!memberSquad) {
-    throw new Error('Not a member of any test squad - run Join Squad test first');
+    throw new Error('Not a member of any test rescue force - run Join Rescue Force test first');
   }
 
   const res = await fetch(`/api/rescue-squads/${memberSquad.squad.id}/leave`, {
@@ -960,7 +960,7 @@ async function testAssignSquad() {
       zipCode: '78701',
       petSpecies: 'DOG',
       petName: `[SQUAD QA] ${timestamp}`,
-      contactName: 'Squad Test'
+      contactName: 'Rescue Force Test'
     })
   });
 
@@ -974,14 +974,14 @@ async function testAssignSquad() {
   // 2. Get available squads
   const squadsRes = await fetch('/api/squads');
   if (!squadsRes.ok) {
-    throw new Error('Failed to fetch squads');
+    throw new Error('Failed to fetch rescue forces');
   }
 
   const { squads } = await squadsRes.json();
   const activeSquad = squads.find(s => s.isActive);
 
   if (!activeSquad) {
-    throw new Error('No active squads available for test');
+    throw new Error('No active rescue forces available for test');
   }
 
   // 3. Assign squad
@@ -1095,7 +1095,7 @@ async function testInactiveSquad() {
       zipCode: '78701',
       petSpecies: 'CAT',
       petName: `[INACTIVE SQUAD QA] ${timestamp}`,
-      contactName: 'Inactive Squad Test'
+      contactName: 'Inactive Rescue Force Test'
     })
   });
 
@@ -1109,7 +1109,7 @@ async function testInactiveSquad() {
   // 2. Get squads
   const squadsRes = await fetch('/api/squads');
   if (!squadsRes.ok) {
-    throw new Error('Failed to fetch squads');
+    throw new Error('Failed to fetch rescue forces');
   }
 
   const { squads } = await squadsRes.json();
@@ -1124,12 +1124,12 @@ async function testInactiveSquad() {
     });
 
     if (assignRes.ok) {
-      throw new Error('Expected assignment to fail with invalid squad ID');
+      throw new Error('Expected assignment to fail with invalid rescue force ID');
     }
 
     return {
       case_id: testCase.id,
-      note: 'Assignment correctly rejected invalid squad ID'
+      note: 'Assignment correctly rejected invalid rescue force ID'
     };
   }
 
@@ -1141,7 +1141,7 @@ async function testInactiveSquad() {
   });
 
   if (assignRes.ok) {
-    throw new Error('Expected assignment to fail for inactive squad, but it succeeded');
+    throw new Error('Expected assignment to fail for inactive rescue force, but it succeeded');
   }
 
   const error = await assignRes.json();
@@ -1153,7 +1153,7 @@ async function testInactiveSquad() {
   return {
     case_id: testCase.id,
     error_code: error.code,
-    note: 'Assignment correctly rejected inactive squad'
+    note: 'Assignment correctly rejected inactive rescue force'
   };
 }
 
@@ -1165,17 +1165,17 @@ function TestsPanel({ onTestComplete }) {
   // Legal tests state
   const [legalTests, setLegalTests] = useState([
     { id: 'accept-waiver', name: 'Accept Waiver Flow', status: 'idle', fn: testAcceptWaiver },
-    { id: 'blocked-squad', name: 'Blocked Action - Squad Create', status: 'idle', fn: testBlockedSquadCreate },
+    { id: 'blocked-squad', name: 'Blocked Action - Rescue Force Create', status: 'idle', fn: testBlockedSquadCreate },
     { id: 'blocked-case', name: 'Blocked Action - Case Create', status: 'idle', fn: testBlockedCaseCreate },
   ]);
   const [runningLegal, setRunningLegal] = useState(false);
 
   // Squad tests state
   const [squadTests, setSquadTests] = useState([
-    { id: 'create-squad', name: 'Create Squad - Happy Path', status: 'idle', fn: testCreateSquad },
-    { id: 'search-squads', name: 'Search Squads by ZIP', status: 'idle', fn: testSearchSquads },
-    { id: 'join-squad', name: 'Join Squad', status: 'idle', fn: testJoinSquad },
-    { id: 'leave-squad', name: 'Leave Squad', status: 'idle', fn: testLeaveSquad },
+    { id: 'create-squad', name: 'Create Rescue Force - Happy Path', status: 'idle', fn: testCreateSquad },
+    { id: 'search-squads', name: 'Search Rescue Forces by ZIP', status: 'idle', fn: testSearchSquads },
+    { id: 'join-squad', name: 'Join Rescue Force', status: 'idle', fn: testJoinSquad },
+    { id: 'leave-squad', name: 'Leave Rescue Force', status: 'idle', fn: testLeaveSquad },
   ]);
   const [runningSquad, setRunningSquad] = useState(false);
 
@@ -1208,9 +1208,9 @@ function TestsPanel({ onTestComplete }) {
     { id: 'permission-helper', name: 'Permission Helper Module', status: 'idle', fn: testPermissionHelper },
     { id: 'assign-coordinator', name: 'Assign Coordinator', status: 'idle', fn: testAssignCoordinator },
     { id: 'unassign-coordinator', name: 'Unassign Coordinator', status: 'idle', fn: testUnassignCoordinator },
-    { id: 'assign-squad', name: 'Assign Squad', status: 'idle', fn: testAssignSquad },
+    { id: 'assign-squad', name: 'Assign Rescue Force', status: 'idle', fn: testAssignSquad },
     { id: 'invalid-coordinator-role', name: 'Reject Invalid Coordinator Role', status: 'idle', fn: testInvalidCoordinatorRole },
-    { id: 'inactive-squad', name: 'Reject Inactive Squad', status: 'idle', fn: testInactiveSquad },
+    { id: 'inactive-squad', name: 'Reject Inactive Rescue Force', status: 'idle', fn: testInactiveSquad },
   ]);
   const [runningPermission, setRunningPermission] = useState(false);
 
@@ -1425,7 +1425,7 @@ function TestsPanel({ onTestComplete }) {
 
       {/* Squad Test Suite */}
       <TestSuite
-        title="Squad Tests"
+        title="Rescue Force Tests"
         tests={squadTests}
         onRun={runSquadTests}
         running={runningSquad}
@@ -1598,7 +1598,7 @@ function SquadGenerator({ onDataGenerated }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            city: `[TEST] ${city} Squad ${i + 1}`,
+            city: `[TEST] ${city} Force ${i + 1}`,
             state: 'TX',
             zipCode: '78701'
           })
@@ -1620,7 +1620,7 @@ function SquadGenerator({ onDataGenerated }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           event_type: 'qa.test_data_generated',
-          test_name: 'Generate Demo Squads',
+          test_name: 'Generate Demo Rescue Forces',
           result: 'passed',
           duration_ms: 0
         })
@@ -1632,7 +1632,7 @@ function SquadGenerator({ onDataGenerated }) {
     setResult({ created: created.length, ids: created });
     setGenerating(false);
 
-    onDataGenerated({ name: 'Squad Generator', status: 'passed', details: `Created ${created.length} squads` });
+    onDataGenerated({ name: 'Rescue Force Generator', status: 'passed', details: `Created ${created.length} rescue forces` });
   };
 
   return (
@@ -1680,13 +1680,13 @@ function SquadGenerator({ onDataGenerated }) {
           }
         `}
       >
-        {generating ? 'Generating...' : 'Generate Squads'}
+        {generating ? 'Generating...' : 'Generate Rescue Forces'}
       </button>
 
       {result && (
         <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="text-green-800 font-semibold">
-            ✅ Created {result.created} demo squads
+            ✅ Created {result.created} demo rescue forces
           </div>
         </div>
       )}

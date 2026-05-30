@@ -41,37 +41,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check waiver acceptance
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { waiverAcceptedAt: true }
-    });
-
-    if (!user?.waiverAcceptedAt) {
-      await logEvent({
-        event_type: 'case.detail_failed',
-        resource_type: 'mission',
-        resource_id: params.missionId,
-        action: 'read',
-        result: 'failure',
-        error_code: 'WAIVER_NOT_ACCEPTED',
-        error_message: 'User attempted to view case without accepting liability waiver',
-        actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
-        metadata: { missionId: params.missionId }
-      });
-
-      const encodedReturnUrl = encodeURIComponent('/admin/missions/' + params.missionId);
-      return NextResponse.json({
-        error: 'Liability waiver required',
-        code: 'WAIVER_NOT_ACCEPTED',
-        message: 'You must accept the liability waiver before viewing cases.',
-        redirectTo: '/legal/consent?returnUrl=' + encodedReturnUrl
-      }, { status: 403 });
-    }
-
-    // Fetch case with all related data
-    // Using Case model (not the old mission)
+    // Fetch case FIRST so we can check ownership before waiver gate
     // Support both ID (UUID or CUID) and case number lookup
     // UUID: 8-4-4-4-12 hex with dashes, CUID: starts with 'c', 25 alphanumeric chars
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.missionId);
@@ -168,6 +138,35 @@ export async function GET(request, { params }) {
       return NextResponse.json({
         error: 'Mission not found'
       }, { status: 404 });
+    }
+
+    // Check waiver acceptance — skip for case owners
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { waiverAcceptedAt: true }
+    });
+
+    if (!user?.waiverAcceptedAt && missionData.reporterId !== session.user.id) {
+      await logEvent({
+        event_type: 'case.detail_failed',
+        resource_type: 'mission',
+        resource_id: params.missionId,
+        action: 'read',
+        result: 'failure',
+        error_code: 'WAIVER_NOT_ACCEPTED',
+        error_message: 'User attempted to view case without accepting liability waiver',
+        actor_user_id: session.user.id,
+        actor_role: session.user.role || 'USER',
+        metadata: { missionId: params.missionId }
+      });
+
+      const encodedReturnUrl = encodeURIComponent('/admin/missions/' + params.missionId);
+      return NextResponse.json({
+        error: 'Liability waiver required',
+        code: 'WAIVER_NOT_ACCEPTED',
+        message: 'You must accept the liability waiver before viewing cases.',
+        redirectTo: '/legal/consent?returnUrl=' + encodedReturnUrl
+      }, { status: 403 });
     }
 
     const responseTime = Date.now() - startTime;

@@ -9,7 +9,7 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-const WELCOME_MESSAGE = `Welcome to your local Rescue Squad! 🐾
+const WELCOME_MESSAGE = `Welcome to your local Rescue Force! 🐾
 
 We're a community of caring neighbors who work together to help lost pets find their way home.
 
@@ -58,7 +58,7 @@ async function seedWelcomeAnnouncements() {
       where: {
         rescueSquadId: squad.id,
         type: 'ANNOUNCEMENT',
-        message: { contains: 'Welcome to your local Rescue Squad' },
+        message: { contains: 'Welcome to your local Rescue' },
       },
     });
 
@@ -76,7 +76,7 @@ async function seedWelcomeAnnouncements() {
         type: 'ANNOUNCEMENT',
         message: WELCOME_MESSAGE,
         details: JSON.stringify({
-          title: 'Welcome to Your Rescue Squad!',
+          title: 'Welcome to Your Rescue Force!',
           isPinned: true,
           isSystemPost: true,
         }),

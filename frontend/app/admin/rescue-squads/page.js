@@ -55,13 +55,13 @@ export default function AdminRescueSquadsPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to delete squad');
+        throw new Error('Failed to delete rescue force');
       }
 
       // Remove from list
       setSquads(squads.filter(s => s.id !== squadId));
     } catch (error) {
-      setDeleteError('Failed to delete squad: ' + error.message);
+      setDeleteError('Failed to delete rescue force: ' + error.message);
     } finally {
       setDeleting(null);
     }
@@ -200,13 +200,13 @@ export default function AdminRescueSquadsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              Manage Rescue Squads
+              Manage Rescue Forces
             </h1>
             <p style={{
               fontSize: '1.1rem',
               color: '#64748b'
             }}>
-              View, create, and delete rescue squads
+              View, create, and delete rescue forces
             </p>
           </div>
 
@@ -251,7 +251,7 @@ export default function AdminRescueSquadsPage() {
                 fontWeight: '700'
               }}
             >
-              + Create New Squad
+              + Create New Rescue Force
             </Link>
           </div>
         </div>
@@ -268,7 +268,7 @@ export default function AdminRescueSquadsPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search squads by name or description..."
+            placeholder="Search rescue forces by name or description..."
             style={{
               width: '100%',
               padding: '1rem',
@@ -382,10 +382,10 @@ export default function AdminRescueSquadsPage() {
               color: '#0f172a',
               marginBottom: '0.5rem'
             }}>
-              No squads found
+              No rescue forces found
             </h2>
             <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
-              {searchQuery ? 'Try a different search' : 'Create your first rescue squad'}
+              {searchQuery ? 'Try a different search' : 'Create your first rescue force'}
             </p>
             {!searchQuery && (
               <Link

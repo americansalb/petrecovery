@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
 import {
   Slack,
   MessageSquare,
@@ -18,6 +19,7 @@ import {
 export default function IntegrationsSettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const toast = useToast();
   const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -52,9 +54,13 @@ export default function IntegrationsSettingsPage() {
         method: 'POST',
       });
       const data = await res.json();
-      alert(data.success ? 'Test message sent!' : 'Test failed: ' + data.error);
+      if (data.success) {
+        toast.success('Test message sent!');
+      } else {
+        toast.error('Test failed: ' + data.error);
+      }
     } catch (error) {
-      alert('Failed to test integration');
+      toast.error('Failed to test integration.');
     } finally {
       setTestingId(null);
     }
@@ -71,7 +77,7 @@ export default function IntegrationsSettingsPage() {
         setIntegrations(integrations.filter((i) => i.id !== integrationId));
       }
     } catch (error) {
-      alert('Failed to delete integration');
+      toast.error('Failed to delete integration.');
     }
   };
 
@@ -90,7 +96,7 @@ export default function IntegrationsSettingsPage() {
         );
       }
     } catch (error) {
-      alert('Failed to update integration');
+      toast.error('Failed to update integration.');
     }
   };
 

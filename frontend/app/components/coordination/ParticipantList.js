@@ -23,15 +23,10 @@ export default function ParticipantList({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  console.log('[PARTICIPANTS] Component rendering');
-  console.log(`[PARTICIPANTS] Assignment ID: ${assignmentId}`);
-  console.log(`[PARTICIPANTS] Is leader: ${isLeader}`);
-
   // Fetch participants
   const fetchParticipants = useCallback(async () => {
     if (!assignmentId) return;
 
-    console.log('[PARTICIPANTS] Fetching participants...');
     try {
       const res = await fetch(`/api/assignments/${assignmentId}/participants`);
 
@@ -40,8 +35,6 @@ export default function ParticipantList({
       }
 
       const data = await res.json();
-      console.log(`[PARTICIPANTS] Fetched ${data.participants?.length || 0} participants`);
-
       setParticipants(data.participants || []);
       setError(null);
     } catch (err) {

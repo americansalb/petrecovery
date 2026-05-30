@@ -28,7 +28,6 @@ function ReportSightingForm() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      console.log('[SIGHTING-REPORT] User not authenticated, redirecting to login');
       router.push('/login');
     }
   }, [status, router]);
@@ -46,8 +45,6 @@ function ReportSightingForm() {
     setError('');
     setLoading(true);
 
-    console.log('[SIGHTING-REPORT] Submitting sighting report:', formData);
-
     try {
       const res = await fetch('/api/sightings', {
         method: 'POST',
@@ -56,23 +53,17 @@ function ReportSightingForm() {
       });
 
       const data = await res.json();
-      console.log('[SIGHTING-REPORT] Response status:', res.status);
-      console.log('[SIGHTING-REPORT] Response data:', data);
-
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit sighting');
       }
 
-      console.log('[SIGHTING-REPORT] Sighting submitted successfully');
       setSuccess(true);
 
       // Redirect after 2 seconds
       setTimeout(() => {
         if (alertId) {
-          console.log('[SIGHTING-REPORT] Redirecting to alert:', alertId);
           router.push(`/alerts/${alertId}`);
         } else {
-          console.log('[SIGHTING-REPORT] Redirecting to dashboard');
           router.push('/dashboard');
         }
       }, 2000);

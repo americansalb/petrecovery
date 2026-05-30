@@ -3,6 +3,7 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail, sendVerificationEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
@@ -15,7 +16,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     const body = await request.json();
     let {
       email, phone, firstName,
@@ -23,7 +24,8 @@ export async function POST(request) {
       lastSeenAddress, center, radiusMiles, timeElapsed, petType,
       petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId,
-      createAccount, password // Account creation consent fields
+      createAccount, password, // Account creation consent fields
+      reporterLocation // Reporter's auto-detected GPS [lat, lng]
     } = body;
 
     // For dogs, use petSize if provided (more specific than generic size)
@@ -103,7 +105,7 @@ export async function POST(request) {
             firstName,
             passwordHash,
             role: 'USER',
-            emailVerified: null, // Email not verified yet
+            emailVerified: (password && createAccount) ? new Date() : null,
           }
         });
       }
@@ -189,6 +191,10 @@ export async function POST(request) {
           lastSeenLongitude: center[1],
           lastSeenAddress,
           searchRadius: radiusMiles,
+          // Guard on null, not truthiness: a valid 0.0 coordinate (equator /
+          // prime meridian) is falsy and `0 || null` would drop it.
+          reporterLatitude: reporterLocation?.[0] != null ? reporterLocation[0] : null,
+          reporterLongitude: reporterLocation?.[1] != null ? reporterLocation[1] : null,
           escapeScenario: 'unknown',
           status: 'ACTIVE',
           priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
@@ -244,7 +250,7 @@ export async function POST(request) {
 
     // Filter by distance and create alerts
     const nearbyPatrol = patrolMembers.filter(member => {
-      if (!member.profile?.latitude || !member.profile?.longitude) return false;
+      if (member.profile?.latitude == null || member.profile?.longitude == null) return false;
       const distance = calculateDistance(
         center[0], center[1],
         member.profile.latitude, member.profile.longitude
@@ -361,7 +367,7 @@ export async function POST(request) {
             centerLongitude: center[1],
             radiusMiles: 5, // Default 5 mile coverage
             isActive: true,
-            description: `🆕 Community rescue squad for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
+            description: `🆕 Community rescue force for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
           },
         });
 
@@ -451,10 +457,10 @@ export async function POST(request) {
             const petTypeDisplay = petType || 'pet';
             if (squad.isAutoCreated) {
               // Welcome post for newly auto-created squad
-              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis squad was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this squad to help reunite pets with their families in your community! 🐾`;
+              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis rescue force was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this rescue force to help reunite pets with their families in your community! 🐾`;
             } else if (isNearbyAssist) {
               // Nearby assist post
-              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local squad in that area yet - your help could make the difference! 🙏`;
+              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local rescue force in that area yet - your help could make the difference! 🙏`;
             } else {
               // Regular case alert
               postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
@@ -522,7 +528,16 @@ export async function POST(request) {
       });
     }
 
-    // Log success
+    // Calculate distance between reporter and last-seen location (if both available)
+    let reporterToLastSeenMiles = null;
+    if (reporterLocation?.[0] != null && reporterLocation?.[1] != null && center?.[0] != null && center?.[1] != null) {
+      reporterToLastSeenMiles = calculateDistance(
+        reporterLocation[0], reporterLocation[1],
+        center[0], center[1]
+      );
+    }
+
+    // Log success with both location data points
     await logEvent({
       event_type: 'case.created',
       correlation_id: correlationId,
@@ -534,7 +549,10 @@ export async function POST(request) {
       metadata: {
         petName,
         accountCreated,
-        patrolAlerted: nearbyPatrol.length
+        patrolAlerted: nearbyPatrol.length,
+        lastSeenLocation: { lat: center[0], lng: center[1], address: lastSeenAddress },
+        reporterLocation: reporterLocation ? { lat: reporterLocation[0], lng: reporterLocation[1] } : null,
+        reporterToLastSeenMiles: reporterToLastSeenMiles !== null ? parseFloat(reporterToLastSeenMiles.toFixed(2)) : null,
       }
     });
 
@@ -544,7 +562,7 @@ export async function POST(request) {
         // Legacy flow: send welcome email with temp password
         sendEmail({
           to: email,
-          subject: 'Your PetRecovery.org Account - Lost Pet Alert Created',
+          subject: 'Your ReunitePets.org Account - Lost Pet Alert Created',
           html: buildWelcomeEmail(firstName, petName, email, tempPassword, nearbyPatrol.length)
         }).catch(err => {
           logEvent({
@@ -561,16 +579,16 @@ export async function POST(request) {
         // Send verification email (will be implemented in Phase 3.1)
         sendEmail({
           to: email,
-          subject: 'Welcome to PetRecovery.org - Verify Your Email',
+          subject: 'Welcome to ReunitePets.org - Verify Your Email',
           html: `
-            <h2>Welcome to PetRecovery.org, ${firstName}!</h2>
+            <h2>Welcome to ReunitePets.org, ${firstName}!</h2>
             <p>Thank you for creating an account. Your lost pet report for <strong>${petName}</strong> has been submitted successfully.</p>
             <p><strong>Case Number:</strong> ${report.caseNumber}</p>
             <p>You can now log in with your email (${email}) and the password you created.</p>
             <p><strong>Next steps:</strong></p>
             <ul>
               <li>Log in to view your case dashboard</li>
-              <li>Coordinate with your assigned rescue squad</li>
+              <li>Coordinate with your assigned rescue force</li>
               <li>Update information as needed</li>
             </ul>
             <p>We'll send you updates when volunteers report sightings.</p>
@@ -603,7 +621,7 @@ export async function POST(request) {
           <p><strong>Case Number:</strong> ${report.caseNumber}</p>
           <p>We'll notify you by email if anyone spots your pet.</p>
           <p><strong>Want to track progress and coordinate with volunteers?</strong></p>
-          <p>Create an account to access your case dashboard and work with your rescue squad.</p>
+          <p>Create an account to access your case dashboard and work with your rescue force.</p>
           <p>[Claim Report button will be added in Phase 3.3]</p>
         `
       }).catch(err => {
@@ -628,6 +646,11 @@ export async function POST(request) {
       assignedSquad,
       squadsNotified: assignedSquads.length,
       allAssignedSquads: assignedSquads,
+      locations: {
+        lastSeen: { lat: center[0], lng: center[1] },
+        reporter: reporterLocation ? { lat: reporterLocation[0], lng: reporterLocation[1] } : null,
+        distanceMiles: reporterToLastSeenMiles !== null ? parseFloat(reporterToLastSeenMiles.toFixed(2)) : null,
+      },
     });
 
   } catch (error) {

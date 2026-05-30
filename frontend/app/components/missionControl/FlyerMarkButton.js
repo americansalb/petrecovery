@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useToast } from '@/app/components/ui/Toast';
 
 // Points per spec
 const FLYER_BASE_POINTS = 8;
@@ -22,6 +23,7 @@ export default function FlyerMarkButton({
   variant = 'large', // 'large' | 'compact' | 'floating'
   location = null,
 }) {
+  const toast = useToast();
   const [posting, setPosting] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -55,7 +57,7 @@ export default function FlyerMarkButton({
     if (disabled || posting) return;
 
     if (!currentLocation) {
-      alert('Location not available. Please enable GPS.');
+      toast.warning('Location not available. Please enable GPS.');
       return;
     }
 
@@ -77,7 +79,7 @@ export default function FlyerMarkButton({
       setShowOptions(false);
     } catch (err) {
       console.error('Error marking flyer:', err);
-      alert('Failed to mark flyer. Please try again.');
+      toast.error('Failed to mark flyer. Please try again.');
     } finally {
       setPosting(false);
     }

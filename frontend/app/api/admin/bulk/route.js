@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-import { createBulkNotifications } from '@/app/lib/notifications';
+import { createBulkNotifications } from '@/app/lib/notifications-inapp';
 
 // POST - Execute bulk operations
 export async function POST(request) {
@@ -25,6 +25,10 @@ export async function POST(request) {
 
     if (!operation || !targets || !Array.isArray(targets)) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+
+    if (targets.length > 500) {
+      return NextResponse.json({ error: 'Too many targets. Maximum 500 per request.' }, { status: 400 });
     }
 
     let result;
@@ -127,52 +131,69 @@ async function bulkUpdateRoles(userIds, params) {
 }
 
 async function syncUserStats(userIds) {
+  // Batch all queries instead of 4 queries per user
+  const [reunionsByReporter, reunionsByFinder, squadCounts, areaCounts, acreageSums] = await Promise.all([
+    // Reunions as reporter
+    prisma.case.groupBy({
+      by: ['reporterId'],
+      where: { status: 'REUNITED', reporterId: { in: userIds } },
+      _count: true,
+    }),
+    // Reunions as finder
+    prisma.case.groupBy({
+      by: ['foundById'],
+      where: { status: 'REUNITED', foundById: { in: userIds } },
+      _count: true,
+    }),
+    // Squads joined
+    prisma.rescueSquadMember.groupBy({
+      by: ['userId'],
+      where: { userId: { in: userIds } },
+      _count: true,
+    }),
+    // Areas marked
+    prisma.searchArea.groupBy({
+      by: ['markedById'],
+      where: { markedById: { in: userIds } },
+      _count: true,
+    }),
+    // Total acreage
+    prisma.searchArea.groupBy({
+      by: ['markedById'],
+      where: { markedById: { in: userIds } },
+      _sum: { acreage: true },
+    }),
+  ]);
+
+  // Build lookup maps
+  const reporterMap = Object.fromEntries(reunionsByReporter.map(r => [r.reporterId, r._count]));
+  const finderMap = Object.fromEntries(reunionsByFinder.map(r => [r.foundById, r._count]));
+  const squadMap = Object.fromEntries(squadCounts.map(r => [r.userId, r._count]));
+  const areaMap = Object.fromEntries(areaCounts.map(r => [r.markedById, r._count]));
+  const acreageMap = Object.fromEntries(acreageSums.map(r => [r.markedById, r._sum.acreage || 0]));
+
+  // Update users in batches of 50
   let synced = 0;
+  const batchSize = 50;
 
-  for (const userId of userIds) {
-    try {
-      // Count successful reunions
-      const reunions = await prisma.case.count({
-        where: {
-          status: 'REUNITED',
-          OR: [
-            { reporterId: userId },
-            { foundById: userId },
-          ],
-        },
-      });
-
-      // Count squads joined
-      const squadsJoined = await prisma.rescueSquadMember.count({
-        where: { userId },
-      });
-
-      // Count areas marked
-      const areasMarked = await prisma.searchArea.count({
-        where: { markedById: userId },
-      });
-
-      // Calculate total acreage
-      const areas = await prisma.searchArea.findMany({
-        where: { markedById: userId },
-        select: { acreage: true },
-      });
-      const totalAcreage = areas.reduce((sum, a) => sum + (a.acreage || 0), 0);
-
-      await prisma.user.update({
+  for (let i = 0; i < userIds.length; i += batchSize) {
+    const batch = userIds.slice(i, i + batchSize);
+    const updates = batch.map(userId =>
+      prisma.user.update({
         where: { id: userId },
         data: {
-          successfulReunions: reunions,
-          squadsJoinedCount: squadsJoined,
-          areasMarkedCount: areasMarked,
-          totalAcreageSearched: totalAcreage,
+          successfulReunions: (reporterMap[userId] || 0) + (finderMap[userId] || 0),
+          squadsJoinedCount: squadMap[userId] || 0,
+          areasMarkedCount: areaMap[userId] || 0,
+          totalAcreageSearched: acreageMap[userId] || 0,
         },
-      });
-
-      synced++;
-    } catch (e) {
-      console.error(`Error syncing stats for user ${userId}:`, e);
-    }
+      }).catch(e => {
+        console.error(`Error syncing stats for user ${userId}:`, e);
+        return null;
+      })
+    );
+    const results = await Promise.all(updates);
+    synced += results.filter(Boolean).length;
   }
 
   return { synced };

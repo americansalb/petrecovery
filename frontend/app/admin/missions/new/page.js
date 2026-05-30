@@ -456,8 +456,8 @@ export default function NewCasePage() {
           </Section>
 
           {/* Squad Assignment Section */}
-          <Section title="Squad Assignment (Optional)">
-            <FormField label="Assign to Squad" style={{ marginTop: '1rem' }}>
+          <Section title="Rescue Force Assignment (Optional)">
+            <FormField label="Assign to Rescue Force" style={{ marginTop: '1rem' }}>
               <select
                 value={formData.squadId}
                 onChange={(e) => handleChange('squadId', e.target.value)}

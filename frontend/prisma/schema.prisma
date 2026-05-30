@@ -89,10 +89,6 @@ model User {
   approvedCommunities Community[] @relation("CommunityApprover")
   communityPosts  CommunityPost[]
 
-  // Lost Pet Case Relations (Phase 13-14)
-  createdCases    LostPetCase[]
-  caseNotes       LostPetCaseNote[]
-
   // OAuth Accounts (Phase 7)
   accounts        Account[]
   emailPreferences EmailPreference?
@@ -102,9 +98,6 @@ model User {
   phoneVerifications PhoneVerification[]
   lastLoginAt     DateTime?
   profileImage    String?
-
-  // Cases where this user is the primary coordinator (Phase 22-24)
-  coordinatedCases LostPetCase[]  @relation("CaseCoordinator")
 
   // Volunteer Coordination (Phases 1-10)
   searchedGridCells GridCell[]
@@ -262,13 +255,6 @@ enum LegalDocumentType {
   PRIVACY_POLICY
 }
 
-enum LostPetCaseStatus {
-  OPEN
-  ACTIVE_SEARCH
-  RESOLVED
-  CLOSED_OTHER
-}
-
 // ============================================================================
 // EVENT LOGGING SYSTEM (Phase 0)
 // ============================================================================
@@ -411,12 +397,16 @@ model Case {
   status          CaseStatus @default(ACTIVE)
   priority        CasePriority @default(NORMAL)
 
-  // Location
+  // Location - where the pet was last seen
   lastSeenAt      DateTime
   lastSeenLatitude Float
   lastSeenLongitude Float
   lastSeenAddress String
   searchRadius    Float    @default(5) // Miles
+
+  // Reporter's current location (auto-detected GPS at time of report)
+  reporterLatitude  Float?
+  reporterLongitude Float?
 
   // Incident
   escapeScenario  String
@@ -467,6 +457,10 @@ model Case {
 
   // Phase 6: Case Outcome (for ML training)
   caseOutcome       CaseOutcome?
+
+  // Phase 2: Relay / connect broker (see lib/relay.js, docs/design/relay-connect-spec.md)
+  lostConnections   MatchConnection[] @relation("LostConnections")
+  foundConnections  MatchConnection[] @relation("FoundConnections")
 
   @@index([status])
   @@index([caseNumber])
@@ -598,7 +592,7 @@ model RescueSquad {
   zipCode         String?  // Primary ZIP code (for display)
 
   // Location (for browsing/filtering nationally and internationally)
-  city            String?  // "Chicago", "Los Angeles", "Ciudad de México"
+  city            String?  // "Chicago", "Los Angeles", "Ciudad de Mexico"
   state           String?  // "IL", "CA", "TX", "CDMX", "JAL" (abbreviation)
   country         String   @default("US") // "US", "MX", etc.
   zipCodes        String   @default("[]") // JSON array of ZIP/postal codes served
@@ -644,7 +638,6 @@ model RescueSquad {
   caseAssignments  CaseAssignment[]
   divisions        Division[]
   divisionRequests DivisionRequest[]
-  cases            LostPetCase[]  // Phase 13-14: Lost Pet Cases MVP
   activities       SquadActivity[]
   tasks            SquadTask[]
   joinRequests     SquadJoinRequest[]
@@ -1400,90 +1393,6 @@ enum CommunityRole {
 }
 
 // ============================================================================
-// LOST PET CASE SYSTEM (Phase 13-14 - MVP)
-// ============================================================================
-
-model LostPetCase {
-  id            String            @id @default(cuid())
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-
-  caseNumber    String            @unique
-
-  // Pet info
-  petName       String?
-  petSpecies    PetSpecies
-  petBreed      String?
-  petColor      String?
-  petDescription String?
-
-  // Location
-  city          String
-  state         String
-  zipCode       String?
-  lastSeenLandmark String?
-  lastSeenAt    DateTime?
-
-  // Status
-  status        LostPetCaseStatus @default(OPEN)
-  statusReason  String?
-  isUrgent      Boolean           @default(false)
-
-  // Contact
-  contactName   String?
-  contactPhone  String?
-  contactEmail  String?
-
-  // Public Visibility (Phase 15-16)
-  isPublic      Boolean           @default(false)
-  publicContactOk Boolean         @default(false)
-  source        String            @default("ADMIN")  // "ADMIN" or "PUBLIC_REPORT"
-
-  // Phase 1.4: Matching fields
-  reportType    String            @default("LOST")   // "LOST" or "FOUND"
-  latitude      Float?
-  longitude     Float?
-  photoUrls     String            @default("[]")     // JSON array of photo URLs
-
-  // Relations
-  createdById   String
-  createdBy     User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  squadId       String?
-  squad         RescueSquad?      @relation(fields: [squadId], references: [id], onDelete: SetNull)
-
-  // NEW: Optional primary coordinator for this case (Phase 22-24)
-  coordinatorId String?
-  coordinator   User?             @relation("CaseCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
-
-  notes         LostPetCaseNote[]
-  shelterIntakes ShelterIntake[]
-
-  @@index([city, state])
-  @@index([status])
-  @@index([squadId])
-  @@index([isPublic, status])
-  @@index([coordinatorId])
-}
-
-model LostPetCaseNote {
-  id         String      @id @default(cuid())
-  createdAt  DateTime    @default(now())
-
-  caseId     String
-  case       LostPetCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  authorId   String
-  author     User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  type       String      @default("NOTE")
-  content    String
-  metadata   String      @default("{}")
-
-  @@index([caseId])
-}
-
-// ============================================================================
 // PHASE 1: SOCIAL SHARING
 // ============================================================================
 
@@ -1770,7 +1679,6 @@ model ShelterIntake {
 
   // Matching
   matchedCaseId String?
-  matchedCase   LostPetCase? @relation(fields: [matchedCaseId], references: [id], onDelete: SetNull)
   matchScore    Float?
   matchedAt     DateTime?
   matchStatus   String?  // PENDING, CONFIRMED, REJECTED
@@ -2964,6 +2872,7 @@ model SearchSession {
   @@index([missionId])
   @@index([status])
   @@index([userId])
+  @@index([gridCellId])
 }
 
 model LocationPing {
@@ -3354,6 +3263,7 @@ model MissionVolunteer {
   @@index([missionId])
   @@index([status])
   @@index([userId])
+  @@index([assignedZoneId])
 }
 
 model MissionZone {
@@ -3397,6 +3307,7 @@ model MissionZone {
   @@index([missionId])
   @@index([status])
   @@index([probability])
+  @@index([assignedToId])
 }
 
 model MissionSighting {
@@ -3529,6 +3440,7 @@ model MissionLog {
   @@index([missionId])
   @@index([action])
   @@index([createdAt])
+  @@index([userId])
 }
 
 model MissionBroadcast {
@@ -3549,6 +3461,7 @@ model MissionBroadcast {
   @@index([missionId])
   @@index([squadId])
   @@index([createdAt])
+  @@index([senderId])
 }
 
 model MissionThankYou {
@@ -5031,4 +4944,60 @@ model TerrainCache {
 
   @@unique([centerLatitude, centerLongitude, radiusMiles])
   @@index([expiresAt])
+}
+
+// ============================================================================
+// Relay / Connect broker (Phase 2)
+// Brokers contact between an anonymous finder and a lost-pet owner WITHOUT
+// exposing either party's PII (phone/email/exact coords) until both opt in.
+// Contract: .vaak/vision.md sec 4c/4d - docs/design/relay-connect-spec.md
+// ============================================================================
+
+enum RelayStatus {
+  OPEN           // thread created, awaiting owner
+  OWNER_REPLIED  // owner has responded at least once
+  MUTUAL_OPTIN   // both opted in -> direct contact unlocked
+  REJECTED       // owner marked "not my pet"
+  REUNITED       // confirmed reunion
+}
+
+/// One brokered connection between a FOUND report and a LOST case.
+/// The opaque `token` is the only id exposed to clients (the card's matchId).
+model MatchConnection {
+  id           String   @id @default(cuid())
+  token        String   @unique @default(cuid())
+
+  lostCaseId   String
+  lostCase     Case     @relation("LostConnections",  fields: [lostCaseId],  references: [id], onDelete: Cascade)
+  foundCaseId  String
+  foundCase    Case     @relation("FoundConnections", fields: [foundCaseId], references: [id], onDelete: Cascade)
+
+  // Match snapshot at creation (from lib/matching.js - never recomputed client-side)
+  matchScore   Int
+  pTrueMatch   Float
+  matchSource  String   // 'attribute' | 'visual' | 'microchip'
+
+  status       RelayStatus @default(OPEN)
+  finderOptIn  Boolean  @default(false)
+  ownerOptIn   Boolean  @default(false)
+  finderHandle String                // anonymous, e.g. "Finder-7QX"
+  finderTier   Int      @default(0)  // 0 anon, 1 OTP+owner-accept, 2 mutual opt-in for raw PII
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  messages     RelayMessage[]
+
+  @@unique([lostCaseId, foundCaseId])  // idempotent open: one connection per pair
+  @@index([token])
+}
+
+model RelayMessage {
+  id           String   @id @default(cuid())
+  connectionId String
+  connection   MatchConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  senderRole   String   // 'FINDER' | 'OWNER'
+  body         String
+  createdAt    DateTime @default(now())
+
+  @@index([connectionId])
 }

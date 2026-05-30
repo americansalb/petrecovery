@@ -130,7 +130,7 @@ function generateRecommendations(factors, missionData) {
       recommendations.push({
         priority: 'high',
         action: 'Recruit searchers',
-        description: 'Join a rescue squad or ask friends and neighbors to help search',
+        description: 'Join a rescue force or ask friends and neighbors to help search',
       });
     }
 

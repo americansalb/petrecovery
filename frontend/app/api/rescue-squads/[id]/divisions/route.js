@@ -104,7 +104,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad founders and leaders can create divisions' },
+        { error: 'Only rescue force founders and leaders can create divisions' },
         { status: 403 }
       );
     }

@@ -8,26 +8,19 @@ const navItems = [
   { href: '/dashboard', icon: Home, label: 'Home' },
   { href: '/pets', icon: PawPrint, label: 'My Pets' },
   { href: '/database', icon: Search, label: 'Search' },
-  { href: '/rescue-squads/search', icon: Users, label: 'Squads' },
+  { href: '/rescue-squads/search', icon: Users, label: 'Rescue Forces' },
   { href: '/settings', icon: Menu, label: 'More' },
 ];
 
 export default function GlobalBottomNav() {
   const pathname = usePathname();
 
-  // Don't show on these routes
-  const hideOnRoutes = [
-    '/',           // Homepage
-    '/login',
-    '/register',
-    '/mission-control', // Has its own nav
-  ];
+  // Hide on mission control (has its own nav) and auth pages (keep them clean)
+  if (pathname.startsWith('/mission-control')) return null;
 
-  const shouldHide = hideOnRoutes.some(route =>
-    pathname === route || pathname.startsWith('/mission-control')
-  );
-
-  if (shouldHide) return null;
+  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
+  if (isAuthPage) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 lg:hidden">

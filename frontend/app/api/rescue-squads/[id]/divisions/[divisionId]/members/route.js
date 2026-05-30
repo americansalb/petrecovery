@@ -123,7 +123,7 @@ export async function POST(request, { params }) {
 
     if (!memberToAdd) {
       return NextResponse.json(
-        { error: 'Member not found in squad' },
+        { error: 'Member not found in rescue force' },
         { status: 404 }
       );
     }

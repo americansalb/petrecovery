@@ -52,9 +52,8 @@ function LegalConsentContent() {
       const data = await response.json();
       setDocuments(data.documents);
 
-      console.log('📄 [Legal Consent] Loaded documents:', data.documents.map(d => d.type));
     } catch (err) {
-      console.error('❌ [Legal Consent] Failed to fetch documents:', err);
+      console.error('[Legal Consent] Failed to fetch documents:', err);
       setError('Failed to load legal documents. Please refresh the page.');
     } finally {
       setLoading(false);
@@ -85,8 +84,6 @@ function LegalConsentContent() {
     setError(null);
 
     try {
-      console.log('📝 [Legal Consent] Submitting acceptances...');
-
       // Build acceptances payload
       const acceptancePayload = documents
         .filter(doc => acceptances[doc.type])
@@ -107,22 +104,19 @@ function LegalConsentContent() {
         throw new Error(data.message || 'Failed to accept documents');
       }
 
-      console.log('✅ [Legal Consent] Acceptance successful');
       setSuccess(true);
 
       // Redirect after short delay
       setTimeout(() => {
         if (returnUrl) {
-          console.log(`↪️  [Legal Consent] Redirecting to: ${returnUrl}`);
           router.push(returnUrl);
         } else {
-          console.log('↪️  [Legal Consent] Redirecting to dashboard');
           router.push('/dashboard');
         }
       }, 1500);
 
     } catch (err) {
-      console.error('❌ [Legal Consent] Acceptance failed:', err);
+      console.error('[Legal Consent] Acceptance failed:', err);
       setError(err.message);
       setAccepting(false);
     }
@@ -186,7 +180,7 @@ function LegalConsentContent() {
           }}>
             {returnUrl ? (
               <>
-                Before you can participate in rescue squad activities, please review and accept our legal agreements below.
+                Before you can participate in rescue force activities, please review and accept our legal agreements below.
                 These protect both you and the ReunitePets.org community.
               </>
             ) : (

@@ -72,7 +72,6 @@ export default function NewPetPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      console.log('[PETS-NEW] User not authenticated, redirecting to login');
       router.push('/login?callbackUrl=/pets/new');
     }
   }, [status, router]);
@@ -122,12 +121,10 @@ export default function NewPetPage() {
     setSubmitError(null);
 
     if (!validate()) {
-      console.log('[PETS-NEW] Validation failed:', errors);
       return;
     }
 
     setSubmitting(true);
-    console.log('[PETS-NEW] Submitting pet profile:', formData);
 
     try {
       const photoUrls = images.map(img => img.url);
@@ -145,14 +142,10 @@ export default function NewPetPage() {
       });
 
       const data = await res.json();
-      console.log('[PETS-NEW] Response status:', res.status);
-      console.log('[PETS-NEW] Response data:', data);
-
       if (!res.ok) {
         throw new Error(data.error || 'Failed to create pet profile');
       }
 
-      console.log('[PETS-NEW] Pet profile created successfully');
       router.push('/pets');
     } catch (err) {
       console.error('[PETS-NEW] Submission error:', err);

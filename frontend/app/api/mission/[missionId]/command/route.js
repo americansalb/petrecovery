@@ -20,6 +20,7 @@ import {
   getShiftSummary,
 } from '@/app/lib/missionControl/commandCenter';
 import { resolvePetFound, resolvePetDeceased, pauseToColdCase } from '@/app/lib/missionControl/endStates';
+import { userHasCaseAuthority } from '@/app/lib/authz';
 
 export async function GET(request, { params }) {
   try {
@@ -47,7 +48,10 @@ export async function GET(request, { params }) {
       );
     }
 
-    // TODO: Verify user is a leader
+    // Command view is leaders-only: case owner / assigned squad leader / admin.
+    if (!(await userHasCaseAuthority(session.user.id, missionId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     if (view === 'shift-summary') {
       const summary = await getShiftSummary(mission.id);
@@ -91,7 +95,11 @@ export async function POST(request, { params }) {
       );
     }
 
-    // TODO: Verify user is a leader
+    // Privileged command actions (broadcast, resolve, traps, zones) require
+    // authority over this case: owner / assigned squad leader / admin.
+    if (!(await userHasCaseAuthority(session.user.id, missionId))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     let result;
 

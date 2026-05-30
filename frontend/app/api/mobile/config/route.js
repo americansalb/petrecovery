@@ -82,8 +82,8 @@ export async function GET(request) {
       },
       {
         id: 'squad_messages',
-        name: 'Squad Messages',
-        description: 'Messages from your rescue squads',
+        name: 'Rescue Force Messages',
+        description: 'Messages from your rescue forces',
         importance: 'default',
         sound: true,
         vibrate: false,

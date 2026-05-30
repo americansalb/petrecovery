@@ -38,15 +38,11 @@ export default function MapModeV2({
   const router = useRouter();
 
   const handleMissionClick = (missionId) => {
-    console.log('[MapModeV2] Case clicked:', missionId);
-    console.log('[MapModeV2] Available cases:', cases.map(c => ({ id: c.id, petName: c.petName })));
     setSelectedMissionId(missionId);
   };
 
   // Find selected case
   const selectedMission = cases.find(c => c.id === selectedMissionId);
-  console.log('[MapModeV2] Selected case ID:', selectedMissionId);
-  console.log('[MapModeV2] Found selected case:', selectedMission ? { id: selectedMission.id, petName: selectedMission.petName } : null);
 
   return (
     <div className="space-y-6">

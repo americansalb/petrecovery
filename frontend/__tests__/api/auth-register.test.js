@@ -5,17 +5,14 @@
 
 import { NextRequest } from 'next/server';
 
-// Mock prisma before importing route
-const mockPrisma = {
-  user: {
-    findUnique: jest.fn(),
-    create: jest.fn(),
-  },
-};
-
+// Mock prisma with the mock object defined INSIDE the factory (avoids the
+// "Cannot access 'mockPrisma' before initialization" TDZ when the route's
+// hoisted prisma import fires this factory). Aliased as `mockPrisma` below.
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
-  default: mockPrisma,
+  default: {
+    user: { findUnique: jest.fn(), create: jest.fn() },
+  },
 }));
 
 // Mock bcrypt
@@ -23,9 +20,11 @@ jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('$2b$12$mockedHashValue'),
 }));
 
-// Mock rate limiting (always allow)
+// Mock rate limiting (always allow). The route uses the ASYNC limiter
+// (withRateLimitAsync) since SEC-17 (bb92eba) — mock both forms.
 jest.mock('@/app/lib/rateLimit', () => ({
   withRateLimit: jest.fn().mockReturnValue({ success: true }),
+  withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
   RateLimitPresets: { AUTH: {} },
   rateLimitResponse: jest.fn(),
 }));
@@ -42,6 +41,10 @@ jest.mock('@/app/api/auth/verify-email/route', () => ({
 
 // Import the route handler after mocks
 import { POST } from '@/app/api/auth/register/route';
+import prisma from '@/app/lib/prisma';
+
+// Alias the imported mocked default so existing `mockPrisma.*` refs work unchanged.
+const mockPrisma = prisma;
 
 describe('POST /api/auth/register', () => {
   beforeEach(() => {

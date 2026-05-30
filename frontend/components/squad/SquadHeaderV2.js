@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { Shield, Users, MapPin, Camera, Target, Heart, Radio } from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
 import { useRouter } from 'next/navigation';
 import PhotoUploadModal from './PhotoUploadModal';
 import MembersModal from './MembersModal';
@@ -19,8 +20,10 @@ export default function SquadHeaderV2({
   membership,
   isDivisionPage = false,
   currentDivisionId = null,
+  onRefresh,
 }) {
   const router = useRouter();
+  const toast = useToast();
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const cityName = squad.cityName || 'Unknown City';
@@ -33,10 +36,11 @@ export default function SquadHeaderV2({
         method: 'POST',
       });
       if (res.ok) {
-        window.location.reload();
+        if (onRefresh) onRefresh();
       }
     } catch (error) {
       console.error('Failed to join squad:', error);
+      toast.error('Failed to join rescue force.');
     }
   };
 
@@ -62,7 +66,7 @@ export default function SquadHeaderV2({
                 {squadPhoto ? (
                   <img
                     src={squadPhoto}
-                    alt={`${cityName} Rescue Squad`}
+                    alt={`${cityName} Rescue Force`}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -85,7 +89,7 @@ export default function SquadHeaderV2({
             <div className="flex-1">
               <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-2">
                 <span className="text-white">{cityName}</span>
-                <span className="text-flash-400"> Rescue Squad</span>
+                <span className="text-flash-400"> Rescue Force</span>
               </h1>
               <p className="text-base text-slate-400 mb-2">
                 {customSlogan}
@@ -108,7 +112,7 @@ export default function SquadHeaderV2({
               {currentDivision?.name || 'Division'}
             </h1>
             <p className="text-base text-slate-400">
-              Part of {cityName} Rescue Squad
+              Part of {cityName} Rescue Force
             </p>
           </div>
         )}
@@ -160,7 +164,7 @@ export default function SquadHeaderV2({
                 onClick={() => router.push(`/rescue-squads/${squad.id}`)}
                 className="px-4 py-2 rounded-full text-sm font-medium bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
               >
-                ← View Full Squad
+                ← View Full Rescue Force
               </button>
               <DivisionChip active={true} label={currentDivision?.name || 'Division'} />
               {divisions.filter(d => d.id !== currentDivisionId).map(div => (
@@ -190,7 +194,7 @@ export default function SquadHeaderV2({
                 >
                   <div className="flex items-center gap-2">
                     <Shield size={16} />
-                    <span>Join This Squad</span>
+                    <span>Join This Rescue Force</span>
                   </div>
                 </button>
               )}
@@ -204,7 +208,6 @@ export default function SquadHeaderV2({
         isOpen={showPhotoUpload}
         onClose={() => setShowPhotoUpload(false)}
         onUpload={(url) => {
-          console.log('Photo uploaded:', url);
         }}
         squadId={squad.id}
       />

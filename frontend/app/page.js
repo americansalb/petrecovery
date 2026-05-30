@@ -32,6 +32,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { SARAMA_AVATAR, LOGO_PRIMARY, LOGO_ICON } from '@/lib/brandAssets';
+import { useToast } from '@/app/components/ui/Toast';
 
 // Auth Modal Component
 const AuthModal = ({ isOpen, onClose, squadToJoin, onAuthSuccess }) => {
@@ -265,6 +266,7 @@ const ReunionTicker = ({ reunions = [], loading }) => {
 export default function Home() {
   const { data: session, update: updateSession } = useSession();
   const router = useRouter();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [locationQuery, setLocationQuery] = useState('');
   const [locating, setLocating] = useState(false);
@@ -332,7 +334,7 @@ export default function Home() {
         // Include ALL cities - both with and without squads
         const results = (data.cities || []).map(city => ({
           id: city.squad?.id || `new-${city.city}-${city.state}`,
-          name: city.squad?.name || `${city.city} Rescue Squad`,
+          name: city.squad?.name || `${city.city} Rescue Force`,
           city: city.city,
           state: city.state,
           memberCount: city.squad?.memberCount || 0,
@@ -361,7 +363,7 @@ export default function Home() {
 
   const handleUseLocation = async () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser');
+      toast.error('Geolocation is not supported by your browser');
       return;
     }
     setLocating(true);
@@ -388,7 +390,7 @@ export default function Home() {
                 const data = await res.json();
                 const results = (data.cities || []).map(c => ({
                   id: c.squad?.id || `new-${c.city}-${c.state}`,
-                  name: c.squad?.name || `${c.city} Rescue Squad`,
+                  name: c.squad?.name || `${c.city} Rescue Force`,
                   city: c.city,
                   state: c.state,
                   memberCount: c.squad?.memberCount || 0,
@@ -399,12 +401,12 @@ export default function Home() {
                 setSearchResults(results);
               }
             } else {
-              alert('Could not determine your location. Please enter a city or zip code.');
+              toast.error('Could not determine your location. Please enter a city or zip code.');
             }
           }
         } catch (e) {
           console.error(e);
-          alert('Unable to get your location. Please enter a city or zip code.');
+          toast.error('Unable to get your location. Please enter a city or zip code.');
         } finally {
           setSearching(false);
           setLocating(false);
@@ -412,7 +414,7 @@ export default function Home() {
       },
       (error) => {
         setLocating(false);
-        alert('Unable to get your location. Please enter a city or zip code.');
+        toast.error('Unable to get your location. Please enter a city or zip code.');
       }
     );
   };
@@ -463,12 +465,12 @@ export default function Home() {
         if (data.code === 'WAIVER_NOT_ACCEPTED') {
           router.push(data.redirectTo);
         } else {
-          alert(data.error || 'Failed to create squad');
+          toast.error(data.error || 'Failed to create rescue force');
         }
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to create squad');
+      toast.error('Failed to create rescue force');
     } finally {
       setCreatingSquad(null);
     }
@@ -486,11 +488,11 @@ export default function Home() {
         router.push(`/rescue-squads/${squad.id}?joined=true`);
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to join squad');
+        toast.error(data.error || 'Failed to join rescue force');
       }
     } catch (e) {
       console.error(e);
-      alert('Failed to join squad');
+      toast.error('Failed to join rescue force');
     } finally {
       setJoiningSquad(null);
     }
@@ -526,45 +528,6 @@ export default function Home() {
       {/* Reunion Ticker */}
       <ReunionTicker reunions={ticker} loading={loading} />
 
-      {/* Header - Navy Blue matching dashboard */}
-      <header className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-14 w-auto" />
-            <span className="hidden sm:inline">Reunite<span className="text-flash-400">Pets</span></span>
-          </Link>
-
-          <nav className="flex items-center gap-2 sm:gap-3 text-sm">
-            <Link href="/database" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
-              <Search className="w-4 h-4" />
-              <span className="hidden sm:inline">Search</span>
-            </Link>
-            <Link href="/rescue-squads/search" className="flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
-              <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Squads</span>
-            </Link>
-            <Link href="/shelters" className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 hover:text-white rounded-lg font-medium transition">
-              <Building2 className="w-4 h-4" />
-              Shelters
-            </Link>
-            {session ? (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1.5 bg-flash-400 text-midnight-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition shadow-sm"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="bg-flash-400 text-midnight-900 px-4 py-2 rounded-xl font-bold hover:bg-flash-500 transition"
-              >
-                Login
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
 
       {/* Hero */}
       <section className="py-16 md:py-24 relative overflow-hidden bg-gradient-to-b from-flash-50 via-white to-amber-50/30">
@@ -656,7 +619,7 @@ export default function Home() {
                   <div className="flex items-center gap-2 bg-flash-100 px-4 py-2 rounded-full">
                     <Shield className="w-5 h-5 text-flash-600" />
                     <span className="font-bold text-midnight-900">{metrics.activeSquads}</span>
-                    <span className="text-midnight-600">neighborhood squads</span>
+                    <span className="text-midnight-600">neighborhood rescue forces</span>
                   </div>
                   <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-full">
                     <Users className="w-5 h-5 text-amber-600" />
@@ -703,7 +666,7 @@ export default function Home() {
                 <Search className="w-4 h-4" /> Search lost pets
               </Link>
               <Link href="/rescue-squads/search" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
-                <Shield className="w-4 h-4" /> Find your squad
+                <Shield className="w-4 h-4" /> Find your rescue force
               </Link>
               <Link href="/shelters" className="inline-flex items-center gap-2 hover:text-gray-900 transition">
                 <Building2 className="w-4 h-4" /> Check shelters
@@ -902,9 +865,9 @@ export default function Home() {
               <div className="w-14 h-14 bg-flash-400 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
                 <Shield className="w-7 h-7 text-midnight-900" />
               </div>
-              <h3 className="text-xl font-bold mb-2">Rescue Squads</h3>
+              <h3 className="text-xl font-bold mb-2">Rescue Forces</h3>
               <p className="text-midnight-200 text-sm leading-relaxed">
-                Your neighbors are ready to help. Join your local squad or rally a new one.
+                Your neighbors are ready to help. Join your local rescue force or rally a new one.
               </p>
             </motion.div>
 
@@ -1018,7 +981,7 @@ export default function Home() {
                 <span className="text-flash-400">Ready</span>
               </h2>
               <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-                Real neighbors. Real care. When a pet goes missing, your local Rescue Squad mobilizes to help.
+                Real neighbors. Real care. When a pet goes missing, your local Rescue Force mobilizes to help.
               </p>
             </motion.div>
           </div>
@@ -1031,9 +994,9 @@ export default function Home() {
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-midnight-200">
                     {searchResults.length === 0 ? (
-                      'No squads found in this area'
+                      'No rescue forces found in this area'
                     ) : (
-                      <>Found <span className="font-bold text-flash-400">{searchResults.length}</span> squads near you</>
+                      <>Found <span className="font-bold text-flash-400">{searchResults.length}</span> rescue forces near you</>
                     )}
                   </p>
                   <button
@@ -1083,7 +1046,7 @@ export default function Home() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-bold truncate text-lg">
-                            {squad.exists ? squad.name : `${squad.city} Rescue Squad`}
+                            {squad.exists ? squad.name : `${squad.city} Rescue Force`}
                           </h3>
                           <p className="text-midnight-300 text-sm flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
@@ -1127,7 +1090,7 @@ export default function Home() {
                               ) : (
                                 <>
                                   <Shield className="w-4 h-4" />
-                                  Start Squad
+                                  Start Rescue Force
                                 </>
                               )}
                             </button>
@@ -1139,13 +1102,13 @@ export default function Home() {
                 </motion.div>
               ) : searchResults && searchResults.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-midnight-300 mb-4">No squads in this area yet - be the first!</p>
+                  <p className="text-midnight-300 mb-4">No rescue forces in this area yet - be the first!</p>
                   <Link
                     href="/rescue-squads/create"
                     className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 px-6 py-3 rounded-xl font-bold transition shadow-lg"
                   >
                     <Shield className="w-5 h-5" />
-                    Start the First Squad
+                    Start the First Rescue Force
                   </Link>
                 </div>
               ) : null}
@@ -1159,7 +1122,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="bg-midnight-700/50 backdrop-blur-sm border border-midnight-600 rounded-3xl p-6 md:p-8 max-w-2xl mx-auto"
           >
-            <h3 className="text-white font-bold text-xl mb-2 text-center">Find Your Local Squad</h3>
+            <h3 className="text-white font-bold text-xl mb-2 text-center">Find Your Local Rescue Force</h3>
             <p className="text-midnight-300 text-center mb-6">Enter your location to find neighbors ready to help</p>
             <form id="squad-search-form" onSubmit={handleFindSquad} className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex-1 relative">
@@ -1221,7 +1184,7 @@ export default function Home() {
                 className="inline-flex items-center gap-2 text-flash-400 hover:text-flash-300 transition font-medium"
               >
                 <Shield className="w-4 h-4" />
-                Start a new squad
+                Start a new rescue force
               </Link>
             </div>
           </motion.div>
@@ -1236,7 +1199,7 @@ export default function Home() {
           >
             <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
               <div className="text-3xl font-bold text-flash-400">{metrics.activeSquads}</div>
-              <div className="text-midnight-300 text-sm">Active Squads</div>
+              <div className="text-midnight-300 text-sm">Active Rescue Forces</div>
             </div>
             <div className="bg-midnight-700/30 px-6 py-4 rounded-2xl">
               <div className="text-3xl font-bold text-flash-400">{metrics.citiesCovered || 0}</div>
@@ -1327,7 +1290,7 @@ export default function Home() {
           <div className="grid md:grid-cols-4 gap-8">
             {[
               { icon: Bell, title: 'Report', desc: '2 minutes to create your case', color: 'bg-red-500' },
-              { icon: Radio, title: 'Alert', desc: 'Squad gets notified instantly', color: 'bg-amber-500' },
+              { icon: Radio, title: 'Alert', desc: 'Rescue Force gets notified instantly', color: 'bg-amber-500' },
               { icon: Navigation, title: 'Search', desc: 'GPS-tracked volunteers mobilize', color: 'bg-blue-500' },
               { icon: Heart, title: 'Reunite', desc: 'Community brings them home', color: 'bg-green-500' },
             ].map((step, i) => (
@@ -1402,7 +1365,7 @@ export default function Home() {
                 <li><Link href="/report/new" className="hover:text-white transition">Report Lost Pet</Link></li>
                 <li><Link href="/report/found" className="hover:text-white transition">Report Found Pet</Link></li>
                 <li><Link href="/database" className="hover:text-white transition">Search Database</Link></li>
-                <li><Link href="/rescue-squads/search" className="hover:text-white transition">Find Squads</Link></li>
+                <li><Link href="/rescue-squads/search" className="hover:text-white transition">Find Rescue Forces</Link></li>
               </ul>
             </div>
             <div>

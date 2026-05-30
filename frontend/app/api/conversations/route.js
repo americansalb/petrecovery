@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { sendPushToUser, PUSH_TEMPLATES, isPushConfigured } from '@/app/lib/push';
@@ -18,7 +19,7 @@ import { getEmailBaseUrl } from '@/app/lib/config';
  */
 export async function POST(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -125,7 +126,7 @@ export async function POST(request) {
     if (otherParty?.email) {
       sendEmail({
         to: otherParty.email,
-        subject: `New Message About ${petName} - PetRecovery.org`,
+        subject: `New Message About ${petName} - ReunitePets.org`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">Someone wants to connect about a potential match!</h2>
@@ -145,7 +146,7 @@ export async function POST(request) {
             </p>
 
             <p style="color: #6b7280; font-size: 14px;">
-              For your safety, communicate through PetRecovery.org until you're ready to share contact information.
+              For your safety, communicate through ReunitePets.org until you're ready to share contact information.
             </p>
           </div>
         `
@@ -194,7 +195,7 @@ export async function POST(request) {
  */
 export async function GET(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -207,87 +208,117 @@ export async function GET(request) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get all conversations where user is owner or finder
-    const conversations = await prisma.conversation.findMany({
-      where: {
-        OR: [
-          { ownerId: user.id },
-          { finderId: user.id }
-        ],
-        status: {
-          not: 'CLOSED'
-        }
-      },
-      orderBy: {
-        lastMessageAt: 'desc'
-      },
-      include: {
-        messages: {
-          orderBy: { createdAt: 'desc' },
-          take: 1 // Get only the last message
-        }
-      }
-    });
+    // Pagination
+    const { searchParams } = new URL(request.url);
+    const rawLimit = parseInt(searchParams.get('limit'), 10);
+    const take = Math.min(isNaN(rawLimit) ? 20 : Math.max(rawLimit, 0), 100);
+    const rawOffset = parseInt(searchParams.get('offset'), 10);
+    const skip = isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);
 
-    // Enrich with case data
-    const enrichedConversations = await Promise.all(
-      conversations.map(async (conv) => {
-        const [lostCase, foundCase] = await Promise.all([
-          prisma.case.findUnique({
-            where: { id: conv.lostCaseId },
-            select: {
-              id: true,
-              petName: true,
-              petPhotoUrl: true,
-              petSpecies: true,
-              petBreed: true,
-              lastSeenAddress: true
-            }
-          }),
-          prisma.case.findUnique({
-            where: { id: conv.foundCaseId },
-            select: {
-              id: true,
-              petName: true,
-              petPhotoUrl: true,
-              petSpecies: true,
-              petBreed: true,
-              lastSeenAddress: true
-            }
-          })
-        ]);
-
-        // Get other party's name
-        const otherPartyId = conv.ownerId === user.id ? conv.finderId : conv.ownerId;
-        const otherParty = await prisma.user.findUnique({
-          where: { id: otherPartyId },
-          select: { firstName: true, lastName: true }
-        });
-
-        // Count unread messages
-        const unreadCount = await prisma.directMessage.count({
-          where: {
-            conversationId: conv.id,
-            senderId: { not: user.id },
-            readAt: null
+    // Get conversations with last message included
+    const [conversations, totalCount] = await Promise.all([
+      prisma.conversation.findMany({
+        where: {
+          OR: [
+            { ownerId: user.id },
+            { finderId: user.id }
+          ],
+          status: { not: 'CLOSED' }
+        },
+        orderBy: { lastMessageAt: 'desc' },
+        take,
+        skip,
+        include: {
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1
           }
-        });
-
-        return {
-          ...conv,
-          lostCase,
-          foundCase,
-          otherPartyName: otherParty?.firstName || 'Unknown',
-          userRole: conv.ownerId === user.id ? 'owner' : 'finder',
-          unreadCount,
-          lastMessage: conv.messages[0] || null
-        };
+        }
+      }),
+      prisma.conversation.count({
+        where: {
+          OR: [
+            { ownerId: user.id },
+            { finderId: user.id }
+          ],
+          status: { not: 'CLOSED' }
+        }
       })
-    );
+    ]);
+
+    // Early return if no conversations
+    if (conversations.length === 0) {
+      return NextResponse.json({
+        conversations: [],
+        total: totalCount,
+        limit: take,
+        offset: skip
+      });
+    }
+
+    // Batch: collect all unique case IDs and other-party user IDs
+    const caseIds = new Set();
+    const otherPartyIds = new Set();
+    for (const conv of conversations) {
+      if (conv.lostCaseId) caseIds.add(conv.lostCaseId);
+      if (conv.foundCaseId) caseIds.add(conv.foundCaseId);
+      const otherPartyId = conv.ownerId === user.id ? conv.finderId : conv.ownerId;
+      if (otherPartyId) otherPartyIds.add(otherPartyId);
+    }
+
+    // 2 bulk queries instead of 4*N individual queries
+    const [cases, otherParties, unreadCounts] = await Promise.all([
+      prisma.case.findMany({
+        where: { id: { in: [...caseIds] } },
+        select: {
+          id: true,
+          petName: true,
+          petPhotoUrl: true,
+          petSpecies: true,
+          petBreed: true,
+          lastSeenAddress: true
+        }
+      }),
+      prisma.user.findMany({
+        where: { id: { in: [...otherPartyIds] } },
+        select: { id: true, firstName: true, lastName: true }
+      }),
+      prisma.directMessage.groupBy({
+        by: ['conversationId'],
+        where: {
+          conversationId: { in: conversations.map(c => c.id) },
+          senderId: { not: user.id },
+          readAt: null
+        },
+        _count: { id: true }
+      })
+    ]);
+
+    // Build lookup maps
+    const caseMap = Object.fromEntries(cases.map(c => [c.id, c]));
+    const userMap = Object.fromEntries(otherParties.map(u => [u.id, u]));
+    const unreadMap = Object.fromEntries(unreadCounts.map(u => [u.conversationId, u._count.id]));
+
+    // Enrich conversations using maps (no additional queries)
+    const enrichedConversations = conversations.map(conv => {
+      const otherPartyId = conv.ownerId === user.id ? conv.finderId : conv.ownerId;
+      return {
+        ...conv,
+        lostCase: caseMap[conv.lostCaseId] || null,
+        foundCase: caseMap[conv.foundCaseId] || null,
+        otherPartyName: userMap[otherPartyId]?.firstName || 'Unknown',
+        userRole: conv.ownerId === user.id ? 'owner' : 'finder',
+        unreadCount: unreadMap[conv.id] || 0,
+        lastMessage: conv.messages[0] || null
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      conversations: enrichedConversations
+      conversations: enrichedConversations,
+      total: totalCount,
+      limit: take,
+      offset: skip
     });
 
   } catch (error) {

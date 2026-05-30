@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { getCitySuggestions, isValidCity } from '../lib/cities';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../lib/theme';
 
 export default function CitySelector({ value, onChange, state }) {
@@ -10,8 +9,11 @@ export default function CitySelector({ value, onChange, state }) {
   const [filteredCities, setFilteredCities] = useState([]);
   const [isValid, setIsValid] = useState(true);
   const [requestStatus, setRequestStatus] = useState(null); // null, 'sending', 'sent', 'error'
+  const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
+  const debounceRef = useRef(null);
+  const abortRef = useRef(null);
 
   const handleRequestCity = async () => {
     if (!inputValue || inputValue.trim().length < 2) return;
@@ -39,20 +41,59 @@ export default function CitySelector({ value, onChange, state }) {
     setInputValue(value || '');
   }, [value]);
 
-  // Filter cities based on input
+  // Fetch suggestions from API with debounce
+  const fetchSuggestions = useCallback(async (query) => {
+    if (!query || query.trim().length < 3) {
+      setFilteredCities([]);
+      setIsValid(true);
+      setLoading(false);
+      return;
+    }
+
+    // Cancel any in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({ q: query.trim(), limit: '20' });
+      const res = await fetch(`/api/cities/suggest?${params}`, { signal: controller.signal });
+      const data = await res.json();
+
+      setFilteredCities(data.suggestions || []);
+      setIsValid(data.isValid !== false);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.error('City suggest error:', err);
+      setFilteredCities([]);
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, []);
+
+  // Debounced search on input change
   useEffect(() => {
-    if (!inputValue || inputValue.trim() === '') {
+    if (!inputValue || inputValue.trim().length < 3) {
       setFilteredCities([]);
       setIsValid(true);
       return;
     }
 
-    const suggestions = getCitySuggestions(inputValue, 20);
-    setFilteredCities(suggestions);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
 
-    // Validate city name
-    setIsValid(isValidCity(inputValue));
-  }, [inputValue]);
+    debounceRef.current = setTimeout(() => {
+      fetchSuggestions(inputValue);
+    }, 250);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [inputValue, fetchSuggestions]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -71,13 +112,13 @@ export default function CitySelector({ value, onChange, state }) {
     setInputValue(newValue);
     onChange(newValue);
     setShowDropdown(true);
-    setRequestStatus(null); // Reset request status when typing
+    setRequestStatus(null);
   };
 
   const handleCitySelect = (city) => {
     const cityValue = `${city.city}`;
     setInputValue(cityValue);
-    onChange(cityValue, city.state, city.zip);
+    onChange(cityValue, city.state_id || city.state, city.zip || (city.zips && city.zips[0]));
     setShowDropdown(false);
     setIsValid(true);
   };
@@ -152,7 +193,7 @@ export default function CitySelector({ value, onChange, state }) {
           )}
           {filteredCities.map((city, idx) => (
             <div
-              key={`${city.city}-${city.state}-${idx}`}
+              key={`${city.city}-${city.state_id || city.state}-${idx}`}
               onClick={() => handleCitySelect(city)}
               style={{
                 padding: '0.75rem 1rem',
@@ -171,7 +212,7 @@ export default function CitySelector({ value, onChange, state }) {
                 {city.city}
               </div>
               <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                {city.state} • ZIP {city.zip}
+                {city.state_id || city.state} {city.country && city.country !== 'US' ? `• ${city.country}` : ''} {city.zip ? `• ZIP ${city.zip}` : city.zips && city.zips[0] ? `• ZIP ${city.zips[0]}` : ''}
               </div>
             </div>
           ))}
@@ -179,7 +220,7 @@ export default function CitySelector({ value, onChange, state }) {
       )}
 
       {/* No matches message with request option */}
-      {showDropdown && inputValue && inputValue.length >= 3 && filteredCities.length === 0 && (
+      {showDropdown && inputValue && inputValue.length >= 3 && filteredCities.length === 0 && !loading && (
         <div
           ref={dropdownRef}
           style={{

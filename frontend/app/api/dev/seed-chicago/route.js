@@ -1,16 +1,23 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 
 /**
- * POST /api/admin/seed-chicago
+ * POST /api/dev/seed-chicago
  *
  * Seeds the Chicago Rescue Squad with test data.
- * This endpoint should only be used in development.
+ * Requires ADMIN role to prevent accidental use in production.
  */
 export async function POST() {
   try {
-    console.log('Seeding Chicago Rescue Squad...');
+    const session = await getServerSession(authOptions);
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    console.log('Seeding Chicago Rescue Force...');
 
     // Check if Chicago squad already exists
     const existing = await prisma.rescueSquad.findFirst({
@@ -19,7 +26,7 @@ export async function POST() {
 
     if (existing) {
       return NextResponse.json({
-        message: 'Chicago Rescue Squad already exists',
+        message: 'Chicago Rescue Force already exists',
         squadId: existing.id,
         url: `/rescue-squads/${existing.id}`,
       });
@@ -60,7 +67,7 @@ export async function POST() {
     // Create Chicago Rescue Squad
     const chicagoSquad = await prisma.rescueSquad.create({
       data: {
-        name: 'Chicago Rescue Squad',
+        name: 'Chicago Rescue Force',
         description: 'Helping reunite lost pets with their families across the Chicagoland area.',
         city: 'Chicago',
         state: 'IL',
@@ -315,7 +322,7 @@ export async function POST() {
     // Create activities
     const activityTypes = [
       { type: 'CASE_ACCEPTED', message: 'accepted case' },
-      { type: 'MEMBER_JOINED', message: 'joined the squad' },
+      { type: 'MEMBER_JOINED', message: 'joined the rescue force' },
       { type: 'SIGHTING_REPORTED', message: 'reported a sighting' },
     ];
 
@@ -394,7 +401,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      message: 'Chicago Rescue Squad seeded successfully!',
+      message: 'Chicago Rescue Force seeded successfully!',
       squadId: chicagoSquad.id,
       url: `/rescue-squads/${chicagoSquad.id}`,
       slugUrl: '/rescue-squads/chicago',
@@ -410,7 +417,7 @@ export async function POST() {
   } catch (error) {
     console.error('Error seeding Chicago squad:', error);
     return NextResponse.json(
-      { error: 'Failed to seed Chicago squad', details: error.message },
+      { error: 'Failed to seed Chicago force', details: error.message },
       { status: 500 }
     );
   }

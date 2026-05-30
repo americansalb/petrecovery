@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { sendEmail, sendVerificationEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
-import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
@@ -23,7 +23,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   // Apply rate limiting
-  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:verify-email');
+  const rateLimitResult = await withRateLimitAsync(request, RateLimitPresets.AUTH,'auth:verify-email');
   if (!rateLimitResult.success) {
     return rateLimitResponse(rateLimitResult);
   }
@@ -117,7 +117,7 @@ export async function GET(request) {
   const correlationId = crypto.randomUUID();
 
   // Apply rate limiting
-  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:resend-verify');
+  const rateLimitResult = await withRateLimitAsync(request, RateLimitPresets.AUTH,'auth:resend-verify');
   if (!rateLimitResult.success) {
     return rateLimitResponse(rateLimitResult);
   }

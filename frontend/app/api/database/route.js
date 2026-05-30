@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 
 // Force dynamic rendering since we use session/headers
 export const dynamic = 'force-dynamic';
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   try {
     // Get session (but don't require it)
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url);

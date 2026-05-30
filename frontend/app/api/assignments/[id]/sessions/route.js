@@ -120,7 +120,7 @@ export async function POST(request, { params }) {
     // Create activity log
     await prisma.caseUpdate.create({
       data: {
-        missionId: participation.assignment.case.id,
+        caseId: participation.assignment.case.id, // CaseUpdate's field is caseId (no missionId)
         authorId: session.user.id,
         content: `${session.user.firstName || 'A volunteer'} started searching`,
         isUpdate: true,

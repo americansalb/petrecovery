@@ -2,8 +2,10 @@
 
 import { useState, useRef } from 'react';
 import { X, Upload, Camera } from 'lucide-react';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId }) {
+  const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -15,13 +17,13 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
+      toast.error('Please select an image file.');
       return;
     }
 
     // Validate file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
-      alert('File must be less than 10MB');
+      toast.error('File must be less than 10MB.');
       return;
     }
 
@@ -74,17 +76,14 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
         throw new Error(updateData.error || updateData.details || 'Failed to update squad photo');
       }
 
-      // Callback to parent
+      // Callback to parent to update UI with new photo
       onUpload(uploadData.url);
 
       // Close modal
       onClose();
-
-      // Reload page to show new photo
-      window.location.reload();
     } catch (error) {
       console.error('Upload error:', error);
-      alert(`Upload failed: ${error.message}`);
+      toast.error(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
     }
@@ -112,8 +111,8 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
 
         {/* Header */}
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-white mb-2">Upload Squad Photo</h2>
-          <p className="text-slate-400">Choose a photo to represent your rescue squad</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Upload Rescue Force Photo</h2>
+          <p className="text-slate-400">Choose a photo to represent your rescue force</p>
         </div>
 
         {/* Preview or Upload Area */}

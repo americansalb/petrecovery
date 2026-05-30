@@ -142,10 +142,22 @@ export function generateCaseStructuredData(missionData) {
  * Renders JSON-LD script tag
  */
 export function StructuredData({ data }) {
+  // SECURITY: JSON.stringify escapes " and \ but NOT < > & or the JS line
+  // separators, so user-controlled fields (petName, address) could inject a
+  // literal </script> and break out of this inline script (stored XSS on the
+  // public case page). Escape the breakout chars to \uXXXX — still valid JSON,
+  // no longer parseable as an HTML tag boundary.
+  const safeJson = JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/ /g, '\\u2028')
+    .replace(/ /g, '\\u2029');
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{ __html: safeJson }}
     />
   );
 }

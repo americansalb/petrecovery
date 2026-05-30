@@ -271,7 +271,7 @@ export default function MissionActivityPanel({ missionData, userRole, currentUse
               <div className="text-center text-slate-500">
                 <span className="text-4xl mb-3 block">💬</span>
                 <p className="font-medium mb-1">No Squad Assigned</p>
-                <p className="text-sm">Squad chat will be available once a rescue squad is assigned to this case.</p>
+                <p className="text-sm">Squad chat will be available once a rescue force is assigned to this case.</p>
               </div>
             </div>
           )}

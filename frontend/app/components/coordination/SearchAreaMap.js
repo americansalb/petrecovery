@@ -37,10 +37,6 @@ export default function SearchAreaMap({
   const drawingLayerRef = useRef(null);
   const areasLayerRef = useRef(null);
 
-  console.log('[SEARCH-MAP] Component rendering');
-  console.log(`[SEARCH-MAP] Assignment ID: ${assignmentId}`);
-  console.log(`[SEARCH-MAP] Is participant: ${isParticipant}`);
-
   // Calculate polygon area in acres
   const calculateAcreage = useCallback((points) => {
     if (points.length < 3) return 0;
@@ -70,7 +66,6 @@ export default function SearchAreaMap({
   const fetchSearchAreas = useCallback(async () => {
     if (!assignmentId) return;
 
-    console.log('[SEARCH-MAP] Fetching search areas...');
     try {
       const res = await fetch(`/api/assignments/${assignmentId}/search-areas`);
 
@@ -79,8 +74,6 @@ export default function SearchAreaMap({
       }
 
       const data = await res.json();
-      console.log(`[SEARCH-MAP] Fetched ${data.searchAreas?.length || 0} search areas`);
-
       setSearchAreas(data.searchAreas || []);
       setError(null);
     } catch (err) {
@@ -95,8 +88,6 @@ export default function SearchAreaMap({
   useEffect(() => {
     if (typeof window === 'undefined' || !mapRef.current) return;
 
-    console.log('[SEARCH-MAP] Initializing map...');
-
     import('leaflet').then((L) => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -106,8 +97,6 @@ export default function SearchAreaMap({
       const center = missionData?.lastSeenLatitude && missionData?.lastSeenLongitude
         ? [missionData.lastSeenLatitude, missionData.lastSeenLongitude]
         : [41.8781, -87.6298]; // Chicago default
-
-      console.log(`[SEARCH-MAP] Map center: ${center}`);
 
       // Create map
       const map = L.map(mapRef.current, {
@@ -158,7 +147,6 @@ export default function SearchAreaMap({
       map.on('click', (e) => {
         if (isDrawing) {
           const point = [e.latlng.lat, e.latlng.lng];
-          console.log(`[SEARCH-MAP] Click at: ${point}`);
           setDrawingPoints((prev) => [...prev, point]);
         }
       });
@@ -286,7 +274,6 @@ export default function SearchAreaMap({
 
   // Start drawing mode
   const startDrawing = () => {
-    console.log('[SEARCH-MAP] Starting drawing mode');
     setIsDrawing(true);
     setDrawingPoints([]);
     setNotes('');
@@ -295,7 +282,6 @@ export default function SearchAreaMap({
 
   // Cancel drawing
   const cancelDrawing = () => {
-    console.log('[SEARCH-MAP] Cancelling drawing');
     setIsDrawing(false);
     setDrawingPoints([]);
     if (drawingLayerRef.current) {
@@ -317,8 +303,6 @@ export default function SearchAreaMap({
     setValidationError(null);
 
     const acreage = calculateAcreage(drawingPoints);
-    console.log(`[SEARCH-MAP] Submitting area with ${drawingPoints.length} points, ${acreage} acres`);
-
     setSubmitting(true);
     setError(null);
 
@@ -338,8 +322,6 @@ export default function SearchAreaMap({
         const data = await res.json();
         throw new Error(data.error || 'Failed to submit search area');
       }
-
-      console.log('[SEARCH-MAP] Search area submitted successfully');
 
       // Reset drawing state
       cancelDrawing();

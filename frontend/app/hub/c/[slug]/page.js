@@ -1,5 +1,11 @@
 'use client';
 
+
+// Dynamic render (no static prerender) so useSearchParams is valid without a
+// Suspense boundary; otherwise next build fails the prerender. Auth/personalized
+// pages are dynamic anyway.
+export const dynamic = "force-dynamic";
+
 /**
  * Category View Page
  *

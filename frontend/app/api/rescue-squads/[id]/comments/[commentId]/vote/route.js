@@ -34,7 +34,11 @@ export async function POST(request, { params }) {
     // Check if user is a member of this squad
     const membership = await prisma.rescueSquadMember.findUnique({
       where: {
-        userId_rescueSquadId: {
+        // RescueSquadMember unique is @@unique([rescueSquadId, userId]) → the
+        // generated key is rescueSquadId_userId. The previous userId_rescueSquadId
+        // is a different model's key, so every comment vote 500'd on a Prisma
+        // validation error.
+        rescueSquadId_userId: {
           userId: session.user.id,
           rescueSquadId: id,
         },
@@ -43,7 +47,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You must be a squad member to vote' },
+        { error: 'You must be a rescue force member to vote' },
         { status: 403 }
       );
     }
@@ -72,7 +76,7 @@ export async function POST(request, { params }) {
 
     if (comment.post.rescueSquadId !== id) {
       return NextResponse.json(
-        { error: 'Comment does not belong to this squad' },
+        { error: 'Comment does not belong to this rescue force' },
         { status: 403 }
       );
     }

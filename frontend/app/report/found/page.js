@@ -1,4 +1,5 @@
 'use client';
+// UI: found-flow restyle + MatchCard-wired potential-matches (ui-architect)
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
@@ -6,6 +7,7 @@ import Link from 'next/link';
 import { theme } from '../../lib/theme';
 import BreedSelector from '../../components/BreedSelector';
 import ColorSelector from '../../components/ColorSelector';
+import { MatchCard } from '../../../components/case/MatchCard';
 
 export default function ReportFoundPet() {
   const { data: session } = useSession();
@@ -296,7 +298,7 @@ export default function ReportFoundPet() {
                 style={{
                   flex: 1,
                   height: '6px',
-                  backgroundColor: step >= s ? '#dc2626' : '#e5e7eb',
+                  backgroundColor: step >= s ? '#10b981' : '#e5e7eb', // emerald = FOUND accent (red is the LOST semantic)
                   borderRadius: '3px',
                 }}
               />
@@ -351,15 +353,15 @@ export default function ReportFoundPet() {
 
             <div style={{
               display: 'grid',
-              gap: '1rem',
-              maxWidth: '400px',
+              gap: '0.75rem',
+              maxWidth: '420px',
               margin: '0 auto',
             }}>
               {[
-                { type: 'dog', label: '🐕 Dog', color: '#3b82f6' },
-                { type: 'cat', label: '🐈 Cat', color: '#8b5cf6' },
-                { type: 'bird', label: '🦜 Bird', color: '#10b981' },
-                { type: 'other', label: '🐰 Other Pet', color: '#f59e0b' },
+                { type: 'dog', emoji: '🐕', label: 'Dog', accent: '#3b82f6' },
+                { type: 'cat', emoji: '🐈', label: 'Cat', accent: '#8b5cf6' },
+                { type: 'bird', emoji: '🦜', label: 'Bird', accent: '#10b981' },
+                { type: 'other', emoji: '🐰', label: 'Other Pet', accent: '#f59e0b' },
               ].map((pet) => (
                 <button
                   key={pet.type}
@@ -368,18 +370,50 @@ export default function ReportFoundPet() {
                     setStep(2);
                   }}
                   style={{
-                    padding: '1.5rem',
-                    background: pet.color,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: theme.radius.lg,
-                    fontSize: '1.3rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
+                    width: '100%',
+                    padding: '1.1rem 1.25rem',
+                    background: '#ffffff',
+                    color: '#0f172a', // midnight-900
+                    border: '2px solid #e2e8f0', // midnight-200
+                    borderRadius: '1rem',
+                    fontSize: '1.15rem',
                     fontWeight: '700',
+                    textAlign: 'left',
                     cursor: 'pointer',
-                    boxShadow: theme.shadows.md,
+                    transition: 'border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
+                    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
                   }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#facc15'; // flash-400
+                    e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,23,42,0.10)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = '#facc15'; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; }}
                 >
-                  {pet.label}
+                  <span style={{
+                    width: '44px',
+                    height: '44px',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '0.75rem',
+                    background: `${pet.accent}1a`, // ~10% tint, keeps per-type recognition
+                    fontSize: '1.5rem',
+                  }}>
+                    {pet.emoji}
+                  </span>
+                  <span style={{ flex: 1 }}>{pet.label}</span>
+                  <span style={{ color: '#94a3b8', fontSize: '1.4rem', lineHeight: 1 }} aria-hidden="true">›</span>
                 </button>
               ))}
             </div>
@@ -412,7 +446,7 @@ export default function ReportFoundPet() {
               Enter the address or zip code where you found the pet
             </p>
 
-            <label style={{
+            <label htmlFor="found-address" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontWeight: '700',
@@ -421,6 +455,7 @@ export default function ReportFoundPet() {
               Found At Address or Zip Code
             </label>
             <input
+              id="found-address"
               type="text"
               value={foundAddress}
               onChange={(e) => setFoundAddress(e.target.value)}
@@ -440,7 +475,7 @@ export default function ReportFoundPet() {
               }}
             />
 
-            <label style={{
+            <label htmlFor="found-time" style={{
               display: 'block',
               marginBottom: '0.5rem',
               fontWeight: '700',
@@ -449,6 +484,7 @@ export default function ReportFoundPet() {
               When did you find them?
             </label>
             <select
+              id="found-time"
               value={timeElapsed}
               onChange={(e) => setTimeElapsed(e.target.value)}
               style={{
@@ -585,7 +621,7 @@ export default function ReportFoundPet() {
                 style={{
                   flex: 2,
                   padding: '1rem',
-                  background: '#dc2626',
+                  background: '#10b981', // emerald = FOUND primary CTA (consistent across steps)
                   color: 'white',
                   border: 'none',
                   borderRadius: theme.radius.lg,
@@ -640,10 +676,11 @@ export default function ReportFoundPet() {
             )}
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Your Name
               </label>
               <input
+                id="found-name"
                 type="text"
                 value={reportData.firstName}
                 onChange={(e) => setReportData({ ...reportData, firstName: e.target.value })}
@@ -660,10 +697,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-email" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Email
               </label>
               <input
+                id="found-email"
                 type="email"
                 value={reportData.email}
                 onChange={(e) => setReportData({ ...reportData, email: e.target.value })}
@@ -680,10 +718,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-phone" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Phone Number
               </label>
               <input
+                id="found-phone"
                 type="tel"
                 value={reportData.phone}
                 onChange={(e) => setReportData({ ...reportData, phone: e.target.value })}
@@ -722,7 +761,7 @@ export default function ReportFoundPet() {
                 style={{
                   flex: 2,
                   padding: '1rem',
-                  background: (reportData.firstName && reportData.email && reportData.phone) ? '#dc2626' : '#cbd5e1',
+                  background: (reportData.firstName && reportData.email && reportData.phone) ? '#10b981' : '#cbd5e1',
                   color: 'white',
                   border: 'none',
                   borderRadius: theme.radius.lg,
@@ -764,10 +803,11 @@ export default function ReportFoundPet() {
             </p>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-petname" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Name (if visible on collar/tag)
               </label>
               <input
+                id="found-petname"
                 type="text"
                 value={reportData.petName}
                 onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
@@ -807,10 +847,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-size" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Size
               </label>
               <select
+                id="found-size"
                 value={reportData.size}
                 onChange={(e) => setReportData({ ...reportData, size: e.target.value })}
                 style={{
@@ -848,13 +889,14 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-photos" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Photos of the Pet You Found
               </label>
               <p style={{ fontSize: '0.9rem', color: theme.colors.gray[600], marginBottom: '0.5rem' }}>
                 Upload up to 5 clear photos to help identify the pet (max 5MB each)
               </p>
               <input
+                id="found-photos"
                 type="file"
                 accept="image/*"
                 multiple
@@ -913,10 +955,11 @@ export default function ReportFoundPet() {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
+              <label htmlFor="found-marks" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
                 Distinctive Marks, Features, or Collar Information
               </label>
               <textarea
+                id="found-marks"
                 value={reportData.distinctiveMarks}
                 onChange={(e) => setReportData({ ...reportData, distinctiveMarks: e.target.value })}
                 placeholder="Collar color and type, tags (if any), unique markings, scars, behavior when approached, microchip visible? Very friendly/scared/aggressive?"
@@ -1062,16 +1105,15 @@ export default function ReportFoundPet() {
               </ul>
             </div>
 
-            {/* Potential Matches Section */}
+            {/* Potential Matches — rendered via the shared MatchCard (§4d PII-free,
+                band-driven). connectAvailable=false until the relay broker tables
+                are activated; actionable matches already alert the owner server-side. */}
             {potentialMatches.length > 0 && (
-              <div style={{
-                marginBottom: '2rem',
-                textAlign: 'left',
-              }}>
+              <div style={{ marginBottom: '2rem', textAlign: 'left' }}>
                 <h3 style={{
                   fontSize: '1.3rem',
                   fontWeight: '700',
-                  marginBottom: '1rem',
+                  marginBottom: '0.5rem',
                   color: theme.colors.gray[900],
                 }}>
                   Potential Matches ({potentialMatches.length})
@@ -1081,73 +1123,25 @@ export default function ReportFoundPet() {
                   marginBottom: '1rem',
                   fontSize: '0.95rem',
                 }}>
-                  The owners of these pets have been notified about your found pet report:
+                  We checked nearby lost-pet reports. Strong matches alert the owner automatically.
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {potentialMatches.slice(0, 5).map((match, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        padding: '1rem',
-                        background: match.matchQuality === 'high' ? '#fef3c7' :
-                          match.matchQuality === 'medium' ? '#f3f4f6' : '#f9fafb',
-                        border: `2px solid ${match.matchQuality === 'high' ? '#f59e0b' :
-                          match.matchQuality === 'medium' ? '#9ca3af' : '#e5e7eb'}`,
-                        borderRadius: theme.radius.lg,
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {potentialMatches.slice(0, 5).map((match) => (
+                    <MatchCard
+                      key={match.reportId}
+                      connectAvailable={false}
+                      match={{
+                        matchId: match.reportId,
+                        petPhoto: match.petPhoto,
+                        petName: match.petName,
+                        species: match.petSpecies,
+                        coarseArea: match.coarseArea,
+                        pTrueMatch: match.pTrueMatch,
+                        matchSource: match.matchSource,
+                        band: match.band,
+                        canConnect: match.canConnect,
                       }}
-                    >
-                      {match.petPhoto ? (
-                        <img
-                          src={match.petPhoto}
-                          alt={match.petName}
-                          style={{
-                            width: '60px',
-                            height: '60px',
-                            borderRadius: theme.radius.md,
-                            objectFit: 'cover',
-                          }}
-                        />
-                      ) : (
-                        <div style={{
-                          width: '60px',
-                          height: '60px',
-                          borderRadius: theme.radius.md,
-                          background: '#e5e7eb',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1.5rem',
-                        }}>
-                          {match.petSpecies === 'DOG' ? '🐕' : match.petSpecies === 'CAT' ? '🐈' : '🐾'}
-                        </div>
-                      )}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '700', color: theme.colors.gray[900] }}>
-                          {match.petName}
-                        </div>
-                        <div style={{ fontSize: '0.9rem', color: theme.colors.gray[600] }}>
-                          {match.petBreed} • {match.petColor}
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: theme.colors.gray[500] }}>
-                          {match.distance ? `${match.distance.toFixed(1)} miles away` : 'Nearby'}
-                        </div>
-                      </div>
-                      <div style={{
-                        padding: '0.5rem 1rem',
-                        borderRadius: theme.radius.md,
-                        background: match.matchQuality === 'high' ? '#fef3c7' :
-                          match.matchQuality === 'medium' ? '#e5e7eb' : '#f3f4f6',
-                        color: match.matchQuality === 'high' ? '#92400e' :
-                          match.matchQuality === 'medium' ? '#374151' : '#6b7280',
-                        fontWeight: '600',
-                        fontSize: '0.85rem',
-                      }}>
-                        {match.matchScore}% match
-                      </div>
-                    </div>
+                    />
                   ))}
                 </div>
                 {potentialMatches.length > 5 && (
@@ -1157,7 +1151,7 @@ export default function ReportFoundPet() {
                     marginTop: '1rem',
                     fontSize: '0.9rem',
                   }}>
-                    +{potentialMatches.length - 5} more potential matches notified
+                    +{potentialMatches.length - 5} more potential matches
                   </p>
                 )}
               </div>
@@ -1168,7 +1162,7 @@ export default function ReportFoundPet() {
               style={{
                 display: 'inline-block',
                 padding: '1.25rem 2.5rem',
-                background: '#dc2626',
+                background: '#10b981', // emerald = FOUND positive CTA (was red, the LOST semantic)
                 color: 'white',
                 border: 'none',
                 borderRadius: theme.radius.lg,

@@ -7,6 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { sendPushToUser, PUSH_TEMPLATES, isPushConfigured } from '@/app/lib/push';
@@ -18,7 +19,7 @@ import { getEmailBaseUrl } from '@/app/lib/config';
  */
 export async function POST(request, { params }) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -106,7 +107,7 @@ export async function POST(request, { params }) {
     if (otherParty?.email) {
       sendEmail({
         to: otherParty.email,
-        subject: `New message about ${lostCase?.petName || 'a pet'} - PetRecovery.org`,
+        subject: `New message about ${lostCase?.petName || 'a pet'} - ReunitePets.org`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #10b981;">You have a new message!</h2>
@@ -174,7 +175,7 @@ export async function POST(request, { params }) {
  */
 export async function GET(request, { params }) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

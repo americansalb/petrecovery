@@ -16,34 +16,25 @@ export default function ForgotPasswordPage() {
   const [status, setStatus] = useState('idle'); // idle, loading, success, error
   const [message, setMessage] = useState('');
 
-  console.log('[FORGOT-PASSWORD-PAGE] Component rendered, status:', status);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('[FORGOT-PASSWORD-PAGE] Form submitted');
-    console.log(`[FORGOT-PASSWORD-PAGE] Email: ${email.substring(0, 3)}***`);
 
     setStatus('loading');
     setMessage('');
 
     try {
-      console.log('[FORGOT-PASSWORD-PAGE] Sending request to API...');
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
 
-      console.log(`[FORGOT-PASSWORD-PAGE] Response status: ${response.status}`);
       const data = await response.json();
-      console.log('[FORGOT-PASSWORD-PAGE] Response data:', data);
 
       if (response.ok) {
-        console.log('[FORGOT-PASSWORD-PAGE] Success!');
         setStatus('success');
         setMessage(data.message);
       } else {
-        console.log('[FORGOT-PASSWORD-PAGE] Error:', data.error);
         setStatus('error');
         setMessage(data.error || 'Something went wrong. Please try again.');
       }

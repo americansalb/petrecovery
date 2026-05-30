@@ -24,7 +24,7 @@ export async function GET(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad members can view active cases' },
+        { error: 'Only rescue force members can view active cases' },
         { status: 403 }
       );
     }

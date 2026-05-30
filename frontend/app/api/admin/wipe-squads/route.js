@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { isAdmin } from '@/app/lib/authz';
 
 // POST /api/admin/wipe-squads - Delete all rescue squad data (ADMIN ONLY)
 export async function POST(request) {
@@ -14,11 +15,17 @@ export async function POST(request) {
     // Step 1: Check authentication
     console.log('📋 Step 1: Checking authentication...');
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       console.log('❌ Authentication failed - no session found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.log(`✅ Authenticated as user: ${session.user?.email || session.user?.id}`);
+    // This irreversibly deletes ALL squads/members/divisions/assignments, so it
+    // MUST be admin-gated in-handler (fresh role), never session-only.
+    if (!(await isAdmin(session.user.id))) {
+      console.log('❌ Forbidden - not an admin');
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    console.log(`✅ Authenticated as admin: ${session.user?.email || session.user?.id}`);
 
     // Step 2: Count existing data
     console.log('\n📊 Step 2: Counting existing data...');
@@ -139,7 +146,7 @@ export async function POST(request) {
 
     const result = {
       success: true,
-      message: 'All rescue squad data wiped successfully',
+      message: 'All rescue force data wiped successfully',
       deleted: {
         squads: squadsResult.count,
         members: membersResult.count,
@@ -162,7 +169,7 @@ export async function POST(request) {
 
     return NextResponse.json(
       {
-        error: 'Failed to wipe squad data',
+        error: 'Failed to wipe rescue force data',
         details: error.message,
         code: error.code,
         name: error.name

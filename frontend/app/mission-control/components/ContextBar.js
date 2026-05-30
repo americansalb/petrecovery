@@ -30,7 +30,7 @@ export default function ContextBar({ mission, onBackToSquad }) {
             >
               <ChevronLeft size={18} className="flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" />
               <span className="text-sm font-medium truncate">
-                Find Rescue Squads
+                Find Rescue Forces
               </span>
             </Link>
 
@@ -68,7 +68,7 @@ export default function ContextBar({ mission, onBackToSquad }) {
           >
             <ChevronLeft size={18} className="flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" />
             <span className="text-sm font-medium truncate">
-              {squadName || 'Rescue Squad'}
+              {squadName || 'Rescue Force'}
             </span>
           </Link>
 

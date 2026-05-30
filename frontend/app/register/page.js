@@ -1,5 +1,11 @@
 'use client';
 
+
+// Dynamic render (no static prerender) so useSearchParams is valid without a
+// Suspense boundary; otherwise next build fails the prerender. Auth/personalized
+// pages are dynamic anyway.
+export const dynamic = "force-dynamic";
+
 /**
  * Register Page - Updated with PetRecovery Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
@@ -281,7 +287,7 @@ export default function RegisterPage() {
                   <Link href="/legal/consent" className="text-midnight-900 font-medium underline hover:text-flash-600">
                     Liability Waiver
                   </Link>
-                  . I understand that participation in rescue squad activities involves physical risks.
+                  . I understand that participation in rescue force activities involves physical risks.
                 </span>
               </label>
             </div>

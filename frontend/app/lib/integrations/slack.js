@@ -209,7 +209,7 @@ export function formatSightingAlert(sightingData) {
  */
 export function formatSquadUpdate(squadData, updateType) {
   const titles = {
-    new_member: ':wave: New Squad Member',
+    new_member: ':wave: New Rescue Force Member',
     search_started: ':mag: Search Started',
     search_ended: ':checkered_flag: Search Ended',
     area_covered: ':white_check_mark: Area Covered',
@@ -221,7 +221,7 @@ export function formatSquadUpdate(squadData, updateType) {
         type: 'header',
         text: {
           type: 'plain_text',
-          text: titles[updateType] || ':bell: Squad Update',
+          text: titles[updateType] || ':bell: Rescue Force Update',
           emoji: true,
         },
       },
@@ -229,7 +229,7 @@ export function formatSquadUpdate(squadData, updateType) {
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: `*Squad:* ${squadData.squadName}\n*Case:* ${squadData.petName} (#${squadData.missionNumber})`,
+          text: `*Rescue Force:* ${squadData.squadName}\n*Case:* ${squadData.petName} (#${squadData.missionNumber})`,
         },
       },
       {

@@ -48,7 +48,7 @@ export async function DELETE(request, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: `Division deleted successfully (${division._count.members} members moved to squad-level)`,
+      message: `Division deleted successfully (${division._count.members} members moved to force-level)`,
       metadata: {
         membersAffected: division._count.members,
         softDelete: true,

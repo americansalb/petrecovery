@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import {
   getEngagementStats,
   getDivisionLeaderboard,
@@ -14,7 +15,7 @@ import {
 
 export async function GET(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -47,7 +48,7 @@ export async function GET(request) {
       case 'squadLeaderboard':
         if (!squadId) {
           return NextResponse.json(
-            { error: 'Squad ID required' },
+            { error: 'Rescue Force ID required' },
             { status: 400 }
           );
         }
@@ -71,7 +72,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
 
     if (!session?.user?.id) {
       return NextResponse.json(

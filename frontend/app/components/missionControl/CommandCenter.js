@@ -9,8 +9,10 @@
 
 import { useState, useEffect } from 'react';
 import { TOUCH_TARGETS, triggerHaptic } from '@/app/lib/missionControl/accessibility';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function CommandCenter({ missionId, mission, onUpdate }) {
+  const toast = useToast();
   const [commandView, setCommandView] = useState(null);
   const [activeTab, setActiveTab] = useState('OVERVIEW');
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -50,6 +52,7 @@ export default function CommandCenter({ missionId, mission, onUpdate }) {
       setBroadcastMessage('');
     } catch (err) {
       console.error('Broadcast error:', err);
+      toast.error('Failed to send broadcast.');
     }
   };
 
@@ -63,6 +66,7 @@ export default function CommandCenter({ missionId, mission, onUpdate }) {
       fetchCommandView();
     } catch (err) {
       console.error('Error updating stale zones:', err);
+      toast.error('Failed to update stale zones.');
     }
   };
 

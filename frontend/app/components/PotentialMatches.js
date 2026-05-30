@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useToast } from '@/app/components/ui/Toast';
 
 const MATCH_STATUSES = {
   PENDING: { label: 'Not Reviewed', color: 'bg-gray-100 text-gray-700' },
@@ -17,6 +18,7 @@ const MATCH_STATUSES = {
 };
 
 export default function PotentialMatches({ missionId, className = '' }) {
+  const toast = useToast();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -81,6 +83,7 @@ export default function PotentialMatches({ missionId, className = '' }) {
       );
     } catch (err) {
       console.error('Update status error:', err);
+      toast.error('Failed to update match status.');
     }
   };
 

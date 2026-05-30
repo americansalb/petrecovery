@@ -1,7 +1,6 @@
 // Comprehensive US location validation for PetRecovery communities
 // Includes cities, counties, and ZIP code validation
 
-import { getCitiesByZip } from '../app/lib/cities';
 import { getZipCodeInfo } from './zip-city-mapping';
 
 // ZIP Code validation
@@ -392,71 +391,37 @@ export function searchLocations(query, existingCommunities = []) {
 
   // Check if it's a valid ZIP code
   if (isValidZipCode(searchTerm)) {
-    // Try the comprehensive cities database first
-    try {
-      const cities = getCitiesByZip(searchTerm);
+    // Use lightweight zip-city-mapping (no heavy JSON import)
+    const zipInfo = getZipCodeInfo(searchTerm);
+    if (zipInfo) {
+      // Check if this city exists in our curated locations
+      const existingCity = US_LOCATIONS.find(loc =>
+        loc.value === `${zipInfo.city}, ${zipInfo.state}`
+      );
 
-      if (cities && cities.length > 0) {
-        // Use the first city found for this ZIP
-        const city = cities[0];
-
-        // Check if this city exists in our locations database
-        const existingCity = US_LOCATIONS.find(loc =>
-          (loc.label === city.city && loc.state === city.state_id) ||
-          loc.value === `${city.city}, ${city.state_id}`
-        );
-
-        if (existingCity) {
-          return [existingCity];
-        }
-
-        // City exists in database but not in our curated locations list
-        // Return it as a valid option
-        return [{
-          value: `${city.city}, ${city.state_id}`,
-          label: `${city.city}`,
-          type: 'CITY',
-          state: city.state_id,
-          isZip: true,
-          zipCode: formatZipCode(searchTerm)
-        }];
+      if (existingCity) {
+        return [existingCity];
       }
 
-      // ZIP not found in comprehensive database - try metro mapping
-      const zipInfo = getZipCodeInfo(searchTerm);
-      if (zipInfo) {
-        return [{
-          value: `${zipInfo.city}, ${zipInfo.state}`,
-          label: zipInfo.city,
-          type: 'SUBCOMMUNITY',
-          state: zipInfo.state,
-          isZip: true,
-          zipCode: formatZipCode(searchTerm),
-          parentMetro: zipInfo.metroValue
-        }];
-      }
-
-      // ZIP not found in either database - mark as not found
       return [{
-        value: formatZipCode(searchTerm),
-        label: `ZIP Code ${formatZipCode(searchTerm)} (not found)`,
-        type: 'ZIP',
-        state: 'US',
+        value: `${zipInfo.city}, ${zipInfo.state}`,
+        label: zipInfo.city,
+        type: 'SUBCOMMUNITY',
+        state: zipInfo.state,
         isZip: true,
-        disabled: true,
-        disabledReason: 'ZIP code not found in database'
-      }];
-    } catch (err) {
-      console.error('[us-locations] ZIP lookup error:', err);
-      // Final fallback - accept the ZIP as-is
-      return [{
-        value: formatZipCode(searchTerm),
-        label: `ZIP Code ${formatZipCode(searchTerm)}`,
-        type: 'ZIP',
-        state: 'US',
-        isZip: true
+        zipCode: formatZipCode(searchTerm),
+        parentMetro: zipInfo.metroValue
       }];
     }
+
+    // ZIP not found in mapping - return as generic ZIP entry
+    return [{
+      value: formatZipCode(searchTerm),
+      label: `ZIP Code ${formatZipCode(searchTerm)}`,
+      type: 'ZIP',
+      state: 'US',
+      isZip: true
+    }];
   }
 
   // Search by name, state, or type

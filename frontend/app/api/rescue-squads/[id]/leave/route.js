@@ -48,7 +48,7 @@ export async function POST(request, { params }) {
         metadata: { squad_id: id }
       });
       return NextResponse.json(
-        { error: 'You are not a member of this squad' },
+        { error: 'You are not a member of this rescue force' },
         { status: 400 }
       );
     }
@@ -152,7 +152,7 @@ export async function POST(request, { params }) {
       }
     });
     return NextResponse.json(
-      { error: 'Failed to leave squad' },
+      { error: 'Failed to leave rescue force' },
       { status: 500 }
     );
   }

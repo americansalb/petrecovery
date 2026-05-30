@@ -5,7 +5,7 @@
  *
  * Priority order:
  * 1. My Missions (your pets) - always visible at top
- * 2. My Squads (your community)
+ * 2. My Rescue Forces (your community)
  * 3. Help Nearby (other missions you can help with)
  * 4. Quick Actions
  */
@@ -38,11 +38,18 @@ export default function DashboardPage() {
       if (!session?.user) return;
       try {
         const res = await fetch('/api/dashboard');
-        if (!res.ok) throw new Error('Failed to fetch');
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push('/login');
+            return;
+          }
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.details || body.error || 'Server error');
+        }
         const data = await res.json();
         setUserData(data);
       } catch (err) {
-        setError('Failed to load dashboard');
+        setError(err.message || 'Failed to load dashboard');
       } finally {
         setLoading(false);
       }
@@ -199,14 +206,14 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-blue-500" />
-              <h2 className="text-lg font-bold text-slate-900">My Squads</h2>
+              <h2 className="text-lg font-bold text-slate-900">My Rescue Forces</h2>
             </div>
             <Link
               href="/rescue-squads/search"
               className="flex items-center gap-1 text-sm text-blue-600 font-medium hover:text-blue-700"
             >
               <Plus className="w-4 h-4" />
-              Find Squads
+              Find Rescue Forces
             </Link>
           </div>
 
@@ -253,13 +260,13 @@ export default function DashboardPage() {
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-slate-900 mb-1">Join a Rescue Squad</h3>
+                  <h3 className="font-bold text-slate-900 mb-1">Join a Rescue Force</h3>
                   <p className="text-sm text-slate-600 mb-3">
                     Connect with volunteers in your area to help find lost pets together.
                   </p>
                   <Link href="/rescue-squads/search">
                     <button className="px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition-colors">
-                      Find Squads Near Me
+                      Find Rescue Forces Near Me
                     </button>
                   </Link>
                 </div>
@@ -382,7 +389,7 @@ export default function DashboardPage() {
             <Heart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
             <h3 className="font-bold text-slate-900 mb-2">Welcome!</h3>
             <p className="text-slate-500 text-sm max-w-md mx-auto">
-              Join a rescue squad to connect with volunteers in your area and help find lost pets together.
+              Join a rescue force to connect with volunteers in your area and help find lost pets together.
             </p>
           </div>
         )}

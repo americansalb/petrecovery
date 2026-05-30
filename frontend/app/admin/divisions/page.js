@@ -182,7 +182,7 @@ export default function AdminDivisionsPage() {
               Manage Divisions
             </h1>
             <p style={{ fontSize: '1.1rem', color: '#64748b' }}>
-              Neighborhood subdivisions within rescue squads
+              Neighborhood subdivisions within rescue forces
             </p>
           </div>
 
@@ -295,7 +295,7 @@ export default function AdminDivisionsPage() {
                     Division
                   </th>
                   <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '700' }}>
-                    Rescue Squad
+                    Rescue Force
                   </th>
                   <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '700' }}>
                     Members

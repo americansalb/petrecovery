@@ -5,7 +5,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { sendPushToUser } from '@/app/lib/push';
-import { createInAppNotification } from '@/app/lib/notifications';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
 
 /**
  * Calculate distance between two coordinates in miles

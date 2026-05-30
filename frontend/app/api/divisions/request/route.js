@@ -27,7 +27,7 @@ export async function POST(request) {
     // Validate required fields
     if (!rescueSquadId || !proposedName || !justification) {
       return NextResponse.json(
-        { error: 'Rescue Squad ID, proposed name, and justification are required' },
+        { error: 'Rescue Force ID, proposed name, and justification are required' },
         { status: 400 }
       );
     }
@@ -39,7 +39,7 @@ export async function POST(request) {
 
     if (!rescueSquad) {
       return NextResponse.json(
-        { error: 'Rescue Squad not found' },
+        { error: 'Rescue Force not found' },
         { status: 404 }
       );
     }
@@ -56,7 +56,7 @@ export async function POST(request) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'You must be a member of this Rescue Squad to request a Division' },
+        { error: 'You must be a member of this Rescue Force to request a Division' },
         { status: 403 }
       );
     }
@@ -71,7 +71,7 @@ export async function POST(request) {
 
     if (existingDivision) {
       return NextResponse.json(
-        { error: 'A Division with this name already exists in this Rescue Squad' },
+        { error: 'A Division with this name already exists in this Rescue Force' },
         { status: 400 }
       );
     }

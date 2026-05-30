@@ -88,7 +88,7 @@ const TRAINING_MODULES = [
   },
   {
     id: 'leadership',
-    title: 'Squad Leadership Training',
+    title: 'Rescue Force Leadership Training',
     description: 'Leading and coordinating search teams',
     duration: 60,
     type: 'interactive',

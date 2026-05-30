@@ -67,7 +67,7 @@ export async function POST(request, { params }) {
 
     if (!rescueSquadId) {
       return NextResponse.json(
-        { error: 'Rescue squad ID required' },
+        { error: 'Rescue force ID required' },
         { status: 400 }
       );
     }
@@ -100,7 +100,7 @@ export async function POST(request, { params }) {
 
     if (!membership) {
       return NextResponse.json(
-        { error: 'Only squad leaders can accept cases' },
+        { error: 'Only rescue force leaders can accept cases' },
         { status: 403 }
       );
     }
@@ -117,7 +117,7 @@ export async function POST(request, { params }) {
 
     if (existingAssignment) {
       return NextResponse.json(
-        { error: 'Your squad has already accepted this case' },
+        { error: 'Your rescue force has already accepted this case' },
         { status: 400 }
       );
     }

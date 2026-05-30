@@ -80,7 +80,6 @@ export default function PetDetailPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      console.log('[PETS-EDIT] User not authenticated, redirecting to login');
       router.push('/login?callbackUrl=/pets/' + petId);
     }
   }, [status, router, petId]);
@@ -92,10 +91,8 @@ export default function PetDetailPage() {
   }, [status, petId]);
 
   const fetchPet = async () => {
-    console.log('[PETS-EDIT] Fetching pet:', petId);
     try {
       const res = await fetch(`/api/pets/${petId}`);
-      console.log('[PETS-EDIT] Response status:', res.status);
       if (!res.ok) {
         if (res.status === 404) {
           throw new Error('Pet not found');
@@ -103,7 +100,6 @@ export default function PetDetailPage() {
         throw new Error('Failed to fetch pet');
       }
       const data = await res.json();
-      console.log('[PETS-EDIT] Pet data loaded:', data.pet.name);
       setPet(data.pet);
 
       // Populate form
@@ -181,12 +177,10 @@ export default function PetDetailPage() {
     setSubmitError(null);
 
     if (!validate()) {
-      console.log('[PETS-EDIT] Validation failed:', errors);
       return;
     }
 
     setSubmitting(true);
-    console.log('[PETS-EDIT] Updating pet:', formData);
 
     try {
       const photoUrls = images.map(img => img.url);
@@ -204,14 +198,10 @@ export default function PetDetailPage() {
       });
 
       const data = await res.json();
-      console.log('[PETS-EDIT] Response status:', res.status);
-      console.log('[PETS-EDIT] Response data:', data);
-
       if (!res.ok) {
         throw new Error(data.error || 'Failed to update pet profile');
       }
 
-      console.log('[PETS-EDIT] Pet updated successfully');
       router.push('/pets');
     } catch (err) {
       console.error('[PETS-EDIT] Update error:', err);
@@ -230,18 +220,14 @@ export default function PetDetailPage() {
     setDeleting(true);
     setSubmitError(null);
 
-    console.log('[PETS-EDIT] Deleting pet:', petId);
-
     try {
       const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
       const data = await res.json();
-      console.log('[PETS-EDIT] Delete response:', res.status, data);
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete pet');
       }
 
-      console.log('[PETS-EDIT] Pet deleted successfully');
       router.push('/pets');
     } catch (err) {
       console.error('[PETS-EDIT] Delete error:', err);

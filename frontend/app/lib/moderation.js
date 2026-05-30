@@ -5,7 +5,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
-import { createInAppNotification } from '@/app/lib/notifications';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
 
 // Banned words/phrases for content filtering
 const BANNED_PATTERNS = [

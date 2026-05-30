@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
     const allowedRoles = ['ADMIN', 'MODERATOR', 'FOUNDER'];
     if (!membership || !allowedRoles.includes(membership.role)) {
       return NextResponse.json(
-        { error: 'Only admins, moderators, and founders can update squad photo' },
+        { error: 'Only admins, moderators, and founders can update rescue force photo' },
         { status: 403 }
       );
     }
@@ -61,7 +61,7 @@ export async function POST(request, { params }) {
   } catch (error) {
     console.error('[SQUAD_PHOTO] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to update squad photo', details: error.message },
+      { error: 'Failed to update rescue force photo', details: error.message },
       { status: 500 }
     );
   }

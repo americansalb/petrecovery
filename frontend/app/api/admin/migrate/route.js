@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { isAdmin } from '@/app/lib/authz';
 
 /**
  * POST /api/admin/migrate
@@ -13,12 +14,17 @@ export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
 
-    // Only allow authenticated users (ideally should check for admin role)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
+    }
+
+    // In-handler admin re-check (role read fresh from DB, not the JWT): this
+    // runs raw DDL, so it must not rely on middleware or a stale token alone.
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     console.log('[MIGRATE] Starting migration...');
@@ -217,11 +223,7 @@ export async function POST(request) {
     console.error('[MIGRATE] Error:', error);
 
     return NextResponse.json(
-      {
-        error: 'Migration failed',
-        details: error.message,
-        stack: error.stack,
-      },
+      { error: 'Migration failed' },
       { status: 500 }
     );
   }

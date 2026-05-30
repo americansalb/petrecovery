@@ -24,6 +24,8 @@ const RATE_LIMIT_CONFIG = {
   '/api/auth/login': { windowMs: 60000, maxRequests: 10 },
   '/api/auth/forgot-password': { windowMs: 60000, maxRequests: 5 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
+  '/api/geocode': { windowMs: 60000, maxRequests: 10 },
+  '/api/admin/bulk': { windowMs: 60000, maxRequests: 5 },
   // Lenient: Frequently accessed endpoints
   '/api/dashboard': { windowMs: 60000, maxRequests: 30 },
   '/api/public/homepage': { windowMs: 60000, maxRequests: 60 },

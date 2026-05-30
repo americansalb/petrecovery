@@ -340,7 +340,7 @@ export const SUBSCRIPTION_TIERS = {
     features: [
       'Report lost/found pets',
       'Basic search tools',
-      'Join rescue squads',
+      'Join rescue forces',
       'Community access',
     ],
   },
@@ -357,12 +357,12 @@ export const SUBSCRIPTION_TIERS = {
     ],
   },
   PRO: {
-    name: 'Pro Squad',
+    name: 'Pro Rescue Force',
     priceId: process.env.STRIPE_PRO_PRICE_ID,
     price: 15,
     features: [
       'All Supporter features',
-      'Squad management tools',
+      'Rescue Force management tools',
       'Shelter API access',
       'Advanced mapping',
       'Priority support',

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
 import { sendVerificationEmail } from '@/app/lib/email';
 import crypto from 'crypto';
@@ -22,7 +22,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   // Apply rate limiting (strict for auth endpoints)
-  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:register');
+  const rateLimitResult = await withRateLimitAsync(request, RateLimitPresets.AUTH, 'auth:register');
   if (!rateLimitResult.success) {
     // Log without blocking response
     logEvent({

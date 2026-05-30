@@ -36,6 +36,7 @@ export default function CommunityModeV2({
 }) {
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
 
@@ -133,6 +134,7 @@ export default function CommunityModeV2({
 
       {/* Main Post Feed */}
       <PostFeed
+        key={refreshKey}
         squadId={squadId}
         divisionId={isDivisionPage ? divisionId : null}
         membership={membership}
@@ -146,7 +148,7 @@ export default function CommunityModeV2({
       <CreatePostModal
         isOpen={showCreatePost}
         onClose={() => setShowCreatePost(false)}
-        onSubmit={() => window.location.reload()}
+        onSubmit={() => setRefreshKey(k => k + 1)}
         squadId={squadId}
         divisionId={isDivisionPage ? divisionId : null}
       />

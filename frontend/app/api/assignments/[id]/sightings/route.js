@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
+import { sendEmail } from '@/app/lib/email';
+import { getEmailBaseUrl } from '@/app/lib/config';
 
 // GET /api/assignments/[id]/sightings - Get all sightings for a case
 export async function GET(request, { params }) {
@@ -114,23 +117,55 @@ export async function POST(request, { params }) {
       },
     });
 
-    // Update case status if high confidence sighting
+    // Update case status if high confidence sighting + notify the owner.
     if (confidenceLevel >= 7) {
       const assignment = await prisma.caseAssignment.findUnique({
         where: { id: assignmentId },
-        select: { missionId: true },
+        select: { missionId: true }, // CaseAssignment.missionId is @map("caseId") — this is the case id
       });
 
-      await prisma.case.update({
+      const updatedCase = await prisma.case.update({
         where: { id: assignment.missionId },
         data: { status: 'SIGHTING_REPORTED' },
+        select: {
+          caseNumber: true,
+          petName: true,
+          reporterId: true,
+          reporter: { select: { email: true } },
+        },
       });
-    }
 
-    // TODO: Send urgent notifications to:
-    // - Pet owner (immediate push notification + SMS)
-    // - All case participants (push notification)
-    // - Squad leaders (push notification)
+      // CRIT-E: a confident sighting of a missing pet must reach the owner.
+      // Deliver in-app + email, isolated/best-effort so it can't fail the sighting.
+      try {
+        if (updatedCase?.reporterId) {
+          const petName = updatedCase.petName || 'your pet';
+          await createInAppNotification({
+            userId: updatedCase.reporterId,
+            type: 'SIGHTING',
+            title: `Confident sighting of ${petName}`,
+            message: `A searcher reported a confident sighting${address ? ` near ${address}` : ''}. Tap to view the details.`,
+            actionUrl: updatedCase.caseNumber ? `/cases/${updatedCase.caseNumber}` : null,
+            data: { sightingId: sighting.id },
+          });
+          if (updatedCase.reporter?.email) {
+            await sendEmail({
+              to: updatedCase.reporter.email,
+              subject: `Confident sighting reported for ${petName} — ReunitePets.org`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h2 style="color: #10b981;">A confident sighting was reported</h2>
+                  <p>A searcher just reported a confident sighting of ${petName}${address ? ` near ${address}` : ''}.</p>
+                  <p><a href="${getEmailBaseUrl()}${updatedCase.caseNumber ? `/cases/${updatedCase.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">View the sighting</a></p>
+                </div>
+              `,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Assignment-sighting owner-notify failed:', err?.message);
+      }
+    }
 
     // Create a system message in chat
     const confidenceText =

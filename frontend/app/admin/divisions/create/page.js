@@ -58,7 +58,7 @@ export default function AdminCreateDivisionPage() {
       const citySquad = squadData.cities?.find(c => c.exists && c.city === city);
 
       if (!citySquad || !citySquad.squad) {
-        throw new Error(`No rescue squad found for ${city}, ${state}. Please create the rescue squad first.`);
+        throw new Error(`No rescue force found for ${city}, ${state}. Please create the rescue force first.`);
       }
 
       setRescueSquad(citySquad.squad);
@@ -402,7 +402,7 @@ export default function AdminCreateDivisionPage() {
                   color: '#64748b',
                   marginTop: '0.5rem'
                 }}>
-                  This will determine which Rescue Squad this division belongs to
+                  This will determine which Rescue Force this division belongs to
                 </p>
               </div>
 
@@ -421,7 +421,7 @@ export default function AdminCreateDivisionPage() {
                   cursor: loading || zipCode.length !== 5 ? 'not-allowed' : 'pointer'
                 }}
               >
-                {loading ? 'Finding Rescue Squad...' : 'Continue →'}
+                {loading ? 'Finding Rescue Force...' : 'Continue →'}
               </button>
             </div>
           </form>

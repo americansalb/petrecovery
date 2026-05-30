@@ -6,13 +6,14 @@
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import crypto from 'crypto';
 
 export async function POST(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -81,11 +82,11 @@ export async function POST(request) {
 
     await sendEmail({
       to: shelterEmail,
-      subject: `You're invited to join PetRecovery.org - ${shelterName}`,
+      subject: `You're invited to join ReunitePets.org - ${shelterName}`,
       html: `
-        <h2>Welcome to PetRecovery!</h2>
+        <h2>Welcome to ReunitePets!</h2>
         <p>Hi ${contactName || 'there'},</p>
-        <p>You've been invited to create a shelter account for <strong>${shelterName}</strong> on PetRecovery.org.</p>
+        <p>You've been invited to create a shelter account for <strong>${shelterName}</strong> on ReunitePets.org.</p>
         ${message ? `<p><em>"${message}"</em></p>` : ''}
         <p>With your free shelter account, you can:</p>
         <ul>

@@ -170,7 +170,7 @@ export async function GET(request, { params }) {
     }
 
     if (!squad) {
-      return NextResponse.json({ error: 'Rescue squad not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Rescue force not found' }, { status: 404 });
     }
 
     // Use the actual squad ID for subsequent queries
@@ -471,7 +471,7 @@ export async function GET(request, { params }) {
         }
 
         // Create welcome announcement
-        const welcomeMessage = `Welcome to your local Rescue Squad!
+        const welcomeMessage = `Welcome to your local Rescue Force!
 
 We're a community of caring neighbors who work together to help lost pets find their way home.
 
@@ -490,7 +490,7 @@ Every share, every search, every kind word makes a difference. Together, we brin
             type: 'ANNOUNCEMENT',
             message: welcomeMessage,
             details: JSON.stringify({
-              title: 'Welcome to Your Rescue Squad!',
+              title: 'Welcome to Your Rescue Force!',
               isPinned: true,
               isSystemPost: true,
             }),
@@ -619,7 +619,7 @@ Every share, every search, every kind word makes a difference. Together, we brin
   } catch (error) {
     console.error('Error fetching squad hub data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch squad hub data', details: error.message },
+      { error: 'Failed to fetch rescue force hub data', details: error.message },
       { status: 500 }
     );
   }

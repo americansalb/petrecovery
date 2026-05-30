@@ -5,22 +5,17 @@
 
 import { NextRequest } from 'next/server';
 
-// Mock prisma before importing route
-const mockPrisma = {
-  sighting: {
-    create: jest.fn(),
-  },
-  caseSighting: {
-    create: jest.fn(),
-  },
-  case: {
-    findUnique: jest.fn(),
-  },
-};
-
+// Mock prisma with the mock object defined INSIDE the factory, so the factory
+// does not close over a const that is still in the TDZ when the route's hoisted
+// `import prisma` fires the factory ("Cannot access 'mockPrisma' before
+// initialization"). We alias the imported mocked default as `mockPrisma` below.
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
-  default: mockPrisma,
+  default: {
+    sighting: { create: jest.fn() },
+    caseSighting: { create: jest.fn() },
+    case: { findUnique: jest.fn() },
+  },
 }));
 
 // Mock session
@@ -40,6 +35,13 @@ jest.mock('@/app/api/auth/[...nextauth]/route', () => ({
   authOptions: {},
 }));
 
+// The route imports authOptions from '@/app/lib/auth'; mock it so auth.js
+// (which imports prisma at module load) never evaluates during the route import.
+jest.mock('@/app/lib/auth', () => ({
+  __esModule: true,
+  authOptions: {},
+}));
+
 // Mock rate limiting (always allow)
 jest.mock('@/app/lib/rateLimit', () => ({
   withRateLimit: jest.fn().mockReturnValue({ success: true }),
@@ -55,6 +57,10 @@ jest.mock('@/lib/logging', () => ({
 // Import the route handler and session mock after mocks
 import { POST } from '@/app/api/sightings/route';
 import { getServerSession } from 'next-auth';
+import prisma from '@/app/lib/prisma';
+
+// Alias the imported mocked default so existing `mockPrisma.*` refs work unchanged.
+const mockPrisma = prisma;
 
 describe('POST /api/sightings', () => {
   beforeEach(() => {

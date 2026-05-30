@@ -119,11 +119,28 @@ export function calculateColorSimilarity(color1, color2) {
 }
 
 /**
+ * A coordinate of exactly 0 (equator / prime meridian) is valid, so coordinate
+ * presence MUST be tested with Number.isFinite, never truthiness — otherwise a
+ * real match on the 0-meridian silently loses all location points and can fall
+ * below the notification floor. (Shared helper so this anti-pattern stops
+ * recurring — dev-challenger msg 382, evil-architect CORR-1.)
+ */
+export function hasCoords(lat, lng) {
+  return Number.isFinite(lat) && Number.isFinite(lng);
+}
+
+/** First finite coordinate among the candidates (preserves a valid 0), else null. */
+function pickCoord(...vals) {
+  for (const v of vals) if (Number.isFinite(v)) return v;
+  return null;
+}
+
+/**
  * Calculate distance between two points using Haversine formula
  * Returns distance in miles
  */
 export function calculateDistance(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  if (!hasCoords(lat1, lon1) || !hasCoords(lat2, lon2)) return Infinity;
 
   const R = 3959; // Earth's radius in miles
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -139,19 +156,79 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
+ * Notification / CTA floor, defined in P(true-match) — NOT raw points.
+ * The human question is "how sure before we give a distraught owner hope?",
+ * answered in probability. These survive re-tuning of the raw scorer: when
+ * matching.js changes, only scoreToProbability() is re-fit, never these floors.
+ */
+export const PUSH_FLOOR = 0.70; // auto-push to owner + actionable Confirm-&-Connect CTA
+export const FEED_FLOOR = 0.40; // owner feed only — no alert, no CTA
+
+/**
+ * PROVISIONAL raw-score → P(true-match) mapping.
+ *
+ * ⚠️ PROVISIONAL — to be replaced by the calibrated curve from Probe A
+ * (vision.md §6). Every consumer (owner-push gate, card CTA, tester H5) binds to
+ * pTrueMatch, never to the raw score, so when the calibration curve lands ONLY
+ * this function changes — no caller changes. The seed for Probe A MUST span the
+ * 0.40–0.70 decision band (true non-matches, near-misses, partials) or the curve
+ * is miscalibrated exactly where the floor lives.
+ *
+ * Anchors map the existing quality tiers onto the floor bands:
+ *   raw ≥80 (Excellent) → ≥0.72  → push band
+ *   raw 60–79 (Good)    → 0.47–0.60 → owner-feed band
+ *   raw <52             → <0.40   → suppressed
+ * matchSource 'microchip' is a deterministic identity match → 1.0 regardless of score.
+ *
+ * @param {number} score - raw 0–100 match score
+ * @param {string} matchSource - 'attribute' | 'visual' | 'microchip'
+ * @returns {number} P(true-match) in [0,1]
+ */
+export function scoreToProbability(score, matchSource = 'attribute') {
+  if (matchSource === 'microchip') return 1; // deterministic identity, bypasses the floor
+  const anchors = [
+    [0, 0.0], [35, 0.20], [45, 0.30], [52, 0.40],
+    [60, 0.47], [70, 0.60], [80, 0.72], [90, 0.85], [100, 0.95],
+  ];
+  const s = Math.max(0, Math.min(100, Number(score) || 0));
+  for (let i = 1; i < anchors.length; i++) {
+    const [x0, y0] = anchors[i - 1];
+    const [x1, y1] = anchors[i];
+    if (s <= x1) {
+      const t = x1 === x0 ? 0 : (s - x0) / (x1 - x0);
+      return Math.round((y0 + t * (y1 - y0)) * 1000) / 1000;
+    }
+  }
+  return 0.95;
+}
+
+/**
+ * Single source of truth for the notification / CTA band.
+ * Both the match card and the server-side owner-notification gate call this,
+ * so the floor can never drift between UI and backend.
+ * @returns {'actionable'|'feed'|'suppress'}
+ */
+export function getConfidenceBand(pTrueMatch) {
+  if (pTrueMatch >= PUSH_FLOOR) return 'actionable'; // push owner + show Confirm CTA
+  if (pTrueMatch >= FEED_FLOOR) return 'feed';        // owner feed only, no alert/CTA
+  return 'suppress';                                  // honest-status state only
+}
+
+/**
  * Main matching function
  * Calculates match score between a found pet and a lost pet case
  *
  * @param {Object} foundPet - The found pet report
  * @param {Object} lostCase - The lost pet case to compare against
- * @param {Object} options - Configuration options
- * @returns {Object} - { score, details, eligible }
+ * @param {Object} options - Configuration options (incl. matchSource)
+ * @returns {Object} - { score, pTrueMatch, matchSource, band, details, eligible }
  */
 export function calculateMatchScore(foundPet, lostCase, options = {}) {
   const {
     maxDistanceMiles = 15,
     maxDaysApart = 60,
     minScore = 35,
+    matchSource = 'attribute',
   } = options;
 
   const scores = {
@@ -174,9 +251,19 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
   const foundSpecies = (foundPet.petSpecies || foundPet.species || '').toUpperCase();
   const lostSpecies = (lostCase.petSpecies || lostCase.species || '').toUpperCase();
 
-  if (foundSpecies !== lostSpecies) {
+  // A microchip is ground truth (identity), so the FUZZY species gate must not
+  // veto it: a chip registered to a cat but the found-pet logged as a dog is a
+  // data-entry error to SURFACE, not a reason to silently discard a definitive
+  // identity match. Only attribute/visual matches are gated on species here.
+  // (dev-challenger msg 412 — pairs with the pTrueMatch sort fix.)
+  if (foundSpecies !== lostSpecies && matchSource !== 'microchip') {
     return {
       score: 0,
+      maxScore: 100,
+      percentage: 0,
+      pTrueMatch: 0,
+      matchSource,
+      band: 'suppress',
       details: { ...details, reason: 'Species mismatch' },
       eligible: false,
     };
@@ -185,13 +272,13 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
   scores.species = 25;
   details.speciesMatch = true;
 
-  // 2. Location (25 points)
-  const foundLat = foundPet.latitude || foundPet.lastSeenLatitude;
-  const foundLon = foundPet.longitude || foundPet.lastSeenLongitude;
-  const lostLat = lostCase.latitude || lostCase.lastSeenLatitude;
-  const lostLon = lostCase.longitude || lostCase.lastSeenLongitude;
+  // 2. Location (25 points) — pickCoord/hasCoords preserve a valid 0 coordinate
+  const foundLat = pickCoord(foundPet.latitude, foundPet.lastSeenLatitude);
+  const foundLon = pickCoord(foundPet.longitude, foundPet.lastSeenLongitude);
+  const lostLat = pickCoord(lostCase.latitude, lostCase.lastSeenLatitude);
+  const lostLon = pickCoord(lostCase.longitude, lostCase.lastSeenLongitude);
 
-  if (foundLat && foundLon && lostLat && lostLon) {
+  if (hasCoords(foundLat, foundLon) && hasCoords(lostLat, lostLon)) {
     const distance = calculateDistance(foundLat, foundLon, lostLat, lostLon);
     details.distance = Math.round(distance * 10) / 10;
 
@@ -262,11 +349,15 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
 
   // Calculate total score
   const totalScore = scores.species + scores.location + scores.breed + scores.color + scores.timing;
+  const pTrueMatch = scoreToProbability(totalScore, matchSource);
 
   return {
     score: totalScore,
     maxScore: 100,
     percentage: totalScore,
+    pTrueMatch,            // calibrated probability — the contract for notification/CTA gating
+    matchSource,
+    band: getConfidenceBand(pTrueMatch), // 'actionable' | 'feed' | 'suppress'
     details: {
       ...details,
       scores,
@@ -298,8 +389,15 @@ export function findMatches(targetCase, candidateCases, options = {}) {
         ...matchResult,
       };
     })
-    .filter(m => m.eligible && m.score >= minScore)
-    .sort((a, b) => b.score - a.score)
+    // Keep eligible matches AND any 'actionable'-band match (e.g. a microchip
+    // identity match, pTrueMatch=1.0) even if its RAW score is low — a
+    // deterministic match must never be filtered out by the fuzzy minScore.
+    .filter(m => (m.eligible && m.score >= minScore) || m.band === 'actionable')
+    // Rank by calibrated probability first (so microchip / high-confidence rises
+    // to the top regardless of raw score), then raw score as a tiebreaker.
+    // Sorting by raw score alone would bury a definitive identity match beneath
+    // a high-scoring guess (dev-challenger msg 382).
+    .sort((a, b) => (b.pTrueMatch - a.pTrueMatch) || (b.score - a.score))
     .slice(0, maxResults);
 
   return matches;

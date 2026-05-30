@@ -21,7 +21,7 @@ import { List, Map, Users } from 'lucide-react';
 const tabs = [
   { id: 'CASES', label: 'Cases', icon: List },
   { id: 'MAP', label: 'Map', icon: Map },
-  { id: 'SQUAD', label: 'Squad', icon: Users },
+  { id: 'SQUAD', label: 'Rescue Force', icon: Users },
 ];
 
 export default function SquadTabsMobile() {

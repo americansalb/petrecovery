@@ -16,15 +16,12 @@ function VerifyEmailContent() {
 
   useEffect(() => {
     if (!token) {
-      console.log('[VERIFY-EMAIL] No token provided');
       setStatus('error');
       setError('No verification token provided.');
       return;
     }
 
     async function verifyEmail() {
-      console.log('[VERIFY-EMAIL] Starting verification with token:', token);
-
       try {
         const res = await fetch('/api/auth/verify-email', {
           method: 'POST',
@@ -33,19 +30,13 @@ function VerifyEmailContent() {
         });
 
         const data = await res.json();
-        console.log('[VERIFY-EMAIL] Response status:', res.status);
-        console.log('[VERIFY-EMAIL] Response data:', data);
-
         if (res.ok) {
-          console.log('[VERIFY-EMAIL] Verification successful');
           setStatus('success');
           // Redirect to login after 3 seconds
           setTimeout(() => {
-            console.log('[VERIFY-EMAIL] Redirecting to login');
             router.push('/login?verified=true');
           }, 3000);
         } else {
-          console.log('[VERIFY-EMAIL] Verification failed:', data.error);
           setStatus('error');
           setError(data.error || 'Verification failed.');
         }

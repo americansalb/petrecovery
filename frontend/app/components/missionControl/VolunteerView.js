@@ -13,10 +13,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { TOUCH_TARGETS, triggerHaptic, announce, ARIA_ANNOUNCEMENTS } from '@/app/lib/missionControl/accessibility';
+import { useToast } from '@/app/components/ui/Toast';
 import SightingButton from './SightingButton';
 import useRealtimeUpdates from '@/app/lib/missionControl/useRealtimeUpdates';
 
 export default function VolunteerView({ missionId, mission, onUpdate }) {
+  const toast = useToast();
   const [location, setLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState('acquiring'); // acquiring, active, error
   const [assignment, setAssignment] = useState(null);
@@ -115,6 +117,7 @@ export default function VolunteerView({ missionId, mission, onUpdate }) {
       announce(`${signalType.replace('_', ' ')} signal sent`);
     } catch (err) {
       console.error('Signal error:', err);
+      toast.error('Failed to send signal.');
     }
   };
 
@@ -140,6 +143,7 @@ export default function VolunteerView({ missionId, mission, onUpdate }) {
       });
     } catch (err) {
       console.error('Resource update error:', err);
+      toast.error('Failed to update resources.');
     }
   };
 
@@ -162,6 +166,7 @@ export default function VolunteerView({ missionId, mission, onUpdate }) {
       onUpdate?.();
     } catch (err) {
       console.error('Check out error:', err);
+      toast.error('Failed to check out. Please try again.');
     }
   };
 

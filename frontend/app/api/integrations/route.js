@@ -76,7 +76,7 @@ export async function POST(request) {
 
       if (!squadAccess) {
         return NextResponse.json(
-          { error: 'Must be squad leader or coordinator' },
+          { error: 'Must be rescue force leader or coordinator' },
           { status: 403 }
         );
       }

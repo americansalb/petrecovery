@@ -1,8 +1,8 @@
 /**
- * Seed script for Chicago Rescue Squad with test data
+ * Seed script for Chicago Rescue Force with test data
  *
  * Creates:
- * - Chicago Rescue Squad
+ * - Chicago Rescue Force
  * - 5 divisions (Lakeview, Lincoln Park, Logan Square, Wicker Park, South Loop)
  * - Test members
  * - Test cases with assignments
@@ -18,7 +18,7 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Seeding Chicago Rescue Squad...');
+  console.log('🌱 Seeding Chicago Rescue Force...');
 
   // ============================================================================
   // CREATE TEST USERS
@@ -62,7 +62,7 @@ async function main() {
   // ============================================================================
 
   const chicagoSquad = await prisma.rescueSquad.upsert({
-    where: { name: 'Chicago Rescue Squad' },
+    where: { name: 'Chicago Rescue Force' },
     update: {
       city: 'Chicago',
       state: 'IL',
@@ -73,7 +73,7 @@ async function main() {
       isAcceptingCases: true,
     },
     create: {
-      name: 'Chicago Rescue Squad',
+      name: 'Chicago Rescue Force',
       description: 'Helping reunite lost pets with their families across the Chicagoland area.',
       city: 'Chicago',
       state: 'IL',
@@ -417,7 +417,7 @@ async function main() {
 
   const activityTypes = [
     { type: 'CASE_ACCEPTED', message: 'accepted case' },
-    { type: 'MEMBER_JOINED', message: 'joined the squad' },
+    { type: 'MEMBER_JOINED', message: 'joined the rescue force' },
     { type: 'SIGHTING_REPORTED', message: 'reported a sighting' },
     { type: 'CASE_RESOLVED', message: 'case resolved - pet reunited!' },
   ];
@@ -492,7 +492,7 @@ async function main() {
   }
   console.log('  ✅ Help requests created');
 
-  console.log('\n🎉 Chicago Rescue Squad seeded successfully!');
+  console.log('\n🎉 Chicago Rescue Force seeded successfully!');
   console.log(`\n📋 Squad ID: ${chicagoSquad.id}`);
   console.log(`   Access the hub at: /rescue-squads/${chicagoSquad.id}`);
   console.log('\n📧 Test Users (password: testuser123):');

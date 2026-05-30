@@ -11,6 +11,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useToast } from '@/app/components/ui/Toast';
 import {
   ArrowLeft, Send, Image, MapPin, Phone, Mail, Shield,
   CheckCircle, AlertCircle, Loader2, MoreVertical, X,
@@ -29,6 +30,7 @@ export default function ConversationPage() {
   const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const params = useParams();
+  const toast = useToast();
   const conversationId = params.id;
 
   const [conversation, setConversation] = useState(null);
@@ -119,7 +121,7 @@ export default function ConversationPage() {
       setNewMessage('');
       inputRef.current?.focus();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Something went wrong.');
     } finally {
       setSending(false);
     }
@@ -143,7 +145,7 @@ export default function ConversationPage() {
       fetchConversation();
       setShowActions(false);
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Something went wrong.');
     }
   };
 

@@ -17,10 +17,12 @@
  */
 
 import { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import { useToast } from '@/app/components/ui/Toast';
 
 const SquadHubContext = createContext(null);
 
 export function SquadHubProvider({ children, initialData, squadId }) {
+  const toast = useToast();
   // Core data from server
   const [data, setData] = useState(initialData);
 
@@ -280,6 +282,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         }
       } catch (err) {
         console.error('Failed to toggle duty:', err);
+        toast.error('Failed to update duty status.');
       }
     }
   }, [data.membership.isOnDuty, squadId]);
@@ -316,6 +319,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         }
       } catch (err) {
         console.error('Failed to join squad:', err);
+        toast.error('Failed to join rescue force.');
       }
     }
   }, [squadId]);
@@ -362,6 +366,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         }
       } catch (err) {
         console.error('Failed to help on case:', err);
+        toast.error('Failed to join case.');
       }
     }
   }, [data.cases, squadId]);
@@ -391,6 +396,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         });
       } catch (err) {
         console.error('Failed to help on request:', err);
+        toast.error('Failed to help on request.');
       }
     }
   }, [squadId]);
@@ -415,6 +421,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         });
       } catch (err) {
         console.error('Failed to complete request:', err);
+        toast.error('Failed to complete request.');
       }
     }
   }, [squadId]);
@@ -439,6 +446,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         });
       } catch (err) {
         console.error('Failed to leave request:', err);
+        toast.error('Failed to leave request.');
       }
     }
   }, [squadId]);
@@ -463,6 +471,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         });
       } catch (err) {
         console.error('Failed to leave case:', err);
+        toast.error('Failed to leave case.');
       }
     }
   }, [squadId]);
@@ -514,6 +523,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         }
       } catch (err) {
         console.error('Failed to post request:', err);
+        toast.error('Failed to post request.');
       }
     }
   }, [data.cases, squadId]);
@@ -564,6 +574,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         }
       } catch (err) {
         console.error('Failed to post announcement:', err);
+        toast.error('Failed to post announcement.');
         // Remove optimistic update on error
         setData(prev => ({
           ...prev,
@@ -639,6 +650,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
         }
       } catch (error) {
         console.error('Failed to send message:', error);
+        toast.error('Failed to send message.');
         // Remove failed message
         setData(prev => ({
           ...prev,

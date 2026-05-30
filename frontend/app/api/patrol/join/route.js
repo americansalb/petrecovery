@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import { z } from 'zod';
 
 // Validation schema for patrol signup
@@ -19,7 +20,7 @@ const PatrolSignupSchema = z.object({
 export async function POST(request) {
   try {
     // Get session to identify the user
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized - Please login first' },
@@ -145,7 +146,7 @@ export async function POST(request) {
 // GET endpoint to check if user is in patrol
 export async function GET(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },

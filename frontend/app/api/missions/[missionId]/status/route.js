@@ -13,6 +13,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -166,7 +167,7 @@ export async function POST(request, { params }) {
       // Create status change note
       await tx.caseUpdate.create({
         data: {
-          missionId: params.missionId,
+          caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) — was 500ing the whole status transaction
           authorId: session.user.id,
           content: `Status changed from ${oldStatus} to ${status}${resolutionNotes ? '. Notes: ' + resolutionNotes : ''}`,
           isUpdate: true,
@@ -196,6 +197,38 @@ export async function POST(request, { params }) {
         response_time_ms: responseTime
       }
     });
+
+    // CRIT-D: on a terminal status change, tell the people who were searching.
+    // Active mission volunteers get the resolution news (so they can stop), in-app
+    // and best-effort/isolated so it can never fail the status update itself.
+    if (status === 'REUNITED' || status === 'CLOSED_OTHER') {
+      try {
+        const mission = await prisma.missionControl.findUnique({
+          where: { caseId: params.missionId },
+          include: {
+            activeVolunteers: { where: { status: 'ACTIVE' }, select: { userId: true } },
+          },
+        });
+        const volunteerIds = [...new Set(
+          (mission?.activeVolunteers || []).map(v => v.userId).filter(Boolean)
+        )];
+        const petName = updatedMission.petName || 'the pet';
+        const reunited = status === 'REUNITED';
+        await Promise.all(volunteerIds.map(uid =>
+          createInAppNotification({
+            userId: uid,
+            type: 'CASE_STATUS',
+            title: reunited ? `${petName} was reunited! 🎉` : `Case closed: ${petName}`,
+            message: reunited
+              ? `Great news — ${petName} has been reunited with their family. Thank you for helping search!`
+              : `The case for ${petName} has been closed. Thank you for your help.`,
+            actionUrl: updatedMission.caseNumber ? `/cases/${updatedMission.caseNumber}` : null,
+          }).catch(() => {})
+        ));
+      } catch (err) {
+        console.error('Status-change volunteer notify failed:', err?.message);
+      }
+    }
 
     return NextResponse.json({
       case: updatedMission,

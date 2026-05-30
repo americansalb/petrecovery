@@ -9,8 +9,10 @@
 
 import { useState } from 'react';
 import { TOUCH_TARGETS, triggerHaptic } from '@/app/lib/missionControl/accessibility';
+import { useToast } from '@/app/components/ui/Toast';
 
 export default function ActivationSwitch({ missionId, mission, userRole, onActivated }) {
+  const toast = useToast();
   const [activating, setActivating] = useState(false);
   const [radius, setRadius] = useState(1.0);
 
@@ -38,11 +40,11 @@ export default function ActivationSwitch({ missionId, mission, userRole, onActiv
         triggerHaptic('success');
         onActivated?.();
       } else {
-        alert(data.error || 'Failed to activate');
+        toast.error(data.error || 'Failed to activate');
       }
     } catch (err) {
       console.error('Activation error:', err);
-      alert('Failed to activate mission');
+      toast.error('Failed to activate mission');
     } finally {
       setActivating(false);
     }

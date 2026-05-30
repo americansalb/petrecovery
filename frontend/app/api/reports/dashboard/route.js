@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/db';
+import { isAdmin } from '@/app/lib/authz';
 import {
   generateExecutiveDashboard,
   analyzeTrends,
@@ -18,8 +19,14 @@ import {
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // Platform-wide business intelligence + data export → admin only (fresh
+    // role). Note: report-create auto-creates a user per guest reporter, so
+    // "any session" is effectively "anyone who ever filed a report".
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -74,8 +81,14 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    // Platform-wide business intelligence + data export → admin only (fresh
+    // role). Note: report-create auto-creates a user per guest reporter, so
+    // "any session" is effectively "anyone who ever filed a report".
+    if (!(await isAdmin(session.user.id))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();

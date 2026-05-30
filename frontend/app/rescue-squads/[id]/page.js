@@ -12,10 +12,9 @@
  * Falls back to mock data if the API fails (for development)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import SquadHubV2 from '@/components/squad/SquadHubV2';
-// V3 attempt: import SquadHubV3 from '@/components/squad/SquadHubV3';
 import { getMockSquadData } from '@/lib/mockSquadData';
 
 export default function SquadPage() {
@@ -27,90 +26,79 @@ export default function SquadPage() {
   const [error, setError] = useState(null);
   const [usingMockData, setUsingMockData] = useState(false);
 
-  useEffect(() => {
-    async function fetchSquadData() {
-      setLoading(true);
-      setError(null);
+  const fetchSquadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-      try {
-        // Try to fetch real data from the hub API
-        const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
+    try {
+      const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
 
-        if (res.ok) {
-          const data = await res.json();
-          console.log('[SquadHub Debug] API response:', {
-            squadId: data.squad?.id,
-            squadName: data.squad?.displayName,
-            casesCount: data.cases?.length || 0,
-            cases: data.cases,
-          });
-          setSquadData(data);
-          setUsingMockData(false);
-        } else if (res.status === 404) {
-          // Squad not found - try mock data for known city slugs
-          const mockData = getMockSquadData(squadId);
-          if (mockData && mockData.squad) {
-            setSquadData(mockData);
-            setUsingMockData(true);
-          } else {
-            setError('Squad not found');
-          }
-        } else {
-          // Other error - fall back to mock data or show error
-          const errorData = await res.json().catch(() => ({}));
-          console.error('Hub API error:', errorData);
-          const mockData = getMockSquadData(squadId);
-          if (mockData && mockData.squad) {
-            setSquadData(mockData);
-            setUsingMockData(true);
-          } else {
-            // No mock data available - show the actual error
-            setError(`Failed to load squad data: ${errorData.error || 'Server error'}`);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch hub data:', err);
-        // Network error - fall back to mock data or show error
+      if (res.ok) {
+        const data = await res.json();
+        setSquadData(data);
+        setUsingMockData(false);
+      } else if (res.status === 404) {
         const mockData = getMockSquadData(squadId);
         if (mockData && mockData.squad) {
           setSquadData(mockData);
           setUsingMockData(true);
         } else {
-          setError('Failed to connect to server. Please try again.');
+          setError('Rescue Force not found');
         }
-      } finally {
-        setLoading(false);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Hub API error:', errorData);
+        const mockData = getMockSquadData(squadId);
+        if (mockData && mockData.squad) {
+          setSquadData(mockData);
+          setUsingMockData(true);
+        } else {
+          setError(`Failed to load rescue force data: ${errorData.error || 'Server error'}`);
+        }
       }
+    } catch (err) {
+      console.error('Failed to fetch hub data:', err);
+      const mockData = getMockSquadData(squadId);
+      if (mockData && mockData.squad) {
+        setSquadData(mockData);
+        setUsingMockData(true);
+      } else {
+        setError('Failed to connect to server. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
+  }, [squadId]);
 
+  useEffect(() => {
     if (squadId) {
       fetchSquadData();
     }
-  }, [squadId]);
+  }, [squadId, fetchSquadData]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-flash-400"></div>
-          <p className="mt-4 text-gray-400">Loading squad hub...</p>
+          <p className="mt-4 text-gray-400">Loading rescue force hub...</p>
         </div>
       </div>
     );
   }
 
   if (error) {
-    const isNotFound = error === 'Squad not found';
+    const isNotFound = error === 'Rescue Force not found';
     return (
       <div className="min-h-screen bg-midnight-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="text-6xl mb-4">{isNotFound ? '🐾' : '⚠️'}</div>
           <h1 className="text-2xl font-bold text-white mb-2">
-            {isNotFound ? 'Squad Not Found' : 'Error Loading Squad'}
+            {isNotFound ? 'Rescue Force Not Found' : 'Error Loading Rescue Force'}
           </h1>
           <p className="text-gray-400 mb-6">
             {isNotFound
-              ? "We couldn't find a rescue squad with that ID. It may not exist yet or the link may be incorrect."
+              ? "We couldn't find a rescue force with that ID. It may not exist yet or the link may be incorrect."
               : error}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -124,7 +112,7 @@ export default function SquadPage() {
               href="/rescue-squads/search"
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
-              Find a Squad Near You
+              Find a Rescue Force Near You
             </a>
           </div>
         </div>
@@ -147,7 +135,7 @@ export default function SquadPage() {
           Using mock data (real squad not found in database)
         </div>
       )}
-      <SquadHubV2 initialData={squadData} squadId={resolvedSquadId} />
+      <SquadHubV2 initialData={squadData} squadId={resolvedSquadId} onRefresh={fetchSquadData} />
     </>
   );
 }

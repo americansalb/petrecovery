@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getOutcomeService } from '@/lib/actions';
 import { OutcomeType, FoundMethod } from '@prisma/client';
@@ -55,7 +56,7 @@ export async function POST(
   { params }: { params: Promise<{ missionId: string }> }
 ): Promise<NextResponse> {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -164,7 +165,7 @@ export async function GET(
   { params }: { params: Promise<{ missionId: string }> }
 ): Promise<NextResponse> {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

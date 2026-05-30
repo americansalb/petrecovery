@@ -29,17 +29,12 @@ export default function ImageUpload({
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
 
-  console.log('[IMAGE-UPLOAD] Rendering');
-  console.log(`[IMAGE-UPLOAD] Current images: ${images.length}/${maxImages}`);
-
   // Handle file selection
   const handleFiles = useCallback(async (files) => {
     if (disabled) return;
 
     setError(null);
     const fileList = Array.from(files);
-
-    console.log(`[IMAGE-UPLOAD] Processing ${fileList.length} files`);
 
     // Check max images limit
     if (images.length + fileList.length > maxImages) {
@@ -75,8 +70,6 @@ export default function ImageUpload({
       const file = validFiles[i];
       setUploadProgress(Math.round((i / validFiles.length) * 100));
 
-      console.log(`[IMAGE-UPLOAD] Uploading: ${file.name}`);
-
       try {
         const formData = new FormData();
         formData.append('file', file);
@@ -93,8 +86,6 @@ export default function ImageUpload({
         }
 
         const data = await response.json();
-        console.log(`[IMAGE-UPLOAD] Upload success: ${data.url}`);
-
         uploadedImages.push({
           url: data.url,
           filename: data.filename,
@@ -162,8 +153,6 @@ export default function ImageUpload({
     if (disabled) return;
 
     const image = images[index];
-    console.log(`[IMAGE-UPLOAD] Removing image: ${image.filename}`);
-
     // Optionally delete from server
     if (image.filename) {
       try {

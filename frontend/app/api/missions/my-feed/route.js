@@ -44,7 +44,7 @@ export async function GET(request) {
     if (memberships.length === 0) {
       return NextResponse.json({
         cases: [],
-        message: 'Join a Rescue Squad to see active cases',
+        message: 'Join a Rescue Force to see active cases',
       });
     }
 

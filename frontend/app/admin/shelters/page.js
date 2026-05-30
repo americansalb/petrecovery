@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
 import Link from 'next/link';
 import {
   Building2,
@@ -49,6 +50,7 @@ const STATES = [
 ];
 
 export default function AdminSheltersPage() {
+  const toast = useToast();
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -140,7 +142,7 @@ export default function AdminSheltersPage() {
 
       fetchShelters();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Something went wrong.');
     }
   };
 
@@ -181,11 +183,11 @@ export default function AdminSheltersPage() {
         throw new Error(data.error || 'Failed to delete shelters');
       }
 
-      alert(`Successfully deleted ${data.deletedCount} shelter(s)`);
+      toast.success(`Successfully deleted ${data.deletedCount} shelter(s)`);
       setSelectedIds(new Set());
       fetchShelters();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Something went wrong.');
     } finally {
       setBulkLoading(false);
     }
@@ -197,7 +199,7 @@ export default function AdminSheltersPage() {
 
     const confirmation = prompt('Type "DELETE ALL" to confirm:');
     if (confirmation !== 'DELETE ALL') {
-      alert('Deletion cancelled.');
+      toast.warning('Deletion cancelled.');
       return;
     }
 
@@ -215,11 +217,11 @@ export default function AdminSheltersPage() {
         throw new Error(data.error || 'Failed to delete shelters');
       }
 
-      alert(`Successfully deleted ${data.deletedCount} shelter(s)`);
+      toast.success(`Successfully deleted ${data.deletedCount} shelter(s)`);
       setSelectedIds(new Set());
       fetchShelters();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Something went wrong.');
     } finally {
       setBulkLoading(false);
     }
@@ -227,7 +229,7 @@ export default function AdminSheltersPage() {
 
   const handleSync = async () => {
     if (!syncLocation.trim()) {
-      alert('Please enter a location (e.g., "Los Angeles, CA" or "90210")');
+      toast.warning('Please enter a location (e.g., "Los Angeles, CA" or "90210")');
       return;
     }
 
@@ -249,12 +251,12 @@ export default function AdminSheltersPage() {
         throw new Error(data.error || 'Sync failed');
       }
 
-      alert(`Sync complete! Found ${data.results?.shelters?.count || 0} shelters near ${syncLocation}`);
+      toast.success(`Sync complete! Found ${data.results?.shelters?.count || 0} shelters near ${syncLocation}`);
       setShowSyncModal(false);
       setSyncLocation('');
       fetchShelters();
     } catch (err) {
-      alert('Sync error: ' + err.message);
+      toast.error('Sync error: ' + err.message);
     } finally {
       setSyncing(false);
     }

@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Create Rescue Squad Page - Updated with PetRecovery Design System
+ * Create Rescue Force Page - Updated with PetRecovery Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
  *
- * Multi-step form for creating a new rescue squad:
+ * Multi-step form for creating a new rescue force:
  * 1. Basic info (name, description)
  * 2. Location & coverage area
  * 3. Review & create
@@ -18,7 +18,7 @@ import { ArrowLeft, ArrowRight, FileText, MapPin, Check, Crown, Loader2, Globe, 
 import { Button, Card } from '@/components/ui';
 
 const STEPS = [
-  { id: 'basics', title: 'Squad Basics', icon: FileText },
+  { id: 'basics', title: 'Rescue Force Basics', icon: FileText },
   { id: 'location', title: 'Coverage Area', icon: MapPin },
   { id: 'review', title: 'Review & Create', icon: Check },
 ];
@@ -91,11 +91,11 @@ export default function CreateSquadPage() {
     switch (step) {
       case 0: // Basics
         if (!formData.name.trim()) {
-          setError('Squad name is required');
+          setError('Rescue Force name is required');
           return false;
         }
         if (formData.name.trim().length < 3) {
-          setError('Squad name must be at least 3 characters');
+          setError('Rescue Force name must be at least 3 characters');
           return false;
         }
         break;
@@ -145,7 +145,7 @@ export default function CreateSquadPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create squad');
+        throw new Error(data.error || 'Failed to create rescue force');
       }
 
       // Redirect to the new squad page
@@ -177,10 +177,10 @@ export default function CreateSquadPage() {
               className="inline-flex items-center gap-2 text-flash-600 hover:text-flash-500 font-semibold text-sm mb-4 transition"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Squads
+              Back to Rescue Forces
             </Link>
             <h1 className="text-2xl font-bold text-midnight-900">
-              Create a Rescue Squad
+              Create a Rescue Force
             </h1>
             <p className="text-midnight-500 mt-1">
               Start a volunteer pet rescue team in your community
@@ -234,13 +234,13 @@ export default function CreateSquadPage() {
             <div className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-midnight-700 mb-2">
-                  Squad Name *
+                  Rescue Force Name *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={e => updateField('name', e.target.value)}
-                  placeholder="e.g., Austin Pet Rescue Squad"
+                  placeholder="e.g., Austin Pet Rescue Force"
                   className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                   maxLength={100}
                 />
@@ -256,7 +256,7 @@ export default function CreateSquadPage() {
                 <textarea
                   value={formData.description}
                   onChange={e => updateField('description', e.target.value)}
-                  placeholder="Describe your squad's mission and what makes it special..."
+                  placeholder="Describe your rescue force's mission and what makes it special..."
                   className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400 resize-none"
                   rows={4}
                   maxLength={500}
@@ -274,7 +274,7 @@ export default function CreateSquadPage() {
                   type="email"
                   value={formData.contactEmail}
                   onChange={e => updateField('contactEmail', e.target.value)}
-                  placeholder="squad@example.com"
+                  placeholder="force@example.com"
                   className="w-full px-4 py-3 border-2 border-midnight-200 rounded-xl focus:ring-2 focus:ring-flash-400 focus:border-flash-400 outline-none transition text-midnight-900 placeholder-midnight-400"
                 />
               </div>
@@ -347,7 +347,7 @@ export default function CreateSquadPage() {
                   ))}
                 </div>
                 <p className="text-xs text-midnight-400 mt-2">
-                  This defines your squad's primary coverage area for receiving case alerts
+                  This defines your rescue force's primary coverage area for receiving case alerts
                 </p>
               </div>
 
@@ -379,14 +379,14 @@ export default function CreateSquadPage() {
                       <Lock className="w-4 h-4 text-midnight-500" />
                     )}
                     <span className="font-medium text-midnight-900">
-                      {formData.isPublic ? 'Public Squad' : 'Private Squad'}
+                      {formData.isPublic ? 'Public Rescue Force' : 'Private Rescue Force'}
                     </span>
                   </div>
                 </label>
                 <p className="text-xs text-midnight-400 mt-2 ml-14">
                   {formData.isPublic
-                    ? 'Anyone can find and join this squad'
-                    : 'Squad is invite-only and hidden from search'}
+                    ? 'Anyone can find and join this rescue force'
+                    : 'Rescue force is invite-only and hidden from search'}
                 </p>
               </div>
             </div>
@@ -396,12 +396,12 @@ export default function CreateSquadPage() {
           {step === 2 && (
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-midnight-900 mb-4">
-                Review Your Squad
+                Review Your Rescue Force
               </h3>
 
               <div className="border-b border-midnight-100 pb-4">
                 <p className="text-xs font-semibold text-midnight-400 uppercase mb-1">
-                  Squad Name
+                  Rescue Force Name
                 </p>
                 <p className="text-midnight-900 font-medium">{formData.name}</p>
               </div>
@@ -456,7 +456,7 @@ export default function CreateSquadPage() {
               <div className="flex items-start gap-3 p-4 bg-flash-100 border border-flash-200 rounded-xl">
                 <Crown className="w-6 h-6 text-flash-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-midnight-700">
-                  As the squad founder, you'll be able to manage members, accept cases,
+                  As the rescue force founder, you'll be able to manage members, accept cases,
                   and appoint leaders.
                 </p>
               </div>
@@ -482,7 +482,7 @@ export default function CreateSquadPage() {
                 variant="success"
                 className="ml-auto"
               >
-                {creating ? 'Creating Squad...' : 'Create Squad'}
+                {creating ? 'Creating Rescue Force...' : 'Create Rescue Force'}
               </Button>
             )}
           </div>

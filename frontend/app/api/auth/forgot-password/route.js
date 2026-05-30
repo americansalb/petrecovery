@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
-import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
@@ -26,7 +26,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   // Apply strict rate limiting
-  const rateLimitResult = withRateLimit(request, RateLimitPresets.AUTH, 'auth:forgot-password');
+  const rateLimitResult = await withRateLimitAsync(request, RateLimitPresets.AUTH, 'auth:forgot-password');
   if (!rateLimitResult.success) {
     await logEvent({
       event_type: 'auth.forgot_password_rate_limited',
@@ -151,7 +151,7 @@ export async function POST(request) {
     const emailHtml = buildResetEmailHtml(user.firstName, resetUrl);
     const emailResult = await sendEmail({
       to: user.email,
-      subject: 'Reset Your PetRecovery Password',
+      subject: 'Reset Your ReunitePets Password',
       html: emailHtml
     });
 
@@ -225,7 +225,7 @@ function buildResetEmailHtml(firstName, resetUrl) {
         <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
           <p>Hi ${firstName || 'there'},</p>
 
-          <p>We received a request to reset your password for your PetRecovery.org account.</p>
+          <p>We received a request to reset your password for your ReunitePets.org account.</p>
 
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetUrl}"
@@ -248,7 +248,7 @@ function buildResetEmailHtml(firstName, resetUrl) {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+            <strong>ReunitePets.org</strong> - Reuniting Lost Pets with Their Families
           </p>
         </div>
       </body>

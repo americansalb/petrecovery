@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 
 // NOTE: Requires Prisma to be set up (see SETUP.md)
 
 export async function GET(request) {
   try {
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -118,18 +119,23 @@ export async function GET(request) {
     );
 
     // Get Mission Control status for each case
-    const missionStatuses = await prisma.missionControl.findMany({
-      where: { caseId: { in: missionIds } },
-      select: {
-        caseId: true,
-        mode: true,
-        activatedAt: true,
-        activeVolunteers: {
-          where: { status: 'ACTIVE' },
-          select: { id: true }
+    let missionStatuses = [];
+    try {
+      missionStatuses = await prisma.missionControl.findMany({
+        where: { caseId: { in: missionIds } },
+        select: {
+          caseId: true,
+          mode: true,
+          activatedAt: true,
+          activeVolunteers: {
+            where: { status: 'ACTIVE' },
+            select: { id: true }
+          }
         }
-      }
-    });
+      });
+    } catch (err) {
+      console.error('Dashboard: missionControl query failed:', err.message);
+    }
     const missionMap = Object.fromEntries(
       missionStatuses.map(m => [m.caseId, {
         isLive: ['LIVE_SEARCH', 'CONTAINMENT', 'TRAP_OPS'].includes(m.mode),
@@ -174,6 +180,9 @@ export async function GET(request) {
     // Group assignments by case
     const assignmentsByCaseId = {};
     for (const assignment of caseAssignments) {
+      // CaseAssignment.rescueSquadId is nullable, so rescueSquad can be null —
+      // accessing .id/.name unguarded 500'd the entire dashboard. Skip those.
+      if (!assignment.rescueSquad) continue;
       if (!assignmentsByCaseId[assignment.missionId]) {
         assignmentsByCaseId[assignment.missionId] = [];
       }
@@ -371,34 +380,39 @@ export async function GET(request) {
 
     // First, cleanup any stale GPS sessions (older than 30 minutes)
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
-    await prisma.searchSession.updateMany({
-      where: {
-        userId: user.id,
-        status: { in: ['READY', 'ACTIVE'] },
-        startedAt: { lt: thirtyMinutesAgo },
-      },
-      data: {
-        status: 'COMPLETED',
-        endedAt: new Date(),
-        endReason: 'AUTO_CLEANUP',
-      },
-    });
+    let activeSearchSessions = [];
+    try {
+      await prisma.searchSession.updateMany({
+        where: {
+          userId: user.id,
+          status: { in: ['READY', 'ACTIVE'] },
+          startedAt: { lt: thirtyMinutesAgo },
+        },
+        data: {
+          status: 'COMPLETED',
+          endedAt: new Date(),
+          endReason: 'AUTO_CLEANUP',
+        },
+      });
 
-    // Fetch ONLY recent active GPS search sessions (started within last 30 min)
-    const activeSearchSessions = await prisma.searchSession.findMany({
-      where: {
-        userId: user.id,
-        status: 'ACTIVE',
-        startedAt: { gte: thirtyMinutesAgo },
-      },
-      select: {
-        id: true,
-        missionId: true,
-        status: true,
-        startedAt: true,
-        validatedDistanceMiles: true,
-      },
-    });
+      // Fetch ONLY recent active GPS search sessions (started within last 30 min)
+      activeSearchSessions = await prisma.searchSession.findMany({
+        where: {
+          userId: user.id,
+          status: 'ACTIVE',
+          startedAt: { gte: thirtyMinutesAgo },
+        },
+        select: {
+          id: true,
+          missionId: true,
+          status: true,
+          startedAt: true,
+          validatedDistanceMiles: true,
+        },
+      });
+    } catch (err) {
+      console.error('Dashboard: searchSession query failed:', err.message);
+    }
 
     // Get case details for active searches
     const activeSearchCaseIds = activeSearchSessions.map(s => s.missionId);
