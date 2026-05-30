@@ -16,6 +16,9 @@ env:
   # DATABASE_URL here would let an accidental db op nuke live data on every CI
   # run. Never set repo secrets to the shared DB for CI. (EA/dev msg 465/472.)
   DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_dummy
+  # Dummy auth secret so `next build` (production mode) doesn't throw on a missing
+  # NEXTAUTH_SECRET while prerendering. CI-only placeholder, never a real secret.
+  NEXTAUTH_SECRET: ci-dummy-secret-not-for-production
 
 jobs:
   # Job 1: Lint and Type Check
