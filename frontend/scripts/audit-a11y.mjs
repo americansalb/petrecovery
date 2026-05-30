@@ -6,7 +6,13 @@ import fs from 'node:fs';
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find((p) => fs.existsSync(p));
 const BASE = process.env.BASE_URL || 'http://localhost:5757';
 const AXE = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js';
-const ROUTES = ['/', '/login', '/register', '/report/new', '/report/found', '/contact', '/database'];
+// Full public surface. Authed/admin routes need a session and are audited
+// separately once a login cred is available.
+const ROUTES = [
+  '/', '/login', '/register', '/forgot-password', '/report/new', '/report/found',
+  '/contact', '/database', '/shelters', '/rescue-squads', '/rescue-squads/search',
+  '/about-sarama', '/advice', '/privacy', '/terms', '/found', '/alerts',
+];
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox'] });
 const summary = [];
