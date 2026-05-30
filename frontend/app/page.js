@@ -645,7 +645,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center mb-8"
+              className="flex flex-col sm:flex-row gap-4 justify-center mb-5"
             >
               <Link
                 href="/report/new"
@@ -663,6 +663,18 @@ export default function Home() {
                 I Found a Pet
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
+            </motion.div>
+
+            {/* Reassurance — for someone doing this in a panic: it's free, fast, and real help is local */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.35 }}
+              className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-midnight-200 mb-8"
+            >
+              <span className="inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-flash-400" /> Always free</span>
+              <span className="inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-flash-400" /> Takes just minutes</span>
+              <span className="inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-flash-400" /> Powered by neighbors near you</span>
             </motion.div>
 
             {/* Secondary Links */}
