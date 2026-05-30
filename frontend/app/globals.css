@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 /* ============================================
+   REPORT WIZARD - Desktop Card Layout
+   ============================================ */
+.custom-marker { background: transparent; border: none; }
+
+/* ============================================
    PETRECOVERY DESIGN SYSTEM
    Midnight Blue + Flashlight Yellow
    ============================================ */
