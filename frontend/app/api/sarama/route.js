@@ -9,7 +9,7 @@ import { NextResponse } from 'next/server';
  */
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-3-haiku-20240307';
+const MODEL = 'claude-haiku-4-5-20251001';
 
 // Wizard mode system prompt - focused on fast report creation
 const WIZARD_SYSTEM_PROMPT = `You are Sarama, a compassionate dog guide helping someone report their lost pet on ReunitePets.org. Your mission is to collect the required information to create their alert AS FAST AS POSSIBLE - every minute counts!
