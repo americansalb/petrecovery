@@ -444,7 +444,7 @@ export default function ReportLostPet() {
           _source: 'photon',
           _type: props.osm_value,
         };
-      }).filter(r => r.latitude && r.longitude);
+      }).filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude));
     } catch (err) {
       console.error('Photon search error:', err);
       return [];
@@ -535,7 +535,7 @@ export default function ReportLostPet() {
       let lat, lon, address;
 
       // If result already has coordinates (from Nominatim or Apple autocomplete with coords)
-      if (result.latitude && result.longitude) {
+      if (Number.isFinite(result.latitude) && Number.isFinite(result.longitude)) {
         lat = result.latitude;
         lon = result.longitude;
         address = result.address || result.name;
