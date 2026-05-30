@@ -484,7 +484,7 @@ export default function CommunityPage({ params }) {
               gap: '1rem'
             }}>
               <Link
-                href="/report-lost"
+                href="/report/new"
                 style={{
                   padding: '1.5rem',
                   background: '#fee2e2',
@@ -498,7 +498,7 @@ export default function CommunityPage({ params }) {
                 <div style={{ fontWeight: '700', color: '#991b1b' }}>Report Lost Pet</div>
               </Link>
               <Link
-                href="/report-found"
+                href="/report/found"
                 style={{
                   padding: '1.5rem',
                   background: '#d1fae5',
