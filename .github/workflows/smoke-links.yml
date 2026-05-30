@@ -1,0 +1,41 @@
+# Post-deploy dead-link smoke test.
+#
+# Probes a DEPLOYED site's internal links for 404/500s. Decoupled from the main
+# CI (ci.yml): it runs scripts/audit-links.mjs, which uses only Node built-ins +
+# global fetch — NO `npm ci`, NO build, NO database. So it can't hit the CI
+# install/setup step, and it works against the real deployed app (which has a
+# real DB), not a dummy CI environment.
+#
+# Manual trigger: Actions tab -> "Post-Deploy Link Smoke Test" -> Run workflow,
+# paste your deployed URL (e.g. https://your-app.onrender.com). Fails (red) if any
+# internal link returns 404/500 on the live site; 200/30x (incl. protected 307/308)
+# are healthy.
+
+name: Post-Deploy Link Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Deployed base URL to probe (e.g. https://your-app.onrender.com)'
+        required: true
+        type: string
+
+jobs:
+  smoke:
+    name: Probe deployed routes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for the link list + audit script)
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Probe deployed internal links for 404/500
+        working-directory: frontend
+        env:
+          BASE_URL: ${{ inputs.url }}
+        run: node scripts/audit-links.mjs
