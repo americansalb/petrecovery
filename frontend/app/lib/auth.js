@@ -46,6 +46,18 @@ export const authOptions = {
           return null;
         }
 
+        // SEC-18 mitigation (defense-in-depth): the originally-seeded
+        // contact@aalb.org admin password is in git history. Block this account
+        // at the auth layer — regardless of password — until the live DB hash is
+        // rotated. Block-by-default (protects even with zero config); clear by
+        // setting SEC18_ROTATED=true AFTER rotating the live password. Tradeoff:
+        // the legit admin stays locked until that env is set — the correct safe
+        // default (briefly lock the owner out > leave a known backdoor open).
+        // Owner DB-rotation remains the real fix; this only covers one known email.
+        if (user.email === 'contact@aalb.org' && process.env.SEC18_ROTATED !== 'true') {
+          return null;
+        }
+
         // Verify password
         const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!isValid) {

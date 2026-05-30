@@ -207,6 +207,14 @@ const rescueSquads = [
 
 export async function POST(request) {
   try {
+    // SEC-24: one-time metro bulk-seed endpoint (no callers; redundant with the
+    // `seed:metros` CLI script). It was UNGATED — on a public deploy anyone could
+    // POST here and bulk-create squads in the live DB (duplicates + directory spam
+    // + pollutes the geo-matcher real reports depend on). Disable in production.
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+    }
+
     const results = {
       created: [],
       skipped: [],
@@ -271,6 +279,11 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
+    // SEC-24: dev seed endpoint — not exposed in production (see POST note).
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+    }
+
     const squads = await prisma.rescueSquad.findMany({
       select: {
         id: true,
