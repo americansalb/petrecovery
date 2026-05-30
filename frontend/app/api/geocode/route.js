@@ -76,13 +76,22 @@ export async function GET(request) {
 
     console.log('[GEOCODE] Fetching:', nominatimUrl);
 
-    // Fetch from Nominatim with proper headers
-    const response = await fetch(nominatimUrl, {
-      headers: {
-        'User-Agent': 'PetRecovery.org (contact@petrecovery.org)',
-        'Accept': 'application/json',
-      },
-    });
+    // Fetch from Nominatim with a timeout so a slow/unreachable geocoder can't
+    // hang the request (external-dependency hardening).
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    let response;
+    try {
+      response = await fetch(nominatimUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'PetRecovery.org (contact@petrecovery.org)',
+          'Accept': 'application/json',
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
       console.error('[GEOCODE] Nominatim error:', response.status, response.statusText);
@@ -104,10 +113,13 @@ export async function GET(request) {
     return NextResponse.json(data);
 
   } catch (error) {
-    console.error('[GEOCODE] Error:', error);
+    // The external geocoder being unreachable/timed-out is a dependency
+    // degradation, not a server bug — return 503 (retryable) instead of a
+    // cryptic 500 so the ZIP/address flows can fail gracefully.
+    console.error('[GEOCODE] Error:', error?.name, error?.message);
     return NextResponse.json(
-      { error: 'Geocoding failed' },
-      { status: 500 }
+      { error: 'Geocoding temporarily unavailable' },
+      { status: 503 }
     );
   }
 }
