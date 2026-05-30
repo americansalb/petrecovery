@@ -25,6 +25,7 @@ jest.mock('@/app/lib/authz', () => ({ __esModule: true, isAdmin: jest.fn() }));
 import { GET } from '@/app/api/reports/dashboard/route';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
+import { isAdmin } from '@/app/lib/authz';
 
 const call = () => GET(new NextRequest('http://localhost:3000/api/reports/dashboard'));
 
@@ -33,6 +34,14 @@ describe('SEC-20: GET /api/reports/dashboard is admin-only', () => {
     jest.clearAllMocks();
     getServerSession.mockResolvedValue({ user: { id: 'u1', email: 'u@x.com' } });
     prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
+    // The route gates on isAdmin() (fresh-DB role lookup, lives in authz.js).
+    // Mock it to honor the per-test role so the prisma role mock above still
+    // drives the gate — otherwise a bare jest.fn() returns undefined (falsy)
+    // and EVERY case 403s, including the admin one (false green/red).
+    isAdmin.mockImplementation(async () => {
+      const u = await prisma.user.findUnique();
+      return u?.role === 'ADMIN';
+    });
   });
 
   test('no session => 401', async () => {
