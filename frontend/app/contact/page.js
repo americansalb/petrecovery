@@ -79,7 +79,7 @@ export default function ContactPage() {
           >
             {SUPPORT_EMAIL} <ArrowRight className="w-5 h-5" />
           </a>
-          <p className="flex items-center justify-center gap-2 text-sm text-slate-400 mt-5">
+          <p className="flex items-center justify-center gap-2 text-sm text-slate-500 mt-5">
             <Clock className="w-4 h-4" /> Monitored 7 days a week
           </p>
         </div>

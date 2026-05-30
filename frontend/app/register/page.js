@@ -191,7 +191,7 @@ export default function RegisterPage() {
             {/* Phone */}
             <div className="mb-4">
               <label htmlFor="phone" className="block mb-2 font-semibold text-midnight-700 text-sm">
-                Phone Number <span className="text-midnight-400">(optional)</span>
+                Phone Number <span className="text-midnight-500">(optional)</span>
               </label>
               <div className="relative">
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400 pointer-events-none z-10" />

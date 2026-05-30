@@ -1044,7 +1044,7 @@ export default function ReportLostPet() {
               </div>
               <span style={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>ReunitePets</span>
             </Link>
-            <Link href="/dashboard" style={{ color: 'rgba(255,255,255,0.5)', display: 'flex' }}>
+            <Link href="/dashboard" aria-label="Close and return to dashboard" style={{ color: 'rgba(255,255,255,0.5)', display: 'flex' }}>
               <X size={20} />
             </Link>
           </div>
@@ -1182,7 +1182,7 @@ export default function ReportLostPet() {
         {/* Desktop: step label */}
         {isDesktop && (
           <div style={{ flex: 1, textAlign: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>
+            <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 500 }}>
               Step {Math.min(step, totalSteps)} of {totalSteps}
             </span>
           </div>

@@ -217,6 +217,7 @@ export default function PublicDatabasePage() {
                 Report Type
               </label>
               <select
+                aria-label="Report Type"
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
                 style={{
@@ -245,6 +246,7 @@ export default function PublicDatabasePage() {
                 Species
               </label>
               <select
+                aria-label="Species"
                 value={speciesFilter}
                 onChange={(e) => setSpeciesFilter(e.target.value)}
                 style={{
@@ -276,6 +278,7 @@ export default function PublicDatabasePage() {
                 Status
               </label>
               <select
+                aria-label="Status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 style={{
