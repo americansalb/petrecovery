@@ -1348,7 +1348,7 @@ export default function Home() {
                 Get Started <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
-                href="/patrol/signup"
+                href="/patrol/join"
                 className="inline-flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 text-white px-8 py-4 rounded-2xl font-bold text-lg transition backdrop-blur-sm"
               >
                 <Shield className="w-5 h-5" /> Become a Volunteer
@@ -1384,7 +1384,7 @@ export default function Home() {
               <h4 className="font-semibold mb-3 text-sm">More</h4>
               <ul className="space-y-2 text-gray-400 text-sm">
                 <li><Link href="/shelters" className="hover:text-white transition">Shelters</Link></li>
-                <li><Link href="/patrol/signup" className="hover:text-white transition">Volunteer</Link></li>
+                <li><Link href="/patrol/join" className="hover:text-white transition">Volunteer</Link></li>
                 <li><Link href="/about-sarama" className="hover:text-white transition">About Sarama</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
               </ul>
