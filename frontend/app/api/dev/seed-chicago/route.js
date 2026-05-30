@@ -12,6 +12,13 @@ import bcrypt from 'bcryptjs';
  */
 export async function POST() {
   try {
+    // Hardening rule: a fake-data injector must be UNCONDITIONALLY off in prod —
+    // admin-gating alone is circular when the admin credential is the compromised
+    // asset (SEC-18). Prod-disable first, regardless of who's logged in.
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
