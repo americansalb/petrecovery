@@ -1152,7 +1152,7 @@ export default function ReportLostPet() {
               <span className="text-sm font-medium">Back</span>
             </button>
           ) : !isDesktop ? (
-            <Link href="/dashboard" className="flex items-center gap-1 text-gray-600 hover:text-gray-900">
+            <Link href="/dashboard" aria-label="Close and return to dashboard" className="flex items-center gap-1 text-gray-600 hover:text-gray-900">
               <X size={20} />
             </Link>
           ) : <div />}
