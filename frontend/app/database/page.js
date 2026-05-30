@@ -136,11 +136,11 @@ export default function PublicDatabasePage() {
                   href="/login"
                   style={{
                     padding: '0.75rem 1.5rem',
-                    background: '#f59e0b',
-                    color: 'white',
+                    background: '#facc15',
+                    color: '#0f172a',
                     borderRadius: theme.radius.md,
                     textDecoration: 'none',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     fontSize: '0.95rem',
                   }}
                 >
@@ -151,11 +151,11 @@ export default function PublicDatabasePage() {
                   style={{
                     padding: '0.75rem 1.5rem',
                     background: 'white',
-                    color: '#f59e0b',
-                    border: '2px solid #f59e0b',
+                    color: '#b45309',
+                    border: '2px solid #b45309',
                     borderRadius: theme.radius.md,
                     textDecoration: 'none',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     fontSize: '0.95rem',
                   }}
                 >
@@ -422,27 +422,27 @@ export default function PublicDatabasePage() {
                     fontSize: '0.9rem',
                   }}>
                     <div>
-                      <span style={{ color: theme.colors.gray[500] }}>Species: </span>
+                      <span style={{ color: theme.colors.gray[700] }}>Species: </span>
                       <span style={{ color: theme.colors.gray[900], fontWeight: '600' }}>
                         {report.species}
                       </span>
                     </div>
                     {report.breed && (
                       <div>
-                        <span style={{ color: theme.colors.gray[500] }}>Breed: </span>
+                        <span style={{ color: theme.colors.gray[700] }}>Breed: </span>
                         <span style={{ color: theme.colors.gray[900], fontWeight: '600' }}>
                           {report.breed}
                         </span>
                       </div>
                     )}
                     <div>
-                      <span style={{ color: theme.colors.gray[500] }}>Color: </span>
+                      <span style={{ color: theme.colors.gray[700] }}>Color: </span>
                       <span style={{ color: theme.colors.gray[900], fontWeight: '600' }}>
                         {report.color}
                       </span>
                     </div>
                     <div>
-                      <span style={{ color: theme.colors.gray[500] }}>Size: </span>
+                      <span style={{ color: theme.colors.gray[700] }}>Size: </span>
                       <span style={{ color: theme.colors.gray[900], fontWeight: '600' }}>
                         {report.size}
                       </span>
@@ -461,7 +461,7 @@ export default function PublicDatabasePage() {
                   {/* Date */}
                   <div style={{
                     fontSize: '0.85rem',
-                    color: theme.colors.gray[500],
+                    color: theme.colors.gray[700],
                     marginBottom: '1rem',
                   }}>
                     {new Date(report.lastSeenAt).toLocaleDateString()}
