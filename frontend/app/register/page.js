@@ -299,7 +299,6 @@ export default function RegisterPage() {
               disabled={!acceptedTerms}
               leftIcon={UserPlus}
               size="lg"
-              variant="success"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </Button>
