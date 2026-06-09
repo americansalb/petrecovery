@@ -7,6 +7,7 @@
  * Supports multiple variants, sizes, and states.
  */
 
+import Link from 'next/link';
 import { cn } from './utils';
 import { Loader2 } from 'lucide-react';
 
@@ -61,27 +62,26 @@ export function Button({
   fullWidth = false,
   leftIcon: LeftIcon,
   rightIcon: RightIcon,
+  href,
   children,
   className,
   ...props
 }) {
   const isDisabled = disabled || loading;
 
-  return (
-    <button
-      className={cn(
-        'inline-flex items-center justify-center font-semibold transition-all duration-200',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 focus-visible:ring-offset-2',
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none',
-        variants[variant],
-        sizes[size],
-        roundedness[rounded],
-        fullWidth && 'w-full',
-        className
-      )}
-      disabled={isDisabled}
-      {...props}
-    >
+  const classes = cn(
+    'inline-flex items-center justify-center font-semibold transition-all duration-200',
+    'focus:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 focus-visible:ring-offset-2',
+    'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none',
+    variants[variant],
+    sizes[size],
+    roundedness[rounded],
+    fullWidth && 'w-full',
+    className
+  );
+
+  const inner = (
+    <>
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin" />
       ) : LeftIcon ? (
@@ -91,6 +91,22 @@ export function Button({
       {children && <span>{children}</span>}
 
       {RightIcon && !loading && <RightIcon className="w-4 h-4" />}
+    </>
+  );
+
+  // A plain <button href> doesn't navigate — render links as real <Link>s so
+  // pages can write <Button href="..."> and get working navigation + a11y.
+  if (href && !isDisabled) {
+    return (
+      <Link href={href} className={classes} {...props}>
+        {inner}
+      </Link>
+    );
+  }
+
+  return (
+    <button className={classes} disabled={isDisabled} {...props}>
+      {inner}
     </button>
   );
 }

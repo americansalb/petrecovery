@@ -183,15 +183,19 @@ export async function PATCH(request, { params }) {
       data: updateData
     });
 
-    await logEvent({
-      type: 'PET_UPDATED',
-      userId: user.id,
+    // Fire-and-forget: logging must never fail the request.
+    logEvent({
+      event_type: 'pet.updated',
+      resource_type: 'pet',
+      resource_id: pet.id,
+      action: 'update',
+      result: 'success',
+      actor_user_id: user.id,
       metadata: {
-        petId: pet.id,
         petName: pet.name,
         updatedFields: Object.keys(updateData),
       }
-    });
+    }).catch(() => {});
 
     return NextResponse.json({
       pet: {
@@ -280,16 +284,20 @@ export async function DELETE(request, { params }) {
       }
     });
 
-    await logEvent({
-      type: 'PET_DELETED',
-      userId: user.id,
+    // Fire-and-forget: logging must never fail the request.
+    logEvent({
+      event_type: 'pet.deleted',
+      resource_type: 'pet',
+      resource_id: id,
+      action: 'delete',
+      result: 'success',
+      actor_user_id: user.id,
       metadata: {
-        petId: id,
         petName: existingPet.name,
         softDelete: true,
         deletedByAdmin: isAdmin && existingPet.ownerId !== user.id,
       }
-    });
+    }).catch(() => {});
 
     return NextResponse.json({ message: 'Pet profile deleted successfully' });
   } catch (error) {
