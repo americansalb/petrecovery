@@ -339,6 +339,7 @@ model Pet {
 
   // Relations
   cases           Case[]
+  medications     PetMedication[]
 
   @@index([ownerId])
   @@index([isDeleted])
@@ -364,6 +365,91 @@ enum PetSize {
   MEDIUM   // 25-60 lbs
   LARGE    // 60-90 lbs
   GIANT    // > 90 lbs
+}
+
+// ============================================================================
+// PET MEDICATION TRACKING
+// ============================================================================
+
+model PetMedication {
+  id              String   @id @default(cuid())
+  petId           String
+  pet             Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  // What
+  name            String
+  strength        String?  // "16 mg", "2.5 ml"
+  form            MedicationForm @default(PILL)
+  purpose         String?  // "Allergies", "Heart murmur"
+  prescribedBy    String?  // Vet / clinic name
+  instructions    String?  // "Give with food"
+
+  // Schedule. Times are owner-local "HH:MM" strings; the client computes due
+  // slots in its own timezone, so the server never does tz math.
+  scheduleType    MedicationSchedule @default(DAILY)
+  timesOfDay      String   @default("[]") // JSON: ["08:00", "20:00"]
+  daysOfWeek      String?  // JSON: [0-6], Sun=0 - for SPECIFIC_DAYS
+  intervalDays    Int?     // for EVERY_N_DAYS, anchored at startDate
+  startDate       DateTime @default(now())
+  endDate         DateTime?
+
+  // Supply / refill tracking (in doses)
+  quantityRemaining Float?
+  refillAlertAt     Float?  // warn when quantityRemaining <= this
+
+  // Owner customization
+  color           String   @default("amber") // accent token, see lib/medications.js
+  icon            String   @default("pill")  // icon token, see lib/medications.js
+
+  isActive        Boolean  @default(true)    // false = paused/ended
+  notes           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  doses           MedicationDose[]
+
+  @@index([petId, isActive])
+}
+
+enum MedicationForm {
+  PILL
+  CAPSULE
+  CHEWABLE
+  LIQUID
+  INJECTION
+  TOPICAL
+  DROPS
+  POWDER
+  OTHER
+}
+
+enum MedicationSchedule {
+  DAILY          // every day at timesOfDay (1x, 2x, 3x... per day)
+  SPECIFIC_DAYS  // only on daysOfWeek
+  EVERY_N_DAYS   // every intervalDays since startDate
+  AS_NEEDED      // PRN - no fixed slots, logged ad hoc
+}
+
+model MedicationDose {
+  id              String   @id @default(cuid())
+  medicationId    String
+  medication      PetMedication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  scheduledFor    DateTime   // slot identity (or actual time for AS_NEEDED)
+  status          DoseStatus @default(GIVEN)
+  givenAt         DateTime?  // when actually administered
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  // One log per slot - checking off the same slot twice updates, not duplicates
+  @@unique([medicationId, scheduledFor])
+  @@index([medicationId, scheduledFor])
+}
+
+enum DoseStatus {
+  GIVEN
+  SKIPPED
 }
 
 // ============================================================================

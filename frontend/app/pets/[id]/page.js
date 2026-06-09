@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Dog, Cat, Bird, Rabbit, PawPrint, Camera, AlertCircle, AlertTriangle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Dog, Cat, Bird, Rabbit, PawPrint, Camera, AlertCircle, AlertTriangle, Trash2, Pill } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
 import { Card, Button, Badge, EmptyState } from '@/components/ui';
@@ -319,17 +319,27 @@ export default function PetDetailPage() {
                 Update your pet&apos;s profile information
               </p>
             </div>
-            {/* Quick Report Button */}
-            {(!pet?.cases?.length || pet.cases[0]?.status === 'RESOLVED' || pet.cases[0]?.status === 'CLOSED_OTHER') && (
+            <div className="flex items-center gap-3 flex-wrap">
               <Button
-                variant="danger"
-                href={`/report/new?petId=${petId}`}
+                variant="outline"
+                href={`/pets/${petId}/medications`}
                 size="lg"
               >
-                <AlertTriangle size={18} />
-                Report Lost
+                <Pill size={18} />
+                Medications
               </Button>
-            )}
+              {/* Quick Report Button */}
+              {(!pet?.cases?.length || pet.cases[0]?.status === 'RESOLVED' || pet.cases[0]?.status === 'CLOSED_OTHER') && (
+                <Button
+                  variant="danger"
+                  href={`/report/new?petId=${petId}`}
+                  size="lg"
+                >
+                  <AlertTriangle size={18} />
+                  Report Lost
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 

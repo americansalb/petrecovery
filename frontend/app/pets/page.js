@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Dog, Cat, Bird, Rabbit, PawPrint, Plus, Edit2, AlertTriangle, Eye, Trash2, X, Loader2, Info } from 'lucide-react';
+import { Dog, Cat, Bird, Rabbit, PawPrint, Plus, Edit2, AlertTriangle, Eye, Trash2, X, Loader2, Info, Pill } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, EmptyState } from '@/components/ui';
 
@@ -211,8 +211,7 @@ export default function MyPetsPage() {
             icon={PawPrint}
             title="No pets registered yet"
             description="Add your pets now so you can quickly create a lost pet report if they ever go missing."
-            actionLabel="Add Your First Pet"
-            actionHref="/pets/new"
+            action={{ href: '/pets/new', label: 'Add Your First Pet', icon: Plus }}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -281,6 +280,16 @@ export default function MyPetsPage() {
                       >
                         <Edit2 size={14} />
                         Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        href={`/pets/${pet.id}/medications`}
+                        size="sm"
+                        className="flex-1"
+                        title="Medication tracker"
+                      >
+                        <Pill size={14} />
+                        Meds
                       </Button>
                       {!missionStatus || missionStatus === 'RESOLVED' || missionStatus === 'CLOSED_OTHER' ? (
                         <Button

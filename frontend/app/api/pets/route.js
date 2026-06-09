@@ -153,15 +153,19 @@ export async function POST(request) {
       }
     });
 
-    await logEvent({
-      type: 'PET_CREATED',
-      userId: user.id,
+    // Fire-and-forget: logging must never fail the request.
+    logEvent({
+      event_type: 'pet.created',
+      resource_type: 'pet',
+      resource_id: pet.id,
+      action: 'create',
+      result: 'success',
+      actor_user_id: user.id,
       metadata: {
-        petId: pet.id,
         petName: pet.name,
         species: pet.species,
       }
-    });
+    }).catch(() => {});
 
     return NextResponse.json({
       pet: {
