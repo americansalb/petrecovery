@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
-import { requirePetOwner } from '@/app/lib/petOwnership';
+import { requirePetAccess } from '@/app/lib/petOwnership';
 import { validateMedicationInput, parseMedication } from '@/app/lib/medicationValidation';
 import { logEvent } from '@/lib/logging';
 
@@ -18,7 +18,7 @@ const DOSE_HISTORY_DAYS = 35;
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
-    const auth = await requirePetOwner(id);
+    const auth = await requirePetAccess(id, 'VIEWER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const since = new Date(Date.now() - DOSE_HISTORY_DAYS * 86400000);
@@ -36,6 +36,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({
       pet: auth.pet,
+      access: auth.access,
       medications: medications.map(parseMedication),
     });
   } catch (error) {
@@ -48,7 +49,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { id } = await params;
-    const auth = await requirePetOwner(id);
+    const auth = await requirePetAccess(id, 'CAREGIVER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const body = await request.json();

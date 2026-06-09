@@ -30,7 +30,7 @@ export async function GET(request) {
     }
 
     // Count squads the user is a member of
-    const squadMemberships = await prisma.squadMember.count({
+    const squadMemberships = await prisma.rescueSquadMember.count({
       where: { userId: user.id }
     });
 
@@ -112,11 +112,26 @@ export async function PATCH(request) {
       );
     }
 
-    // Update user fields
+    // Update user fields (validated — firstName is required in the schema and
+    // shown all over the app, so never let it become empty)
     const updateData = {};
-    if (firstName !== undefined) updateData.firstName = firstName;
-    if (lastName !== undefined) updateData.lastName = lastName;
-    if (phone !== undefined) updateData.phone = phone;
+    if (firstName !== undefined) {
+      const trimmed = String(firstName).trim().slice(0, 100);
+      if (!trimmed) {
+        return NextResponse.json({ error: 'First name cannot be empty' }, { status: 400 });
+      }
+      updateData.firstName = trimmed;
+    }
+    if (lastName !== undefined) {
+      updateData.lastName = String(lastName ?? '').trim().slice(0, 100) || null;
+    }
+    if (phone !== undefined) {
+      const trimmedPhone = String(phone ?? '').trim();
+      if (trimmedPhone && !/^[\d\s\-\(\)\+\.]{7,20}$/.test(trimmedPhone)) {
+        return NextResponse.json({ error: 'Please enter a valid phone number' }, { status: 400 });
+      }
+      updateData.phone = trimmedPhone || null;
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: user.id },

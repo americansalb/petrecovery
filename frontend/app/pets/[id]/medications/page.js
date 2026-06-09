@@ -15,7 +15,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Plus, Check, X, Undo2, Pause, Play, Pencil, Trash2,
   PartyPopper, Sun, Sunset, Moon, AlertTriangle, Loader2, PawPrint,
-  CalendarDays, History, PackageOpen, Sparkles,
+  CalendarDays, History, PackageOpen, Sparkles, Share2, Eye,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, EmptyState, cn } from '@/components/ui';
@@ -61,7 +61,7 @@ function ProgressRing({ given, due }) {
 
 /* ------------------------------- Today card ------------------------------- */
 
-function SlotRow({ med, slot, busy, onMark, onUndo }) {
+function SlotRow({ med, slot, busy, readOnly, onMark, onUndo }) {
   const colors = medColor(med.color);
   const given = slot.status === 'GIVEN';
   const skipped = slot.status === 'SKIPPED';
@@ -86,6 +86,12 @@ function SlotRow({ med, slot, busy, onMark, onUndo }) {
 
       {busy ? (
         <Loader2 className="w-5 h-5 animate-spin text-midnight-400 mr-1" />
+      ) : readOnly ? (
+        (given || skipped) && (
+          <span className={cn('text-xs font-bold px-2 py-1 rounded-full', given ? 'bg-emerald-100 text-emerald-700' : 'bg-midnight-100 text-midnight-500')}>
+            {given ? 'Given' : 'Skipped'}
+          </span>
+        )
       ) : given || skipped ? (
         <button
           onClick={() => onUndo(med, slot)}
@@ -122,7 +128,7 @@ function SlotRow({ med, slot, busy, onMark, onUndo }) {
   );
 }
 
-function TodayCard({ meds, busyKeys, onMark, onUndo }) {
+function TodayCard({ meds, busyKeys, readOnly, onMark, onUndo }) {
   const today = new Date();
   const scheduled = meds.filter((m) => m.isActive && m.scheduleType !== 'AS_NEEDED');
 
@@ -179,6 +185,7 @@ function TodayCard({ meds, busyKeys, onMark, onUndo }) {
                     med={med}
                     slot={slot}
                     busy={busyKeys.has(`${med.id}-${slot.scheduledFor.getTime()}`)}
+                    readOnly={readOnly}
                     onMark={onMark}
                     onUndo={onUndo}
                   />
@@ -267,7 +274,7 @@ function WeekStrip({ meds }) {
 
 /* ----------------------------- Medication card ---------------------------- */
 
-function MedCard({ med, petId, busy, onLogPrn, onTogglePause, onDelete }) {
+function MedCard({ med, petId, busy, canManage, onLogPrn, onTogglePause, onDelete }) {
   const colors = medColor(med.color);
   const low = isLowSupply(med);
 
@@ -299,6 +306,7 @@ function MedCard({ med, petId, busy, onLogPrn, onTogglePause, onDelete }) {
         </div>
       </div>
 
+      {canManage && (
       <div className="flex items-center gap-1 px-3 py-2 border-t border-midnight-100 bg-midnight-50/50">
         {med.scheduleType === 'AS_NEEDED' && med.isActive && (
           <button
@@ -331,6 +339,7 @@ function MedCard({ med, petId, busy, onLogPrn, onTogglePause, onDelete }) {
           <Trash2 size={13} />
         </button>
       </div>
+      )}
     </Card>
   );
 }
@@ -381,6 +390,7 @@ export default function MedicationTrackerPage() {
   const petId = params.id;
 
   const [pet, setPet] = useState(null);
+  const [access, setAccess] = useState('OWNER');
   const [meds, setMeds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -399,6 +409,7 @@ export default function MedicationTrackerPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load medications');
       setPet(data.pet);
+      setAccess(data.access || 'OWNER');
       setMeds(data.medications);
     } catch (err) {
       setError(err.message);
@@ -503,6 +514,8 @@ export default function MedicationTrackerPage() {
   const active = meds.filter((m) => m.isActive);
   const paused = meds.filter((m) => !m.isActive);
   const lowCount = active.filter(isLowSupply).length;
+  const isOwner = access === 'OWNER';
+  const canManage = access !== 'VIEWER';
 
   return (
     <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
@@ -551,9 +564,21 @@ export default function MedicationTrackerPage() {
               </p>
             </div>
           </div>
-          <Button variant="primary" href={`/pets/${petId}/medications/new`} leftIcon={Plus}>
-            Add medication
-          </Button>
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <Button variant="outline" href={`/pets/${petId}/share`} leftIcon={Share2}>
+                Share
+              </Button>
+            )}
+            {!canManage && (
+              <Badge variant="default" icon={Eye}>View only</Badge>
+            )}
+            {canManage && (
+              <Button variant="primary" href={`/pets/${petId}/medications/new`} leftIcon={Plus}>
+                Add medication
+              </Button>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -570,12 +595,12 @@ export default function MedicationTrackerPage() {
               iconColor="amber"
               title={`Keep ${pet?.name || 'your pet'} on track`}
               description="Add their medications once, then check off doses with one tap. We'll watch the schedule, the streak, and warn you before refills run out."
-              action={{ href: `/pets/${petId}/medications/new`, label: 'Add first medication', icon: Plus }}
+              action={canManage ? { href: `/pets/${petId}/medications/new`, label: 'Add first medication', icon: Plus } : undefined}
             />
           </Card>
         ) : (
           <>
-            <TodayCard meds={meds} busyKeys={busyKeys} onMark={markDose} onUndo={undoDose} />
+            <TodayCard meds={meds} busyKeys={busyKeys} readOnly={!canManage} onMark={markDose} onUndo={undoDose} />
             <WeekStrip meds={meds} />
 
             <div className="flex items-center justify-between mb-3 mt-8">
@@ -588,6 +613,7 @@ export default function MedicationTrackerPage() {
                   med={med}
                   petId={petId}
                   busy={busyKeys.has(`prn-${med.id}`)}
+                  canManage={canManage}
                   onLogPrn={logPrn}
                   onTogglePause={togglePause}
                   onDelete={setConfirmDelete}
@@ -605,6 +631,7 @@ export default function MedicationTrackerPage() {
                       med={med}
                       petId={petId}
                       busy={false}
+                      canManage={canManage}
                       onLogPrn={logPrn}
                       onTogglePause={togglePause}
                       onDelete={setConfirmDelete}

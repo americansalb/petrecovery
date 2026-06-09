@@ -1,16 +1,24 @@
 /**
- * Shared auth guard for pet-scoped API routes (medications, etc.).
- * Resolves the session user and verifies they own the pet.
+ * Shared auth guards for pet-scoped API routes.
+ *
+ * Access levels (low → high): VIEWER < CAREGIVER < OWNER.
+ *  - OWNER:     the Pet.ownerId user — everything, incl. sharing + pet edit
+ *  - CAREGIVER: shared user — view pet, manage + log medications
+ *  - VIEWER:    shared user — read-only
  */
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
+const LEVELS = { VIEWER: 1, CAREGIVER: 2, OWNER: 3 };
+
 /**
- * Returns { user, pet } on success, or { error, status } to bubble up.
+ * Resolve the session user's access to a pet.
+ * Returns { user, pet, access } on success (access ∈ OWNER|CAREGIVER|VIEWER),
+ * or { error, status } to bubble up.
  */
-export async function requirePetOwner(petId) {
+export async function requirePetAccess(petId, minAccess = 'VIEWER') {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     return { error: 'Unauthorized', status: 401 };
@@ -18,7 +26,7 @@ export async function requirePetOwner(petId) {
 
   const user = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true },
+    select: { id: true, email: true },
   });
   if (!user) {
     return { error: 'User not found', status: 404 };
@@ -31,9 +39,38 @@ export async function requirePetOwner(petId) {
   if (!pet) {
     return { error: 'Pet not found', status: 404 };
   }
-  if (pet.ownerId !== user.id) {
-    return { error: 'Unauthorized', status: 403 };
+
+  let access = null;
+  if (pet.ownerId === user.id) {
+    access = 'OWNER';
+  } else {
+    // Match by linked userId or by email (covers invites accepted pre-link)
+    const share = await prisma.petShare.findFirst({
+      where: {
+        petId,
+        status: 'ACTIVE',
+        OR: [{ userId: user.id }, { email: user.email }],
+      },
+      select: { role: true },
+    });
+    if (share) access = share.role; // CAREGIVER | VIEWER
   }
 
-  return { user, pet };
+  // 404 (not 403) for strangers so pet ids aren't probeable.
+  if (!access) {
+    return { error: 'Pet not found', status: 404 };
+  }
+  if (LEVELS[access] < LEVELS[minAccess]) {
+    return { error: 'You don\'t have permission to do that for this pet', status: 403 };
+  }
+
+  return { user, pet, access };
+}
+
+/**
+ * Owner-only guard (pet edit/delete, sharing management).
+ * Kept as the strict variant of requirePetAccess.
+ */
+export async function requirePetOwner(petId) {
+  return requirePetAccess(petId, 'OWNER');
 }
