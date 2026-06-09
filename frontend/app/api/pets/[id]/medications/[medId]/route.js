@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
-import { requirePetOwner } from '@/app/lib/petOwnership';
+import { requirePetAccess } from '@/app/lib/petOwnership';
 import { validateMedicationInput, parseMedication } from '@/app/lib/medicationValidation';
 import { logEvent } from '@/lib/logging';
 
@@ -21,7 +21,7 @@ async function findOwnedMedication(petId, medId) {
 export async function PATCH(request, { params }) {
   try {
     const { id, medId } = await params;
-    const auth = await requirePetOwner(id);
+    const auth = await requirePetAccess(id, 'CAREGIVER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const existing = await findOwnedMedication(id, medId);
@@ -54,7 +54,7 @@ export async function PATCH(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id, medId } = await params;
-    const auth = await requirePetOwner(id);
+    const auth = await requirePetAccess(id, 'CAREGIVER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const existing = await findOwnedMedication(id, medId);

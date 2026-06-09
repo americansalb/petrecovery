@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Dog, Cat, Bird, Rabbit, PawPrint, Plus, Edit2, AlertTriangle, Eye, Trash2, X, Loader2, Info, Pill } from 'lucide-react';
+import { Dog, Cat, Bird, Rabbit, PawPrint, Plus, Edit2, AlertTriangle, Eye, Trash2, X, Loader2, Info, Pill, Share2, HeartHandshake, Check } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, EmptyState } from '@/components/ui';
 
@@ -28,11 +28,14 @@ export default function MyPetsPage() {
   const router = useRouter();
 
   const [pets, setPets] = useState([]);
+  const [sharedPets, setSharedPets] = useState([]);
+  const [pendingInvites, setPendingInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [respondingId, setRespondingId] = useState(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -52,6 +55,8 @@ export default function MyPetsPage() {
       if (!res.ok) throw new Error('Failed to fetch pets');
       const data = await res.json();
       setPets(data.pets || []);
+      setSharedPets(data.sharedPets || []);
+      setPendingInvites(data.pendingInvites || []);
     } catch (err) {
       console.error('[PETS] Fetch error:', err);
       setError(err.message);
@@ -87,6 +92,33 @@ export default function MyPetsPage() {
       setError(err.message);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const respondToInvite = async (invite, accept) => {
+    setRespondingId(invite.shareId);
+    setError(null);
+    try {
+      const url = `/api/pets/${invite.pet.id}/shares/${invite.shareId}`;
+      const res = accept
+        ? await fetch(url, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'accept' }),
+          })
+        : await fetch(url, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to respond');
+
+      setPendingInvites((prev) => prev.filter((i) => i.shareId !== invite.shareId));
+      if (accept) {
+        setSharedPets((prev) => [{ ...invite }, ...prev]);
+        setSuccessMessage(`You now help care for ${invite.pet.name}!`);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRespondingId(null);
     }
   };
 
@@ -202,6 +234,51 @@ export default function MyPetsPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
             {error}
+          </div>
+        )}
+
+        {/* Pending share invites */}
+        {pendingInvites.length > 0 && (
+          <div className="space-y-3 mb-8">
+            {pendingInvites.map((invite) => (
+              <Card key={invite.shareId} accent="yellow" padding="md" className="flex items-center gap-4 flex-wrap">
+                <div className="w-12 h-12 rounded-xl bg-midnight-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+                  {invite.pet.primaryPhotoUrl ? (
+                    <img src={invite.pet.primaryPhotoUrl} alt={invite.pet.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <PawPrint className="w-6 h-6 text-midnight-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-[200px]">
+                  <p className="font-semibold text-midnight-900">
+                    <HeartHandshake size={15} className="inline -mt-0.5 mr-1.5 text-flash-600" />
+                    {invite.ownerName} shared {invite.pet.name} with you
+                  </p>
+                  <p className="text-sm text-midnight-500">
+                    As {invite.role === 'CAREGIVER' ? 'a caregiver — you can track and log their medications' : 'a viewer — you can see their profile and schedule'}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => respondToInvite(invite, true)}
+                    loading={respondingId === invite.shareId}
+                  >
+                    <Check size={14} />
+                    Accept
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => respondToInvite(invite, false)}
+                    disabled={respondingId === invite.shareId}
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
         )}
 
@@ -322,6 +399,14 @@ export default function MyPetsPage() {
                           Report Lost
                         </Button>
                       )}
+                      <Link
+                        href={`/pets/${pet.id}/share`}
+                        className="p-2 border border-midnight-200 text-midnight-600 rounded-lg hover:bg-midnight-50 transition-colors inline-flex items-center"
+                        title="Share with family & sitters"
+                        aria-label={`Share ${pet.name}`}
+                      >
+                        <Share2 size={16} />
+                      </Link>
                       <button
                         onClick={() => handleDelete(pet.id, pet.name)}
                         disabled={deletingId === pet.id}
@@ -339,6 +424,55 @@ export default function MyPetsPage() {
                 </Card>
               );
             })}
+          </div>
+        )}
+
+        {/* Shared with me */}
+        {sharedPets.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold text-midnight-900 mb-1 flex items-center gap-2">
+              <HeartHandshake className="w-5 h-5 text-flash-500" /> Shared with me
+            </h2>
+            <p className="text-midnight-500 text-sm mb-4">Pets you help care for</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sharedPets.map(({ shareId, role, ownerName, pet }) => {
+                const SpeciesIcon = getSpeciesIcon(pet.species);
+                return (
+                  <Card key={shareId} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="h-48 bg-midnight-100 flex items-center justify-center relative">
+                      {pet.primaryPhotoUrl ? (
+                        <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <SpeciesIcon className="w-16 h-16 text-midnight-400" />
+                      )}
+                      <div className="absolute top-3 right-3">
+                        <Badge variant={role === 'CAREGIVER' ? 'primary' : 'default'}>
+                          {role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <SpeciesIcon className="w-5 h-5 text-flash-500" />
+                        <h3 className="text-xl font-semibold text-midnight-900">{pet.name}</h3>
+                      </div>
+                      <p className="text-midnight-500 text-sm mb-4">{ownerName}&apos;s pet · {pet.breed || pet.species}</p>
+                      <div className="flex gap-2 pt-4 border-t border-midnight-100">
+                        <Button
+                          variant="primary"
+                          href={`/pets/${pet.id}/medications`}
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <Pill size={14} />
+                          Medication tracker
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         )}
 

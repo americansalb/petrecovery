@@ -79,6 +79,17 @@ export const authOptions = {
           return null;
         }
 
+        // Stamp activity (fire-and-forget — a stats write must never block or
+        // fail the login, even if the client throws synchronously).
+        // lastActive/lastLoginAt were write-never before this, which made the
+        // admin "Recently Active" sort and analytics cohorts meaningless.
+        try {
+          Promise.resolve(prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date(), lastActive: new Date() },
+          })).catch(() => {});
+        } catch { /* ignore */ }
+
         // Return user object
         return {
           id: user.id,

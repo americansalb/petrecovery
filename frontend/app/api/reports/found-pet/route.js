@@ -26,6 +26,11 @@ export async function POST(request) {
       // Phone will be fetched from their profile if they have one
     }
 
+    // Normalize email like /api/auth/register does — a mixed-case email here
+    // would create an account that credentials login (which lowercases) can
+    // never find, and a duplicate once the user registers properly.
+    email = email?.toLowerCase().trim() || null;
+
     // Validate required fields (phone not required for logged-in users)
     if (!email || !firstName || !color || !foundAddress || !center) {
       return NextResponse.json(

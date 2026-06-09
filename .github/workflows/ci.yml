@@ -10,7 +10,7 @@ on:
     branches: [pet_main]
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   # SAFETY: force a dummy DB URL for ALL jobs so postinstall (`prisma generate`)
   # and any step can never reach the SHARED remote Render Postgres. A real
   # DATABASE_URL here would let an accidental db op nuke live data on every CI

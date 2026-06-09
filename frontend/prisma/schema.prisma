@@ -53,6 +53,8 @@ model User {
   profile         UserProfile?
   patrolProfile   PatrolProfile?
   pets            Pet[]
+  petSharesReceived PetShare[] @relation("PetSharesReceived")
+  petSharesSent     PetShare[] @relation("PetSharesSent")
   cases           Case[]        @relation("CaseReporter")
   foundCases      Case[]        @relation("CaseFoundBy")
   alerts          Alert[]
@@ -127,6 +129,7 @@ model User {
 
 enum UserRole {
   USER
+  GUEST      // device-keyed guest volunteers (quick-join flow) - quickJoin.js already writes this
   PATROL
   MODERATOR
   ADMIN
@@ -340,6 +343,7 @@ model Pet {
   // Relations
   cases           Case[]
   medications     PetMedication[]
+  shares          PetShare[]
 
   @@index([ownerId])
   @@index([isDeleted])
@@ -429,6 +433,43 @@ enum MedicationSchedule {
   SPECIFIC_DAYS  // only on daysOfWeek
   EVERY_N_DAYS   // every intervalDays since startDate
   AS_NEEDED      // PRN - no fixed slots, logged ad hoc
+}
+
+// Share a pet with other users (family, sitters, co-caregivers). Invites are
+// keyed by email so a pet can be shared before the invitee has an account;
+// userId links up when they accept. The pet's ownerId stays the single owner.
+model PetShare {
+  id          String   @id @default(cuid())
+  petId       String
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  email       String   // invitee email, normalized lowercase
+  userId      String?  // linked once the invitee accepts
+  user        User?    @relation("PetSharesReceived", fields: [userId], references: [id], onDelete: Cascade)
+
+  role        PetShareRole   @default(CAREGIVER)
+  status      PetShareStatus @default(PENDING)
+
+  invitedById String
+  invitedBy   User     @relation("PetSharesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  respondedAt DateTime?
+
+  @@unique([petId, email])
+  @@index([userId])
+  @@index([email])
+  @@index([petId])
+}
+
+enum PetShareRole {
+  CAREGIVER  // can view the pet + manage/log medications
+  VIEWER     // read-only
+}
+
+enum PetShareStatus {
+  PENDING    // invited, not yet accepted
+  ACTIVE     // accepted
 }
 
 model MedicationDose {

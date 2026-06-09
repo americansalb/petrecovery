@@ -12,7 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
-import { requirePetOwner } from '@/app/lib/petOwnership';
+import { requirePetAccess } from '@/app/lib/petOwnership';
 
 async function findOwnedMedication(petId, medId) {
   const medication = await prisma.petMedication.findUnique({ where: { id: medId } });
@@ -32,7 +32,7 @@ function supplyDelta(prevStatus, nextStatus) {
 export async function POST(request, { params }) {
   try {
     const { id, medId } = await params;
-    const auth = await requirePetOwner(id);
+    const auth = await requirePetAccess(id, 'CAREGIVER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const medication = await findOwnedMedication(id, medId);
@@ -88,7 +88,7 @@ export async function POST(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id, medId } = await params;
-    const auth = await requirePetOwner(id);
+    const auth = await requirePetAccess(id, 'CAREGIVER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const medication = await findOwnedMedication(id, medId);

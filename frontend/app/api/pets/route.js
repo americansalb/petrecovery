@@ -22,38 +22,64 @@ export async function GET(request) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true }
+      select: { id: true, email: true }
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const pets = await prisma.pet.findMany({
-      where: { ownerId: user.id, isDeleted: false },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        cases: {
-          select: {
-            id: true,
-            caseNumber: true,
-            status: true,
-            createdAt: true
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1
-        }
+    const caseInclude = {
+      cases: {
+        select: {
+          id: true,
+          caseNumber: true,
+          status: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1
       }
-    });
+    };
 
-    // Parse JSON fields
-    const petsWithParsedFields = pets.map(pet => ({
+    // Own pets + pets shared with me + invites awaiting my response, in one trip
+    const [pets, myShares] = await Promise.all([
+      prisma.pet.findMany({
+        where: { ownerId: user.id, isDeleted: false },
+        orderBy: { createdAt: 'desc' },
+        include: caseInclude,
+      }),
+      prisma.petShare.findMany({
+        where: {
+          OR: [{ userId: user.id }, { email: user.email }],
+          pet: { isDeleted: false },
+        },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          pet: { include: caseInclude },
+          invitedBy: { select: { firstName: true, lastName: true } },
+        },
+      }),
+    ]);
+
+    const parsePet = (pet) => ({
       ...pet,
       photos: JSON.parse(pet.photos || '[]'),
       personality: JSON.parse(pet.personality || '[]'),
-    }));
+    });
 
-    return NextResponse.json({ pets: petsWithParsedFields });
+    const shareView = (share) => ({
+      shareId: share.id,
+      role: share.role,
+      ownerName: [share.invitedBy?.firstName, share.invitedBy?.lastName].filter(Boolean).join(' ') || 'A pet owner',
+      pet: parsePet(share.pet),
+    });
+
+    return NextResponse.json({
+      pets: pets.map(parsePet),
+      sharedPets: myShares.filter((s) => s.status === 'ACTIVE').map(shareView),
+      pendingInvites: myShares.filter((s) => s.status === 'PENDING').map(shareView),
+    });
   } catch (error) {
     console.error('[PETS API] Error fetching pets:', error);
     return NextResponse.json(

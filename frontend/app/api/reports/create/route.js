@@ -42,6 +42,11 @@ export async function POST(request) {
       firstName = session.user.name || firstName;
     }
 
+    // Normalize email like /api/auth/register does — a mixed-case email here
+    // would create an account that credentials login (which lowercases) can
+    // never find, and a duplicate once the user registers properly.
+    email = email?.toLowerCase().trim() || null;
+
     // Validate required fields - need at least email OR phone for contact
     if ((!email && !phone) || !firstName || !petName || !color || !lastSeenAddress || !center) {
       return NextResponse.json(
