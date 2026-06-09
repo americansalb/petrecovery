@@ -68,3 +68,43 @@ URL → green = no dead links on the live site.
 - **Verify on ORIGIN, not local** — the shared git index silently ate fixes mid-session.
   After every push: `git log -1 origin/<branch>` + grep the fix.
 - Checkpoint labels: #1=`2201a3d`, #2=`45d92b9`, #3=`9959340`.
+
+---
+
+# Addendum — 2026-06-09 session (medications, sharing, users repairs, CI)
+
+## CI mystery SOLVED (item 4 above is obsolete)
+The "~9s SETUP failure" was `npm ci` dying on a stale `frontend/package-lock.json`
+(missing `@capacitor/core@8.4.0`). After resyncing the lockfile, the Build job
+exposed the second layer: `capacitor.config.ts` type-checks against optional
+`@capacitor/cli`, which npm SKIPS on Node 20 (Capacitor 8 needs >=22). Fixed by
+excluding that file from tsconfig + moving CI and the Dockerfile to Node 22
+(20 is EOL). Pipeline should be green from `pet_main` 9f96adb on.
+
+## Shipped to pet_main this session
+- Medication tracker + add-medication wizard with AI auto-fill
+  (`/pets/[id]/medications`, `/api/ai/parse-medication` — Claude with a local
+  parser fallback when ANTHROPIC_API_KEY is unset).
+- Pet sharing (`PetShare` model): invite by email, CAREGIVER/VIEWER roles,
+  accept/decline on /pets, role-aware tracker. Guard: `requirePetAccess`
+  (app/lib/petOwnership.js) fronts all pet-scoped routes.
+- UI-kit `Button` now renders a real Link when given `href` (was silently dead
+  — this had killed every action button on /pets).
+- Pets API logEvent calls fixed (legacy `{type}` shape THROWS in lib/logging —
+  pet create/update/delete all 500'd after writing).
+- Users-table repairs: /api/profile used nonexistent `prisma.squadMember`
+  (500 on every call) — now `rescueSquadMember`; `GUEST` added to UserRole
+  (quickJoin wrote it but enum lacked it = runtime throw); report quick-signups
+  now lowercase emails (mixed-case accounts could never log in); profile PATCH
+  validates input; login stamps lastActive/lastLoginAt.
+
+## DB migrations to run on the live DB at deploy
+Two new migration folders (apply the SQL manually or `prisma db push`; the live
+DB has no _prisma_migrations history, so `migrate deploy` from zero will fail):
+- prisma/migrations/20260609_add_pet_medications/
+- prisma/migrations/20260610_add_pet_shares_and_guest_role/
+
+## Data cleanup worth scheduling (not automated on purpose)
+Live DB may hold mixed-case emails from the old report flows. Lowercasing them
+can collide with existing lowercase duplicates, so it needs a human-reviewed
+dedupe pass, not a blind UPDATE.
