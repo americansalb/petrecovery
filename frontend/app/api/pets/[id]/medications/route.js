@@ -10,6 +10,7 @@ import prisma from '@/app/lib/prisma';
 import { requirePetAccess } from '@/app/lib/petOwnership';
 import { validateMedicationInput, parseMedication } from '@/app/lib/medicationValidation';
 import { logEvent } from '@/lib/logging';
+import { audit, AUDIT_ACTIONS } from '@/app/lib/medicationAudit';
 
 // How far back we ship dose history to the client (week strip + history feed).
 const DOSE_HISTORY_DAYS = 35;
@@ -23,11 +24,11 @@ export async function GET(request, { params }) {
 
     const since = new Date(Date.now() - DOSE_HISTORY_DAYS * 86400000);
     const medications = await prisma.petMedication.findMany({
-      where: { petId: id },
+      where: { petId: id, deletedAt: null },
       orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
       include: {
         doses: {
-          where: { scheduledFor: { gte: since } },
+          where: { scheduledFor: { gte: since }, deletedAt: null },
           orderBy: { scheduledFor: 'desc' },
           take: 400,
         },
@@ -56,14 +57,24 @@ export async function POST(request, { params }) {
     const { data, error } = validateMedicationInput(body);
     if (error) return NextResponse.json({ error }, { status: 400 });
 
-    const count = await prisma.petMedication.count({ where: { petId: id } });
+    const count = await prisma.petMedication.count({ where: { petId: id, deletedAt: null } });
     if (count >= 50) {
       return NextResponse.json({ error: 'Medication limit reached for this pet' }, { status: 400 });
     }
 
-    const medication = await prisma.petMedication.create({
-      data: { ...data, petId: id },
-      include: { doses: true },
+    const medication = await prisma.$transaction(async (tx) => {
+      const created = await tx.petMedication.create({
+        data: { ...data, petId: id },
+        include: { doses: true },
+      });
+      await audit(tx, {
+        petId: id,
+        medicationId: created.id,
+        action: AUDIT_ACTIONS.MED_CREATED,
+        actorUserId: auth.user.id,
+        snapshot: { after: created },
+      });
+      return created;
     });
 
     // Fire-and-forget: logging must never fail the request.
