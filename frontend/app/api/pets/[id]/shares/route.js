@@ -8,7 +8,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { requirePetOwner } from '@/app/lib/petOwnership';
-import { sendEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { logEvent } from '@/lib/logging';
 
@@ -102,14 +102,39 @@ export async function POST(request, { params }) {
       select: { firstName: true },
     });
     const baseUrl = getEmailBaseUrl();
+    const inviterName = inviter?.firstName || 'A pet owner';
+    const roleLine = role === 'CAREGIVER'
+      ? `You'll be able to see ${auth.pet.name}'s profile, track their medications, and check off doses.`
+      : `You'll be able to see ${auth.pet.name}'s profile and medication schedule.`;
+
+    // Smart routing: existing accounts go to sign-in, new people go to the
+    // signup wizard, both with the email prefilled and landing on My Pets.
+    const ctaUrl = invitee
+      ? `${baseUrl}/login?email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent('/pets')}`
+      : `${baseUrl}/register?email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent('/pets')}`;
+    const ctaLabel = invitee ? 'Sign in to accept' : 'Create my free account';
+
     sendEmail({
       to: email,
-      subject: `${inviter?.firstName || 'A pet owner'} shared ${auth.pet.name} with you on ReunitePets`,
-      html: `
-        <p>${inviter?.firstName || 'A pet owner'} invited you to help care for <strong>${auth.pet.name}</strong>.</p>
-        <p>You'll be able to ${role === 'CAREGIVER' ? 'see their profile and track their medications' : 'view their profile and medication schedule'}.</p>
-        <p><a href="${baseUrl}/pets">${invitee ? 'Open My Pets to accept the invite' : 'Create a free account with this email address to accept'}</a></p>
-      `,
+      subject: `${inviterName} shared ${auth.pet.name} with you on ReunitePets`,
+      html: renderBrandedEmail({
+        preheader: `${inviterName} invited you to help care for ${auth.pet.name}.`,
+        heading: `${inviterName} shared ${auth.pet.name} with you`,
+        bodyHtml: `
+          <p style="margin:0 0 16px;">${inviterName} invited you to join <strong>${auth.pet.name}</strong>'s care team as a <strong>${role === 'CAREGIVER' ? 'caregiver' : 'viewer'}</strong>.</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">
+            <tr>
+              <td style="background-color:#fefce8; border:1px solid #fde047; border-radius:12px; padding:16px 20px; font-size:15px; color:#334155;">
+                ${roleLine}
+              </td>
+            </tr>
+          </table>
+          ${invitee ? '' : `<p style="margin:16px 0 0; font-size:14px; color:#64748b;">Sign up with this email address (<strong>${email}</strong>) and the invite will be waiting for you.</p>`}
+        `,
+        ctaLabel,
+        ctaUrl,
+        footnote: `You received this because ${inviterName} entered your email on ReunitePets. Not expecting it? Just ignore this message.`,
+      }),
     }).catch(() => {});
 
     logEvent({

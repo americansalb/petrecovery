@@ -221,7 +221,7 @@ export default function PetSharePage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-midnight-900">Share {pet?.name}</h1>
             <p className="text-sm text-midnight-500">
-              Family, sitters, anyone helping out — they&apos;ll see {pet?.name}&apos;s meds and can check off doses.
+              Family, sitters, anyone helping out. They&apos;ll see {pet?.name}&apos;s meds and can check off doses.
             </p>
           </div>
         </div>

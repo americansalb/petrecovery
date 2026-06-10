@@ -234,7 +234,7 @@ function MedicationWizard() {
       if (patch.form && !form.iconTouched) patch.icon = FORM_DEFAULT_ICON[patch.form] || 'pill';
 
       if (!understood.length) {
-        setParseNote({ tone: 'warn', text: "Couldn't pick out details — fill the fields below and we'll take it from there." });
+        setParseNote({ tone: 'warn', text: "Couldn't pick out details. Fill the fields below and we'll take it from there." });
       } else {
         set(patch);
         setParseNote({
@@ -333,7 +333,7 @@ function MedicationWizard() {
           {editId ? `Edit ${form.name || 'medication'}` : 'Add a medication'}
         </h1>
         <p className="text-midnight-500 text-sm text-center mb-8">
-          {editId ? 'Tune anything — history stays put.' : 'A minute now, one-tap tracking forever.'}
+          {editId ? 'Tune anything. History stays put.' : 'A minute now, one-tap tracking forever.'}
         </p>
 
         <Stepper step={step} />
@@ -362,7 +362,7 @@ function MedicationWizard() {
                   className={cn(inputClass, 'resize-none')}
                 />
                 <div className="flex items-center justify-between gap-3 mt-2.5 flex-wrap">
-                  <p className="text-xs text-midnight-500">We&apos;ll fill the fields below — you stay in control.</p>
+                  <p className="text-xs text-midnight-500">We&apos;ll fill the fields below. You stay in control.</p>
                   <Button
                     variant="secondary"
                     size="sm"
@@ -421,7 +421,7 @@ function MedicationWizard() {
                 />
               </Field>
 
-              <Field label="Prescribed by" hint="Optional — handy at refill time">
+              <Field label="Prescribed by" hint="Optional, handy at refill time">
                 <input
                   value={form.prescribedBy}
                   onChange={(e) => set({ prescribedBy: e.target.value })}
@@ -445,7 +445,7 @@ function MedicationWizard() {
 
               {form.scheduleType === 'AS_NEEDED' ? (
                 <p className="text-sm text-midnight-600 bg-midnight-50 border border-midnight-200 rounded-xl px-4 py-3">
-                  No fixed schedule — you&apos;ll get a <strong>“Log dose now”</strong> button on the tracker for whenever you give it.
+                  No fixed schedule. You&apos;ll get a <strong>“Log dose now”</strong> button on the tracker for whenever you give it.
                 </p>
               ) : (
                 <>
@@ -576,7 +576,7 @@ function MedicationWizard() {
           {step === 2 && (
             <div className="space-y-5">
               <p className="text-sm text-midnight-500 -mt-1">
-                All optional — but if you tell us what&apos;s in the bottle, we&apos;ll count down with every dose and warn you before it runs out.
+                All optional. Tell us what&apos;s in the bottle and we&apos;ll count down with every dose and warn you before it runs out.
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Doses on hand">

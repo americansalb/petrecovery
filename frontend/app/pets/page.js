@@ -255,7 +255,7 @@ export default function MyPetsPage() {
                     {invite.ownerName} shared {invite.pet.name} with you
                   </p>
                   <p className="text-sm text-midnight-500">
-                    As {invite.role === 'CAREGIVER' ? 'a caregiver — you can track and log their medications' : 'a viewer — you can see their profile and schedule'}
+                    As {invite.role === 'CAREGIVER' ? 'a caregiver, so you can track and log their medications' : 'a viewer, so you can see their profile and schedule'}
                   </p>
                 </div>
                 <div className="flex gap-2">

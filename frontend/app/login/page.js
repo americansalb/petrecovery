@@ -33,6 +33,11 @@ export default function LoginPage() {
     if (callback) {
       setCallbackUrl(callback);
     }
+    // Invite emails link here with the address prefilled
+    const emailParam = searchParams.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+    }
   }, [searchParams]);
 
   const handleSubmit = async (e) => {
