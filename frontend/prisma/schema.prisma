@@ -408,12 +408,16 @@ model PetMedication {
   isActive        Boolean  @default(true)    // false = paused/ended
   notes           String?
 
+  // Tombstone, never hard-deleted: dose history is medical data
+  deletedAt       DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   doses           MedicationDose[]
 
   @@index([petId, isActive])
+  @@index([petId, deletedAt])
 }
 
 enum MedicationForm {
@@ -481,6 +485,8 @@ model MedicationDose {
   status          DoseStatus @default(GIVEN)
   givenAt         DateTime?  // when actually administered
   notes           String?
+  // Tombstone: "undo" voids the row instead of deleting it
+  deletedAt       DateTime?
   createdAt       DateTime @default(now())
 
   // One log per slot - checking off the same slot twice updates, not duplicates
@@ -5160,4 +5166,22 @@ model LocationDetectionLog {
   @@index([createdAt])
   @@index([userId])
   @@index([sessionId])
+}
+
+// Append-only journal of every medication mutation. Written in the SAME
+// transaction as the change, with a full JSON snapshot, so dose history can
+// always be reconstructed and every change is attributable. No foreign keys
+// on purpose: nothing that happens to the primary rows can touch the journal.
+model MedicationAuditLog {
+  id            String   @id @default(cuid())
+  petId         String
+  medicationId  String?
+  doseId        String?
+  action        String   // MED_CREATED, MED_UPDATED, MED_DELETED, DOSE_LOGGED, DOSE_CHANGED, DOSE_VOIDED
+  actorUserId   String?
+  snapshot      String   // JSON of the row after the change (and before, for updates)
+  createdAt     DateTime @default(now())
+
+  @@index([petId, createdAt])
+  @@index([medicationId])
 }

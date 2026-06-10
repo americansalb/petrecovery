@@ -10,10 +10,11 @@ import prisma from '@/app/lib/prisma';
 import { requirePetAccess } from '@/app/lib/petOwnership';
 import { validateMedicationInput, parseMedication } from '@/app/lib/medicationValidation';
 import { logEvent } from '@/lib/logging';
+import { audit, AUDIT_ACTIONS } from '@/app/lib/medicationAudit';
 
 async function findOwnedMedication(petId, medId) {
   const medication = await prisma.petMedication.findUnique({ where: { id: medId } });
-  if (!medication || medication.petId !== petId) return null;
+  if (!medication || medication.petId !== petId || medication.deletedAt) return null;
   return medication;
 }
 
@@ -31,16 +32,26 @@ export async function PATCH(request, { params }) {
     const { data, error } = validateMedicationInput(body, { partial: true });
     if (error) return NextResponse.json({ error }, { status: 400 });
 
-    const medication = await prisma.petMedication.update({
-      where: { id: medId },
-      data,
-      include: {
-        doses: {
-          where: { scheduledFor: { gte: new Date(Date.now() - 35 * 86400000) } },
-          orderBy: { scheduledFor: 'desc' },
-          take: 400,
+    const medication = await prisma.$transaction(async (tx) => {
+      const updated = await tx.petMedication.update({
+        where: { id: medId },
+        data,
+        include: {
+          doses: {
+            where: { scheduledFor: { gte: new Date(Date.now() - 35 * 86400000) }, deletedAt: null },
+            orderBy: { scheduledFor: 'desc' },
+            take: 400,
+          },
         },
-      },
+      });
+      await audit(tx, {
+        petId: id,
+        medicationId: medId,
+        action: AUDIT_ACTIONS.MED_UPDATED,
+        actorUserId: auth.user.id,
+        snapshot: { before: existing, after: { ...updated, doses: undefined }, changed: Object.keys(data) },
+      });
+      return updated;
     });
 
     return NextResponse.json({ medication: parseMedication(medication) });
@@ -60,7 +71,21 @@ export async function DELETE(request, { params }) {
     const existing = await findOwnedMedication(id, medId);
     if (!existing) return NextResponse.json({ error: 'Medication not found' }, { status: 404 });
 
-    await prisma.petMedication.delete({ where: { id: medId } });
+    // Tombstone, never a hard delete: the dose history underneath is
+    // medical data and survives in full.
+    await prisma.$transaction(async (tx) => {
+      await tx.petMedication.update({
+        where: { id: medId },
+        data: { deletedAt: new Date(), isActive: false },
+      });
+      await audit(tx, {
+        petId: id,
+        medicationId: medId,
+        action: AUDIT_ACTIONS.MED_DELETED,
+        actorUserId: auth.user.id,
+        snapshot: { before: existing },
+      });
+    });
 
     // Fire-and-forget: logging must never fail the request.
     logEvent({
@@ -73,7 +98,7 @@ export async function DELETE(request, { params }) {
       metadata: { petId: id, name: existing.name },
     }).catch(() => {});
 
-    return NextResponse.json({ message: `${existing.name} deleted` });
+    return NextResponse.json({ message: `${existing.name} deleted. Its dose history is preserved and recoverable.` });
   } catch (error) {
     console.error('[MEDS API] Error deleting medication:', error);
     return NextResponse.json({ error: 'Failed to delete medication' }, { status: 500 });

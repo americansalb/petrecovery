@@ -15,7 +15,8 @@ import Link from 'next/link';
 import {
   ArrowLeft, Plus, Check, X, Undo2, Pause, Play, Pencil, Trash2,
   PartyPopper, Sun, Sunset, Moon, AlertTriangle, Loader2, PawPrint,
-  CalendarDays, History, PackageOpen, Sparkles, Share2, Eye,
+  CalendarDays, History, PackageOpen, Sparkles, Share2, Eye, Download,
+  CloudOff, Info,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, EmptyState, cn } from '@/components/ui';
@@ -26,6 +27,35 @@ import {
 } from '@/lib/medications';
 
 const BUCKET_ICONS = { Morning: Sun, Afternoon: Sunset, Evening: Moon };
+
+/* ----------------------------- Offline outbox -----------------------------
+ * If a dose write fails (flaky connection, server hiccup), it is queued in
+ * localStorage and retried on the next load or focus. A check-off can never
+ * be silently lost between the tap and the database. */
+const outboxKey = (petId) => `medOutbox:${petId}`;
+
+function readOutbox(petId) {
+  try {
+    return JSON.parse(localStorage.getItem(outboxKey(petId)) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function writeOutbox(petId, items) {
+  try {
+    localStorage.setItem(outboxKey(petId), JSON.stringify(items));
+  } catch { /* storage full or unavailable; nothing else to do */ }
+}
+
+function enqueueDose(petId, entry) {
+  const items = readOutbox(petId).filter(
+    (i) => !(i.medId === entry.medId && i.scheduledFor === entry.scheduledFor)
+  );
+  items.push({ ...entry, queuedAt: new Date().toISOString() });
+  writeOutbox(petId, items);
+  return items.length;
+}
 
 function formatWhen(value) {
   const d = new Date(value);
@@ -396,6 +426,8 @@ export default function MedicationTrackerPage() {
   const [error, setError] = useState(null);
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [outboxCount, setOutboxCount] = useState(0);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -421,6 +453,46 @@ export default function MedicationTrackerPage() {
   useEffect(() => {
     if (status === 'authenticated' && petId) fetchMeds();
   }, [status, petId, fetchMeds]);
+
+  // Retry any queued dose writes, then pull fresh state.
+  const flushOutbox = useCallback(async () => {
+    const items = readOutbox(petId);
+    setOutboxCount(items.length);
+    if (!items.length) return;
+    const remaining = [];
+    for (const item of items) {
+      try {
+        const res = await fetch(`/api/pets/${petId}/medications/${item.medId}/doses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduledFor: item.scheduledFor, status: item.status }),
+        });
+        if (!res.ok && res.status !== 409) remaining.push(item);
+      } catch {
+        remaining.push(item);
+      }
+    }
+    writeOutbox(petId, remaining);
+    setOutboxCount(remaining.length);
+    if (remaining.length < items.length) fetchMeds();
+  }, [petId, fetchMeds]);
+
+  // Refetch when the tab regains focus: with shared caregivers, acting on a
+  // stale checklist is how double-dosing happens.
+  useEffect(() => {
+    if (status !== 'authenticated' || !petId) return undefined;
+    flushOutbox();
+    const onFocus = () => {
+      fetchMeds();
+      flushOutbox();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [status, petId, fetchMeds, flushOutbox]);
 
   const withBusy = async (key, fn) => {
     setBusyKeys((prev) => new Set(prev).add(key));
@@ -448,13 +520,26 @@ export default function MedicationTrackerPage() {
 
   const markDose = (med, slot, statusValue) =>
     withBusy(`${med.id}-${slot.scheduledFor.getTime()}`, async () => {
-      const res = await fetch(`/api/pets/${petId}/medications/${med.id}/doses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledFor: slot.scheduledFor.toISOString(), status: statusValue }),
-      });
+      let res;
+      try {
+        res = await fetch(`/api/pets/${petId}/medications/${med.id}/doses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scheduledFor: slot.scheduledFor.toISOString(), status: statusValue }),
+        });
+      } catch {
+        // Network failure: keep the tap safe in the outbox and show it.
+        const count = enqueueDose(petId, { medId: med.id, scheduledFor: slot.scheduledFor.toISOString(), status: statusValue });
+        setOutboxCount(count);
+        setNotice("You're offline. That dose is saved on this device and will sync automatically.");
+        return;
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to log dose');
+      if (data.alreadyLogged) {
+        const at = data.dose.givenAt ? new Date(data.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+        setNotice(`Heads up: this dose was already logged${at ? ` at ${at}` : ''}, likely by another caregiver. Nothing was double-counted.`);
+      }
       applyDose(med.id, data.dose, data.quantityRemaining);
     });
 
@@ -565,6 +650,15 @@ export default function MedicationTrackerPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <a
+              href={`/api/pets/${petId}/medications/export`}
+              download
+              className="p-2.5 border-2 border-midnight-200 text-midnight-500 rounded-xl hover:border-midnight-300 hover:text-midnight-800 transition-colors"
+              title="Download a full backup of all medication data"
+              aria-label="Download medication backup"
+            >
+              <Download size={17} />
+            </a>
             {isOwner && (
               <Button variant="outline" href={`/pets/${petId}/share`} leftIcon={Share2}>
                 Share
@@ -585,6 +679,23 @@ export default function MedicationTrackerPage() {
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
             <span>{error}</span>
             <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><X size={18} /></button>
+          </div>
+        )}
+
+        {notice && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-lg mb-6 flex items-center justify-between gap-3">
+            <span className="inline-flex items-start gap-2"><Info size={17} className="flex-shrink-0 mt-0.5" /> {notice}</span>
+            <button onClick={() => setNotice(null)} className="text-amber-500 hover:text-amber-700"><X size={18} /></button>
+          </div>
+        )}
+
+        {outboxCount > 0 && (
+          <div className="bg-midnight-100 border border-midnight-200 text-midnight-700 px-4 py-3 rounded-lg mb-6 flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <CloudOff size={16} />
+              {outboxCount} dose log{outboxCount !== 1 ? 's' : ''} saved on this device, waiting to sync.
+            </span>
+            <button onClick={flushOutbox} className="text-sm font-bold text-midnight-900 hover:text-flash-600">Sync now</button>
           </div>
         )}
 
