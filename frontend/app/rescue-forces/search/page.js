@@ -209,7 +209,7 @@ export default function RescueSquadSearchPage() {
     setLoading(true);
     try {
       // Build URL with lat/lng for international cities
-      let url = `/api/rescue-squads?search=${encodeURIComponent(locationToSearch?.city || searchTerm)}&radius=${radius}&country=${country}`;
+      let url = `/api/rescue-forces?search=${encodeURIComponent(locationToSearch?.city || searchTerm)}&radius=${radius}&country=${country}`;
       if (lat && lng) {
         url += `&lat=${lat}&lng=${lng}`;
       }
@@ -261,7 +261,7 @@ export default function RescueSquadSearchPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      const res = await fetch(`/api/rescue-forces/${squadId}/join`, { method: 'POST' });
       const data = await res.json();
       if (res.ok || data.alreadyMember) {
         router.push(`/rescue-forces/${squadId}`);
@@ -283,7 +283,7 @@ export default function RescueSquadSearchPage() {
       return;
     }
     try {
-      const squadRes = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
+      const squadRes = await fetch(`/api/rescue-forces/${squadId}/join`, { method: 'POST' });
       const squadData = await squadRes.json();
 
       if (squadData.code === 'WAIVER_NOT_ACCEPTED' && squadData.redirectTo) {
@@ -296,7 +296,7 @@ export default function RescueSquadSearchPage() {
         return;
       }
 
-      const divRes = await fetch(`/api/rescue-squads/${squadId}/divisions/${divisionId}/join`, { method: 'POST' });
+      const divRes = await fetch(`/api/rescue-forces/${squadId}/divisions/${divisionId}/join`, { method: 'POST' });
       const divData = await divRes.json();
       if (divRes.ok) {
         router.push(`/rescue-forces/${squadId}/divisions/${divisionId}`);
@@ -336,7 +336,7 @@ export default function RescueSquadSearchPage() {
         return;
       }
 
-      const res = await fetch('/api/rescue-squads', {
+      const res = await fetch('/api/rescue-forces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ city, state, zipCode: zipCode || null, country, lat, lng }),

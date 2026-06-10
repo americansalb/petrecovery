@@ -90,7 +90,7 @@ export async function GET(request) {
         break;
 
       case 'squads':
-        data = await prisma.rescueSquad.findMany({
+        data = await prisma.rescueForce.findMany({
           where: { createdAt: { gte: startDate } },
           select: {
             name: true,

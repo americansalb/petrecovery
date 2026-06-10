@@ -47,7 +47,7 @@ export async function getDashboardStats(dateRange = 30) {
     }),
 
     // Total squads
-    prisma.rescueSquad.count({
+    prisma.rescueForce.count({
       where: { isActive: true },
     }),
 
@@ -207,11 +207,11 @@ export async function getSquadMetrics() {
     totalMembers,
     topSquads,
   ] = await Promise.all([
-    prisma.rescueSquad.count({ where: { isActive: true } }),
+    prisma.rescueForce.count({ where: { isActive: true } }),
 
-    prisma.rescueSquadMember.count({ where: { isActive: true } }),
+    prisma.rescueForceMember.count({ where: { isActive: true } }),
 
-    prisma.rescueSquad.findMany({
+    prisma.rescueForce.findMany({
       where: { isActive: true },
       select: {
         id: true,

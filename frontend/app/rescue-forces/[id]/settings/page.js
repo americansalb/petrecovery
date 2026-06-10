@@ -66,7 +66,7 @@ export default function SquadSettingsPage() {
 
     try {
       setLoading(true);
-      const res = await fetch(`/api/rescue-squads/${squadId}`);
+      const res = await fetch(`/api/rescue-forces/${squadId}`);
 
       if (!res.ok) {
         if (res.status === 404) {
@@ -132,7 +132,7 @@ export default function SquadSettingsPage() {
     setSuccess(null);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
@@ -157,7 +157,7 @@ export default function SquadSettingsPage() {
     setMemberAction({ loading: memberId, error: null });
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/members/${memberId}`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/members/${memberId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole }),
@@ -187,7 +187,7 @@ export default function SquadSettingsPage() {
     setMemberAction({ loading: memberId, error: null });
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/members/${memberId}`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/members/${memberId}`, {
         method: 'DELETE',
       });
 

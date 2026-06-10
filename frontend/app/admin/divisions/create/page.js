@@ -51,7 +51,7 @@ export default function AdminCreateDivisionPage() {
       setZipLocation({ lat, lng, city, state });
 
       // Find rescue force for this ZIP
-      const squadRes = await fetch(`/api/rescue-squads?zipCode=${zipCode}&radius=50`);
+      const squadRes = await fetch(`/api/rescue-forces?zipCode=${zipCode}&radius=50`);
       const squadData = await squadRes.json();
 
       // Find the city that matches or is closest

@@ -183,7 +183,7 @@ export async function approveJoinRequest(requestId, approverId, options = {}) {
   });
 
   // Update squad member count
-  await prisma.rescueSquad.update({
+  await prisma.rescueForce.update({
     where: { id: request.rescueSquadId },
     data: { memberCount: { increment: 1 } }
   });
@@ -281,7 +281,7 @@ export async function removeMember(membershipId, removerId, reason = null) {
   });
 
   // Update squad member count
-  await prisma.rescueSquad.update({
+  await prisma.rescueForce.update({
     where: { id: membership.rescueSquadId },
     data: { memberCount: { decrement: 1 } }
   });
@@ -365,7 +365,7 @@ export async function broadcastMessage(options) {
     });
   } else {
     // Send to entire squad
-    const squad = await prisma.rescueSquad.findUnique({
+    const squad = await prisma.rescueForce.findUnique({
       where: { id: squadId },
       include: { divisions: { where: { isActive: true } } }
     });

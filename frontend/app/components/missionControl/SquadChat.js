@@ -36,8 +36,8 @@ export function useSquadChat(squadId, missionId, options = {}) {
 
     try {
       const url = missionId
-        ? `/api/rescue-squads/${squadId}/chat?missionId=${missionId}`
-        : `/api/rescue-squads/${squadId}/chat`;
+        ? `/api/rescue-forces/${squadId}/chat?missionId=${missionId}`
+        : `/api/rescue-forces/${squadId}/chat`;
 
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch messages');
@@ -60,7 +60,7 @@ export function useSquadChat(squadId, missionId, options = {}) {
     setSending(true);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/chat`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, missionId }),

@@ -69,14 +69,14 @@ export async function GET(request) {
 
     // Count active rescue forces
     console.log('[PUBLIC-METRICS] Counting active rescue forces...');
-    const activeSquads = await prisma.rescueSquad.count({
+    const activeSquads = await prisma.rescueForce.count({
       where: { isActive: true }
     });
     console.log(`[PUBLIC-METRICS] Active squads: ${activeSquads}`);
 
     // Count total squad members
     console.log('[PUBLIC-METRICS] Counting squad members...');
-    const totalSquadMembers = await prisma.rescueSquadMember.count({
+    const totalSquadMembers = await prisma.rescueForceMember.count({
       where: { isActive: true }
     });
     console.log(`[PUBLIC-METRICS] Total squad members: ${totalSquadMembers}`);
@@ -92,7 +92,7 @@ export async function GET(request) {
 
     // Count cities with squads
     console.log('[PUBLIC-METRICS] Counting cities with squads...');
-    const citiesWithSquads = await prisma.rescueSquad.groupBy({
+    const citiesWithSquads = await prisma.rescueForce.groupBy({
       by: ['city', 'state'],
       where: { isActive: true },
       _count: true

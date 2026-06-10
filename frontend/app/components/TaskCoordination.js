@@ -28,7 +28,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
 
   const loadTasks = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/tasks?missionId=${missionId}`);
+      const res = await fetch(`/api/rescue-forces/${squadId}/tasks?missionId=${missionId}`);
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks || []);
@@ -42,7 +42,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
 
   const loadSquadMembers = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/members`);
+      const res = await fetch(`/api/rescue-forces/${squadId}/members`);
       if (res.ok) {
         const data = await res.json();
         setSquadMembers(data.members || []);
@@ -57,7 +57,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
     setCreating(true);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/tasks`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/tasks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

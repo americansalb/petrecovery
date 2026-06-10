@@ -18,7 +18,7 @@ import { NextRequest } from 'next/server';
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
-    rescueSquadMember: { findUnique: jest.fn() },
+    rescueForceMember: { findUnique: jest.fn() },
     squadPostComment: { findUnique: jest.fn(), update: jest.fn() },
     squadCommentVote: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
   },
@@ -26,7 +26,7 @@ jest.mock('@/app/lib/prisma', () => ({
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
 
-import { POST } from '@/app/api/rescue-squads/[id]/comments/[commentId]/vote/route';
+import { POST } from '@/app/api/rescue-forces/[id]/comments/[commentId]/vote/route';
 import { getServerSession } from 'next-auth';
 import prisma from '@/app/lib/prisma';
 
@@ -34,7 +34,7 @@ const PARAMS = { params: { id: 'squad-1', commentId: 'c-1' } };
 
 function vote(body) {
   return POST(
-    new NextRequest('http://localhost:3000/api/rescue-squads/squad-1/comments/c-1/vote', {
+    new NextRequest('http://localhost:3000/api/rescue-forces/squad-1/comments/c-1/vote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -47,7 +47,7 @@ describe('POST squad comment vote (COM-1)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getServerSession.mockResolvedValue({ user: { id: 'member-1' } });
-    prisma.rescueSquadMember.findUnique.mockResolvedValue({ id: 'm-1' }); // is a member
+    prisma.rescueForceMember.findUnique.mockResolvedValue({ id: 'm-1' }); // is a member
     prisma.squadPostComment.findUnique.mockResolvedValue({
       id: 'c-1', post: { rescueSquadId: 'squad-1' }, upvotes: 2, downvotes: 0,
     });
@@ -66,7 +66,7 @@ describe('POST squad comment vote (COM-1)', () => {
   });
 
   test('403 when the user is not a squad member', async () => {
-    prisma.rescueSquadMember.findUnique.mockResolvedValue(null);
+    prisma.rescueForceMember.findUnique.mockResolvedValue(null);
     expect((await vote({ vote: 1 })).status).toBe(403);
   });
 

@@ -30,8 +30,8 @@ export async function POST(request) {
     // Step 2: Count existing data
     console.log('\n📊 Step 2: Counting existing data...');
     try {
-      const squadCount = await prisma.rescueSquad.count();
-      const memberCount = await prisma.rescueSquadMember.count();
+      const squadCount = await prisma.rescueForce.count();
+      const memberCount = await prisma.rescueForceMember.count();
       const assignmentCount = await prisma.caseAssignment.count();
       const divisionCount = await prisma.division.count();
 
@@ -96,7 +96,7 @@ export async function POST(request) {
     console.log('\n🔄 Step 5: Deleting squad members...');
     let membersResult;
     try {
-      membersResult = await prisma.rescueSquadMember.deleteMany({});
+      membersResult = await prisma.rescueForceMember.deleteMany({});
       console.log(`✅ Deleted ${membersResult.count} squad members`);
     } catch (membersError) {
       console.error('❌ Error deleting members:', membersError);
@@ -128,7 +128,7 @@ export async function POST(request) {
     console.log('\n🔄 Step 7: Deleting rescue forces...');
     let squadsResult;
     try {
-      squadsResult = await prisma.rescueSquad.deleteMany({});
+      squadsResult = await prisma.rescueForce.deleteMany({});
       console.log(`✅ Deleted ${squadsResult.count} rescue forces`);
     } catch (squadsError) {
       console.error('❌ Error deleting squads:', squadsError);

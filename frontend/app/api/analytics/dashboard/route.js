@@ -94,17 +94,17 @@ export async function GET(request) {
       }),
 
       // Squad stats
-      prisma.rescueSquad.aggregate({
+      prisma.rescueForce.aggregate({
         _count: true,
         _avg: {
           totalCasesCompleted: true,
           successfulReunions: true,
         },
       }).then(async (agg) => {
-        const activeSquads = await prisma.rescueSquad.count({
+        const activeSquads = await prisma.rescueForce.count({
           where: { isActive: true, isAcceptingCases: true },
         });
-        const totalMembers = await prisma.rescueSquadMember.count({
+        const totalMembers = await prisma.rescueForceMember.count({
           where: { isActive: true },
         });
         return {
@@ -135,7 +135,7 @@ export async function GET(request) {
       }),
 
       // Top performing squads
-      prisma.rescueSquad.findMany({
+      prisma.rescueForce.findMany({
         where: { isActive: true },
         orderBy: { successfulReunions: 'desc' },
         take: 5,

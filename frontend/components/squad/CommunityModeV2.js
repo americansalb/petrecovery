@@ -46,7 +46,7 @@ export default function CommunityModeV2({
 
   const loadMembers = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/members`);
+      const res = await fetch(`/api/rescue-forces/${squadId}/members`);
       if (res.ok) {
         const data = await res.json();
         setMembers(data.members || []);

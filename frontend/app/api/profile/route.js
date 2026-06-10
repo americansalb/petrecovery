@@ -30,7 +30,7 @@ export async function GET(request) {
     }
 
     // Count squads the user is a member of
-    const squadMemberships = await prisma.rescueSquadMember.count({
+    const squadMemberships = await prisma.rescueForceMember.count({
       where: { userId: user.id }
     });
 

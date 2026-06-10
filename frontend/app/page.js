@@ -328,7 +328,7 @@ export default function Home() {
 
     setSearching(true);
     try {
-      const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(locationQuery.trim())}`);
+      const res = await fetch(`/api/rescue-forces?search=${encodeURIComponent(locationQuery.trim())}`);
       if (res.ok) {
         const data = await res.json();
         // Include ALL cities - both with and without squads
@@ -385,7 +385,7 @@ export default function Home() {
             if (zipCode || city) {
               const searchTerm = zipCode || city;
               setLocationQuery(searchTerm);
-              const res = await fetch(`/api/rescue-squads?search=${encodeURIComponent(searchTerm)}`);
+              const res = await fetch(`/api/rescue-forces?search=${encodeURIComponent(searchTerm)}`);
               if (res.ok) {
                 const data = await res.json();
                 const results = (data.cities || []).map(c => ({
@@ -447,7 +447,7 @@ export default function Home() {
   const createSquadDirectly = async (cityData) => {
     setCreatingSquad(`${cityData.city}-${cityData.state}`);
     try {
-      const res = await fetch('/api/rescue-squads', {
+      const res = await fetch('/api/rescue-forces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -479,7 +479,7 @@ export default function Home() {
   const joinSquadDirectly = async (squad) => {
     setJoiningSquad(squad.id);
     try {
-      const res = await fetch(`/api/rescue-squads/${squad.id}/join`, {
+      const res = await fetch(`/api/rescue-forces/${squad.id}/join`, {
         method: 'POST',
       });
 

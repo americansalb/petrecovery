@@ -66,7 +66,7 @@ export async function GET(request) {
     // Enhance with rescue force info
     const requestsWithSquadInfo = await Promise.all(
       requests.map(async (req) => {
-        const squad = await prisma.rescueSquad.findUnique({
+        const squad = await prisma.rescueForce.findUnique({
           where: { id: req.rescueSquadId },
           select: {
             id: true,

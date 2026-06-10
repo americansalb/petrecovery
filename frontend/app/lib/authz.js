@@ -61,7 +61,7 @@ export async function userHasCaseAuthority(userId, caseId) {
   if (assignments.length === 0) return false;
 
   const squadIds = assignments.map((a) => a.rescueSquadId);
-  const leadership = await prisma.rescueSquadMember.findFirst({
+  const leadership = await prisma.rescueForceMember.findFirst({
     where: {
       userId,
       rescueSquadId: { in: squadIds },
@@ -80,7 +80,7 @@ export async function userIsSquadLeader(userId, rescueSquadId) {
   if (!userId || !rescueSquadId) return false;
   if ((await getUserRole(userId)) === 'ADMIN') return true;
 
-  const membership = await prisma.rescueSquadMember.findFirst({
+  const membership = await prisma.rescueForceMember.findFirst({
     where: {
       userId,
       rescueSquadId,

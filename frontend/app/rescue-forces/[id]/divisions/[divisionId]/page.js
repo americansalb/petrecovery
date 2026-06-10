@@ -27,7 +27,7 @@ export default function DivisionPage() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
+      const res = await fetch(`/api/rescue-forces/${squadId}/hub`);
 
       if (res.ok) {
         const data = await res.json();

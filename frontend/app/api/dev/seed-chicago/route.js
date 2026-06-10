@@ -27,7 +27,7 @@ export async function POST() {
     console.log('Seeding Chicago Rescue Force...');
 
     // Check if Chicago squad already exists
-    const existing = await prisma.rescueSquad.findFirst({
+    const existing = await prisma.rescueForce.findFirst({
       where: { city: { equals: 'Chicago', mode: 'insensitive' } },
     });
 
@@ -72,7 +72,7 @@ export async function POST() {
     }
 
     // Create Chicago Rescue Force
-    const chicagoSquad = await prisma.rescueSquad.create({
+    const chicagoSquad = await prisma.rescueForce.create({
       data: {
         name: 'Chicago Rescue Force',
         description: 'Helping reunite lost pets with their families across the Chicagoland area.',
@@ -141,7 +141,7 @@ export async function POST() {
       const user = users[ma.userIndex];
       const division = divisions[ma.divisionIndex];
 
-      const member = await prisma.rescueSquadMember.create({
+      const member = await prisma.rescueForceMember.create({
         data: {
           rescueSquadId: chicagoSquad.id,
           userId: user.id,

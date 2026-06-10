@@ -54,7 +54,7 @@ export default function DivisionsManagementPage() {
   const loadSquadAndDivisions = async () => {
     try {
       // Load squad details
-      const squadRes = await fetch(`/api/rescue-squads/${squadId}`);
+      const squadRes = await fetch(`/api/rescue-forces/${squadId}`);
       const squadData = await squadRes.json();
 
       if (!squadRes.ok) {
@@ -74,7 +74,7 @@ export default function DivisionsManagementPage() {
       }
 
       // Load divisions
-      const divRes = await fetch(`/api/rescue-squads/${squadId}/divisions`);
+      const divRes = await fetch(`/api/rescue-forces/${squadId}/divisions`);
       if (divRes.ok) {
         const divData = await divRes.json();
         setDivisions(divData.divisions || []);
@@ -92,7 +92,7 @@ export default function DivisionsManagementPage() {
     setError('');
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/divisions`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/divisions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDivision),
@@ -122,7 +122,7 @@ export default function DivisionsManagementPage() {
     setError('');
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/divisions/${editingDivision.id}`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/divisions/${editingDivision.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -157,7 +157,7 @@ export default function DivisionsManagementPage() {
     }
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/divisions/${divisionId}`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/divisions/${divisionId}`, {
         method: 'DELETE',
       });
 

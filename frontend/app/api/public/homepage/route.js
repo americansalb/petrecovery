@@ -73,10 +73,10 @@ export async function GET(request) {
       prisma.user.count(),
 
       // Active rescue forces
-      prisma.rescueSquad.count({ where: { isActive: true } }),
+      prisma.rescueForce.count({ where: { isActive: true } }),
 
       // Total active squad members
-      prisma.rescueSquadMember.count({ where: { isActive: true } }),
+      prisma.rescueForceMember.count({ where: { isActive: true } }),
 
       // Open/active cases
       prisma.case.count({
@@ -84,7 +84,7 @@ export async function GET(request) {
       }),
 
       // Unique cities with squads
-      prisma.rescueSquad.groupBy({
+      prisma.rescueForce.groupBy({
         by: ['city', 'state'],
         where: { isActive: true },
         _count: true
@@ -154,7 +154,7 @@ export async function GET(request) {
       }),
 
       // Featured/active squads with member counts
-      prisma.rescueSquad.findMany({
+      prisma.rescueForce.findMany({
         where: { isActive: true },
         orderBy: [
           { members: { _count: 'desc' } },

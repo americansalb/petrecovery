@@ -13,8 +13,8 @@ import { NextRequest } from 'next/server';
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
-    rescueSquad: { count: jest.fn(), deleteMany: jest.fn() },
-    rescueSquadMember: { count: jest.fn(), deleteMany: jest.fn() },
+    rescueForce: { count: jest.fn(), deleteMany: jest.fn() },
+    rescueForceMember: { count: jest.fn(), deleteMany: jest.fn() },
     caseAssignment: { count: jest.fn(), deleteMany: jest.fn(), findMany: jest.fn() },
     division: { count: jest.fn(), deleteMany: jest.fn() },
     caseParticipant: { deleteMany: jest.fn() },
@@ -39,10 +39,10 @@ describe('SEC-14: POST /api/admin/wipe-squads is admin-only', () => {
     getServerSession.mockResolvedValue({ user: { id: 'u1', email: 'u@x.com' } });
     isAdmin.mockResolvedValue(false);
     // Make the admin happy-path complete without throwing.
-    for (const model of ['rescueSquad', 'rescueSquadMember', 'caseAssignment', 'division']) {
+    for (const model of ['rescueForce', 'rescueForceMember', 'caseAssignment', 'division']) {
       prisma[model].count.mockResolvedValue(0);
     }
-    for (const model of ['rescueSquad', 'rescueSquadMember', 'caseAssignment', 'division', 'caseParticipant']) {
+    for (const model of ['rescueForce', 'rescueForceMember', 'caseAssignment', 'division', 'caseParticipant']) {
       prisma[model].deleteMany.mockResolvedValue({ count: 0 });
     }
     prisma.caseAssignment.findMany.mockResolvedValue([]);
@@ -52,14 +52,14 @@ describe('SEC-14: POST /api/admin/wipe-squads is admin-only', () => {
     getServerSession.mockResolvedValue(null);
     const res = await call();
     expect(res.status).toBe(401);
-    expect(prisma.rescueSquad.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.rescueForce.deleteMany).not.toHaveBeenCalled();
   });
 
   test('KEYSTONE: a non-admin is 403 AND no squads are wiped', async () => {
     const res = await call();
     expect(res.status).toBe(403);
-    expect(prisma.rescueSquad.deleteMany).not.toHaveBeenCalled();
-    expect(prisma.rescueSquadMember.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.rescueForce.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.rescueForceMember.deleteMany).not.toHaveBeenCalled();
     expect(prisma.division.deleteMany).not.toHaveBeenCalled();
     expect(prisma.caseAssignment.deleteMany).not.toHaveBeenCalled();
   });
@@ -68,6 +68,6 @@ describe('SEC-14: POST /api/admin/wipe-squads is admin-only', () => {
     isAdmin.mockResolvedValue(true);
     const res = await call();
     expect(res.status).toBeLessThan(400);
-    expect(prisma.rescueSquad.deleteMany).toHaveBeenCalled();
+    expect(prisma.rescueForce.deleteMany).toHaveBeenCalled();
   });
 });

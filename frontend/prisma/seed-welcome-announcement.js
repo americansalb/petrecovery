@@ -25,7 +25,7 @@ async function seedWelcomeAnnouncements() {
   console.log('Seeding welcome announcements for all rescue forces...');
 
   // Get all active rescue forces
-  const squads = await prisma.rescueSquad.findMany({
+  const squads = await prisma.rescueForce.findMany({
     where: { isActive: true },
     select: { id: true, city: true },
   });

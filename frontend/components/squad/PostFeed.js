@@ -36,7 +36,7 @@ export default function PostFeed({
         ...(divisionId && { divisionId }),
       });
 
-      const res = await fetch(`/api/rescue-squads/${squadId}/posts?${params}`);
+      const res = await fetch(`/api/rescue-forces/${squadId}/posts?${params}`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data.posts || []);
@@ -56,8 +56,8 @@ export default function PostFeed({
   const handleVote = async (postId, voteType, isComment = false) => {
     try {
       const endpoint = isComment
-        ? `/api/rescue-squads/${squadId}/comments/${postId}/vote`
-        : `/api/rescue-squads/${squadId}/posts/${postId}/vote`;
+        ? `/api/rescue-forces/${squadId}/comments/${postId}/vote`
+        : `/api/rescue-forces/${squadId}/posts/${postId}/vote`;
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -76,7 +76,7 @@ export default function PostFeed({
 
   const handleComment = async (postId, content, replyTo = null) => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/posts/${postId}/comments`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -42,7 +42,7 @@ export default function LocationLandingPage() {
       }
 
       // Load squads for this location
-      const squadsRes = await fetch(`/api/rescue-squads?state=${location.state}&limit=4`);
+      const squadsRes = await fetch(`/api/rescue-forces?state=${location.state}&limit=4`);
       if (squadsRes.ok) {
         const data = await squadsRes.json();
         setSquads(data.squads || []);

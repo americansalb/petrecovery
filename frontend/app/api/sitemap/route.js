@@ -16,7 +16,7 @@ export async function GET() {
     const missions = [];
 
     // Get rescue forces
-    const squads = await prisma.rescueSquad.findMany({
+    const squads = await prisma.rescueForce.findMany({
       where: { isActive: true, isDeleted: false },
       select: { id: true, updatedAt: true },
       take: 500,

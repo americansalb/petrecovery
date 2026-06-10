@@ -27,7 +27,7 @@ export default function MembersModal({ isOpen, onClose, squadId, currentUserId, 
   const loadMembers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/members`);
+      const res = await fetch(`/api/rescue-forces/${squadId}/members`);
       if (res.ok) {
         const data = await res.json();
         setFetchedMembers(data.members || []);

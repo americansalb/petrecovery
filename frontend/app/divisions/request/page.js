@@ -37,7 +37,7 @@ export default function DivisionRequestPage() {
 
   const fetchMySquads = async () => {
     try {
-      const res = await fetch('/api/rescue-squads');
+      const res = await fetch('/api/rescue-forces');
       if (res.ok) {
         const data = await res.json();
         // Filter to squads where I'm a member

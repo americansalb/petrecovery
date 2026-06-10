@@ -62,7 +62,7 @@ model User {
   caseUpdates     CaseUpdate[]
 
   // Rescue Squad Relations
-  rescueSquadMemberships RescueSquadMember[]
+  rescueSquadMemberships RescueForceMember[]
   caseParticipations     CaseParticipant[]
   searchAreas            SearchArea[]
   petSpottings           PetSpotting[]
@@ -714,7 +714,7 @@ model CaseUpdate {
 // RESCUE SQUAD SYSTEM
 // ============================================================================
 
-model RescueSquad {
+model RescueForce {
   id              String   @id @default(cuid())
 
   // Rescue Squad Identity
@@ -763,12 +763,12 @@ model RescueSquad {
   avgResponseTimeMinutes Int?   // Avg time to accept a case
 
   // Gamification
-  rescueSquadLevel RescueSquadLevel @default(ROOKIE)
+  rescueSquadLevel RescueForceLevel @default(ROOKIE)
   squadPoints      Int      @default(0)
   badges           String   @default("[]") // JSON: ["first_reunion", "speed_demon", etc]
 
   // Relations
-  members          RescueSquadMember[]
+  members          RescueForceMember[]
   caseAssignments  CaseAssignment[]
   divisions        Division[]
   divisionRequests DivisionRequest[]
@@ -792,6 +792,8 @@ model RescueSquad {
   @@index([country, state])
   @@index([country, state, city])
   @@index([isDeleted])
+
+  @@map("RescueSquad")
 }
 
 enum CoverageType {
@@ -801,18 +803,20 @@ enum CoverageType {
   CITYWIDE     // Entire city
 }
 
-enum RescueSquadLevel {
+enum RescueForceLevel {
   ROOKIE       // 0-5 cases
   ACTIVE       // 6-20 cases
   VETERAN      // 21-50 cases
   ELITE        // 51-100 cases
   LEGENDARY    // 100+ cases
+
+  @@map("RescueSquadLevel")
 }
 
-model RescueSquadMember {
+model RescueForceMember {
   id              String   @id @default(cuid())
   rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -821,7 +825,7 @@ model RescueSquadMember {
   division        Division? @relation(fields: [divisionId], references: [id], onDelete: SetNull)
 
   // Role
-  role            RescueSquadMemberRole @default(MEMBER)
+  role            RescueForceMemberRole @default(MEMBER)
 
   // Status
   isActive        Boolean  @default(true)
@@ -844,9 +848,11 @@ model RescueSquadMember {
   @@index([role])
   @@index([isActive])
   @@index([divisionId])
+
+  @@map("RescueSquadMember")
 }
 
-enum RescueSquadMemberRole {
+enum RescueForceMemberRole {
   FOUNDER          // Created the rescue squad
   LEADER           // Can accept cases, manage members
   COORDINATOR      // Can coordinate searches, post updates
@@ -856,6 +862,8 @@ enum RescueSquadMemberRole {
   ADMINISTRATOR    // Legacy: equivalent to LEADER
   MODERATOR        // Legacy: equivalent to COORDINATOR
   DIVISION_LEADER  // Legacy: equivalent to LEADER
+
+  @@map("RescueSquadMemberRole")
 }
 
 enum AvailabilityStatus {
@@ -870,7 +878,7 @@ model CaseAssignment {
   missionId       String   @map("caseId")
   case            Case     @relation(fields: [missionId], references: [id], onDelete: Cascade)
   rescueSquadId   String?
-  rescueSquad     RescueSquad? @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce? @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
   // Assignment Status
   status          AssignmentStatus @default(ACCEPTED)
@@ -1033,7 +1041,7 @@ model SquadHonor {
 model SquadActivity {
   id              String   @id @default(cuid())
   rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
   // Activity type
   type            String   // CASE_ACCEPTED, MEMBER_JOINED, SIGHTING_REPORTED, TASK_CREATED, etc.
@@ -1058,7 +1066,7 @@ model SquadActivity {
 model SquadTask {
   id              String   @id @default(cuid())
   rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
   // Related case
   caseId          String?
@@ -1154,7 +1162,7 @@ model TaskParticipant {
 model SquadPost {
   id              String   @id @default(cuid())
   rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
   // Division (optional - for division-specific posts)
   divisionId      String?
@@ -1280,7 +1288,7 @@ model Division {
 
   // Parent Rescue Squad
   rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
 
   // Division Identity
   name            String   // "North Side", "Downtown", "Lincoln Park"
@@ -1305,7 +1313,7 @@ model Division {
   activeCases     Int      @default(0)
 
   // Relations
-  members         RescueSquadMember[]
+  members         RescueForceMember[]
   divisionRequest DivisionRequest?
   posts           SquadPost[] @relation("DivisionPosts")
 
@@ -1327,7 +1335,7 @@ model DivisionRequest {
 
   // Request Details
   rescueSquadId   String   // Which squad to add division to
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
   proposedName    String   // "North Side", "West End", etc.
   justification   String   // Why this division is needed
 
@@ -2957,7 +2965,7 @@ model SearchSession {
   updatedAt       DateTime @updatedAt
 
   // Participation
-  // NOTE: participantId is optional to support direct search sessions without formal RescueSquad membership
+  // NOTE: participantId is optional to support direct search sessions without formal RescueForce membership
   // Points attribution uses userId directly; participantId is for squad coordination features
   participantId   String?
   participant     CaseParticipant? @relation(fields: [participantId], references: [id], onDelete: Cascade)
@@ -3248,7 +3256,7 @@ model SquadJoinRequest {
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   rescueSquadId   String
-  rescueSquad     RescueSquad @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
+  rescueSquad     RescueForce @relation(fields: [rescueSquadId], references: [id], onDelete: Cascade)
   divisionId      String?
 
   // Request

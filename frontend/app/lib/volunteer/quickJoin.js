@@ -215,7 +215,7 @@ async function findNearestSquad(location) {
     return null;
   }
 
-  const squads = await prisma.rescueSquad.findMany({
+  const squads = await prisma.rescueForce.findMany({
     where: { isActive: true },
     select: {
       id: true,

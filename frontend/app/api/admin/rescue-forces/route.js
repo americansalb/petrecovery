@@ -1,0 +1,37 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
+import prisma from '@/app/lib/prisma';
+
+// Force dynamic rendering since we use session/headers
+export const dynamic = 'force-dynamic';
+
+// GET /api/admin/rescue-forces - List all squads (admin only)
+export async function GET(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const squads = await prisma.rescueForce.findMany({
+      where: {
+        isDeleted: false, // Don't show deleted squads
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            members: true,
+            caseAssignments: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({ squads });
+  } catch (error) {
+    console.error('Error loading squads:', error);
+    return NextResponse.json({ error: 'Failed to load rescue forces' }, { status: 500 });
+  }
+}

@@ -281,7 +281,7 @@ export async function POST(request) {
     const COVERAGE_BUFFER = 1; // Add 1 mile to squad's coverage radius
 
     try {
-      const squads = await prisma.rescueSquad.findMany({
+      const squads = await prisma.rescueForce.findMany({
         where: { isActive: true },
         select: {
           id: true,
@@ -363,7 +363,7 @@ export async function POST(request) {
         console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
 
         // Auto-create a rescue force for this city
-        const newSquad = await prisma.rescueSquad.create({
+        const newSquad = await prisma.rescueForce.create({
           data: {
             name: `${cityName} Pet Rescue`,
             city: cityName,
@@ -425,7 +425,7 @@ export async function POST(request) {
           if (squad === squadsToNotify[0] && user) {
             try {
               // Check if user is already a member
-              const existingMember = await prisma.rescueSquadMember.findFirst({
+              const existingMember = await prisma.rescueForceMember.findFirst({
                 where: {
                   rescueSquadId: squad.id,
                   userId: user.id
@@ -434,7 +434,7 @@ export async function POST(request) {
 
               if (!existingMember) {
                 // Auto-add user as member
-                await prisma.rescueSquadMember.create({
+                await prisma.rescueForceMember.create({
                   data: {
                     rescueSquadId: squad.id,
                     userId: user.id,

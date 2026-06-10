@@ -2,23 +2,6 @@
 const nextConfig = {
   output: 'standalone',
 
-  // "Rescue Squad" is PawBoost's trademark for the same use case; the brand
-  // here is Rescue Forces. Old links keep working via permanent redirects.
-  async redirects() {
-    return [
-      {
-        source: '/rescue-squads',
-        destination: '/rescue-forces',
-        permanent: true,
-      },
-      {
-        source: '/rescue-squads/:path*',
-        destination: '/rescue-forces/:path*',
-        permanent: true,
-      },
-    ];
-  },
-
   // Build optimizations for memory and speed
   swcMinify: true,
   productionBrowserSourceMaps: false,
@@ -139,6 +122,16 @@ const nextConfig = {
           source: '/robots.txt',
           destination: '/api/robots',
         },
+        // Old API paths from before the Rescue Forces rename keep working
+        // transparently (rewrites preserve method + body for mobile builds)
+        {
+          source: '/api/rescue-squads/:path*',
+          destination: '/api/rescue-forces/:path*',
+        },
+        {
+          source: '/api/admin/rescue-squads/:path*',
+          destination: '/api/admin/rescue-forces/:path*',
+        },
       ],
     };
   },
@@ -150,6 +143,23 @@ const nextConfig = {
       {
         source: '/report',
         destination: '/missions/new',
+        permanent: true,
+      },
+      // "Rescue Squad" is PawBoost's trademark; the brand here is Rescue
+      // Forces. Every old link keeps working.
+      {
+        source: '/rescue-squads',
+        destination: '/rescue-forces',
+        permanent: true,
+      },
+      {
+        source: '/rescue-squads/:path*',
+        destination: '/rescue-forces/:path*',
+        permanent: true,
+      },
+      {
+        source: '/admin/rescue-squads/:path*',
+        destination: '/admin/rescue-forces/:path*',
         permanent: true,
       },
     ];

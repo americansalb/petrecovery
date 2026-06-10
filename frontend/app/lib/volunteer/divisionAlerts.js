@@ -99,7 +99,7 @@ export async function sendDivisionAlert(divisionId, alert) {
  * Alert all divisions in a squad about a new case
  */
 export async function alertSquadNewCase(squadId, missionData) {
-  const squad = await prisma.rescueSquad.findUnique({
+  const squad = await prisma.rescueForce.findUnique({
     where: { id: squadId },
     include: {
       divisions: {

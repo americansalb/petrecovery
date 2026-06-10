@@ -8,7 +8,7 @@
  *
  * Route: /rescue-forces/[id]
  *
- * Fetches real data from /api/rescue-squads/[id]/hub
+ * Fetches real data from /api/rescue-forces/[id]/hub
  * Falls back to mock data if the API fails (for development)
  */
 
@@ -31,7 +31,7 @@ export default function SquadPage() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/rescue-squads/${squadId}/hub`);
+      const res = await fetch(`/api/rescue-forces/${squadId}/hub`);
 
       if (res.ok) {
         const data = await res.json();

@@ -132,7 +132,7 @@ export default function CreateSquadPage() {
     setError('');
 
     try {
-      const res = await fetch('/api/rescue-squads', {
+      const res = await fetch('/api/rescue-forces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

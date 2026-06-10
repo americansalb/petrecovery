@@ -87,7 +87,7 @@ export async function PATCH(request, { params }) {
     const isCreator = task.creatorId === session.user.id;
     const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
 
-    const squadMembership = await prisma.rescueSquadMember.findFirst({
+    const squadMembership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: task.rescueSquadId,
         userId: session.user.id,
@@ -262,7 +262,7 @@ export async function DELETE(request, { params }) {
     const isCreator = task.creatorId === session.user.id;
     const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
 
-    const squadMembership = await prisma.rescueSquadMember.findFirst({
+    const squadMembership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: task.rescueSquadId,
         userId: session.user.id,

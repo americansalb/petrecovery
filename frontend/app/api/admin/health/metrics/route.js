@@ -67,15 +67,15 @@ export async function GET(request) {
       prisma.user.count(),
 
       // Total rescue forces
-      prisma.rescueSquad.count(),
+      prisma.rescueForce.count(),
 
       // Active rescue forces (isActive = true)
-      prisma.rescueSquad.count({
+      prisma.rescueForce.count({
         where: { isActive: true }
       }),
 
       // Unique cities (from rescue forces with city/state)
-      prisma.rescueSquad.findMany({
+      prisma.rescueForce.findMany({
         where: {
           city: { not: null },
           state: { not: null }
@@ -104,8 +104,8 @@ export async function GET(request) {
     const citiesTotal = uniqueCities.length;
 
     // Additional metrics (can be expanded in future)
-    const squadMembersTotal = await prisma.rescueSquadMember.count();
-    const activeSquadMembers = await prisma.rescueSquadMember.count({
+    const squadMembersTotal = await prisma.rescueForceMember.count();
+    const activeSquadMembers = await prisma.rescueForceMember.count({
       where: { isActive: true }
     });
 
