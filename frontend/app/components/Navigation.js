@@ -115,6 +115,14 @@ export default function Navigation() {
 
             {/* Desktop Navigation: one home per domain, same for guests and members */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
+              {/* My Pets is daily life (medications, profiles): first-class, always */}
+              {session && (
+                <NavLink href="/pets" active={pathname.startsWith('/pets')}>
+                  <PawPrint className="w-4 h-4" />
+                  My Pets
+                </NavLink>
+              )}
+
               <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
                 <Search className="w-4 h-4" />
                 Lost &amp; Found
@@ -391,6 +399,7 @@ export default function Navigation() {
               <MobileNavLink href="/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/notifications')} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/messages')} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/settings" icon={Settings} label="Settings" active={pathname.startsWith('/settings')} onClick={() => setMobileMenuOpen(false)} />
 
               {userSquads.length > 0 && (
                 <>
