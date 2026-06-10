@@ -151,6 +151,18 @@ const nextConfig = {
         destination: '/legal/terms',
         permanent: true,
       },
+      // The legacy communities section predates Rescue Forces, which ARE
+      // the communities now
+      {
+        source: '/communities',
+        destination: '/rescue-forces/search',
+        permanent: true,
+      },
+      {
+        source: '/communities/:path*',
+        destination: '/rescue-forces/search',
+        permanent: true,
+      },
       // "Rescue Squad" is PawBoost's trademark; the brand here is Rescue
       // Forces. Every old link keeps working.
       {

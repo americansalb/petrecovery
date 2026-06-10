@@ -330,7 +330,7 @@ export default function DashboardPage() {
         {/* SECTION 4: QUICK ACTIONS                    */}
         {/* ============================================ */}
         <div className="grid grid-cols-2 gap-3 mb-6">
-          <Link href="/found" className="group">
+          <Link href="/report/found" className="group">
             <div className="bg-white border border-slate-200 hover:border-emerald-300 rounded-xl p-4 transition-all group-hover:shadow-md text-center">
               <Eye className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
               <div className="font-semibold text-slate-900 text-sm">Found a Pet?</div>
