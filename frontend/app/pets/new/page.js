@@ -170,7 +170,7 @@ export default function NewPetWizard() {
       case 'species':
         return form.species ? null : 'Pick the closest match';
       case 'colors':
-        return form.coatColors.length ? null : 'Tap at least one coat color — finders search by color first';
+        return form.coatColors.length ? null : 'Tap at least one coat color. Finders search by color first';
       case 'size':
         return form.size ? null : 'Pick the closest size';
       case 'about': {
@@ -212,7 +212,7 @@ export default function NewPetWizard() {
   const toggleCoatColor = (value) => {
     const has = form.coatColors.includes(value);
     if (!has && form.coatColors.length >= MAX_COAT_COLORS) {
-      setError(`Pick up to ${MAX_COAT_COLORS} main colors — the ones a stranger would name`);
+      setError(`Pick up to ${MAX_COAT_COLORS} main colors, the ones a stranger would name`);
       return;
     }
     set({ coatColors: has ? form.coatColors.filter((c) => c !== value) : [...form.coatColors, value] });
@@ -281,7 +281,7 @@ export default function NewPetWizard() {
               </div>
               <h1 className="text-2xl font-bold text-midnight-900 mb-2">{createdPet.name} is on file!</h1>
               <p className="text-midnight-500 mb-8">
-                If they ever go missing, a report is one tap away — every detail is already filled in.
+                If they ever go missing, a report is one tap away with every detail already filled in.
               </p>
               <div className="space-y-3">
                 <Button variant="primary" fullWidth size="lg" href={`/pets/${createdPet.id}/medications`} leftIcon={Pill}>
@@ -345,7 +345,7 @@ export default function NewPetWizard() {
               )}
 
               {stepKey === 'colors' && (
-                <StepShell icon={Palette} title={`What color is ${petName}'s coat?`} subtitle={`Tap up to ${MAX_COAT_COLORS} — the colors a stranger would name. This is how finders search.`}>
+                <StepShell icon={Palette} title={`What color is ${petName}'s coat?`} subtitle={`Tap up to ${MAX_COAT_COLORS}, the colors a stranger would name. This is how finders search.`}>
                   <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mb-6">
                     {COAT_COLORS.map(({ value, css, border }) => {
                       const active = form.coatColors.includes(value);
@@ -424,7 +424,7 @@ export default function NewPetWizard() {
               )}
 
               {stepKey === 'breed' && (
-                <StepShell icon={Sparkles} title="Know the breed?" subtitle="Start typing — pick from the list so searches match exactly.">
+                <StepShell icon={Sparkles} title="Know the breed?" subtitle="Start typing and pick from the list so searches match exactly.">
                   <input
                     ref={inputRef}
                     value={breedQuery || form.breed}
@@ -463,7 +463,7 @@ export default function NewPetWizard() {
               )}
 
               {stepKey === 'about' && (
-                <StepShell icon={Dog} title="A few details" subtitle="All optional — skip anything you're not sure of.">
+                <StepShell icon={Dog} title="A few details" subtitle="All optional. Skip anything you're not sure of.">
                   <div className="space-y-5">
                     <div>
                       <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Sex</label>

@@ -299,7 +299,7 @@ function MedCard({ med, petId, busy, canManage, onLogPrn, onTogglePause, onDelet
                 {low && <AlertTriangle size={12} />}
                 <PackageOpen size={12} />
                 {Math.round(med.quantityRemaining * 10) / 10} dose{med.quantityRemaining !== 1 ? 's' : ''} left
-                {low && ' — time to refill'}
+                {low && ', time to refill'}
               </p>
             )}
           </div>

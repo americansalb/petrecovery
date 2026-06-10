@@ -70,53 +70,76 @@ export async function sendEmail({ to, subject, html }) {
   }
 }
 
+
+/**
+ * Branded, email-client-safe HTML layout (tables + inline styles).
+ * Midnight header, white card, flash-yellow CTA. Use for every outbound
+ * email so the brand is consistent from the first touch.
+ */
+export function renderBrandedEmail({ preheader = '', heading, bodyHtml, ctaLabel, ctaUrl, footnote = '' }) {
+  return `<!DOCTYPE html>
+<html>
+  <body style="margin:0; padding:0; background-color:#f1f5f9;">
+    <span style="display:none; max-height:0; overflow:hidden; color:#f1f5f9;">${preheader}</span>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9; padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px; width:100%;">
+            <tr>
+              <td style="background-color:#0f172a; border-radius:16px 16px 0 0; padding:22px 32px; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                <span style="font-size:20px; font-weight:800; color:#ffffff;">Reunite<span style="color:#facc15;">Pets</span></span>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color:#ffffff; border-radius:0 0 16px 16px; padding:36px 32px; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#334155; font-size:16px; line-height:1.6;">
+                <h1 style="margin:0 0 16px; font-size:24px; line-height:1.3; color:#0f172a;">${heading}</h1>
+                ${bodyHtml}
+                ${ctaLabel && ctaUrl ? `
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px auto 8px;">
+                  <tr>
+                    <td style="border-radius:12px; background-color:#facc15;">
+                      <a href="${ctaUrl}" style="display:inline-block; padding:14px 36px; font-size:16px; font-weight:700; color:#0f172a; text-decoration:none; border-radius:12px;">${ctaLabel}</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:16px 0 0; font-size:13px; color:#94a3b8; text-align:center; word-break:break-all;">
+                  Button not working? Copy this link: <a href="${ctaUrl}" style="color:#64748b;">${ctaUrl}</a>
+                </p>` : ''}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:1.6; color:#94a3b8; text-align:center;">
+                <strong style="color:#64748b;">ReunitePets</strong> &middot; Reuniting lost pets with their families
+                ${footnote ? `<br>${footnote}` : ''}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 /**
  * Send verification email helper
  */
 export async function sendVerificationEmail(email, firstName, verifyUrl) {
-  const emailHtml = `
-    <html>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-        <div style="background: #10b981; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
-          <h1 style="margin: 0; font-size: 24px;">Verify Your Email</h1>
-        </div>
-
-        <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-          <p>Hi ${firstName || 'there'},</p>
-
-          <p>Welcome to PetRecovery.org! Please verify your email address to activate your account.</p>
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${verifyUrl}"
-               style="display: inline-block; background: #10b981; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-              Verify My Email
-            </a>
-          </div>
-
-          <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Note:</strong> This link will expire in <strong>24 hours</strong>.</p>
-          </div>
-
-          <p>If you didn't create an account with PetRecovery.org, you can safely ignore this email.</p>
-
-          <p style="color: #6b7280; font-size: 14px; margin-top: 20px;">
-            If the button above doesn't work, copy and paste this link into your browser:<br>
-            <a href="${verifyUrl}" style="color: #10b981; word-break: break-all;">${verifyUrl}</a>
-          </p>
-
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-
-          <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
+  const html = renderBrandedEmail({
+    preheader: 'One click and your ReunitePets account is live.',
+    heading: `Welcome, ${firstName || 'friend'}!`,
+    bodyHtml: `
+      <p style="margin:0 0 12px;">You're one click away from activating your ReunitePets account.</p>
+      <p style="margin:0 0 4px;">This link expires in <strong>24 hours</strong>.</p>
+    `,
+    ctaLabel: 'Verify my email',
+    ctaUrl: verifyUrl,
+    footnote: "If you didn't create an account, you can safely ignore this email.",
+  });
 
   return sendEmail({
     to: email,
-    subject: 'Verify Your PetRecovery Email',
-    html: emailHtml
+    subject: 'Verify your ReunitePets email',
+    html,
   });
 }

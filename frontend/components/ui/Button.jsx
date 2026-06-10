@@ -88,7 +88,7 @@ export function Button({
         <LeftIcon className="w-4 h-4" />
       ) : null}
 
-      {children && <span>{children}</span>}
+      {children && <span className="inline-flex items-center gap-2">{children}</span>}
 
       {RightIcon && !loading && <RightIcon className="w-4 h-4" />}
     </>

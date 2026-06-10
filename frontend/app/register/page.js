@@ -62,6 +62,11 @@ export default function RegisterPage() {
   useEffect(() => {
     const callback = searchParams.get('callbackUrl');
     if (callback) setCallbackUrl(callback);
+    // Invite emails link here with the address prefilled. Keep it editable.
+    const emailParam = searchParams.get('email');
+    if (emailParam) {
+      setForm((prev) => (prev.email ? prev : { ...prev, email: emailParam }));
+    }
   }, [searchParams]);
 
   // Each new screen: focus its input so typing + Enter just works.
@@ -251,12 +256,12 @@ export default function RegisterPage() {
                     aria-label="Email address"
                     className={inputClass}
                   />
-                  <p className="text-xs text-midnight-400 mt-2.5">We&apos;ll send a verification link here — no spam.</p>
+                  <p className="text-xs text-midnight-400 mt-2.5">We&apos;ll send a verification link here. No spam, ever.</p>
                 </StepShell>
               )}
 
               {STEPS[step] === 'phone' && (
-                <StepShell icon={Phone} title="Add a phone number?" subtitle="Optional — it helps finders and rescuers reach you faster if a pet goes missing.">
+                <StepShell icon={Phone} title="Add a phone number?" subtitle="Optional. It helps finders and rescuers reach you faster if a pet goes missing.">
                   <input
                     ref={inputRef}
                     type="tel"
@@ -321,7 +326,7 @@ export default function RegisterPage() {
               )}
 
               {STEPS[step] === 'terms' && (
-                <StepShell icon={ShieldCheck} title="One last thing" subtitle="The legal bit — short and important.">
+                <StepShell icon={ShieldCheck} title="One last thing" subtitle="The legal bit. Short and important.">
                   <button
                     type="button"
                     onClick={() => { setAcceptedTerms((v) => !v); setError(''); }}
