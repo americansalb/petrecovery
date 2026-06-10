@@ -106,6 +106,7 @@ export async function POST(request) {
         firstName: true,
         resetToken: true,
         resetTokenExpiry: true,
+        emailVerified: true,
       }
     });
 
@@ -172,6 +173,13 @@ export async function POST(request) {
         passwordHash,
         resetToken: null,
         resetTokenExpiry: null,
+        // Clicking a token we emailed proves ownership of the address, so
+        // verify it here. Without this, quick-signup accounts (created
+        // unverified with random temp passwords) stayed locked out of login
+        // even after a successful reset, with a generic "invalid password".
+        emailVerified: user.emailVerified ?? new Date(),
+        emailVerifyToken: null,
+        emailVerifyExpiry: null,
         updatedAt: new Date(),
       }
     });

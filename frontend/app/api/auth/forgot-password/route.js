@@ -107,27 +107,9 @@ export async function POST(request) {
       });
     }
 
-    // Check if user has a password (might be OAuth-only user in future)
-    if (!user.passwordHash) {
-      await logEvent({
-        event_type: 'auth.forgot_password_attempted',
-        correlation_id: correlationId,
-        resource_type: 'user',
-        resource_id: user.id,
-        action: 'read',
-        result: 'success',
-        metadata: {
-          user_found: true,
-          has_password: false,
-          response_time_ms: Date.now() - startTime
-        }
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: 'If an account exists with this email, you will receive a password reset link.'
-      });
-    }
+    // NOTE: accounts created through quick report flows have random temp
+    // passwords, and OAuth accounts have none at all. The reset flow is how
+    // ALL of them set a usable password, so no passwordHash gate here.
 
     // Generate secure reset token
     // Store HASH in database, send RAW to user

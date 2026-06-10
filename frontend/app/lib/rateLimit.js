@@ -31,10 +31,24 @@ async function getRedisClient() {
   try {
     // Dynamic import to avoid requiring redis in non-Redis environments
     const { createClient } = await import('redis');
-    redisClient = createClient({ url: redisUrl });
+    // Bounded retries + no offline queue: a bad/unreachable REDIS_URL (for
+    // example a placeholder hostname) must degrade to the in-memory limiter
+    // instantly, never hang auth requests or spam reconnects forever.
+    redisClient = createClient({
+      url: redisUrl,
+      disableOfflineQueue: true,
+      socket: {
+        connectTimeout: 2000,
+        reconnectStrategy: (retries) => (retries >= 3 ? false : 250),
+      },
+    });
 
+    let loggedError = false;
     redisClient.on('error', (err) => {
-      console.error('Redis rate limit error:', err.message);
+      if (!loggedError) {
+        console.error('Redis rate limit error (falling back to in-memory):', err.message);
+        loggedError = true;
+      }
       redisAvailable = false;
     });
 
@@ -42,11 +56,16 @@ async function getRedisClient() {
       redisAvailable = true;
     });
 
-    await redisClient.connect();
+    // connect() can stall while the client retries; cap the wait outright.
+    await Promise.race([
+      redisClient.connect(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('redis connect timeout')), 3000)),
+    ]);
     redisAvailable = true;
     return redisClient;
   } catch (err) {
-    console.warn('Redis not available for rate limiting, using in-memory fallback');
+    console.warn('Redis not available for rate limiting, using in-memory fallback:', err.message);
+    try { redisClient?.disconnect?.(); } catch { /* ignore */ }
     redisClient = false;
     return null;
   }
