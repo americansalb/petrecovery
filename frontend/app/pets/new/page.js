@@ -1,20 +1,25 @@
 'use client';
 
 /**
- * Add New Pet Page - Phase 1.3
+ * Add Pet Wizard — one clean decision per screen.
  *
  * Route: /pets/new
- * Form to create a new pet profile
+ * Name → Species → Looks → Details (skippable) → Photos (skippable) →
+ * Extras (skippable), then a finale that hands off to the medication tracker.
+ * Submits the same payload to POST /api/pets as the old single-page form.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Dog, Cat, Bird, Rabbit, PawPrint, Camera, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft, ArrowRight, Check, Dog, Cat, Bird, Rabbit, PawPrint,
+  Camera, Sparkles, Heart, Pill, X, PartyPopper,
+} from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
-import { Card, Button } from '@/components/ui';
+import { Button, cn } from '@/components/ui';
 
 const SPECIES_OPTIONS = [
   { value: 'DOG', label: 'Dog', icon: Dog },
@@ -25,50 +30,77 @@ const SPECIES_OPTIONS = [
 ];
 
 const SIZE_OPTIONS = [
-  { value: 'TINY', label: 'Tiny', description: 'Under 10 lbs (Chihuahua, Hamster)' },
-  { value: 'SMALL', label: 'Small', description: '10-25 lbs (Beagle, Cat)' },
-  { value: 'MEDIUM', label: 'Medium', description: '25-50 lbs (Border Collie, Cocker Spaniel)' },
-  { value: 'LARGE', label: 'Large', description: '50-90 lbs (Labrador, Golden Retriever)' },
-  { value: 'GIANT', label: 'Giant', description: '90+ lbs (Great Dane, St. Bernard)' },
+  { value: 'TINY', label: 'Tiny', hint: 'under 10 lbs' },
+  { value: 'SMALL', label: 'Small', hint: '10–25 lbs' },
+  { value: 'MEDIUM', label: 'Medium', hint: '25–50 lbs' },
+  { value: 'LARGE', label: 'Large', hint: '50–90 lbs' },
+  { value: 'GIANT', label: 'Giant', hint: '90+ lbs' },
 ];
 
 const SEX_OPTIONS = [
   { value: 'MALE', label: 'Male' },
   { value: 'FEMALE', label: 'Female' },
-  { value: 'UNKNOWN', label: 'Unknown' },
+  { value: 'UNKNOWN', label: 'Not sure' },
 ];
 
 const PERSONALITY_TRAITS = [
   'Friendly', 'Shy', 'Energetic', 'Calm', 'Playful',
   'Anxious', 'Aggressive when scared', 'Good with kids',
-  'Good with other pets', 'Comes when called', 'Microchip trained',
+  'Good with other pets', 'Comes when called',
 ];
 
-export default function NewPetPage() {
-  const { data: session, status } = useSession();
+const STEPS = ['name', 'species', 'looks', 'details', 'photos', 'extras'];
+
+const inputClass =
+  'w-full rounded-2xl border-2 border-midnight-200 bg-white px-4 py-3.5 text-lg text-midnight-900 ' +
+  'placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition';
+
+function StepShell({ icon: Icon, title, subtitle, children }) {
+  return (
+    <div className="animate-slide-up">
+      <div className="w-12 h-12 rounded-2xl bg-flash-100 text-flash-700 flex items-center justify-center mb-4">
+        <Icon className="w-6 h-6" />
+      </div>
+      <h1 className="text-2xl md:text-3xl font-bold text-midnight-900 mb-1.5">{title}</h1>
+      {subtitle && <p className="text-midnight-500 mb-6">{subtitle}</p>}
+      {children}
+    </div>
+  );
+}
+
+function Chip({ active, onClick, children, className }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'px-3.5 py-2 rounded-xl text-sm font-semibold border-2 transition-colors',
+        active
+          ? 'border-flash-400 bg-flash-50 text-midnight-900'
+          : 'border-midnight-200 bg-white text-midnight-600 hover:border-midnight-300',
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function NewPetWizard() {
+  const { status } = useSession();
   const router = useRouter();
+  const inputRef = useRef(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    species: 'DOG',
-    breed: '',
-    age: '',
-    sex: '',
-    isNeutered: false,
-    color: '',
-    size: 'MEDIUM',
-    weight: '',
-    distinctiveMarks: '',
-    microchipId: '',
-    collarInfo: '',
-    personality: [],
-    medicalConditions: '',
+  const [step, setStep] = useState(0);
+  const [createdPet, setCreatedPet] = useState(null);
+  const [form, setForm] = useState({
+    name: '', species: null, breed: '', age: '', sex: '', isNeutered: false,
+    color: '', size: 'MEDIUM', weight: '', distinctiveMarks: '',
+    microchipId: '', collarInfo: '', personality: [], medicalConditions: '',
   });
-
   const [images, setImages] = useState([]);
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -76,82 +108,86 @@ export default function NewPetPage() {
     }
   }, [status, router]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, [step]);
+
+  const set = (patch) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+    if (error) setError(null);
+  };
+
+  const stepKey = STEPS[step];
+  const optionalStep = ['details', 'photos', 'extras'].includes(stepKey);
+
+  const stepReady = (() => {
+    switch (stepKey) {
+      case 'name': return form.name.trim().length > 0;
+      case 'species': return Boolean(form.species);
+      case 'looks': return form.color.trim().length > 0 && Boolean(form.size);
+      default: return true;
+    }
+  })();
+
+  const validateStep = () => {
+    switch (stepKey) {
+      case 'name':
+        return form.name.trim() ? null : "What's their name?";
+      case 'species':
+        return form.species ? null : 'Pick the closest match';
+      case 'looks':
+        if (!form.color.trim()) return 'A color helps finders recognize them';
+        return null;
+      case 'details':
+        if (form.age && (Number.isNaN(Number(form.age)) || form.age < 0 || form.age > 50)) return 'Age should be 0–50';
+        if (form.weight && (Number.isNaN(Number(form.weight)) || form.weight < 0)) return 'Weight should be a number';
+        return null;
+      default:
+        return null;
     }
   };
 
-  const handlePersonalityToggle = (trait) => {
-    setFormData(prev => ({
-      ...prev,
-      personality: prev.personality.includes(trait)
-        ? prev.personality.filter(t => t !== trait)
-        : [...prev.personality, trait]
-    }));
+  const next = () => {
+    const problem = validateStep();
+    if (problem) { setError(problem); return; }
+    setError(null);
+    if (step < STEPS.length - 1) setStep(step + 1);
+    else save();
   };
 
-  const validate = () => {
-    const newErrors = {};
+  const back = () => { setError(null); if (step > 0) setStep(step - 1); };
+  const onEnter = (e) => { if (e.key === 'Enter') { e.preventDefault(); next(); } };
 
-    if (!formData.name.trim()) newErrors.name = 'Pet name is required';
-    if (!formData.species) newErrors.species = 'Species is required';
-    if (!formData.color.trim()) newErrors.color = 'Color is required';
-    if (!formData.size) newErrors.size = 'Size is required';
-
-    if (formData.age && (isNaN(formData.age) || formData.age < 0 || formData.age > 50)) {
-      newErrors.age = 'Please enter a valid age (0-50)';
-    }
-
-    if (formData.weight && (isNaN(formData.weight) || formData.weight < 0)) {
-      newErrors.weight = 'Please enter a valid weight';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const pickSpecies = (value) => {
+    set({ species: value });
+    // A pure-choice step: picking it IS the decision, so glide forward.
+    setTimeout(() => { setStep((s) => (STEPS[s] === 'species' ? s + 1 : s)); }, 250);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitError(null);
-
-    if (!validate()) {
-      return;
-    }
-
-    setSubmitting(true);
-
+  const save = async () => {
+    setSaving(true);
+    setError(null);
     try {
-      const photoUrls = images.map(img => img.url);
-
+      const photoUrls = images.map((img) => img.url);
       const res = await fetch('/api/pets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          age: formData.age ? parseInt(formData.age) : null,
-          weight: formData.weight ? parseFloat(formData.weight) : null,
+          ...form,
+          name: form.name.trim(),
+          color: form.color.trim(),
+          age: form.age ? parseInt(form.age, 10) : null,
+          weight: form.weight ? parseFloat(form.weight) : null,
           photos: photoUrls,
           primaryPhotoUrl: photoUrls[0] || '',
-        })
+        }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create pet profile');
-      }
-
-      router.push('/pets');
+      if (!res.ok) throw new Error(data.error || 'Failed to create pet profile');
+      setCreatedPet(data.pet);
     } catch (err) {
-      console.error('[PETS-NEW] Submission error:', err);
-      setSubmitError(err.message);
-    } finally {
-      setSubmitting(false);
+      setError(err.message);
+      setSaving(false);
     }
   };
 
@@ -162,338 +198,245 @@ export default function NewPetPage() {
       </div>
     );
   }
-
-  if (status === 'unauthenticated') {
-    return null;
-  }
-
-  const inputClass = "w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors";
-  const inputErrorClass = "w-full px-4 py-3 border-2 border-red-400 bg-red-50 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-400 focus:outline-none transition-colors";
-  const labelClass = "block mb-2 font-medium text-midnight-700";
+  if (status === 'unauthenticated') return null;
 
   return (
-    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-12">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/pets"
-            className="text-flash-500 hover:text-flash-600 inline-flex items-center gap-2 mb-4 font-medium transition-colors"
-          >
-            <ArrowLeft size={18} />
-            Back to My Pets
-          </Link>
-          <h1 className="text-3xl md:text-4xl font-bold text-midnight-900">
-            Add New Pet
-          </h1>
-          <p className="text-midnight-600 mt-2">
-            Register your pet so you can quickly report if they go missing
-          </p>
-        </div>
+    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
+      <div className="max-w-xl mx-auto">
+        <Link href="/pets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors mb-5">
+          <ArrowLeft size={16} /> My Pets
+        </Link>
 
-        <form onSubmit={handleSubmit}>
-          {/* Basic Info Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Basic Information
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Name */}
-              <div>
-                <label className={labelClass}>Pet Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="e.g., Max"
-                  className={errors.name ? inputErrorClass : inputClass}
-                />
-                {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
+        <div className="bg-white rounded-3xl shadow-card p-6 md:p-8 border border-midnight-100">
+          {createdPet ? (
+            /* ------------------------------ Finale ------------------------------ */
+            <div className="text-center animate-slide-up py-4">
+              <div className="w-16 h-16 rounded-full bg-flash-100 text-flash-600 flex items-center justify-center mx-auto mb-5">
+                <PartyPopper className="w-8 h-8" />
               </div>
-
-              {/* Species */}
-              <div>
-                <label className={labelClass}>Species *</label>
-                <select
-                  name="species"
-                  value={formData.species}
-                  onChange={handleChange}
-                  className={errors.species ? inputErrorClass : inputClass}
-                >
-                  {SPECIES_OPTIONS.map(opt => {
-                    const Icon = opt.icon;
-                    return (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              {/* Breed */}
-              <div>
-                <label className={labelClass}>Breed</label>
-                <input
-                  type="text"
-                  name="breed"
-                  value={formData.breed}
-                  onChange={handleChange}
-                  placeholder="e.g., Golden Retriever"
-                  className={inputClass}
-                />
-              </div>
-
-              {/* Age */}
-              <div>
-                <label className={labelClass}>Age (years)</label>
-                <input
-                  type="number"
-                  name="age"
-                  value={formData.age}
-                  onChange={handleChange}
-                  min="0"
-                  max="50"
-                  placeholder="e.g., 3"
-                  className={errors.age ? inputErrorClass : inputClass}
-                />
-                {errors.age && <p className="text-red-600 text-sm mt-1">{errors.age}</p>}
-              </div>
-
-              {/* Sex */}
-              <div>
-                <label className={labelClass}>Sex</label>
-                <select
-                  name="sex"
-                  value={formData.sex}
-                  onChange={handleChange}
-                  className={inputClass}
-                >
-                  <option value="">Select...</option>
-                  {SEX_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Neutered/Spayed */}
-              <div className="flex items-center pt-7">
-                <input
-                  type="checkbox"
-                  name="isNeutered"
-                  checked={formData.isNeutered}
-                  onChange={handleChange}
-                  id="isNeutered"
-                  className="w-5 h-5 text-flash-500 border-2 border-midnight-300 rounded focus:ring-2 focus:ring-flash-400"
-                />
-                <label htmlFor="isNeutered" className="ml-2 text-midnight-700">
-                  Neutered/Spayed
-                </label>
-              </div>
-            </div>
-          </Card>
-
-          {/* Physical Description Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Physical Description
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Color */}
-              <div>
-                <label className={labelClass}>Color/Markings *</label>
-                <input
-                  type="text"
-                  name="color"
-                  value={formData.color}
-                  onChange={handleChange}
-                  placeholder="e.g., Golden, Black and White"
-                  className={errors.color ? inputErrorClass : inputClass}
-                />
-                {errors.color && <p className="text-red-600 text-sm mt-1">{errors.color}</p>}
-              </div>
-
-              {/* Size */}
-              <div>
-                <label className={labelClass}>Size *</label>
-                <select
-                  name="size"
-                  value={formData.size}
-                  onChange={handleChange}
-                  className={errors.size ? inputErrorClass : inputClass}
-                >
-                  {SIZE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label} - {opt.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Weight */}
-              <div>
-                <label className={labelClass}>Weight (lbs)</label>
-                <input
-                  type="number"
-                  name="weight"
-                  value={formData.weight}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.1"
-                  placeholder="e.g., 25"
-                  className={errors.weight ? inputErrorClass : inputClass}
-                />
-                {errors.weight && <p className="text-red-600 text-sm mt-1">{errors.weight}</p>}
-              </div>
-
-              {/* Distinctive Marks */}
-              <div className="md:col-span-2">
-                <label className={labelClass}>Distinctive Marks</label>
-                <textarea
-                  name="distinctiveMarks"
-                  value={formData.distinctiveMarks}
-                  onChange={handleChange}
-                  placeholder="e.g., White spot on chest, scar on left ear, cropped tail..."
-                  rows={2}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Identification Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Identification
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Microchip */}
-              <div>
-                <label className={labelClass}>Microchip ID</label>
-                <input
-                  type="text"
-                  name="microchipId"
-                  value={formData.microchipId}
-                  onChange={handleChange}
-                  placeholder="e.g., 900123456789012"
-                  className={inputClass}
-                />
-                <p className="text-midnight-600 text-xs mt-1">
-                  Having a microchip greatly increases chances of reunion
-                </p>
-              </div>
-
-              {/* Collar Info */}
-              <div>
-                <label className={labelClass}>Collar/Tag Description</label>
-                <input
-                  type="text"
-                  name="collarInfo"
-                  value={formData.collarInfo}
-                  onChange={handleChange}
-                  placeholder="e.g., Red collar with bone-shaped tag"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Behavior & Health Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Behavior & Health
-            </h2>
-
-            {/* Personality Traits */}
-            <div className="mb-6">
-              <label className={labelClass}>Personality Traits</label>
-              <p className="text-midnight-600 text-sm mb-3">
-                Select all that apply - this helps rescuers approach your pet safely
+              <h1 className="text-2xl font-bold text-midnight-900 mb-2">{createdPet.name} is on file!</h1>
+              <p className="text-midnight-500 mb-8">
+                If they ever go missing, a report is one tap away — every detail is already filled in.
               </p>
-              <div className="flex flex-wrap gap-2">
-                {PERSONALITY_TRAITS.map(trait => (
-                  <button
-                    key={trait}
-                    type="button"
-                    onClick={() => handlePersonalityToggle(trait)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      formData.personality.includes(trait)
-                        ? 'bg-flash-100 border-2 border-flash-400 text-flash-700'
-                        : 'bg-white border border-midnight-200 text-midnight-600 hover:border-midnight-300'
-                    }`}
+              <div className="space-y-3">
+                <Button variant="primary" fullWidth size="lg" href={`/pets/${createdPet.id}/medications`} leftIcon={Pill}>
+                  Track {createdPet.name}&apos;s medications
+                </Button>
+                <Button variant="outline" fullWidth size="lg" href="/pets">
+                  Done
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Progress */}
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold uppercase tracking-wide text-midnight-400">
+                  Step {step + 1} of {STEPS.length}
+                </span>
+                {optionalStep && <span className="text-xs font-semibold text-midnight-400">Optional</span>}
+              </div>
+              <div className="h-1.5 bg-midnight-100 rounded-full mb-8 overflow-hidden" role="progressbar"
+                aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={STEPS.length} aria-label="Add pet progress">
+                <div className="h-full bg-flash-400 rounded-full transition-all duration-500" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+              </div>
+
+              {stepKey === 'name' && (
+                <StepShell icon={Heart} title="Who are we adding?" subtitle="Their name, as shouted across the park.">
+                  <input
+                    ref={inputRef}
+                    value={form.name}
+                    onChange={(e) => set({ name: e.target.value })}
+                    onKeyDown={onEnter}
+                    placeholder="Biscuit"
+                    aria-label="Pet name"
+                    className={inputClass}
+                  />
+                </StepShell>
+              )}
+
+              {stepKey === 'species' && (
+                <StepShell icon={PawPrint} title={`What is ${form.name.trim() || 'your pet'}?`} subtitle="Tap the closest match.">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {SPECIES_OPTIONS.map(({ value, label, icon: Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => pickSpecies(value)}
+                        className={cn(
+                          'flex flex-col items-center gap-2 rounded-2xl border-2 p-5 transition-all',
+                          form.species === value
+                            ? 'border-flash-400 bg-flash-50 scale-[1.03]'
+                            : 'border-midnight-200 bg-white hover:border-midnight-300 hover:-translate-y-0.5'
+                        )}
+                      >
+                        <Icon className={cn('w-8 h-8', form.species === value ? 'text-flash-600' : 'text-midnight-400')} />
+                        <span className="font-semibold text-midnight-900">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </StepShell>
+              )}
+
+              {stepKey === 'looks' && (
+                <StepShell icon={Sparkles} title="What do they look like?" subtitle="The details a stranger would notice first.">
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Color / markings <span className="text-red-500">*</span></label>
+                      <input
+                        ref={inputRef}
+                        value={form.color}
+                        onChange={(e) => set({ color: e.target.value })}
+                        onKeyDown={onEnter}
+                        placeholder="Golden with a white chest"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Size</label>
+                      <div className="flex flex-wrap gap-2">
+                        {SIZE_OPTIONS.map((opt) => (
+                          <Chip key={opt.value} active={form.size === opt.value} onClick={() => set({ size: opt.value })}>
+                            {opt.label} <span className="font-normal opacity-60">· {opt.hint}</span>
+                          </Chip>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-midnight-800 mb-1.5">
+                        Distinctive marks <span className="font-normal text-midnight-400">(optional)</span>
+                      </label>
+                      <input
+                        value={form.distinctiveMarks}
+                        onChange={(e) => set({ distinctiveMarks: e.target.value })}
+                        onKeyDown={onEnter}
+                        placeholder="Scar on left ear, cropped tail…"
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                </StepShell>
+              )}
+
+              {stepKey === 'details' && (
+                <StepShell icon={Dog} title="A few details" subtitle="All optional — skip anything you're not sure of.">
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Breed</label>
+                        <input ref={inputRef} value={form.breed} onChange={(e) => set({ breed: e.target.value })} onKeyDown={onEnter} placeholder="Golden Retriever" className={inputClass} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Age (years)</label>
+                        <input type="number" min="0" max="50" value={form.age} onChange={(e) => set({ age: e.target.value })} onKeyDown={onEnter} placeholder="3" className={inputClass} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Sex</label>
+                      <div className="flex flex-wrap gap-2">
+                        {SEX_OPTIONS.map((opt) => (
+                          <Chip key={opt.value} active={form.sex === opt.value} onClick={() => set({ sex: form.sex === opt.value ? '' : opt.value })}>
+                            {opt.label}
+                          </Chip>
+                        ))}
+                        <Chip active={form.isNeutered} onClick={() => set({ isNeutered: !form.isNeutered })}>
+                          Neutered / spayed
+                        </Chip>
+                      </div>
+                    </div>
+                    <div className="w-1/2 pr-2">
+                      <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Weight (lbs)</label>
+                      <input type="number" min="0" value={form.weight} onChange={(e) => set({ weight: e.target.value })} onKeyDown={onEnter} placeholder="25" className={inputClass} />
+                    </div>
+                  </div>
+                </StepShell>
+              )}
+
+              {stepKey === 'photos' && (
+                <StepShell icon={Camera} title="Show them off" subtitle="Clear photos make flyers and matches dramatically better. First photo becomes the cover.">
+                  <ImageUpload
+                    images={images}
+                    onUpload={(newImages) => setImages((prev) => [...prev, ...newImages])}
+                    onRemove={(index) => setImages((prev) => prev.filter((_, i) => i !== index))}
+                    maxImages={5}
+                    context="pet"
+                    label="Pet Photos"
+                    helpText="Drag photos here, or click to browse"
+                  />
+                </StepShell>
+              )}
+
+              {stepKey === 'extras' && (
+                <StepShell icon={Check} title="Last bits" subtitle="Identification & personality — all optional, all useful in a search.">
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Microchip ID</label>
+                        <input ref={inputRef} value={form.microchipId} onChange={(e) => set({ microchipId: e.target.value })} onKeyDown={onEnter} placeholder="985112…" className={inputClass} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Collar</label>
+                        <input value={form.collarInfo} onChange={(e) => set({ collarInfo: e.target.value })} onKeyDown={onEnter} placeholder="Red collar, bone tag" className={inputClass} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Personality</label>
+                      <div className="flex flex-wrap gap-2">
+                        {PERSONALITY_TRAITS.map((trait) => (
+                          <Chip
+                            key={trait}
+                            active={form.personality.includes(trait)}
+                            onClick={() => set({
+                              personality: form.personality.includes(trait)
+                                ? form.personality.filter((t) => t !== trait)
+                                : [...form.personality, trait],
+                            })}
+                          >
+                            {trait}
+                          </Chip>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Medical conditions</label>
+                      <input value={form.medicalConditions} onChange={(e) => set({ medicalConditions: e.target.value })} onKeyDown={onEnter} placeholder="Allergies, needs daily meds…" className={inputClass} />
+                    </div>
+                  </div>
+                </StepShell>
+              )}
+
+              {error && (
+                <div role="alert" className="mt-4 bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-xl flex items-center justify-between">
+                  <span>{error}</span>
+                  <button onClick={() => setError(null)} className="text-red-400 hover:text-red-700" aria-label="Dismiss error"><X size={16} /></button>
+                </div>
+              )}
+
+              {/* Nav */}
+              <div className="flex items-center justify-between gap-3 mt-8 pt-5 border-t border-midnight-100">
+                {step > 0 ? (
+                  <Button variant="ghost" onClick={back} leftIcon={ArrowLeft}>Back</Button>
+                ) : <span />}
+                <div className="flex items-center gap-2">
+                  {optionalStep && step < STEPS.length - 1 && (
+                    <Button variant="ghost" onClick={() => { setError(null); setStep(step + 1); }}>Skip</Button>
+                  )}
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={next}
+                    disabled={!stepReady || saving}
+                    loading={saving}
+                    rightIcon={step < STEPS.length - 1 ? ArrowRight : undefined}
+                    leftIcon={step === STEPS.length - 1 ? Check : undefined}
                   >
-                    {trait}
-                  </button>
-                ))}
+                    {step === STEPS.length - 1 ? `Add ${form.name.trim() || 'pet'}` : 'Continue'}
+                  </Button>
+                </div>
               </div>
-            </div>
-
-            {/* Medical Conditions */}
-            <div>
-              <label className={labelClass}>Medical Conditions</label>
-              <textarea
-                name="medicalConditions"
-                value={formData.medicalConditions}
-                onChange={handleChange}
-                placeholder="e.g., Diabetes (needs insulin), arthritis, allergies to chicken..."
-                rows={2}
-                className={inputClass}
-              />
-              <p className="text-midnight-600 text-xs mt-1">
-                Important for rescuers to know about medications or special needs
-              </p>
-            </div>
-          </Card>
-
-          {/* Photos Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-flash-500" />
-              Photos
-            </h2>
-
-            <ImageUpload
-              images={images}
-              onUpload={(newImages) => setImages(prev => [...prev, ...newImages])}
-              onRemove={(index) => setImages(prev => prev.filter((_, i) => i !== index))}
-              maxImages={5}
-              context="pet"
-              label="Pet Photos"
-              helpText="Upload clear photos of your pet from different angles. The first photo will be the primary photo."
-            />
-          </Card>
-
-          {/* Submit Error */}
-          {submitError && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <span>{submitError}</span>
-            </div>
+            </>
           )}
-
-          {/* Submit Buttons */}
-          <div className="flex gap-4 justify-end">
-            <Button
-              variant="outline"
-              href="/pets"
-              size="lg"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              loading={submitting}
-            >
-              Create Pet Profile
-            </Button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );
