@@ -25,7 +25,7 @@ export async function POST(request, { params }) {
     }
 
     // Verify user is assigned to this task or is a leader
-    const membership = await prisma.rescueSquadMember.findFirst({
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: task.rescueSquadId,
         userId: session.user.id,

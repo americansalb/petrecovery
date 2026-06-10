@@ -164,7 +164,7 @@ export async function updateUserLocation(userId, latitude, longitude) {
  * Get rescue forces covering a location
  */
 export async function getSquadsCoveringLocation(latitude, longitude) {
-  const squads = await prisma.rescueSquad.findMany({
+  const squads = await prisma.rescueForce.findMany({
     where: {
       isActive: true,
       isAcceptingCases: true,

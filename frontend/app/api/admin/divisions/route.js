@@ -65,7 +65,7 @@ export async function POST(request) {
     }
 
     // Check if rescue force exists
-    const rescueSquad = await prisma.rescueSquad.findUnique({
+    const rescueSquad = await prisma.rescueForce.findUnique({
       where: { id: rescueSquadId }
     });
 

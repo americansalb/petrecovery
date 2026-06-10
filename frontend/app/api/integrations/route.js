@@ -66,7 +66,7 @@ export async function POST(request) {
     }
 
     if (squadId) {
-      const squadAccess = await prisma.rescueSquadMember.findFirst({
+      const squadAccess = await prisma.rescueForceMember.findFirst({
         where: {
           userId: session.user.id,
           rescueSquadId: squadId,

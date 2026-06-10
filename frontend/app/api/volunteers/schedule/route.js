@@ -108,7 +108,7 @@ export async function POST(request) {
 
     // Verify user is coordinator or leader
     if (squadId) {
-      const membership = await prisma.rescueSquadMember.findFirst({
+      const membership = await prisma.rescueForceMember.findFirst({
         where: {
           userId: session.user.id,
           rescueSquadId: squadId,

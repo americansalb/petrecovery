@@ -511,7 +511,7 @@ export async function getSurgeStats(missionId) {
  * Find squads covering a location
  */
 async function findSquadsCoveringLocation(lat, lng) {
-  const squads = await prisma.rescueSquad.findMany({
+  const squads = await prisma.rescueForce.findMany({
     where: { isActive: true },
     include: {
       divisions: {

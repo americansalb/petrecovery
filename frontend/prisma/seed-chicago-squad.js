@@ -61,7 +61,7 @@ async function main() {
   // CREATE CHICAGO RESCUE FORCE
   // ============================================================================
 
-  const chicagoSquad = await prisma.rescueSquad.upsert({
+  const chicagoSquad = await prisma.rescueForce.upsert({
     where: { name: 'Chicago Rescue Force' },
     update: {
       city: 'Chicago',
@@ -184,7 +184,7 @@ async function main() {
     const division = divisions[ma.divisionIndex];
 
     // Check if member exists
-    let member = await prisma.rescueSquadMember.findFirst({
+    let member = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: chicagoSquad.id,
         userId: user.id,
@@ -192,7 +192,7 @@ async function main() {
     });
 
     if (!member) {
-      member = await prisma.rescueSquadMember.create({
+      member = await prisma.rescueForceMember.create({
         data: {
           rescueSquadId: chicagoSquad.id,
           userId: user.id,
@@ -206,7 +206,7 @@ async function main() {
       });
     } else {
       // Update existing member
-      member = await prisma.rescueSquadMember.update({
+      member = await prisma.rescueForceMember.update({
         where: { id: member.id },
         data: {
           divisionId: division.id,

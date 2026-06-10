@@ -114,7 +114,7 @@ export async function POST(request, { params }) {
       },
     });
 
-    const squadMember = await prisma.rescueSquadMember.findFirst({
+    const squadMember = await prisma.rescueForceMember.findFirst({
       where: {
         userId: session.user.id,
         rescueSquad: {
@@ -127,7 +127,7 @@ export async function POST(request, { params }) {
     });
 
     if (squadMember) {
-      await prisma.rescueSquadMember.update({
+      await prisma.rescueForceMember.update({
         where: { id: squadMember.id },
         data: {
           areasMarked: { increment: 1 },
@@ -142,7 +142,7 @@ export async function POST(request, { params }) {
       select: { rescueSquadId: true },
     });
 
-    await prisma.rescueSquad.update({
+    await prisma.rescueForce.update({
       where: { id: assignment.rescueSquadId },
       data: {
         totalAcreageSearched: { increment: acreage },

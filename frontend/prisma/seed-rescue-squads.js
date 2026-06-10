@@ -242,7 +242,7 @@ async function main() {
 
   for (const squad of rescueSquads) {
     // Check if already exists
-    const existing = await prisma.rescueSquad.findUnique({
+    const existing = await prisma.rescueForce.findUnique({
       where: { name: squad.name }
     });
 
@@ -253,7 +253,7 @@ async function main() {
     }
 
     // Create the rescue force
-    await prisma.rescueSquad.create({
+    await prisma.rescueForce.create({
       data: {
         name: squad.name,
         description: `Pet rescue coordination serving the ${squad.city} area`,

@@ -41,7 +41,7 @@ export async function DELETE(request, { params }) {
     });
 
     // Remove division assignment from members (move to squad-level)
-    await prisma.rescueSquadMember.updateMany({
+    await prisma.rescueForceMember.updateMany({
       where: { divisionId: id },
       data: { divisionId: null }
     });

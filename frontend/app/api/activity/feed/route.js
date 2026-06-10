@@ -25,7 +25,7 @@ export async function GET(request) {
         where: { userId: session.user.id },
         select: { missionId: true },
       }),
-      prisma.rescueSquadMember.findMany({
+      prisma.rescueForceMember.findMany({
         where: { userId: session.user.id, isActive: true },
         select: { rescueSquadId: true },
       }),

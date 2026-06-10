@@ -34,7 +34,7 @@ export async function POST(request) {
     }
 
     // Get all active rescue forces
-    const squads = await prisma.rescueSquad.findMany({
+    const squads = await prisma.rescueForce.findMany({
       where: { isActive: true },
       select: { id: true, city: true },
     });

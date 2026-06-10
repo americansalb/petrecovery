@@ -168,7 +168,7 @@ export async function GET(request) {
     // Get squad leaderboard if requested
     let squadLeaders = [];
     if (!squadId) {
-      squadLeaders = await prisma.rescueSquad.findMany({
+      squadLeaders = await prisma.rescueForce.findMany({
         where: { isActive: true, isDeleted: false },
         select: {
           id: true,

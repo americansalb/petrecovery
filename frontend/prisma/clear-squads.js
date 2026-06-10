@@ -3,9 +3,9 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Deleting all rescue force members...');
-  await prisma.rescueSquadMember.deleteMany({});
+  await prisma.rescueForceMember.deleteMany({});
   console.log('Deleting all rescue forces...');
-  await prisma.rescueSquad.deleteMany({});
+  await prisma.rescueForce.deleteMany({});
   console.log('Done!');
 }
 

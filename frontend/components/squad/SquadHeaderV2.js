@@ -32,7 +32,7 @@ export default function SquadHeaderV2({
 
   const handleJoinSquad = async () => {
     try {
-      const res = await fetch(`/api/rescue-squads/${squad.id}/join`, {
+      const res = await fetch(`/api/rescue-forces/${squad.id}/join`, {
         method: 'POST',
       });
       if (res.ok) {

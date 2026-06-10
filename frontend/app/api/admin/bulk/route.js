@@ -146,7 +146,7 @@ async function syncUserStats(userIds) {
       _count: true,
     }),
     // Squads joined
-    prisma.rescueSquadMember.groupBy({
+    prisma.rescueForceMember.groupBy({
       by: ['userId'],
       where: { userId: { in: userIds } },
       _count: true,

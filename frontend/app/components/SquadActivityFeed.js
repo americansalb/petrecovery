@@ -18,7 +18,7 @@ export default function SquadActivityFeed({ squadId, missionId = null, isLeader 
 
   const loadActivities = async () => {
     try {
-      let url = `/api/rescue-squads/${squadId}/activities?filter=${filter}`;
+      let url = `/api/rescue-forces/${squadId}/activities?filter=${filter}`;
       if (missionId) {
         url += `&missionId=${missionId}`;
       }

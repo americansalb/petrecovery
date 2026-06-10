@@ -78,7 +78,7 @@ export default function CreatePostModal({ isOpen, onClose, onSubmit, squadId, di
       }
 
       // Create post
-      const res = await fetch(`/api/rescue-squads/${squadId}/posts`, {
+      const res = await fetch(`/api/rescue-forces/${squadId}/posts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

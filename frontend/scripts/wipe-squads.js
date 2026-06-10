@@ -21,7 +21,7 @@ async function wipeSquads() {
     console.log(`✅ Deleted ${assignments.count} case assignments`);
 
     // Delete all squad members
-    const members = await prisma.rescueSquadMember.deleteMany({});
+    const members = await prisma.rescueForceMember.deleteMany({});
     console.log(`✅ Deleted ${members.count} squad members`);
 
     // Delete all divisions
@@ -29,7 +29,7 @@ async function wipeSquads() {
     console.log(`✅ Deleted ${divisions.count} divisions`);
 
     // Finally, delete all rescue forces
-    const squads = await prisma.rescueSquad.deleteMany({});
+    const squads = await prisma.rescueForce.deleteMany({});
     console.log(`✅ Deleted ${squads.count} rescue forces`);
 
     console.log('\n🎉 All rescue force data wiped successfully!');

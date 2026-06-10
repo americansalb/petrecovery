@@ -266,7 +266,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        const res = await fetch(`/api/rescue-squads/${squadId}/toggle-duty`, {
+        const res = await fetch(`/api/rescue-forces/${squadId}/toggle-duty`, {
           method: 'POST',
         });
         if (!res.ok) {
@@ -306,7 +306,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        const res = await fetch(`/api/rescue-squads/${squadId}/join`, {
+        const res = await fetch(`/api/rescue-forces/${squadId}/join`, {
           method: 'POST',
         });
         if (!res.ok) {
@@ -350,7 +350,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        const res = await fetch(`/api/rescue-squads/${squadId}/cases/${missionId}/help`, {
+        const res = await fetch(`/api/rescue-forces/${squadId}/cases/${missionId}/help`, {
           method: 'POST',
         });
         if (!res.ok) {
@@ -391,7 +391,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        await fetch(`/api/rescue-squads/${squadId}/requests/${requestId}/help`, {
+        await fetch(`/api/rescue-forces/${squadId}/requests/${requestId}/help`, {
           method: 'POST',
         });
       } catch (err) {
@@ -416,7 +416,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        await fetch(`/api/rescue-squads/${squadId}/requests/${requestId}/help`, {
+        await fetch(`/api/rescue-forces/${squadId}/requests/${requestId}/help`, {
           method: 'PATCH',
         });
       } catch (err) {
@@ -441,7 +441,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        await fetch(`/api/rescue-squads/${squadId}/requests/${requestId}/help`, {
+        await fetch(`/api/rescue-forces/${squadId}/requests/${requestId}/help`, {
           method: 'DELETE',
         });
       } catch (err) {
@@ -466,7 +466,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        await fetch(`/api/rescue-squads/${squadId}/cases/${missionId}/help`, {
+        await fetch(`/api/rescue-forces/${squadId}/cases/${missionId}/help`, {
           method: 'DELETE',
         });
       } catch (err) {
@@ -506,7 +506,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        const res = await fetch(`/api/rescue-squads/${squadId}/requests`, {
+        const res = await fetch(`/api/rescue-forces/${squadId}/requests`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, body, divisionId, missionId }),
@@ -551,7 +551,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        const res = await fetch(`/api/rescue-squads/${squadId}/announcements`, {
+        const res = await fetch(`/api/rescue-forces/${squadId}/announcements`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title, content, divisionId, isPinned }),
@@ -620,7 +620,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     // Call API
     if (squadId) {
       try {
-        const res = await fetch(`/api/rescue-squads/${squadId}/chat`, {
+        const res = await fetch(`/api/rescue-forces/${squadId}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content, divisionId, missionId }),

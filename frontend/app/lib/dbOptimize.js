@@ -194,7 +194,7 @@ export async function batchGetUsers(userIds) {
  */
 export async function getSquadWithStats(squadId) {
   const [squad, memberCount, activeCaseCount] = await Promise.all([
-    prisma.rescueSquad.findUnique({
+    prisma.rescueForce.findUnique({
       where: { id: squadId },
       select: {
         id: true,
@@ -210,7 +210,7 @@ export async function getSquadWithStats(squadId) {
         successfulReunions: true,
       },
     }),
-    prisma.rescueSquadMember.count({
+    prisma.rescueForceMember.count({
       where: { rescueSquadId: squadId, isActive: true },
     }),
     prisma.caseAssignment.count({
@@ -322,7 +322,7 @@ export async function getAggregatedStats() {
         prisma.case.count({ where: { status: { in: ['ACTIVE', 'IN_PROGRESS'] } } }),
         prisma.case.count({ where: { status: 'REUNITED' } }),
         prisma.user.count(),
-        prisma.rescueSquad.count({ where: { isActive: true, isDeleted: false } }),
+        prisma.rescueForce.count({ where: { isActive: true, isDeleted: false } }),
       ]);
 
       return {

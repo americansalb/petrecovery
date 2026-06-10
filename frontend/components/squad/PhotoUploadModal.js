@@ -60,7 +60,7 @@ export default function PhotoUploadModal({ isOpen, onClose, onUpload, squadId })
       }
 
       // Then, update squad with new photo URL
-      const updateResponse = await fetch(`/api/rescue-squads/${squadId}/photo`, {
+      const updateResponse = await fetch(`/api/rescue-forces/${squadId}/photo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

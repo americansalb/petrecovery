@@ -145,7 +145,7 @@ export async function POST(request, { params }) {
     const isOwner = missionData.reporterId === session.user.id;
     const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'MODERATOR';
 
-    const squadMembership = await prisma.rescueSquadMember.findFirst({
+    const squadMembership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId,
         userId: session.user.id,

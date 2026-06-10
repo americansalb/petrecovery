@@ -75,7 +75,7 @@ export async function POST(request, { params }) {
     }
 
     // Check if user is a member of the squad
-    const membership = await prisma.rescueSquadMember.findFirst({
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: assignment.rescueSquadId,
         userId: session.user.id,
@@ -158,7 +158,7 @@ export async function POST(request, { params }) {
     });
 
     // Update squad member stats
-    await prisma.rescueSquadMember.update({
+    await prisma.rescueForceMember.update({
       where: { id: membership.id },
       data: {
         casesParticipated: { increment: 1 },
