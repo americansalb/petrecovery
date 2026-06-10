@@ -534,6 +534,7 @@ model Case {
   // Reporter's current location (auto-detected GPS at time of report)
   reporterLatitude  Float?
   reporterLongitude Float?
+  reporterToLastSeenMiles Float? // Distance from reporter to last seen location (legacy: live on prod, keep so db push stays additive)
 
   // Incident
   escapeScenario  String
@@ -5127,4 +5128,36 @@ model RelayMessage {
   createdAt    DateTime @default(now())
 
   @@index([connectionId])
+}
+
+// Adopted from the live DB (deployed from a side branch that never merged).
+// Kept so schema sync on deploy stays additive and never threatens prod data.
+model LocationDetectionLog {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  // Who
+  userId      String?  // null if not logged in
+  sessionId   String   // Browser-generated session ID to group detections
+
+  // Device
+  userAgent   String?
+  ipAddress   String?
+
+  // Location
+  latitude    Float
+  longitude   Float
+  accuracy    Float?   // GPS accuracy in meters
+
+  // Reverse geocoded
+  address     String?
+  city        String?
+
+  // Outcome
+  submitted   Boolean  @default(false) // Did they actually submit a report?
+  caseNumber  String?  // If submitted, the case number
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([sessionId])
 }
