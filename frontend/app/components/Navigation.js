@@ -146,7 +146,7 @@ export default function Navigation() {
                   <NavDropdown
                     label="My Pets"
                     icon={PawPrint}
-                    active={pathname.startsWith('/pets') || pathname.startsWith('/cases')}
+                    active={pathname.startsWith('/pets') || (pathname.startsWith('/cases') || pathname.startsWith('/missions'))}
                     isOpen={activeDropdown === 'pets'}
                     onToggle={() => toggleDropdown('pets')}
                   >
@@ -400,7 +400,7 @@ export default function Navigation() {
               <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/messages')} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={pathname.startsWith('/cases')} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={(pathname.startsWith('/cases') || pathname.startsWith('/missions'))} onClick={() => setMobileMenuOpen(false)} />
 
               {userSquads.length > 0 && (
                 <>
