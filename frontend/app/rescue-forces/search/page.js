@@ -7,14 +7,26 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, ArrowLeft, Shield } from 'lucide-react';
 import { Button, Card, Badge } from '@/components/ui';
 
 export default function RescueSquadSearchPage() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [searchTerm, setSearchTerm] = useState('');
+  // Homepage deep-links here with ?q=<city or zip>; run the search on arrival.
+  // The term is passed explicitly so the delayed call can't see stale state.
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q) {
+      setSearchTerm(q);
+      handleSearch(null, q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [selectedLocation, setSelectedLocation] = useState(null); // Stores full location data including country
   const [radius, setRadius] = useState(25);
   const [cities, setCities] = useState([]);
@@ -176,9 +188,10 @@ export default function RescueSquadSearchPage() {
     setSuggestions([]);
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchTerm.trim()) return;
+  const handleSearch = async (e, overrideTerm) => {
+    e?.preventDefault?.();
+    const term = (overrideTerm ?? searchTerm).trim();
+    if (!term) return;
 
     // Validate we have a location selected or can find one
     let locationToSearch = selectedLocation;
@@ -186,7 +199,7 @@ export default function RescueSquadSearchPage() {
     if (!locationToSearch) {
       // Try to validate the input
       try {
-        const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(searchTerm.trim())}`);
+        const validateRes = await fetch(`/api/cities/suggest?q=${encodeURIComponent(term)}`);
         const validateData = await validateRes.json();
         if (!validateData.suggestions || validateData.suggestions.length === 0) {
           setValidationError('Please enter a valid city name or postal code');
@@ -209,7 +222,7 @@ export default function RescueSquadSearchPage() {
     setLoading(true);
     try {
       // Build URL with lat/lng for international cities
-      let url = `/api/rescue-forces?search=${encodeURIComponent(locationToSearch?.city || searchTerm)}&radius=${radius}&country=${country}`;
+      let url = `/api/rescue-forces?search=${encodeURIComponent(locationToSearch?.city || term)}&radius=${radius}&country=${country}`;
       if (lat && lng) {
         url += `&lat=${lat}&lng=${lng}`;
       }
