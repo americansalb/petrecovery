@@ -51,7 +51,15 @@ export default function SARMapView({
   showProbabilityZones = false,
   probabilityZones = null,
   showLegend = true,
-  interactive = true
+  interactive = true,
+  // Controlled POI visibility (undefined keeps the internal toggle)
+  showPOIs: showPOIsProp = undefined,
+  // Fly the camera somewhere on demand: { lat, lng, zoom?, key }
+  // (key changes are what trigger the flight, so the same spot can refocus)
+  focusPoint = null,
+  // Pixel offsets so floating panels never cover the controls/legend
+  controlsOffset = null,
+  legendOffset = null
 }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
@@ -61,7 +69,8 @@ export default function SARMapView({
   const coverageLayersRef = useRef([]);
   const poiMarkersRef = useRef([]);
   const userMarkerRef = useRef(null);
-  const [showPOIs, setShowPOIs] = useState(false);
+  const [showPOIsState, setShowPOIs] = useState(false);
+  const showPOIs = showPOIsProp ?? showPOIsState;
   const [mapLayer, setMapLayer] = useState('satellite');
   const baseLayersRef = useRef({});
   const [showCoverage, setShowCoverage] = useState(true);
@@ -563,14 +572,22 @@ export default function SARMapView({
     });
   }, [coverageTrails, showCoverage]);
 
+  // Fly the camera to an externally requested point (e.g. a hot sighting)
+  useEffect(() => {
+    if (!mapInstance.current || !focusPoint?.lat || !focusPoint?.lng) return;
+    try {
+      mapInstance.current.flyTo([focusPoint.lat, focusPoint.lng], focusPoint.zoom || 16, { duration: 1.2 });
+    } catch (e) {}
+  }, [focusPoint?.key, focusPoint?.lat, focusPoint?.lng]);
+
   // Render POI markers
   useEffect(() => {
-    if (!mapInstance.current || !showPOIs) return;
+    if (!mapInstance.current) return;
 
     poiMarkersRef.current.forEach(m => { try { m.remove(); } catch (e) {} });
     poiMarkersRef.current = [];
 
-    if (!pois || pois.length === 0) return;
+    if (!showPOIs || !pois || pois.length === 0) return;
 
     const typeColors = { SHELTER: '#6366f1', RESCUE: '#8b5cf6', VET: '#10b981', ANIMAL_CONTROL: '#f59e0b' };
 
@@ -609,7 +626,10 @@ export default function SARMapView({
 
       {/* Map Controls */}
       {interactive && (
-        <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
+        <div
+          className="absolute top-4 right-4 z-[400] flex flex-col gap-2"
+          style={controlsOffset ? { top: controlsOffset.top, right: controlsOffset.right } : undefined}
+        >
           <button
             onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
             className="group w-12 h-12 flex items-center justify-center rounded-xl bg-slate-900/60 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-slate-900/90 active:scale-95 transition-all"
@@ -647,6 +667,7 @@ export default function SARMapView({
       {/* Legend */}
       {showLegend && (
         <MapLegend
+          style={legendOffset ? { top: legendOffset.top, left: legendOffset.left } : undefined}
           showSightings={sightings.length > 0}
           showSearchPath={searchPath.length > 0 || coverageTrails.length > 0}
           showActiveSearches={activeSearchersCount > 0}

@@ -24,7 +24,8 @@ import { useGPS } from '@/app/lib/gpsService';
 export default function useMissionControl(session) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const missionId = searchParams.get('mission');
+  // ?caseId= is the alias used by older report-page links
+  const missionId = searchParams.get('mission') || searchParams.get('caseId');
 
   // GPS service for one-time location capture
   const { location: gpsLocation, error: gpsError, getPosition, isSupported: gpsSupported, isLoading: gpsLoading } = useGPS();
@@ -129,7 +130,7 @@ export default function useMissionControl(session) {
         const allParticipants = data.assignments.flatMap(a =>
           a.participants?.map(p => ({
             id: p.id,
-            odp: p.userId,
+            userId: p.userId,
             name: `${p.user.firstName} ${p.user.lastName || ''}`.trim(),
             firstName: p.user.firstName,
             lastName: p.user.lastName,
@@ -214,6 +215,14 @@ export default function useMissionControl(session) {
       return () => clearInterval(interval);
     }
   }, [activeMission?.id, fetchSightings]);
+
+  // Refetch the mission itself every 60s so status flips (a pet marked
+  // REUNITED, a force accepting the case) reach helpers without a reload
+  useEffect(() => {
+    if (!missionId) return;
+    const interval = setInterval(() => fetchMission(missionId), 60000);
+    return () => clearInterval(interval);
+  }, [missionId, fetchMission]);
 
   // Update current mission index when missions or active mission changes
   useEffect(() => {
@@ -323,13 +332,14 @@ export default function useMissionControl(session) {
 
   const timeMissing = getTimeMissing();
   const isUrgent = timeMissing && timeMissing.hours < 24;
-  const isReunited = activeMission?.status === 'RESOLVED' || activeMission?.resolution === 'REUNITED';
+  const isReunited = activeMission?.status === 'REUNITED' || activeMission?.resolution === 'REUNITED';
 
   // Check user status
   const participants = activeMission?.assignments?.flatMap(a => a.participants || []) || [];
   const activeParticipants = participants.filter(p => p.isActive !== false);
   const isDeployed = session && activeParticipants.some(p => p.userId === session.user.id);
-  const isOwner = session && activeMission?.ownerId === session.user.id;
+  // Cases carry reporterId; the status and close endpoints authorize on it
+  const isOwner = session && activeMission?.reporterId === session.user.id;
 
   // ============================================================
   // RETURN HOOK API

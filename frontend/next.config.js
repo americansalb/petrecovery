@@ -139,10 +139,41 @@ const nextConfig = {
   // Redirects
   async redirects() {
     return [
-      // Redirect old URLs (if any)
+      // /missions/new never existed; the real wizard lives at /report/new
       {
         source: '/report',
-        destination: '/missions/new',
+        destination: '/report/new',
+        permanent: true,
+      },
+      // /terms duplicated /legal/terms; one canonical page
+      {
+        source: '/terms',
+        destination: '/legal/terms',
+        permanent: true,
+      },
+      // The browse surface is one page now. Exact paths only:
+      // /missions/[missionNumber] subroutes keep redirecting into
+      // mission control and must not be caught here.
+      {
+        source: '/missions',
+        destination: '/lost-and-found',
+        permanent: true,
+      },
+      {
+        source: '/database',
+        destination: '/lost-and-found',
+        permanent: true,
+      },
+      // The legacy communities section predates Rescue Forces, which ARE
+      // the communities now
+      {
+        source: '/communities',
+        destination: '/rescue-forces/search',
+        permanent: true,
+      },
+      {
+        source: '/communities/:path*',
+        destination: '/rescue-forces/search',
         permanent: true,
       },
       // "Rescue Squad" is PawBoost's trademark; the brand here is Rescue

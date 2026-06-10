@@ -37,6 +37,7 @@ import {
   Sparkles,
   LogIn,
   UserPlus,
+  Megaphone,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
@@ -112,78 +113,56 @@ export default function Navigation() {
               <span className="hidden sm:inline">Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
-            {/* Desktop Navigation */}
+            {/* Desktop Navigation: one home per domain, same for guests and members */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
-              {/* Always visible: Browse/Search links */}
-              <NavDropdown
-                label="Search"
-                icon={Search}
-                active={pathname === '/database' || pathname.includes('/shelters') || pathname === '/rescue-forces/search'}
-                isOpen={activeDropdown === 'search'}
-                onToggle={() => toggleDropdown('search')}
-              >
-                <DropdownLink href="/database" icon={Database} title="Pet Database" description="Search lost & found pets" />
-                <DropdownLink href="/shelters" icon={Building2} title="Find Shelters" description="Animal shelters near you" />
-                <DropdownLink href="/rescue-forces/search" icon={Users} title="Find Rescue Forces" description="Volunteer groups near you" />
-              </NavDropdown>
+              <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
+                <Search className="w-4 h-4" />
+                Lost &amp; Found
+              </NavLink>
 
-              {/* Always visible: Hub */}
+              {userSquads.length > 0 ? (
+                <NavDropdown
+                  label="Rescue Forces"
+                  icon={Shield}
+                  active={pathname.includes('/rescue-forces')}
+                  isOpen={activeDropdown === 'squads'}
+                  onToggle={() => toggleDropdown('squads')}
+                  badge={userSquads.length}
+                >
+                  <div className="max-h-64 overflow-y-auto">
+                    {userSquads.map(squad => (
+                      <Link
+                        key={squad.id}
+                        href={`/rescue-forces/${squad.id}`}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
+                          {squad.name?.[0] || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
+                          <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  <DropdownDivider />
+                  <DropdownLink href="/rescue-forces/search" icon={Search} title="Find rescue forces" description="Every neighborhood needs one" />
+                </NavDropdown>
+              ) : (
+                <NavLink href="/rescue-forces/search" active={pathname.includes('/rescue-forces')}>
+                  <Shield className="w-4 h-4" />
+                  Rescue Forces
+                </NavLink>
+              )}
+
               <NavLink href="/hub" active={pathname.startsWith('/hub')}>
                 <Sparkles className="w-4 h-4" />
                 Hub
               </NavLink>
 
-              {/* Logged-in only items */}
               {session && (
                 <>
-                  {/* Dashboard */}
-                  <NavLink href="/dashboard" active={pathname === '/dashboard'}>
-                    <Home className="w-4 h-4" />
-                    Dashboard
-                  </NavLink>
-
-                  {/* My Pets Dropdown */}
-                  <NavDropdown
-                    label="My Pets"
-                    icon={PawPrint}
-                    active={pathname.startsWith('/pets') || (pathname.startsWith('/cases') || pathname.startsWith('/missions'))}
-                    isOpen={activeDropdown === 'pets'}
-                    onToggle={() => toggleDropdown('pets')}
-                  >
-                    <DropdownLink href="/pets" icon={PawPrint} title="My Pets" description="View all your pets" />
-                    <DropdownLink href="/missions" icon={ClipboardList} title="My Missions" description="Active lost/found reports" />
-                  </NavDropdown>
-
-                  {/* My Rescue Forces Dropdown */}
-                  {userSquads.length > 0 && (
-                    <NavDropdown
-                      label="My Rescue Forces"
-                      icon={Shield}
-                      active={pathname.includes('/rescue-forces') && pathname !== '/rescue-forces/search'}
-                      isOpen={activeDropdown === 'squads'}
-                      onToggle={() => toggleDropdown('squads')}
-                      badge={userSquads.length}
-                    >
-                      <div className="max-h-64 overflow-y-auto">
-                        {userSquads.map(squad => (
-                          <Link
-                            key={squad.id}
-                            href={`/rescue-forces/${squad.id}`}
-                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                              {squad.name?.[0] || '?'}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                              <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
-                    </NavDropdown>
-                  )}
-
                   {/* Admin Dropdown */}
                   {session?.user?.role === 'ADMIN' && (
                     <NavDropdown
@@ -209,13 +188,16 @@ export default function Navigation() {
 
             {/* Right Side */}
             <div className="flex items-center gap-2">
+              {/* Notifications bell - logged-in only */}
+              {session && <NotificationBell active={pathname.startsWith('/notifications')} />}
+
               {/* Report Pet CTA - Always visible on desktop */}
               <div className="hidden md:block relative" data-dropdown="report">
                 <button
                   onClick={() => toggleDropdown('report')}
                   className="flex items-center gap-2 px-4 py-2 bg-flash-400 hover:bg-flash-500 text-midnight-900 font-bold text-sm rounded-xl transition-all"
                 >
-                  <Bell className="w-4 h-4" />
+                  <Megaphone className="w-4 h-4" />
                   Report Pet
                   <ChevronDown className={`w-4 h-4 transition-transform ${activeDropdown === 'report' ? 'rotate-180' : ''}`} />
                 </button>
@@ -223,14 +205,14 @@ export default function Navigation() {
                   <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-midnight-100 py-2 z-50">
                     <Link href="/report/new" className="flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition">
                       <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-                        <Bell className="w-5 h-5 text-red-600" />
+                        <Megaphone className="w-5 h-5 text-red-600" />
                       </div>
                       <div>
                         <div className="font-semibold text-red-600">Report Lost Pet</div>
                         <div className="text-xs text-midnight-500">Get help finding your pet</div>
                       </div>
                     </Link>
-                    <Link href="/found" className="flex items-center gap-3 px-4 py-3 hover:bg-green-50 transition">
+                    <Link href="/report/found" className="flex items-center gap-3 px-4 py-3 hover:bg-green-50 transition">
                       <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                       </div>
@@ -265,17 +247,25 @@ export default function Navigation() {
                           <div className="font-semibold text-midnight-900">{session.user.firstName} {session.user.lastName}</div>
                           <div className="text-xs text-midnight-500 truncate">{session.user.email}</div>
                         </div>
-                        <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
-                          <User className="w-4 h-4" />
-                          <span className="font-medium">My Profile</span>
+                        <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <Home className="w-4 h-4" />
+                          <span className="font-medium">Dashboard</span>
+                        </Link>
+                        <Link href="/pets" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <PawPrint className="w-4 h-4" />
+                          <span className="font-medium">My Pets</span>
                         </Link>
                         <Link href="/messages" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                           <MessageCircle className="w-4 h-4" />
                           <span className="font-medium">Messages</span>
                         </Link>
-                        <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
-                          <Home className="w-4 h-4" />
-                          <span className="font-medium">Dashboard</span>
+                        <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <User className="w-4 h-4" />
+                          <span className="font-medium">My Profile</span>
+                        </Link>
+                        <Link href="/settings" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <Settings className="w-4 h-4" />
+                          <span className="font-medium">Settings</span>
                         </Link>
                         <div className="border-t border-midnight-100 my-1" />
                         <button
@@ -290,15 +280,15 @@ export default function Navigation() {
                   </div>
                 </>
               ) : (
-                /* Guest: Login + Sign Up */
+                /* Guest: Sign in + Join */
                 <div className="hidden lg:flex items-center gap-2">
                   <Link href="/login">
                     <Button variant="ghost" size="sm" className="text-white hover:bg-midnight-800">
-                      Login
+                      Sign in
                     </Button>
                   </Link>
                   <Link href="/register">
-                    <Button size="sm">Sign Up</Button>
+                    <Button size="sm">Join</Button>
                   </Link>
                 </div>
               )}
@@ -360,11 +350,11 @@ export default function Navigation() {
               onClick={() => setMobileMenuOpen(false)}
               className="flex flex-col items-center gap-2 p-3 bg-red-700 text-white rounded-xl"
             >
-              <Bell className="w-5 h-5" />
+              <Megaphone className="w-5 h-5" />
               <span className="text-xs font-semibold">Lost Pet</span>
             </Link>
             <Link
-              href="/found"
+              href="/report/found"
               onClick={() => setMobileMenuOpen(false)}
               className="flex flex-col items-center gap-2 p-3 bg-green-700 text-white rounded-xl"
             >
@@ -380,7 +370,7 @@ export default function Navigation() {
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
           </div>
-          <MobileNavLink href="/database" icon={Database} label="Pet Database" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
 
@@ -398,9 +388,9 @@ export default function Navigation() {
                 My Account
               </div>
               <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/notifications')} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/messages')} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/missions" icon={ClipboardList} label="My Missions" active={(pathname.startsWith('/cases') || pathname.startsWith('/missions'))} onClick={() => setMobileMenuOpen(false)} />
 
               {userSquads.length > 0 && (
                 <>
@@ -495,6 +485,43 @@ export default function Navigation() {
 }
 
 // --- Sub-components ---
+
+function NotificationBell({ active }) {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/notifications?limit=1');
+        if (res.ok) {
+          const data = await res.json();
+          if (alive) setUnreadCount(data.unreadCount || 0);
+        }
+      } catch (err) {
+        // The bell is decoration when offline; never let it throw
+      }
+    };
+    load();
+    const interval = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(interval); };
+  }, []);
+
+  return (
+    <Link
+      href="/notifications"
+      aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+      className={`relative p-2 rounded-xl transition ${active ? 'bg-midnight-800 text-white' : 'text-midnight-300 hover:bg-midnight-800 hover:text-white'}`}
+    >
+      <Bell className="w-5 h-5" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-flash-400 text-midnight-900 text-[10px] font-bold rounded-full flex items-center justify-center">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 function NavLink({ href, active, children }) {
   return (

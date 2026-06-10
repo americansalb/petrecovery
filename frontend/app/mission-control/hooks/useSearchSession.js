@@ -406,6 +406,9 @@ export default function useSearchSession(missionId, lastSeenLocation) {
     isMarking,
     error,
     stats,
+    // Epoch ms the active session started (null when idle); lets callers
+    // run their own second-level timers without re-render churn here
+    startedAt: sessionStartRef.current,
 
     // Session actions
     startSession,

@@ -190,7 +190,7 @@ export async function GET(request, { params }) {
 
     // Get case updates/notes
     const updates = await prisma.caseUpdate.findMany({
-      where: { missionId: params.missionId },
+      where: { caseId: params.missionId }, // CaseUpdate's field is caseId (no @map)
       include: {
         author: {
           select: {

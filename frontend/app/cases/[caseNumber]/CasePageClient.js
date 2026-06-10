@@ -10,14 +10,15 @@
  * Design Philosophy: "Make the pet unforgettable in 3 seconds"
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Loader2, AlertCircle, ArrowRight, X, Eye, Phone, Mail,
   ChevronRight, Camera, MapPin, Facebook, Twitter, Copy, Check,
-  ExternalLink, MessageSquare
+  ExternalLink, MessageSquare, HeartHandshake, Share2, Radar, Shield
 } from 'lucide-react';
 
 // Import components
@@ -29,11 +30,16 @@ import {
   ActionCards,
   StickyMobileCTA
 } from './components';
+import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
+import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
+import ConfettiBurst from '@/app/mission-control/components/overlays/ConfettiBurst';
 
 export default function CasePageClient() {
   const params = useParams();
   const router = useRouter();
   const caseNumber = params.caseNumber;
+  const { data: session } = useSession();
+  const { instrument } = useInstrument();
 
   // State
   const [caseData, setCaseData] = useState(null);
@@ -44,39 +50,85 @@ export default function CasePageClient() {
   const [showContactModal, setShowContactModal] = useState(false);
   const [showSightingModal, setShowSightingModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showReunitedModal, setShowReunitedModal] = useState(false);
+  const [savingReunited, setSavingReunited] = useState(false);
+  const [reunitedError, setReunitedError] = useState(null);
   const [copied, setCopied] = useState(false);
 
   // Fetch case data
+  const fetchCase = async () => {
+    try {
+      const res = await fetch(`/api/public/missions/${caseNumber}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          setError('Case not found');
+        } else {
+          setError('Failed to load case');
+        }
+        return;
+      }
+      const data = await res.json();
+      setCaseData(data);
+    } catch (err) {
+      setError('Failed to load case');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!caseNumber) return;
-
-    const fetchCase = async () => {
-      try {
-        const res = await fetch(`/api/public/missions/${caseNumber}`);
-        if (!res.ok) {
-          if (res.status === 404) {
-            setError('Case not found');
-          } else {
-            setError('Failed to load case');
-          }
-          return;
-        }
-        const data = await res.json();
-        setCaseData(data);
-      } catch (err) {
-        setError('Failed to load case');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseNumber]);
+
+  // The page tells the truth about the mission's moment
+  const isReunited = caseData?.status === 'REUNITED' || caseData?.resolution === 'REUNITED';
+  const isOwner = !!session?.user?.id && session.user.id === caseData?.reporterId;
+
+  const hotSighting = useMemo(() => {
+    const s = caseData?.sightings?.[0];
+    if (!s || isReunited) return null;
+    const at = new Date(s.sightedAt).getTime();
+    return Date.now() - at <= 60 * 60 * 1000 ? s : null;
+  }, [caseData, isReunited]);
+
+  const daysSearching = useMemo(() => {
+    if (!caseData?.lastSeenAt) return null;
+    const end = caseData.resolvedAt ? new Date(caseData.resolvedAt) : new Date();
+    return Math.max(1, Math.round((end - new Date(caseData.lastSeenAt)) / 86400000));
+  }, [caseData]);
+
+  const handleConfirmReunited = async ({ resolution, resolutionNotes }) => {
+    if (!caseData?.id) return;
+    setSavingReunited(true);
+    setReunitedError(null);
+    try {
+      const res = await fetch(`/api/missions/${caseData.id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'REUNITED', resolution, resolutionNotes }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || data.error || 'Could not update the case');
+      }
+      setShowReunitedModal(false);
+      await fetchCase();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setReunitedError(err.message);
+    } finally {
+      setSavingReunited(false);
+    }
+  };
 
   // Sharing
   const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
   const shareText = caseData
-    ? `Help find ${caseData.petName}! Lost ${caseData.petSpecies?.toLowerCase() || 'pet'} last seen near ${caseData.city || 'unknown location'}.`
+    ? isReunited
+      ? `${caseData.petName} is home! Reunited after ${daysSearching} ${daysSearching === 1 ? 'day' : 'days'}. Thank you to everyone who searched.`
+      : `Help find ${caseData.petName}! Lost ${caseData.petSpecies?.toLowerCase() || 'pet'} last seen near ${caseData.city || 'unknown location'}.`
     : '';
 
   const handleCopyLink = async () => {
@@ -169,25 +221,89 @@ export default function CasePageClient() {
         onContactOwner={() => setShowContactModal(true)}
       />
 
-      {/* Primary CTA - Report Sighting */}
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={() => setShowSightingModal(true)}
-          className="w-full bg-flash-400 hover:bg-flash-500 text-midnight-900 rounded-2xl p-5 shadow-xl shadow-flash-400/30 transition group"
-        >
-          <div className="flex items-center justify-center gap-4">
-            <div className="w-14 h-14 bg-midnight-900/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
-              <Eye className="w-7 h-7" />
+      {/* The page's one big moment: reunion story, hot sighting, or the CTA */}
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
+        {isReunited ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative overflow-hidden rounded-3xl bg-midnight-900 border-2 border-emerald-400 p-6 sm:p-8"
+          >
+            <ConfettiBurst count={20} />
+            <div className="relative flex flex-wrap items-center justify-between gap-5">
+              <div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500 text-midnight-950 text-xs font-bold tracking-wide">
+                  <HeartHandshake size={13} />
+                  HOME
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mt-3">
+                  {petName} is home.
+                </h2>
+                <p className="text-midnight-300 mt-1">
+                  Reunited after {daysSearching} {daysSearching === 1 ? 'day' : 'days'}
+                  {caseData?.sightingsCount > 0 && `, with ${caseData.sightingsCount} community ${caseData.sightingsCount === 1 ? 'sighting' : 'sightings'}`}
+                  . This is what a neighborhood can do.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 w-full sm:w-auto">
+                <button
+                  onClick={handleNativeShare}
+                  className="flex items-center justify-center gap-2 px-5 py-3 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold rounded-2xl transition"
+                >
+                  <Share2 size={17} />
+                  Share the good news
+                </button>
+                <Link
+                  href="/rescue-forces/search"
+                  className="flex items-center justify-center gap-2 px-5 py-3 bg-midnight-800 hover:bg-midnight-700 text-white font-semibold rounded-2xl border border-midnight-700 transition text-sm"
+                >
+                  <Shield size={15} />
+                  Meet your local rescue force
+                </Link>
+              </div>
             </div>
-            <div className="text-left">
-              <p className="font-bold text-xl">I've Seen {petName}</p>
-              <p className="text-midnight-700">Report a sighting to help bring them home</p>
-            </div>
-            <ChevronRight className="w-6 h-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition hidden lg:block" />
-          </div>
-        </motion.button>
+          </motion.div>
+        ) : (
+          <>
+            {hotSighting && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-2xl border-2 border-flash-400 bg-flash-50 p-4 flex items-center gap-3"
+              >
+                <span className="w-10 h-10 rounded-xl bg-flash-400 flex items-center justify-center shrink-0 animate-pulse">
+                  <Radar size={20} className="text-midnight-900" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-bold text-midnight-900">
+                    Sighted {Math.max(1, Math.round((Date.now() - new Date(hotSighting.sightedAt)) / 60000))} minutes ago
+                    {hotSighting.address ? ` near ${hotSighting.address.split(',')[0]}` : ''}
+                  </p>
+                  <p className="text-sm text-midnight-600 truncate">
+                    {hotSighting.description || 'The trail is fresh. Eyes up in that area.'}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={() => setShowSightingModal(true)}
+              className="w-full bg-flash-400 hover:bg-flash-500 text-midnight-900 rounded-2xl p-5 shadow-xl shadow-flash-400/30 transition group"
+            >
+              <div className="flex items-center justify-center gap-4">
+                <div className="w-14 h-14 bg-midnight-900/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
+                  <Eye className="w-7 h-7" />
+                </div>
+                <div className="text-left">
+                  <p className="font-bold text-xl">I've Seen {petName}</p>
+                  <p className="text-midnight-700">Report a sighting to help bring them home</p>
+                </div>
+                <ChevronRight className="w-6 h-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition hidden lg:block" />
+              </div>
+            </motion.button>
+          </>
+        )}
       </div>
 
       {/* Social Proof Bar */}
@@ -227,6 +343,31 @@ export default function CasePageClient() {
 
           {/* Right Column - Actions */}
           <div className="space-y-6">
+            {/* Owner tools: close the loop right here */}
+            {isOwner && !isReunited && (
+              <div className="rounded-2xl border-2 border-midnight-900 bg-midnight-900 p-5">
+                <p className="text-xs font-bold text-midnight-400 uppercase tracking-wider mb-3">
+                  Your case
+                </p>
+                <div className="space-y-2.5">
+                  <Link
+                    href={`/mission-control?mission=${caseData?.id}`}
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold rounded-2xl transition"
+                  >
+                    <Radar size={17} />
+                    {instrument === INSTRUMENTS.COMMAND ? 'Open Command Center' : 'Open Mission Control'}
+                  </Link>
+                  <button
+                    onClick={() => setShowReunitedModal(true)}
+                    className="flex items-center justify-center gap-2 w-full py-3 border-2 border-emerald-500/60 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold rounded-2xl transition"
+                  >
+                    <HeartHandshake size={17} />
+                    Found {petName}? Mark as reunited
+                  </button>
+                </div>
+              </div>
+            )}
+
             <ActionCards
               caseNumber={caseNumber}
               caseData={caseData}
@@ -247,13 +388,26 @@ export default function CasePageClient() {
         </div>
       </section>
 
-      {/* Sticky Mobile CTA */}
-      <StickyMobileCTA
-        petName={petName}
-        onReportSighting={() => setShowSightingModal(true)}
-        onShare={handleNativeShare}
-        ownerPhone={caseData?.contact?.phone}
-      />
+      {/* Sticky Mobile CTA (a reunited case rallies shares, not sightings) */}
+      {!isReunited && (
+        <StickyMobileCTA
+          petName={petName}
+          onReportSighting={() => setShowSightingModal(true)}
+          onShare={handleNativeShare}
+          ownerPhone={caseData?.contact?.phone}
+        />
+      )}
+
+      {/* Owner: mark as reunited */}
+      {showReunitedModal && (
+        <MarkReunitedModal
+          mission={caseData}
+          onClose={() => setShowReunitedModal(false)}
+          onConfirm={handleConfirmReunited}
+          isSaving={savingReunited}
+          error={reunitedError}
+        />
+      )}
 
       {/* Contact Owner Modal */}
       {showContactModal && (

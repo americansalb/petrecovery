@@ -127,7 +127,7 @@ export default function LocationLandingPage() {
             </Link>
 
             <Link
-              href="/found"
+              href="/report/found"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -320,7 +320,7 @@ export default function LocationLandingPage() {
             Found a pet in {location.city}?
           </h3>
           <p>
-            If you've found a lost pet, please <Link href="/found" style={{ color: '#4f46e5' }}>report it here</Link>.
+            If you've found a lost pet, please <Link href="/report/found" style={{ color: '#4f46e5' }}>report it here</Link>.
             We'll help match it with owners who are searching.
           </p>
         </div>

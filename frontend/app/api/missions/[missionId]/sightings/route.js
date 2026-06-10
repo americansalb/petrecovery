@@ -127,7 +127,9 @@ export async function POST(request, { params }) {
         caseNumber: true,
         status: true,
         petName: true,
-        reportedBy: {
+        // The Case relation is named `reporter`; `reportedBy` only exists
+        // on CaseSighting. The old name 500'd every sighting report.
+        reporter: {
           select: {
             id: true,
             email: true,
@@ -137,7 +139,7 @@ export async function POST(request, { params }) {
         assignments: {
           where: { status: 'ACTIVE' },
           select: {
-            squadId: true,
+            rescueSquadId: true,
             participants: {
               select: {
                 user: {
@@ -205,7 +207,7 @@ export async function POST(request, { params }) {
       const behaviorLabel = behavior ? behavior.charAt(0) + behavior.slice(1).toLowerCase().replace('_', ' ') : '';
       await prisma.caseUpdate.create({
         data: {
-          missionId: missionData.id,
+          caseId: missionData.id, // CaseUpdate's field is caseId (no @map)
           authorId: reportedById,
           content: `New sighting reported${address ? ` near ${address}` : ''}${behaviorLabel ? ` - pet appeared ${behaviorLabel}` : ''}${directionOfTravel ? ` (heading ${directionOfTravel})` : ''}`,
           isUpdate: true
@@ -219,9 +221,9 @@ export async function POST(request, { params }) {
     const confidenceLabel = confidence === 'HIGH' ? 'high confidence' : confidence === 'MEDIUM' ? 'medium confidence' : 'possible';
 
     // Notify case owner
-    if (missionData.reportedBy?.email && missionData.reportedBy.id !== reportedById) {
-      const ownerEmail = missionData.reportedBy.email;
-      const ownerName = missionData.reportedBy.firstName || 'there';
+    if (missionData.reporter?.email && missionData.reporter.id !== reportedById) {
+      const ownerEmail = missionData.reporter.email;
+      const ownerName = missionData.reporter.firstName || 'there';
       const petName = missionData.petName || 'your pet';
 
       // Email notification (non-blocking)
@@ -261,7 +263,7 @@ export async function POST(request, { params }) {
 
       // Push notification (non-blocking)
       if (isPushConfigured()) {
-        sendPushToUser(missionData.reportedBy.id, {
+        sendPushToUser(missionData.reporter.id, {
           title: `🚨 New Sighting of ${petName}!`,
           body: `${confidenceLabel.charAt(0).toUpperCase() + confidenceLabel.slice(1)} sighting reported ${address ? `near ${address}` : 'nearby'}`,
           url: missionUrl
