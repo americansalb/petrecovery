@@ -2,16 +2,16 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Search, Shield, Menu, Plus } from 'lucide-react';
+import { Home, Search, Shield, PawPrint, Plus } from 'lucide-react';
 
 const leftItems = [
   { href: '/dashboard', icon: Home, label: 'Home', exact: true },
-  { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
+  { href: '/pets', icon: PawPrint, label: 'My Pets' },
 ];
 
 const rightItems = [
+  { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
   { href: '/rescue-forces/search', icon: Shield, label: 'Forces', alsoActive: ['/rescue-forces'] },
-  { href: '/settings', icon: Menu, label: 'More' },
 ];
 
 export default function GlobalBottomNav() {
