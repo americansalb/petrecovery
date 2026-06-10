@@ -800,7 +800,7 @@ export async function sendSightingNotification(data) {
  *
  * @param {Object} data - Notification data
  * @param {Array} data.memberEmails - Array of member emails
- * @param {string} data.squadName - Name of the rescue squad
+ * @param {string} data.squadName - Name of the rescue force
  * @param {string} data.petName - Name of the pet
  * @param {string} data.petSpecies - Species of the pet
  * @param {string} data.missionNumber - Mission number

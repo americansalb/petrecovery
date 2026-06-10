@@ -287,7 +287,7 @@ export function SquadHubProvider({ children, initialData, squadId }) {
     }
   }, [data.membership.isOnDuty, squadId]);
 
-  // Action: Join Squad
+  // Action: Join Rescue Force
   const joinSquad = useCallback(async () => {
     // Optimistic update
     setData(prev => ({

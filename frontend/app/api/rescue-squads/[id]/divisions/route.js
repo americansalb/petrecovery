@@ -1,5 +1,5 @@
 /**
- * Divisions API for Rescue Squads
+ * Divisions API for Rescue Forces
  * GET: List all divisions in a squad
  * POST: Create a new division (founders/leaders only)
  */

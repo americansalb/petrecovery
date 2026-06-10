@@ -58,7 +58,7 @@ async function main() {
   }
 
   // ============================================================================
-  // CREATE CHICAGO RESCUE SQUAD
+  // CREATE CHICAGO RESCUE FORCE
   // ============================================================================
 
   const chicagoSquad = await prisma.rescueSquad.upsert({
@@ -494,7 +494,7 @@ async function main() {
 
   console.log('\n🎉 Chicago Rescue Force seeded successfully!');
   console.log(`\n📋 Squad ID: ${chicagoSquad.id}`);
-  console.log(`   Access the hub at: /rescue-squads/${chicagoSquad.id}`);
+  console.log(`   Access the hub at: /rescue-forces/${chicagoSquad.id}`);
   console.log('\n📧 Test Users (password: testuser123):');
   for (const user of users) {
     console.log(`   - ${user.email}`);

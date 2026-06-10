@@ -146,7 +146,7 @@ export default function JoinMissionPage() {
     // Try to redirect to squad page if available
     const squadId = mission?.case?.assignments?.[0]?.rescueSquad?.id;
     if (squadId) {
-      router.push(`/rescue-squads/${squadId}?joined=true`);
+      router.push(`/rescue-forces/${squadId}?joined=true`);
     } else {
       // Fallback to case page if no squad
       router.push(`/cases/${mission?.case?.caseNumber || missionId}?volunteer=${volunteerId}`);

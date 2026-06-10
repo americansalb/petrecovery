@@ -2,7 +2,7 @@
  * Case Squad Assignment API
  *
  * GET /api/missions/[id]/assign-squad - Get current squad assignment(s) for a case
- * POST /api/missions/[id]/assign-squad - Assign a rescue squad to a case
+ * POST /api/missions/[id]/assign-squad - Assign a rescue force to a case
  * DELETE /api/missions/[id]/assign-squad - Remove a squad assignment (admin only)
  *
  * Uses CaseAssignment model (not direct squadId on Case)

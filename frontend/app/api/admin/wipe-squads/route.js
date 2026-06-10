@@ -4,7 +4,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { isAdmin } from '@/app/lib/authz';
 
-// POST /api/admin/wipe-squads - Delete all rescue squad data (ADMIN ONLY)
+// POST /api/admin/wipe-squads - Delete all rescue force data (ADMIN ONLY)
 export async function POST(request) {
   const timestamp = new Date().toISOString();
   console.log(`\n${'='.repeat(80)}`);
@@ -48,7 +48,7 @@ export async function POST(request) {
     console.log('\n🔄 Step 3: Deleting case participants...');
     let participantsResult;
     try {
-      // First, get all assignment IDs that belong to rescue squads
+      // First, get all assignment IDs that belong to rescue forces
       const squadAssignments = await prisma.caseAssignment.findMany({
         select: { id: true }
       });
@@ -124,12 +124,12 @@ export async function POST(request) {
       throw divisionsError;
     }
 
-    // Step 7: Delete rescue squads
-    console.log('\n🔄 Step 7: Deleting rescue squads...');
+    // Step 7: Delete rescue forces
+    console.log('\n🔄 Step 7: Deleting rescue forces...');
     let squadsResult;
     try {
       squadsResult = await prisma.rescueSquad.deleteMany({});
-      console.log(`✅ Deleted ${squadsResult.count} rescue squads`);
+      console.log(`✅ Deleted ${squadsResult.count} rescue forces`);
     } catch (squadsError) {
       console.error('❌ Error deleting squads:', squadsError);
       console.error('   Error details:', {
@@ -141,7 +141,7 @@ export async function POST(request) {
     }
 
     console.log(`\n${'='.repeat(80)}`);
-    console.log('🎉 ALL RESCUE SQUAD DATA WIPED SUCCESSFULLY!');
+    console.log('🎉 ALL RESCUE FORCE DATA WIPED SUCCESSFULLY!');
     console.log(`${'='.repeat(80)}\n`);
 
     const result = {

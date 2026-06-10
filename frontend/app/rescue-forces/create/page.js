@@ -49,7 +49,7 @@ export default function CreateSquadPage() {
   // Redirect if not logged in
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login?callbackUrl=/rescue-squads/create');
+      router.push('/login?callbackUrl=/rescue-forces/create');
     }
   }, [status, router]);
 
@@ -149,7 +149,7 @@ export default function CreateSquadPage() {
       }
 
       // Redirect to the new squad page
-      router.push(`/rescue-squads/${data.squad.id}?created=true`);
+      router.push(`/rescue-forces/${data.squad.id}?created=true`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -173,7 +173,7 @@ export default function CreateSquadPage() {
           {/* Header */}
           <div className="mb-8">
             <Link
-              href="/rescue-squads/search"
+              href="/rescue-forces/search"
               className="inline-flex items-center gap-2 text-flash-600 hover:text-flash-500 font-semibold text-sm mb-4 transition"
             >
               <ArrowLeft className="w-4 h-4" />

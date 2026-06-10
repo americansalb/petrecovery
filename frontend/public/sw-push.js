@@ -56,7 +56,7 @@ self.addEventListener('notificationclick', function(event) {
       url = `/join/${data.missionId}`;
       break;
     case 'SQUAD_ALERT':
-      url = `/rescue-squads/${data.squadId}`;
+      url = `/rescue-forces/${data.squadId}`;
       break;
     default:
       if (data.missionNumber) {

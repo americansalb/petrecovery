@@ -946,7 +946,7 @@ export default function ReportLostPet() {
             {/* Squad CTA - if assigned to squad */}
             {reportResult.assignedSquad && (
               <Link
-                href={`/rescue-squads/${reportResult.assignedSquad.id}`}
+                href={`/rescue-forces/${reportResult.assignedSquad.id}`}
                 className="block w-full py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-all mb-3"
               >
                 Coordinate with Squad

@@ -69,7 +69,7 @@ export default function MapComponentV2({
 
         let geometry = null;
 
-        // First, check if we have a stored boundary in the squad
+        // First, check if we have a stored boundary in the rescue force
         if (squad.customBoundary) {
           try {
             geometry = typeof squad.customBoundary === 'string'

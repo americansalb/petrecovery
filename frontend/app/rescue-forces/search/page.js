@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Rescue Squad Search Page - Updated with PetRecovery Design System
+ * Rescue Force Search Page - Updated with PetRecovery Design System
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 
@@ -264,7 +264,7 @@ export default function RescueSquadSearchPage() {
       const res = await fetch(`/api/rescue-squads/${squadId}/join`, { method: 'POST' });
       const data = await res.json();
       if (res.ok || data.alreadyMember) {
-        router.push(`/rescue-squads/${squadId}`);
+        router.push(`/rescue-forces/${squadId}`);
       } else {
         if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
           router.push(data.redirectTo);
@@ -299,7 +299,7 @@ export default function RescueSquadSearchPage() {
       const divRes = await fetch(`/api/rescue-squads/${squadId}/divisions/${divisionId}/join`, { method: 'POST' });
       const divData = await divRes.json();
       if (divRes.ok) {
-        router.push(`/rescue-squads/${squadId}/divisions/${divisionId}`);
+        router.push(`/rescue-forces/${squadId}/divisions/${divisionId}`);
       } else {
         setValidationError(divData.error || 'Failed to join division');
       }
@@ -343,7 +343,7 @@ export default function RescueSquadSearchPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        router.push(`/rescue-squads/${data.squad.id}`);
+        router.push(`/rescue-forces/${data.squad.id}`);
       } else {
         if (data.code === 'WAIVER_NOT_ACCEPTED' && data.redirectTo) {
           router.push(data.redirectTo);
@@ -544,7 +544,7 @@ export default function RescueSquadSearchPage() {
                       {/* Squad Action Button */}
                       {item.exists && item.squad ? (
                         item.squad.isMember ? (
-                          <Button onClick={() => router.push(`/rescue-squads/${item.squad.id}`)}>
+                          <Button onClick={() => router.push(`/rescue-forces/${item.squad.id}`)}>
                             View Rescue Force
                           </Button>
                         ) : (
@@ -590,7 +590,7 @@ export default function RescueSquadSearchPage() {
                                 {division.isMember ? (
                                   <Button
                                     size="sm"
-                                    onClick={() => router.push(`/rescue-squads/${item.squad.id}/divisions/${division.id}`)}
+                                    onClick={() => router.push(`/rescue-forces/${item.squad.id}/divisions/${division.id}`)}
                                   >
                                     View Division
                                   </Button>

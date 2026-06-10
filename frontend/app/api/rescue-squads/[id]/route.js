@@ -4,7 +4,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 
-// GET /api/rescue-squads/:id - Get single rescue squad details
+// GET /api/rescue-squads/:id - Get single rescue force details
 export async function GET(request, { params }) {
   const session = await getServerSession(authOptions);
   try {

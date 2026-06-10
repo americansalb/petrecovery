@@ -135,7 +135,7 @@ export type SquadInfo = {
   id: string;
   citySlug: string;         // "chicago"
   cityName: string;         // "Chicago"
-  displayName: string;      // "Chicago Rescue Squad"
+  displayName: string;      // "Chicago Rescue Force"
   memberCount: number;
   onDutyCount: number;
   centerLat?: number;

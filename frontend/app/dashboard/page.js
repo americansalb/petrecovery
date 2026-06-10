@@ -209,7 +209,7 @@ export default function DashboardPage() {
               <h2 className="text-lg font-bold text-slate-900">My Rescue Forces</h2>
             </div>
             <Link
-              href="/rescue-squads/search"
+              href="/rescue-forces/search"
               className="flex items-center gap-1 text-sm text-blue-600 font-medium hover:text-blue-700"
             >
               <Plus className="w-4 h-4" />
@@ -222,7 +222,7 @@ export default function DashboardPage() {
               {squads.slice(0, 3).map((squad, i) => (
                 <Link
                   key={squad.id}
-                  href={`/rescue-squads/${squad.id}`}
+                  href={`/rescue-forces/${squad.id}`}
                   className={`flex items-center justify-between p-4 hover:bg-slate-50 transition-colors ${
                     i > 0 ? 'border-t border-slate-100' : ''
                   }`}
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-slate-600 mb-3">
                     Connect with volunteers in your area to help find lost pets together.
                   </p>
-                  <Link href="/rescue-squads/search">
+                  <Link href="/rescue-forces/search">
                     <button className="px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition-colors">
                       Find Rescue Forces Near Me
                     </button>

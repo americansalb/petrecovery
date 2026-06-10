@@ -161,7 +161,7 @@ export default function SquadHeaderV2({
           {isDivisionPage ? (
             <>
               <button
-                onClick={() => router.push(`/rescue-squads/${squad.id}`)}
+                onClick={() => router.push(`/rescue-forces/${squad.id}`)}
                 className="px-4 py-2 rounded-full text-sm font-medium bg-slate-800/50 text-slate-300 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600 transition-all duration-200"
               >
                 ← View Full Rescue Force
@@ -171,7 +171,7 @@ export default function SquadHeaderV2({
                 <DivisionChip
                   key={div.id}
                   active={false}
-                  onClick={() => router.push(`/rescue-squads/${squad.id}/divisions/${div.id}`)}
+                  onClick={() => router.push(`/rescue-forces/${squad.id}/divisions/${div.id}`)}
                   label={div.name}
                 />
               ))}

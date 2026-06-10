@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 /**
  * POST /api/dev/seed-chicago
  *
- * Seeds the Chicago Rescue Squad with test data.
+ * Seeds the Chicago Rescue Force with test data.
  * Requires ADMIN role to prevent accidental use in production.
  */
 export async function POST() {
@@ -35,7 +35,7 @@ export async function POST() {
       return NextResponse.json({
         message: 'Chicago Rescue Force already exists',
         squadId: existing.id,
-        url: `/rescue-squads/${existing.id}`,
+        url: `/rescue-forces/${existing.id}`,
       });
     }
 
@@ -71,7 +71,7 @@ export async function POST() {
       users.push(user);
     }
 
-    // Create Chicago Rescue Squad
+    // Create Chicago Rescue Force
     const chicagoSquad = await prisma.rescueSquad.create({
       data: {
         name: 'Chicago Rescue Force',
@@ -410,8 +410,8 @@ export async function POST() {
       success: true,
       message: 'Chicago Rescue Force seeded successfully!',
       squadId: chicagoSquad.id,
-      url: `/rescue-squads/${chicagoSquad.id}`,
-      slugUrl: '/rescue-squads/chicago',
+      url: `/rescue-forces/${chicagoSquad.id}`,
+      slugUrl: '/rescue-forces/chicago',
       testUsers: testUsers.map(u => u.email),
       password: 'testuser123',
       stats: {

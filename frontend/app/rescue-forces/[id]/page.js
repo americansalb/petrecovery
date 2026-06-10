@@ -3,10 +3,10 @@
 /**
  * Squad Hub Page
  *
- * Main page for a city's rescue squad.
+ * Main page for a city's rescue force.
  * Displays the Squad Hub with case queue, map, and activity panels.
  *
- * Route: /rescue-squads/[id]
+ * Route: /rescue-forces/[id]
  *
  * Fetches real data from /api/rescue-squads/[id]/hub
  * Falls back to mock data if the API fails (for development)
@@ -109,7 +109,7 @@ export default function SquadPage() {
               Try Again
             </button>
             <a
-              href="/rescue-squads/search"
+              href="/rescue-forces/search"
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
               Find a Rescue Force Near You

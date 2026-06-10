@@ -189,7 +189,7 @@ export default function DivisionRequestPage() {
             </p>
           </div>
           <Link
-            href="/rescue-squads"
+            href="/rescue-forces"
             style={{
               padding: '0.75rem 1.5rem',
               background: 'white',
@@ -262,7 +262,7 @@ export default function DivisionRequestPage() {
                   You must be a member of a Rescue Force before you can request a Division.
                 </p>
                 <Link
-                  href="/rescue-squads"
+                  href="/rescue-forces"
                   style={{
                     display: 'inline-block',
                     padding: '0.75rem 1.5rem',
@@ -292,7 +292,7 @@ export default function DivisionRequestPage() {
                   Division Details
                 </h2>
 
-                {/* Rescue Squad Selection */}
+                {/* Rescue Force Selection */}
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{
                     display: 'block',

@@ -194,7 +194,7 @@ export const PUSH_TEMPLATES = {
     icon: '/icons/squad-icon.png',
     tag: `squad-${squadId}`,
     type: 'SQUAD_ACTIVITY',
-    url: `/rescue-squads/${squadId}`,
+    url: `/rescue-forces/${squadId}`,
     data: { squadId, type: 'SQUAD_ACTIVITY' },
   }),
 

@@ -35,7 +35,7 @@ export default function DivisionPreviewCard({
     .slice(0, 3);
 
   const handleViewFullPage = () => {
-    router.push(`/rescue-squads/${squadId}/divisions/${division.id}`);
+    router.push(`/rescue-forces/${squadId}/divisions/${division.id}`);
   };
 
   const handleBackdropClick = (e) => {

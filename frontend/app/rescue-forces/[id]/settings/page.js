@@ -116,7 +116,7 @@ export default function SquadSettingsPage() {
 
   useEffect(() => {
     if (sessionStatus === 'unauthenticated') {
-      router.push(`/login?callbackUrl=/rescue-squads/${squadId}/settings`);
+      router.push(`/login?callbackUrl=/rescue-forces/${squadId}/settings`);
       return;
     }
 
@@ -224,7 +224,7 @@ export default function SquadSettingsPage() {
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-midnight-900 mb-2">Access Denied</h1>
           <p className="text-midnight-500 mb-6">{error}</p>
-          <Link href={`/rescue-squads/${squadId}`}>
+          <Link href={`/rescue-forces/${squadId}`}>
             <Button leftIcon={ChevronLeft}>
               Back to Rescue Force
             </Button>
@@ -240,7 +240,7 @@ export default function SquadSettingsPage() {
       <div className="bg-white border-b border-midnight-200 px-4 py-6">
         <div className="max-w-5xl mx-auto">
           <Link
-            href={`/rescue-squads/${squadId}`}
+            href={`/rescue-forces/${squadId}`}
             className="inline-flex items-center gap-1 text-flash-600 hover:text-flash-500 text-sm font-semibold mb-3 transition"
           >
             <ChevronLeft className="w-4 h-4" /> Back to Rescue Force

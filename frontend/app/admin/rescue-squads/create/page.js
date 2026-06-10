@@ -91,7 +91,7 @@ export default function AdminCreateRescueSquadPage() {
 
       // Redirect after 2 seconds
       setTimeout(() => {
-        router.push('/rescue-squads');
+        router.push('/rescue-forces');
       }, 2000);
 
     } catch (err) {
@@ -139,7 +139,7 @@ export default function AdminCreateRescueSquadPage() {
             </p>
           </div>
           <Link
-            href="/rescue-squads"
+            href="/rescue-forces"
             style={{
               padding: '0.75rem 1.5rem',
               background: 'white',
@@ -247,7 +247,7 @@ export default function AdminCreateRescueSquadPage() {
               fontWeight: '700',
               color: '#0f172a'
             }}>
-              Squad Name *
+              Rescue Force Name *
             </label>
             <input
               type="text"

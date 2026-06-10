@@ -63,7 +63,7 @@ export async function GET(request) {
       },
     });
 
-    // Enhance with rescue squad info
+    // Enhance with rescue force info
     const requestsWithSquadInfo = await Promise.all(
       requests.map(async (req) => {
         const squad = await prisma.rescueSquad.findUnique({

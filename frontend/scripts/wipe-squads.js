@@ -4,7 +4,7 @@ const prisma = require(prismaPath).default;
 
 async function wipeSquads() {
   try {
-    console.log('🗑️  Starting to wipe all rescue squad data...');
+    console.log('🗑️  Starting to wipe all rescue force data...');
 
     // Delete all case participants first (to avoid constraint issues)
     const participants = await prisma.caseParticipant.deleteMany({
@@ -28,11 +28,11 @@ async function wipeSquads() {
     const divisions = await prisma.division.deleteMany({});
     console.log(`✅ Deleted ${divisions.count} divisions`);
 
-    // Finally, delete all rescue squads
+    // Finally, delete all rescue forces
     const squads = await prisma.rescueSquad.deleteMany({});
-    console.log(`✅ Deleted ${squads.count} rescue squads`);
+    console.log(`✅ Deleted ${squads.count} rescue forces`);
 
-    console.log('\n🎉 All rescue squad data wiped successfully!');
+    console.log('\n🎉 All rescue force data wiped successfully!');
     console.log('You can now create new squads with proper coordinates.');
 
   } catch (error) {

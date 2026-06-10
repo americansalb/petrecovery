@@ -192,8 +192,8 @@ export default function DivisionsManagementPage() {
         <Card className="max-w-md mx-auto mt-16 text-center p-8">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-midnight-900 mb-2">Access Denied</h2>
-          <p className="text-midnight-500 mb-6">Only squad founders and leaders can manage divisions.</p>
-          <Link href={`/rescue-squads/${squadId}`}>
+          <p className="text-midnight-500 mb-6">Only rescue force founders and leaders can manage divisions.</p>
+          <Link href={`/rescue-forces/${squadId}`}>
             <Button leftIcon={ChevronLeft}>
               Back to Squad
             </Button>
@@ -210,7 +210,7 @@ export default function DivisionsManagementPage() {
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
             <Link
-              href={`/rescue-squads/${squadId}`}
+              href={`/rescue-forces/${squadId}`}
               className="inline-flex items-center gap-1 text-flash-600 hover:text-flash-500 font-semibold text-sm mb-3 transition"
             >
               <ChevronLeft className="w-4 h-4" /> Back to {squad?.name}
@@ -219,7 +219,7 @@ export default function DivisionsManagementPage() {
               Division Management
             </h1>
             <p className="text-midnight-500 mt-1">
-              Organize your squad into specialized neighborhood divisions
+              Organize your rescue force into specialized neighborhood divisions
             </p>
           </div>
           <Button onClick={() => setShowCreateModal(true)} leftIcon={Plus}>
@@ -252,7 +252,7 @@ export default function DivisionsManagementPage() {
           <Map className="w-16 h-16 text-midnight-300 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-midnight-900 mb-2">No Divisions Yet</h3>
           <p className="text-midnight-500 mb-6">
-            Create divisions to organize your squad by neighborhood or specialization.
+            Create divisions to organize your rescue force by neighborhood or specialization.
             This helps with targeted coordination during searches.
           </p>
           <Button onClick={() => setShowCreateModal(true)} leftIcon={Plus} size="lg">
@@ -330,7 +330,7 @@ export default function DivisionsManagementPage() {
               )}
 
               <Link
-                href={`/rescue-squads/${squadId}/divisions/${division.id}`}
+                href={`/rescue-forces/${squadId}/divisions/${division.id}`}
                 className="block text-center py-3 bg-midnight-50 hover:bg-midnight-100 rounded-xl text-flash-600 font-semibold text-sm transition"
               >
                 Manage Division →

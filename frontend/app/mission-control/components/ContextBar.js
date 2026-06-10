@@ -25,7 +25,7 @@ export default function ContextBar({ mission, onBackToSquad }) {
           <div className="flex items-center justify-between gap-2">
             {/* Left: Find Squads */}
             <Link
-              href="/rescue-squads/search"
+              href="/rescue-forces/search"
               className="flex items-center gap-1.5 text-slate-400 hover:text-white transition group min-w-0"
             >
               <ChevronLeft size={18} className="flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" />
@@ -63,7 +63,7 @@ export default function ContextBar({ mission, onBackToSquad }) {
         <div className="flex items-center justify-between gap-2">
           {/* Left: Back to Squad */}
           <Link
-            href={`/rescue-squads/${squadId}`}
+            href={`/rescue-forces/${squadId}`}
             className="flex items-center gap-1.5 text-slate-400 hover:text-white transition group min-w-0"
           >
             <ChevronLeft size={18} className="flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" />

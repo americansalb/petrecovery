@@ -33,7 +33,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get all active rescue squads
+    // Get all active rescue forces
     const squads = await prisma.rescueSquad.findMany({
       where: { isActive: true },
       select: { id: true, city: true },

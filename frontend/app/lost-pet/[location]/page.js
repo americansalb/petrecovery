@@ -228,7 +228,7 @@ export default function LocationLandingPage() {
         )}
       </div>
 
-      {/* Rescue Squads */}
+      {/* Rescue Forces */}
       <div style={{
         background: 'white',
         padding: '3rem 2rem',
@@ -254,7 +254,7 @@ export default function LocationLandingPage() {
                 No rescue forces in this area yet.
               </p>
               <Link
-                href="/rescue-squads/create"
+                href="/rescue-forces/create"
                 style={{
                   display: 'inline-block',
                   marginTop: '1rem',
@@ -409,7 +409,7 @@ function MissionCard({ missionData }) {
 function SquadCard({ squad }) {
   return (
     <Link
-      href={`/rescue-squads/${squad.id}`}
+      href={`/rescue-forces/${squad.id}`}
       style={{
         display: 'block',
         background: '#f8fafc',

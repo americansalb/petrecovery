@@ -25,7 +25,7 @@ export default function AdminRescueSquadsPage() {
 
   const loadSquads = async () => {
     try {
-      const res = await fetch('/api/admin/rescue-squads');
+      const res = await fetch('/api/admin/rescue-forces');
       if (res.ok) {
         const data = await res.json();
         setSquads(data.squads || []);
@@ -50,7 +50,7 @@ export default function AdminRescueSquadsPage() {
     setDeleteError(null);
 
     try {
-      const res = await fetch(`/api/admin/rescue-squads/${squadId}`, {
+      const res = await fetch(`/api/admin/rescue-forces/${squadId}`, {
         method: 'DELETE',
       });
 
@@ -241,7 +241,7 @@ export default function AdminRescueSquadsPage() {
             </Link>
 
             <Link
-              href="/admin/rescue-squads/create"
+              href="/admin/rescue-forces/create"
               style={{
                 padding: '0.75rem 1.5rem',
                 background: '#10b981',
@@ -389,7 +389,7 @@ export default function AdminRescueSquadsPage() {
             </p>
             {!searchQuery && (
               <Link
-                href="/admin/rescue-squads/create"
+                href="/admin/rescue-forces/create"
                 style={{
                   display: 'inline-block',
                   padding: '0.75rem 1.5rem',
@@ -427,7 +427,7 @@ export default function AdminRescueSquadsPage() {
                     color: '#0f172a',
                     fontSize: '0.9rem'
                   }}>
-                    Squad Name
+                    Rescue Force Name
                   </th>
                   <th style={{
                     padding: '1rem',
@@ -549,7 +549,7 @@ export default function AdminRescueSquadsPage() {
                     }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                         <Link
-                          href={`/rescue-squads/${squad.id}`}
+                          href={`/rescue-forces/${squad.id}`}
                           style={{
                             padding: '0.5rem 1rem',
                             background: '#e0e7ff',

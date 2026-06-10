@@ -72,7 +72,7 @@ export async function GET(request) {
       // Total users
       prisma.user.count(),
 
-      // Active rescue squads
+      // Active rescue forces
       prisma.rescueSquad.count({ where: { isActive: true } }),
 
       // Total active squad members

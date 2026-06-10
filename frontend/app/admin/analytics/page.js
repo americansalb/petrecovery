@@ -275,7 +275,7 @@ export default function AnalyticsDashboard() {
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="text-center">
                 <p className="text-2xl font-bold text-blue-600">{analytics.squads.totalSquads}</p>
-                <p className="text-sm text-gray-500">Total Squads</p>
+                <p className="text-sm text-gray-500">Total Rescue Forces</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">{analytics.squads.totalMembers}</p>

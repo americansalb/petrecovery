@@ -106,7 +106,7 @@ export async function POST(request, { params }) {
       select: { firstName: true, lastName: true },
     });
 
-    // If no rescue squad, create one for this mission
+    // If no rescue force, create one for this mission
     let rescueSquadId = mission.rescueSquadId;
     if (!rescueSquadId) {
       const squad = await prisma.rescueSquad.create({
