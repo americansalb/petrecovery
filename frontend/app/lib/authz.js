@@ -31,7 +31,7 @@ export async function isAdmin(userId) {
  * True if the user may take privileged actions on a case (== mission):
  *   - platform ADMIN, OR
  *   - the case reporter/owner, OR
- *   - an active MODERATOR/ADMIN of a rescue squad assigned to the case.
+ *   - an active MODERATOR/ADMIN of a rescue force assigned to the case.
  *
  * @param {string} userId
  * @param {string} caseId   The Case id (mission command routes use the caseId as missionId).

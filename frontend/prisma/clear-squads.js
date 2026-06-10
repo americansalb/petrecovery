@@ -2,9 +2,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Deleting all rescue squad members...');
+  console.log('Deleting all rescue force members...');
   await prisma.rescueSquadMember.deleteMany({});
-  console.log('Deleting all rescue squads...');
+  console.log('Deleting all rescue forces...');
   await prisma.rescueSquad.deleteMany({});
   console.log('Done!');
 }

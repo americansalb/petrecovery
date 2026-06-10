@@ -459,7 +459,7 @@ export default function Home() {
 
       if (res.ok) {
         const data = await res.json();
-        router.push(`/rescue-squads/${data.squad.id}?created=true`);
+        router.push(`/rescue-forces/${data.squad.id}?created=true`);
       } else {
         const data = await res.json();
         if (data.code === 'WAIVER_NOT_ACCEPTED') {
@@ -485,7 +485,7 @@ export default function Home() {
 
       if (res.ok) {
         // Redirect to the squad page
-        router.push(`/rescue-squads/${squad.id}?joined=true`);
+        router.push(`/rescue-forces/${squad.id}?joined=true`);
       } else {
         const data = await res.json();
         toast.error(data.error || 'Failed to join rescue force');
@@ -687,7 +687,7 @@ export default function Home() {
               <Link href="/database" className="inline-flex items-center gap-2 hover:text-flash-300 transition">
                 <Search className="w-4 h-4" /> Search lost pets
               </Link>
-              <Link href="/rescue-squads/search" className="inline-flex items-center gap-2 hover:text-flash-300 transition">
+              <Link href="/rescue-forces/search" className="inline-flex items-center gap-2 hover:text-flash-300 transition">
                 <Shield className="w-4 h-4" /> Find your rescue force
               </Link>
               <Link href="/shelters" className="inline-flex items-center gap-2 hover:text-flash-300 transition">
@@ -876,7 +876,7 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Rescue Squads - Krishna Blue */}
+            {/* Rescue Forces - Krishna Blue */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -1126,7 +1126,7 @@ export default function Home() {
                 <div className="text-center py-8">
                   <p className="text-midnight-300 mb-4">No rescue forces in this area yet - be the first!</p>
                   <Link
-                    href="/rescue-squads/create"
+                    href="/rescue-forces/create"
                     className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 px-6 py-3 rounded-xl font-bold transition shadow-lg"
                   >
                     <Shield className="w-5 h-5" />
@@ -1202,7 +1202,7 @@ export default function Home() {
               </button>
               <span className="text-midnight-500 hidden sm:block">or</span>
               <Link
-                href="/rescue-squads/create"
+                href="/rescue-forces/create"
                 className="inline-flex items-center gap-2 text-flash-400 hover:text-flash-300 transition font-medium"
               >
                 <Shield className="w-4 h-4" />
@@ -1407,7 +1407,7 @@ export default function Home() {
                 <li><Link href="/report/new" className="hover:text-white transition">Report Lost Pet</Link></li>
                 <li><Link href="/report/found" className="hover:text-white transition">Report Found Pet</Link></li>
                 <li><Link href="/database" className="hover:text-white transition">Search Database</Link></li>
-                <li><Link href="/rescue-squads/search" className="hover:text-white transition">Find Rescue Forces</Link></li>
+                <li><Link href="/rescue-forces/search" className="hover:text-white transition">Find Rescue Forces</Link></li>
               </ul>
             </div>
             <div>

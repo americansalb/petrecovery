@@ -1,7 +1,7 @@
 /**
- * Seed script for Rescue Squads across major US metro areas
+ * Seed script for Rescue Forces across major US metro areas
  *
- * Creates rescue squads for major metropolitan areas to enable
+ * Creates rescue forces for major metropolitan areas to enable
  * proper squad assignment based on location.
  *
  * Run with: node prisma/seed-rescue-squads.js
@@ -11,7 +11,7 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-// Major US Metro Areas with rescue squad data
+// Major US Metro Areas with rescue force data
 const rescueSquads = [
   // Already exists - will be skipped
   {
@@ -235,7 +235,7 @@ const rescueSquads = [
 ];
 
 async function main() {
-  console.log('🐾 Seeding Rescue Squads across the US...\n');
+  console.log('🐾 Seeding Rescue Forces across the US...\n');
 
   let created = 0;
   let skipped = 0;
@@ -252,7 +252,7 @@ async function main() {
       continue;
     }
 
-    // Create the rescue squad
+    // Create the rescue force
     await prisma.rescueSquad.create({
       data: {
         name: squad.name,
@@ -281,7 +281,7 @@ async function main() {
     created++;
   }
 
-  console.log(`\n🎉 Rescue Squads seed complete!`);
+  console.log(`\n🎉 Rescue Forces seed complete!`);
   console.log(`   Created: ${created}`);
   console.log(`   Skipped: ${skipped}`);
   console.log(`   Total: ${rescueSquads.length}`);
@@ -289,7 +289,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding rescue squads:', e);
+    console.error('❌ Error seeding rescue forces:', e);
     process.exit(1);
   })
   .finally(async () => {

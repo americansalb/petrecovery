@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
-// DELETE /api/admin/rescue-squads/:id - Soft delete a rescue squad (admin only)
+// DELETE /api/admin/rescue-forces/:id - Soft delete a rescue force (admin only)
 export async function DELETE(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -68,7 +68,7 @@ export async function DELETE(request, { params }) {
       },
     });
   } catch (error) {
-    console.error('Error deleting rescue squad:', error);
+    console.error('Error deleting rescue force:', error);
     return NextResponse.json(
       { error: 'Failed to delete rescue force' },
       { status: 500 }

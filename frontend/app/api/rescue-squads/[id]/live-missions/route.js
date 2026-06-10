@@ -1,5 +1,5 @@
 /**
- * Live Missions API for Rescue Squads
+ * Live Missions API for Rescue Forces
  * Returns active Mission Control operations for squad's cases
  */
 

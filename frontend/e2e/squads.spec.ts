@@ -1,15 +1,15 @@
 /**
- * Phase 4: Automated E2E Tests - Rescue Squads
+ * Phase 4: Automated E2E Tests - Rescue Forces
  *
- * Tests for rescue squad discovery, creation, management, and membership.
+ * Tests for rescue force discovery, creation, management, and membership.
  */
 
 import { test, expect } from '@playwright/test';
 
-test.describe('Rescue Squads', () => {
+test.describe('Rescue Forces', () => {
   test.describe('Squad Discovery', () => {
     test('should display squad search page', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       await expect(page.getByRole('heading', { name: /rescue.*squad|find.*squad|search.*squad/i })).toBeVisible();
 
@@ -20,7 +20,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should search squads by zip code', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i)
         .or(page.getByRole('searchbox'));
@@ -43,7 +43,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should validate zip code format', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i)
         .or(page.getByRole('searchbox'));
@@ -62,7 +62,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should display squad cards in results', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i)
         .or(page.getByRole('searchbox'));
@@ -85,7 +85,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should navigate to squad detail page', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i)
         .or(page.getByRole('searchbox'));
@@ -101,12 +101,12 @@ test.describe('Rescue Squads', () => {
         await squadCard.click();
 
         // Should navigate to detail page
-        await expect(page).toHaveURL(/rescue-squads\/[a-zA-Z0-9-]+/);
+        await expect(page).toHaveURL(/rescue-forces\/[a-zA-Z0-9-]+/);
       }
     });
 
     test('should show squad suggestions dropdown', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i)
         .or(page.getByRole('searchbox'));
@@ -124,7 +124,7 @@ test.describe('Rescue Squads', () => {
   test.describe('Squad Detail Page', () => {
     test('should display squad information', async ({ page }) => {
       // First search for a squad
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i).or(page.getByRole('searchbox'));
       await searchInput.fill('90210');
@@ -146,7 +146,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should display member count', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i).or(page.getByRole('searchbox'));
       await searchInput.fill('90210');
@@ -165,7 +165,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should display divisions if available', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i).or(page.getByRole('searchbox'));
       await searchInput.fill('90210');
@@ -187,7 +187,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should show join button for non-members', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i).or(page.getByRole('searchbox'));
       await searchInput.fill('90210');
@@ -218,7 +218,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should display squad creation form', async ({ page }) => {
-      await page.goto('/rescue-squads/create');
+      await page.goto('/rescue-forces/create');
 
       await expect(page.getByRole('heading', { name: /create|start|new.*squad/i })).toBeVisible();
 
@@ -227,7 +227,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should validate required fields', async ({ page }) => {
-      await page.goto('/rescue-squads/create');
+      await page.goto('/rescue-forces/create');
 
       const submitButton = page.getByRole('button', { name: /create|submit|start/i });
       await submitButton.click();
@@ -237,14 +237,14 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should create squad with valid data', async ({ page }) => {
-      await page.goto('/rescue-squads/create');
+      await page.goto('/rescue-forces/create');
 
       // Fill in required fields
       await page.getByLabel(/name/i).fill(`Test Squad ${Date.now()}`);
 
       const descInput = page.getByLabel(/description/i);
       if (await descInput.isVisible()) {
-        await descInput.fill('A test rescue squad for E2E testing');
+        await descInput.fill('A test rescue force for E2E testing');
       }
 
       const cityInput = page.getByLabel(/city/i);
@@ -267,7 +267,7 @@ test.describe('Rescue Squads', () => {
       await submitButton.click();
 
       // Should redirect to squad page or success message
-      await expect(page).toHaveURL(/rescue-squads\/[a-zA-Z0-9-]+|success|dashboard/);
+      await expect(page).toHaveURL(/rescue-forces\/[a-zA-Z0-9-]+|success|dashboard/);
     });
   });
 
@@ -282,7 +282,7 @@ test.describe('Rescue Squads', () => {
     });
 
     test('should allow joining a squad', async ({ page }) => {
-      await page.goto('/rescue-squads/search');
+      await page.goto('/rescue-forces/search');
 
       const searchInput = page.getByPlaceholder(/zip|location/i).or(page.getByRole('searchbox'));
       await searchInput.fill('90210');
@@ -440,7 +440,7 @@ test.describe('Division Management', () => {
 
   test('should display division detail page', async ({ page }) => {
     // Navigate to a squad with divisions
-    await page.goto('/rescue-squads/search');
+    await page.goto('/rescue-forces/search');
 
     const searchInput = page.getByPlaceholder(/zip|location/i).or(page.getByRole('searchbox'));
     await searchInput.fill('90210');
@@ -465,7 +465,7 @@ test.describe('Division Management', () => {
   });
 
   test('should allow joining a division', async ({ page }) => {
-    await page.goto('/rescue-squads/search');
+    await page.goto('/rescue-forces/search');
 
     const searchInput = page.getByPlaceholder(/zip|location/i).or(page.getByRole('searchbox'));
     await searchInput.fill('90210');

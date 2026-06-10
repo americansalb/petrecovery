@@ -168,7 +168,7 @@ async function handleJoin(userId, missionId, taskId) {
   });
 
   if (!squadTask) {
-    // Need to find a rescue squad for this case
+    // Need to find a rescue force for this case
     const rescueSquad = await prisma.rescueSquad.findFirst({
       where: { cases: { some: { id: missionId } } },
     });
@@ -268,7 +268,7 @@ async function handleRequestHelp(userId, missionId, taskId, body) {
   });
 
   if (!squadTask) {
-    // Need to find a rescue squad for this case
+    // Need to find a rescue force for this case
     const rescueSquad = await prisma.rescueSquad.findFirst({
       where: { cases: { some: { id: missionId } } },
     });

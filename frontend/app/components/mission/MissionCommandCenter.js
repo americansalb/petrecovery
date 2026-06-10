@@ -211,9 +211,9 @@ export default function MissionCommandCenter({ missionId, missionNumber, onClose
   // Navigate back to Squad Hub
   const handleBackToSquad = () => {
     if (missionData?.squad?.id) {
-      router.push(`/rescue-squads/${missionData.squad.id}`);
+      router.push(`/rescue-forces/${missionData.squad.id}`);
     } else if (missionData?.squadId) {
-      router.push(`/rescue-squads/${missionData.squadId}`);
+      router.push(`/rescue-forces/${missionData.squadId}`);
     } else {
       // Fallback to cases list
       router.push('/missions');

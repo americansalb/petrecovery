@@ -50,7 +50,7 @@ export default function AdminCreateDivisionPage() {
 
       setZipLocation({ lat, lng, city, state });
 
-      // Find rescue squad for this ZIP
+      // Find rescue force for this ZIP
       const squadRes = await fetch(`/api/rescue-squads?zipCode=${zipCode}&radius=50`);
       const squadData = await squadRes.json();
 
@@ -227,7 +227,7 @@ export default function AdminCreateDivisionPage() {
       const centerLongitude = sumLng / polygon.length;
       const centerLatitude = sumLat / polygon.length;
 
-      // Validate polygon is within reasonable distance of the rescue squad's area
+      // Validate polygon is within reasonable distance of the rescue force's area
       const distanceFromZip = calculateDistance(
         zipLocation.lat,
         zipLocation.lng,

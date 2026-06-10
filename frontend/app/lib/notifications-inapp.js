@@ -130,7 +130,7 @@ export async function notifySquadJoinRequest({ leaderIds, squadName, squadId, re
     title: `New join request for ${squadName}`,
     message: `${requesterName} has requested to join your rescue force. Review their request.`,
     data: { squadName, squadId, requesterName },
-    actionUrl: `/rescue-squads/${squadId}/members`,
+    actionUrl: `/rescue-forces/${squadId}/members`,
   });
 }
 
@@ -150,7 +150,7 @@ export async function notifyUserRoleChange({ userId, squadName, squadId, newRole
     title: `Role updated in ${squadName}`,
     message: roleMessages[newRole] || `Your role in ${squadName} has been changed to ${newRole}.`,
     data: { squadName, squadId, newRole, changedBy },
-    actionUrl: `/rescue-squads/${squadId}`,
+    actionUrl: `/rescue-forces/${squadId}`,
   });
 }
 

@@ -727,7 +727,7 @@ export default function CaseDetailPage({ params }) {
                     opacity: assigningSquad ? 0.5 : 1
                   }}
                 >
-                  <option value="">No squad</option>
+                  <option value="">No rescue force</option>
                   {availableSquads.map(squad => (
                     <option key={squad.id} value={squad.id}>
                       {squad.name} ({squad.city}, {squad.state})

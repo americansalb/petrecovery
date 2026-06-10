@@ -2,6 +2,23 @@
 const nextConfig = {
   output: 'standalone',
 
+  // "Rescue Squad" is PawBoost's trademark for the same use case; the brand
+  // here is Rescue Forces. Old links keep working via permanent redirects.
+  async redirects() {
+    return [
+      {
+        source: '/rescue-squads',
+        destination: '/rescue-forces',
+        permanent: true,
+      },
+      {
+        source: '/rescue-squads/:path*',
+        destination: '/rescue-forces/:path*',
+        permanent: true,
+      },
+    ];
+  },
+
   // Build optimizations for memory and speed
   swcMinify: true,
   productionBrowserSourceMaps: false,

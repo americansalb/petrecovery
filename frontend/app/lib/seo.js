@@ -61,16 +61,16 @@ export function generateOrganizationSchema() {
 }
 
 /**
- * Generate Rescue Squad (LocalBusiness) schema.org JSON-LD
+ * Generate Rescue Force (LocalBusiness) schema.org JSON-LD
  */
 export function generateSquadSchema(squad) {
   return {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': `${BASE_URL}/rescue-squads/${squad.id}`,
+    '@id': `${BASE_URL}/rescue-forces/${squad.id}`,
     name: squad.name,
     description: squad.description,
-    url: `${BASE_URL}/rescue-squads/${squad.id}`,
+    url: `${BASE_URL}/rescue-forces/${squad.id}`,
     areaServed: {
       '@type': 'City',
       name: squad.city,
@@ -188,7 +188,7 @@ export function generateSquadMetaTags(squad) {
   return generateMetaTags({
     title,
     description,
-    url: `/rescue-squads/${squad.id}`,
+    url: `/rescue-forces/${squad.id}`,
     type: 'profile',
     keywords: `pet rescue ${squad.city}, lost pet ${squad.state}, volunteer pet search`,
   });

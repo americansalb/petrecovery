@@ -7,7 +7,7 @@ export default function RescueSquadsRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/rescue-squads/search');
+    router.replace('/rescue-forces/search');
   }, [router]);
 
   return (

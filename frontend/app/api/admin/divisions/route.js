@@ -64,7 +64,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Rescue Force and name are required' }, { status: 400 });
     }
 
-    // Check if rescue squad exists
+    // Check if rescue force exists
     const rescueSquad = await prisma.rescueSquad.findUnique({
       where: { id: rescueSquadId }
     });

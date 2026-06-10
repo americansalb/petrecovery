@@ -3,7 +3,7 @@
  * TASK-004: Key operational metrics for admin dashboard
  *
  * Per admin-health-dashboard.md:
- * - Returns total counts for: users, cities, rescue squads
+ * - Returns total counts for: users, cities, rescue forces
  * - Admin-only access
  * - Simple stat cards on dashboard
  */
@@ -66,15 +66,15 @@ export async function GET(request) {
       // Total users
       prisma.user.count(),
 
-      // Total rescue squads
+      // Total rescue forces
       prisma.rescueSquad.count(),
 
-      // Active rescue squads (isActive = true)
+      // Active rescue forces (isActive = true)
       prisma.rescueSquad.count({
         where: { isActive: true }
       }),
 
-      // Unique cities (from rescue squads with city/state)
+      // Unique cities (from rescue forces with city/state)
       prisma.rescueSquad.findMany({
         where: {
           city: { not: null },
@@ -114,7 +114,7 @@ export async function GET(request) {
     console.log(`📊 [Admin Metrics] Fetched metrics in ${responseTime}ms:`);
     console.log(`   - Users: ${usersTotal}`);
     console.log(`   - Cities: ${citiesTotal}`);
-    console.log(`   - Rescue Squads: ${rescueSquadsTotal} (${rescueSquadsActive} active)`);
+    console.log(`   - Rescue Forces: ${rescueSquadsTotal} (${rescueSquadsActive} active)`);
     console.log(`   - Squad Members: ${squadMembersTotal} (${activeSquadMembers} active)`);
     console.log(`   - Cases: ${casesTotal} (${casesOpen} active, ${casesActiveSearch} in progress)`);
 

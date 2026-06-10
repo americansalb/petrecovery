@@ -6,7 +6,7 @@
  * Features preserved from original:
  * - Mission Control branding
  * - List of available missions (if any)
- * - Link to join a rescue squad
+ * - Link to join a rescue force
  * - Refresh button
  */
 
@@ -84,7 +84,7 @@ export default function EmptyState({ missions = [], onSelectMission, onRefresh }
         <div className="text-center max-w-md">
           <p className="text-slate-400 mb-6">No active missions yet</p>
           <a
-            href="/rescue-squads/search"
+            href="/rescue-forces/search"
             className="inline-block px-6 py-3 bg-flash-500 text-slate-900 font-bold rounded-xl text-lg hover:bg-flash-400 transition hover:scale-105 mb-6"
           >
             Join a Rescue Force

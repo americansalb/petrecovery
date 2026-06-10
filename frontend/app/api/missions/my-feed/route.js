@@ -14,7 +14,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const includeCompleted = searchParams.get('includeCompleted') === 'true';
 
-    // Get user's rescue squad memberships (including divisions)
+    // Get user's rescue force memberships (including divisions)
     const memberships = await prisma.rescueSquadMember.findMany({
       where: {
         userId: session.user.id,

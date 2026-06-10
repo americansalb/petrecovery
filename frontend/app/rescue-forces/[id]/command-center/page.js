@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * Redirect from /rescue-squads/[id]/mission-control to /rescue-squads/[id]
+ * Redirect from /rescue-forces/[id]/command-center to /rescue-forces/[id]
  *
  * Per spec: There are only TWO top-level pages:
- * 1. Squad Hub at /rescue-squads/[id] - city-level multi-case overview
+ * 1. Squad Hub at /rescue-forces/[id] - city-level multi-case overview
  * 2. Mission Command Center at /cases/[missionNumber] - single case tactical page
  *
- * Mission control features should be accessed through:
- * - Squad Hub for city-level overview
- * - Mission Command Center for case-specific coordination
+ * There should be no third "command center" route at the squad level.
+ * Squad-level coordination happens within the Squad Hub.
+ * Case-level coordination happens within the Mission Command Center.
  *
  * This route is deprecated and redirects to the Squad Hub.
  */
@@ -17,14 +17,14 @@
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
-export default function MissionControlRedirectPage() {
+export default function CommandCenterRedirectPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
 
   useEffect(() => {
     // Redirect to the Squad Hub
-    router.replace(`/rescue-squads/${id}`);
+    router.replace(`/rescue-forces/${id}`);
   }, [id, router]);
 
   // Show brief loading state during redirect

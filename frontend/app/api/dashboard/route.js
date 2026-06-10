@@ -34,7 +34,7 @@ export async function GET(request) {
           }
         },
         profile: true,
-        // Include rescue squad memberships
+        // Include rescue force memberships
         rescueSquadMemberships: {
           where: { isActive: true },
           include: {

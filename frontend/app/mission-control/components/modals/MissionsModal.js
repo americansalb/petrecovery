@@ -82,7 +82,7 @@ export default function MissionsModal({ missions = [], activeMissionId, onSelect
         {/* Footer - Discover Link */}
         <div className="p-4 border-t border-slate-800">
           <a
-            href="/rescue-squads"
+            href="/rescue-forces"
             className="block w-full py-3 px-4 rounded-xl bg-slate-800 border border-slate-700 text-center text-white font-semibold hover:border-flash-500/50 transition"
           >
             <Search size={18} className="inline mr-2" />

@@ -10,7 +10,7 @@ import Link from 'next/link';
  * Phase 0: Legal Baseline - User-facing legal acceptance flow
  *
  * Allows users to review and accept Terms of Service and Liability Waiver
- * before participating in rescue squad activities.
+ * before participating in rescue force activities.
  */
 function LegalConsentContent() {
   const { data: session, status } = useSession();

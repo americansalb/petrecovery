@@ -274,7 +274,7 @@ export async function POST(request) {
       });
     }
 
-    // Find and assign to rescue squads based on location type
+    // Find and assign to rescue forces based on location type
     // Use squad's coverage area (radiusMiles) + 1 mile buffer for all location types
     let assignedSquad = null;
     let assignedSquads = [];
@@ -362,7 +362,7 @@ export async function POST(request) {
       if (squadsToNotify.length === 0 && cityName) {
         console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
 
-        // Auto-create a rescue squad for this city
+        // Auto-create a rescue force for this city
         const newSquad = await prisma.rescueSquad.create({
           data: {
             name: `${cityName} Pet Rescue`,
@@ -420,7 +420,7 @@ export async function POST(request) {
           });
           console.log('[Report Debug] Created assignment:', { id: assignment.id, missionId: assignment.missionId, rescueSquadId: assignment.rescueSquadId });
 
-          // Auto-join reporter to rescue squad (Phase 1.2)
+          // Auto-join reporter to rescue force (Phase 1.2)
           // Only add if this is the primary squad (first one) and user exists
           if (squad === squadsToNotify[0] && user) {
             try {

@@ -664,7 +664,7 @@ export default function AdminMissionsPage() {
                   <th style={headerStyle}>Location</th>
                   <th style={headerStyle}>Status</th>
                   <th style={headerStyle}>Coordinator</th>
-                  <th style={headerStyle}>Squad</th>
+                  <th style={headerStyle}>Rescue Force</th>
                   <th style={headerStyle}>Created</th>
                   <th style={headerStyle}>Notes</th>
                   <th style={{ ...headerStyle, width: '100px', textAlign: 'center' }}>Actions</th>

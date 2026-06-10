@@ -4,7 +4,7 @@
  * Division Page
  *
  * Individual division page - same structure as squad page but scoped to division
- * Route: /rescue-squads/[id]/divisions/[divisionId]
+ * Route: /rescue-forces/[id]/divisions/[divisionId]
  *
  * Reuses SquadHubV2 component with isDivisionPage=true
  */
@@ -89,7 +89,7 @@ export default function DivisionPage() {
               Try Again
             </button>
             <a
-              href={`/rescue-squads/${squadId}`}
+              href={`/rescue-forces/${squadId}`}
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
               View Full Rescue Force

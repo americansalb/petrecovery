@@ -6,7 +6,7 @@ import { getCitiesByZip, getCityByName } from '@/app/lib/cities';
 import { getMexicanStateFromPostalCode } from '@/app/lib/states';
 import { logEvent } from '@/lib/logging';
 
-// GET /api/rescue-squads - Search for cities with rescue squads nearby
+// GET /api/rescue-squads - Search for cities with rescue forces nearby
 export async function GET(request) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
@@ -317,7 +317,7 @@ export async function GET(request) {
   }
 }
 
-// POST /api/rescue-squads - Create a new city rescue squad
+// POST /api/rescue-squads - Create a new city rescue force
 export async function POST(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -428,7 +428,7 @@ export async function POST(request) {
         error: 'Liability waiver required',
         code: 'WAIVER_NOT_ACCEPTED',
         message: 'You must accept the liability waiver before creating a rescue force. Rescue force participation involves physical risks.',
-        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/rescue-squads/search')}`
+        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/rescue-forces/search')}`
       }, { status: 403 });
     }
 

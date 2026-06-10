@@ -130,7 +130,7 @@ export default function ActivationSwitch({ missionId, mission, userRole, onActiv
       <div style={styles.infoSection}>
         <h3 style={styles.infoTitle}>What happens when you go live?</h3>
         <ul style={styles.infoList}>
-          <li>Nearby squad members get notified</li>
+          <li>Nearby rescue force members get notified</li>
           <li>A search grid is generated around last seen location</li>
           <li>Volunteers can join with one tap</li>
           <li>Real-time coordination begins</li>

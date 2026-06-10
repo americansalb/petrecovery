@@ -188,7 +188,7 @@ export default function AdminDivisionsPage() {
 
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <Link
-              href="/admin/rescue-squads"
+              href="/admin/rescue-forces"
               style={{
                 padding: '0.75rem 1.5rem',
                 background: 'white',

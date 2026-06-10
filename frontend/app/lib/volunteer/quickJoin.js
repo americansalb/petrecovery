@@ -208,7 +208,7 @@ async function getOrCreateGuestVolunteer({ deviceId, phone, name, location }) {
 }
 
 /**
- * Find the nearest active rescue squad
+ * Find the nearest active rescue force
  */
 async function findNearestSquad(location) {
   if (!location?.lat || !location?.lng) {

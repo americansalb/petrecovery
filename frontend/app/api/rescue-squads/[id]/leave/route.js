@@ -4,7 +4,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 
-// POST /api/rescue-squads/[id]/leave - Leave a rescue squad
+// POST /api/rescue-squads/[id]/leave - Leave a rescue force
 export async function POST(request, { params }) {
   try {
     const session = await getServerSession(authOptions);

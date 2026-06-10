@@ -1,6 +1,6 @@
 /**
  * Seed script to create a welcome announcement from Sarama (mascot)
- * for all existing rescue squads
+ * for all existing rescue forces
  *
  * Run with: node prisma/seed-welcome-announcement.js
  */
@@ -22,9 +22,9 @@ Here's how you can help:
 Every share, every search, every kind word makes a difference. Together, we bring pets home!`;
 
 async function seedWelcomeAnnouncements() {
-  console.log('Seeding welcome announcements for all rescue squads...');
+  console.log('Seeding welcome announcements for all rescue forces...');
 
-  // Get all active rescue squads
+  // Get all active rescue forces
   const squads = await prisma.rescueSquad.findMany({
     where: { isActive: true },
     select: { id: true, city: true },

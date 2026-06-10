@@ -221,7 +221,7 @@ export default function SquadChat({
           fontWeight: '600',
           color: '#0f172a',
         }}>
-          💬 Squad Chat
+          💬 Team Chat
         </h2>
         <p style={{
           margin: '0.25rem 0 0 0',

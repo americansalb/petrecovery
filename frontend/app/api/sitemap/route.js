@@ -15,7 +15,7 @@ export async function GET() {
     // Placeholder for legacy missions (model no longer exists)
     const missions = [];
 
-    // Get rescue squads
+    // Get rescue forces
     const squads = await prisma.rescueSquad.findMany({
       where: { isActive: true, isDeleted: false },
       select: { id: true, updatedAt: true },
@@ -26,7 +26,7 @@ export async function GET() {
     const staticPages = [
       { url: '/', priority: 1.0, changefreq: 'daily' },
       { url: '/cases', priority: 0.9, changefreq: 'hourly' },
-      { url: '/rescue-squads', priority: 0.8, changefreq: 'daily' },
+      { url: '/rescue-forces', priority: 0.8, changefreq: 'daily' },
       { url: '/database', priority: 0.7, changefreq: 'daily' },
       { url: '/advice', priority: 0.6, changefreq: 'weekly' },
       { url: '/about', priority: 0.5, changefreq: 'monthly' },
@@ -83,7 +83,7 @@ function generateSitemapXML(staticPages, cases, missions, squads) {
   // Squads
   for (const s of squads) {
     xml += `  <url>
-    <loc>${BASE_URL}/rescue-squads/${s.id}</loc>
+    <loc>${BASE_URL}/rescue-forces/${s.id}</loc>
     <lastmod>${s.updatedAt.toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
