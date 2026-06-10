@@ -6,7 +6,7 @@
  * Simple, reliable stats and end button
  */
 
-import { Clock, Navigation, Star, Square, Loader2 } from 'lucide-react';
+import { Clock, Navigation, Star, Square, Loader2, MapPin } from 'lucide-react';
 
 const MIN_MINUTES = 5;
 const MIN_MILES = 0.1;
@@ -17,6 +17,8 @@ export default function LiveSearchOverlay({
   distanceMiles = 0,
   estimatedPoints = 0,
   isEnding = false,
+  isMarking = false,
+  onMark,
   onEndSearch,
 }) {
   const meetsMinimum = (durationSeconds / 60) >= MIN_MINUTES && distanceMiles >= MIN_MILES;
@@ -75,6 +77,28 @@ export default function LiveSearchOverlay({
             </div>
           </div>
         </div>
+
+        {/* Mark spot - this is what actually draws the search path */}
+        {onMark && (
+          <button
+            type="button"
+            onClick={onMark}
+            disabled={isMarking || isEnding}
+            className="w-full mb-3 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 transition-transform"
+          >
+            {isMarking ? (
+              <>
+                <Loader2 size={22} className="animate-spin" />
+                <span>Marking...</span>
+              </>
+            ) : (
+              <>
+                <MapPin size={20} />
+                <span>Mark My Spot</span>
+              </>
+            )}
+          </button>
+        )}
 
         {/* End button - simple click handler */}
         <button

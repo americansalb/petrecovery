@@ -158,19 +158,27 @@ function MissionControlContent() {
     return baseZones;
   }, [activeMission, lastSeenLocation, originalZoneSettings, zoneMultiplier]);
 
-  const searchSession = useSearchSession(activeMission?.id, lastSeenLocation, probabilityZones);
+  const searchSession = useSearchSession(activeMission?.id, lastSeenLocation);
   const {
     isActive: isSearching,
-    isStarting,
-    isEnding,
+    isMarking,
     stats,
-    formattedDuration,
     path: gpsPath,
-    validation,
-    startSearch,
-    endSearch,
-    cancelSearch,
+    startSession,
+    endSession,
+    cancelSession,
+    markCurrentLocation,
   } = searchSession;
+
+  // The hook reports duration in minutes; busy flags live here so the
+  // buttons can show honest spinners around the async session calls.
+  const [isStarting, setIsStarting] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+  const formattedDuration = useMemo(() => {
+    const m = stats.durationMinutes || 0;
+    const h = Math.floor(m / 60);
+    return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
+  }, [stats.durationMinutes]);
 
   // Chat - uses mission-level chat API (no squad membership required)
   const chat = useMissionChat(activeMission?.id);
@@ -271,45 +279,59 @@ function MissionControlContent() {
 
     // Native app - proceed with GPS search
     setActiveTab('map'); // Switch to map when starting GPS search
-    const result = await startSearch();
+    setIsStarting(true);
+    const result = await startSession();
+    setIsStarting(false);
     if (result.success) {
-      showNotification('success', 'GPS search started! Your path is being tracked.');
+      showNotification('success', 'GPS search started! Mark spots as you walk to track your path.');
     } else {
       showNotification('error', result.error || 'Failed to start search');
     }
-  }, [startSearch, showNotification]);
+  }, [startSession, showNotification]);
 
   // Handle continuing with limited web GPS (user chose to proceed anyway)
   const handleContinueWithWebGPS = useCallback(async () => {
     setShowAppDownloadPrompt(false);
-    setActiveTab('search');
-    const result = await startSearch();
+    setActiveTab('map');
+    setIsStarting(true);
+    const result = await startSession();
+    setIsStarting(false);
     if (result.success) {
       showNotification('info', 'GPS search started. Keep the app visible for tracking to work.');
     } else {
       showNotification('error', result.error || 'Failed to start search');
     }
-  }, [startSearch, showNotification]);
+  }, [startSession, showNotification]);
+
+  // Mark the searcher's current GPS spot onto the path
+  const handleMarkSpot = useCallback(async () => {
+    const result = await markCurrentLocation();
+    if (result.success) {
+      showNotification('success', 'Spot marked. Keep going!');
+    } else if (result.error) {
+      showNotification('error', result.error);
+    }
+  }, [markCurrentLocation, showNotification]);
 
   // Handle end search
   const handleEndSearch = useCallback(async () => {
-    console.log('[GPS] handleEndSearch called, isSearching:', isSearching, 'isEnding:', isEnding);
-    const result = await endSearch();
-    console.log('[GPS] endSearch result:', result);
+    setIsEnding(true);
+    const result = await endSession();
+    setIsEnding(false);
     if (result.success) {
-      showNotification('success', `Great work! You earned ${result.points?.total || 0} points!`);
+      showNotification('success', `Great work! You earned ${result.pointsEarned || 0} points!`);
       // Mark search task as completed
       setCompletedTasks(prev => [...prev, 'search']);
     } else {
       showNotification('error', result.error || 'Failed to end search');
     }
-  }, [endSearch, showNotification, isSearching, isEnding]);
+  }, [endSession, showNotification]);
 
   // Handle exit search (cancel)
   const handleExitSearch = useCallback(async () => {
-    await cancelSearch();
+    await cancelSession();
     showNotification('info', 'Search cancelled');
-  }, [cancelSearch, showNotification]);
+  }, [cancelSession, showNotification]);
 
   // Handle sighting success
   const handleSightingSuccess = useCallback(() => {
@@ -449,7 +471,7 @@ function MissionControlContent() {
               sightings={sightings}
               petSpecies={activeMission.petSpecies}
               hoursElapsed={hoursElapsed}
-              gpsPath={gpsPath}
+              searchPath={gpsPath}
               coverageTrails={coverageData.trails}
               activeSearchersCount={coverageData.activeSearchersCount}
               pois={pois}
@@ -490,10 +512,12 @@ function MissionControlContent() {
             {isSearching ? (
               <LiveSearchOverlay
                 formattedDuration={formattedDuration}
-                durationSeconds={stats.durationSeconds}
-                distanceMiles={stats.validatedDistanceMiles}
+                durationSeconds={(stats.durationMinutes || 0) * 60}
+                distanceMiles={stats.distanceMiles}
                 estimatedPoints={stats.estimatedPoints}
                 isEnding={isEnding}
+                isMarking={isMarking}
+                onMark={handleMarkSpot}
                 onEndSearch={handleEndSearch}
               />
             ) : (
@@ -649,7 +673,7 @@ function MissionControlContent() {
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 bg-white rounded-full animate-pulse" />
             <span className="text-white font-bold text-sm">GPS SEARCH ACTIVE</span>
-            <span className="text-white/80 text-sm">{formattedDuration} • {(stats?.validatedDistanceMiles || 0).toFixed(2)} mi</span>
+            <span className="text-white/80 text-sm">{formattedDuration} • {(stats?.distanceMiles || 0).toFixed(2)} mi</span>
           </div>
           <button
             onClick={(e) => {
@@ -677,7 +701,7 @@ function MissionControlContent() {
             sightings={sightings}
             petSpecies={activeMission.petSpecies}
             hoursElapsed={hoursElapsed}
-            gpsPath={gpsPath}
+            searchPath={gpsPath}
             coverageTrails={coverageData.trails}
             activeSearchersCount={coverageData.activeSearchersCount}
             pois={pois}
@@ -711,10 +735,12 @@ function MissionControlContent() {
           {isSearching && (
             <LiveSearchOverlay
               formattedDuration={formattedDuration}
-              durationSeconds={stats.durationSeconds}
-              distanceMiles={stats.validatedDistanceMiles}
+              durationSeconds={(stats.durationMinutes || 0) * 60}
+              distanceMiles={stats.distanceMiles}
               estimatedPoints={stats.estimatedPoints}
               isEnding={isEnding}
+              isMarking={isMarking}
+              onMark={handleMarkSpot}
               onEndSearch={handleEndSearch}
             />
           )}

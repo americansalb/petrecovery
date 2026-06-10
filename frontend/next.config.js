@@ -139,10 +139,16 @@ const nextConfig = {
   // Redirects
   async redirects() {
     return [
-      // Redirect old URLs (if any)
+      // /missions/new never existed; the real wizard lives at /report/new
       {
         source: '/report',
-        destination: '/missions/new',
+        destination: '/report/new',
+        permanent: true,
+      },
+      // /terms duplicated /legal/terms; one canonical page
+      {
+        source: '/terms',
+        destination: '/legal/terms',
         permanent: true,
       },
       // "Rescue Squad" is PawBoost's trademark; the brand here is Rescue
