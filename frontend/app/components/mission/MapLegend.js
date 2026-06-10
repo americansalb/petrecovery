@@ -24,12 +24,13 @@ export default function MapLegend({
   showProbabilityZones = false,
   activeSearchersCount = 0,
   isExpanded: initialExpanded = false, // Start collapsed by default
+  style = undefined, // position override so floating panels never cover it
 }) {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className="absolute top-4 left-4 z-[400]">
+    <div className="absolute top-4 left-4 z-[400]" style={style}>
       {/* Collapsed state - just a small toggle button */}
       {!isExpanded ? (
         <button

@@ -216,6 +216,14 @@ export default function useMissionControl(session) {
     }
   }, [activeMission?.id, fetchSightings]);
 
+  // Refetch the mission itself every 60s so status flips (a pet marked
+  // REUNITED, a force accepting the case) reach helpers without a reload
+  useEffect(() => {
+    if (!missionId) return;
+    const interval = setInterval(() => fetchMission(missionId), 60000);
+    return () => clearInterval(interval);
+  }, [missionId, fetchMission]);
+
   // Update current mission index when missions or active mission changes
   useEffect(() => {
     if (availableMissions.length > 0 && activeMission) {
