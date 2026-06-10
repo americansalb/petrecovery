@@ -1,24 +1,69 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// Uses existing EMAIL_ environment variables from Render
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-});
+/**
+ * Outbound email with a provider chain:
+ *   1. Resend  - when RESEND_API_KEY is set (recommended; verify the domain
+ *                in the Resend dashboard, then set EMAIL_FROM to match it)
+ *   2. SMTP    - nodemailer with EMAIL_SERVICE/EMAIL_USER/EMAIL_PASSWORD
+ *   3. No-op   - logs loudly so dev/preview environments still show what
+ *                WOULD have been sent instead of erroring
+ *
+ * Every email in the app goes through sendEmail(), so configuring one env
+ * var (RESEND_API_KEY) turns on verification, password reset, share invites,
+ * conversation notifications - all of it.
+ */
+
+const FROM_FALLBACK = 'ReunitePets <onboarding@resend.dev>'; // Resend's shared test sender
+
+let resendClient = null;
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  if (!resendClient) resendClient = new Resend(process.env.RESEND_API_KEY);
+  return resendClient;
+}
+
+let smtpTransporter = null;
+function getSmtp() {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) return null;
+  if (!smtpTransporter) {
+    smtpTransporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+  }
+  return smtpTransporter;
+}
 
 export async function sendEmail({ to, subject, html }) {
+  const from = process.env.EMAIL_FROM
+    || (process.env.EMAIL_USER ? `PetRecovery <${process.env.EMAIL_USER}>` : FROM_FALLBACK);
+
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `PetRecovery <${process.env.EMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`✅ Email sent to ${to}`);
-    return { success: true };
+    const resend = getResend();
+    if (resend) {
+      const { data, error } = await resend.emails.send({ from, to, subject, html });
+      if (error) {
+        console.error('❌ Email error (resend):', error);
+        return { success: false, error: error.message || String(error) };
+      }
+      console.log(`✅ Email sent to ${to} via Resend (${data?.id || 'no id'})`);
+      return { success: true, id: data?.id };
+    }
+
+    const smtp = getSmtp();
+    if (smtp) {
+      await smtp.sendMail({ from, to, subject, html });
+      console.log(`✅ Email sent to ${to} via SMTP`);
+      return { success: true };
+    }
+
+    console.warn(`✉️  EMAIL NOT CONFIGURED - would have sent "${subject}" to ${to}. ` +
+      'Set RESEND_API_KEY (recommended) or EMAIL_USER/EMAIL_PASSWORD.');
+    return { success: false, skipped: true, error: 'EMAIL_NOT_CONFIGURED' };
   } catch (error) {
     console.error('❌ Email error:', error);
     return { success: false, error: error.message };
