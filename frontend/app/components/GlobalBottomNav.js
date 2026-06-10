@@ -6,7 +6,7 @@ import { Home, Search, Shield, Menu, Plus } from 'lucide-react';
 
 const leftItems = [
   { href: '/dashboard', icon: Home, label: 'Home', exact: true },
-  { href: '/database', icon: Search, label: 'Lost & Found', alsoActive: ['/lost-and-found', '/cases'] },
+  { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
 ];
 
 const rightItems = [

@@ -115,7 +115,7 @@ export default function Navigation() {
 
             {/* Desktop Navigation: one home per domain, same for guests and members */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
-              <NavLink href="/database" active={pathname === '/database' || pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
+              <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
                 <Search className="w-4 h-4" />
                 Lost &amp; Found
               </NavLink>
@@ -370,7 +370,7 @@ export default function Navigation() {
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
           </div>
-          <MobileNavLink href="/database" icon={Search} label="Lost & Found" active={pathname === '/database'} onClick={() => setMobileMenuOpen(false)} />
+          <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
 

@@ -48,15 +48,39 @@ export async function GET(request) {
     const state = searchParams.get('state');
     const species = searchParams.get('species');
     const status = searchParams.get('status');
+    const type = (searchParams.get('type') || 'LOST').toUpperCase();
+    const q = (searchParams.get('q') || '').trim();
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const offset = (page - 1) * limit;
 
-    // Build where clause - Show active LOST cases
-    const where = {
-      reportType: 'LOST',
-      status: status || 'ACTIVE', // Default to ACTIVE cases
-    };
+    // Build where clause
+    const where = {};
+
+    // type: LOST (default) | FOUND | ALL
+    if (type === 'LOST' || type === 'FOUND') where.reportType = type;
+
+    // status groups: LIVE (default) covers every still-open state, so a
+    // case does not vanish from the public list the moment a sighting
+    // flips it to SIGHTING_REPORTED. Exact enum values still work.
+    const statusGroup = (status || 'LIVE').toUpperCase();
+    if (statusGroup === 'LIVE') {
+      where.status = { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] };
+    } else if (statusGroup === 'REUNITED') {
+      where.status = 'REUNITED';
+    } else if (statusGroup !== 'ALL') {
+      where.status = status;
+    }
+
+    // One search box covers the obvious questions: name, breed, color, place
+    if (q) {
+      where.OR = [
+        { petName: { contains: q, mode: 'insensitive' } },
+        { petBreed: { contains: q, mode: 'insensitive' } },
+        { petColor: { contains: q, mode: 'insensitive' } },
+        { lastSeenAddress: { contains: q, mode: 'insensitive' } },
+      ];
+    }
 
     // Filter by city/state from address if provided
     if (city) where.lastSeenAddress = { contains: city, mode: 'insensitive' };
@@ -97,6 +121,9 @@ export async function GET(request) {
           status: true,
           priority: true,
           reportType: true,
+          resolvedAt: true,
+          // Social proof for cards
+          _count: { select: { sightings: true } },
           // IMPORTANT: Do NOT expose:
           // - reporterId (internal only)
           // - ownerPhone, ownerEmail (privacy - only on detail page)
@@ -126,6 +153,7 @@ export async function GET(request) {
         city,
         state,
         isUrgent: caseItem.priority === 'URGENT',
+        sightingCount: caseItem._count?.sightings || 0,
       };
     });
 

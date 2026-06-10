@@ -151,6 +151,19 @@ const nextConfig = {
         destination: '/legal/terms',
         permanent: true,
       },
+      // The browse surface is one page now. Exact paths only:
+      // /missions/[missionNumber] subroutes keep redirecting into
+      // mission control and must not be caught here.
+      {
+        source: '/missions',
+        destination: '/lost-and-found',
+        permanent: true,
+      },
+      {
+        source: '/database',
+        destination: '/lost-and-found',
+        permanent: true,
+      },
       // The legacy communities section predates Rescue Forces, which ARE
       // the communities now
       {

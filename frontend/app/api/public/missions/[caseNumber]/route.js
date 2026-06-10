@@ -28,11 +28,11 @@ export async function GET(request, { params }) {
   const { caseNumber } = params;
 
   try {
-    // Fetch case by caseNumber from the main Case model
-    // This is where /api/reports/create writes data
-    // Include sightings and updates for the activity timeline
+    // Fetch case by caseNumber OR raw id (legacy /reports/{id} links
+    // resolve through here). Cuids are c + 24 lowercase alphanumerics.
+    const isId = /^c[a-z0-9]{24}$/.test(caseNumber);
     const missionData = await prisma.case.findUnique({
-      where: { caseNumber },
+      where: isId ? { id: caseNumber } : { caseNumber },
       select: {
         id: true,
         caseNumber: true,
@@ -56,6 +56,8 @@ export async function GET(request, { params }) {
         status: true,
         priority: true,
         reportType: true,
+        resolution: true,
+        resolvedAt: true,
         // Owner/Reporter info
         reporterId: true,
         ownerName: true,
@@ -161,6 +163,8 @@ export async function GET(request, { params }) {
       status: missionData.status,
       priority: missionData.priority,
       reportType: missionData.reportType,
+      resolution: missionData.resolution,
+      resolvedAt: missionData.resolvedAt,
       isUrgent: missionData.priority === 'URGENT',
       // Reporter ID (for checking ownership)
       reporterId: missionData.reporterId,
