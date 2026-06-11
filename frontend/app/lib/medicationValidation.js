@@ -23,6 +23,13 @@ export function parseMedication(med) {
 export function validateMedicationInput(body, { partial = false } = {}) {
   const data = {};
 
+  // MEDICATION (default) or CARE: walks, brushing, treats. Same engine,
+  // different register in the UI.
+  if (body.kind !== undefined) {
+    if (!['MEDICATION', 'CARE'].includes(body.kind)) return { error: 'Invalid kind' };
+    data.kind = body.kind;
+  }
+
   if (body.name !== undefined || !partial) {
     const name = (body.name || '').trim();
     if (!name) return { error: 'Medication name is required' };

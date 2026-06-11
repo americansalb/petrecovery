@@ -367,3 +367,27 @@ export function parseMedicationText(raw) {
   result.confidence = matched >= 3 ? 'high' : matched >= 1 ? 'medium' : 'low';
   return result;
 }
+
+/* ------------------------------ Care routines ------------------------------
+ * The light side of the tracker: walks, brushing, treats. Same schedule
+ * engine and dose log as medications (kind: 'CARE' on PetMedication),
+ * different register in the UI. Emoji are looked up by name here so the
+ * data model stays plain strings. */
+
+export const CARE_ACTIVITIES = [
+  { id: 'WALK', label: 'Walk', emoji: '🦮', color: 'emerald', defaultTimes: ['08:00', '18:00'] },
+  { id: 'BRUSH', label: 'Brushing', emoji: '🪮', color: 'violet', defaultTimes: ['19:00'] },
+  { id: 'TREATS', label: 'Treats', emoji: '🦴', color: 'amber', defaultTimes: [] },
+  { id: 'PLAY', label: 'Playtime', emoji: '🎾', color: 'sky', defaultTimes: ['17:00'] },
+  { id: 'LITTER', label: 'Litter box', emoji: '🧹', color: 'slate', defaultTimes: ['09:00'] },
+  { id: 'BATH', label: 'Bath', emoji: '🛁', color: 'cyan', defaultTimes: ['10:00'] },
+  { id: 'NAILS', label: 'Nail trim', emoji: '✂️', color: 'rose', defaultTimes: ['10:00'] },
+  { id: 'TRAINING', label: 'Training', emoji: '🎓', color: 'orange', defaultTimes: ['16:00'] },
+];
+
+export function careEmoji(name) {
+  const found = CARE_ACTIVITIES.find(
+    (a) => a.label.toLowerCase() === (name || '').toLowerCase()
+  );
+  return found?.emoji || '🐾';
+}
