@@ -21,7 +21,7 @@ import { Card, Badge, cn } from '@/components/ui';
 import { MedIconChip } from '@/app/components/medications/MedIcon';
 import {
   formatSchedule, formatTime, timeOfDayBucket,
-  slotsWithStatus, adherenceForDay, startOfDay, sameDay,
+  slotsWithStatus, adherenceForDay, startOfDay, sameDay, careEmoji,
 } from '@/lib/medications';
 
 const BUCKET_ICONS = { Morning: Sun, Afternoon: Sunset, Evening: Moon };
@@ -165,6 +165,79 @@ function ReadOnlyWeek({ meds, selectedDay, onSelectDay }) {
               </div>
               <span className="text-[10px] text-midnight-500 tabular-nums">{due ? `${given}/${due}` : '—'}</span>
             </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/* --------------------------- Read-only good stuff ------------------------- */
+
+function ReadOnlyGoodStuff({ careItems, day }) {
+  if (careItems.length === 0) return null;
+  const isToday = sameDay(day, new Date());
+
+  const scheduled = [];
+  for (const care of careItems.filter((c) => c.scheduleType !== 'AS_NEEDED')) {
+    for (const slot of slotsWithStatus(care, care.doses, day)) {
+      scheduled.push({ care, slot });
+    }
+  }
+  scheduled.sort((a, b) => a.slot.time.localeCompare(b.slot.time));
+  const whenever = careItems.filter((c) => c.scheduleType === 'AS_NEEDED');
+
+  return (
+    <Card padding="lg" className="mb-6">
+      <h3 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
+        <span className="text-lg" aria-hidden="true">🎾</span> The good stuff
+      </h3>
+      <p className="text-sm text-midnight-500 mb-4">
+        Walks, brushing, treats: daily life, not medicine.
+      </p>
+      <div className="flex flex-wrap gap-2.5">
+        {scheduled.map(({ care, slot }) => {
+          const done = slot.status === 'GIVEN';
+          return (
+            <div
+              key={`${care.id}-${slot.time}`}
+              className={cn(
+                'flex items-center gap-2.5 rounded-2xl border-2 px-3.5 py-2.5',
+                done ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-midnight-200'
+              )}
+            >
+              <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+              <span className="text-left">
+                <span className={cn('block text-sm font-bold', done ? 'text-emerald-700' : 'text-midnight-900')}>
+                  {care.name}
+                </span>
+                <span className={cn('block text-[11px]', done ? 'text-emerald-600' : 'text-midnight-500')}>
+                  {done ? 'Done!' : formatTime(slot.time)}
+                </span>
+              </span>
+            </div>
+          );
+        })}
+        {whenever.map((care) => {
+          const count = (care.doses || []).filter(
+            (d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), day)
+          ).length;
+          return (
+            <div
+              key={care.id}
+              className={cn(
+                'flex items-center gap-2.5 rounded-2xl border-2 px-3.5 py-2.5',
+                count > 0 ? 'bg-flash-50 border-flash-200' : 'bg-white border-midnight-200'
+              )}
+            >
+              <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+              <span className="text-left">
+                <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
+                <span className="block text-[11px] text-midnight-500">
+                  {count > 0 ? `x${count} ${isToday ? 'today' : 'this day'}` : 'Whenever'}
+                </span>
+              </span>
+            </div>
           );
         })}
       </div>
@@ -423,7 +496,11 @@ export default function PublicPetViewPage() {
   }
 
   const { pet, ownerFirstName, medications } = data;
-  const active = medications.filter((m) => m.isActive);
+  // Same payload as the tracker: medications AND care routines. A walk
+  // is not a medication; the page says so.
+  const medItems = medications.filter((m) => m.kind !== 'CARE');
+  const careItems = medications.filter((m) => m.kind === 'CARE' && m.isActive);
+  const active = medItems.filter((m) => m.isActive);
 
   return (
     <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
@@ -470,8 +547,10 @@ export default function PublicPetViewPage() {
           </div>
         </button>
 
-        <ReadOnlyDay meds={medications} day={selectedDay} onBackToToday={() => setSelectedDay(startOfDay(new Date()))} />
-        <ReadOnlyWeek meds={medications} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+        <ReadOnlyDay meds={medItems} day={selectedDay} onBackToToday={() => setSelectedDay(startOfDay(new Date()))} />
+        <ReadOnlyWeek meds={medItems} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+
+        <ReadOnlyGoodStuff careItems={careItems} day={selectedDay} />
 
         {/* Medication list */}
         {active.length > 0 && (

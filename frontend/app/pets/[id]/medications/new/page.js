@@ -164,6 +164,12 @@ function MedicationWizard() {
         if (!res.ok) throw new Error(data.error || 'Failed to load');
         const med = (data.medications || []).find((m) => m.id === editId);
         if (!med) throw new Error('Medication not found');
+        // Care routines are not medications; this wizard would mangle
+        // one into a medical shape. Their home is the Care tab.
+        if (med.kind === 'CARE') {
+          router.replace(`/pets/${petId}/care`);
+          return;
+        }
         setForm({
           name: med.name,
           strength: med.strength || '',
