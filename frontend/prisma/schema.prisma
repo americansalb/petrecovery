@@ -306,6 +306,13 @@ model Pet {
   ownerId         String
   owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  // Anyone holding this token may VIEW the pet's care page without an
+  // account (read-only). Null means link sharing is off. Rotating the
+  // token revokes every previously shared link at once. Indexed, not
+  // unique: prod boots with plain `prisma db push`, which refuses new
+  // unique constraints; 32 random bytes never collide in practice.
+  publicViewToken String?
+
   // Basic info
   name            String
   species         PetSpecies
@@ -347,6 +354,7 @@ model Pet {
 
   @@index([ownerId])
   @@index([isDeleted])
+  @@index([publicViewToken])
 }
 
 enum PetSpecies {
@@ -472,8 +480,9 @@ enum PetShareRole {
 }
 
 enum PetShareStatus {
-  PENDING    // invited, not yet accepted
-  ACTIVE     // accepted
+  PENDING    // invited by the owner, not yet accepted
+  ACTIVE     // accepted / approved
+  REQUESTED  // asked to help via the public view link, awaiting owner approval
 }
 
 model MedicationDose {
