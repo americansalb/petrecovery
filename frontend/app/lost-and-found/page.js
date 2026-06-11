@@ -19,8 +19,10 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
   Search, MapPin, List, Map as MapIcon,
-  Loader2, PawPrint, Megaphone, HeartHandshake, ChevronLeft, ChevronRight, Phone,
+  Loader2, PawPrint, Megaphone, HeartHandshake, ChevronLeft, ChevronRight,
 } from 'lucide-react';
+
+import FlyerCard from '@/app/components/FlyerCard';
 
 const BrowseMap = dynamic(() => import('./BrowseMap'), {
   ssr: false,
@@ -44,101 +46,6 @@ const SPECIES = [
   { id: 'BIRD', label: 'Birds' },
   { id: 'OTHER', label: 'Other' },
 ];
-
-function stampText(c, tab) {
-  if (tab === 'reunited') {
-    if (c.lastSeenAt && c.resolvedAt) {
-      const days = Math.max(1, Math.round((new Date(c.resolvedAt) - new Date(c.lastSeenAt)) / 86400000));
-      return `HOME · ${days} ${days === 1 ? 'DAY' : 'DAYS'}`;
-    }
-    return 'HOME';
-  }
-  const ref = c.lastSeenAt || c.createdAt;
-  if (!ref) return tab === 'found' ? 'FOUND' : 'LOST';
-  const hours = Math.floor((Date.now() - new Date(ref).getTime()) / 3600000);
-  const days = Math.floor(hours / 24);
-  const span = hours < 1 ? 'NOW' : hours < 24 ? `${hours}H` : `${days} ${days === 1 ? 'DAY' : 'DAYS'}`;
-  return tab === 'found' ? `FOUND ${span}` : `LOST ${span}`;
-}
-
-function speciesEmoji(species) {
-  switch ((species || '').toUpperCase()) {
-    case 'DOG': return '🐕';
-    case 'CAT': return '🐈';
-    case 'BIRD': return '🦜';
-    default: return '🐾';
-  }
-}
-
-/* ------------------------------- The flyer -------------------------------- */
-
-function FlyerCard({ c, tab, index = 0 }) {
-  const reunited = tab === 'reunited';
-  const found = tab === 'found' && !reunited;
-  const tilt = ['-rotate-[0.8deg]', 'rotate-[0.6deg]', '-rotate-[0.4deg]', 'rotate-[0.9deg]'][index % 4];
-  const stamp = reunited
-    ? 'border-emerald-500 text-emerald-600'
-    : found
-      ? 'border-sky-500 text-sky-600'
-      : c.isUrgent
-        ? 'border-red-600 text-red-600'
-        : 'border-midnight-900 text-midnight-900';
-
-  return (
-    <Link
-      href={`/cases/${c.caseNumber}`}
-      className={`group relative block bg-white shadow-[0_8px_24px_rgba(15,23,42,0.18)] hover:shadow-[0_18px_44px_rgba(15,23,42,0.3)] transition-all duration-200 ${tilt} hover:rotate-0 hover:-translate-y-1`}
-    >
-      {/* Pin */}
-      <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-[0_2px_4px_rgba(0,0,0,0.4),inset_-1px_-2px_3px_rgba(0,0,0,0.35)] z-10" aria-hidden="true" />
-
-      {/* Photo */}
-      <div className="relative h-48 bg-midnight-100 overflow-hidden border-b-4 border-midnight-950">
-        {c.petPhotoUrl ? (
-          <img src={c.petPhotoUrl} alt={c.petName} loading="lazy" className={`w-full h-full object-cover ${reunited ? '' : 'group-hover:scale-[1.03] transition-transform duration-300'}`} />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-6xl">{speciesEmoji(c.petSpecies)}</div>
-        )}
-        {/* Rubber stamp */}
-        <span className={`absolute top-3 right-3 px-2.5 py-1 border-[3px] ${stamp} bg-white/85 backdrop-blur-[2px] font-black text-xs tracking-[0.15em] uppercase -rotate-6`}>
-          {stampText(c, tab)}
-        </span>
-        {c.sightingCount > 0 && !reunited && (
-          <span className="absolute bottom-2.5 left-3 px-2 py-0.5 bg-midnight-950/85 text-flash-400 text-[10px] font-black tracking-widest uppercase">
-            {c.sightingCount} sighting{c.sightingCount === 1 ? '' : 's'}
-          </span>
-        )}
-      </div>
-
-      {/* Poster body */}
-      <div className="px-4 pt-3 pb-2 text-center">
-        <h3 className="font-black uppercase tracking-tight text-2xl leading-none text-midnight-950 truncate">
-          {c.petName || 'Unknown'}
-        </h3>
-        <p className="text-[11px] font-semibold text-midnight-500 mt-1 truncate uppercase tracking-wide">
-          {[c.petBreed, c.petColor].filter(Boolean).join(' · ') || c.petSpecies}
-        </p>
-        <p className="flex items-center justify-center gap-1 text-xs text-midnight-600 mt-1.5 truncate">
-          <MapPin size={11} className="text-midnight-400 shrink-0" />
-          {c.city && c.city !== 'Unknown' ? `${c.city}, ${c.state}` : c.lastSeenAddress || 'Location unknown'}
-        </p>
-      </div>
-
-      {/* Tear-off tabs */}
-      <div className="flex border-t-2 border-dashed border-midnight-300 px-2 pb-0">
-        {[0, 1, 2, 3, 4].map((i) => (
-          <span
-            key={i}
-            className={`flex-1 text-center py-1.5 text-[8px] font-bold text-midnight-400 border-l border-dashed border-midnight-200 first:border-l-0 ${i % 2 ? 'rotate-1' : '-rotate-1'} ${i === 3 && !reunited ? 'opacity-0' : ''}`}
-          >
-            <Phone size={8} className="inline mr-0.5 -mt-px" />
-            {c.caseNumber?.split('-').pop() || 'SEEN?'}
-          </span>
-        ))}
-      </div>
-    </Link>
-  );
-}
 
 /* --------------------------------- Page ----------------------------------- */
 
@@ -392,7 +299,7 @@ function LostAndFoundContent() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-7 gap-y-9 pt-2">
                 {cases.map((c, i) => (
-                  <FlyerCard key={c.id} c={c} tab={tab} index={i} />
+                  <FlyerCard key={c.id} c={c} index={i} />
                 ))}
               </div>
 
