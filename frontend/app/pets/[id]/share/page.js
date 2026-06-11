@@ -14,7 +14,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, UserPlus, X, Loader2, PawPrint, Mail, Clock,
-  HeartHandshake, Eye, Trash2, Check, Users,
+  HeartHandshake, Eye, Trash2, Check, Users, Link2, Copy, RefreshCw,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, cn } from '@/components/ui';
@@ -106,6 +106,11 @@ export default function PetSharePage() {
   const [inviting, setInviting] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
+  // Public view link
+  const [linkUrl, setLinkUrl] = useState(null);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push(`/login?callbackUrl=/pets/${petId}/share`);
@@ -129,6 +134,61 @@ export default function PetSharePage() {
   useEffect(() => {
     if (status === 'authenticated' && petId) fetchShares();
   }, [status, petId, fetchShares]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !petId) return;
+    fetch(`/api/pets/${petId}/share-link`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setLinkUrl(data?.url || null))
+      .catch(() => {});
+  }, [status, petId]);
+
+  const absoluteLink = linkUrl ? `${typeof window !== 'undefined' ? window.location.origin : ''}${linkUrl}` : null;
+
+  const setLink = async (method) => {
+    setLinkBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/pets/${petId}/share-link`, { method });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update the link');
+      setLinkUrl(data.url || null);
+      setCopied(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLinkBusy(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!absoluteLink) return;
+    try {
+      await navigator.clipboard.writeText(absoluteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard unavailable */ }
+  };
+
+  const approve = async (share) => {
+    setBusyId(share.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/pets/${petId}/shares/${share.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to approve');
+      setShares((prev) => prev.map((s) => (s.id === share.id ? data.share : s)));
+      setSuccess(data.message);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const invite = async (e) => {
     e.preventDefault();
@@ -199,6 +259,7 @@ export default function PetSharePage() {
 
   const active = shares.filter((s) => s.status === 'ACTIVE');
   const pending = shares.filter((s) => s.status === 'PENDING');
+  const requests = shares.filter((s) => s.status === 'REQUESTED');
 
   return (
     <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
@@ -287,6 +348,108 @@ export default function PetSharePage() {
             </p>
           </form>
         </Card>
+
+        {/* View link */}
+        <Card padding="lg" className="mb-6">
+          <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
+            <Link2 size={18} className="text-midnight-400" /> View link
+          </h2>
+          <p className="text-sm text-midnight-500 mb-4">
+            Anyone with the link can see {pet?.name}&apos;s care page, no account needed.
+            They can ask to join as a caretaker; you approve every request here.
+          </p>
+
+          {linkUrl ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={absoluteLink || ''}
+                  onFocus={(e) => e.target.select()}
+                  className="flex-1 min-w-0 rounded-xl border border-midnight-300 px-3.5 py-2.5 text-midnight-700 text-sm bg-midnight-50 focus:outline-none"
+                  aria-label="Public view link"
+                />
+                <button
+                  onClick={copyLink}
+                  className={cn(
+                    'shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors',
+                    copied ? 'bg-emerald-500 text-white' : 'bg-flash-400 hover:bg-flash-500 text-midnight-900'
+                  )}
+                >
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setLink('POST')}
+                  disabled={linkBusy}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-midnight-600 hover:text-midnight-900 transition-colors disabled:opacity-50"
+                  title="Old links stop working"
+                >
+                  <RefreshCw size={13} className={linkBusy ? 'animate-spin' : ''} /> New link
+                </button>
+                <span className="text-midnight-300">·</span>
+                <button
+                  onClick={() => setLink('DELETE')}
+                  disabled={linkBusy}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
+                >
+                  Turn off link sharing
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Button onClick={() => setLink('POST')} loading={linkBusy} variant="outline" leftIcon={Link2}>
+              Create view link
+            </Button>
+          )}
+        </Card>
+
+        {/* Caretaker requests */}
+        {requests.length > 0 && (
+          <Card padding="lg" className="mb-6 border-2 border-flash-300">
+            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
+              <HeartHandshake size={18} className="text-flash-500" /> Caretaker requests
+            </h2>
+            <p className="text-sm text-midnight-500 mb-3">
+              People who saw {pet?.name}&apos;s page and want to help. They get no access until you approve.
+            </p>
+            <div className="divide-y divide-midnight-100">
+              {requests.map((share) => {
+                const displayName = [share.user?.firstName, share.user?.lastName].filter(Boolean).join(' ');
+                return (
+                  <div key={share.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="w-10 h-10 rounded-full bg-flash-100 text-flash-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {initialsOf(share)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-midnight-900 text-sm truncate">{displayName || share.email}</p>
+                      <p className="text-xs text-midnight-500 truncate">
+                        {displayName ? share.email : 'Asked to join as a caretaker'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => approve(share)}
+                      disabled={busyId === share.id}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                    >
+                      {busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => remove(share)}
+                      disabled={busyId === share.id}
+                      className="px-3 py-2 rounded-xl border border-midnight-200 text-midnight-500 hover:text-red-600 hover:border-red-300 text-xs font-semibold transition-colors disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
 
         {/* Care team */}
         <Card padding="lg">

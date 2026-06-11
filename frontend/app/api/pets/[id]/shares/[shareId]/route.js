@@ -13,6 +13,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { createInAppNotification } from '@/app/lib/notifications-inapp';
 
 const shareSelect = {
   id: true,
@@ -72,6 +73,11 @@ export async function PATCH(request, { params }) {
       if (ctx.share.status === 'ACTIVE') {
         return NextResponse.json({ error: 'Already accepted' }, { status: 400 });
       }
+      // A REQUESTED row was created BY the requester; letting them
+      // "accept" it would be self-approval. Only the owner approves.
+      if (ctx.share.status === 'REQUESTED') {
+        return NextResponse.json({ error: 'Only the owner can approve a request' }, { status: 403 });
+      }
       const share = await prisma.petShare.update({
         where: { id: shareId },
         data: { status: 'ACTIVE', userId: ctx.user.id, respondedAt: new Date() },
@@ -89,6 +95,44 @@ export async function PATCH(request, { params }) {
       }).catch(() => {});
 
       return NextResponse.json({ share, message: `You now help care for ${ctx.share.pet.name}` });
+    }
+
+    // Owner approving a caretaker request from the view link
+    if (body.action === 'approve') {
+      if (!ctx.isOwner) {
+        return NextResponse.json({ error: 'Only the owner can approve requests' }, { status: 403 });
+      }
+      if (ctx.share.status !== 'REQUESTED') {
+        return NextResponse.json({ error: 'Nothing to approve' }, { status: 400 });
+      }
+      const share = await prisma.petShare.update({
+        where: { id: shareId },
+        data: { status: 'ACTIVE', respondedAt: new Date() },
+        select: shareSelect,
+      });
+
+      // Tell the requester they're in (best effort, never blocks)
+      if (ctx.share.userId) {
+        createInAppNotification({
+          userId: ctx.share.userId,
+          type: 'PET_SHARE',
+          title: `You're on ${ctx.share.pet.name}'s care team`,
+          message: `Your caretaker request was approved. You can now log doses and keep the record up to date.`,
+          actionUrl: `/pets/${id}/medications`,
+        }).catch(() => {});
+      }
+
+      logEvent({
+        event_type: 'pet.share_request_approved',
+        resource_type: 'pet_share',
+        resource_id: shareId,
+        action: 'update',
+        result: 'success',
+        actor_user_id: ctx.user.id,
+        metadata: { petId: id },
+      }).catch(() => {});
+
+      return NextResponse.json({ share, message: `${share.user?.firstName || share.email} can now help care for ${ctx.share.pet.name}` });
     }
 
     // Owner changing the role
