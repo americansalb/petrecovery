@@ -158,14 +158,15 @@ function SlotRow({ med, slot, busy, readOnly, onMark, onUndo }) {
   );
 }
 
-function TodayCard({ meds, busyKeys, readOnly, onMark, onUndo }) {
-  const today = new Date();
+function DayCard({ meds, day, busyKeys, readOnly, onMark, onUndo, onLogPrnFor, onBackToToday }) {
+  const isToday = sameDay(day, new Date());
   const scheduled = meds.filter((m) => m.isActive && m.scheduleType !== 'AS_NEEDED');
+  const asNeeded = meds.filter((m) => m.isActive && m.scheduleType === 'AS_NEEDED');
 
   const buckets = useMemo(() => {
     const grouped = { Morning: [], Afternoon: [], Evening: [] };
     for (const med of scheduled) {
-      for (const slot of slotsWithStatus(med, med.doses, today)) {
+      for (const slot of slotsWithStatus(med, med.doses, day)) {
         grouped[timeOfDayBucket(slot.time)].push({ med, slot });
       }
     }
@@ -173,65 +174,120 @@ function TodayCard({ meds, busyKeys, readOnly, onMark, onUndo }) {
       grouped[key].sort((a, b) => a.slot.time.localeCompare(b.slot.time));
     }
     return grouped;
-  }, [meds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [meds, day]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const all = Object.values(buckets).flat();
   const given = all.filter(({ slot }) => slot.status === 'GIVEN').length;
   const handled = all.filter(({ slot }) => slot.status).length;
   const due = all.length;
 
-  if (due === 0) return null;
+  // Today with nothing scheduled stays invisible (as-needed meds log from
+  // their cards). A selected PAST day always renders so history can be
+  // documented even when nothing was on the schedule.
+  if (due === 0 && isToday) return null;
+
+  const dayLabel = day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
     <Card padding="lg" className="mb-6">
       <div className="flex items-center gap-4 mb-5">
         <ProgressRing given={given} due={due} />
-        <div>
+        <div className="flex-1 min-w-0">
           <h2 className="text-xl font-bold text-midnight-900">
-            {handled >= due ? (
-              <span className="inline-flex items-center gap-2">All done for today <PartyPopper className="w-5 h-5 text-flash-500" /></span>
-            ) : 'Today'}
+            {isToday ? (
+              handled >= due ? (
+                <span className="inline-flex items-center gap-2">All done for today <PartyPopper className="w-5 h-5 text-flash-500" /></span>
+              ) : 'Today'
+            ) : dayLabel}
           </h2>
           <p className="text-sm text-midnight-500">
-            {today.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-            {handled < due && ` · ${due - handled} dose${due - handled !== 1 ? 's' : ''} to go`}
+            {isToday
+              ? `${dayLabel}${handled < due ? ` · ${due - handled} dose${due - handled !== 1 ? 's' : ''} to go` : ''}`
+              : 'Catching up the record. Past doses go straight into the history.'}
           </p>
         </div>
+        {!isToday && (
+          <button
+            onClick={onBackToToday}
+            className="text-xs font-bold text-midnight-500 hover:text-midnight-900 px-3 py-1.5 rounded-lg border border-midnight-200 hover:border-midnight-400 transition-colors whitespace-nowrap"
+          >
+            Back to today
+          </button>
+        )}
       </div>
 
-      <div className="space-y-4">
-        {Object.entries(buckets).map(([bucket, items]) => {
-          if (!items.length) return null;
-          const BucketIcon = BUCKET_ICONS[bucket];
-          return (
-            <div key={bucket}>
-              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2">
-                <BucketIcon size={14} /> {bucket}
-              </p>
-              <div className="space-y-2">
-                {items.map(({ med, slot }) => (
-                  <SlotRow
-                    key={`${med.id}-${slot.time}`}
-                    med={med}
-                    slot={slot}
-                    busy={busyKeys.has(`${med.id}-${slot.scheduledFor.getTime()}`)}
-                    readOnly={readOnly}
-                    onMark={onMark}
-                    onUndo={onUndo}
-                  />
-                ))}
+      {due === 0 ? (
+        <p className="text-sm text-midnight-500 mb-1">Nothing was on the schedule this day.</p>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(buckets).map(([bucket, items]) => {
+            if (!items.length) return null;
+            const BucketIcon = BUCKET_ICONS[bucket];
+            return (
+              <div key={bucket}>
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2">
+                  <BucketIcon size={14} /> {bucket}
+                </p>
+                <div className="space-y-2">
+                  {items.map(({ med, slot }) => (
+                    <SlotRow
+                      key={`${med.id}-${slot.time}`}
+                      med={med}
+                      slot={slot}
+                      busy={busyKeys.has(`${med.id}-${slot.scheduledFor.getTime()}`)}
+                      readOnly={readOnly}
+                      onMark={onMark}
+                      onUndo={onUndo}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Past day: as-needed meds can be documented too */}
+      {!isToday && !readOnly && asNeeded.length > 0 && (
+        <div className="mt-5 pt-4 border-t border-midnight-100">
+          <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2">As needed</p>
+          <div className="space-y-2">
+            {asNeeded.map((med) => {
+              const dayDose = (med.doses || []).find((d) => !d.deletedAt && sameDay(new Date(d.scheduledFor), day));
+              return (
+                <div key={med.id} className="flex items-center gap-3 rounded-xl border border-midnight-200 bg-white px-3 py-2.5">
+                  <MedIconChip med={med} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-midnight-900 truncate">
+                      {med.name}
+                      {med.strength && <span className="font-normal text-midnight-500"> · {med.strength}</span>}
+                    </p>
+                    <p className="text-xs text-midnight-500">
+                      {dayDose ? `Logged for this day` : 'Not logged this day'}
+                    </p>
+                  </div>
+                  {!dayDose && (
+                    <button
+                      onClick={() => onLogPrnFor(med, day)}
+                      disabled={busyKeys.has(`prn-${med.id}`)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-midnight-900 bg-flash-400 hover:bg-flash-500 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <Check size={13} strokeWidth={3} /> Log a dose this day
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
 
 /* ------------------------------- Week strip ------------------------------- */
 
-function WeekStrip({ meds }) {
+function WeekStrip({ meds, selectedDay, onSelectDay }) {
   const scheduled = meds.filter((m) => m.scheduleType !== 'AS_NEEDED');
   const days = useMemo(() => {
     const out = [];
@@ -269,19 +325,31 @@ function WeekStrip({ meds }) {
 
   return (
     <Card padding="lg" className="mb-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-1">
         <h3 className="flex items-center gap-2 font-bold text-midnight-900"><CalendarDays size={18} className="text-midnight-400" /> This week</h3>
         {streak > 1 && (
           <Badge variant="primary" icon={Sparkles}>{streak}-day streak</Badge>
         )}
       </div>
+      <p className="text-xs text-midnight-400 mb-4">Tap a day to review it or log doses you gave but did not record.</p>
       <div className="grid grid-cols-7 gap-2">
         {days.map(({ day, due, given }, i) => {
           const isToday = i === 6;
+          const isSelected = selectedDay && sameDay(day, selectedDay);
           const pct = due > 0 ? given / due : null;
           return (
-            <div key={day.getTime()} className="flex flex-col items-center gap-1.5">
-              <span className={cn('text-[11px] font-semibold', isToday ? 'text-midnight-900' : 'text-midnight-400')}>
+            <button
+              key={day.getTime()}
+              type="button"
+              onClick={() => onSelectDay?.(day)}
+              className={cn(
+                'flex flex-col items-center gap-1.5 rounded-xl p-1 -m-1 transition-all',
+                isSelected ? 'ring-2 ring-flash-400 bg-flash-50' : 'hover:bg-midnight-50'
+              )}
+              aria-label={`${day.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}: ${due ? `${given} of ${due} given` : 'nothing due'}. Tap to review or log.`}
+              aria-pressed={isSelected}
+            >
+              <span className={cn('text-[11px] font-semibold', isToday || isSelected ? 'text-midnight-900' : 'text-midnight-400')}>
                 {isToday ? 'Today' : day.toLocaleDateString([], { weekday: 'narrow' })}
               </span>
               <div className="w-full h-12 bg-midnight-100 rounded-lg relative overflow-hidden" title={due ? `${given}/${due} given` : 'Nothing due'}>
@@ -294,7 +362,7 @@ function WeekStrip({ meds }) {
                 )}
               </div>
               <span className="text-[10px] text-midnight-500 tabular-nums">{due ? `${given}/${due}` : '—'}</span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -428,6 +496,9 @@ export default function MedicationTrackerPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [notice, setNotice] = useState(null);
   const [outboxCount, setOutboxCount] = useState(0);
+  // Which day the checklist shows. Today by default; tapping a day in the
+  // week strip rewinds it so missed documentation can be caught up.
+  const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -520,12 +591,20 @@ export default function MedicationTrackerPage() {
 
   const markDose = (med, slot, statusValue) =>
     withBusy(`${med.id}-${slot.scheduledFor.getTime()}`, async () => {
+      // Backfilled doses record the slot's own time as givenAt, so the
+      // history says when the dose actually happened, not when it was typed.
+      const isBackfill = !sameDay(slot.scheduledFor, new Date()) && slot.scheduledFor < new Date();
+      const payload = {
+        scheduledFor: slot.scheduledFor.toISOString(),
+        status: statusValue,
+        ...(statusValue === 'GIVEN' && isBackfill ? { givenAt: slot.scheduledFor.toISOString() } : {}),
+      };
       let res;
       try {
         res = await fetch(`/api/pets/${petId}/medications/${med.id}/doses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scheduledFor: slot.scheduledFor.toISOString(), status: statusValue }),
+          body: JSON.stringify(payload),
         });
       } catch {
         // Network failure: keep the tap safe in the outbox and show it.
@@ -561,6 +640,22 @@ export default function MedicationTrackerPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scheduledFor: now.toISOString(), status: 'GIVEN' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to log dose');
+      applyDose(med.id, data.dose, data.quantityRemaining);
+    });
+
+  // Historical as-needed dose: anchored to noon of the chosen day so the
+  // record lands on the right date in every timezone view.
+  const logPrnFor = (med, day) =>
+    withBusy(`prn-${med.id}`, async () => {
+      const when = new Date(day);
+      when.setHours(12, 0, 0, 0);
+      const res = await fetch(`/api/pets/${petId}/medications/${med.id}/doses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledFor: when.toISOString(), status: 'GIVEN', givenAt: when.toISOString() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to log dose');
@@ -711,8 +806,17 @@ export default function MedicationTrackerPage() {
           </Card>
         ) : (
           <>
-            <TodayCard meds={meds} busyKeys={busyKeys} readOnly={!canManage} onMark={markDose} onUndo={undoDose} />
-            <WeekStrip meds={meds} />
+            <DayCard
+              meds={meds}
+              day={selectedDay}
+              busyKeys={busyKeys}
+              readOnly={!canManage}
+              onMark={markDose}
+              onUndo={undoDose}
+              onLogPrnFor={logPrnFor}
+              onBackToToday={() => setSelectedDay(startOfDay(new Date()))}
+            />
+            <WeekStrip meds={meds} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
 
             <div className="flex items-center justify-between mb-3 mt-8">
               <h3 className="font-bold text-midnight-900">All medications</h3>
