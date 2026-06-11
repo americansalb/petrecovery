@@ -701,7 +701,7 @@ export default function MedicationTrackerPage() {
   const canManage = access !== 'VIEWER';
 
   return (
-    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-8">
       {/* Delete confirmation */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -725,28 +725,12 @@ export default function MedicationTrackerPage() {
       )}
 
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <Link href="/pets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors mb-4">
-          <ArrowLeft size={16} /> My Pets
-        </Link>
-
-        <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-14 h-14 rounded-2xl bg-midnight-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-              {pet?.primaryPhotoUrl ? (
-                <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
-              ) : (
-                <PawPrint className="w-7 h-7 text-midnight-400" />
-              )}
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-midnight-900">{pet?.name}&apos;s Medications</h1>
-              <p className="text-sm text-midnight-500">
-                {active.length} active{paused.length > 0 && ` · ${paused.length} paused`}
-                {lowCount > 0 && <span className="text-red-600 font-semibold"> · {lowCount} low on supply</span>}
-              </p>
-            </div>
-          </div>
+        {/* Toolbar: the shell above carries identity and tabs */}
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <p className="text-sm text-midnight-500">
+            {active.length} active{paused.length > 0 && ` · ${paused.length} paused`}
+            {lowCount > 0 && <span className="text-red-600 font-semibold"> · {lowCount} low on supply</span>}
+          </p>
           <div className="flex items-center gap-2">
             <a
               href={`/api/pets/${petId}/medications/export`}
@@ -757,11 +741,6 @@ export default function MedicationTrackerPage() {
             >
               <Download size={17} />
             </a>
-            {isOwner && (
-              <Button variant="outline" href={`/pets/${petId}/share`} leftIcon={Share2}>
-                Share
-              </Button>
-            )}
             {!canManage && (
               <Badge variant="default" icon={Eye}>View only</Badge>
             )}
