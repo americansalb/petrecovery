@@ -388,6 +388,11 @@ model PetMedication {
   petId           String
   pet             Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
 
+  // MEDICATION (the serious side) or CARE (walks, brushing, treats:
+  // same engine, lighter heart). String, not enum, so prod's plain
+  // `prisma db push` boot stays painless and new kinds stay cheap.
+  kind            String   @default("MEDICATION")
+
   // What
   name            String
   strength        String?  // "16 mg", "2.5 ml"

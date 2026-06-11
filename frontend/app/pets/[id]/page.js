@@ -1,690 +1,475 @@
 'use client';
 
 /**
- * Pet Detail/Edit Page - Phase 1.3
+ * The Pet Profile - one home per pet
  *
- * Route: /pets/[id]
- * View and edit a pet profile
+ * Everything about this pet, one screen: who they are, whether they're
+ * safe, today's care at a glance, the people who care for them, their
+ * photos, their history. The avatar strip up top jumps between all of
+ * your pets, so the whole family is one tap apart. Editing moved to
+ * /pets/[id]/edit; this page is for living, not form-filling.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Dog, Cat, Bird, Rabbit, PawPrint, Camera, AlertCircle, AlertTriangle, Trash2, Pill } from 'lucide-react';
+import {
+  ArrowLeft, PawPrint, Pencil, Share2, Pill, AlertTriangle, Radar,
+  MapPin, Heart, Users, Plus, Loader2, ShieldCheck, Fingerprint,
+  Tag, Scale, Cake, Camera, History, ChevronRight, Check,
+} from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import ImageUpload from '@/app/components/ImageUpload';
-import { Card, Button, Badge, EmptyState } from '@/components/ui';
+import { Card, Button, Badge, cn } from '@/components/ui';
+import { MedIconChip } from '@/app/components/medications/MedIcon';
+import { slotsWithStatus, sameDay, careEmoji, formatTime } from '@/lib/medications';
 
-const SPECIES_OPTIONS = [
-  { value: 'DOG', label: 'Dog', icon: Dog },
-  { value: 'CAT', label: 'Cat', icon: Cat },
-  { value: 'BIRD', label: 'Bird', icon: Bird },
-  { value: 'RABBIT', label: 'Rabbit', icon: Rabbit },
-  { value: 'OTHER', label: 'Other', icon: PawPrint },
-];
+const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
 
-const SIZE_OPTIONS = [
-  { value: 'TINY', label: 'Tiny', description: 'Under 10 lbs (Chihuahua, Hamster)' },
-  { value: 'SMALL', label: 'Small', description: '10-25 lbs (Beagle, Cat)' },
-  { value: 'MEDIUM', label: 'Medium', description: '25-50 lbs (Border Collie, Cocker Spaniel)' },
-  { value: 'LARGE', label: 'Large', description: '50-90 lbs (Labrador, Golden Retriever)' },
-  { value: 'GIANT', label: 'Giant', description: '90+ lbs (Great Dane, St. Bernard)' },
-];
+function parseJsonArray(value) {
+  try {
+    const arr = JSON.parse(value || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
 
-const SEX_OPTIONS = [
-  { value: 'MALE', label: 'Male' },
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'UNKNOWN', label: 'Unknown' },
-];
+function activeCaseOf(pet) {
+  const c = pet?.cases?.[0];
+  if (!c) return null;
+  if (['REUNITED', 'CLOSED_OTHER', 'RESOLVED'].includes(c.status)) return null;
+  return c;
+}
 
-const PERSONALITY_TRAITS = [
-  'Friendly', 'Shy', 'Energetic', 'Calm', 'Playful',
-  'Anxious', 'Aggressive when scared', 'Good with kids',
-  'Good with other pets', 'Comes when called', 'Microchip trained',
-];
+/* ----------------------------- The pet switcher --------------------------- */
 
-export default function PetDetailPage() {
-  const { data: session, status } = useSession();
+function PetSwitcher({ pets, currentId }) {
+  if (!pets || pets.length < 1) return null;
+  return (
+    <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-1 px-1 mb-5">
+      {pets.map((p) => {
+        const current = p.id === currentId;
+        return (
+          <Link
+            key={p.id}
+            href={`/pets/${p.id}`}
+            className="flex flex-col items-center gap-1 shrink-0 group"
+            aria-current={current ? 'page' : undefined}
+          >
+            <span
+              className={cn(
+                'w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-2xl bg-midnight-100 transition-all',
+                current
+                  ? 'ring-[3px] ring-flash-400 ring-offset-2 ring-offset-midnight-50'
+                  : 'ring-1 ring-midnight-200 opacity-75 group-hover:opacity-100'
+              )}
+            >
+              {p.primaryPhotoUrl ? (
+                <img src={p.primaryPhotoUrl} alt={p.name} className="w-full h-full object-cover" />
+              ) : (
+                SPECIES_EMOJI[p.species] || '🐾'
+              )}
+            </span>
+            <span className={cn('text-[11px] font-semibold', current ? 'text-midnight-900' : 'text-midnight-400')}>
+              {p.name}
+            </span>
+          </Link>
+        );
+      })}
+      <Link href="/pets/new" className="flex flex-col items-center gap-1 shrink-0 group" aria-label="Add a pet">
+        <span className="w-14 h-14 rounded-full border-2 border-dashed border-midnight-300 flex items-center justify-center text-midnight-400 group-hover:border-flash-400 group-hover:text-flash-500 transition-colors">
+          <Plus size={20} />
+        </span>
+        <span className="text-[11px] font-semibold text-midnight-400">Add</span>
+      </Link>
+    </div>
+  );
+}
+
+/* --------------------------------- Page ----------------------------------- */
+
+export default function PetProfilePage() {
+  const { status } = useSession();
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
 
   const [pet, setPet] = useState(null);
+  const [allPets, setAllPets] = useState([]);
+  const [meds, setMeds] = useState([]);
+  const [access, setAccess] = useState('OWNER');
+  const [shares, setShares] = useState(null); // null = not loaded / not owner
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    species: 'DOG',
-    breed: '',
-    age: '',
-    sex: '',
-    isNeutered: false,
-    color: '',
-    size: 'MEDIUM',
-    weight: '',
-    distinctiveMarks: '',
-    microchipId: '',
-    collarInfo: '',
-    personality: [],
-    medicalConditions: '',
-  });
-
-  const [images, setImages] = useState([]);
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login?callbackUrl=/pets/' + petId);
+      router.push(`/login?callbackUrl=/pets/${petId}`);
     }
   }, [status, router, petId]);
 
-  useEffect(() => {
-    if (status === 'authenticated' && petId) {
-      fetchPet();
-    }
-  }, [status, petId]);
-
-  const fetchPet = async () => {
+  const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/pets/${petId}`);
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error('Pet not found');
-        }
-        throw new Error('Failed to fetch pet');
+      const [petRes, medsRes, petsRes] = await Promise.all([
+        fetch(`/api/pets/${petId}`),
+        fetch(`/api/pets/${petId}/medications`),
+        fetch('/api/pets'),
+      ]);
+      const petData = await petRes.json();
+      if (!petRes.ok) throw new Error(petData.error || 'Pet not found');
+      setPet(petData.pet || petData);
+
+      if (medsRes.ok) {
+        const medsData = await medsRes.json();
+        setMeds(medsData.medications || []);
+        setAccess(medsData.access || 'OWNER');
       }
-      const data = await res.json();
-      setPet(data.pet);
-
-      // Populate form
-      setFormData({
-        name: data.pet.name || '',
-        species: data.pet.species || 'DOG',
-        breed: data.pet.breed || '',
-        age: data.pet.age?.toString() || '',
-        sex: data.pet.sex || '',
-        isNeutered: data.pet.isNeutered || false,
-        color: data.pet.color || '',
-        size: data.pet.size || 'MEDIUM',
-        weight: data.pet.weight?.toString() || '',
-        distinctiveMarks: data.pet.distinctiveMarks || '',
-        microchipId: data.pet.microchipId || '',
-        collarInfo: data.pet.collarInfo || '',
-        personality: data.pet.personality || [],
-        medicalConditions: data.pet.medicalConditions || '',
-      });
-
-      // Populate images
-      if (data.pet.photos?.length > 0) {
-        setImages(data.pet.photos.map(url => ({ url, uploaded: true })));
+      if (petsRes.ok) {
+        const petsData = await petsRes.json();
+        setAllPets(petsData.pets || []);
       }
     } catch (err) {
-      console.error('[PETS-EDIT] Fetch error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [petId]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
-    }
-  };
+  useEffect(() => {
+    if (status === 'authenticated' && petId) load();
+  }, [status, petId, load]);
 
-  const handlePersonalityToggle = (trait) => {
-    setFormData(prev => ({
-      ...prev,
-      personality: prev.personality.includes(trait)
-        ? prev.personality.filter(t => t !== trait)
-        : [...prev.personality, trait]
-    }));
-  };
+  // Care team is owner territory; load it quietly and tolerate a 403
+  useEffect(() => {
+    if (status !== 'authenticated' || !petId) return;
+    fetch(`/api/pets/${petId}/shares`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.shares) setShares(data.shares); })
+      .catch(() => {});
+  }, [status, petId]);
 
-  const validate = () => {
-    const newErrors = {};
+  // Today's care, computed from the same engine as the tracker
+  const today = useMemo(() => {
+    const now = new Date();
+    const medItems = meds.filter((m) => m.kind !== 'CARE' && m.isActive);
+    const careItems = meds.filter((m) => m.kind === 'CARE' && m.isActive);
 
-    if (!formData.name.trim()) newErrors.name = 'Pet name is required';
-    if (!formData.species) newErrors.species = 'Species is required';
-    if (!formData.color.trim()) newErrors.color = 'Color is required';
-    if (!formData.size) newErrors.size = 'Size is required';
-
-    if (formData.age && (isNaN(formData.age) || formData.age < 0 || formData.age > 50)) {
-      newErrors.age = 'Please enter a valid age (0-50)';
-    }
-
-    if (formData.weight && (isNaN(formData.weight) || formData.weight < 0)) {
-      newErrors.weight = 'Please enter a valid weight';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitError(null);
-
-    if (!validate()) {
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const photoUrls = images.map(img => img.url);
-
-      const res = await fetch(`/api/pets/${petId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          age: formData.age ? parseInt(formData.age) : null,
-          weight: formData.weight ? parseFloat(formData.weight) : null,
-          photos: photoUrls,
-          primaryPhotoUrl: photoUrls[0] || '',
-        })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update pet profile');
+    let due = 0;
+    let given = 0;
+    let nextSlot = null;
+    for (const med of medItems.filter((m) => m.scheduleType !== 'AS_NEEDED')) {
+      for (const slot of slotsWithStatus(med, med.doses, now)) {
+        due += 1;
+        if (slot.status === 'GIVEN') given += 1;
+        else if (!slot.status && !nextSlot) nextSlot = { med, slot };
       }
-
-      router.push('/pets');
-    } catch (err) {
-      console.error('[PETS-EDIT] Update error:', err);
-      setSubmitError(err.message);
-    } finally {
-      setSubmitting(false);
     }
-  };
 
-  const handleDelete = () => {
-    setDeleteConfirmOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    setDeleteConfirmOpen(false);
-    setDeleting(true);
-    setSubmitError(null);
-
-    try {
-      const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete pet');
+    let careDue = 0;
+    let careDone = 0;
+    for (const care of careItems.filter((c) => c.scheduleType !== 'AS_NEEDED')) {
+      for (const slot of slotsWithStatus(care, care.doses, now)) {
+        careDue += 1;
+        if (slot.status === 'GIVEN') careDone += 1;
       }
-
-      router.push('/pets');
-    } catch (err) {
-      console.error('[PETS-EDIT] Delete error:', err);
-      setSubmitError(err.message);
-      setDeleting(false);
     }
-  };
+    for (const care of careItems.filter((c) => c.scheduleType === 'AS_NEEDED')) {
+      careDone += (care.doses || []).filter(
+        (d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), now)
+      ).length;
+    }
+
+    return { due, given, nextSlot, careDue, careDone, medCount: medItems.length, careCount: careItems.length };
+  }, [meds]);
+
+  const recent = useMemo(() => {
+    const out = [];
+    for (const med of meds) {
+      for (const dose of med.doses || []) {
+        if (dose.deletedAt) continue;
+        out.push({ med, dose, at: new Date(dose.givenAt || dose.scheduledFor) });
+      }
+    }
+    return out.sort((a, b) => b.at - a.at).slice(0, 5);
+  }, [meds]);
 
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
-        <LoadingSpinner text="Loading pet profile..." />
+        <LoadingSpinner text="Loading profile..." />
       </div>
     );
   }
+  if (status === 'unauthenticated') return null;
 
-  if (error) {
+  if (error || !pet) {
     return (
-      <div className="min-h-screen bg-midnight-50 px-4 py-12">
-        <div className="max-w-md mx-auto mt-16">
-          <EmptyState
-            icon={PawPrint}
-            title="Pet Not Found"
-            description={error}
-            actionLabel="Back to My Pets"
-            actionHref="/pets"
-          />
-        </div>
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center px-4">
+        <Card className="max-w-md w-full p-8 text-center">
+          <PawPrint className="w-12 h-12 text-midnight-300 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-midnight-900 mb-2">{error || 'Pet not found'}</h1>
+          <Button href="/pets" variant="primary">Back to My Pets</Button>
+        </Card>
       </div>
     );
   }
 
-  if (status === 'unauthenticated') {
-    return null;
-  }
-
-  const inputClass = "w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors";
-  const inputErrorClass = "w-full px-4 py-3 border-2 border-red-400 bg-red-50 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-400 focus:outline-none transition-colors";
-  const labelClass = "block mb-2 font-medium text-midnight-700";
+  const isOwner = access === 'OWNER';
+  const activeCase = activeCaseOf(pet);
+  const photos = parseJsonArray(pet.photos);
+  const personality = parseJsonArray(pet.personality);
+  const detailLine = [
+    pet.breed || pet.species,
+    pet.color,
+    pet.size && pet.size.charAt(0) + pet.size.slice(1).toLowerCase(),
+    pet.sex && pet.sex.charAt(0) + pet.sex.slice(1).toLowerCase(),
+    pet.age != null && `${pet.age} year${pet.age !== 1 ? 's' : ''} old`,
+  ].filter(Boolean).join(' · ');
 
   return (
-    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-12">
-      {/* Delete Confirmation Dialog */}
-      {deleteConfirmOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-midnight-900 mb-3">
-              Delete Pet Profile?
-            </h3>
-            <p className="text-midnight-600 mb-6">
-              Are you sure you want to delete <strong>{formData.name}</strong>&apos;s profile? This cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteConfirmOpen(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={confirmDelete}
-                className="flex-1"
-              >
-                Yes, Delete
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
+      <div className="max-w-3xl mx-auto">
+        <Link href="/pets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors mb-4">
+          <ArrowLeft size={16} /> My Pets
+        </Link>
 
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href="/pets"
-            className="text-flash-500 hover:text-flash-600 inline-flex items-center gap-2 mb-4 font-medium transition-colors"
-          >
-            <ArrowLeft size={18} />
-            Back to My Pets
-          </Link>
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-midnight-900">
-                Edit {pet?.name || 'Pet'}
-              </h1>
-              <p className="text-midnight-600 mt-2">
-                Update your pet&apos;s profile information
-              </p>
-            </div>
+        <PetSwitcher pets={allPets} currentId={petId} />
+
+        {/* Missing? Nothing else matters until they're home. */}
+        {activeCase && (
+          <div className="rounded-3xl bg-midnight-950 border-2 border-red-500/60 p-5 mb-6">
             <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                variant="outline"
-                href={`/pets/${petId}/medications`}
-                size="lg"
+              <span className="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/40 flex items-center justify-center shrink-0">
+                <AlertTriangle size={22} className="text-red-400" />
+              </span>
+              <div className="flex-1 min-w-[180px]">
+                <p className="font-bold text-white">{pet.name} is missing</p>
+                <p className="text-sm text-midnight-300">
+                  Case {activeCase.caseNumber} is live. The search is on.
+                </p>
+              </div>
+              <Link
+                href={`/mission-control?mission=${activeCase.caseNumber}`}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition text-sm"
               >
-                <Pill size={18} />
-                Medications
-              </Button>
-              {/* Quick Report Button */}
-              {(!pet?.cases?.length || pet.cases[0]?.status === 'RESOLVED' || pet.cases[0]?.status === 'CLOSED_OTHER') && (
-                <Button
-                  variant="danger"
-                  href={`/report/new?petId=${petId}`}
-                  size="lg"
-                >
-                  <AlertTriangle size={18} />
-                  Report Lost
-                </Button>
-              )}
+                <Radar size={16} />
+                Mission Control
+              </Link>
             </div>
           </div>
+        )}
+
+        {/* Identity hero */}
+        <Card padding="none" className="overflow-hidden mb-6">
+          <div className="sm:flex">
+            <div className="sm:w-56 h-56 sm:h-auto bg-midnight-100 flex items-center justify-center shrink-0">
+              {pet.primaryPhotoUrl ? (
+                <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-7xl" aria-hidden="true">{SPECIES_EMOJI[pet.species] || '🐾'}</span>
+              )}
+            </div>
+            <div className="p-5 flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h1 className="text-3xl font-bold text-midnight-900 truncate">{pet.name}</h1>
+                  <p className="text-sm text-midnight-500 mt-1">{detailLine}</p>
+                </div>
+                {!activeCase && (
+                  <Badge variant="success" icon={Heart}>Home</Badge>
+                )}
+              </div>
+
+              {personality.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {personality.slice(0, 6).map((trait) => (
+                    <span key={trait} className="px-2.5 py-1 rounded-full bg-flash-50 border border-flash-200 text-flash-800 text-xs font-semibold">
+                      {trait}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-4">
+                {isOwner && (
+                  <Button variant="outline" size="sm" href={`/pets/${petId}/edit`} leftIcon={Pencil}>
+                    Edit
+                  </Button>
+                )}
+                {isOwner && (
+                  <Button variant="outline" size="sm" href={`/pets/${petId}/share`} leftIcon={Share2}>
+                    Share
+                  </Button>
+                )}
+                {!activeCase && isOwner && (
+                  <Button variant="danger" size="sm" href={`/report/new?petId=${petId}`} leftIcon={AlertTriangle}>
+                    Report lost
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Today's care, at a glance */}
+        <Link href={`/pets/${petId}/medications`} className="block group mb-6">
+          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <span className="w-12 h-12 rounded-2xl bg-flash-100 flex items-center justify-center shrink-0">
+                  <Pill size={22} className="text-flash-700" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="font-bold text-midnight-900">Today&apos;s care</h2>
+                  <p className="text-sm text-midnight-500 truncate">
+                    {today.medCount === 0 && today.careCount === 0
+                      ? 'No medications or routines yet. Set them up once, one tap forever.'
+                      : [
+                          today.due > 0 && `${today.given}/${today.due} doses given`,
+                          today.careDue > 0 && `${today.careDone}/${today.careDue} routines done`,
+                          today.careDue === 0 && today.careDone > 0 && `${today.careDone} happy ${today.careDone === 1 ? 'moment' : 'moments'} logged`,
+                          today.nextSlot && `next: ${today.nextSlot.med.name} at ${formatTime(today.nextSlot.slot.time)}`,
+                        ].filter(Boolean).join(' · ') || 'All clear today'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                {today.due > 0 && (
+                  <span className={cn(
+                    'px-2.5 py-1 rounded-full text-xs font-bold',
+                    today.given >= today.due ? 'bg-emerald-100 text-emerald-700' : 'bg-flash-100 text-flash-800'
+                  )}>
+                    {today.given >= today.due ? <span className="inline-flex items-center gap-1"><Check size={12} strokeWidth={3} /> Done</span> : `${today.due - today.given} to go`}
+                  </span>
+                )}
+                <ChevronRight size={18} className="text-midnight-400 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            </div>
+          </Card>
+        </Link>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Identification */}
+          <Card padding="lg">
+            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-4">
+              <Fingerprint size={18} className="text-midnight-400" /> Identification
+            </h2>
+            <dl className="space-y-3 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-midnight-500 flex items-center gap-1.5"><ShieldCheck size={14} /> Microchip</dt>
+                <dd className={cn('font-semibold text-right', pet.microchipId ? 'text-midnight-900 font-mono text-xs' : 'text-midnight-400')}>
+                  {pet.microchipId || 'Not on file'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-midnight-500 flex items-center gap-1.5"><Tag size={14} /> Collar</dt>
+                <dd className="font-semibold text-midnight-900 text-right">{pet.collarInfo || <span className="text-midnight-400 font-normal">Not noted</span>}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-midnight-500 flex items-center gap-1.5"><Scale size={14} /> Weight</dt>
+                <dd className="font-semibold text-midnight-900">{pet.weight ? `${pet.weight} lbs` : <span className="text-midnight-400 font-normal">Not noted</span>}</dd>
+              </div>
+              {pet.distinctiveMarks && (
+                <div>
+                  <dt className="text-midnight-500 mb-1">Distinctive marks</dt>
+                  <dd className="text-midnight-800">{pet.distinctiveMarks}</dd>
+                </div>
+              )}
+              {pet.medicalConditions && (
+                <div>
+                  <dt className="text-midnight-500 mb-1">Medical notes</dt>
+                  <dd className="text-midnight-800">{pet.medicalConditions}</dd>
+                </div>
+              )}
+            </dl>
+          </Card>
+
+          {/* Care team */}
+          <Card padding="lg">
+            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-4">
+              <Users size={18} className="text-midnight-400" /> Care team
+            </h2>
+            {shares === null ? (
+              <p className="text-sm text-midnight-500">
+                {isOwner ? 'Loading...' : `You help care for ${pet.name}.`}
+              </p>
+            ) : shares.length === 0 ? (
+              <p className="text-sm text-midnight-500 mb-4">
+                Just you so far. Share {pet.name} with family and sitters, or send a view link anyone can open.
+              </p>
+            ) : (
+              <ul className="space-y-2.5 mb-4">
+                {shares.slice(0, 5).map((share) => {
+                  const name = [share.user?.firstName, share.user?.lastName].filter(Boolean).join(' ') || share.email;
+                  return (
+                    <li key={share.id} className="flex items-center gap-2.5">
+                      <span className="w-8 h-8 rounded-full bg-flash-100 text-flash-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        {name.slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="flex-1 min-w-0 text-sm font-semibold text-midnight-800 truncate">{name}</span>
+                      <Badge size="sm" variant={share.status === 'ACTIVE' ? 'success' : 'warning'}>
+                        {share.status === 'ACTIVE' ? (share.role === 'CAREGIVER' ? 'Caregiver' : 'Viewer') : share.status === 'REQUESTED' ? 'Requested' : 'Invited'}
+                      </Badge>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {isOwner && (
+              <Button variant="outline" size="sm" href={`/pets/${petId}/share`} fullWidth>
+                Manage sharing
+              </Button>
+            )}
+          </Card>
         </div>
 
-        {/* Case History */}
-        {pet?.cases?.length > 0 && (
-          <Card variant="primary" className="p-6 mb-6">
-            <h3 className="text-sm font-semibold text-midnight-900 mb-3 uppercase tracking-wide">
-              Case History
-            </h3>
-            <div className="space-y-2">
-              {pet.cases.map(c => (
-                <Link
-                  key={c.id}
-                  href={`/cases/${c.caseNumber}`}
-                  className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-midnight-50 transition-colors"
-                >
-                  <span className="text-flash-600 font-medium">{c.caseNumber}</span>
-                  <Badge
-                    variant={
-                      c.status === 'RESOLVED' ? 'success' :
-                      c.status === 'ACTIVE_SEARCH' ? 'primary' :
-                      'warning'
-                    }
-                  >
-                    {c.status.replace('_', ' ')}
-                  </Badge>
-                </Link>
+        {/* Photos */}
+        {(photos.length > 0 || pet.primaryPhotoUrl) && (
+          <Card padding="lg" className="mb-6">
+            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-4">
+              <Camera size={18} className="text-midnight-400" /> Photos
+            </h2>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {[...new Set([pet.primaryPhotoUrl, ...photos].filter(Boolean))].slice(0, 10).map((url) => (
+                <div key={url} className="aspect-square rounded-xl overflow-hidden bg-midnight-100">
+                  <img src={url} alt={pet.name} className="w-full h-full object-cover" loading="lazy" />
+                </div>
               ))}
             </div>
           </Card>
         )}
 
-        <form onSubmit={handleSubmit}>
-          {/* Basic Info Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Basic Information
+        {/* Recent care history */}
+        {recent.length > 0 && (
+          <Card padding="lg" className="mb-6">
+            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-3">
+              <History size={18} className="text-midnight-400" /> Recent care
             </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Name */}
-              <div>
-                <label className={labelClass}>Pet Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="e.g., Max"
-                  className={errors.name ? inputErrorClass : inputClass}
-                />
-                {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
-              </div>
-
-              {/* Species */}
-              <div>
-                <label className={labelClass}>Species *</label>
-                <select
-                  name="species"
-                  value={formData.species}
-                  onChange={handleChange}
-                  className={errors.species ? inputErrorClass : inputClass}
-                >
-                  {SPECIES_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Breed */}
-              <div>
-                <label className={labelClass}>Breed</label>
-                <input
-                  type="text"
-                  name="breed"
-                  value={formData.breed}
-                  onChange={handleChange}
-                  placeholder="e.g., Golden Retriever"
-                  className={inputClass}
-                />
-              </div>
-
-              {/* Age */}
-              <div>
-                <label className={labelClass}>Age (years)</label>
-                <input
-                  type="number"
-                  name="age"
-                  value={formData.age}
-                  onChange={handleChange}
-                  min="0"
-                  max="50"
-                  placeholder="e.g., 3"
-                  className={errors.age ? inputErrorClass : inputClass}
-                />
-                {errors.age && <p className="text-red-600 text-sm mt-1">{errors.age}</p>}
-              </div>
-
-              {/* Sex */}
-              <div>
-                <label className={labelClass}>Sex</label>
-                <select
-                  name="sex"
-                  value={formData.sex}
-                  onChange={handleChange}
-                  className={inputClass}
-                >
-                  <option value="">Select...</option>
-                  {SEX_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Neutered/Spayed */}
-              <div className="flex items-center pt-7">
-                <input
-                  type="checkbox"
-                  name="isNeutered"
-                  checked={formData.isNeutered}
-                  onChange={handleChange}
-                  id="isNeutered"
-                  className="w-5 h-5 text-flash-500 border-2 border-midnight-300 rounded focus:ring-2 focus:ring-flash-400"
-                />
-                <label htmlFor="isNeutered" className="ml-2 text-midnight-700">
-                  Neutered/Spayed
-                </label>
-              </div>
-            </div>
+            <ul className="divide-y divide-midnight-100">
+              {recent.map(({ med, dose, at }) => (
+                <li key={dose.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+                  {med.kind === 'CARE' ? (
+                    <span className="w-8 h-8 rounded-lg bg-midnight-50 border border-midnight-100 flex items-center justify-center text-lg shrink-0" aria-hidden="true">
+                      {careEmoji(med.name)}
+                    </span>
+                  ) : (
+                    <MedIconChip med={med} size="sm" />
+                  )}
+                  <span className="flex-1 min-w-0 text-sm font-semibold text-midnight-800 truncate">{med.name}</span>
+                  <Badge variant={dose.status === 'GIVEN' ? 'success' : 'default'} size="sm">
+                    {dose.status === 'GIVEN' ? (med.kind === 'CARE' ? 'Done' : 'Given') : 'Skipped'}
+                  </Badge>
+                  <span className="text-xs text-midnight-500 whitespace-nowrap">
+                    {sameDay(at, new Date())
+                      ? at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                      : at.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Card>
-
-          {/* Physical Description Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Physical Description
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Color */}
-              <div>
-                <label className={labelClass}>Color/Markings *</label>
-                <input
-                  type="text"
-                  name="color"
-                  value={formData.color}
-                  onChange={handleChange}
-                  placeholder="e.g., Golden, Black and White"
-                  className={errors.color ? inputErrorClass : inputClass}
-                />
-                {errors.color && <p className="text-red-600 text-sm mt-1">{errors.color}</p>}
-              </div>
-
-              {/* Size */}
-              <div>
-                <label className={labelClass}>Size *</label>
-                <select
-                  name="size"
-                  value={formData.size}
-                  onChange={handleChange}
-                  className={errors.size ? inputErrorClass : inputClass}
-                >
-                  {SIZE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label} - {opt.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Weight */}
-              <div>
-                <label className={labelClass}>Weight (lbs)</label>
-                <input
-                  type="number"
-                  name="weight"
-                  value={formData.weight}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.1"
-                  placeholder="e.g., 25"
-                  className={errors.weight ? inputErrorClass : inputClass}
-                />
-                {errors.weight && <p className="text-red-600 text-sm mt-1">{errors.weight}</p>}
-              </div>
-
-              {/* Distinctive Marks */}
-              <div className="md:col-span-2">
-                <label className={labelClass}>Distinctive Marks</label>
-                <textarea
-                  name="distinctiveMarks"
-                  value={formData.distinctiveMarks}
-                  onChange={handleChange}
-                  placeholder="e.g., White spot on chest, scar on left ear, cropped tail..."
-                  rows={2}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Identification Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Identification
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Microchip */}
-              <div>
-                <label className={labelClass}>Microchip ID</label>
-                <input
-                  type="text"
-                  name="microchipId"
-                  value={formData.microchipId}
-                  onChange={handleChange}
-                  placeholder="e.g., 900123456789012"
-                  className={inputClass}
-                />
-                <p className="text-midnight-600 text-xs mt-1">
-                  Having a microchip greatly increases chances of reunion
-                </p>
-              </div>
-
-              {/* Collar Info */}
-              <div>
-                <label className={labelClass}>Collar/Tag Description</label>
-                <input
-                  type="text"
-                  name="collarInfo"
-                  value={formData.collarInfo}
-                  onChange={handleChange}
-                  placeholder="e.g., Red collar with bone-shaped tag"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Behavior & Health Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Behavior & Health
-            </h2>
-
-            {/* Personality Traits */}
-            <div className="mb-6">
-              <label className={labelClass}>Personality Traits</label>
-              <p className="text-midnight-600 text-sm mb-3">
-                Select all that apply - this helps rescuers approach your pet safely
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {PERSONALITY_TRAITS.map(trait => (
-                  <button
-                    key={trait}
-                    type="button"
-                    onClick={() => handlePersonalityToggle(trait)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      formData.personality.includes(trait)
-                        ? 'bg-flash-100 border-2 border-flash-400 text-flash-700'
-                        : 'bg-white border border-midnight-200 text-midnight-600 hover:border-midnight-300'
-                    }`}
-                  >
-                    {trait}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Medical Conditions */}
-            <div>
-              <label className={labelClass}>Medical Conditions</label>
-              <textarea
-                name="medicalConditions"
-                value={formData.medicalConditions}
-                onChange={handleChange}
-                placeholder="e.g., Diabetes (needs insulin), arthritis, allergies to chicken..."
-                rows={2}
-                className={inputClass}
-              />
-              <p className="text-midnight-600 text-xs mt-1">
-                Important for rescuers to know about medications or special needs
-              </p>
-            </div>
-          </Card>
-
-          {/* Photos Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-flash-500" />
-              Photos
-            </h2>
-
-            <ImageUpload
-              images={images}
-              onUpload={(newImages) => setImages(prev => [...prev, ...newImages])}
-              onRemove={(index) => setImages(prev => prev.filter((_, i) => i !== index))}
-              maxImages={5}
-              context="pet"
-              label="Pet Photos"
-              helpText="Upload clear photos of your pet. The first photo will be the primary photo."
-            />
-          </Card>
-
-          {/* Submit Error */}
-          {submitError && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <span>{submitError}</span>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleDelete}
-              loading={deleting}
-              className="border-red-300 text-red-600 hover:bg-red-50"
-            >
-              <Trash2 size={18} />
-              {deleting ? 'Deleting...' : 'Delete Pet'}
-            </Button>
-
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                href="/pets"
-                size="lg"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                loading={submitting}
-              >
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </form>
+        )}
       </div>
     </div>
   );

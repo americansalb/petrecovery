@@ -24,6 +24,7 @@ import { MedIconChip } from '@/app/components/medications/MedIcon';
 import {
   medColor, formatSchedule, formatTime, timeOfDayBucket, isLowSupply,
   slotsWithStatus, adherenceForDay, startOfDay, sameDay,
+  CARE_ACTIVITIES, careEmoji,
 } from '@/lib/medications';
 
 const BUCKET_ICONS = { Morning: Sun, Afternoon: Sunset, Evening: Moon };
@@ -370,6 +371,311 @@ function WeekStrip({ meds, selectedDay, onSelectDay }) {
   );
 }
 
+/* ------------------------------ The good stuff ----------------------------
+ * Care routines: walks, brushing, treats. Same engine as medications,
+ * none of the gravity. Big emoji, one tap, a little joy. */
+
+function CareCard({ careItems, day, busyKeys, readOnly, onMark, onUndo, onLogPrn, onLogPrnFor, onAdd, canManage }) {
+  const isToday = sameDay(day, new Date());
+  const active = careItems.filter((c) => c.isActive);
+
+  const scheduled = [];
+  for (const care of active.filter((c) => c.scheduleType !== 'AS_NEEDED')) {
+    for (const slot of slotsWithStatus(care, care.doses, day)) {
+      scheduled.push({ care, slot });
+    }
+  }
+  scheduled.sort((a, b) => a.slot.time.localeCompare(b.slot.time));
+  const whenever = active.filter((c) => c.scheduleType === 'AS_NEEDED');
+
+  if (active.length === 0) {
+    if (readOnly) return null;
+    return (
+      <Card padding="lg" className="mb-6 border-dashed">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl" aria-hidden="true">🎾</span>
+            <div>
+              <h3 className="font-bold text-midnight-900">Track the happy stuff too</h3>
+              <p className="text-sm text-midnight-500">Walks, brushing, treats, playtime. One tap each.</p>
+            </div>
+          </div>
+          {canManage && (
+            <Button variant="outline" onClick={onAdd} leftIcon={Plus}>Add care routine</Button>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card padding="lg" className="mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="flex items-center gap-2 font-bold text-midnight-900">
+          <span className="text-lg" aria-hidden="true">🎾</span> The good stuff
+        </h3>
+        {canManage && (
+          <button
+            onClick={onAdd}
+            className="inline-flex items-center gap-1 text-xs font-bold text-midnight-500 hover:text-midnight-900 px-2.5 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
+          >
+            <Plus size={14} /> Add
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2.5">
+        {scheduled.map(({ care, slot }) => {
+          const done = slot.status === 'GIVEN';
+          const busy = busyKeys.has(`${care.id}-${slot.scheduledFor.getTime()}`);
+          return (
+            <button
+              key={`${care.id}-${slot.time}`}
+              onClick={() => {
+                if (readOnly || busy) return;
+                if (done) onUndo(care, slot);
+                else onMark(care, slot, 'GIVEN');
+              }}
+              disabled={readOnly || busy}
+              title={done ? 'Tap to undo' : `Mark ${care.name} done`}
+              className={cn(
+                'flex items-center gap-2.5 rounded-2xl border-2 px-3.5 py-2.5 transition-all active:scale-95',
+                done
+                  ? 'bg-emerald-50 border-emerald-300'
+                  : 'bg-white border-midnight-200 hover:border-flash-400'
+              )}
+            >
+              <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+              <span className="text-left">
+                <span className={cn('block text-sm font-bold', done ? 'text-emerald-700' : 'text-midnight-900')}>
+                  {care.name}
+                </span>
+                <span className={cn('block text-[11px]', done ? 'text-emerald-600' : 'text-midnight-500')}>
+                  {busy ? '...' : done ? 'Done!' : formatTime(slot.time)}
+                </span>
+              </span>
+              {done && <Check size={16} strokeWidth={3} className="text-emerald-500" />}
+            </button>
+          );
+        })}
+
+        {whenever.map((care) => {
+          const count = (care.doses || []).filter(
+            (d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), day)
+          ).length;
+          const busy = busyKeys.has(`prn-${care.id}`);
+          return (
+            <button
+              key={care.id}
+              onClick={() => {
+                if (readOnly || busy) return;
+                if (isToday) onLogPrn(care);
+                else onLogPrnFor(care, day);
+              }}
+              disabled={readOnly || busy}
+              title={`Log ${care.name}`}
+              className={cn(
+                'flex items-center gap-2.5 rounded-2xl border-2 px-3.5 py-2.5 transition-all active:scale-95',
+                count > 0 ? 'bg-flash-50 border-flash-300' : 'bg-white border-midnight-200 hover:border-flash-400'
+              )}
+            >
+              <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+              <span className="text-left">
+                <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
+                <span className="block text-[11px] text-midnight-500">
+                  {busy ? '...' : count > 0 ? `x${count} ${isToday ? 'today' : 'this day'}` : 'Tap when it happens'}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {!isToday && !readOnly && (
+        <p className="text-[11px] text-midnight-400 mt-3">
+          Logging for {day.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function AddCareModal({ petId, onClose, onSaved }) {
+  const [picked, setPicked] = useState(null); // a CARE_ACTIVITIES entry or {custom:true}
+  const [customName, setCustomName] = useState('');
+  const [freq, setFreq] = useState('DAILY'); // DAILY | SPECIFIC_DAYS | AS_NEEDED
+  const [days, setDays] = useState([1, 2, 3, 4, 5]);
+  const [times, setTimes] = useState(['08:00']);
+  const [newTime, setNewTime] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const pick = (activity) => {
+    setPicked(activity);
+    if (activity.defaultTimes?.length) {
+      setTimes(activity.defaultTimes);
+      setFreq('DAILY');
+    } else if (activity.defaultTimes && activity.defaultTimes.length === 0) {
+      setFreq('AS_NEEDED');
+    }
+  };
+
+  const name = picked?.custom ? customName.trim() : picked?.label;
+  const ready = !!name && (freq === 'AS_NEEDED' || times.length > 0) && (freq !== 'SPECIFIC_DAYS' || days.length > 0);
+
+  const save = async () => {
+    if (!ready || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/pets/${petId}/medications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'CARE',
+          name,
+          color: picked?.color || 'emerald',
+          scheduleType: freq,
+          timesOfDay: freq === 'AS_NEEDED' ? [] : times,
+          daysOfWeek: freq === 'SPECIFIC_DAYS' ? days : null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not save');
+      onSaved(data.medication);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <Card className="relative w-full max-w-md p-6 rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} aria-label="Close" className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600">
+          <X size={20} />
+        </button>
+        <h3 className="text-xl font-bold text-midnight-900 mb-1">Add a care routine</h3>
+        <p className="text-sm text-midnight-500 mb-4">The happy stuff. No prescriptions required.</p>
+
+        {/* Pick the activity */}
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {CARE_ACTIVITIES.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => pick(a)}
+              className={cn(
+                'flex flex-col items-center gap-1 rounded-2xl border-2 py-3 transition-all',
+                picked?.id === a.id ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-300'
+              )}
+            >
+              <span className="text-2xl" aria-hidden="true">{a.emoji}</span>
+              <span className="text-[11px] font-semibold text-midnight-700">{a.label}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => setPicked({ custom: true })}
+            className={cn(
+              'flex flex-col items-center gap-1 rounded-2xl border-2 py-3 transition-all',
+              picked?.custom ? 'border-flash-400 bg-flash-50' : 'border-dashed border-midnight-300 hover:border-midnight-400'
+            )}
+          >
+            <span className="text-2xl" aria-hidden="true">🐾</span>
+            <span className="text-[11px] font-semibold text-midnight-700">Custom</span>
+          </button>
+        </div>
+
+        {picked?.custom && (
+          <input
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            placeholder="Name it (belly rubs, garden patrol...)"
+            className="w-full mb-4 rounded-xl border border-midnight-300 px-3.5 py-2.5 text-sm text-midnight-900 placeholder:text-midnight-400 focus:outline-none focus:ring-2 focus:ring-flash-400"
+          />
+        )}
+
+        {picked && (
+          <>
+            {/* How often */}
+            <div className="flex gap-1.5 mb-3">
+              {[
+                { id: 'DAILY', label: 'Every day' },
+                { id: 'SPECIFIC_DAYS', label: 'Some days' },
+                { id: 'AS_NEEDED', label: 'Whenever' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setFreq(f.id)}
+                  className={cn(
+                    'flex-1 py-2 rounded-xl border-2 text-xs font-bold transition',
+                    freq === f.id ? 'border-flash-400 bg-flash-50 text-midnight-900' : 'border-midnight-200 text-midnight-500'
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {freq === 'SPECIFIC_DAYS' && (
+              <div className="flex gap-1.5 mb-3 justify-center">
+                {DAY_LETTERS.map((letter, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setDays((prev) => (prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i]))}
+                    aria-label={`Toggle day ${i}`}
+                    className={cn(
+                      'w-9 h-9 rounded-full border-2 text-xs font-bold transition',
+                      days.includes(i) ? 'border-flash-400 bg-flash-400 text-midnight-900' : 'border-midnight-200 text-midnight-400'
+                    )}
+                  >
+                    {letter}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {freq !== 'AS_NEEDED' && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {times.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTimes((prev) => prev.filter((x) => x !== t))}
+                    title="Remove"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-midnight-100 text-midnight-800 text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition"
+                  >
+                    {formatTime(t)} <X size={12} />
+                  </button>
+                ))}
+                <input
+                  type="time"
+                  value={newTime}
+                  onChange={(e) => {
+                    setNewTime('');
+                    const v = e.target.value;
+                    if (v) setTimes((prev) => [...new Set([...prev, v])].sort());
+                  }}
+                  aria-label="Add a time"
+                  className="rounded-xl border border-midnight-300 px-2 py-1.5 text-sm text-midnight-700"
+                />
+              </div>
+            )}
+
+            {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+
+            <Button variant="primary" fullWidth loading={saving} disabled={!ready} onClick={save}>
+              Add {name || 'routine'}
+            </Button>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 /* ----------------------------- Medication card ---------------------------- */
 
 function MedCard({ med, petId, busy, canManage, onLogPrn, onTogglePause, onDelete }) {
@@ -380,7 +686,13 @@ function MedCard({ med, petId, busy, canManage, onLogPrn, onTogglePause, onDelet
     <Card padding="none" className={cn('border-l-4 overflow-hidden', colors.accent, !med.isActive && 'opacity-70')}>
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <MedIconChip med={med} size="lg" />
+          {med.kind === 'CARE' ? (
+            <span className="w-12 h-12 rounded-2xl bg-midnight-50 border border-midnight-100 flex items-center justify-center text-2xl flex-shrink-0" aria-hidden="true">
+              {careEmoji(med.name)}
+            </span>
+          ) : (
+            <MedIconChip med={med} size="lg" />
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="font-bold text-midnight-900 truncate">{med.name}</h4>
@@ -406,7 +718,7 @@ function MedCard({ med, petId, busy, canManage, onLogPrn, onTogglePause, onDelet
 
       {canManage && (
       <div className="flex items-center gap-1 px-3 py-2 border-t border-midnight-100 bg-midnight-50/50">
-        {med.scheduleType === 'AS_NEEDED' && med.isActive && (
+        {med.scheduleType === 'AS_NEEDED' && med.isActive && med.kind !== 'CARE' && (
           <button
             onClick={() => onLogPrn(med)}
             disabled={busy}
@@ -417,12 +729,14 @@ function MedCard({ med, petId, busy, canManage, onLogPrn, onTogglePause, onDelet
           </button>
         )}
         <div className="flex-1" />
-        <Link
-          href={`/pets/${petId}/medications/new?edit=${med.id}`}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-600 hover:text-midnight-900 px-2.5 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
-        >
-          <Pencil size={13} /> Edit
-        </Link>
+        {med.kind !== 'CARE' && (
+          <Link
+            href={`/pets/${petId}/medications/new?edit=${med.id}`}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-600 hover:text-midnight-900 px-2.5 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
+          >
+            <Pencil size={13} /> Edit
+          </Link>
+        )}
         <button
           onClick={() => onTogglePause(med)}
           className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-600 hover:text-midnight-900 px-2.5 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
@@ -469,7 +783,7 @@ function ActivityFeed({ meds }) {
               {dose.notes && <p className="text-xs text-midnight-500 truncate">{dose.notes}</p>}
             </div>
             <Badge variant={dose.status === 'GIVEN' ? 'success' : 'default'} size="sm">
-              {dose.status === 'GIVEN' ? 'Given' : 'Skipped'}
+              {dose.status === 'GIVEN' ? (med.kind === 'CARE' ? 'Done' : 'Given') : 'Skipped'}
             </Badge>
             <span className="text-xs text-midnight-500 whitespace-nowrap">{formatWhen(at)}</span>
           </li>
@@ -499,6 +813,7 @@ export default function MedicationTrackerPage() {
   // Which day the checklist shows. Today by default; tapping a day in the
   // week strip rewinds it so missed documentation can be caught up.
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
+  const [showAddCare, setShowAddCare] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -691,14 +1006,24 @@ export default function MedicationTrackerPage() {
   }
   if (status === 'unauthenticated') return null;
 
-  const active = meds.filter((m) => m.isActive);
-  const paused = meds.filter((m) => !m.isActive);
+  const medItems = meds.filter((m) => m.kind !== 'CARE');
+  const careItems = meds.filter((m) => m.kind === 'CARE');
+  const active = medItems.filter((m) => m.isActive);
+  const paused = medItems.filter((m) => !m.isActive);
   const lowCount = active.filter(isLowSupply).length;
   const isOwner = access === 'OWNER';
   const canManage = access !== 'VIEWER';
 
   return (
     <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
+      {showAddCare && (
+        <AddCareModal
+          petId={petId}
+          onClose={() => setShowAddCare(false)}
+          onSaved={(med) => setMeds((prev) => [...prev, med])}
+        />
+      )}
+
       {/* Delete confirmation */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -795,19 +1120,35 @@ export default function MedicationTrackerPage() {
         )}
 
         {meds.length === 0 ? (
-          <Card padding="xl">
-            <EmptyState
-              icon={Sparkles}
-              iconColor="amber"
-              title={`Keep ${pet?.name || 'your pet'} on track`}
-              description="Add their medications once, then check off doses with one tap. We'll watch the schedule, the streak, and warn you before refills run out."
-              action={canManage ? { href: `/pets/${petId}/medications/new`, label: 'Add first medication', icon: Plus } : undefined}
-            />
-          </Card>
+          <>
+            <Card padding="xl">
+              <EmptyState
+                icon={Sparkles}
+                iconColor="amber"
+                title={`Keep ${pet?.name || 'your pet'} on track`}
+                description="Add their medications once, then check off doses with one tap. We'll watch the schedule, the streak, and warn you before refills run out."
+                action={canManage ? { href: `/pets/${petId}/medications/new`, label: 'Add first medication', icon: Plus } : undefined}
+              />
+            </Card>
+            <div className="mt-6">
+              <CareCard
+                careItems={[]}
+                day={selectedDay}
+                busyKeys={busyKeys}
+                readOnly={!canManage}
+                onMark={markDose}
+                onUndo={undoDose}
+                onLogPrn={logPrn}
+                onLogPrnFor={logPrnFor}
+                onAdd={() => setShowAddCare(true)}
+                canManage={canManage}
+              />
+            </div>
+          </>
         ) : (
           <>
             <DayCard
-              meds={meds}
+              meds={medItems}
               day={selectedDay}
               busyKeys={busyKeys}
               readOnly={!canManage}
@@ -816,7 +1157,19 @@ export default function MedicationTrackerPage() {
               onLogPrnFor={logPrnFor}
               onBackToToday={() => setSelectedDay(startOfDay(new Date()))}
             />
-            <WeekStrip meds={meds} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+            <CareCard
+              careItems={careItems}
+              day={selectedDay}
+              busyKeys={busyKeys}
+              readOnly={!canManage}
+              onMark={markDose}
+              onUndo={undoDose}
+              onLogPrn={logPrn}
+              onLogPrnFor={logPrnFor}
+              onAdd={() => setShowAddCare(true)}
+              canManage={canManage}
+            />
+            <WeekStrip meds={medItems} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
 
             <div className="flex items-center justify-between mb-3 mt-8">
               <h3 className="font-bold text-midnight-900">All medications</h3>
@@ -846,6 +1199,26 @@ export default function MedicationTrackerPage() {
                       med={med}
                       petId={petId}
                       busy={false}
+                      canManage={canManage}
+                      onLogPrn={logPrn}
+                      onTogglePause={togglePause}
+                      onDelete={setConfirmDelete}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {careItems.length > 0 && (
+              <>
+                <h3 className="font-bold text-midnight-500 text-sm uppercase tracking-wide mb-3">Care routines</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {careItems.map((care) => (
+                    <MedCard
+                      key={care.id}
+                      med={care}
+                      petId={petId}
+                      busy={busyKeys.has(`prn-${care.id}`)}
                       canManage={canManage}
                       onLogPrn={logPrn}
                       onTogglePause={togglePause}

@@ -76,8 +76,8 @@ function Hero({ metrics }) {
           d={SEARCH_PATH_D}
           fill="none"
           stroke="#facc15"
-          strokeOpacity="0.28"
-          strokeWidth="3"
+          strokeOpacity="0.45"
+          strokeWidth="3.5"
           strokeDasharray="10 16"
           strokeLinecap="round"
           style={{ animation: 'trail-march 2.4s linear infinite' }}
@@ -85,7 +85,7 @@ function Hero({ metrics }) {
         <circle r="20" fill="#34d399" opacity="0.14">
           <animateMotion dur="18s" repeatCount="indefinite" path={SEARCH_PATH_D} />
         </circle>
-        <circle r="5.5" fill="#34d399" opacity="0.9">
+        <circle r="6" fill="#34d399">
           <animateMotion dur="18s" repeatCount="indefinite" path={SEARCH_PATH_D} />
         </circle>
       </svg>
@@ -112,7 +112,7 @@ function Hero({ metrics }) {
         </div>
 
         {metrics?.open_cases > 0 && (
-          <div className="inline-flex items-center gap-2 bg-red-500/15 border border-red-400/30 text-red-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-6">
+          <div className="flex w-fit mx-auto items-center gap-2 bg-red-500/15 border border-red-400/30 text-red-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-6">
             <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse-soft" />
             {metrics.open_cases} pet{metrics.open_cases !== 1 ? 's' : ''} waiting to come home right now
           </div>
