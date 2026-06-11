@@ -357,12 +357,20 @@ function LostAndFoundContent() {
               </p>
             </div>
           </div>
-          <Link
-            href="/report/found"
-            className="px-5 py-3 bg-white hover:bg-midnight-50 text-midnight-900 font-bold rounded-2xl transition"
-          >
-            Report a found pet
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/report/found"
+              className="px-5 py-3 bg-white hover:bg-midnight-50 text-midnight-900 font-bold rounded-2xl transition"
+            >
+              Report a found pet
+            </Link>
+            <Link
+              href="/shelters"
+              className="px-5 py-3 bg-midnight-800 hover:bg-midnight-700 text-white font-semibold rounded-2xl border border-midnight-700 transition"
+            >
+              Shelters near you
+            </Link>
+          </div>
         </div>
       </div>
     </div>
