@@ -214,7 +214,7 @@ export default function PetProfilePage() {
                 <span className="text-7xl" aria-hidden="true">{SPECIES_EMOJI[pet.species] || '🐾'}</span>
               )}
             </div>
-            <div className="p-5 flex-1 min-w-0">
+            <div className="p-5 flex-1 min-w-0 flex flex-col justify-center">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h1 className="text-3xl font-bold text-midnight-900 truncate">{pet.name}</h1>
