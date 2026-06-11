@@ -1,13 +1,16 @@
 'use client';
 
 /**
- * Lost & Found - the one browse surface
+ * Lost & Found - the corkboard
  *
- * Replaces the split /missions and /database pages. One search box,
- * species chips, three honest tabs (Lost now / Found pets / Reunited),
- * list or map. Reunions are first-class: social proof that the whole
- * thing works. Fully public; contact info lives on the case page with
- * one consistent policy.
+ * Design language: the lost-pet flyer, made digital. Every case is a
+ * flyer pinned a little crooked to the board: full-bleed photo, a
+ * rubber-stamped status, the name in poster capitals, and tear-off
+ * tabs carrying the case number. Above it all, a search beacon sweeps
+ * the night sky. Urgency you can feel; reunions stamped HOME in green.
+ *
+ * Same machinery as before: one search box, species chips, three tabs
+ * (Lost now / Found pets / Reunited), list or map, shareable URLs.
  */
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -15,8 +18,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
-  Search, MapPin, Clock, Eye, List, Map as MapIcon,
-  Loader2, PawPrint, Megaphone, HeartHandshake, ChevronLeft, ChevronRight,
+  Search, MapPin, List, Map as MapIcon,
+  Loader2, PawPrint, Megaphone, HeartHandshake, ChevronLeft, ChevronRight, Phone,
 } from 'lucide-react';
 
 const BrowseMap = dynamic(() => import('./BrowseMap'), {
@@ -42,19 +45,20 @@ const SPECIES = [
   { id: 'OTHER', label: 'Other' },
 ];
 
-function timeBadge(c, tab) {
+function stampText(c, tab) {
   if (tab === 'reunited') {
     if (c.lastSeenAt && c.resolvedAt) {
       const days = Math.max(1, Math.round((new Date(c.resolvedAt) - new Date(c.lastSeenAt)) / 86400000));
-      return `HOME after ${days} ${days === 1 ? 'day' : 'days'}`;
+      return `HOME · ${days} ${days === 1 ? 'DAY' : 'DAYS'}`;
     }
     return 'HOME';
   }
   const ref = c.lastSeenAt || c.createdAt;
   if (!ref) return tab === 'found' ? 'FOUND' : 'LOST';
   const hours = Math.floor((Date.now() - new Date(ref).getTime()) / 3600000);
-  const span = hours < 1 ? 'just now' : hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)} days`;
-  return tab === 'found' ? `FOUND ${span === 'just now' ? span : span + ' ago'}` : `LOST ${span}`;
+  const days = Math.floor(hours / 24);
+  const span = hours < 1 ? 'NOW' : hours < 24 ? `${hours}H` : `${days} ${days === 1 ? 'DAY' : 'DAYS'}`;
+  return tab === 'found' ? `FOUND ${span}` : `LOST ${span}`;
 }
 
 function speciesEmoji(species) {
@@ -66,53 +70,77 @@ function speciesEmoji(species) {
   }
 }
 
-function CaseCard({ c, tab }) {
+/* ------------------------------- The flyer -------------------------------- */
+
+function FlyerCard({ c, tab, index = 0 }) {
   const reunited = tab === 'reunited';
-  const badgeClass = reunited
-    ? 'bg-emerald-500 text-white'
-    : c.isUrgent
-      ? 'bg-red-600 text-white'
-      : tab === 'found'
-        ? 'bg-sky-500 text-white'
-        : 'bg-midnight-900 text-flash-400';
+  const found = tab === 'found' && !reunited;
+  const tilt = ['-rotate-[0.8deg]', 'rotate-[0.6deg]', '-rotate-[0.4deg]', 'rotate-[0.9deg]'][index % 4];
+  const stamp = reunited
+    ? 'border-emerald-500 text-emerald-600'
+    : found
+      ? 'border-sky-500 text-sky-600'
+      : c.isUrgent
+        ? 'border-red-600 text-red-600'
+        : 'border-midnight-900 text-midnight-900';
 
   return (
     <Link
       href={`/cases/${c.caseNumber}`}
-      className="group rounded-3xl border-2 border-midnight-100 bg-white overflow-hidden hover:border-flash-400 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+      className={`group relative block bg-white shadow-[0_8px_24px_rgba(15,23,42,0.18)] hover:shadow-[0_18px_44px_rgba(15,23,42,0.3)] transition-all duration-200 ${tilt} hover:rotate-0 hover:-translate-y-1`}
     >
-      <div className="relative h-44 bg-midnight-100">
+      {/* Pin */}
+      <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-[0_2px_4px_rgba(0,0,0,0.4),inset_-1px_-2px_3px_rgba(0,0,0,0.35)] z-10" aria-hidden="true" />
+
+      {/* Photo */}
+      <div className="relative h-48 bg-midnight-100 overflow-hidden border-b-4 border-midnight-950">
         {c.petPhotoUrl ? (
-          <img src={c.petPhotoUrl} alt={c.petName} loading="lazy" className="w-full h-full object-cover" />
+          <img src={c.petPhotoUrl} alt={c.petName} loading="lazy" className={`w-full h-full object-cover ${reunited ? '' : 'group-hover:scale-[1.03] transition-transform duration-300'}`} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl">{speciesEmoji(c.petSpecies)}</div>
+          <div className="w-full h-full flex items-center justify-center text-6xl">{speciesEmoji(c.petSpecies)}</div>
         )}
-        <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${badgeClass}`}>
-          {timeBadge(c, tab)}
+        {/* Rubber stamp */}
+        <span className={`absolute top-3 right-3 px-2.5 py-1 border-[3px] ${stamp} bg-white/85 backdrop-blur-[2px] font-black text-xs tracking-[0.15em] uppercase -rotate-6`}>
+          {stampText(c, tab)}
         </span>
         {c.sightingCount > 0 && !reunited && (
-          <span className="absolute bottom-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-midnight-950/80 backdrop-blur text-white text-[11px] font-semibold">
-            <Eye size={11} className="text-flash-400" />
-            {c.sightingCount} {c.sightingCount === 1 ? 'sighting' : 'sightings'}
+          <span className="absolute bottom-2.5 left-3 px-2 py-0.5 bg-midnight-950/85 text-flash-400 text-[10px] font-black tracking-widest uppercase">
+            {c.sightingCount} sighting{c.sightingCount === 1 ? '' : 's'}
           </span>
         )}
       </div>
-      <div className="p-4">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-lg font-bold text-midnight-900 truncate">{c.petName || 'Unknown'}</h3>
-          <span className="text-xs font-mono text-midnight-400 shrink-0">{c.caseNumber}</span>
-        </div>
-        <p className="text-sm text-midnight-500 truncate">
+
+      {/* Poster body */}
+      <div className="px-4 pt-3 pb-2 text-center">
+        <h3 className="font-black uppercase tracking-tight text-2xl leading-none text-midnight-950 truncate">
+          {c.petName || 'Unknown'}
+        </h3>
+        <p className="text-[11px] font-semibold text-midnight-500 mt-1 truncate uppercase tracking-wide">
           {[c.petBreed, c.petColor].filter(Boolean).join(' · ') || c.petSpecies}
         </p>
-        <p className="flex items-center gap-1.5 text-xs text-midnight-500 mt-2 truncate">
-          <MapPin size={12} className="text-midnight-400 shrink-0" />
+        <p className="flex items-center justify-center gap-1 text-xs text-midnight-600 mt-1.5 truncate">
+          <MapPin size={11} className="text-midnight-400 shrink-0" />
           {c.city && c.city !== 'Unknown' ? `${c.city}, ${c.state}` : c.lastSeenAddress || 'Location unknown'}
         </p>
+      </div>
+
+      {/* Tear-off tabs */}
+      <div className="flex border-t-2 border-dashed border-midnight-300 px-2 pb-0">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span
+            key={i}
+            className={`flex-1 text-center py-1.5 text-[8px] font-bold text-midnight-400 border-l border-dashed border-midnight-200 first:border-l-0 ${i % 2 ? 'rotate-1' : '-rotate-1'} ${i === 3 && !reunited ? 'opacity-0' : ''}`}
+          >
+            <Phone size={8} className="inline mr-0.5 -mt-px" />
+            {c.caseNumber?.split('-').pop() || 'SEEN?'}
+          </span>
+        ))}
       </div>
     </Link>
   );
 }
+
+/* --------------------------------- Page ----------------------------------- */
 
 function LostAndFoundContent() {
   const router = useRouter();
@@ -183,65 +211,112 @@ function LostAndFoundContent() {
 
   return (
     <div className="min-h-screen bg-midnight-50">
-      {/* Hero: one question, one box */}
-      <div className="bg-midnight-900 border-b border-midnight-800">
-        <div className="max-w-6xl mx-auto px-4 py-10 sm:py-14">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white">
-                Lost &amp; Found
+      <style>{`
+        @keyframes beacon-sweep {
+          0%   { transform: translateX(-30%) skewX(-12deg); opacity: 0.0; }
+          12%  { opacity: 0.55; }
+          50%  { transform: translateX(120%) skewX(-12deg); opacity: 0.45; }
+          88%  { opacity: 0.55; }
+          100% { transform: translateX(-30%) skewX(-12deg); opacity: 0.0; }
+        }
+        @keyframes beacon-pulse {
+          0%, 100% { opacity: 0.25; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
+
+      {/* Night sky + search beacon */}
+      <div className="relative overflow-hidden bg-midnight-950 border-b-4 border-flash-400">
+        {/* Street-map texture */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-[0.13]"
+          style={{
+            backgroundImage:
+              'linear-gradient(#94a3b8 1px, transparent 1px), linear-gradient(90deg, #94a3b8 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+          }}
+        />
+        {/* The beacon */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-24 bottom-0 w-[420px]"
+          style={{
+            background: 'linear-gradient(180deg, rgba(250,204,21,0.16) 0%, rgba(250,204,21,0.05) 60%, transparent 100%)',
+            animation: 'beacon-sweep 9s ease-in-out infinite',
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-32 right-[12%] w-[480px] h-[480px] rounded-full bg-flash-400/15 blur-3xl"
+          style={{ animation: 'beacon-pulse 6s ease-in-out infinite' }}
+        />
+
+        <div className="relative max-w-6xl mx-auto px-4 pt-12 pb-10 sm:pt-16 sm:pb-12">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="max-w-2xl">
+              <p className="text-flash-400 font-black uppercase tracking-[0.3em] text-xs mb-3">
+                The neighborhood board
+              </p>
+              <h1 className="font-black uppercase text-white leading-[0.92] tracking-tight text-5xl sm:text-7xl">
+                Lost is<br />
+                <span className="relative inline-block">
+                  not gone.
+                  <span aria-hidden="true" className="absolute left-0 right-0 -bottom-1 h-3 bg-flash-400 -skew-x-6" />
+                </span>
               </h1>
-              <p className="text-midnight-300 mt-2">
-                Every lost pet, every found pet, every reunion. One place.
+              <p className="text-midnight-300 mt-5 text-lg">
+                Every lost pet, every found pet, every reunion. One board.
               </p>
             </div>
             <Link
               href="/report/new"
-              className="flex items-center gap-2 px-5 py-3 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold rounded-2xl transition shadow-lg shadow-flash-400/20"
+              className="group relative flex items-center gap-2.5 px-6 py-4 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-black uppercase tracking-wide rounded-none -rotate-1 hover:rotate-0 transition-all shadow-[4px_4px_0_rgba(250,204,21,0.25)]"
             >
-              <Megaphone size={18} />
+              <Megaphone size={19} />
               Report a pet
             </Link>
           </div>
 
-          <div className="relative mt-6">
-            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-midnight-400" />
+          {/* The spotlight search */}
+          <div className="relative mt-9 max-w-3xl">
+            <Search size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-midnight-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Name, breed, color, city or ZIP..."
-              className="w-full h-14 pl-11 pr-4 rounded-2xl border-2 border-midnight-700 bg-midnight-800 text-white placeholder:text-midnight-400 focus:outline-none focus:border-flash-400 text-base"
+              className="w-full h-16 pl-14 pr-5 bg-white text-midnight-950 text-lg font-medium placeholder:text-midnight-400 focus:outline-none focus:ring-4 focus:ring-flash-400/60 shadow-[0_12px_40px_rgba(250,204,21,0.12)]"
             />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-5">
             <div className="flex gap-1.5 flex-wrap">
               {SPECIES.map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => setSpecies(s.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-sm font-semibold transition ${
+                  className={`px-4 py-1.5 text-xs font-black uppercase tracking-wider transition ${
                     species === s.id
-                      ? 'bg-flash-400 text-midnight-900'
-                      : 'bg-midnight-800 text-midnight-300 hover:text-white border border-midnight-700'
+                      ? 'bg-flash-400 text-midnight-950 -rotate-1'
+                      : 'bg-midnight-800/80 text-midnight-300 hover:text-white border border-midnight-700'
                   }`}
                 >
                   {s.label}
                 </button>
               ))}
             </div>
-            <div className="flex rounded-xl border border-midnight-700 overflow-hidden">
-              {[{ id: 'list', icon: List, label: 'List' }, { id: 'map', icon: MapIcon, label: 'Map' }].map(({ id, icon: Icon, label }) => (
+            <div className="flex border border-midnight-700">
+              {[{ id: 'list', icon: List, label: 'Board' }, { id: 'map', icon: MapIcon, label: 'Map' }].map(({ id, icon: Icon, label }) => (
                 <button
                   key={id}
                   type="button"
                   onClick={() => setView(id)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold transition ${
-                    view === id ? 'bg-flash-400 text-midnight-900' : 'bg-midnight-800 text-midnight-300 hover:text-white'
+                  className={`flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-wider transition ${
+                    view === id ? 'bg-flash-400 text-midnight-950' : 'bg-midnight-900 text-midnight-300 hover:text-white'
                   }`}
                 >
-                  <Icon size={15} />
+                  <Icon size={14} />
                   {label}
                 </button>
               ))}
@@ -250,18 +325,18 @@ function LostAndFoundContent() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tape tabs */}
       <div className="max-w-6xl mx-auto px-4">
-        <div className="flex gap-1 -mb-px pt-4">
-          {TABS.map((t) => (
+        <div className="flex gap-2 pt-5 -mb-px">
+          {TABS.map((t, i) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`px-4 py-2.5 rounded-t-2xl text-sm font-bold transition border-2 border-b-0 ${
+              className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider transition-all shadow-sm ${
                 tab === t.id
-                  ? 'bg-white border-midnight-100 text-midnight-900'
-                  : 'bg-transparent border-transparent text-midnight-500 hover:text-midnight-800'
+                  ? `bg-flash-400 text-midnight-950 ${i % 2 ? 'rotate-1' : '-rotate-1'} shadow-md`
+                  : 'bg-white/70 text-midnight-400 hover:text-midnight-800 hover:bg-white rotate-0'
               }`}
             >
               {t.label}
@@ -270,10 +345,18 @@ function LostAndFoundContent() {
         </div>
       </div>
 
-      <div className="bg-white border-t-2 border-midnight-100">
-        <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* The corkboard */}
+      <div
+        className="border-t-2 border-midnight-200"
+        style={{
+          backgroundImage: 'radial-gradient(rgba(15,23,42,0.07) 1.2px, transparent 1.2px)',
+          backgroundSize: '18px 18px',
+          backgroundColor: '#f6f4ee',
+        }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-8">
           {countLine && (
-            <p className="text-sm text-midnight-500 mb-5">{countLine}</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.25em] text-midnight-400 mb-7">{countLine}</p>
           )}
 
           {loading ? (
@@ -282,57 +365,57 @@ function LostAndFoundContent() {
             </div>
           ) : cases.length === 0 ? (
             <div className="text-center py-20 max-w-md mx-auto">
-              <PawPrint size={36} className="text-midnight-200 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-midnight-900">
-                {tab === 'reunited' ? 'No reunions match that search yet' : 'Nothing matches that search'}
+              <PawPrint size={36} className="text-midnight-300 mx-auto mb-4" />
+              <h3 className="text-xl font-black uppercase tracking-tight text-midnight-900">
+                {tab === 'reunited' ? 'No reunions match yet' : 'Nothing on the board'}
               </h3>
               <p className="text-sm text-midnight-500 mt-1.5 mb-6">
                 {tab === 'lost'
                   ? 'Good news for the neighborhood, or time to widen the search.'
                   : tab === 'found'
                     ? 'No found pets reported here yet.'
-                    : 'Every reunion will show up here, named and celebrated.'}
+                    : 'Every reunion gets pinned here, named and celebrated.'}
               </p>
               <Link
                 href={tab === 'found' ? '/report/found' : '/report/new'}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold rounded-2xl transition"
+                className="inline-flex items-center gap-2 px-6 py-3.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-black uppercase tracking-wide -rotate-1 hover:rotate-0 transition-all"
               >
                 <Megaphone size={16} />
                 {tab === 'found' ? 'Report a found pet' : 'Report a lost pet'}
               </Link>
             </div>
           ) : view === 'map' ? (
-            <div className="h-[560px] rounded-3xl overflow-hidden border-2 border-midnight-100">
+            <div className="h-[560px] overflow-hidden border-4 border-midnight-950 shadow-[8px_8px_0_rgba(15,23,42,0.15)]">
               <BrowseMap cases={cases} />
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {cases.map((c) => (
-                  <CaseCard key={c.id} c={c} tab={tab} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-7 gap-y-9 pt-2">
+                {cases.map((c, i) => (
+                  <FlyerCard key={c.id} c={c} tab={tab} index={i} />
                 ))}
               </div>
 
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 mt-8">
+                <div className="flex items-center justify-center gap-3 mt-10">
                   <button
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
                     aria-label="Previous page"
-                    className="w-10 h-10 rounded-xl border-2 border-midnight-100 flex items-center justify-center text-midnight-600 hover:border-flash-400 disabled:opacity-40 transition"
+                    className="w-10 h-10 border-2 border-midnight-300 bg-white flex items-center justify-center text-midnight-600 hover:border-midnight-900 disabled:opacity-40 transition"
                   >
                     <ChevronLeft size={18} />
                   </button>
-                  <span className="text-sm text-midnight-500 font-medium">
-                    Page {page} of {pagination.totalPages}
+                  <span className="text-xs font-black uppercase tracking-widest text-midnight-500">
+                    Page {page} / {pagination.totalPages}
                   </span>
                   <button
                     type="button"
                     onClick={() => setPage((p) => p + 1)}
                     disabled={!pagination.hasMore}
                     aria-label="Next page"
-                    className="w-10 h-10 rounded-xl border-2 border-midnight-100 flex items-center justify-center text-midnight-600 hover:border-flash-400 disabled:opacity-40 transition"
+                    className="w-10 h-10 border-2 border-midnight-300 bg-white flex items-center justify-center text-midnight-600 hover:border-midnight-900 disabled:opacity-40 transition"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -343,30 +426,30 @@ function LostAndFoundContent() {
         </div>
       </div>
 
-      {/* Found-a-pet banner */}
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <div className="rounded-3xl border-2 border-midnight-900 bg-midnight-900 p-6 sm:p-8 flex flex-wrap items-center justify-between gap-4">
+      {/* Found-a-pet strip */}
+      <div className="bg-midnight-950 border-t-4 border-flash-400">
+        <div className="max-w-6xl mx-auto px-4 py-10 flex flex-wrap items-center justify-between gap-5">
           <div className="flex items-center gap-4">
-            <span className="w-12 h-12 rounded-2xl bg-flash-400 flex items-center justify-center shrink-0">
-              <HeartHandshake size={24} className="text-midnight-900" />
+            <span className="w-13 h-13 p-3 bg-flash-400 -rotate-3 shrink-0">
+              <HeartHandshake size={26} className="text-midnight-950" />
             </span>
             <div>
-              <h2 className="text-lg font-bold text-white">Found a pet wandering?</h2>
+              <h2 className="text-xl font-black uppercase tracking-tight text-white">Found a pet wandering?</h2>
               <p className="text-sm text-midnight-300">
                 Report it and our match engine compares it with every lost report nearby.
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             <Link
               href="/report/found"
-              className="px-5 py-3 bg-white hover:bg-midnight-50 text-midnight-900 font-bold rounded-2xl transition"
+              className="px-5 py-3 bg-white hover:bg-flash-50 text-midnight-950 font-black uppercase tracking-wide text-sm -rotate-1 hover:rotate-0 transition-all"
             >
               Report a found pet
             </Link>
             <Link
               href="/shelters"
-              className="px-5 py-3 bg-midnight-800 hover:bg-midnight-700 text-white font-semibold rounded-2xl border border-midnight-700 transition"
+              className="px-5 py-3 border-2 border-midnight-600 hover:border-flash-400 text-white font-bold uppercase tracking-wide text-sm transition"
             >
               Shelters near you
             </Link>
