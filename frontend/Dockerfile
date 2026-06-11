@@ -10,8 +10,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production
+# Full install: the builder stage needs dev tooling (tailwind, prisma
+# CLI) to compile. The runner stage copies only the standalone output,
+# so image size does not pay for this.
+RUN npm ci
 
 # Stage 2: Builder
 FROM node:22-alpine AS builder
@@ -24,9 +26,14 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 
-# Set environment for build
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV production
+# Set environment for build. The dummy DATABASE_URL and NEXTAUTH_SECRET
+# exist only so `next build` can collect page data; they live in this
+# builder stage only and never reach the runtime image, where the real
+# values arrive from the platform environment.
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV DATABASE_URL="postgresql://build:build@localhost:5432/build_dummy"
+ENV NEXTAUTH_SECRET="build-dummy-secret-not-for-production"
 
 # Build the application
 RUN npm run build
@@ -35,8 +42,8 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs
@@ -61,8 +68,8 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
