@@ -43,51 +43,6 @@ function activeCaseOf(pet) {
   return c;
 }
 
-/* ----------------------------- The pet switcher --------------------------- */
-
-function PetSwitcher({ pets, currentId }) {
-  if (!pets || pets.length < 1) return null;
-  return (
-    <div className="flex items-center gap-3 overflow-x-auto pb-2 -mx-1 px-1 mb-5">
-      {pets.map((p) => {
-        const current = p.id === currentId;
-        return (
-          <Link
-            key={p.id}
-            href={`/pets/${p.id}`}
-            className="flex flex-col items-center gap-1 shrink-0 group"
-            aria-current={current ? 'page' : undefined}
-          >
-            <span
-              className={cn(
-                'w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-2xl bg-midnight-100 transition-all',
-                current
-                  ? 'ring-[3px] ring-flash-400 ring-offset-2 ring-offset-midnight-50'
-                  : 'ring-1 ring-midnight-200 opacity-75 group-hover:opacity-100'
-              )}
-            >
-              {p.primaryPhotoUrl ? (
-                <img src={p.primaryPhotoUrl} alt={p.name} className="w-full h-full object-cover" />
-              ) : (
-                SPECIES_EMOJI[p.species] || '🐾'
-              )}
-            </span>
-            <span className={cn('text-[11px] font-semibold', current ? 'text-midnight-900' : 'text-midnight-400')}>
-              {p.name}
-            </span>
-          </Link>
-        );
-      })}
-      <Link href="/pets/new" className="flex flex-col items-center gap-1 shrink-0 group" aria-label="Add a pet">
-        <span className="w-14 h-14 rounded-full border-2 border-dashed border-midnight-300 flex items-center justify-center text-midnight-400 group-hover:border-flash-400 group-hover:text-flash-500 transition-colors">
-          <Plus size={20} />
-        </span>
-        <span className="text-[11px] font-semibold text-midnight-400">Add</span>
-      </Link>
-    </div>
-  );
-}
-
 /* --------------------------------- Page ----------------------------------- */
 
 export default function PetProfilePage() {
@@ -97,7 +52,6 @@ export default function PetProfilePage() {
   const petId = params.id;
 
   const [pet, setPet] = useState(null);
-  const [allPets, setAllPets] = useState([]);
   const [meds, setMeds] = useState([]);
   const [access, setAccess] = useState('OWNER');
   const [shares, setShares] = useState(null); // null = not loaded / not owner
@@ -112,10 +66,9 @@ export default function PetProfilePage() {
 
   const load = useCallback(async () => {
     try {
-      const [petRes, medsRes, petsRes] = await Promise.all([
+      const [petRes, medsRes] = await Promise.all([
         fetch(`/api/pets/${petId}`),
         fetch(`/api/pets/${petId}/medications`),
-        fetch('/api/pets'),
       ]);
       const petData = await petRes.json();
       if (!petRes.ok) throw new Error(petData.error || 'Pet not found');
@@ -125,10 +78,6 @@ export default function PetProfilePage() {
         const medsData = await medsRes.json();
         setMeds(medsData.medications || []);
         setAccess(medsData.access || 'OWNER');
-      }
-      if (petsRes.ok) {
-        const petsData = await petsRes.json();
-        setAllPets(petsData.pets || []);
       }
     } catch (err) {
       setError(err.message);
@@ -229,14 +178,8 @@ export default function PetProfilePage() {
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-3xl mx-auto">
-        <Link href="/pets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors mb-4">
-          <ArrowLeft size={16} /> My Pets
-        </Link>
-
-        <PetSwitcher pets={allPets} currentId={petId} />
-
         {/* Missing? Nothing else matters until they're home. */}
         {activeCase && (
           <div className="rounded-3xl bg-midnight-950 border-2 border-red-500/60 p-5 mb-6">

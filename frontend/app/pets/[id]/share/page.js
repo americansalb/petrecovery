@@ -262,31 +262,8 @@ export default function PetSharePage() {
   const requests = shares.filter((s) => s.status === 'REQUESTED');
 
   return (
-    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-2xl mx-auto">
-        <Link
-          href={`/pets/${petId}/medications`}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors mb-4"
-        >
-          <ArrowLeft size={16} /> {pet?.name || 'Back'}
-        </Link>
-
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-2xl bg-midnight-200 overflow-hidden flex items-center justify-center flex-shrink-0">
-            {pet?.primaryPhotoUrl ? (
-              <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
-            ) : (
-              <PawPrint className="w-6 h-6 text-midnight-400" />
-            )}
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-midnight-900">Share {pet?.name}</h1>
-            <p className="text-sm text-midnight-500">
-              Family, sitters, anyone helping out. They&apos;ll see {pet?.name}&apos;s meds and can check off doses.
-            </p>
-          </div>
-        </div>
-
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg my-4 flex items-center justify-between">
             <span>{error}</span>
