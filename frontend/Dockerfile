@@ -1,5 +1,16 @@
 # PetRecovery.org Dockerfile
 # Multi-stage build for optimized production image
+#
+# STATUS: not used by any deployment (production is Render's native
+# build: `prisma db push && next start`) and not built in CI.
+# Open mystery before wiring this into CI or a deploy: inside docker
+# buildx (alpine AND slim bases), `next build` prerender throws
+# 'Element type is invalid: got undefined' for every page, while the
+# identical commit builds clean natively with the same dummy env, a
+# fresh lockfile `npm ci`, and even a bare `env -i` environment.
+# Ruled out: musl, NODE_ENV ordering, missing build env, prod-only
+# deps, stale node_modules, locale/env emptiness. Reproduce only via
+# buildx; isolate before trusting this image.
 
 # Stage 1: Dependencies
 # Debian (glibc), not Alpine: prerender on musl produced 'Element type
