@@ -11,7 +11,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Dog, Cat, Bird, Rabbit, PawPrint, Plus, Edit2, AlertTriangle, Eye, Trash2, X, Loader2, Info, Pill, Share2, HeartHandshake, Check } from 'lucide-react';
+import { Dog, Cat, Bird, Rabbit, PawPrint, Plus, AlertTriangle, X, Loader2, HeartHandshake, Check, ChevronRight, Heart } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, EmptyState } from '@/components/ui';
 
@@ -218,7 +218,7 @@ export default function MyPetsPage() {
               My Pets
             </h1>
             <p className="text-midnight-600 mt-2">
-              Pre-register your pets so you can quickly report if they go missing
+              The whole family, one tap away.
             </p>
           </div>
           <Button
@@ -298,130 +298,41 @@ export default function MyPetsPage() {
               const SpeciesIcon = getSpeciesIcon(pet.species);
 
               return (
-                <Card key={pet.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  {/* Pet Photo opens the profile */}
-                  <Link href={`/pets/${pet.id}`} className="block h-48 bg-midnight-100 flex items-center justify-center relative">
-                    {pet.primaryPhotoUrl ? (
-                      <img
-                        src={pet.primaryPhotoUrl}
-                        alt={pet.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <SpeciesIcon className="w-16 h-16 text-midnight-400" />
-                    )}
-
-                    {/* Status Badge */}
-                    {badgeInfo && (
-                      <div className="absolute top-3 right-3">
-                        <Badge variant={badgeInfo.variant}>
-                          {badgeInfo.label}
-                        </Badge>
-                      </div>
-                    )}
-                  </Link>
-
-                  {/* Pet Info */}
-                  <div className="p-5">
-                    <Link href={`/pets/${pet.id}`} className="flex items-center gap-2 mb-2 group">
-                      <SpeciesIcon className="w-5 h-5 text-flash-500" />
-                      <h3 className="text-xl font-semibold text-midnight-900 group-hover:text-flash-600 transition-colors">
-                        {pet.name}
-                      </h3>
-                    </Link>
-
-                    <div className="text-midnight-600 text-sm mb-4">
-                      <p className="mb-1">
-                        {pet.breed || pet.species} {pet.sex && `• ${pet.sex.charAt(0) + pet.sex.slice(1).toLowerCase()}`}
-                      </p>
-                      <p>
-                        {pet.color} • {getSizeLabel(pet.size).split(' ')[0]}
-                        {pet.age && ` • ${pet.age} year${pet.age !== 1 ? 's' : ''} old`}
-                      </p>
-                    </div>
-
-                    {/* Microchip indicator */}
-                    {pet.microchipId && (
-                      <Badge variant="success" className="mb-4">
-                        Microchipped
-                      </Badge>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex gap-2 pt-4 border-t border-midnight-100">
-                      <Button
-                        variant="ghost"
-                        href={`/pets/${pet.id}/edit`}
-                        size="sm"
-                        className="flex-1"
-                      >
-                        <Edit2 size={14} />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        href={`/pets/${pet.id}/medications`}
-                        size="sm"
-                        className="flex-1"
-                        title="Medication tracker"
-                      >
-                        <Pill size={14} />
-                        Meds
-                      </Button>
-                      {!missionStatus || missionStatus === 'RESOLVED' || missionStatus === 'CLOSED_OTHER' ? (
-                        <Button
-                          variant="danger"
-                          href={`/report/new?petId=${pet.id}`}
-                          size="sm"
-                          className="flex-[2]"
-                        >
-                          <AlertTriangle size={14} />
-                          Report Lost
-                        </Button>
-                      ) : pet.cases[0]?.caseNumber ? (
-                        <Button
-                          variant="primary"
-                          href={`/mission-control?mission=${pet.cases[0].caseNumber}`}
-                          size="sm"
-                          className="flex-[2]"
-                        >
-                          <Eye size={14} />
-                          View Case
-                        </Button>
+                <Link key={pet.id} href={`/pets/${pet.id}`} className="group block">
+                  <Card padding="none" className="overflow-hidden border-2 border-transparent group-hover:border-flash-400 group-hover:shadow-xl group-hover:-translate-y-1 transition-all">
+                    <div className="aspect-[4/3] bg-midnight-100 relative flex items-center justify-center">
+                      {pet.primaryPhotoUrl ? (
+                        <img
+                          src={pet.primaryPhotoUrl}
+                          alt={pet.name}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
-                        <Button
-                          variant="primary"
-                          href={`/report/new?petId=${pet.id}`}
-                          size="sm"
-                          className="flex-[2]"
-                        >
-                          <AlertTriangle size={14} />
-                          Report Lost
-                        </Button>
+                        <SpeciesIcon className="w-16 h-16 text-midnight-300" />
                       )}
-                      <Link
-                        href={`/pets/${pet.id}/share`}
-                        className="p-2 border border-midnight-200 text-midnight-600 rounded-lg hover:bg-midnight-50 transition-colors inline-flex items-center"
-                        title="Share with family & sitters"
-                        aria-label={`Share ${pet.name}`}
-                      >
-                        <Share2 size={16} />
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(pet.id, pet.name)}
-                        disabled={deletingId === pet.id}
-                        className="p-2 border border-midnight-200 text-midnight-600 rounded-lg hover:bg-midnight-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title="Delete pet"
-                      >
-                        {deletingId === pet.id ? (
-                          <Loader2 size={16} className="animate-spin" />
+                      <div className="absolute top-3 right-3">
+                        {badgeInfo ? (
+                          <Badge variant={badgeInfo.variant}>{badgeInfo.label}</Badge>
                         ) : (
-                          <Trash2 size={16} />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur text-emerald-700 text-xs font-bold">
+                            <Heart size={11} /> Home
+                          </span>
                         )}
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                </Card>
+                    <div className="p-4 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-bold text-midnight-900 truncate group-hover:text-flash-600 transition-colors">
+                          {pet.name}
+                        </h3>
+                        <p className="text-sm text-midnight-500 truncate">
+                          {[pet.breed || pet.species, pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`, pet.microchipId && 'Microchipped'].filter(Boolean).join(' · ')}
+                        </p>
+                      </div>
+                      <ChevronRight size={18} className="text-midnight-300 group-hover:text-flash-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </Card>
+                </Link>
               );
             })}
           </div>
@@ -438,61 +349,35 @@ export default function MyPetsPage() {
               {sharedPets.map(({ shareId, role, ownerName, pet }) => {
                 const SpeciesIcon = getSpeciesIcon(pet.species);
                 return (
-                  <Card key={shareId} className="overflow-hidden hover:shadow-lg transition-shadow">
-                    <div className="h-48 bg-midnight-100 flex items-center justify-center relative">
-                      {pet.primaryPhotoUrl ? (
-                        <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <SpeciesIcon className="w-16 h-16 text-midnight-400" />
-                      )}
-                      <div className="absolute top-3 right-3">
-                        <Badge variant={role === 'CAREGIVER' ? 'primary' : 'default'}>
-                          {role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}
-                        </Badge>
+                  <Link key={shareId} href={`/pets/${pet.id}`} className="group block">
+                    <Card padding="none" className="overflow-hidden border-2 border-transparent group-hover:border-flash-400 group-hover:shadow-xl group-hover:-translate-y-1 transition-all">
+                      <div className="aspect-[4/3] bg-midnight-100 relative flex items-center justify-center">
+                        {pet.primaryPhotoUrl ? (
+                          <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <SpeciesIcon className="w-16 h-16 text-midnight-300" />
+                        )}
+                        <div className="absolute top-3 right-3">
+                          <Badge variant={role === 'CAREGIVER' ? 'primary' : 'default'}>
+                            {role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}
+                          </Badge>
+                        </div>
                       </div>
-                    </div>
-                    <div className="p-5">
-                      <div className="flex items-center gap-2 mb-1">
-                        <SpeciesIcon className="w-5 h-5 text-flash-500" />
-                        <h3 className="text-xl font-semibold text-midnight-900">{pet.name}</h3>
+                      <div className="p-4 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-lg font-bold text-midnight-900 truncate group-hover:text-flash-600 transition-colors">{pet.name}</h3>
+                          <p className="text-sm text-midnight-500 truncate">{ownerName}&apos;s pet · {pet.breed || pet.species}</p>
+                        </div>
+                        <ChevronRight size={18} className="text-midnight-300 group-hover:text-flash-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                       </div>
-                      <p className="text-midnight-500 text-sm mb-4">{ownerName}&apos;s pet · {pet.breed || pet.species}</p>
-                      <div className="flex gap-2 pt-4 border-t border-midnight-100">
-                        <Button
-                          variant="primary"
-                          href={`/pets/${pet.id}/medications`}
-                          size="sm"
-                          className="flex-1"
-                        >
-                          <Pill size={14} />
-                          Medication tracker
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
+                    </Card>
+                  </Link>
                 );
               })}
             </div>
           </div>
         )}
 
-        {/* Help Text */}
-        <Card variant="primary" className="mt-8 p-6">
-          <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-flash-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <h3 className="text-lg font-semibold text-midnight-900 mb-2">
-                Why register your pets?
-              </h3>
-              <ul className="space-y-1 text-midnight-700 text-sm">
-                <li>• Quickly report a lost pet with all their details pre-filled</li>
-                <li>• Store important info like microchip numbers and medical conditions</li>
-                <li>• Keep photos ready for flyers and social media</li>
-                <li>• Help rescuers identify your pet faster</li>
-              </ul>
-            </div>
-          </div>
-        </Card>
       </div>
     </div>
   );
