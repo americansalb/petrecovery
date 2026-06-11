@@ -37,15 +37,22 @@ function timeAgo(date) {
 
 /* --------------------------------- Hero ---------------------------------- */
 
+// The search trail the hero draws across the night: one continuous GPS leg
+const SEARCH_PATH_D = 'M -60 640 C 180 540, 300 660, 460 560 S 720 380, 900 450 S 1180 320, 1330 210';
+
 function Hero({ metrics }) {
   const stats = [
-    { value: metrics?.pets_reunited, label: 'happy reunions' },
-    { value: metrics?.active_squads, label: 'rescue forces' },
-    { value: metrics?.total_volunteers, label: 'neighbors ready' },
+    { value: metrics?.pets_reunited, one: 'happy reunion', many: 'happy reunions' },
+    { value: metrics?.active_squads, one: 'rescue force', many: 'rescue forces' },
+    { value: metrics?.total_volunteers, one: 'neighbor ready', many: 'neighbors ready' },
   ].filter((s) => s.value > 0);
 
   return (
     <section className="relative bg-midnight-950 overflow-hidden">
+      <style>{`
+        @keyframes trail-march { to { stroke-dashoffset: -26; } }
+      `}</style>
+
       {/* flashlight glow + stars, pure CSS so it can never render as a void */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[60rem] h-[34rem] rounded-full bg-flash-400/15 blur-3xl" />
@@ -56,9 +63,42 @@ function Hero({ metrics }) {
         <div className="absolute bottom-40 left-[18%] w-0.5 h-0.5 rounded-full bg-white/50" />
       </div>
 
+      {/* A live GPS search, drawing itself across the night: the dashed
+          trail marches, a searcher dot walks the route, and the last-seen
+          pin pings until somebody gets there. This is the product. */}
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none hidden sm:block"
+        viewBox="0 0 1440 760"
+        preserveAspectRatio="xMidYMid slice"
+        aria-hidden="true"
+      >
+        <path
+          d={SEARCH_PATH_D}
+          fill="none"
+          stroke="#facc15"
+          strokeOpacity="0.28"
+          strokeWidth="3"
+          strokeDasharray="10 16"
+          strokeLinecap="round"
+          style={{ animation: 'trail-march 2.4s linear infinite' }}
+        />
+        <circle r="20" fill="#34d399" opacity="0.14">
+          <animateMotion dur="18s" repeatCount="indefinite" path={SEARCH_PATH_D} />
+        </circle>
+        <circle r="5.5" fill="#34d399" opacity="0.9">
+          <animateMotion dur="18s" repeatCount="indefinite" path={SEARCH_PATH_D} />
+        </circle>
+      </svg>
+      <div className="absolute right-[13%] top-[30%] hidden lg:block pointer-events-none" aria-hidden="true">
+        <span className="absolute -inset-3 rounded-full bg-flash-400/30 animate-ping" />
+        <span className="absolute -inset-7 rounded-full bg-flash-400/10 animate-ping" style={{ animationDelay: '0.7s' }} />
+        <MapPin className="relative w-7 h-7 text-flash-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.7)]" />
+      </div>
+
       <div className="relative max-w-5xl mx-auto px-4 pt-12 pb-24 md:pt-16 md:pb-32 text-center">
-        {/* Sarama, the guide home: the heart of the brand, front and center */}
-        <div className="relative inline-block mb-5">
+        {/* Sarama, the guide home: the heart of the brand, front and center.
+            Block-level wrapper so the live badge below never shares her line. */}
+        <div className="relative w-fit mx-auto mb-6">
           <div className="absolute inset-0 scale-125 rounded-full bg-flash-400/20 blur-2xl" aria-hidden="true" />
           <img
             src={SARAMA_AVATAR_PNG}
@@ -66,7 +106,7 @@ function Hero({ metrics }) {
             className="relative h-36 md:h-48 w-auto mx-auto drop-shadow-[0_12px_32px_rgba(250,204,21,0.25)]"
             onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
           />
-          <p className="relative text-flash-300/90 text-xs font-semibold uppercase tracking-[0.25em] mt-2">
+          <p className="relative text-flash-300/90 text-xs font-semibold uppercase tracking-[0.25em] mt-2 text-center">
             {SARAMA_NAME} · {SARAMA_TAGLINE}
           </p>
         </div>
@@ -80,7 +120,7 @@ function Hero({ metrics }) {
 
         <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-5">
           Every lost pet deserves{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-300 to-flash-500">
+          <span className="inline-block text-transparent bg-clip-text bg-gradient-to-r from-flash-300 to-flash-500">
             a search party
           </span>
         </h1>
@@ -118,10 +158,10 @@ function Hero({ metrics }) {
 
         {stats.length > 0 && (
           <div className="flex flex-wrap items-center justify-center gap-8 mt-10">
-            {stats.map(({ value, label }) => (
-              <div key={label} className="text-center">
+            {stats.map(({ value, one, many }) => (
+              <div key={many} className="text-center">
                 <p className="text-3xl font-extrabold text-white">{Number(value).toLocaleString()}</p>
-                <p className="text-midnight-300 text-sm">{label}</p>
+                <p className="text-midnight-300 text-sm">{Number(value) === 1 ? one : many}</p>
               </div>
             ))}
           </div>
