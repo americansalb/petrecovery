@@ -117,6 +117,10 @@ jobs:
         with:
           name: build-output
           path: frontend/.next
+          # The path itself is a hidden directory; without this flag v4
+          # uploads nothing (with a warning) and the E2E job's download
+          # fails with "Artifact not found"
+          include-hidden-files: true
           retention-days: 7
 
   # Job 4: E2E Tests (runs on main branch only)
@@ -150,11 +154,33 @@ jobs:
           name: build-output
           path: frontend/.next
 
-      - name: Run E2E tests
+      - name: Generate Prisma client
+        working-directory: frontend
+        run: npx prisma generate
+
+      # The gate: the production build must boot and serve real pages.
+      - name: Boot smoke (prod server starts and serves)
+        working-directory: frontend
+        run: |
+          npx next start -p 3000 &
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/ -o /dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:3000/ -o /dev/null
+          curl -sf http://localhost:3000/lost-and-found -o /dev/null
+          curl -sf http://localhost:3000/login -o /dev/null
+          echo "Boot smoke passed: /, /lost-and-found, /login all serve"
+          kill $SERVER_PID || true
+
+      # Non-blocking until CI has a seeded database to make it honest:
+      # the specs need real auth + data. Bounded so it cannot eat minutes.
+      - name: Run Playwright suite (non-blocking)
         working-directory: frontend
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
-        run: npx playwright test || echo "E2E tests skipped"
+        run: npx playwright test --config e2e/playwright.config.ts --retries=0 --max-failures=3 || echo "Playwright suite not green yet (needs seeded DB); boot smoke is the gate"
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4
