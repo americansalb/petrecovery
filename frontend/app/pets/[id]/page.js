@@ -22,7 +22,6 @@ import {
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, cn } from '@/components/ui';
 import { MedIconChip } from '@/app/components/medications/MedIcon';
-import GoodStuff from '@/app/components/care/GoodStuff';
 import { slotsWithStatus, sameDay, careEmoji, formatTime } from '@/lib/medications';
 
 const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
@@ -292,9 +291,6 @@ export default function PetProfilePage() {
             </div>
           </Card>
         </Link>
-
-        {/* Daily life: walks, brushing, treats. One tap, right here. */}
-        <GoodStuff petId={petId} meds={meds} setMeds={setMeds} canManage={access !== 'VIEWER'} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Identification */}
