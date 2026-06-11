@@ -14,14 +14,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, PawPrint, Heart, AlertTriangle, Plus, LayoutGrid, Pill, Share2 } from 'lucide-react';
+import { ArrowLeft, PawPrint, Heart, AlertTriangle, Plus, LayoutGrid, Pill, Share2, Bone } from 'lucide-react';
 import { cn } from '@/components/ui';
 
 const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
 
 const TABS = [
   { id: '', label: 'Overview', icon: LayoutGrid },
-  { id: 'medications', label: 'Medications', icon: Pill },
+  { id: 'care', label: 'Care', icon: Bone },
+  { id: 'medications', label: 'Meds', icon: Pill },
   { id: 'share', label: 'Sharing', icon: Share2 },
 ];
 
@@ -56,7 +57,7 @@ export default function PetShellLayout({ children }) {
 
   // Which room are we in? ('' = overview, 'medications', 'share', 'edit'...)
   const segment = pathname.split('/')[3] || '';
-  const sectionForSwitch = ['medications', 'share'].includes(segment) ? `/${segment}` : '';
+  const sectionForSwitch = ['medications', 'share', 'care'].includes(segment) ? `/${segment}` : '';
   const isOverview = segment === '';
   const activeCase = activeCaseOf(pet);
 
