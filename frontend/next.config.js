@@ -45,6 +45,17 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Service workers must always revalidate: a long-cached worker
+        // can keep serving a deleted deploy's assets for days
+        source: '/:sw(sw|sw-push).js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+      {
         // Static assets - long cache
         source: '/_next/static/:path*',
         headers: [

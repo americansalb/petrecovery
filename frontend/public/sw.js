@@ -4,7 +4,11 @@
  * Handles push notifications and offline caching.
  */
 
-const CACHE_NAME = 'petrecovery-v1';
+// Bumping this name makes every device drop its old cache on activate —
+// the v1 cache stored page HTML forever, so after a deploy replaced the
+// hashed CSS/JS files, any network hiccup served stale HTML pointing at
+// assets that no longer existed (an unstyled, "broken" site).
+const CACHE_NAME = 'petrecovery-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Files to cache for offline access
@@ -50,7 +54,16 @@ self.addEventListener('activate', (event) => {
 });
 
 /**
- * Fetch event - serve from cache with network fallback
+ * Fetch event
+ *
+ * The cardinal rule: NEVER serve cached page HTML. A cached document
+ * references hash-named CSS/JS that stops existing at the next deploy,
+ * which renders the whole site unstyled. Offline navigations get the
+ * offline page, nothing else.
+ *
+ * - navigations: network only, offline.html as the only fallback
+ * - /_next/static (content-hashed, immutable): cache-first
+ * - other GETs: network-first with cache fallback
  */
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
@@ -63,32 +76,45 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Page navigations: always fresh, never stale HTML
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(event.request);
+        } catch (error) {
+          return (await caches.match(OFFLINE_URL)) || Response.error();
+        }
+      })()
+    );
+    return;
+  }
+
+  const url = new URL(event.request.url);
+  const isImmutableAsset = url.pathname.startsWith('/_next/static/');
+
   event.respondWith(
     (async () => {
+      // Hashed assets never change content under the same name
+      if (isImmutableAsset) {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+      }
+
       try {
-        // Try network first
         const networkResponse = await fetch(event.request);
 
-        // Cache successful responses
-        if (networkResponse.ok) {
+        // Cache successful same-origin responses (sub-resources only;
+        // navigations never reach this branch)
+        if (networkResponse.ok && url.origin === self.location.origin) {
           const cache = await caches.open(CACHE_NAME);
           cache.put(event.request, networkResponse.clone());
         }
 
         return networkResponse;
       } catch (error) {
-        // Network failed, try cache
         const cachedResponse = await caches.match(event.request);
-
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-
-        // Return offline page for navigation requests
-        if (event.request.mode === 'navigate') {
-          return caches.match(OFFLINE_URL);
-        }
-
+        if (cachedResponse) return cachedResponse;
         throw error;
       }
     })()
