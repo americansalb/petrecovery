@@ -9,23 +9,26 @@
  */
 
 import prisma from '@/app/lib/prisma';
-import { normalizePhotoUrl } from '@/app/lib/utils';
+import {
+  SITE_NAME,
+  shareImage,
+  buildShareMetadata,
+  genericShareMetadata,
+} from '@/app/lib/shareMetadata';
 import ViewPageClient from './ViewPageClient';
 
-const FALLBACK_IMAGE = 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png';
-
-const GENERIC_METADATA = {
-  title: 'Pet Care | ReunitePets',
-  description: 'Follow a pet’s care and medication schedule on ReunitePets.',
-  robots: { index: false, follow: false },
-};
+const GENERIC_CARE_METADATA = () =>
+  genericShareMetadata(
+    `Pet Care | ${SITE_NAME}`,
+    'Follow a pet’s care and medication schedule on ReunitePets.'
+  );
 
 export async function generateMetadata({ params }) {
   const { token } = params;
 
   // Same validity rule as the API route; invalid tokens get the generic card
   if (!token || token.length < 16) {
-    return GENERIC_METADATA;
+    return GENERIC_CARE_METADATA();
   }
 
   try {
@@ -41,46 +44,25 @@ export async function generateMetadata({ params }) {
     });
 
     if (!pet) {
-      return GENERIC_METADATA;
+      return GENERIC_CARE_METADATA();
     }
 
     const species = pet.species ? pet.species.toLowerCase() : 'pet';
-    const title = `${pet.name}’s Care Page | ReunitePets`;
+    const title = `${pet.name}’s Care Page | ${SITE_NAME}`;
     const description = pet.owner?.firstName
       ? `${pet.owner.firstName} shared ${pet.name}’s care and medication schedule with you. ${pet.breed ? pet.breed + ' · ' : ''}Read-only, no account needed.`
       : `Follow ${pet.name} the ${species}’s care and medication schedule. Read-only, no account needed.`;
-    const imageUrl = normalizePhotoUrl(pet.primaryPhotoUrl) || FALLBACK_IMAGE;
 
-    return {
-      // Resolves relative photo paths to absolute URLs, which messengers
-      // require for og:image (CDN photos are already absolute)
-      metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
+    // Tokenized link: previews yes, search engines no (index defaults false)
+    return buildShareMetadata({
       title,
       description,
-      openGraph: {
-        title,
-        description,
-        images: [
-          {
-            url: imageUrl,
-            alt: `${pet.name} the ${species}`,
-          },
-        ],
-        type: 'website',
-        siteName: 'ReunitePets',
-      },
-      twitter: {
-        card: 'summary_large_image',
-        title,
-        description,
-        images: [imageUrl],
-      },
-      // Tokenized link: previews yes, search engines no
-      robots: { index: false, follow: false },
-    };
+      image: shareImage(pet.primaryPhotoUrl),
+      imageAlt: `${pet.name} the ${species}`,
+    });
   } catch (error) {
     console.error('Error generating pet view metadata:', error);
-    return GENERIC_METADATA;
+    return GENERIC_CARE_METADATA();
   }
 }
 

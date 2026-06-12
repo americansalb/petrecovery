@@ -267,3 +267,24 @@ export function withTimeout(promise, timeoutMs = 30000) {
     ),
   ]);
 }
+
+/**
+ * Parse a /lost-pet/[location] slug ("austin-tx") into display parts.
+ *
+ * @example
+ * formatLocationSlug('austin-tx') // { city: 'Austin', state: 'TX', display: 'Austin, TX' }
+ * formatLocationSlug('new-york-ny') // { city: 'New York', state: 'NY', display: 'New York, NY' }
+ */
+export function formatLocationSlug(slug) {
+  if (!slug) return { city: '', state: '', display: '' };
+
+  const parts = slug.split('-');
+  const state = parts.pop()?.toUpperCase() || '';
+  const city = parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+
+  return {
+    city,
+    state,
+    display: `${city}, ${state}`,
+  };
+}

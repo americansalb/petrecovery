@@ -1,0 +1,30 @@
+# PetRecovery / ReunitePets
+
+Next.js 14 app-router app in `frontend/` (JavaScript, Prisma + PostgreSQL,
+NextAuth, Tailwind, Leaflet). Naming history: Case = Mission = lost-pet report;
+RescueSquad → RescueForce; the forum is "the Hub" (`ForumThread` etc.);
+`/communities/*` is legacy and redirected in `frontend/next.config.js`.
+
+## Rules
+
+### Link previews are mandatory on shareable routes
+
+Any route a user might paste into a chat must serve entity-specific
+OpenGraph tags (the pet's photo, not the site logo). Preview bots don't run
+JS, so `'use client'` pages can't do this — shareable routes need a server
+`page.js` with `generateMetadata` (entity pages) or a server `layout.js`
+with `metadata` (static segments), built on the helpers in
+`frontend/app/lib/shareMetadata.js`.
+
+Full recipe and house rules: `docs/LINK_PREVIEWS.md`.
+Enforced by `frontend/__tests__/link-previews.test.js` — it fails CI on any
+new dynamic route that lacks metadata and isn't explicitly listed as private.
+
+### Other conventions
+
+- Tests: `cd frontend && npm test` (Jest, node env). CI runs on `pet_main`.
+- Dev DB: local Postgres via `DATABASE_URL` in `frontend/.env` /
+  `.env.local`; `frontend/prisma/seed-sample-data.js` creates a local admin
+  (`admin@localdev.test`) and demo entities for every page.
+- Seeded prod admins are auth-blocked (SEC-18) in `frontend/app/lib/auth.js`;
+  don't "fix" that, and never seed literal credentials.

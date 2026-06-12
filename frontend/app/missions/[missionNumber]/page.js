@@ -1,27 +1,36 @@
-'use client';
-
 /**
- * Redirect from old case URL to Mission Control
+ * Mission permalink - Server Component with share metadata
  *
- * This page provides backward compatibility by redirecting
- * /cases/[missionNumber] → /mission-control?mission=[missionNumber]
+ * The client component redirects humans to Mission Control, but link
+ * preview bots never run that JS — they read the OG tags served here,
+ * so a texted mission link unfurls with the actual pet.
  */
 
-import { useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { PageLoading } from '@/components/LoadingSkeleton';
+import prisma from '@/app/lib/prisma';
+import {
+  missionWhere,
+  missionShareSelect,
+  missionShareMetadata,
+  genericShareMetadata,
+} from '@/app/lib/shareMetadata';
+import MissionRedirectClient from './MissionRedirectClient';
 
-export default function CaseRedirect() {
-  const router = useRouter();
-  const params = useParams();
-  const missionNumber = params.missionNumber;
+export async function generateMetadata({ params }) {
+  try {
+    const mission = await prisma.case.findFirst({
+      where: missionWhere(params.missionNumber),
+      select: missionShareSelect,
+    });
+    if (!mission) return genericShareMetadata();
+    return missionShareMetadata(mission, {
+      canonicalPath: `/cases/${mission.caseNumber}`,
+    });
+  } catch (error) {
+    console.error('Error generating mission metadata:', error);
+    return genericShareMetadata();
+  }
+}
 
-  useEffect(() => {
-    if (missionNumber) {
-      // Redirect to Mission Control with the case number
-      router.replace(`/mission-control?mission=${missionNumber}`);
-    }
-  }, [missionNumber, router]);
-
-  return <PageLoading message="Opening mission..." />;
+export default function MissionPage() {
+  return <MissionRedirectClient />;
 }
