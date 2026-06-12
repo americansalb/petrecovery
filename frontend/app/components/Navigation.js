@@ -38,6 +38,7 @@ import {
   LogIn,
   UserPlus,
   Megaphone,
+  Heart,
 } from 'lucide-react';
 import { Button, Badge, CountBadge } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
@@ -127,6 +128,14 @@ export default function Navigation() {
                 <Search className="w-4 h-4" />
                 Lost &amp; Found
               </NavLink>
+
+              {/* The second door: the daily product, visible before you need the first */}
+              {!session && (
+                <NavLink href="/care" active={pathname.startsWith('/care')}>
+                  <Heart className="w-4 h-4" />
+                  Pet Care
+                </NavLink>
+              )}
 
               {userSquads.length > 0 ? (
                 <NavDropdown
@@ -379,6 +388,9 @@ export default function Navigation() {
             Browse
           </div>
           <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
+          {!session && (
+            <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
+          )}
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
 

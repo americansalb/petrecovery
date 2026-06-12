@@ -38,6 +38,7 @@ const ENTITY_PAGES = [
 /** Public segments that carry a static card via layout.js. */
 const STATIC_SEGMENTS = [
   'lost-and-found',
+  'care',
   'rescue-forces',
   'hub',
   'about',

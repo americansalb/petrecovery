@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
+import { PillGlyph, SyringeGlyph } from '@/app/components/icons/MedGlyphs';
 import dynamic from 'next/dynamic';
 import {
   Bell, Heart, MapPin, Search, Shield, Users, Target, ArrowRight,
@@ -358,10 +359,10 @@ const PILLARS = [
   },
   {
     icon: Pill,
-    title: 'Medication tracking, free for every pet',
-    body: 'Daily med schedules, one-tap dose logging, shared care teams with family and sitters. What other apps paywall, we give away.',
-    href: '/pets',
-    label: "Track your pet's meds",
+    title: 'The Health Book, free for every pet',
+    body: 'Med schedules with one-tap logging, vaccine records, weight tracking, shared care teams. What other apps paywall, we give away.',
+    href: '/care',
+    label: 'See the Health Book',
   },
   {
     icon: MessagesSquare,
@@ -371,6 +372,47 @@ const PILLARS = [
     label: 'Visit the Rescue Hub',
   },
 ];
+
+/* The second door: the daily product, one calm lane (docs/PRODUCT_IA_PLAN.md §2) */
+function SecondLane() {
+  return (
+    <section className="max-w-5xl mx-auto px-4 mb-16 md:mb-24">
+      <div className="bg-white border border-midnight-100 rounded-3xl p-8 md:p-10 md:flex items-center gap-8">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-flash-600 mb-2">Not lost? Keep it that way.</p>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-midnight-900 leading-tight">
+            Your pet&apos;s Health Book lives here too.
+          </h2>
+          <p className="text-midnight-500 mt-3">
+            Medications with one-tap logging, vaccine records, weight tracking, and a
+            link any vet or sitter can read. Free forever, and ready long before you
+            ever need a search party.
+          </p>
+          <Link
+            href="/care"
+            className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-midnight-900 hover:bg-midnight-800 text-white font-bold rounded-2xl transition"
+          >
+            See the Health Book
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+        <div className="hidden md:flex flex-col gap-2.5 shrink-0 mt-6 md:mt-0">
+          {[
+            [<PillGlyph key="i" size={17} />, 'bg-amber-100 text-amber-700', 'Apoquel · 8:00 AM', 'Given'],
+            [<SyringeGlyph key="i" size={17} />, 'bg-emerald-100 text-emerald-700', 'Rabies', 'until 2028'],
+            [<span key="i" className="text-[10px] font-extrabold">lb</span>, 'bg-sky-100 text-sky-700', '65 lbs', 'steady'],
+          ].map(([icon, tint, label, status]) => (
+            <div key={label} className="flex items-center gap-3 bg-midnight-50 border border-midnight-100 rounded-2xl px-4 py-3 w-64">
+              <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${tint}`}>{icon}</span>
+              <span className="text-sm font-bold text-midnight-900 flex-1 truncate">{label}</span>
+              <span className="text-xs font-bold text-emerald-600 shrink-0">{status}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function FreeForever() {
   return (
@@ -488,6 +530,7 @@ export default function HomePage() {
       <FindYourForce />
       <HowItWorks />
       <ActiveMissions missions={missions} loading={missionsLoading} />
+      <SecondLane />
       <FreeForever />
       <FooterCta />
     </main>
