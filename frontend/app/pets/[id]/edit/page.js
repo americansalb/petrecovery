@@ -1,20 +1,30 @@
 'use client';
 
 /**
- * Pet Detail/Edit Page - Phase 1.3
+ * Edit pet - tapping, not typing
  *
- * Route: /pets/[id]
- * View and edit a pet profile
+ * The same input vocabulary as the new-pet wizard (species cards, coat
+ * swatches, paw-scale sizes, trait chips), laid out as conversational
+ * cards instead of a form. A live Rescue-ready ring ticks up as fields
+ * fill — editing IS protection, and the page shows it. A save bar
+ * appears only when something actually changed.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Dog, Cat, Bird, Rabbit, PawPrint, Camera, AlertCircle, AlertTriangle, Trash2, Pill } from 'lucide-react';
+import {
+  ArrowLeft, PawPrint, Dog, Cat, Bird, Rabbit, Check, Minus, Plus,
+  Loader2, X, AlertTriangle,
+} from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
-import { Card, Button, Badge, EmptyState } from '@/components/ui';
+import { Card, Button, EmptyState, cn } from '@/components/ui';
+import {
+  COAT_COLORS, COAT_PATTERNS, MAX_COAT_COLORS,
+  composeColor, parseColor, validateMicrochip, normalizeMicrochip,
+} from '@/lib/petAppearance';
 
 const SPECIES_OPTIONS = [
   { value: 'DOG', label: 'Dog', icon: Dog },
@@ -25,27 +35,91 @@ const SPECIES_OPTIONS = [
 ];
 
 const SIZE_OPTIONS = [
-  { value: 'TINY', label: 'Tiny', description: 'Under 10 lbs (Chihuahua, Hamster)' },
-  { value: 'SMALL', label: 'Small', description: '10-25 lbs (Beagle, Cat)' },
-  { value: 'MEDIUM', label: 'Medium', description: '25-50 lbs (Border Collie, Cocker Spaniel)' },
-  { value: 'LARGE', label: 'Large', description: '50-90 lbs (Labrador, Golden Retriever)' },
-  { value: 'GIANT', label: 'Giant', description: '90+ lbs (Great Dane, St. Bernard)' },
+  { value: 'TINY', label: 'Tiny', hint: 'under 10 lbs', paw: 14 },
+  { value: 'SMALL', label: 'Small', hint: '10–25 lbs', paw: 18 },
+  { value: 'MEDIUM', label: 'Medium', hint: '25–50 lbs', paw: 23 },
+  { value: 'LARGE', label: 'Large', hint: '50–90 lbs', paw: 28 },
+  { value: 'GIANT', label: 'Giant', hint: '90+ lbs', paw: 34 },
 ];
 
 const SEX_OPTIONS = [
   { value: 'MALE', label: 'Male' },
   { value: 'FEMALE', label: 'Female' },
-  { value: 'UNKNOWN', label: 'Unknown' },
+  { value: '', label: 'Not sure' },
 ];
 
 const PERSONALITY_TRAITS = [
   'Friendly', 'Shy', 'Energetic', 'Calm', 'Playful',
   'Anxious', 'Aggressive when scared', 'Good with kids',
-  'Good with other pets', 'Comes when called', 'Microchip trained',
+  'Good with other pets', 'Comes when called',
 ];
 
-export default function PetDetailPage() {
-  const { data: session, status } = useSession();
+const inputClass =
+  'w-full rounded-2xl border-2 border-midnight-200 bg-white px-4 py-3 text-midnight-900 ' +
+  'placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition';
+
+/* Tap-first building blocks ------------------------------------------------ */
+
+function ChoiceChip({ active, onClick, children, className }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'px-3.5 py-2 rounded-2xl border-2 text-sm font-bold transition-all active:scale-95',
+        active
+          ? 'border-flash-400 bg-flash-50 text-midnight-900'
+          : 'border-midnight-200 bg-white text-midnight-500 hover:border-midnight-300 hover:text-midnight-800',
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SectionCard({ title, subtitle, children }) {
+  return (
+    <Card padding="lg" className="mb-4">
+      <h2 className="text-lg font-bold text-midnight-900">{title}</h2>
+      {subtitle && <p className="text-sm text-midnight-500 mt-0.5 mb-4">{subtitle}</p>}
+      {!subtitle && <div className="mb-4" />}
+      {children}
+    </Card>
+  );
+}
+
+function ReadyRing({ met, total }) {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const pct = total ? met / total : 0;
+  return (
+    <div className="flex items-center gap-2.5" role="img" aria-label={`Rescue ready: ${met} of ${total}`}>
+      <div className="relative w-11 h-11">
+        <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+          <circle cx="32" cy="32" r={r} fill="none" strokeWidth="7" className="stroke-midnight-100" />
+          <circle
+            cx="32" cy="32" r={r} fill="none" strokeWidth="7" strokeLinecap="round"
+            strokeDasharray={c} strokeDashoffset={c * (1 - pct)}
+            className={cn('transition-all duration-500', pct >= 1 ? 'stroke-emerald-400' : 'stroke-flash-400')}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-midnight-900 tabular-nums">
+          {met}/{total}
+        </span>
+      </div>
+      <span className="text-xs font-bold text-midnight-500 hidden sm:block leading-tight">
+        Rescue<br />ready
+      </span>
+    </div>
+  );
+}
+
+/* --------------------------------- Page ----------------------------------- */
+
+export default function EditPetPage() {
+  const { status } = useSession();
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
@@ -54,183 +128,193 @@ export default function PetDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    species: 'DOG',
-    breed: '',
-    age: '',
-    sex: '',
-    isNeutered: false,
-    color: '',
-    size: 'MEDIUM',
-    weight: '',
-    distinctiveMarks: '',
-    microchipId: '',
-    collarInfo: '',
-    personality: [],
-    medicalConditions: '',
-  });
-
+  const [form, setForm] = useState(null);
   const [images, setImages] = useState([]);
+  const [hasTeam, setHasTeam] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const originalRef = useRef(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login?callbackUrl=/pets/' + petId);
+      router.push(`/login?callbackUrl=/pets/${petId}/edit`);
     }
   }, [status, router, petId]);
 
-  useEffect(() => {
-    if (status === 'authenticated' && petId) {
-      fetchPet();
-    }
-  }, [status, petId]);
-
-  const fetchPet = async () => {
+  const fetchPet = useCallback(async () => {
     try {
       const res = await fetch(`/api/pets/${petId}`);
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error('Pet not found');
-        }
-        throw new Error('Failed to fetch pet');
-      }
+      if (!res.ok) throw new Error(res.status === 404 ? 'Pet not found' : 'Failed to fetch pet');
       const data = await res.json();
-      setPet(data.pet);
+      const p = data.pet;
+      setPet(p);
 
-      // Populate form
-      setFormData({
-        name: data.pet.name || '',
-        species: data.pet.species || 'DOG',
-        breed: data.pet.breed || '',
-        age: data.pet.age?.toString() || '',
-        sex: data.pet.sex || '',
-        isNeutered: data.pet.isNeutered || false,
-        color: data.pet.color || '',
-        size: data.pet.size || 'MEDIUM',
-        weight: data.pet.weight?.toString() || '',
-        distinctiveMarks: data.pet.distinctiveMarks || '',
-        microchipId: data.pet.microchipId || '',
-        collarInfo: data.pet.collarInfo || '',
-        personality: data.pet.personality || [],
-        medicalConditions: data.pet.medicalConditions || '',
-      });
-
-      // Populate images
-      if (data.pet.photos?.length > 0) {
-        setImages(data.pet.photos.map(url => ({ url, uploaded: true })));
-      }
+      const coat = parseColor(p.color || '');
+      const nextForm = {
+        name: p.name || '',
+        species: p.species || 'DOG',
+        breed: p.breed || '',
+        age: p.age?.toString() || '',
+        sex: p.sex || '',
+        isNeutered: !!p.isNeutered,
+        coatColors: coat.colors,
+        coatPattern: coat.pattern,
+        rawColor: coat.colors.length ? null : (p.color || ''), // legacy free-text colors survive untouched
+        size: p.size || 'MEDIUM',
+        weight: p.weight?.toString() || '',
+        distinctiveMarks: p.distinctiveMarks || '',
+        microchipId: p.microchipId || '',
+        collarInfo: p.collarInfo || '',
+        personality: Array.isArray(p.personality) ? p.personality : [],
+        medicalConditions: p.medicalConditions || '',
+      };
+      const nextImages = (p.photos?.length ? p.photos : []).map((url) => ({ url, uploaded: true }));
+      setForm(nextForm);
+      setImages(nextImages);
+      originalRef.current = JSON.stringify({ form: nextForm, urls: nextImages.map((i) => i.url) });
     } catch (err) {
-      console.error('[PETS-EDIT] Fetch error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [petId]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
+  useEffect(() => {
+    if (status === 'authenticated' && petId) fetchPet();
+  }, [status, petId, fetchPet]);
+
+  // Team state feeds the same 7-point readiness the Overview shows
+  useEffect(() => {
+    if (status !== 'authenticated' || !petId) return;
+    fetch(`/api/pets/${petId}/shares`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.shares?.some((s) => s.status === 'ACTIVE')) setHasTeam(true); })
+      .catch(() => {});
+    fetch(`/api/pets/${petId}/share-link`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.url) setHasTeam(true); })
+      .catch(() => {});
+  }, [status, petId]);
+
+  const set = (patch) => {
+    setForm((prev) => ({ ...prev, ...patch }));
+    const touched = Object.keys(patch);
+    if (touched.some((k) => errors[k])) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        for (const k of touched) delete next[k];
+        return next;
+      });
     }
   };
 
-  const handlePersonalityToggle = (trait) => {
-    setFormData(prev => ({
-      ...prev,
-      personality: prev.personality.includes(trait)
-        ? prev.personality.filter(t => t !== trait)
-        : [...prev.personality, trait]
-    }));
+  const colorValue = form
+    ? (form.coatColors.length ? composeColor(form.coatColors, form.coatPattern) : (form.rawColor || ''))
+    : '';
+
+  const dirty = useMemo(() => {
+    if (!form || !originalRef.current) return false;
+    return JSON.stringify({ form, urls: images.map((i) => i.url) }) !== originalRef.current;
+  }, [form, images]);
+
+  const readiness = useMemo(() => {
+    if (!form) return { met: 0, total: 7 };
+    const checks = [
+      images.length >= 1,
+      images.length >= 2,
+      !!form.distinctiveMarks.trim(),
+      !!form.microchipId.trim(),
+      form.personality.length > 0,
+      !!form.weight,
+      hasTeam,
+    ];
+    return { met: checks.filter(Boolean).length, total: checks.length };
+  }, [form, images, hasTeam]);
+
+  const toggleCoatColor = (value) => {
+    const has = form.coatColors.includes(value);
+    if (!has && form.coatColors.length >= MAX_COAT_COLORS) {
+      setErrors((prev) => ({ ...prev, color: `Up to ${MAX_COAT_COLORS} colors — the ones a stranger would name` }));
+      return;
+    }
+    set({
+      coatColors: has ? form.coatColors.filter((c) => c !== value) : [...form.coatColors, value],
+      rawColor: null,
+    });
+    setErrors((prev) => ({ ...prev, color: null }));
   };
 
   const validate = () => {
-    const newErrors = {};
-
-    if (!formData.name.trim()) newErrors.name = 'Pet name is required';
-    if (!formData.species) newErrors.species = 'Species is required';
-    if (!formData.color.trim()) newErrors.color = 'Color is required';
-    if (!formData.size) newErrors.size = 'Size is required';
-
-    if (formData.age && (isNaN(formData.age) || formData.age < 0 || formData.age > 50)) {
-      newErrors.age = 'Please enter a valid age (0-50)';
-    }
-
-    if (formData.weight && (isNaN(formData.weight) || formData.weight < 0)) {
-      newErrors.weight = 'Please enter a valid weight';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const next = {};
+    if (!form.name.trim()) next.name = `Every pet needs a name`;
+    if (!colorValue.trim()) next.color = 'Tap the coat colors a stranger would name';
+    if (form.age && (isNaN(form.age) || form.age < 0 || form.age > 50)) next.age = 'Age should be 0–50';
+    if (form.weight && (isNaN(form.weight) || form.weight < 0)) next.weight = 'Weight should be a number';
+    if (form.microchipId && !validateMicrochip(form.microchipId)) next.microchipId = '9–15 letters and digits';
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const save = async () => {
     setSubmitError(null);
-
     if (!validate()) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-
     setSubmitting(true);
-
     try {
-      const photoUrls = images.map(img => img.url);
-
+      const photoUrls = images.map((img) => img.url);
       const res = await fetch(`/api/pets/${petId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
-          age: formData.age ? parseInt(formData.age) : null,
-          weight: formData.weight ? parseFloat(formData.weight) : null,
+          name: form.name,
+          species: form.species,
+          breed: form.breed,
+          age: form.age ? parseInt(form.age, 10) : null,
+          sex: form.sex || null,
+          isNeutered: form.isNeutered,
+          color: colorValue,
+          size: form.size,
+          weight: form.weight ? parseFloat(form.weight) : null,
+          distinctiveMarks: form.distinctiveMarks,
+          microchipId: form.microchipId ? normalizeMicrochip(form.microchipId) : '',
+          collarInfo: form.collarInfo,
+          personality: form.personality,
+          medicalConditions: form.medicalConditions,
           photos: photoUrls,
           primaryPhotoUrl: photoUrls[0] || '',
-        })
+        }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update pet profile');
-      }
-
+      if (!res.ok) throw new Error(data.error || 'Failed to update pet profile');
       router.push(`/pets/${petId}`);
     } catch (err) {
-      console.error('[PETS-EDIT] Update error:', err);
       setSubmitError(err.message);
-    } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = () => {
-    setDeleteConfirmOpen(true);
+  const discard = () => {
+    const original = JSON.parse(originalRef.current);
+    setForm(original.form);
+    setImages(original.urls.map((url) => ({ url, uploaded: true })));
+    setErrors({});
+    setSubmitError(null);
   };
 
   const confirmDelete = async () => {
     setDeleteConfirmOpen(false);
     setDeleting(true);
-    setSubmitError(null);
-
     try {
       const res = await fetch(`/api/pets/${petId}`, { method: 'DELETE' });
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to delete pet');
-      }
-
-      router.push(`/pets/${petId}`);
+      if (!res.ok) throw new Error(data.error || 'Failed to delete pet');
+      router.push('/pets');
     } catch (err) {
-      console.error('[PETS-EDIT] Delete error:', err);
       setSubmitError(err.message);
       setDeleting(false);
     }
@@ -238,454 +322,368 @@ export default function PetDetailPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
-        <LoadingSpinner text="Loading pet profile..." />
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <LoadingSpinner text="Loading..." />
       </div>
     );
   }
-
-  if (error) {
+  if (status === 'unauthenticated') return null;
+  if (error || !form) {
     return (
-      <div className="min-h-screen bg-midnight-50 px-4 py-12">
-        <div className="max-w-md mx-auto mt-16">
-          <EmptyState
-            icon={PawPrint}
-            title="Pet Not Found"
-            description={error}
-            actionLabel="Back to profile"
-            actionHref="/pets"
-          />
+      <div className="px-4 py-12">
+        <div className="max-w-md mx-auto mt-8">
+          <EmptyState icon={PawPrint} title="Pet not found" description={error} action={{ href: '/pets', label: 'Back to My Pets' }} />
         </div>
       </div>
     );
   }
 
-  if (status === 'unauthenticated') {
-    return null;
-  }
-
-  const inputClass = "w-full px-4 py-3 border-2 border-midnight-200 rounded-lg focus:border-flash-400 focus:ring-2 focus:ring-flash-400 focus:outline-none transition-colors";
-  const inputErrorClass = "w-full px-4 py-3 border-2 border-red-400 bg-red-50 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-400 focus:outline-none transition-colors";
-  const labelClass = "block mb-2 font-medium text-midnight-700";
+  const name = form.name.trim() || 'your pet';
 
   return (
-    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-12">
-      {/* Delete Confirmation Dialog */}
-      {deleteConfirmOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-midnight-900 mb-3">
-              Delete Pet Profile?
-            </h3>
-            <p className="text-midnight-600 mb-6">
-              Are you sure you want to delete <strong>{formData.name}</strong>&apos;s profile? This cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteConfirmOpen(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="danger"
-                onClick={confirmDelete}
-                className="flex-1"
-              >
-                Yes, Delete
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
+    <div className="px-4 py-6 md:px-8 md:py-8 pb-32">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href={`/pets/${petId}`}
-            className="text-flash-500 hover:text-flash-600 inline-flex items-center gap-2 mb-4 font-medium transition-colors"
-          >
-            <ArrowLeft size={18} />
-            Back to profile
-          </Link>
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-midnight-900">
-                Edit {pet?.name || 'Pet'}
-              </h1>
-              <p className="text-midnight-600 mt-2">
-                Update your pet&apos;s profile information
-              </p>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                variant="outline"
-                href={`/pets/${petId}/medications`}
-                size="lg"
-              >
-                <Pill size={18} />
-                Medications
-              </Button>
-              {/* Quick Report Button */}
-              {(!pet?.cases?.length || pet.cases[0]?.status === 'RESOLVED' || pet.cases[0]?.status === 'CLOSED_OTHER') && (
-                <Button
-                  variant="danger"
-                  href={`/report/new?petId=${petId}`}
-                  size="lg"
-                >
-                  <AlertTriangle size={18} />
-                  Report Lost
-                </Button>
-              )}
-            </div>
+        <div className="flex items-center justify-between gap-3 mb-5">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-midnight-900">Edit {pet.name}</h1>
+            <p className="text-sm text-midnight-500">Every detail here is one a searcher or sitter could need.</p>
           </div>
+          <ReadyRing met={readiness.met} total={readiness.total} />
         </div>
 
-        {/* Case History */}
-        {pet?.cases?.length > 0 && (
-          <Card variant="primary" className="p-6 mb-6">
-            <h3 className="text-sm font-semibold text-midnight-900 mb-3 uppercase tracking-wide">
-              Case History
-            </h3>
-            <div className="space-y-2">
-              {pet.cases.map(c => (
-                <Link
-                  key={c.id}
-                  href={`/cases/${c.caseNumber}`}
-                  className="flex justify-between items-center p-3 bg-white rounded-lg hover:bg-midnight-50 transition-colors"
-                >
-                  <span className="text-flash-600 font-medium">{c.caseNumber}</span>
-                  <Badge
-                    variant={
-                      c.status === 'RESOLVED' ? 'success' :
-                      c.status === 'ACTIVE_SEARCH' ? 'primary' :
-                      'warning'
-                    }
-                  >
-                    {c.status.replace('_', ' ')}
-                  </Badge>
-                </Link>
-              ))}
-            </div>
-          </Card>
+        {submitError && (
+          <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-xl mb-4 flex items-center justify-between">
+            <span>{submitError}</span>
+            <button onClick={() => setSubmitError(null)} aria-label="Dismiss" className="text-red-400 hover:text-red-700"><X size={16} /></button>
+          </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          {/* Basic Info Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Basic Information
-            </h2>
+        {/* The face on the flyer */}
+        <SectionCard
+          title="The face on the flyer"
+          subtitle={`Clear, recent photos. If ${name} ever went missing, the first one becomes the poster.`}
+        >
+          <ImageUpload
+            images={images}
+            onUpload={(newImages) => setImages((prev) => [...prev, ...newImages])}
+            onRemove={(index) => setImages((prev) => prev.filter((_, i) => i !== index))}
+            maxImages={5}
+            context="pet"
+            label=""
+            helpText=""
+          />
+        </SectionCard>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Name */}
-              <div>
-                <label className={labelClass}>Pet Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="e.g., Max"
-                  className={errors.name ? inputErrorClass : inputClass}
-                />
-                {errors.name && <p className="text-red-600 text-sm mt-1">{errors.name}</p>}
-              </div>
+        {/* Who is X? */}
+        <SectionCard title={`Who is ${name}?`}>
+          <div className="space-y-5">
+            <div>
+              <input
+                value={form.name}
+                onChange={(e) => set({ name: e.target.value })}
+                placeholder="Name"
+                aria-label="Pet name"
+                maxLength={40}
+                className={cn(inputClass, 'text-lg font-bold', errors.name && 'border-red-300')}
+              />
+              {errors.name && <p className="text-xs text-red-600 mt-1.5">{errors.name}</p>}
+            </div>
 
-              {/* Species */}
-              <div>
-                <label className={labelClass}>Species *</label>
-                <select
-                  name="species"
-                  value={formData.species}
-                  onChange={handleChange}
-                  className={errors.species ? inputErrorClass : inputClass}
+            <div className="flex flex-wrap gap-2">
+              {SPECIES_OPTIONS.map(({ value, label, icon: Icon }) => (
+                <ChoiceChip key={value} active={form.species === value} onClick={() => set({ species: value })}>
+                  <span className="inline-flex items-center gap-1.5"><Icon size={15} /> {label}</span>
+                </ChoiceChip>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <input
+                value={form.breed}
+                onChange={(e) => set({ breed: e.target.value })}
+                placeholder="Breed (best guess is fine)"
+                aria-label="Breed"
+                className={inputClass}
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-midnight-500 shrink-0">Age</span>
+                <button
+                  type="button"
+                  aria-label="Younger"
+                  onClick={() => set({ age: String(Math.max(0, (parseInt(form.age, 10) || 0) - 1)) })}
+                  className="w-10 h-10 rounded-xl border-2 border-midnight-200 text-midnight-500 hover:border-midnight-300 flex items-center justify-center transition-colors"
                 >
-                  {SPECIES_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Breed */}
-              <div>
-                <label className={labelClass}>Breed</label>
-                <input
-                  type="text"
-                  name="breed"
-                  value={formData.breed}
-                  onChange={handleChange}
-                  placeholder="e.g., Golden Retriever"
-                  className={inputClass}
-                />
-              </div>
-
-              {/* Age */}
-              <div>
-                <label className={labelClass}>Age (years)</label>
-                <input
-                  type="number"
-                  name="age"
-                  value={formData.age}
-                  onChange={handleChange}
-                  min="0"
-                  max="50"
-                  placeholder="e.g., 3"
-                  className={errors.age ? inputErrorClass : inputClass}
-                />
-                {errors.age && <p className="text-red-600 text-sm mt-1">{errors.age}</p>}
-              </div>
-
-              {/* Sex */}
-              <div>
-                <label className={labelClass}>Sex</label>
-                <select
-                  name="sex"
-                  value={formData.sex}
-                  onChange={handleChange}
-                  className={inputClass}
+                  <Minus size={15} />
+                </button>
+                <span className="w-16 text-center font-bold text-midnight-900 tabular-nums">
+                  {form.age === '' ? '—' : `${form.age} yr${form.age === '1' ? '' : 's'}`}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Older"
+                  onClick={() => set({ age: String(Math.min(50, (parseInt(form.age, 10) || 0) + 1)) })}
+                  className="w-10 h-10 rounded-xl border-2 border-midnight-200 text-midnight-500 hover:border-midnight-300 flex items-center justify-center transition-colors"
                 >
-                  <option value="">Select...</option>
-                  {SEX_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Neutered/Spayed */}
-              <div className="flex items-center pt-7">
-                <input
-                  type="checkbox"
-                  name="isNeutered"
-                  checked={formData.isNeutered}
-                  onChange={handleChange}
-                  id="isNeutered"
-                  className="w-5 h-5 text-flash-500 border-2 border-midnight-300 rounded focus:ring-2 focus:ring-flash-400"
-                />
-                <label htmlFor="isNeutered" className="ml-2 text-midnight-700">
-                  Neutered/Spayed
-                </label>
+                  <Plus size={15} />
+                </button>
+                {errors.age && <p className="text-xs text-red-600">{errors.age}</p>}
               </div>
             </div>
-          </Card>
 
-          {/* Physical Description Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Physical Description
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Color */}
-              <div>
-                <label className={labelClass}>Color/Markings *</label>
-                <input
-                  type="text"
-                  name="color"
-                  value={formData.color}
-                  onChange={handleChange}
-                  placeholder="e.g., Golden, Black and White"
-                  className={errors.color ? inputErrorClass : inputClass}
-                />
-                {errors.color && <p className="text-red-600 text-sm mt-1">{errors.color}</p>}
-              </div>
-
-              {/* Size */}
-              <div>
-                <label className={labelClass}>Size *</label>
-                <select
-                  name="size"
-                  value={formData.size}
-                  onChange={handleChange}
-                  className={errors.size ? inputErrorClass : inputClass}
-                >
-                  {SIZE_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label} - {opt.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Weight */}
-              <div>
-                <label className={labelClass}>Weight (lbs)</label>
-                <input
-                  type="number"
-                  name="weight"
-                  value={formData.weight}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.1"
-                  placeholder="e.g., 25"
-                  className={errors.weight ? inputErrorClass : inputClass}
-                />
-                {errors.weight && <p className="text-red-600 text-sm mt-1">{errors.weight}</p>}
-              </div>
-
-              {/* Distinctive Marks */}
-              <div className="md:col-span-2">
-                <label className={labelClass}>Distinctive Marks</label>
-                <textarea
-                  name="distinctiveMarks"
-                  value={formData.distinctiveMarks}
-                  onChange={handleChange}
-                  placeholder="e.g., White spot on chest, scar on left ear, cropped tail..."
-                  rows={2}
-                  className={inputClass}
-                />
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {SEX_OPTIONS.map(({ value, label }) => (
+                <ChoiceChip key={label} active={form.sex === value} onClick={() => set({ sex: value })}>
+                  {label}
+                </ChoiceChip>
+              ))}
+              <span className="w-px h-6 bg-midnight-100 mx-1" aria-hidden="true" />
+              <ChoiceChip active={form.isNeutered} onClick={() => set({ isNeutered: !form.isNeutered })}>
+                <span className="inline-flex items-center gap-1.5">
+                  {form.isNeutered && <Check size={14} strokeWidth={3} />}
+                  Neutered / spayed
+                </span>
+              </ChoiceChip>
             </div>
-          </Card>
+          </div>
+        </SectionCard>
 
-          {/* Identification Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Identification
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Microchip */}
-              <div>
-                <label className={labelClass}>Microchip ID</label>
-                <input
-                  type="text"
-                  name="microchipId"
-                  value={formData.microchipId}
-                  onChange={handleChange}
-                  placeholder="e.g., 900123456789012"
-                  className={inputClass}
-                />
-                <p className="text-midnight-600 text-xs mt-1">
-                  Having a microchip greatly increases chances of reunion
-                </p>
-              </div>
-
-              {/* Collar Info */}
-              <div>
-                <label className={labelClass}>Collar/Tag Description</label>
-                <input
-                  type="text"
-                  name="collarInfo"
-                  value={formData.collarInfo}
-                  onChange={handleChange}
-                  placeholder="e.g., Red collar with bone-shaped tag"
-                  className={inputClass}
-                />
-              </div>
-            </div>
-          </Card>
-
-          {/* Behavior & Health Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6">
-              Behavior & Health
-            </h2>
-
-            {/* Personality Traits */}
-            <div className="mb-6">
-              <label className={labelClass}>Personality Traits</label>
-              <p className="text-midnight-600 text-sm mb-3">
-                Select all that apply - this helps rescuers approach your pet safely
+        {/* What does X look like? */}
+        <SectionCard
+          title={`What does ${name} look like?`}
+          subtitle="This is how strangers search. Tap what they'd actually say."
+        >
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2.5">
+                Coat — up to {MAX_COAT_COLORS} colors
               </p>
-              <div className="flex flex-wrap gap-2">
-                {PERSONALITY_TRAITS.map(trait => (
-                  <button
-                    key={trait}
-                    type="button"
-                    onClick={() => handlePersonalityToggle(trait)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      formData.personality.includes(trait)
-                        ? 'bg-flash-100 border-2 border-flash-400 text-flash-700'
-                        : 'bg-white border border-midnight-200 text-midnight-600 hover:border-midnight-300'
-                    }`}
+              <div className="flex flex-wrap gap-3">
+                {COAT_COLORS.map(({ value, css, border }) => {
+                  const active = form.coatColors.includes(value);
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => toggleCoatColor(value)}
+                      aria-pressed={active}
+                      aria-label={value}
+                      title={value}
+                      className="flex flex-col items-center gap-1 group"
+                    >
+                      <span
+                        className={cn(
+                          'w-10 h-10 rounded-full transition-all flex items-center justify-center',
+                          border && 'border border-midnight-200',
+                          active ? 'ring-[3px] ring-offset-2 ring-flash-500 scale-110' : 'group-hover:scale-105'
+                        )}
+                        style={{ background: css }}
+                      >
+                        {active && (
+                          <span className="w-4.5 h-4.5 w-5 h-5 rounded-full bg-white/95 text-midnight-900 flex items-center justify-center shadow">
+                            <Check size={12} strokeWidth={3.5} />
+                          </span>
+                        )}
+                      </span>
+                      <span className={cn('text-[10px] font-semibold', active ? 'text-midnight-900' : 'text-midnight-400')}>
+                        {value}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {form.rawColor && (
+                <p className="text-xs text-midnight-400 mt-2">
+                  Currently saved as “{form.rawColor}” — tap swatches to upgrade it.
+                </p>
+              )}
+              {errors.color && <p className="text-xs text-red-600 mt-2">{errors.color}</p>}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {COAT_PATTERNS.map((p) => (
+                  <ChoiceChip
+                    key={p}
+                    active={(form.coatPattern || 'Solid') === p}
+                    onClick={() => set({ coatPattern: p === 'Solid' ? null : p })}
+                    className="px-3 py-1.5 text-xs"
                   >
-                    {trait}
-                  </button>
+                    {p}
+                  </ChoiceChip>
                 ))}
               </div>
             </div>
 
-            {/* Medical Conditions */}
             <div>
-              <label className={labelClass}>Medical Conditions</label>
-              <textarea
-                name="medicalConditions"
-                value={formData.medicalConditions}
-                onChange={handleChange}
-                placeholder="e.g., Diabetes (needs insulin), arthritis, allergies to chicken..."
-                rows={2}
-                className={inputClass}
-              />
-              <p className="text-midnight-600 text-xs mt-1">
-                Important for rescuers to know about medications or special needs
-              </p>
+              <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2.5">Size</p>
+              <div className="grid grid-cols-5 gap-2">
+                {SIZE_OPTIONS.map(({ value, label, hint, paw }) => {
+                  const active = form.size === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => set({ size: value })}
+                      aria-pressed={active}
+                      className={cn(
+                        'flex flex-col items-center justify-end gap-1 rounded-2xl border-2 px-1 pt-3 pb-2 transition-all active:scale-95',
+                        active ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-300'
+                      )}
+                    >
+                      <PawPrint size={paw} className={active ? 'text-midnight-900' : 'text-midnight-300'} />
+                      <span className={cn('text-xs font-bold', active ? 'text-midnight-900' : 'text-midnight-500')}>{label}</span>
+                      <span className="text-[9px] text-midnight-400 leading-none hidden sm:block">{hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </Card>
 
-          {/* Photos Section */}
-          <Card className="p-6 mb-6">
-            <h2 className="text-xl font-semibold text-midnight-900 mb-6 flex items-center gap-2">
-              <Camera className="w-5 h-5 text-flash-500" />
-              Photos
-            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div className="relative">
+                  <input
+                    value={form.weight}
+                    onChange={(e) => set({ weight: e.target.value })}
+                    placeholder="Weight"
+                    aria-label="Weight in pounds"
+                    inputMode="decimal"
+                    className={cn(inputClass, 'pr-12', errors.weight && 'border-red-300')}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-midnight-400">lbs</span>
+                </div>
+                {errors.weight && <p className="text-xs text-red-600 mt-1.5">{errors.weight}</p>}
+              </div>
+            </div>
 
-            <ImageUpload
-              images={images}
-              onUpload={(newImages) => setImages(prev => [...prev, ...newImages])}
-              onRemove={(index) => setImages(prev => prev.filter((_, i) => i !== index))}
-              maxImages={5}
-              context="pet"
-              label="Pet Photos"
-              helpText="Upload clear photos of your pet. The first photo will be the primary photo."
+            <textarea
+              value={form.distinctiveMarks}
+              onChange={(e) => set({ distinctiveMarks: e.target.value })}
+              placeholder={`What would a stranger notice first? White chest patch, torn left ear, walks with a hop...`}
+              aria-label="Distinctive marks"
+              rows={2}
+              className={inputClass}
             />
-          </Card>
+          </div>
+        </SectionCard>
 
-          {/* Submit Error */}
-          {submitError && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <span>{submitError}</span>
+        {/* The vibe */}
+        <SectionCard
+          title={`${name}'s vibe`}
+          subtitle={`“Shy — do not chase” changes how a whole neighborhood searches.`}
+        >
+          <div className="flex flex-wrap gap-2 mb-4">
+            {PERSONALITY_TRAITS.map((trait) => {
+              const active = form.personality.includes(trait);
+              return (
+                <ChoiceChip
+                  key={trait}
+                  active={active}
+                  onClick={() =>
+                    set({
+                      personality: active
+                        ? form.personality.filter((t) => t !== trait)
+                        : [...form.personality, trait],
+                    })
+                  }
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    {active && <Check size={14} strokeWidth={3} />}
+                    {trait}
+                  </span>
+                </ChoiceChip>
+              );
+            })}
+          </div>
+          <textarea
+            value={form.medicalConditions}
+            onChange={(e) => set({ medicalConditions: e.target.value })}
+            placeholder="Anything a vet or sitter should know? Allergies, conditions, daily meds..."
+            aria-label="Medical notes"
+            rows={2}
+            className={inputClass}
+          />
+        </SectionCard>
+
+        {/* If found */}
+        <SectionCard
+          title={`If ${name} is ever found`}
+          subtitle="The two things that prove who they are and bring them straight home."
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <input
+                value={form.microchipId}
+                onChange={(e) => set({ microchipId: e.target.value })}
+                placeholder="Microchip number"
+                aria-label="Microchip number"
+                className={cn(inputClass, 'font-mono text-sm', errors.microchipId && 'border-red-300')}
+              />
+              {errors.microchipId && <p className="text-xs text-red-600 mt-1.5">{errors.microchipId}</p>}
             </div>
-          )}
+            <input
+              value={form.collarInfo}
+              onChange={(e) => set({ collarInfo: e.target.value })}
+              placeholder="Collar & tag (e.g., blue collar, bone tag with phone)"
+              aria-label="Collar and tag description"
+              className={inputClass}
+            />
+          </div>
+        </SectionCard>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleDelete}
-              loading={deleting}
-              className="border-red-300 text-red-600 hover:bg-red-50"
-            >
-              <Trash2 size={18} />
-              {deleting ? 'Deleting...' : 'Delete Pet'}
-            </Button>
+        <p className="text-center pt-2 pb-6">
+          <button
+            onClick={() => setDeleteConfirmOpen(true)}
+            disabled={deleting}
+            className="text-xs text-midnight-400 hover:text-red-600 underline underline-offset-2 transition-colors"
+          >
+            {deleting ? 'Removing...' : `Remove ${pet.name} from ReunitePets`}
+          </button>
+        </p>
+      </div>
 
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                href={`/pets/${petId}`}
-                size="lg"
+      {/* Save bar: only exists once something changed */}
+      {dirty && (
+        <div className="fixed inset-x-0 bottom-0 z-40 p-4 pointer-events-none">
+          <div className="max-w-4xl mx-auto flex justify-center">
+            <div className="pointer-events-auto flex items-center gap-3 bg-midnight-950 text-white rounded-2xl shadow-2xl pl-5 pr-2 py-2">
+              <span className="text-sm font-semibold">Unsaved changes</span>
+              <button
+                onClick={discard}
+                disabled={submitting}
+                className="text-sm font-bold text-midnight-300 hover:text-white px-2 py-2 transition-colors"
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                loading={submitting}
+                Discard
+              </button>
+              <button
+                onClick={save}
+                disabled={submitting}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 text-sm font-bold rounded-xl transition-colors"
               >
-                Save Changes
-              </Button>
+                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} strokeWidth={3} />}
+                Save changes
+              </button>
             </div>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmOpen(false)} />
+          <Card className="relative w-full max-w-sm p-6 text-center">
+            <span className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle size={22} />
+            </span>
+            <h3 className="text-lg font-bold text-midnight-900 mb-1">Remove {pet.name}?</h3>
+            <p className="text-sm text-midnight-500 mb-5">
+              Their profile, care history, and medication log go with them. This can&apos;t be undone.
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Keep {pet.name}</Button>
+              <Button variant="danger" onClick={confirmDelete}>Remove</Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
