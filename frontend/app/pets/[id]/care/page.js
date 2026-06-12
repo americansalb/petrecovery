@@ -82,7 +82,7 @@ export default function PetCarePage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {!canManage && (
           <div className="mb-4 flex justify-end">
             <Badge variant="default" icon={Eye}>View only</Badge>

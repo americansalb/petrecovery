@@ -331,7 +331,11 @@ function WeekStrip({ meds, selectedDay, onSelectDay }) {
           <Badge variant="primary" icon={Sparkles}>{streak}-day streak</Badge>
         )}
       </div>
-      <p className="text-xs text-midnight-400 mb-4">Tap a day to review it or log doses you gave but did not record.</p>
+      <p className="text-xs text-midnight-400 mb-4">
+        {days.slice(0, 6).every((d) => d.due === 0)
+          ? 'History starts today — it fills in as you check off doses.'
+          : 'Tap a day to review it or log doses you gave but did not record.'}
+      </p>
       <div className="grid grid-cols-7 gap-2">
         {days.map(({ day, due, given }, i) => {
           const isToday = i === 6;
@@ -350,18 +354,23 @@ function WeekStrip({ meds, selectedDay, onSelectDay }) {
               aria-pressed={isSelected}
             >
               <span className={cn('text-[11px] font-semibold', isToday || isSelected ? 'text-midnight-900' : 'text-midnight-400')}>
-                {isToday ? 'Today' : day.toLocaleDateString([], { weekday: 'narrow' })}
+                {isToday ? 'Today' : day.toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}
               </span>
-              <div className="w-full h-12 bg-midnight-100 rounded-lg relative overflow-hidden" title={due ? `${given}/${due} given` : 'Nothing due'}>
-                {pct != null && (
+              <div
+                className={cn('w-full h-12 rounded-lg relative overflow-hidden', due ? 'bg-midnight-100' : 'bg-transparent')}
+                title={due ? `${given}/${due} given` : 'Nothing scheduled'}
+              >
+                {pct != null ? (
                   <div
                     className={cn('absolute bottom-0 left-0 right-0 rounded-lg transition-all',
                       pct >= 1 ? 'bg-emerald-400' : pct > 0 ? 'bg-flash-400' : 'bg-midnight-200')}
                     style={{ height: `${Math.max(pct * 100, pct > 0 ? 18 : 8)}%` }}
                   />
+                ) : (
+                  <span className="absolute inset-0 flex items-center justify-center text-midnight-200 text-lg leading-none">·</span>
                 )}
               </div>
-              <span className="text-[10px] text-midnight-500 tabular-nums">{due ? `${given}/${due}` : '—'}</span>
+              <span className={cn('text-[10px] tabular-nums', due ? 'text-midnight-500' : 'text-transparent')}>{due ? `${given}/${due}` : '·'}</span>
             </button>
           );
         })}
@@ -724,7 +733,7 @@ export default function MedicationTrackerPage() {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Toolbar: the shell above carries identity and tabs */}
         <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
           <p className="text-sm text-midnight-500">
@@ -735,11 +744,11 @@ export default function MedicationTrackerPage() {
             <a
               href={`/api/pets/${petId}/medications/export`}
               download
-              className="p-2.5 border-2 border-midnight-200 text-midnight-500 rounded-xl hover:border-midnight-300 hover:text-midnight-800 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 border-2 border-midnight-200 text-midnight-500 rounded-xl text-sm font-bold hover:border-midnight-300 hover:text-midnight-800 transition-colors"
               title="Download a full backup of all medication data"
-              aria-label="Download medication backup"
             >
-              <Download size={17} />
+              <Download size={15} />
+              <span className="hidden sm:inline">Backup</span>
             </a>
             {!canManage && (
               <Badge variant="default" icon={Eye}>View only</Badge>

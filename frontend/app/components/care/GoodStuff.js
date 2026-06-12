@@ -265,6 +265,28 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
       applyDose(care.id, data.dose, data.quantityRemaining);
     });
 
+  // One tap on an empty room starts a routine with its sensible defaults;
+  // the modal stays available under "More..." for custom setups.
+  const seedActivity = (a) =>
+    withBusy(`seed-${a.id}`, async () => {
+      const asNeeded = !a.defaultTimes || a.defaultTimes.length === 0;
+      const res = await fetch(`/api/pets/${petId}/medications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'CARE',
+          name: a.label,
+          color: a.color || 'emerald',
+          scheduleType: asNeeded ? 'AS_NEEDED' : 'DAILY',
+          timesOfDay: asNeeded ? [] : a.defaultTimes,
+          daysOfWeek: null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not add');
+      setMeds((prev) => [...prev, data.medication]);
+    });
+
   const togglePause = (care) =>
     withBusy(`pause-${care.id}`, async () => {
       const res = await fetch(`/api/pets/${petId}/medications/${care.id}`, {
@@ -374,9 +396,39 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
           </ul>
         ) : active.length === 0 ? (
           canManage && (
-            <Button variant="outline" onClick={() => setShowAdd(true)} leftIcon={Plus}>
-              Add your first routine
-            </Button>
+            <>
+              <div className="flex flex-wrap gap-2.5">
+                {CARE_ACTIVITIES.slice(0, 6).map((a) => {
+                  const busy = busyKeys.has(`seed-${a.id}`);
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => seedActivity(a)}
+                      disabled={busy}
+                      className="flex items-center gap-2.5 rounded-2xl border-2 border-dashed border-midnight-200 bg-white px-3.5 py-2.5 transition-all hover:border-flash-400 hover:bg-flash-50 active:scale-95"
+                    >
+                      <span className="text-2xl" aria-hidden="true">{a.emoji}</span>
+                      <span className="text-left">
+                        <span className="block text-sm font-bold text-midnight-900">{a.label}</span>
+                        <span className="block text-[11px] text-midnight-500">
+                          {busy ? 'Adding...' : a.defaultTimes?.length ? a.defaultTimes.map(formatTime).join(' & ') : 'whenever it happens'}
+                        </span>
+                      </span>
+                      {busy ? <Loader2 size={15} className="animate-spin text-midnight-400" /> : <Plus size={15} className="text-midnight-300" />}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="flex items-center gap-2 rounded-2xl border-2 border-dashed border-midnight-200 px-3.5 py-2.5 text-sm font-bold text-midnight-500 hover:border-midnight-300 hover:text-midnight-800 transition-all"
+                >
+                  More...
+                </button>
+              </div>
+              <p className="text-[11px] text-midnight-400 mt-3">
+                Tap one to start it with sensible times — adjust anytime under Manage.
+              </p>
+            </>
           )
         ) : (
           <div className="flex flex-wrap gap-2.5">

@@ -15,14 +15,14 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, PawPrint, Pencil, Share2, Pill, AlertTriangle, Radar,
-  MapPin, Heart, Users, Plus, Loader2, ShieldCheck, Fingerprint,
-  Tag, Scale, Cake, Camera, History, ChevronRight, Check,
+  PawPrint, Pill, AlertTriangle, Radar, Users, ShieldCheck,
+  Fingerprint, Tag, Scale, Camera, History, ChevronRight, Check,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, cn } from '@/components/ui';
 import { MedIconChip } from '@/app/components/medications/MedIcon';
 import { slotsWithStatus, sameDay, careEmoji, formatTime } from '@/lib/medications';
+import RescueReadiness from '@/app/components/pets/RescueReadiness';
 
 const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
 
@@ -42,6 +42,27 @@ function activeCaseOf(pet) {
   return c;
 }
 
+/* A profile fact row: shows the value when known, a one-tap "Add" when not -
+   an empty record should read as an invitation, never as dead text. */
+function IdRow({ icon: Icon, label, isOwner, addHref, children }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-midnight-500 flex items-center gap-1.5"><Icon size={14} /> {label}</dt>
+      <dd className="font-semibold text-midnight-900 text-right min-w-0">
+        {children || (
+          isOwner ? (
+            <Link href={addHref} className="inline-flex items-center gap-0.5 text-flash-600 hover:text-flash-700 font-bold text-xs">
+              Add <ChevronRight size={12} />
+            </Link>
+          ) : (
+            <span className="text-midnight-400 font-normal">Not noted</span>
+          )
+        )}
+      </dd>
+    </div>
+  );
+}
+
 /* --------------------------------- Page ----------------------------------- */
 
 export default function PetProfilePage() {
@@ -54,6 +75,7 @@ export default function PetProfilePage() {
   const [meds, setMeds] = useState([]);
   const [access, setAccess] = useState('OWNER');
   const [shares, setShares] = useState(null); // null = not loaded / not owner
+  const [viewLinkUrl, setViewLinkUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -95,6 +117,10 @@ export default function PetProfilePage() {
     fetch(`/api/pets/${petId}/shares`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data?.shares) setShares(data.shares); })
+      .catch(() => {});
+    fetch(`/api/pets/${petId}/share-link`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.url) setViewLinkUrl(data.url); })
       .catch(() => {});
   }, [status, petId]);
 
@@ -168,17 +194,16 @@ export default function PetProfilePage() {
   const activeCase = activeCaseOf(pet);
   const photos = parseJsonArray(pet.photos);
   const personality = parseJsonArray(pet.personality);
-  const detailLine = [
-    pet.breed || pet.species,
+  const uniquePhotos = [...new Set([pet.primaryPhotoUrl, ...photos].filter(Boolean))];
+  const traitLine = [
     pet.color,
     pet.size && pet.size.charAt(0) + pet.size.slice(1).toLowerCase(),
     pet.sex && pet.sex.charAt(0) + pet.sex.slice(1).toLowerCase(),
-    pet.age != null && `${pet.age} year${pet.age !== 1 ? 's' : ''} old`,
   ].filter(Boolean).join(' · ');
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Missing? Nothing else matters until they're home. */}
         {activeCase && (
           <div className="rounded-3xl bg-midnight-950 border-2 border-red-500/60 p-5 mb-6">
@@ -203,57 +228,17 @@ export default function PetProfilePage() {
           </div>
         )}
 
-        {/* Identity hero */}
-        <Card padding="none" className="overflow-hidden mb-6">
-          <div className="sm:flex">
-            <div className="sm:w-56 h-56 sm:h-auto bg-midnight-100 flex items-center justify-center shrink-0">
-              {pet.primaryPhotoUrl ? (
-                <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-7xl" aria-hidden="true">{SPECIES_EMOJI[pet.species] || '🐾'}</span>
-              )}
-            </div>
-            <div className="p-5 flex-1 min-w-0 flex flex-col justify-center">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h1 className="text-3xl font-bold text-midnight-900 truncate">{pet.name}</h1>
-                  <p className="text-sm text-midnight-500 mt-1">{detailLine}</p>
-                </div>
-                {!activeCase && (
-                  <Badge variant="success" icon={Heart}>Home</Badge>
-                )}
-              </div>
-
-              {personality.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {personality.slice(0, 6).map((trait) => (
-                    <span key={trait} className="px-2.5 py-1 rounded-full bg-flash-50 border border-flash-200 text-flash-800 text-xs font-semibold">
-                      {trait}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                {isOwner && (
-                  <Button variant="outline" size="sm" href={`/pets/${petId}/edit`} leftIcon={Pencil}>
-                    Edit
-                  </Button>
-                )}
-                {isOwner && (
-                  <Button variant="outline" size="sm" href={`/pets/${petId}/share`} leftIcon={Share2}>
-                    Share
-                  </Button>
-                )}
-                {!activeCase && isOwner && (
-                  <Button variant="danger" size="sm" href={`/report/new?petId=${petId}`} leftIcon={AlertTriangle}>
-                    Report lost
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
+        {/* The profile's spine: how ready is this record for the worst day? */}
+        {!activeCase && (
+          <RescueReadiness
+            pet={pet}
+            photos={uniquePhotos}
+            personality={personality}
+            shares={shares}
+            viewLinkUrl={viewLinkUrl}
+            isOwner={isOwner}
+          />
+        )}
 
         {/* Today's care, at a glance */}
         <Link href={`/pets/${petId}/medications`} className="block group mb-6">
@@ -299,20 +284,21 @@ export default function PetProfilePage() {
               <Fingerprint size={18} className="text-midnight-400" /> Identification
             </h2>
             <dl className="space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-midnight-500 flex items-center gap-1.5"><ShieldCheck size={14} /> Microchip</dt>
-                <dd className={cn('font-semibold text-right', pet.microchipId ? 'text-midnight-900 font-mono text-xs' : 'text-midnight-400')}>
-                  {pet.microchipId || 'Not on file'}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-midnight-500 flex items-center gap-1.5"><Tag size={14} /> Collar</dt>
-                <dd className="font-semibold text-midnight-900 text-right">{pet.collarInfo || <span className="text-midnight-400 font-normal">Not noted</span>}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-midnight-500 flex items-center gap-1.5"><Scale size={14} /> Weight</dt>
-                <dd className="font-semibold text-midnight-900">{pet.weight ? `${pet.weight} lbs` : <span className="text-midnight-400 font-normal">Not noted</span>}</dd>
-              </div>
+              {traitLine && (
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-midnight-500 flex items-center gap-1.5"><PawPrint size={14} /> Looks</dt>
+                  <dd className="font-semibold text-midnight-900 text-right">{traitLine}</dd>
+                </div>
+              )}
+              <IdRow icon={ShieldCheck} label="Microchip" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
+                {pet.microchipId && <span className="font-mono text-xs">{pet.microchipId}</span>}
+              </IdRow>
+              <IdRow icon={Tag} label="Collar" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
+                {pet.collarInfo}
+              </IdRow>
+              <IdRow icon={Scale} label="Weight" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
+                {pet.weight ? `${pet.weight} lbs` : null}
+              </IdRow>
               {pet.distinctiveMarks && (
                 <div>
                   <dt className="text-midnight-500 mb-1">Distinctive marks</dt>
@@ -323,6 +309,15 @@ export default function PetProfilePage() {
                 <div>
                   <dt className="text-midnight-500 mb-1">Medical notes</dt>
                   <dd className="text-midnight-800">{pet.medicalConditions}</dd>
+                </div>
+              )}
+              {personality.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {personality.slice(0, 6).map((trait) => (
+                    <span key={trait} className="px-2.5 py-1 rounded-full bg-flash-50 border border-flash-200 text-flash-800 text-xs font-semibold">
+                      {trait}
+                    </span>
+                  ))}
                 </div>
               )}
             </dl>
@@ -367,14 +362,14 @@ export default function PetProfilePage() {
           </Card>
         </div>
 
-        {/* Photos */}
-        {(photos.length > 0 || pet.primaryPhotoUrl) && (
+        {/* Photos - only once there's more than the avatar already shows */}
+        {uniquePhotos.length >= 2 && (
           <Card padding="lg" className="mb-6">
             <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-4">
               <Camera size={18} className="text-midnight-400" /> Photos
             </h2>
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {[...new Set([pet.primaryPhotoUrl, ...photos].filter(Boolean))].slice(0, 10).map((url) => (
+              {uniquePhotos.slice(0, 10).map((url) => (
                 <div key={url} className="aspect-square rounded-xl overflow-hidden bg-midnight-100">
                   <img src={url} alt={pet.name} className="w-full h-full object-cover" loading="lazy" />
                 </div>

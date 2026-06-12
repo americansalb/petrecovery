@@ -3,18 +3,20 @@
 /**
  * The pet shell - one house, a visible hallway
  *
- * Every page under a pet (overview, medications, sharing, edit) used
- * to be its own window with its own ad-hoc header and disagreeing
- * back links. This layout is the hallway they all share: breadcrumb,
- * the pet's identity with live status, the family switcher, and three
- * honest tabs. Switching pets keeps you in the same room (meds tab to
- * meds tab), because that is what you meant.
+ * Every page under a pet shares this header, and identity lives here
+ * EXACTLY ONCE: breadcrumb row (with the rest of the family one tap
+ * away), then one identity row — photo, name, status, the two
+ * whole-pet actions — then the tabs. Rooms below render content only;
+ * none of them repeats who the pet is. Switching pets keeps you in
+ * the same room (meds tab to meds tab), because that is what you meant.
  */
 
 import { useState, useEffect } from 'react';
 import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, PawPrint, Heart, AlertTriangle, Plus, LayoutGrid, Pill, Share2, Bone } from 'lucide-react';
+import {
+  ArrowLeft, Heart, AlertTriangle, Plus, LayoutGrid, Pill, Share2, Bone, Pencil,
+} from 'lucide-react';
 import { cn } from '@/components/ui';
 
 const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
@@ -58,94 +60,119 @@ export default function PetShellLayout({ children }) {
   // Which room are we in? ('' = overview, 'medications', 'share', 'edit'...)
   const segment = pathname.split('/')[3] || '';
   const sectionForSwitch = ['medications', 'share', 'care'].includes(segment) ? `/${segment}` : '';
-  const isOverview = segment === '';
   const activeCase = activeCaseOf(pet);
+
+  const detailLine = pet
+    ? [
+        pet.breed || pet.species,
+        pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
+      ].filter(Boolean).join(' · ')
+    : '';
 
   return (
     <div className="min-h-screen bg-midnight-50">
       <div className="bg-white border-b border-midnight-100">
-        <div className="max-w-3xl mx-auto px-4 pt-4 md:px-8">
+        <div className="max-w-4xl mx-auto px-4 pt-4 md:px-8">
+          {/* Breadcrumb row: the way out, and the rest of the family */}
           <div className="flex items-center justify-between gap-3">
             <Link href="/pets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors">
               <ArrowLeft size={16} /> My Pets
             </Link>
-            {pet && (
-              activeCase ? (
+            {allPets.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto">
+                {allPets.map((p) => {
+                  const current = p.id === petId;
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/pets/${p.id}${sectionForSwitch}`}
+                      title={p.name}
+                      aria-current={current ? 'page' : undefined}
+                      aria-label={current ? `${p.name} (current)` : `Switch to ${p.name}`}
+                      className={cn(
+                        'w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-base bg-midnight-100 shrink-0 transition-all',
+                        current
+                          ? 'ring-2 ring-flash-400 ring-offset-1 ring-offset-white'
+                          : 'ring-1 ring-midnight-200 opacity-60 hover:opacity-100'
+                      )}
+                    >
+                      {p.primaryPhotoUrl ? (
+                        <img src={p.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        SPECIES_EMOJI[p.species] || '🐾'
+                      )}
+                    </Link>
+                  );
+                })}
                 <Link
-                  href={`/mission-control?mission=${activeCase.caseNumber}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-bold hover:bg-red-500 transition-colors"
+                  href="/pets/new"
+                  aria-label="Add a pet"
+                  title="Add a pet"
+                  className="w-8 h-8 rounded-full border-2 border-dashed border-midnight-300 flex items-center justify-center text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors shrink-0"
                 >
-                  <AlertTriangle size={12} />
-                  Missing · open mission
+                  <Plus size={14} />
                 </Link>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
-                  <Heart size={12} /> Home
-                </span>
-              )
+              </div>
             )}
           </div>
 
-          {/* The family, one tap apart, staying in the same room */}
-          <div className="flex items-center gap-3 overflow-x-auto pt-4 pb-1 -mx-1 px-1">
-            {allPets.map((p) => {
-              const current = p.id === petId;
-              return (
+          {/* The identity row: who this is, how they're doing, what you can do */}
+          <div className="flex items-center gap-3 pt-4 min-h-[56px]">
+            <span className="w-12 h-12 rounded-2xl overflow-hidden bg-midnight-100 flex items-center justify-center text-2xl shrink-0">
+              {pet?.primaryPhotoUrl ? (
+                <img src={pet.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span aria-hidden="true">{pet ? SPECIES_EMOJI[pet.species] || '🐾' : ''}</span>
+              )}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl font-bold text-midnight-900 truncate leading-tight">
+                  {pet?.name || ' '}
+                </h1>
+                {pet && (
+                  activeCase ? (
+                    <Link
+                      href={`/mission-control?mission=${activeCase.caseNumber}`}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-bold hover:bg-red-500 transition-colors"
+                    >
+                      <AlertTriangle size={11} />
+                      Missing · open mission
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-bold">
+                      <Heart size={11} /> Home
+                    </span>
+                  )
+                )}
+              </div>
+              {detailLine && <p className="text-xs text-midnight-400 truncate mt-0.5">{detailLine}</p>}
+            </div>
+            {pet && (
+              <div className="flex items-center gap-1.5 shrink-0">
                 <Link
-                  key={p.id}
-                  href={`/pets/${p.id}${sectionForSwitch}`}
-                  className="flex flex-col items-center gap-1 shrink-0 group"
-                  aria-current={current ? 'page' : undefined}
+                  href={`/pets/${petId}/edit`}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-midnight-200 text-midnight-600 text-sm font-bold hover:border-midnight-300 hover:text-midnight-900 transition-colors"
                 >
-                  <span
-                    className={cn(
-                      'w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-xl bg-midnight-100 transition-all',
-                      current
-                        ? 'ring-[3px] ring-flash-400 ring-offset-2 ring-offset-white'
-                        : 'ring-1 ring-midnight-200 opacity-70 group-hover:opacity-100'
-                    )}
-                  >
-                    {p.primaryPhotoUrl ? (
-                      <img src={p.primaryPhotoUrl} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      SPECIES_EMOJI[p.species] || '🐾'
-                    )}
-                  </span>
-                  <span className={cn('text-[10px] font-semibold', current ? 'text-midnight-900' : 'text-midnight-400')}>
-                    {p.name}
-                  </span>
+                  <Pencil size={14} />
+                  <span className="hidden sm:inline">Edit</span>
                 </Link>
-              );
-            })}
-            <Link href="/pets/new" className="flex flex-col items-center gap-1 shrink-0 group" aria-label="Add a pet">
-              <span className="w-12 h-12 rounded-full border-2 border-dashed border-midnight-300 flex items-center justify-center text-midnight-400 group-hover:border-flash-400 group-hover:text-flash-500 transition-colors">
-                <Plus size={18} />
-              </span>
-              <span className="text-[10px] font-semibold text-midnight-400">Add</span>
-            </Link>
+                <Link
+                  href={`/pets/${petId}/share`}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-midnight-200 text-midnight-600 text-sm font-bold hover:border-midnight-300 hover:text-midnight-900 transition-colors"
+                >
+                  <Share2 size={14} />
+                  <span className="hidden sm:inline">Share</span>
+                </Link>
+              </div>
+            )}
           </div>
 
-          {/* The identity strip carries context into the inner rooms;
-              the overview's big hero speaks for itself */}
-          {!isOverview && pet && (
-            <div className="flex items-center gap-2.5 pt-3">
-              <span className="w-7 h-7 rounded-full overflow-hidden bg-midnight-100 flex items-center justify-center text-sm shrink-0">
-                {pet.primaryPhotoUrl ? (
-                  <img src={pet.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  SPECIES_EMOJI[pet.species] || '🐾'
-                )}
-              </span>
-              <span className="font-bold text-midnight-900">{pet.name}</span>
-              <span className="text-xs text-midnight-400 truncate">{pet.breed || pet.species}</span>
-            </div>
-          )}
-
           {/* The hallway */}
-          <nav className="flex gap-1 pt-3 -mb-px" aria-label="Pet sections">
+          <nav className="flex gap-1 pt-2 -mb-px" aria-label="Pet sections">
             {TABS.map(({ id, label, icon: Icon }) => {
               const href = `/pets/${petId}${id ? `/${id}` : ''}`;
-              const active = segment === id || (id === 'medications' && segment === 'medications');
+              const active = segment === id;
               return (
                 <Link
                   key={label}
