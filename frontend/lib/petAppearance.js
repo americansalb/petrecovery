@@ -43,22 +43,46 @@ export function composeColor(colors, pattern) {
   return base;
 }
 
-/** Best-effort inverse of composeColor, for prefilling edit flows. */
+/**
+ * Inverse of composeColor, for prefilling edit flows.
+ *
+ * Unknown tokens are KEPT as custom colors/patterns (title-cased), not
+ * dropped: owners can describe coats the swatches don't cover ("Blue",
+ * "Chocolate", "Lilac") and the value must survive every save/load
+ * round trip.
+ */
 export function parseColor(value) {
   const result = { colors: [], pattern: null };
   if (!value) return result;
   const [base, patternPart] = value.split('·').map((s) => s.trim());
-  const known = new Set(COAT_COLORS.map((c) => c.value.toLowerCase()));
+  const known = new Map(COAT_COLORS.map((c) => [c.value.toLowerCase(), c.value]));
   result.colors = (base || '')
     .split('&')
     .map((s) => s.trim())
-    .filter((s) => known.has(s.toLowerCase()))
-    .map((s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase());
+    .filter(Boolean)
+    .map((s) => known.get(s.toLowerCase()) || titleCase(s));
   if (patternPart) {
     const match = COAT_PATTERNS.find((p) => p.toLowerCase().startsWith(patternPart.toLowerCase()));
-    if (match) result.pattern = match;
+    result.pattern = match || titleCase(patternPart);
   }
   return result;
+}
+
+function titleCase(s) {
+  return s
+    .split(/\s+/)
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(' ');
+}
+
+// Custom coat colors/patterns: short, plain words a stranger could read
+// aloud. Returns the normalized Title Case label, or null if invalid.
+export const CUSTOM_COAT_MAX = 16;
+export function normalizeCoatLabel(raw) {
+  const trimmed = (raw || '').trim().replace(/\s+/g, ' ');
+  if (trimmed.length < 2 || trimmed.length > CUSTOM_COAT_MAX) return null;
+  if (!/^[a-zA-Z][a-zA-Z\s-]*$/.test(trimmed)) return null;
+  return titleCase(trimmed);
 }
 
 // Microchips: AVID 9, Trovan/others 10, ISO 11784/11785 15 digits.

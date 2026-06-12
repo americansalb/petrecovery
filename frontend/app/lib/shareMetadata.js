@@ -145,7 +145,7 @@ export function missionShareMetadata(mission, { canonicalPath, index, variant } 
   let twitterDescription;
   if (variant === 'join') {
     title = `Join the search for ${petName} in ${city} | ${SITE_NAME}`;
-    description = `${petName} is a ${isFound ? 'found' : 'lost'} ${breedSpecies}${timeMissing ? `, ${isFound ? 'found' : 'missing since'} ${timeMissing}` : ''}. Volunteer a few minutes — every searcher helps bring ${petName} home.`;
+    description = `${petName} is a ${isFound ? 'found' : 'lost'} ${breedSpecies}${timeMissing ? `, ${isFound ? 'found' : 'missing since'} ${timeMissing}` : ''}. Volunteer a few minutes. Every searcher helps bring ${petName} home.`;
   } else if (isFound) {
     title = `Found ${breedSpecies} in ${city} - Is This Your Pet?`;
     ogTitle = `FOUND: ${breedSpecies} in ${city}`;

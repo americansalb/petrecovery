@@ -24,6 +24,7 @@ import { Card, Button, EmptyState, cn } from '@/components/ui';
 import {
   COAT_COLORS, COAT_PATTERNS, MAX_COAT_COLORS,
   composeColor, parseColor, validateMicrochip, normalizeMicrochip,
+  normalizeCoatLabel,
 } from '@/lib/petAppearance';
 
 const SPECIES_OPTIONS = [
@@ -36,9 +37,9 @@ const SPECIES_OPTIONS = [
 
 const SIZE_OPTIONS = [
   { value: 'TINY', label: 'Tiny', hint: 'under 10 lbs', paw: 14 },
-  { value: 'SMALL', label: 'Small', hint: '10–25 lbs', paw: 18 },
-  { value: 'MEDIUM', label: 'Medium', hint: '25–50 lbs', paw: 23 },
-  { value: 'LARGE', label: 'Large', hint: '50–90 lbs', paw: 28 },
+  { value: 'SMALL', label: 'Small', hint: '10-25 lbs', paw: 18 },
+  { value: 'MEDIUM', label: 'Medium', hint: '25-50 lbs', paw: 23 },
+  { value: 'LARGE', label: 'Large', hint: '50-90 lbs', paw: 28 },
   { value: 'GIANT', label: 'Giant', hint: '90+ lbs', paw: 34 },
 ];
 
@@ -76,6 +77,32 @@ function ChoiceChip({ active, onClick, children, className }) {
     >
       {children}
     </button>
+  );
+}
+
+function InlineAdd({ value, onChange, onAdd, onCancel, placeholder }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); onAdd(); }
+          if (e.key === 'Escape') onCancel();
+        }}
+        placeholder={placeholder}
+        className="rounded-2xl border-2 border-flash-400 bg-white px-3 py-2 text-sm font-semibold text-midnight-900 placeholder:text-midnight-300 focus:outline-none w-44"
+      />
+      <button type="button" onClick={onAdd} aria-label="Add"
+        className="w-9 h-9 rounded-xl bg-flash-400 hover:bg-flash-300 text-midnight-900 flex items-center justify-center transition-colors">
+        <Check size={15} strokeWidth={3} />
+      </button>
+      <button type="button" onClick={onCancel} aria-label="Cancel"
+        className="w-9 h-9 rounded-xl text-midnight-400 hover:text-midnight-700 flex items-center justify-center">
+        <X size={15} />
+      </button>
+    </span>
   );
 }
 
@@ -136,6 +163,9 @@ export default function EditPetPage() {
   const [submitError, setSubmitError] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [customColorInput, setCustomColorInput] = useState(null); // null = closed, '' = open
+  const [customPatternInput, setCustomPatternInput] = useState(null);
+  const [customTraitInput, setCustomTraitInput] = useState(null);
   const originalRef = useRef(null);
 
   useEffect(() => {
@@ -162,7 +192,6 @@ export default function EditPetPage() {
         isNeutered: !!p.isNeutered,
         coatColors: coat.colors,
         coatPattern: coat.pattern,
-        rawColor: coat.colors.length ? null : (p.color || ''), // legacy free-text colors survive untouched
         size: p.size || 'MEDIUM',
         weight: p.weight?.toString() || '',
         distinctiveMarks: p.distinctiveMarks || '',
@@ -211,9 +240,7 @@ export default function EditPetPage() {
     }
   };
 
-  const colorValue = form
-    ? (form.coatColors.length ? composeColor(form.coatColors, form.coatPattern) : (form.rawColor || ''))
-    : '';
+  const colorValue = form ? composeColor(form.coatColors, form.coatPattern) : '';
 
   const dirty = useMemo(() => {
     if (!form || !originalRef.current) return false;
@@ -237,23 +264,71 @@ export default function EditPetPage() {
   const toggleCoatColor = (value) => {
     const has = form.coatColors.includes(value);
     if (!has && form.coatColors.length >= MAX_COAT_COLORS) {
-      setErrors((prev) => ({ ...prev, color: `Up to ${MAX_COAT_COLORS} colors — the ones a stranger would name` }));
+      setErrors((prev) => ({ ...prev, color: `Up to ${MAX_COAT_COLORS} colors. Tap one to swap it out.` }));
       return;
     }
     set({
       coatColors: has ? form.coatColors.filter((c) => c !== value) : [...form.coatColors, value],
-      rawColor: null,
     });
     setErrors((prev) => ({ ...prev, color: null }));
+  };
+
+  const addCustomColor = () => {
+    const label = normalizeCoatLabel(customColorInput);
+    if (!label) {
+      setErrors((prev) => ({ ...prev, color: `Plain words only, 2 to ${16} letters` }));
+      return;
+    }
+    if (form.coatColors.some((c) => c.toLowerCase() === label.toLowerCase())) {
+      setCustomColorInput(null);
+      return;
+    }
+    if (form.coatColors.length >= MAX_COAT_COLORS) {
+      setErrors((prev) => ({ ...prev, color: `Up to ${MAX_COAT_COLORS} colors. Tap one to swap it out.` }));
+      return;
+    }
+    set({ coatColors: [...form.coatColors, label] });
+    setErrors((prev) => ({ ...prev, color: null }));
+    setCustomColorInput(null);
+  };
+
+  const addCustomPattern = () => {
+    const label = normalizeCoatLabel(customPatternInput);
+    if (!label) {
+      setErrors((prev) => ({ ...prev, color: 'Plain words only, 2 to 16 letters' }));
+      return;
+    }
+    set({ coatPattern: label });
+    setErrors((prev) => ({ ...prev, color: null }));
+    setCustomPatternInput(null);
+  };
+
+  const addCustomTrait = () => {
+    const trait = (customTraitInput || '').trim().replace(/\s+/g, ' ');
+    if (trait.length < 2 || trait.length > 24 || !/^[a-zA-Z0-9][a-zA-Z0-9\s'!-]*$/.test(trait)) {
+      setErrors((prev) => ({ ...prev, personality: 'Keep it short and plain, 2 to 24 characters' }));
+      return;
+    }
+    if (form.personality.some((t) => t.toLowerCase() === trait.toLowerCase())) {
+      setCustomTraitInput(null);
+      return;
+    }
+    if (form.personality.length >= 10) {
+      setErrors((prev) => ({ ...prev, personality: 'Ten traits is plenty. Remove one first.' }));
+      return;
+    }
+    set({ personality: [...form.personality, trait] });
+    setErrors((prev) => ({ ...prev, personality: null }));
+    setCustomTraitInput(null);
   };
 
   const validate = () => {
     const next = {};
     if (!form.name.trim()) next.name = `Every pet needs a name`;
     if (!colorValue.trim()) next.color = 'Tap the coat colors a stranger would name';
-    if (form.age && (isNaN(form.age) || form.age < 0 || form.age > 50)) next.age = 'Age should be 0–50';
+    if (form.age && (isNaN(form.age) || form.age < 0 || form.age > 50)) next.age = 'Age should be 0 to 50';
     if (form.weight && (isNaN(form.weight) || form.weight < 0)) next.weight = 'Weight should be a number';
-    if (form.microchipId && !validateMicrochip(form.microchipId)) next.microchipId = '9–15 letters and digits';
+    if (form.microchipId && !validateMicrochip(form.microchipId)) next.microchipId = '9 to 15 letters and digits';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -416,7 +491,7 @@ export default function EditPetPage() {
                   <Minus size={15} />
                 </button>
                 <span className="w-16 text-center font-bold text-midnight-900 tabular-nums">
-                  {form.age === '' ? '—' : `${form.age} yr${form.age === '1' ? '' : 's'}`}
+                  {form.age === '' ? 'Not set' : `${form.age} yr${form.age === '1' ? '' : 's'}`}
                 </span>
                 <button
                   type="button"
@@ -455,7 +530,7 @@ export default function EditPetPage() {
           <div className="space-y-5">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2.5">
-                Coat — up to {MAX_COAT_COLORS} colors
+                Coat (up to {MAX_COAT_COLORS} colors)
               </p>
               <div className="flex flex-wrap gap-3">
                 {COAT_COLORS.map(({ value, css, border }) => {
@@ -490,14 +565,47 @@ export default function EditPetPage() {
                     </button>
                   );
                 })}
+                {form.coatColors
+                  .filter((c) => !COAT_COLORS.some((k) => k.value === c))
+                  .map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => set({ coatColors: form.coatColors.filter((x) => x !== c) })}
+                      aria-label={`Remove ${c}`}
+                      title={`${c} (tap to remove)`}
+                      className="flex flex-col items-center gap-1 group"
+                    >
+                      <span className="w-10 h-10 rounded-full bg-midnight-900 text-white ring-[3px] ring-offset-2 ring-flash-500 flex items-center justify-center text-xs font-bold">
+                        {c.slice(0, 2)}
+                      </span>
+                      <span className="text-[10px] font-semibold text-midnight-900">{c}</span>
+                    </button>
+                  ))}
+                {customColorInput === null ? (
+                  <button
+                    type="button"
+                    onClick={() => setCustomColorInput('')}
+                    className="flex flex-col items-center gap-1 group"
+                    aria-label="Add another color"
+                  >
+                    <span className="w-10 h-10 rounded-full border-2 border-dashed border-midnight-300 text-midnight-400 group-hover:border-flash-400 group-hover:text-flash-500 flex items-center justify-center transition-colors">
+                      <Plus size={15} />
+                    </span>
+                    <span className="text-[10px] font-semibold text-midnight-400">Other</span>
+                  </button>
+                ) : (
+                  <InlineAdd
+                    value={customColorInput}
+                    onChange={setCustomColorInput}
+                    onAdd={addCustomColor}
+                    onCancel={() => setCustomColorInput(null)}
+                    placeholder="e.g., Chocolate"
+                  />
+                )}
               </div>
-              {form.rawColor && (
-                <p className="text-xs text-midnight-400 mt-2">
-                  Currently saved as “{form.rawColor}” — tap swatches to upgrade it.
-                </p>
-              )}
               {errors.color && <p className="text-xs text-red-600 mt-2">{errors.color}</p>}
-              <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex flex-wrap items-center gap-2 mt-3">
                 {COAT_PATTERNS.map((p) => (
                   <ChoiceChip
                     key={p}
@@ -508,6 +616,28 @@ export default function EditPetPage() {
                     {p}
                   </ChoiceChip>
                 ))}
+                {form.coatPattern && !COAT_PATTERNS.includes(form.coatPattern) && (
+                  <ChoiceChip active onClick={() => set({ coatPattern: null })} className="px-3 py-1.5 text-xs">
+                    <span className="inline-flex items-center gap-1">{form.coatPattern} <X size={12} /></span>
+                  </ChoiceChip>
+                )}
+                {customPatternInput === null ? (
+                  <button
+                    type="button"
+                    onClick={() => setCustomPatternInput('')}
+                    className="px-3 py-1.5 rounded-2xl border-2 border-dashed border-midnight-300 text-xs font-bold text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors"
+                  >
+                    + Other
+                  </button>
+                ) : (
+                  <InlineAdd
+                    value={customPatternInput}
+                    onChange={setCustomPatternInput}
+                    onAdd={addCustomPattern}
+                    onCancel={() => setCustomPatternInput(null)}
+                    placeholder="e.g., Ticked"
+                  />
+                )}
               </div>
             </div>
 
@@ -567,11 +697,11 @@ export default function EditPetPage() {
         {/* The vibe */}
         <SectionCard
           title={`${name}'s vibe`}
-          subtitle={`“Shy — do not chase” changes how a whole neighborhood searches.`}
+          subtitle={`“Shy, do not chase” changes how a whole neighborhood searches.`}
         >
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
             {PERSONALITY_TRAITS.map((trait) => {
-              const active = form.personality.includes(trait);
+              const active = form.personality.some((t) => t.toLowerCase() === trait.toLowerCase());
               return (
                 <ChoiceChip
                   key={trait}
@@ -579,7 +709,7 @@ export default function EditPetPage() {
                   onClick={() =>
                     set({
                       personality: active
-                        ? form.personality.filter((t) => t !== trait)
+                        ? form.personality.filter((t) => t.toLowerCase() !== trait.toLowerCase())
                         : [...form.personality, trait],
                     })
                   }
@@ -591,7 +721,33 @@ export default function EditPetPage() {
                 </ChoiceChip>
               );
             })}
+            {form.personality
+              .filter((t) => !PERSONALITY_TRAITS.some((k) => k.toLowerCase() === t.toLowerCase()))
+              .map((t) => (
+                <ChoiceChip key={t} active onClick={() => set({ personality: form.personality.filter((x) => x !== t) })}>
+                  <span className="inline-flex items-center gap-1.5">{t} <X size={13} /></span>
+                </ChoiceChip>
+              ))}
+            {customTraitInput === null ? (
+              <button
+                type="button"
+                onClick={() => setCustomTraitInput('')}
+                className="px-3.5 py-2 rounded-2xl border-2 border-dashed border-midnight-300 text-sm font-bold text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors"
+              >
+                + Add your own
+              </button>
+            ) : (
+              <InlineAdd
+                value={customTraitInput}
+                onChange={setCustomTraitInput}
+                onAdd={addCustomTrait}
+                onCancel={() => setCustomTraitInput(null)}
+                placeholder="e.g., Scared of thunder"
+              />
+            )}
           </div>
+          {errors.personality && <p className="text-xs text-red-600 mb-3">{errors.personality}</p>}
+          <div className="mb-2.5" />
           <textarea
             value={form.medicalConditions}
             onChange={(e) => set({ medicalConditions: e.target.value })}

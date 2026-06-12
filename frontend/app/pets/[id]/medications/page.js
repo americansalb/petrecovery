@@ -333,7 +333,7 @@ function WeekStrip({ meds, selectedDay, onSelectDay }) {
       </div>
       <p className="text-xs text-midnight-400 mb-4">
         {days.slice(0, 6).every((d) => d.due === 0)
-          ? 'History starts today — it fills in as you check off doses.'
+          ? 'History starts today. It fills in as you check off doses.'
           : 'Tap a day to review it or log doses you gave but did not record.'}
       </p>
       <div className="grid grid-cols-7 gap-2">
@@ -850,7 +850,7 @@ export default function MedicationTrackerPage() {
             <ActivityFeed meds={medItems} />
 
             <p className="text-center text-xs text-midnight-400 pt-2 pb-6">
-              Free forever. A helper for remembering — your vet&rsquo;s guidance always comes first.
+              Free forever. A helper for remembering. Your vet&rsquo;s guidance always comes first.
             </p>
           </>
         )}

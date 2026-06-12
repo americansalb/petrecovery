@@ -426,7 +426,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
                 </button>
               </div>
               <p className="text-[11px] text-midnight-400 mt-3">
-                Tap one to start it with sensible times — adjust anytime under Manage.
+                Tap one to start it with sensible times. Adjust anytime under Manage.
               </p>
             </>
           )

@@ -246,7 +246,7 @@ export default function PetProfilePage() {
                 <p className="font-bold text-midnight-900">Today&apos;s care</p>
                 <p className="text-sm text-midnight-500 truncate">
                   {today.medCount === 0 && today.careCount === 0
-                    ? 'Nothing set up yet — add meds or routines once, one tap forever.'
+                    ? 'Nothing set up yet. Add meds or routines once, one tap forever.'
                     : [
                         today.due > 0 && `${today.given}/${today.due} doses given`,
                         today.careDue > 0 && `${today.careDone}/${today.careDue} routines done`,
@@ -279,7 +279,7 @@ export default function PetProfilePage() {
                   {shares === null
                     ? (isOwner ? '...' : `You help care for ${pet.name}.`)
                     : shares.length === 0
-                      ? `Just you so far — invite family or share a view link.`
+                      ? `Just you so far. Invite family or share a view link.`
                       : shares.slice(0, 4).map((sh) => [sh.user?.firstName, sh.user?.lastName?.[0]].filter(Boolean).join(' ') || sh.email).join(', ')}
                 </p>
               </div>

@@ -7,7 +7,7 @@ import { buildShareMetadata } from '@/app/lib/shareMetadata';
 
 export const metadata = buildShareMetadata({
   title: 'Report a Pet | ReunitePets',
-  description: 'Report a lost or found pet in about a minute — free, no app needed.',
+  description: 'Report a lost or found pet in about a minute. Free, no app needed.',
   index: true,
 });
 
