@@ -18,7 +18,8 @@ import { PawPrint, Pill, AlertTriangle, Radar, Users, ChevronRight } from 'lucid
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, cn } from '@/components/ui';
 import { MedIconChip } from '@/app/components/medications/MedIcon';
-import { slotsWithStatus, sameDay, careEmoji, formatTime } from '@/lib/medications';
+import { slotsWithStatus, sameDay, formatTime } from '@/lib/medications';
+import { CareIconChip } from '@/app/components/icons/CareIcons';
 import RescueReadiness from '@/app/components/pets/RescueReadiness';
 
 const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
@@ -353,9 +354,7 @@ export default function PetProfilePage() {
               {recent.map(({ med, dose, at }) => (
                 <li key={dose.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
                   {med.kind === 'CARE' ? (
-                    <span className="w-8 h-8 rounded-lg bg-midnight-50 border border-midnight-100 flex items-center justify-center text-lg shrink-0" aria-hidden="true">
-                      {careEmoji(med.name)}
-                    </span>
+                    <CareIconChip name={med.name} color={med.color} size="sm" />
                   ) : (
                     <MedIconChip med={med} size="sm" />
                   )}

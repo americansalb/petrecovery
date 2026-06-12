@@ -16,7 +16,8 @@ import { History, Eye } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Badge } from '@/components/ui';
 import GoodStuff from '@/app/components/care/GoodStuff';
-import { sameDay, careEmoji } from '@/lib/medications';
+import { sameDay } from '@/lib/medications';
+import { CareIconChip } from '@/app/components/icons/CareIcons';
 
 function formatWhen(value) {
   const d = new Date(value);
@@ -99,9 +100,7 @@ export default function PetCarePage() {
             <ul className="divide-y divide-midnight-100">
               {careHistory.map(({ med, dose, at }) => (
                 <li key={dose.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
-                  <span className="w-8 h-8 rounded-lg bg-midnight-50 border border-midnight-100 flex items-center justify-center text-lg shrink-0" aria-hidden="true">
-                    {careEmoji(med.name)}
-                  </span>
+                  <CareIconChip name={med.name} color={med.color} size="sm" />
                   <span className="flex-1 min-w-0 text-sm font-semibold text-midnight-800 truncate">{med.name}</span>
                   <span className="text-xs text-midnight-500 whitespace-nowrap">{formatWhen(at)}</span>
                 </li>

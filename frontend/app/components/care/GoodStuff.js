@@ -17,8 +17,9 @@ import {
 import { Card, Button, cn } from '@/components/ui';
 import {
   slotsWithStatus, sameDay, formatTime, formatSchedule,
-  CARE_ACTIVITIES, careEmoji,
+  CARE_ACTIVITIES,
 } from '@/lib/medications';
+import { CareIconChip, BallIcon } from '@/app/components/icons/CareIcons';
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -92,7 +93,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
                 picked?.id === a.id ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-300'
               )}
             >
-              <span className="text-2xl" aria-hidden="true">{a.emoji}</span>
+              <CareIconChip name={a.label} color={a.color} size="sm" />
               <span className="text-[11px] font-semibold text-midnight-700">{a.label}</span>
             </button>
           ))}
@@ -103,7 +104,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
               picked?.custom ? 'border-flash-400 bg-flash-50' : 'border-dashed border-midnight-300 hover:border-midnight-400'
             )}
           >
-            <span className="text-2xl" aria-hidden="true">🐾</span>
+            <CareIconChip name="" color="slate" size="sm" />
             <span className="text-[11px] font-semibold text-midnight-700">Custom</span>
           </button>
         </div>
@@ -332,7 +333,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
       <Card padding="lg" className={cn('mb-6', active.length === 0 && 'border-dashed')}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="flex items-center gap-2 font-bold text-midnight-900">
-            <span className="text-lg" aria-hidden="true">🎾</span> The good stuff
+            <BallIcon size={18} className="text-flash-500" /> The good stuff
           </h2>
           {canManage && (
             <div className="flex items-center gap-1">
@@ -370,7 +371,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
           <ul className="space-y-2">
             {careItems.map((care) => (
               <li key={care.id} className={cn('flex items-center gap-3 rounded-2xl border-2 border-midnight-200 px-3.5 py-2.5', !care.isActive && 'opacity-60')}>
-                <span className="text-xl" aria-hidden="true">{careEmoji(care.name)}</span>
+                <CareIconChip name={care.name} color={care.color} size="sm" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-midnight-900 truncate">{care.name}</p>
                   <p className="text-[11px] text-midnight-500 truncate">{formatSchedule(care)}{!care.isActive && ' · paused'}</p>
@@ -407,7 +408,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
                       disabled={busy}
                       className="flex items-center gap-2.5 rounded-2xl border-2 border-dashed border-midnight-200 bg-white px-3.5 py-2.5 transition-all hover:border-flash-400 hover:bg-flash-50 active:scale-95"
                     >
-                      <span className="text-2xl" aria-hidden="true">{a.emoji}</span>
+                      <CareIconChip name={a.label} color={a.color} size="sm" />
                       <span className="text-left">
                         <span className="block text-sm font-bold text-midnight-900">{a.label}</span>
                         <span className="block text-[11px] text-midnight-500">
@@ -450,7 +451,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
                     done ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-midnight-200 hover:border-flash-400'
                   )}
                 >
-                  <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+                  <CareIconChip name={care.name} color={care.color} size="sm" />
                   <span className="text-left">
                     <span className={cn('block text-sm font-bold', done ? 'text-emerald-700' : 'text-midnight-900')}>
                       {care.name}
@@ -480,7 +481,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
                     count > 0 ? 'bg-flash-50 border-flash-300' : 'bg-white border-midnight-200 hover:border-flash-400'
                   )}
                 >
-                  <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+                  <CareIconChip name={care.name} color={care.color} size="sm" />
                   <span className="text-left">
                     <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
                     <span className="block text-[11px] text-midnight-500">

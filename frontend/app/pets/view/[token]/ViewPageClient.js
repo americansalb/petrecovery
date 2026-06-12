@@ -19,9 +19,10 @@ import {
 } from 'lucide-react';
 import { Card, Badge, cn } from '@/components/ui';
 import { MedIconChip } from '@/app/components/medications/MedIcon';
+import { CareIconChip } from '@/app/components/icons/CareIcons';
 import {
   formatSchedule, formatTime, timeOfDayBucket,
-  slotsWithStatus, adherenceForDay, startOfDay, sameDay, careEmoji,
+  slotsWithStatus, adherenceForDay, startOfDay, sameDay,
 } from '@/lib/medications';
 
 const BUCKET_ICONS = { Morning: Sun, Afternoon: Sunset, Evening: Moon };
@@ -206,7 +207,7 @@ function ReadOnlyGoodStuff({ careItems, day }) {
                 done ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-midnight-200'
               )}
             >
-              <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+              <CareIconChip name={care.name} color={care.color} size="sm" />
               <span className="text-left">
                 <span className={cn('block text-sm font-bold', done ? 'text-emerald-700' : 'text-midnight-900')}>
                   {care.name}
@@ -230,7 +231,7 @@ function ReadOnlyGoodStuff({ careItems, day }) {
                 count > 0 ? 'bg-flash-50 border-flash-200' : 'bg-white border-midnight-200'
               )}
             >
-              <span className="text-2xl" aria-hidden="true">{careEmoji(care.name)}</span>
+              <CareIconChip name={care.name} color={care.color} size="sm" />
               <span className="text-left">
                 <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
                 <span className="block text-[11px] text-midnight-500">
