@@ -14,10 +14,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  ArrowLeft, PawPrint, Dog, Cat, Bird, Rabbit, Check, Minus, Plus,
-  Loader2, X, AlertTriangle,
-} from 'lucide-react';
+import { Check, Minus, Plus, Loader2, X, AlertTriangle } from 'lucide-react';
+import { DogIcon, CatIcon, BirdIcon, RabbitIcon, PawIcon } from '@/app/components/icons/SpeciesIcons';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
 import { Card, Button, EmptyState, cn } from '@/components/ui';
@@ -28,11 +26,11 @@ import {
 } from '@/lib/petAppearance';
 
 const SPECIES_OPTIONS = [
-  { value: 'DOG', label: 'Dog', icon: Dog },
-  { value: 'CAT', label: 'Cat', icon: Cat },
-  { value: 'BIRD', label: 'Bird', icon: Bird },
-  { value: 'RABBIT', label: 'Rabbit', icon: Rabbit },
-  { value: 'OTHER', label: 'Other', icon: PawPrint },
+  { value: 'DOG', label: 'Dog', icon: DogIcon },
+  { value: 'CAT', label: 'Cat', icon: CatIcon },
+  { value: 'BIRD', label: 'Bird', icon: BirdIcon },
+  { value: 'RABBIT', label: 'Rabbit', icon: RabbitIcon },
+  { value: 'OTHER', label: 'Other', icon: PawIcon },
 ];
 
 const SIZE_OPTIONS = [
@@ -407,7 +405,7 @@ export default function EditPetPage() {
     return (
       <div className="px-4 py-12">
         <div className="max-w-md mx-auto mt-8">
-          <EmptyState icon={PawPrint} title="Pet not found" description={error} action={{ href: '/pets', label: 'Back to My Pets' }} />
+          <EmptyState icon={PawIcon} title="Pet not found" description={error} action={{ href: '/pets', label: 'Back to My Pets' }} />
         </div>
       </div>
     );
@@ -657,7 +655,7 @@ export default function EditPetPage() {
                         active ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-300'
                       )}
                     >
-                      <PawPrint size={paw} className={active ? 'text-midnight-900' : 'text-midnight-300'} />
+                      <PawIcon size={paw} className={active ? 'text-midnight-900' : 'text-midnight-300'} />
                       <span className={cn('text-xs font-bold', active ? 'text-midnight-900' : 'text-midnight-500')}>{label}</span>
                       <span className="text-[9px] text-midnight-400 leading-none hidden sm:block">{hint}</span>
                     </button>

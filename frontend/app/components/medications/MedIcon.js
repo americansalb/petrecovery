@@ -5,20 +5,24 @@
  * Token list lives in lib/medications.js (MED_ICON_TOKENS).
  */
 
-import { Pill, Tablets, Syringe, Droplets, Bone, Heart, PawPrint, Leaf, Sparkles } from 'lucide-react';
 import { medColor } from '@/lib/medications';
 import { cn } from '@/components/ui';
+import {
+  PillGlyph, CapsuleGlyph, SyringeGlyph, DropletsGlyph,
+  HeartGlyph, LeafGlyph, SparkleGlyph,
+} from '@/app/components/icons/MedGlyphs';
+import { BoneIcon, PawIcon } from '@/app/components/icons/CareIcons';
 
 export const MED_ICON_MAP = {
-  pill: Pill,
-  capsule: Tablets,
-  syringe: Syringe,
-  droplets: Droplets,
-  bone: Bone,
-  heart: Heart,
-  paw: PawPrint,
-  leaf: Leaf,
-  sparkle: Sparkles,
+  pill: PillGlyph,
+  capsule: CapsuleGlyph,
+  syringe: SyringeGlyph,
+  droplets: DropletsGlyph,
+  bone: BoneIcon,
+  heart: HeartGlyph,
+  paw: PawIcon,
+  leaf: LeafGlyph,
+  sparkle: SparkleGlyph,
 };
 
 export function MedIcon({ icon, className }) {

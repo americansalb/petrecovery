@@ -15,6 +15,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import dynamic from 'next/dynamic';
 import {
   Bell, Heart, MapPin, Search, Shield, Users, Target, ArrowRight,
@@ -25,7 +26,6 @@ import { SARAMA_AVATAR_PNG, SARAMA_NAME, SARAMA_TAGLINE } from '@/lib/brandAsset
 
 const BrowseMap = dynamic(() => import('@/app/lost-and-found/BrowseMap'), { ssr: false });
 
-const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
 
 function timeAgo(date) {
   const hours = Math.floor((Date.now() - new Date(date).getTime()) / 3600000);
@@ -320,7 +320,7 @@ function ActiveMissions({ missions, loading }) {
                   {m.petPhotoUrl ? (
                     <img src={m.petPhotoUrl} alt={m.petName} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform" />
                   ) : (
-                    <span className="text-5xl">{SPECIES_EMOJI[m.petSpecies] || '🐾'}</span>
+                    <SpeciesIcon species={m.petSpecies} size={56} className="text-midnight-300" />
                   )}
                 </div>
                 <div className="p-4">

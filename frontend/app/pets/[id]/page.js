@@ -22,7 +22,6 @@ import { slotsWithStatus, sameDay, formatTime } from '@/lib/medications';
 import { CareIconChip } from '@/app/components/icons/CareIcons';
 import RescueReadiness from '@/app/components/pets/RescueReadiness';
 
-const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
 
 function parseJsonArray(value) {
   try {

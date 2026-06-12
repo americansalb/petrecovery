@@ -16,27 +16,7 @@
 
 import { CARE_ACTIVITIES, medColor } from '@/lib/medications';
 import { cn } from '@/components/ui';
-
-function Svg({ size = 24, className, children, label }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden={label ? undefined : true}
-      aria-label={label}
-      role={label ? 'img' : undefined}
-    >
-      {children}
-    </svg>
-  );
-}
+import Svg from './Svg';
 
 /** Leash looping down to a paw: the walk. */
 export function WalkIcon(props) {

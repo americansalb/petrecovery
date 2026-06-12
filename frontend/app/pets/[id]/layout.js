@@ -18,8 +18,8 @@ import {
   ArrowLeft, Heart, AlertTriangle, Plus, LayoutGrid, Pill, Share2, Bone, Pencil,
 } from 'lucide-react';
 import { cn } from '@/components/ui';
+import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 
-const SPECIES_EMOJI = { DOG: '🐕', CAT: '🐈', BIRD: '🦜', RABBIT: '🐇', OTHER: '🐾' };
 
 const TABS = [
   { id: '', label: 'Overview', icon: LayoutGrid },
@@ -99,7 +99,7 @@ export default function PetShellLayout({ children }) {
                       {p.primaryPhotoUrl ? (
                         <img src={p.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        SPECIES_EMOJI[p.species] || '🐾'
+                        <SpeciesIcon species={p.species} size={18} className="text-midnight-400" />
                       )}
                     </Link>
                   );
@@ -122,7 +122,7 @@ export default function PetShellLayout({ children }) {
               {pet?.primaryPhotoUrl ? (
                 <img src={pet.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span aria-hidden="true">{pet ? SPECIES_EMOJI[pet.species] || '🐾' : ''}</span>
+                pet && <SpeciesIcon species={pet.species} size={26} className="text-midnight-400" />
               )}
             </span>
             <div className="min-w-0 flex-1">

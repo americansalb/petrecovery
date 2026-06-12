@@ -16,10 +16,11 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, ArrowRight, Check, Dog, Cat, Bird, Rabbit, PawPrint,
+  ArrowLeft, ArrowRight, Check,
   Camera, Sparkles, Heart, Pill, X, PartyPopper, Palette, Ruler,
   Fingerprint, Smile,
 } from 'lucide-react';
+import { DogIcon, CatIcon, BirdIcon, RabbitIcon, PawIcon } from '@/app/components/icons/SpeciesIcons';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
 import { Button, cn } from '@/components/ui';
@@ -29,11 +30,11 @@ import {
 } from '@/lib/petAppearance';
 
 const SPECIES_OPTIONS = [
-  { value: 'DOG', label: 'Dog', icon: Dog },
-  { value: 'CAT', label: 'Cat', icon: Cat },
-  { value: 'BIRD', label: 'Bird', icon: Bird },
-  { value: 'RABBIT', label: 'Rabbit', icon: Rabbit },
-  { value: 'OTHER', label: 'Other', icon: PawPrint },
+  { value: 'DOG', label: 'Dog', icon: DogIcon },
+  { value: 'CAT', label: 'Cat', icon: CatIcon },
+  { value: 'BIRD', label: 'Bird', icon: BirdIcon },
+  { value: 'RABBIT', label: 'Rabbit', icon: RabbitIcon },
+  { value: 'OTHER', label: 'Other', icon: PawIcon },
 ];
 
 const SIZE_OPTIONS = [
@@ -322,7 +323,7 @@ export default function NewPetWizard() {
               )}
 
               {stepKey === 'species' && (
-                <StepShell icon={PawPrint} title={`What is ${petName}?`} subtitle="Tap the closest match.">
+                <StepShell icon={PawIcon} title={`What is ${petName}?`} subtitle="Tap the closest match.">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {SPECIES_OPTIONS.map(({ value, label, icon: Icon }) => (
                       <button
@@ -413,7 +414,7 @@ export default function NewPetWizard() {
                         )}
                       >
                         <span className="w-10 flex items-center justify-center">
-                          <PawPrint style={{ width: paw, height: paw }} className={form.size === value ? 'text-flash-600' : 'text-midnight-400'} />
+                          <PawIcon size={paw} className={form.size === value ? 'text-flash-600' : 'text-midnight-400'} />
                         </span>
                         <span className="font-bold text-midnight-900">{label}</span>
                         <span className="text-sm text-midnight-500 ml-auto">{hint}</span>
