@@ -1,0 +1,627 @@
+[
+  {
+    "name": "auth-33-dashboard",
+    "route": "/dashboard",
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-34-pets",
+    "route": "/pets",
+    "finalUrl": "/pets",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-35-pets-new",
+    "route": "/pets/new",
+    "finalUrl": "/pets/new",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-36-pet-detail",
+    "route": "/pets/cmqabxs530005a929sjfl7yev",
+    "finalUrl": "/pets/cmqabxs530005a929sjfl7yev",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-37-pet-care",
+    "route": "/pets/cmqabxs530005a929sjfl7yev/care",
+    "finalUrl": "/pets/cmqabxs530005a929sjfl7yev/care",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-38-pet-edit",
+    "route": "/pets/cmqabxs530005a929sjfl7yev/edit",
+    "finalUrl": "/pets/cmqabxs530005a929sjfl7yev/edit",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-39-pet-medications",
+    "route": "/pets/cmqabxs530005a929sjfl7yev/medications",
+    "finalUrl": "/pets/cmqabxs530005a929sjfl7yev/medications",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-40-pet-medications-new",
+    "route": "/pets/cmqabxs530005a929sjfl7yev/medications/new",
+    "finalUrl": "/pets/cmqabxs530005a929sjfl7yev/medications/new",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-41-pet-share",
+    "route": "/pets/cmqabxs530005a929sjfl7yev/share",
+    "finalUrl": "/pets/cmqabxs530005a929sjfl7yev/share",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-42-profile",
+    "route": "/profile",
+    "finalUrl": "/profile",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-43-settings",
+    "route": "/settings",
+    "finalUrl": "/settings",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-44-settings-accounts",
+    "route": "/settings/accounts",
+    "finalUrl": "/settings/accounts",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Error checking password: SyntaxError: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "name": "auth-45-settings-integrations",
+    "route": "/settings/integrations",
+    "finalUrl": "/settings/integrations",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ]
+  },
+  {
+    "name": "auth-46-settings-notifications",
+    "route": "/settings/notifications",
+    "finalUrl": "/settings/notifications",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-47-notifications",
+    "route": "/notifications",
+    "finalUrl": "/notifications",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-48-messages",
+    "route": "/messages",
+    "finalUrl": "/messages",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-49-message-conversation",
+    "route": "/messages/cmqabxs9d0024a9293h58ckve",
+    "finalUrl": "/messages/cmqabxs9d0024a9293h58ckve",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-50-alerts",
+    "route": "/alerts",
+    "finalUrl": "/alerts",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)"
+    ]
+  },
+  {
+    "name": "auth-51-my-alerts",
+    "route": "/my-alerts",
+    "finalUrl": "/my-alerts",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-52-report-new",
+    "route": "/report/new",
+    "finalUrl": "/report/new",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-53-report-found",
+    "route": "/report/found",
+    "finalUrl": "/report/found",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-54-sightings-report",
+    "route": "/sightings/report",
+    "finalUrl": "/sightings/report",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-55-missions-report",
+    "route": "/missions/report",
+    "finalUrl": "/report/new",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-56-mission-coordinate",
+    "route": "/missions/AUS-2026-0001/coordinate",
+    "finalUrl": "/mission-control?mission=AUS-2026-0001",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-57-mission-control",
+    "route": "/mission-control",
+    "finalUrl": "/mission-control",
+    "consoleErrors": [
+      "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:146:13)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-58-hub-new",
+    "route": "/hub/new",
+    "finalUrl": "/hub/new",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ]
+  },
+  {
+    "name": "auth-59-rescue-forces-create",
+    "route": "/rescue-forces/create",
+    "finalUrl": "/rescue-forces/create",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-60-rf-command-center",
+    "route": "/rescue-forces/cmqabxs6p000ua929gqs4plru/command-center",
+    "finalUrl": "/rescue-forces/cmqabxs6p000ua929gqs4plru",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-61-rf-divisions",
+    "route": "/rescue-forces/cmqabxs6p000ua929gqs4plru/divisions",
+    "finalUrl": "/rescue-forces/cmqabxs6p000ua929gqs4plru/divisions",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ]
+  },
+  {
+    "name": "auth-62-rf-division-detail",
+    "route": "/rescue-forces/cmqabxs6p000ua929gqs4plru/divisions/cmqabxs6t000wa929tdbho5l0",
+    "finalUrl": "/rescue-forces/cmqabxs6p000ua929gqs4plru/divisions/cmqabxs6t000wa929tdbho5l0",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-63-rf-mission-control",
+    "route": "/rescue-forces/cmqabxs6p000ua929gqs4plru/mission-control",
+    "finalUrl": "/rescue-forces/cmqabxs6p000ua929gqs4plru",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-64-rf-settings",
+    "route": "/rescue-forces/cmqabxs6p000ua929gqs4plru/settings",
+    "finalUrl": "/rescue-forces/cmqabxs6p000ua929gqs4plru/settings",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Error fetching squad: Error: Failed to fetch force\n    at SquadSettingsPage._session_user (webpack-internal:///7426:123:23)"
+    ]
+  },
+  {
+    "name": "auth-65-communities-my-requests",
+    "route": "/communities/my-requests",
+    "finalUrl": "/rescue-forces/search",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-66-communities-request",
+    "route": "/communities/request",
+    "finalUrl": "/rescue-forces/search",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-67-divisions-request",
+    "route": "/divisions/request",
+    "finalUrl": "/login?callbackUrl=/divisions/request",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-68-patrol-database",
+    "route": "/patrol/database",
+    "finalUrl": "/lost-and-found",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-69-patrol-join",
+    "route": "/patrol/join",
+    "finalUrl": "/patrol/join",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-70-shelter-dashboard",
+    "route": "/shelter/dashboard",
+    "finalUrl": "/shelter/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-71-shelter-request",
+    "route": "/shelter/request",
+    "finalUrl": "/shelter/request",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-72-simulate",
+    "route": "/simulate",
+    "finalUrl": "/simulate",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-73-simulator",
+    "route": "/simulator",
+    "finalUrl": "/simulator",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-74-admin",
+    "route": "/admin",
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-75-admin-analytics",
+    "route": "/admin/analytics",
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-76-admin-auto-migrate",
+    "route": "/admin/auto-migrate",
+    "finalUrl": "/admin/auto-migrate",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-77-admin-check-config",
+    "route": "/admin/check-config",
+    "finalUrl": "/admin/check-config",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-78-admin-communities",
+    "route": "/admin/communities",
+    "finalUrl": "/admin/communities",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-79-admin-communities-create",
+    "route": "/admin/communities/create",
+    "finalUrl": "/admin/communities/create",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ]
+  },
+  {
+    "name": "auth-80-admin-divisions",
+    "route": "/admin/divisions",
+    "finalUrl": "/admin/divisions",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-81-admin-divisions-create",
+    "route": "/admin/divisions/create",
+    "finalUrl": "/admin/divisions/create",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-82-admin-divisions-requests",
+    "route": "/admin/divisions/requests",
+    "finalUrl": "/admin/divisions/requests",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ]
+  },
+  {
+    "name": "auth-83-admin-health",
+    "route": "/admin/health",
+    "finalUrl": "/admin/health",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-84-admin-missions",
+    "route": "/admin/missions",
+    "finalUrl": "/admin/missions",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-85-admin-missions-new",
+    "route": "/admin/missions/new",
+    "finalUrl": "/admin/missions/new",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "name": "auth-86-admin-mission-detail",
+    "route": "/admin/missions/cmqabxs5n000da9297l0twi4l",
+    "finalUrl": "/admin/missions/cmqabxs5n000da9297l0twi4l",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ]
+  },
+  {
+    "name": "auth-87-admin-pets",
+    "route": "/admin/pets",
+    "finalUrl": "/admin/pets",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-88-admin-prisma",
+    "route": "/admin/prisma",
+    "finalUrl": "/admin/prisma",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-89-admin-qa",
+    "route": "/admin/qa",
+    "finalUrl": "/admin/qa",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-90-admin-rescue-forces",
+    "route": "/admin/rescue-forces",
+    "finalUrl": "/admin/rescue-forces",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-91-admin-rescue-forces-create",
+    "route": "/admin/rescue-forces/create",
+    "finalUrl": "/admin/rescue-forces/create",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-92-admin-shelters",
+    "route": "/admin/shelters",
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-93-admin-shelters-requests",
+    "route": "/admin/shelters/requests",
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-94-admin-users",
+    "route": "/admin/users",
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-95-admin-wipe-squads",
+    "route": "/admin/wipe-squads",
+    "finalUrl": "/admin/wipe-squads",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  },
+  {
+    "name": "auth-96-legal-consent",
+    "route": "/legal/consent",
+    "finalUrl": "/legal/consent",
+    "consoleErrors": [
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID",
+      "Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID"
+    ]
+  }
+]
