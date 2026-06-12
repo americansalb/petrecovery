@@ -45,24 +45,30 @@ export async function GET(request, { params }) {
       });
     }
 
-    // Get badges
+    // Get badges. UserBadge has no Prisma relation to Badge (scalar badgeId
+    // only), so join manually — include:{badge} throws at runtime.
     const userBadges = await prisma.userBadge.findMany({
       where: { userId },
-      include: {
-        badge: true,
-      },
-      orderBy: { earnedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
+    const badgeRows = userBadges.length
+      ? await prisma.badge.findMany({
+          where: { id: { in: userBadges.map((ub) => ub.badgeId) } },
+        })
+      : [];
+    const badgeById = new Map(badgeRows.map((b) => [b.id, b]));
 
-    // Check if user has shelter profile
+    // Check if user has shelter profile. ShelterProfile's shelterId is a
+    // plain scalar (no relation), so resolve the Shelter separately.
     const shelterProfile = await prisma.shelterProfile.findFirst({
       where: { claimedById: userId },
-      include: {
-        shelter: {
-          select: { name: true, city: true, state: true },
-        },
-      },
     });
+    const claimedShelter = shelterProfile
+      ? await prisma.shelter.findUnique({
+          where: { id: shelterProfile.shelterId },
+          select: { name: true, city: true, state: true },
+        })
+      : null;
 
     // Get activity based on tab
     let activity = [];
@@ -70,11 +76,11 @@ export async function GET(request, { params }) {
 
     if (tab === 'threads') {
       totalCount = await prisma.forumThread.count({
-        where: { authorId: userId, isDeleted: false },
+        where: { authorId: userId, isHidden: false },
       });
 
       const threads = await prisma.forumThread.findMany({
-        where: { authorId: userId, isDeleted: false },
+        where: { authorId: userId, isHidden: false },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -115,13 +121,20 @@ export async function GET(request, { params }) {
               thread: {
                 select: { title: true, slug: true },
               },
-              author: {
-                select: { firstName: true },
-              },
             },
           },
         },
       });
+
+      // ForumPost.authorId is a plain scalar; resolve names separately
+      const reactionAuthorIds = [...new Set(reactions.map((r) => r.post?.authorId).filter(Boolean))];
+      const reactionAuthors = reactionAuthorIds.length
+        ? await prisma.user.findMany({
+            where: { id: { in: reactionAuthorIds } },
+            select: { id: true, firstName: true },
+          })
+        : [];
+      const authorNameById = new Map(reactionAuthors.map((u) => [u.id, u.firstName]));
 
       activity = reactions.map(r => ({
         type: 'reaction',
@@ -130,7 +143,7 @@ export async function GET(request, { params }) {
         post: {
           id: r.post.id,
           content: r.post.content.slice(0, 100) + (r.post.content.length > 100 ? '...' : ''),
-          author: r.post.author?.firstName,
+          author: authorNameById.get(r.post.authorId),
           thread: r.post.thread,
         },
         createdAt: r.createdAt,
@@ -138,11 +151,11 @@ export async function GET(request, { params }) {
     } else {
       // Default: posts
       totalCount = await prisma.forumPost.count({
-        where: { authorId: userId, isDeleted: false },
+        where: { authorId: userId, isHidden: false },
       });
 
       const posts = await prisma.forumPost.findMany({
-        where: { authorId: userId, isDeleted: false },
+        where: { authorId: userId, isHidden: false },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
@@ -168,10 +181,10 @@ export async function GET(request, { params }) {
     // Get stats
     const stats = {
       threadsCount: await prisma.forumThread.count({
-        where: { authorId: userId, isDeleted: false },
+        where: { authorId: userId, isHidden: false },
       }),
       postsCount: await prisma.forumPost.count({
-        where: { authorId: userId, isDeleted: false },
+        where: { authorId: userId, isHidden: false },
       }),
       helpfulReceived: forumProfile.helpfulReceived || 0,
       solutionsCount: forumProfile.solutionsCount || 0,
@@ -203,14 +216,19 @@ export async function GET(request, { params }) {
         trustLevelLabel: trustLevelLabels[forumProfile.trustLevel] || 'Member',
         reputation: forumProfile.reputation,
         isVerifiedShelter: forumProfile.isVerifiedShelter,
-        shelter: shelterProfile?.shelter,
-        badges: userBadges.map(ub => ({
-          id: ub.badge.id,
-          name: ub.badge.name,
-          icon: ub.badge.icon,
-          description: ub.badge.description,
-          earnedAt: ub.earnedAt,
-        })),
+        shelter: claimedShelter,
+        badges: userBadges
+          .filter((ub) => badgeById.has(ub.badgeId))
+          .map((ub) => {
+            const badge = badgeById.get(ub.badgeId);
+            return {
+              id: badge.id,
+              name: badge.name,
+              icon: badge.icon,
+              description: badge.description,
+              earnedAt: ub.createdAt,
+            };
+          }),
         stats,
       },
       activity,
