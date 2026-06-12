@@ -347,10 +347,17 @@ model Pet {
   isDeleted       Boolean  @default(false)
   deletedAt       DateTime?
 
+  // Vet contact (Health Book)
+  vetName         String?
+  vetClinic       String?
+  vetPhone        String?
+
   // Relations
   cases           Case[]
   medications     PetMedication[]
   shares          PetShare[]
+  vaccinations    PetVaccination[]
+  weightEntries   PetWeightEntry[]
 
   @@index([ownerId])
   @@index([isDeleted])
@@ -488,6 +495,45 @@ enum PetShareStatus {
   PENDING    // invited by the owner, not yet accepted
   ACTIVE     // accepted / approved
   REQUESTED  // asked to help via the public view link, awaiting owner approval
+}
+
+// HEALTH BOOK (docs/HEALTH_BOOK_DESIGN.md): owner-held medical record.
+// Vaccinations render as stamps; status is pure expiry-date math.
+model PetVaccination {
+  id              String   @id @default(cuid())
+  petId           String
+  pet             Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  name            String   // "Rabies", "DHPP", custom (validated label)
+  administeredAt  DateTime
+  expiresAt       DateTime? // null = no expiry on file
+  vetName         String?
+  lotNumber       String?
+  certificateUrl  String?  // uploaded photo of the certificate
+  notes           String?
+
+  // Tombstone, never hard-deleted: medical data
+  deletedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([petId, deletedAt])
+  @@index([petId, expiresAt])
+}
+
+model PetWeightEntry {
+  id              String   @id @default(cuid())
+  petId           String
+  pet             Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  weightLbs       Float
+  recordedAt      DateTime @default(now())
+  note            String?
+
+  deletedAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([petId, deletedAt, recordedAt])
 }
 
 model MedicationDose {

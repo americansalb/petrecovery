@@ -585,6 +585,30 @@ async function main() {
   }
   console.log('conversation ok:', convo.id);
 
+  // ---- Health Book: stamps and weights for Max ----
+  if (!(await prisma.petVaccination.findFirst({ where: { petId: max.id } }))) {
+    const yr = 365 * 86400e3;
+    await prisma.petVaccination.createMany({
+      data: [
+        { petId: max.id, name: 'Rabies', administeredAt: new Date(Date.now() - 0.7 * yr), expiresAt: new Date(Date.now() + 2.3 * yr), vetName: 'Dr. Reyes, Austin Vet Clinic' },
+        { petId: max.id, name: 'DHPP', administeredAt: new Date(Date.now() - 0.4 * yr), expiresAt: new Date(Date.now() + 0.6 * yr), vetName: 'Dr. Reyes, Austin Vet Clinic' },
+        { petId: max.id, name: 'Bordetella', administeredAt: new Date(Date.now() - 0.95 * yr), expiresAt: new Date(Date.now() + 30 * 86400e3) },
+      ],
+    });
+    const weights = [66.5, 66, 65.5, 65.8, 65.2, 65, 65];
+    await prisma.petWeightEntry.createMany({
+      data: weights.map((w, i) => ({
+        petId: max.id,
+        weightLbs: w,
+        recordedAt: new Date(Date.now() - (weights.length - 1 - i) * 30 * 86400e3),
+      })),
+    });
+    await prisma.pet.update({
+      where: { id: max.id },
+      data: { vetName: 'Dr. Reyes', vetClinic: 'Austin Vet Clinic', vetPhone: '512-555-0188' },
+    });
+  }
+
   // ---- Shelters ----
   const shelterDefs = [
     ['Austin Animal Center', '7201 Levander Loop', 'Austin', 'TX', '78702', 30.2521, -97.6889],

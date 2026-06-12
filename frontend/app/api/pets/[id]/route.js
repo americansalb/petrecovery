@@ -123,10 +123,18 @@ export async function PATCH(request, { params }) {
       medicalConditions,
       photos,
       primaryPhotoUrl,
+      vetName,
+      vetClinic,
+      vetPhone,
     } = body;
 
     // Build update data (only include provided fields)
     const updateData = {};
+
+    // Health Book vet card: free-text contact fields, length-capped
+    if (vetName !== undefined) updateData.vetName = (vetName || '').trim().slice(0, 80) || null;
+    if (vetClinic !== undefined) updateData.vetClinic = (vetClinic || '').trim().slice(0, 80) || null;
+    if (vetPhone !== undefined) updateData.vetPhone = (vetPhone || '').trim().slice(0, 30) || null;
 
     if (name !== undefined) {
       if (!name.trim()) {

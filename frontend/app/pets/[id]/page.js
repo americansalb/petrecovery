@@ -21,6 +21,8 @@ import { MedIconChip } from '@/app/components/medications/MedIcon';
 import { slotsWithStatus, sameDay, formatTime } from '@/lib/medications';
 import { CareIconChip } from '@/app/components/icons/CareIcons';
 import RescueReadiness from '@/app/components/pets/RescueReadiness';
+import { ShieldIcon } from '@/app/components/icons/HealthIcons';
+import { healthBookStatus } from '@/lib/healthBook';
 
 
 function parseJsonArray(value) {
@@ -73,6 +75,7 @@ export default function PetProfilePage() {
   const [access, setAccess] = useState('OWNER');
   const [shares, setShares] = useState(null); // null = not loaded / not owner
   const [viewLinkUrl, setViewLinkUrl] = useState(null);
+  const [vaccinations, setVaccinations] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -118,6 +121,10 @@ export default function PetProfilePage() {
     fetch(`/api/pets/${petId}/share-link`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data?.url) setViewLinkUrl(data.url); })
+      .catch(() => {});
+    fetch(`/api/pets/${petId}/vaccinations`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.vaccinations) setVaccinations(data.vaccinations); })
       .catch(() => {});
   }, [status, petId]);
 
@@ -263,6 +270,24 @@ export default function PetProfilePage() {
                   {today.given >= today.due ? 'Done' : `${today.due - today.given} to go`}
                 </span>
               )}
+              <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </div>
+          </Card>
+        </Link>
+
+        {/* The Health Book, one line */}
+        <Link href={`/pets/${petId}/health`} className="block group mb-3">
+          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
+            <div className="flex items-center gap-4">
+              <ShieldIcon size={20} className="text-midnight-300 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-midnight-900">Health Book</p>
+                <p className="text-sm text-midnight-500 truncate">
+                  {vaccinations === null
+                    ? '...'
+                    : healthBookStatus(vaccinations, pet.name).sentence}
+                </p>
+              </div>
               <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
             </div>
           </Card>

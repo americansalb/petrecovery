@@ -17,6 +17,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, Heart, AlertTriangle, Plus, LayoutGrid, Pill, Share2, Bone, Pencil,
 } from 'lucide-react';
+import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { cn } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 
@@ -25,6 +26,7 @@ const TABS = [
   { id: '', label: 'Overview', icon: LayoutGrid },
   { id: 'care', label: 'Care', icon: Bone },
   { id: 'medications', label: 'Meds', icon: Pill },
+  { id: 'health', label: 'Health', icon: ShieldIcon },
   { id: 'share', label: 'Sharing', icon: Share2 },
 ];
 
@@ -59,7 +61,7 @@ export default function PetShellLayout({ children }) {
 
   // Which room are we in? ('' = overview, 'medications', 'share', 'edit'...)
   const segment = pathname.split('/')[3] || '';
-  const sectionForSwitch = ['medications', 'share', 'care'].includes(segment) ? `/${segment}` : '';
+  const sectionForSwitch = ['medications', 'share', 'care', 'health'].includes(segment) ? `/${segment}` : '';
   const activeCase = activeCaseOf(pet);
 
   const detailLine = pet

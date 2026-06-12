@@ -36,6 +36,9 @@ export async function GET(request, { params }) {
         breed: true,
         color: true,
         primaryPhotoUrl: true,
+        vetName: true,
+        vetClinic: true,
+        vetPhone: true,
         owner: { select: { firstName: true } },
       },
     });
@@ -56,6 +59,20 @@ export async function GET(request, { params }) {
       },
     });
 
+    // The clinical face: vaccines and latest weight ride the same token
+    const [vaccinations, latestWeight] = await Promise.all([
+      prisma.petVaccination.findMany({
+        where: { petId: pet.id, deletedAt: null },
+        orderBy: { administeredAt: 'desc' },
+        select: { name: true, administeredAt: true, expiresAt: true },
+      }),
+      prisma.petWeightEntry.findFirst({
+        where: { petId: pet.id, deletedAt: null },
+        orderBy: { recordedAt: 'desc' },
+        select: { weightLbs: true, recordedAt: true },
+      }),
+    ]);
+
     return NextResponse.json({
       pet: {
         // The pet id is intentionally NOT exposed; requests go through the token
@@ -64,9 +81,14 @@ export async function GET(request, { params }) {
         breed: pet.breed,
         color: pet.color,
         primaryPhotoUrl: pet.primaryPhotoUrl,
+        vetName: pet.vetName,
+        vetClinic: pet.vetClinic,
+        vetPhone: pet.vetPhone,
       },
       ownerFirstName: pet.owner?.firstName || 'The owner',
       medications: medications.map(parseMedication),
+      vaccinations,
+      latestWeight,
     });
   } catch (error) {
     console.error('[PET VIEW] Failed:', error);

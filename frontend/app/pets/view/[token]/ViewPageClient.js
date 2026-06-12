@@ -574,6 +574,43 @@ export default function PublicPetViewPage() {
           </Card>
         )}
 
+        {/* The clinical face: what a vet or sitter scans in 20 seconds */}
+        {(data.vaccinations?.length > 0 || data.latestWeight || data.pet.vetName || data.pet.vetClinic) && (
+          <Card padding="lg" className="mb-6">
+            <h3 className="font-bold text-midnight-900 mb-1">For the vet</h3>
+            <p className="text-xs text-midnight-400 mb-3">From {pet.name}&apos;s Health Book.</p>
+            <dl className="space-y-2 text-sm">
+              {data.latestWeight && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-midnight-500">Weight</dt>
+                  <dd className="font-semibold text-midnight-900">
+                    {data.latestWeight.weightLbs} lbs · {new Date(data.latestWeight.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                  </dd>
+                </div>
+              )}
+              {data.vaccinations?.length > 0 && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-midnight-500 shrink-0">Vaccines</dt>
+                  <dd className="font-semibold text-midnight-900 text-right">
+                    {data.vaccinations.map((v) =>
+                      `${v.name} ${new Date(v.expiresAt || v.administeredAt).toLocaleDateString([], { month: 'numeric', year: 'numeric' })}`
+                    ).join(' · ')}
+                  </dd>
+                </div>
+              )}
+              {(data.pet.vetName || data.pet.vetClinic) && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-midnight-500">Vet</dt>
+                  <dd className="font-semibold text-midnight-900 text-right">
+                    {[data.pet.vetName, data.pet.vetClinic].filter(Boolean).join(', ')}
+                    {data.pet.vetPhone ? ` · ${data.pet.vetPhone}` : ''}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </Card>
+        )}
+
         <p className="text-center text-xs text-midnight-400 pb-6">
           Powered by <Link href="/" className="font-bold text-midnight-600 hover:text-midnight-900">ReunitePets</Link>, free forever for every pet. Your vet&rsquo;s guidance always comes first.
         </p>
