@@ -839,6 +839,10 @@ export default function MedicationTrackerPage() {
             )}
 
             <ActivityFeed meds={medItems} />
+
+            <p className="text-center text-xs text-midnight-400 pt-2 pb-6">
+              Free forever. A helper for remembering — your vet&rsquo;s guidance always comes first.
+            </p>
           </>
         )}
       </div>

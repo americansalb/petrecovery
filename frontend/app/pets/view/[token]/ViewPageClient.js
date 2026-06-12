@@ -574,7 +574,7 @@ export default function PublicPetViewPage() {
         )}
 
         <p className="text-center text-xs text-midnight-400 pb-6">
-          Powered by <Link href="/" className="font-bold text-midnight-600 hover:text-midnight-900">ReunitePets</Link>, free forever for every pet.
+          Powered by <Link href="/" className="font-bold text-midnight-600 hover:text-midnight-900">ReunitePets</Link>, free forever for every pet. Your vet&rsquo;s guidance always comes first.
         </p>
       </div>
 

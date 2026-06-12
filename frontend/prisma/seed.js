@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { TERMS_OF_SERVICE_DOC } = require('./legal/terms-of-service');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
@@ -58,81 +59,7 @@ async function main() {
   // ============================================================================
 
   const legalDocuments = [
-    {
-      slug: 'terms-of-service',
-      type: 'TERMS_OF_SERVICE',
-      version: '1.0.0',
-      title: 'Terms of Service',
-      summary: 'Platform usage rules and guidelines',
-      content: `# Terms of Service
-
-**Last Updated:** November 24, 2025
-**Version:** 1.0.0
-
-By using PetRecovery.org, you agree to the following terms:
-
-## 1. Account Responsibilities
-
-- **Accuracy**: You agree to provide accurate information about lost pets and your identity
-- **Account Security**: You are responsible for maintaining the security of your account credentials
-- **Age Requirement**: You must be at least 18 years old to create an account
-
-## 2. Acceptable Use
-
-- **Respectful Conduct**: Treat all volunteers, pet owners, and community members with respect
-- **Truthful Information**: All pet information, sightings, and case updates must be truthful and accurate
-- **No Misuse**: Do not use the platform for spam, harassment, or any illegal activities
-- **Safety First**: Follow all safety protocols during searches and rescues
-
-## 3. Privacy & Data
-
-- **Data Collection**: We collect information necessary to coordinate pet searches (see Privacy Policy)
-- **Communication**: We may contact you via email regarding your cases and rescue force activities
-- **Data Sharing**: Your information is only shared with rescue force members for active cases
-
-## 4. Rescue Force Participation
-
-- **Liability**: See our separate Liability Waiver for terms regarding rescue force participation
-- **Voluntary**: All rescue force participation is voluntary
-- **Coordination**: Follow instructions from squad leaders and coordinators
-
-## 5. Content & Intellectual Property
-
-- **Your Content**: You retain ownership of photos and content you upload
-- **License**: You grant us a license to display and distribute your content for pet recovery purposes
-- **Platform Content**: PetRecovery.org branding and platform features are our intellectual property
-
-## 6. Disclaimers
-
-- **No Guarantee**: We cannot guarantee that lost pets will be found
-- **Third-Party Actions**: We are not responsible for the actions of volunteers or other users
-- **Service Availability**: We strive for 24/7 availability but cannot guarantee uninterrupted service
-
-## 7. Termination
-
-- We reserve the right to terminate accounts that violate these terms
-- You may delete your account at any time through your account settings
-
-## 8. Changes to Terms
-
-- We may update these terms from time to time
-- Material changes will require re-acceptance
-- Continued use after changes constitutes acceptance
-
-## 9. Contact
-
-If you have questions about these terms, please contact us at:
-- Email: legal@petrecovery.org
-- Website: petrecovery.org
-
-## 10. Governing Law
-
-These terms are governed by the laws of the United States and the state in which our headquarters are located.
-
----
-
-**By using PetRecovery.org, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**`
-    },
+    TERMS_OF_SERVICE_DOC,
     {
       slug: 'liability-waiver',
       type: 'LIABILITY_WAIVER',
@@ -463,8 +390,20 @@ United States
     if (!existing) {
       await prisma.legalDocument.create({ data: doc });
       console.log(`✅ Created ${doc.title} (v${doc.version})`);
+    } else if (existing.version !== doc.version) {
+      await prisma.legalDocument.update({
+        where: { slug: doc.slug },
+        data: {
+          version: doc.version,
+          title: doc.title,
+          summary: doc.summary,
+          content: doc.content,
+          publishedAt: new Date(),
+        },
+      });
+      console.log(`⬆️  Updated ${doc.title} (v${existing.version} → v${doc.version})`);
     } else {
-      console.log(`ℹ️  ${doc.title} already exists`);
+      console.log(`ℹ️  ${doc.title} already current (v${doc.version})`);
     }
   }
 
