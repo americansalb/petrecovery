@@ -15,8 +15,11 @@ import { useRouter, useParams } from 'next/navigation';
 import { Plus, X, Check, Loader2, Trash2, Phone } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Badge, cn } from '@/components/ui';
+import Link from 'next/link';
+import { Button } from '@/components/ui';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { SyringeGlyph } from '@/app/components/icons/MedGlyphs';
+import { MedCard, ActivityFeed } from '@/app/components/medications/MedCards';
 import {
   vaccinationStatus, healthBookStatus, vaccinePresetsFor, DUE_SOON_DAYS,
 } from '@/lib/healthBook';
@@ -213,6 +216,9 @@ export default function HealthBookPage() {
   const [managing, setManaging] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
+  const [meds, setMeds] = useState([]);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [busyMed, setBusyMed] = useState(null);
   const [vetDraft, setVetDraft] = useState(null); // null = closed
   const [savingVet, setSavingVet] = useState(false);
   const [error, setError] = useState(null);
@@ -225,10 +231,11 @@ export default function HealthBookPage() {
 
   const load = useCallback(async () => {
     try {
-      const [vaxRes, weightRes, petRes] = await Promise.all([
+      const [vaxRes, weightRes, petRes, medsRes] = await Promise.all([
         fetch(`/api/pets/${petId}/vaccinations`),
         fetch(`/api/pets/${petId}/weights`),
         fetch(`/api/pets/${petId}`),
+        fetch(`/api/pets/${petId}/medications`),
       ]);
       if (vaxRes.ok) {
         const d = await vaxRes.json();
@@ -236,6 +243,7 @@ export default function HealthBookPage() {
         setAccess(d.access || 'VIEWER');
       }
       if (weightRes.ok) setWeights((await weightRes.json()).weights || []);
+      if (medsRes.ok) setMeds(((await medsRes.json()).medications || []).filter((m) => m.kind !== 'CARE'));
       if (petRes.ok) {
         const d = await petRes.json();
         setPet(d.pet || d);
@@ -296,6 +304,44 @@ export default function HealthBookPage() {
       setError(err.message);
     }
   };
+
+  const withMedBusy = async (med, fn) => {
+    setBusyMed(med.id);
+    try { await fn(); } catch (err) { setError(err.message); } finally { setBusyMed(null); }
+  };
+
+  const togglePause = (med) =>
+    withMedBusy(med, async () => {
+      const res = await fetch(`/api/pets/${petId}/medications/${med.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !med.isActive }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update');
+      setMeds((prev) => prev.map((m) => (m.id === med.id ? data.medication : m)));
+    });
+
+  const logPrn = (med) =>
+    withMedBusy(med, async () => {
+      const res = await fetch(`/api/pets/${petId}/medications/${med.id}/doses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledFor: new Date().toISOString(), status: 'GIVEN' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to log dose');
+      setMeds((prev) => prev.map((m) => (m.id === med.id ? { ...m, doses: [data.dose, ...(m.doses || [])], quantityRemaining: data.quantityRemaining ?? m.quantityRemaining } : m)));
+    });
+
+  const deleteMed = (med) =>
+    withMedBusy(med, async () => {
+      const res = await fetch(`/api/pets/${petId}/medications/${med.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete');
+      setMeds((prev) => prev.filter((m) => m.id !== med.id));
+      setConfirmDelete(null);
+    });
 
   const saveVet = async () => {
     if (savingVet) return;
@@ -417,6 +463,54 @@ export default function HealthBookPage() {
           </div>
         </Card>
 
+        {/* Medications: the record and its management (logging lives in Today) */}
+        <Card padding="lg" className="mb-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+            <h2 className="font-bold text-midnight-900">Medications</h2>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/pets/${petId}/medications/export`}
+                download
+                className="inline-flex items-center gap-1.5 px-3 py-2 border-2 border-midnight-200 text-midnight-500 rounded-xl text-sm font-bold hover:border-midnight-300 hover:text-midnight-800 transition-colors"
+                title="Download a full backup of all medication data"
+              >
+                Backup
+              </a>
+              {canManage && (
+                <Button variant="primary" size="sm" href={`/pets/${petId}/medications/new`}>
+                  Add medication
+                </Button>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-midnight-500 mb-4">
+            Schedules and supply. Daily check-offs live in <Link href={`/pets/${petId}/today`} className="font-bold text-midnight-700 hover:text-midnight-900 underline underline-offset-2">Today</Link>.
+          </p>
+          {meds.length === 0 ? (
+            <p className="text-sm text-midnight-400">No medications on file.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {meds.filter((m) => m.isActive).map((med) => (
+                  <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
+                    onLogPrn={logPrn} onTogglePause={togglePause} onDelete={setConfirmDelete} />
+                ))}
+              </div>
+              {meds.some((m) => !m.isActive) && (
+                <>
+                  <h3 className="font-bold text-midnight-500 text-sm uppercase tracking-wide mt-5 mb-3">Paused</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {meds.filter((m) => !m.isActive).map((med) => (
+                      <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
+                        onLogPrn={logPrn} onTogglePause={togglePause} onDelete={setConfirmDelete} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </Card>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Weight */}
           <Card padding="lg">
@@ -522,10 +616,27 @@ export default function HealthBookPage() {
           </Card>
         )}
 
+        <ActivityFeed meds={meds} />
+
         <p className="text-center text-xs text-midnight-400 pt-2 pb-6">
           A record you keep, not medical advice. Your vet&apos;s guidance comes first.
         </p>
       </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-midnight-900 mb-3">Delete {confirmDelete.name}?</h3>
+            <p className="text-midnight-600 mb-6">This removes the medication and its full dose history. This cannot be undone.</p>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setConfirmDelete(null)} className="flex-1">Cancel</Button>
+              <Button variant="danger" onClick={() => deleteMed(confirmDelete)} className="flex-1" disabled={busyMed === confirmDelete.id}>
+                {busyMed === confirmDelete.id ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {showAdd && (
         <AddVaccineModal

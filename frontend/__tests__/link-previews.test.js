@@ -62,6 +62,7 @@ const KNOWN_PRIVATE = [
   'pets/[id]/medications/new/page.js',
   'pets/[id]/share/page.js',
   'pets/[id]/health/page.js', // owner/caregiver Health Book
+  'pets/[id]/today/page.js', // the daily checklist
   'messages/[id]/page.js', // private conversation
   'admin/missions/[missionId]/page.js', // admin-only
   'missions/[missionNumber]/coordinate/page.js', // auth redirect into mission control

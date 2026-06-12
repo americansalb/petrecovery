@@ -39,11 +39,16 @@ A tab exists because a PERSON has a recurring JOB, not because a
 database has a table (the lesson of the care-on-the-meds-page bug,
 paid for twice).
 
-Today's hallway:
-- **Overview** - the glance. Status, today-at-a-glance, identity.
-- **Care** - daily life. Routine chips, joys history. Grows: streaks, weekly rhythm, reminders.
-- **Meds** - the medical instrument. Checklist, week strip, supply. Grows: refill reminders.
-- **Sharing** - the people. Team, invites, view link. Grows: the sitter packet (section 6).
+Today's hallway (amended per docs/PRODUCT_IA_PLAN.md: rooms are jobs,
+and the jobs are STATE / RHYTHM / RECORD / PEOPLE):
+- **Overview** - STATE. The glance: readiness, status strips, identity.
+- **Today** - RHYTHM. The one checklist: med doses and care routines,
+  the week strip. The only surface where anyone taps "done".
+- **Health Book** - RECORD. Medications (list, schedules, supply),
+  vaccine stamps, weights, conditions, the vet, the story. Everything
+  a vet would ask. (Absorbed the old Meds management and the reserved
+  Health room.)
+- **Sharing** - PEOPLE. Team, invites, view link. Grows: the sitter packet (section 6).
 
 Reserved rooms (build when the job is real, never before):
 - **Health** - vet records, vaccinations with expiry, weight-over-time,

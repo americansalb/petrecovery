@@ -245,12 +245,12 @@ export default function PetProfilePage() {
         )}
 
         {/* Today's care, one line */}
-        <Link href={`/pets/${petId}/medications`} className="block group mb-3">
+        <Link href={`/pets/${petId}/today`} className="block group mb-3">
           <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
             <div className="flex items-center gap-4">
               <Pill size={20} className="text-midnight-300 shrink-0" />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-midnight-900">Today&apos;s care</p>
+                <p className="font-bold text-midnight-900">Today</p>
                 <p className="text-sm text-midnight-500 truncate">
                   {today.medCount === 0 && today.careCount === 0
                     ? 'Nothing set up yet. Add meds or routines once, one tap forever.'

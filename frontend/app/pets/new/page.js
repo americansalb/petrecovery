@@ -285,7 +285,7 @@ export default function NewPetWizard() {
                 If they ever go missing, a report is one tap away with every detail already filled in.
               </p>
               <div className="space-y-3">
-                <Button variant="primary" fullWidth size="lg" href={`/pets/${createdPet.id}/medications`} leftIcon={Pill}>
+                <Button variant="primary" fullWidth size="lg" href={`/pets/${createdPet.id}/today`} leftIcon={Pill}>
                   Track {createdPet.name}&apos;s medications
                 </Button>
                 <Button variant="outline" fullWidth size="lg" href="/pets">
