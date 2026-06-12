@@ -169,6 +169,19 @@ function addSecurityHeaders(response) {
  */
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+
+  // One canonical domain. petrecovery.org serves this same app, which
+  // splits SEO authority and sessions across two hosts; 301 every
+  // request to the brand domain, path and query intact.
+  const host = request.headers.get('host') || '';
+  if (host === 'petrecovery.org' || host === 'www.petrecovery.org') {
+    const url = request.nextUrl.clone();
+    url.protocol = 'https:';
+    url.host = 'www.reunitepets.org';
+    url.port = '';
+    return NextResponse.redirect(url, 301);
+  }
+
   const clientIp = getClientIp(request);
 
   // FAST PATH: Immediately reject obvious bot probes and invalid paths
