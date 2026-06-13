@@ -1,0 +1,258 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;-webkit-font-smoothing:antialiased}
+body{font-family:-apple-system,'Segoe UI',system-ui,sans-serif;background:#cbd5e1;padding:30px;color:#0f172a}
+.screen{background:#f1f5f9;border-radius:28px;padding:22px;margin-bottom:30px;width:920px}
+.screen.narrow{width:460px}
+.tag{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;margin-bottom:12px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:18px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.ic{display:flex;align-items:center;justify-content:center;border-radius:13px;flex-shrink:0}
+.w44{width:44px;height:44px}.w36{width:36px;height:36px}.w28{width:28px;height:28px}
+.b{font-weight:800}.sb{font-weight:700}
+.sm{font-size:13px}.xs{font-size:11.5px}.lg{font-size:17px}
+.mut{color:#64748b}.mut2{color:#94a3b8}
+.pill{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.04em}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:13px;border:1.5px solid #e2e8f0;background:#fff}
+.chipg{background:#f8fafc}
+.emer{background:#fee2e2;color:#b91c1c}.emerbg{background:#fee2e2}.emerfg{color:#b91c1c}
+.okbg{background:#d1fae5}.okfg{color:#047857}
+.warnbg{background:#fef3c7}.warnfg{color:#b45309}
+.skybg{background:#e0f2fe}.skyfg{color:#0369a1}
+.vibg{background:#ede9fe}.vifg{color:#6d28d9}
+.ambg{background:#fef3c7}.amfg{color:#b45309}
+.flash{background:#facc15;color:#0f172a}
+.flashsoft{background:#fefce8;color:#a16207;border-color:#fde68a}
+.divide{border-top:1px solid #f1f5f9}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sec{font-weight:800;font-size:15px}
+.add{margin-left:auto;font-size:12.5px;font-weight:800;color:#64748b;display:inline-flex;gap:5px;align-items:center}
+.bar{height:7px;border-radius:99px;background:#e2e8f0;overflow:hidden}
+.bar>i{display:block;height:100%;background:#facc15;border-radius:99px}
+svg{display:block}
+.spark{width:100%;height:46px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stamp{border:1.5px solid #e2e8f0;border-radius:16px;padding:11px 8px;text-align:center;position:relative}
+.stamp .pp{position:absolute;top:-8px;left:50%;transform:translateX(-50%)}
+.muted-card{background:#f8fafc;border:1px solid #eef2f6;border-radius:14px;padding:11px 13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:800;font-size:13.5px;padding:10px 15px;border-radius:14px}
+.tlrow{display:flex;gap:11px;padding:9px 0;align-items:flex-start}
+.tlrow .when{color:#94a3b8;font-size:11px;width:52px;flex-shrink:0;padding-top:2px}
+</style></head><body>
+
+<!-- ============ A. HEALTH BOOK HOME (DEEP) ============ -->
+<div class="screen" id="A">
+  <div class="tag">A · Health Book — the deep record, care plans as the spine</div>
+
+  <!-- pet header -->
+  <div class="row between" style="padding:2px 4px 14px">
+    <div class="row">
+      <span class="ic w44" style="background:#f59e0b;color:#fff;font-weight:800">M</span>
+      <div><div class="b lg">Max&rsquo;s Health Book</div><div class="xs mut2">Golden Retriever · 4 yrs · 65 lb</div></div>
+    </div>
+    <div class="row" style="gap:8px">
+      <span class="chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg> For the vet</span>
+      <span class="chip emer" style="border-color:#fecaca"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="1.9" stroke-linecap="round"><path d="M12 4 22 19H2Z"/><path d="M12 10v4M12 17h.01"/></svg> Emergency card</span>
+    </div>
+  </div>
+
+  <!-- allergy / alert strip: front of every face -->
+  <div class="card" style="background:#fef2f2;border-color:#fecaca;padding:13px 16px">
+    <div class="row">
+      <span class="ic w28 emerbg emerfg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 4 22 19H2Z"/><path d="M12 10v4M12 17h.01"/></svg></span>
+      <div class="sm"><span class="b emerfg">Allergic to</span> &nbsp;Penicillin · Bee stings &nbsp;&nbsp;<span class="mut2">|</span>&nbsp;&nbsp; <span class="b emerfg">Heads up</span> &nbsp;On an NSAID (no extra NSAIDs)</div>
+    </div>
+  </div>
+
+  <!-- status sentence -->
+  <div class="card">
+    <div class="row">
+      <span class="ic w44 okbg okfg"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6 19 6.4v5.2c0 4.6-3 7.6-7 9-4-1.4-7-4.4-7-9V6.4Z" fill="currentColor" fill-opacity=".15"/><path d="M9 11.8l2.2 2.2 4-4.4"/></svg></span>
+      <div style="flex:1"><div class="b">Managing 2 conditions, all on track.</div><div class="sm mut">Bordetella due Jul 12 · annual exam in 3 weeks · weight steady.</div></div>
+      <span class="btn flashsoft" style="border:1.5px solid #fde68a"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2" stroke-linecap="round"><rect x="3" y="6.5" width="18" height="13" rx="3"/><circle cx="12" cy="13" r="3.4"/></svg> Log what you noticed</span>
+    </div>
+  </div>
+
+  <!-- CARE PLANS: the spine -->
+  <div class="head"><span class="sec">Care plans</span><span class="add"><svg width="14" height="14" viewBox="0 0 24 24" stroke="#64748b" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> New plan</span></div>
+
+  <div class="card" style="border-left:4px solid #f59e0b">
+    <div class="row between" style="margin-bottom:10px">
+      <div class="row"><span class="ic w36 ambg amfg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.4"/><path d="M9 11l-2 9M15 11l2 9M7.5 13.5h9"/></svg></span>
+        <div><div class="b">Arthritis</div><div class="xs mut2">Chronic · since Mar 2024 · Dr. Reyes</div></div></div>
+      <span class="pill okbg okfg">Stable</span>
+    </div>
+    <div style="margin-bottom:9px"><span class="xs b mut2" style="letter-spacing:.08em">TREATMENT</span></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:11px">
+      <span class="chip"><span class="ic w28 ambg amfg" style="width:22px;height:22px;border-radius:7px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g transform="rotate(45 12 12)"><rect x="9" y="3.6" width="6" height="16.8" rx="3"/><path d="M9 12h6"/></g></svg></span> Carprofen 75 mg · 2×/day</span>
+      <span class="chip"><span class="ic vibg vifg" style="width:22px;height:22px;border-radius:7px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.4l1.9 5.2 5.2 1.9-5.2 1.9-1.9 5.2-1.9-5.2-5.2-1.9 5.2-1.9Z"/></svg></span> Glucosamine · daily</span>
+      <span class="chip chipg">Weight management</span>
+    </div>
+    <div class="row between divide" style="padding-top:11px">
+      <div class="xs mut">Watching: <span class="sb" style="color:#334155">mobility, weight</span> · 6 observations, last 2d ago</div>
+      <div class="xs sb" style="color:#64748b">Next review: annual exam, Mar</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:4px solid #facc15">
+    <div class="row between" style="margin-bottom:10px">
+      <div class="row"><span class="ic w36 okbg okfg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19 5C11 5 6 9 6 14.5c0 1.6.4 2.8 1 3.7.3-5.5 3.7-9.2 8.4-10.8-4.1 2.2-7 5.9-7.7 10.3.8.5 1.9.8 3.1.8 5.6 0 9-5.2 8.1-13.5Z" fill="currentColor" fill-opacity=".15"/></svg></span>
+        <div><div class="b">Seasonal allergies</div><div class="xs mut2">Recurring · spring &amp; fall</div></div></div>
+      <span class="pill okbg okfg">Stable</span>
+    </div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:11px">
+      <span class="chip"><span class="ic ambg amfg" style="width:22px;height:22px;border-radius:7px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g transform="rotate(45 12 12)"><rect x="9" y="3.6" width="6" height="16.8" rx="3"/><path d="M9 12h6"/></g></svg></span> Apoquel 16 mg · daily</span>
+      <span class="chip chipg">Watching: itching, ears</span>
+    </div>
+    <div class="row between divide" style="padding-top:11px">
+      <div class="xs mut">Flares in pollen season · last logged 5d ago</div>
+      <div class="xs sb" style="color:#64748b">No review needed</div>
+    </div>
+  </div>
+
+  <!-- VITALS -->
+  <div class="head" style="margin-top:6px"><span class="sec">Vitals</span><span class="add"><svg width="14" height="14" viewBox="0 0 24 24" stroke="#64748b" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Log</span></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="row between"><div class="sb">Weight</div><div class="xs mut2">65 lb · steady 6 mo</div></div>
+      <svg class="spark" viewBox="0 0 420 46" preserveAspectRatio="none"><polyline points="0,30 70,27 140,22 210,24 280,18 350,17 420,17" fill="none" stroke="#facc15" stroke-width="3" stroke-linecap="round"/><circle cx="420" cy="17" r="4" fill="#0f172a"/></svg>
+    </div>
+    <div class="card">
+      <div class="row between"><div class="sb">Body condition</div><div class="xs mut2">Ideal · 5/9</div></div>
+      <div class="row" style="gap:4px;margin-top:14px">
+        <i class="bar" style="flex:1"><i style="width:100%"></i></i><i class="bar" style="flex:1"><i style="width:100%"></i></i><i class="bar" style="flex:1"><i style="width:100%"></i></i><i class="bar" style="flex:1"><i style="width:100%"></i></i><i class="bar" style="flex:1"><i style="width:100%;background:#10b981"></i></i><i class="bar" style="flex:1"></i><i class="bar" style="flex:1"></i><i class="bar" style="flex:1"></i><i class="bar" style="flex:1"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- VACCINES -->
+  <div class="head" style="margin-top:6px"><span class="sec">Vaccinations</span><span class="add"><svg width="14" height="14" viewBox="0 0 24 24" stroke="#64748b" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Add</span></div>
+  <div class="grid2" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stamp"><span class="pp pill okbg okfg">OK</span><span class="ic okbg okfg" style="width:34px;height:34px;border-radius:11px;margin:4px auto 6px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19.4 4.6l-1.2 1.2M20 7.4 16.6 4M5.2 18.8 3.4 20.6M8.4 13.2l2 2"/><rect x="7.9" y="6.7" width="5.4" height="11" rx="1.2" transform="rotate(45 10.6 12.2)"/><path d="M15.4 6.2l2.4 2.4"/></svg></span><div class="xs b">Rabies</div><div class="xs mut2">2028</div></div>
+    <div class="stamp"><span class="pp pill okbg okfg">OK</span><span class="ic okbg okfg" style="width:34px;height:34px;border-radius:11px;margin:4px auto 6px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19.4 4.6l-1.2 1.2M20 7.4 16.6 4M5.2 18.8 3.4 20.6M8.4 13.2l2 2"/><rect x="7.9" y="6.7" width="5.4" height="11" rx="1.2" transform="rotate(45 10.6 12.2)"/><path d="M15.4 6.2l2.4 2.4"/></svg></span><div class="xs b">DHPP</div><div class="xs mut2">2027</div></div>
+    <div class="stamp"><span class="pp pill warnbg warnfg">SOON</span><span class="ic warnbg warnfg" style="width:34px;height:34px;border-radius:11px;margin:4px auto 6px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19.4 4.6l-1.2 1.2M20 7.4 16.6 4M5.2 18.8 3.4 20.6M8.4 13.2l2 2"/><rect x="7.9" y="6.7" width="5.4" height="11" rx="1.2" transform="rotate(45 10.6 12.2)"/><path d="M15.4 6.2l2.4 2.4"/></svg></span><div class="xs b">Bordetella</div><div class="xs mut2">Jul 12</div></div>
+    <div class="stamp" style="border-style:dashed;color:#94a3b8"><span class="ic" style="width:34px;height:34px;border-radius:11px;margin:4px auto 6px;background:#f1f5f9;color:#94a3b8"><svg width="17" height="17" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><div class="xs b" style="color:#64748b">Lepto</div><div class="xs mut2">add</div></div>
+  </div>
+
+  <!-- VISITS & DOCUMENTS -->
+  <div class="head" style="margin-top:6px"><span class="sec">Visits &amp; documents</span><span class="add">View all</span></div>
+  <div class="card">
+    <div class="tlrow" style="padding-top:0"><span class="when">Mar 3</span><span class="ic w28 skybg skyfg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 19.4C7.2 15.4 4.4 12.7 4.4 9.8a4 4 0 0 1 7.1-2.5l.5.6.5-.6a4 4 0 0 1 7.1 2.5c0 2.9-2.8 5.6-7.6 9.6Z"/></svg></span><div class="sm"><span class="sb">Annual exam</span> · Dr. Reyes <span class="mut2">· all clear, arthritis stable</span><div class="xs mut2" style="margin-top:2px">📄 Exam summary · 📄 Bloodwork</div></div></div>
+    <div class="tlrow divide"><span class="when">Jan 8</span><span class="ic w28 okbg okfg"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19.4 4.6l-1.2 1.2M20 7.4 16.6 4M8.4 13.2l2 2"/><rect x="7.9" y="6.7" width="5.4" height="11" rx="1.2" transform="rotate(45 10.6 12.2)"/></svg></span><div class="sm"><span class="sb">DHPP booster</span></div></div>
+  </div>
+</div>
+
+<!-- ============ B. CARE PLAN DETAIL ============ -->
+<div class="screen" id="B">
+  <div class="tag">B · Care plan detail — the condition is the unit of care</div>
+  <div class="card" style="border:none;background:transparent;padding:6px 4px 4px">
+    <div class="row between">
+      <div class="row"><span class="ic w44 ambg amfg"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.4"/><path d="M9 11l-2 9M15 11l2 9M7.5 13.5h9"/></svg></span>
+      <div><div class="b lg">Arthritis</div><div class="xs mut2">Chronic · since Mar 2024 · managed by Dr. Reyes</div></div></div>
+      <span class="pill okbg okfg">Stable</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head"><span class="sec">The plan</span><span class="add"><svg width="14" height="14" viewBox="0 0 24 24" stroke="#64748b" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Add</span></div>
+    <div class="muted-card row between" style="margin-bottom:8px"><div class="row"><span class="ic ambg amfg" style="width:30px;height:30px;border-radius:9px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><g transform="rotate(45 12 12)"><rect x="9" y="3.6" width="6" height="16.8" rx="3"/><path d="M9 12h6"/></g></svg></span><div><div class="sb sm">Carprofen 75 mg</div><div class="xs mut2">Twice daily, with food · 94% this month</div></div></div><span class="pill okbg okfg">On track</span></div>
+    <div class="muted-card row between"><div class="row"><span class="ic vibg vifg" style="width:30px;height:30px;border-radius:9px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.4l1.9 5.2 5.2 1.9-5.2 1.9-1.9 5.2-1.9-5.2-5.2-1.9 5.2-1.9Z"/></svg></span><div><div class="sb sm">Glucosamine chew</div><div class="xs mut2">Once daily</div></div></div><span class="pill okbg okfg">On track</span></div>
+  </div>
+
+  <div class="card">
+    <div class="head"><span class="sec">What we&rsquo;re watching</span></div>
+    <div class="grid2">
+      <div class="muted-card"><div class="row between"><span class="sb sm">Mobility</span><span class="xs okfg b">improving</span></div><div class="xs mut2" style="margin-top:3px">From 6 observations · stairs easier since dose change</div></div>
+      <div class="muted-card"><div class="row between"><span class="sb sm">Weight</span><span class="xs mut">65 lb, steady</span></div><svg class="spark" style="height:30px;margin-top:6px" viewBox="0 0 200 30" preserveAspectRatio="none"><polyline points="0,18 50,16 100,13 150,14 200,12" fill="none" stroke="#facc15" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head"><span class="sec">Observations</span><span class="add"><svg width="14" height="14" viewBox="0 0 24 24" stroke="#64748b" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Log</span></div>
+    <div class="tlrow" style="padding-top:0"><span class="when">2d ago</span><div class="sm">Took the stairs without hesitating this morning 🎉</div></div>
+    <div class="tlrow divide"><span class="when">Mar 28</span><div class="sm">Slight limp after the long walk, back left. <span class="mut2">📷 photo</span></div></div>
+    <div class="tlrow divide"><span class="when">Mar 20</span><div class="sm">Stiff getting up from naps</div></div>
+  </div>
+
+  <div class="card flashsoft" style="border:1.5px solid #fde68a">
+    <div class="row"><span class="ic w36 flash"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="1.8" stroke-linecap="round"><path d="M12 3.4l1.9 5.2 5.2 1.9-5.2 1.9-1.9 5.2-1.9-5.2-5.2-1.9 5.2-1.9Z"/></svg></span><div class="sm" style="color:#713f12"><span class="b">From owners managing canine arthritis</span> — questions worth asking, what helped, typical costs. <span class="b" style="text-decoration:underline">See the playbook</span></div></div>
+  </div>
+</div>
+
+<!-- ============ C. OBSERVATION CAPTURE ============ -->
+<div class="screen narrow" id="C">
+  <div class="tag">C · The 10-second observation — the primitive everything feeds on</div>
+  <div class="card" style="border-radius:24px;padding:20px">
+    <div class="b lg" style="margin-bottom:3px">What did you notice?</div>
+    <div class="sm mut" style="margin-bottom:14px">A note now is what the vet asks for later.</div>
+    <div class="muted-card" style="min-height:74px;padding:13px">
+      <div class="sm" style="color:#334155">Limping again on the back left after our walk</div>
+    </div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin:13px 0">
+      <span class="chip flashsoft" style="border-color:#fde68a">Limping ✓</span>
+      <span class="chip chipg">Appetite</span><span class="chip chipg">Energy</span>
+      <span class="chip chipg">Vomiting</span><span class="chip chipg">Drinking</span><span class="chip chipg">Bathroom</span>
+    </div>
+    <div class="row" style="gap:9px;margin-bottom:14px">
+      <span class="btn" style="flex:1;border:1.5px solid #e2e8f0;color:#475569"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6.5" width="18" height="13" rx="3"/><circle cx="12" cy="13" r="3.4"/></svg> Photo</span>
+      <span class="btn" style="flex:1;border:1.5px solid #e2e8f0;color:#475569"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="9.5" y="3.5" width="5" height="10" rx="2.5"/><path d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v3.5"/></svg> Voice</span>
+    </div>
+    <div class="muted-card row between" style="margin-bottom:14px"><span class="xs mut">Attach to a plan</span><span class="chip" style="background:#fff;border-color:#fde68a"><span class="ic ambg amfg" style="width:18px;height:18px;border-radius:6px"></span> Arthritis ▾</span></div>
+    <div class="btn flash" style="width:100%;padding:13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-11"/></svg> Save the note</div>
+  </div>
+</div>
+
+<!-- ============ D. EMERGENCY FACE ============ -->
+<div class="screen narrow" id="D" style="background:#0b1220">
+  <div class="tag" style="color:#64748b">D · The 2am face — what an ER vet who&rsquo;s never met Max needs, first</div>
+  <div style="background:#111a2e;border:1px solid #1e293b;border-radius:24px;padding:20px;color:#e2e8f0">
+    <div class="row between" style="margin-bottom:14px">
+      <div class="row"><span class="ic w44" style="background:#f59e0b;color:#0b1220;font-weight:800">M</span><div><div class="b lg" style="color:#fff">Max</div><div class="xs" style="color:#64748b">Golden Retriever · M/neutered · 4 yr</div></div></div>
+      <span class="pill" style="background:#7f1d1d;color:#fecaca">Emergency</span>
+    </div>
+    <div style="background:#0b1220;border-radius:14px;padding:13px;margin-bottom:10px">
+      <div class="xs b" style="color:#64748b;letter-spacing:.08em;margin-bottom:6px">FOR DOSING</div>
+      <div class="b" style="font-size:26px;color:#fff">65 lb <span style="font-size:15px;color:#94a3b8;font-weight:600">(29.5 kg)</span></div>
+    </div>
+    <div style="background:#2a0e0e;border:1px solid #7f1d1d;border-radius:14px;padding:13px;margin-bottom:10px">
+      <div class="xs b" style="color:#f87171;letter-spacing:.08em;margin-bottom:5px">ALLERGIES &amp; CAUTIONS</div>
+      <div class="sm" style="color:#fecaca"><span class="b">Penicillin, bee stings.</span> On carprofen (NSAID) — do not give additional NSAIDs.</div>
+    </div>
+    <div style="background:#0b1220;border-radius:14px;padding:13px;margin-bottom:10px">
+      <div class="xs b" style="color:#64748b;letter-spacing:.08em;margin-bottom:6px">CONDITIONS &amp; CURRENT MEDS</div>
+      <div class="sm" style="color:#cbd5e1;line-height:1.7">Arthritis · <span class="b" style="color:#fff">Carprofen 75 mg 2×/day</span><br>Seasonal allergies · <span class="b" style="color:#fff">Apoquel 16 mg/day</span></div>
+    </div>
+    <div class="row" style="gap:9px">
+      <div style="flex:1;background:#0b1220;border-radius:14px;padding:11px"><div class="xs" style="color:#64748b">Primary vet</div><div class="sb sm" style="color:#fff">Dr. Reyes · 512-555-0188</div></div>
+      <div style="flex:1;background:#0b1220;border-radius:14px;padding:11px"><div class="xs" style="color:#64748b">Owner</div><div class="sb sm" style="color:#fff">Avery · 512-555-0100</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ E. THE VISIT LOOP ============ -->
+<div class="screen" id="E">
+  <div class="tag">E · The visit loop — a brief before, a photo after, the book maintains itself</div>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <div class="row" style="margin-bottom:12px"><span class="ic w36 skybg skyfg"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v3M16 3v3M4 8h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z"/></svg></span><div><div class="sec">Before: visit brief</div><div class="xs mut2">Annual exam, Tue 10:00 · Dr. Reyes</div></div></div>
+      <div class="xs b mut2" style="letter-spacing:.08em;margin-bottom:7px">SINCE YOUR LAST VISIT</div>
+      <div class="muted-card sm" style="margin-bottom:7px;display:flex;justify-content:space-between">Weight <span class="sb">↓ 0.8 lb (steady)</span></div>
+      <div class="muted-card sm" style="margin-bottom:7px;display:flex;justify-content:space-between">Med adherence <span class="sb okfg">94%</span></div>
+      <div class="muted-card sm" style="margin-bottom:7px;display:flex;justify-content:space-between">Observations logged <span class="sb">6 (mobility ↑)</span></div>
+      <div class="xs b mut2" style="letter-spacing:.08em;margin:11px 0 7px">YOUR QUESTIONS (3)</div>
+      <div class="sm mut" style="line-height:1.8">· Is the limp something to image?<br>· Can we lower the carprofen?<br>· Dental cleaning this year?</div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:12px"><span class="ic w36 flash"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="6.5" width="18" height="13" rx="3"/><circle cx="12" cy="13" r="3.4"/></svg></span><div><div class="sec">After: snap the papers</div><div class="xs mut2">The book reads them for you</div></div></div>
+      <div class="muted-card" style="text-align:center;padding:16px;margin-bottom:12px;border-style:dashed"><div class="xs mut2">📄 discharge_summary.jpg</div></div>
+      <div class="xs b mut2" style="letter-spacing:.08em;margin-bottom:7px">FOUND IN THE PAPERS</div>
+      <div class="muted-card row between" style="margin-bottom:7px"><span class="sm sb">Carprofen → 50 mg 2×/day</span><span class="chip flashsoft" style="border-color:#fde68a;padding:4px 9px">update plan</span></div>
+      <div class="muted-card row between" style="margin-bottom:7px"><span class="sm sb">New: dental cleaning booked</span><span class="chip flashsoft" style="border-color:#fde68a;padding:4px 9px">add visit</span></div>
+      <div class="muted-card row between"><span class="sm sb">Weight recorded: 64.2 lb</span><span class="chip flashsoft" style="border-color:#fde68a;padding:4px 9px">log</span></div>
+      <div class="btn flash" style="width:100%;margin-top:13px;padding:12px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"><path d="M5 12l5 5 9-11"/></svg> Apply all to the book</div>
+    </div>
+  </div>
+</div>
+
+</body></html>
