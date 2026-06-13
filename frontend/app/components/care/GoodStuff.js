@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import {
-  Plus, X, Check, Loader2, Pause, Play, Trash2, Settings2,
+  Plus, X, Check, Loader2, Pause, Play, Trash2, Settings2, Undo2,
 } from 'lucide-react';
 import { Card, Button, cn } from '@/components/ui';
 import {
@@ -266,6 +266,24 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
       applyDose(care.id, data.dose, data.quantityRemaining);
     });
 
+  // Tapping a "whenever" chip logs another; an accidental tap has to be
+  // reversible, so the corner undo removes the most recent of today's.
+  const undoPrn = (care) =>
+    withBusy(`prn-${care.id}`, async () => {
+      const last = (care.doses || [])
+        .filter((d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), day))
+        .sort((a, b) => new Date(b.scheduledFor) - new Date(a.scheduledFor))[0];
+      if (!last) return;
+      const iso = new Date(last.scheduledFor).toISOString();
+      const res = await fetch(
+        `/api/pets/${petId}/medications/${care.id}/doses?scheduledFor=${encodeURIComponent(iso)}`,
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to undo');
+      applyDose(care.id, { scheduledFor: iso }, data.quantityRemaining, true);
+    });
+
   // One tap on an empty room starts a routine with its sensible defaults;
   // the modal stays available under "More..." for custom setups.
   const seedActivity = (a) =>
@@ -471,24 +489,39 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
               ).length;
               const busy = busyKeys.has(`prn-${care.id}`);
               return (
-                <button
+                <div
                   key={care.id}
-                  onClick={() => canManage && !busy && logPrn(care)}
-                  disabled={!canManage || busy}
-                  title={`Log ${care.name}`}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-2xl border-2 px-3.5 py-2.5 transition-all active:scale-95',
+                    'flex items-stretch rounded-2xl border-2 overflow-hidden transition-colors',
                     count > 0 ? 'bg-flash-50 border-flash-300' : 'bg-white border-midnight-200 hover:border-flash-400'
                   )}
                 >
-                  <CareIconChip name={care.name} color={care.color} size="sm" />
-                  <span className="text-left">
-                    <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
-                    <span className="block text-[11px] text-midnight-500">
-                      {busy ? '...' : count > 0 ? `x${count} today` : 'Tap when it happens'}
+                  <button
+                    onClick={() => canManage && !busy && logPrn(care)}
+                    disabled={!canManage || busy}
+                    title={count > 0 ? `Log another ${care.name}` : `Log ${care.name}`}
+                    className="flex items-center gap-2.5 px-3.5 py-2.5 text-left active:scale-95 transition-transform"
+                  >
+                    <CareIconChip name={care.name} color={care.color} size="sm" />
+                    <span>
+                      <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
+                      <span className="block text-[11px] text-midnight-500">
+                        {busy ? '...' : count > 0 ? `x${count} today` : 'Tap when it happens'}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                  {canManage && count > 0 && (
+                    <button
+                      onClick={() => !busy && undoPrn(care)}
+                      disabled={busy}
+                      aria-label={`Undo last ${care.name}`}
+                      title="Undo last"
+                      className="shrink-0 px-3 border-l border-flash-300/70 text-midnight-400 hover:text-midnight-900 hover:bg-flash-100/60 transition-colors flex items-center"
+                    >
+                      <Undo2 size={15} />
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>

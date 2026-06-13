@@ -352,8 +352,13 @@ function WeekStrip({ meds, selectedDay, onSelectDay }) {
               aria-label={`${day.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}: ${due ? `${given} of ${due} given` : 'nothing due'}. Tap to review or log.`}
               aria-pressed={isSelected}
             >
-              <span className={cn('text-[11px] font-semibold', isToday || isSelected ? 'text-midnight-900' : 'text-midnight-400')}>
-                {isToday ? 'Today' : day.toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}
+              <span className="flex flex-col items-center leading-tight">
+                <span className={cn('text-[11px] font-semibold', isToday || isSelected ? 'text-midnight-900' : 'text-midnight-400')}>
+                  {isToday ? 'Today' : day.toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}
+                </span>
+                <span className={cn('text-[10px] tabular-nums', isToday || isSelected ? 'text-midnight-500' : 'text-midnight-400')}>
+                  {day.getDate()}
+                </span>
               </span>
               <div
                 className={cn('w-full h-12 rounded-lg relative overflow-hidden', due ? 'bg-midnight-100' : 'bg-transparent')}
@@ -608,15 +613,25 @@ export default function TodayPage() {
           </div>
         )}
 
+        {/* Medications: the dose checklist, or a gentle nudge to add one.
+            Routines (GoodStuff) render below regardless — a care-only pet
+            must still see Today, which is why this no longer hides them. */}
         {medItems.length === 0 ? (
-          <Card padding="xl">
-            <EmptyState
-              icon={Sparkles}
-              iconColor="amber"
-              title={`Keep ${pet?.name || 'your pet'} on track`}
-              description="Add their medications once, then check off doses with one tap. We'll watch the schedule, the streak, and warn you before refills run out."
-              action={canManage ? { href: `/pets/${petId}/medications/new`, label: 'Add a medication', icon: Plus } : undefined}
-            />
+          <Card padding="lg" className="border-dashed">
+            <div className="flex items-center gap-4">
+              <span className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <Sparkles size={22} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-midnight-900">No medications yet</p>
+                <p className="text-sm text-midnight-500">Add one and check off doses with a tap. We&rsquo;ll watch the schedule and warn you before refills run out.</p>
+              </div>
+              {canManage && (
+                <Button variant="outline" size="sm" href={`/pets/${petId}/medications/new`} leftIcon={Plus}>
+                  Add
+                </Button>
+              )}
+            </div>
           </Card>
         ) : (
           <>
@@ -631,16 +646,16 @@ export default function TodayPage() {
               onBackToToday={() => setSelectedDay(startOfDay(new Date()))}
             />
             <WeekStrip meds={medItems} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-
-            <div className="mt-8">
-              <GoodStuff petId={petId} meds={meds} setMeds={setMeds} canManage={canManage} />
-            </div>
-
-            <p className="text-center text-xs text-midnight-400 pt-2 pb-6">
-              Free forever. A helper for remembering. Your vet&rsquo;s guidance always comes first.
-            </p>
           </>
         )}
+
+        <div className="mt-8">
+          <GoodStuff petId={petId} meds={meds} setMeds={setMeds} canManage={canManage} />
+        </div>
+
+        <p className="text-center text-xs text-midnight-400 pt-2 pb-6">
+          Free forever. A helper for remembering. Your vet&rsquo;s guidance always comes first.
+        </p>
       </div>
     </div>
   );
