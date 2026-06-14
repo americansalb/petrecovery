@@ -10,7 +10,7 @@
 import Link from 'next/link';
 import { Check, ArrowRight } from 'lucide-react';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
-import { PillGlyph, SparkleGlyph } from '@/app/components/icons/MedGlyphs';
+import { PillGlyph, SparkleGlyph, SyringeGlyph } from '@/app/components/icons/MedGlyphs';
 import { WalkIcon } from '@/app/components/icons/CareIcons';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import MembersBanner from './MembersBanner';
@@ -109,6 +109,64 @@ export default function CareLandingPage() {
             <span className="mx-2">·</span>
             <Check size={13} className="inline -mt-0.5" /> Works on any phone
           </p>
+
+          {/* Show the product, not just describe it: a real Health Book,
+              glowing on the dark hero, is the page's centerpiece */}
+          <div className="relative mt-14 max-w-md mx-auto text-left">
+            <div className="absolute -inset-4 bg-flash-400/10 blur-2xl rounded-[2rem]" aria-hidden="true" />
+            <div className="relative bg-white rounded-3xl shadow-2xl shadow-black/50 ring-1 ring-white/10 p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="w-11 h-11 rounded-2xl bg-amber-400 flex items-center justify-center shrink-0">
+                    <SpeciesIcon species="DOG" size={22} className="text-white" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold text-midnight-900 leading-tight truncate">Max&apos;s Health Book</p>
+                    <p className="text-xs text-midnight-400">Golden Retriever · 65 lb</p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">Home</span>
+              </div>
+
+              <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/70 border border-emerald-100 px-4 py-3 mb-4">
+                <span className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <ShieldIcon size={20} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-midnight-900 leading-tight">Max is doing well.</p>
+                  <p className="text-xs text-midnight-500">Vaccines current · checkup in 3 weeks</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5 mb-4">
+                {[
+                  { name: 'Rabies', tag: 'OK', tint: 'bg-emerald-100 text-emerald-700' },
+                  { name: 'DHPP', tag: 'OK', tint: 'bg-emerald-100 text-emerald-700' },
+                  { name: 'Bordetella', tag: 'SOON', tint: 'bg-amber-100 text-amber-700' },
+                ].map(({ name, tag, tint }) => (
+                  <div key={name} className="relative rounded-2xl border-2 border-midnight-100 px-2 py-3 flex flex-col items-center gap-1.5 text-center">
+                    <span className={`absolute -top-2 right-2 text-[8px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${tint}`}>{tag}</span>
+                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${tint}`}><SyringeGlyph size={18} /></span>
+                    <span className="text-[11px] font-bold text-midnight-900 leading-none">{name}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-flash-50 border border-flash-200 px-2.5 py-1.5">
+                  <span className="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center"><PillGlyph size={14} /></span>
+                  <span className="text-[11px] font-bold text-midnight-700">Apoquel</span>
+                  <Check size={12} className="text-emerald-500" strokeWidth={3} />
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 px-2.5 py-1.5">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center"><WalkIcon size={14} /></span>
+                  <span className="text-[11px] font-bold text-midnight-700">Walk</span>
+                  <Check size={12} className="text-emerald-500" strokeWidth={3} />
+                </span>
+                <span className="ml-auto text-[11px] font-semibold text-midnight-300">today</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -116,11 +174,11 @@ export default function CareLandingPage() {
       <section className="max-w-4xl mx-auto px-4 md:px-8 py-14">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {FEATURES.map(({ icon: Icon, tint, title, body }) => (
-            <div key={title} className="bg-white border border-midnight-100 rounded-3xl p-6">
-              <span className={`w-11 h-11 rounded-2xl flex items-center justify-center ${tint}`}>
-                <Icon size={24} />
+            <div key={title} className="bg-white border border-midnight-100 rounded-3xl p-6 transition-all hover:shadow-lg hover:shadow-midnight-200/50 hover:-translate-y-0.5">
+              <span className={`w-12 h-12 rounded-2xl flex items-center justify-center ${tint}`}>
+                <Icon size={26} />
               </span>
-              <h2 className="font-bold text-midnight-900 mt-4">{title}</h2>
+              <h2 className="font-bold text-midnight-900 mt-4 text-lg">{title}</h2>
               <p className="text-sm text-midnight-500 mt-1.5 leading-relaxed">{body}</p>
             </div>
           ))}
