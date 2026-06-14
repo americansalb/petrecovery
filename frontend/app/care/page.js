@@ -8,11 +8,12 @@
  */
 
 import Link from 'next/link';
-import { Check, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight, Users, FileText, Share2 } from 'lucide-react';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { PillGlyph, SparkleGlyph, SyringeGlyph } from '@/app/components/icons/MedGlyphs';
 import { WalkIcon } from '@/app/components/icons/CareIcons';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
+import { SARAMA_AVATAR_PNG, SARAMA_NAME } from '@/lib/brandAssets';
 import CareGate from './CareGate';
 
 const FEATURES = [
@@ -48,21 +49,25 @@ const STEPS = [
   ['Use it forever', 'One tap a day. Share it with family. Free, always.'],
 ];
 
-// Every figure below is from peer-reviewed primary research, verified
-// against the papers and cited on the page (DOIs linked). No folklore
-// stats: the common "1 in 3 / 10M a year" numbers lack a primary source
-// and were dropped for these.
-//   - Weiss, Slater & Lord, Animals 2012;2(2):301-315 (DOI 10.3390/ani2020301):
-//     14% of dogs / 15% of cats lost within 5 years; 93% vs 75% recovered;
-//     56% of lost cats had no ID.
-//   - Lord, Ingwersen, Gray & Wintz, JAVMA 2009;235(2):160-167
-//     (DOI 10.2460/javma.235.2.160): microchipped pets returned to owner
-//     2.5x more often (dogs) and 20x more often (cats) than all strays.
-const LOSS_STATS = [
-  { big: '1 in 7', label: 'dogs and cats go missing within just five years' },
-  { big: '56%', label: 'of lost cats have no ID at all' },
-  { big: 'Up to 20×', label: 'more likely to come home when their ID is on file' },
+// What one tap does the moment a pet goes missing. Each of these is a
+// shipped capability: Rescue Forces (geographic volunteer teams) are
+// alerted to the mission, flyers are generated from the profile
+// (app/api/mission/[id]/flyers/generate), and the case shares to the
+// platforms in app/api/missions/[id]/share (Facebook, Nextdoor, X,
+// WhatsApp, SMS, email, plus the native share sheet). Instagram has no
+// web share-to-feed API, and paid social ads are designed but not yet
+// built, so neither is claimed here.
+const DEPLOY = [
+  { icon: Users, title: 'Your neighborhood, on it', body: 'Your local Rescue Force is alerted the second you report, so people who know the streets are out looking, not just you.' },
+  { icon: FileText, title: 'A flyer, already made', body: 'Print-ready and built from the profile you keep every day. No design, no hunting for the right photo.' },
+  { icon: Share2, title: 'Posted everywhere at once', body: 'The case goes to Facebook, Nextdoor, and your group chats, each post already carrying the photo and the details.' },
 ];
+
+// Stats: the lifetime figure is an American Humane Association estimate
+// (widely cited; no national lost-pet registry exists). The reunion
+// multiplier is peer-reviewed: Lord et al., JAVMA 2009;235(2):160-167
+// (DOI 10.2460/javma.235.2.160) found microchipped pets returned to
+// owner 2.5x more often (dogs) and 20x (cats) than all strays.
 
 export default function CareLandingPage() {
   return (
@@ -93,12 +98,18 @@ export default function CareLandingPage() {
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-24 text-center">
-          <div className="flex items-center justify-center gap-2 mb-6" aria-hidden="true">
-            {['DOG', 'CAT', 'BIRD', 'RABBIT'].map((s) => (
-              <span key={s} className="w-10 h-10 rounded-2xl bg-white ring-1 ring-midnight-100 shadow-sm flex items-center justify-center text-amber-500">
-                <SpeciesIcon species={s} size={22} />
-              </span>
-            ))}
+          {/* PLACEHOLDER mascot: reuses the rescue-vest Sarama for now.
+              Replace with a warm, health-register Sarama (white vet coat,
+              holding a notepad) to match this page's daylight world. */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="absolute inset-0 scale-125 rounded-full bg-flash-400/25 blur-2xl" aria-hidden="true" />
+              <img
+                src={SARAMA_AVATAR_PNG}
+                alt={SARAMA_NAME}
+                className="relative h-24 md:h-28 w-auto drop-shadow-[0_10px_24px_rgba(217,119,6,0.2)]"
+              />
+            </div>
           </div>
           <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight text-midnight-900">
             Your pet&apos;s Health Book.
@@ -237,33 +248,52 @@ export default function CareLandingPage() {
         </div>
       </section>
 
-      {/* The safety net, made concrete with real numbers. Kept at the
-          bottom so the daily promise stays the headline (PRODUCT_IA_PLAN). */}
+      {/* The worst day, made concrete. The dark register is the rescue/
+          shadow world reaching into the bright page. The pitch is the
+          MECHANIC: time is the whole game, and a profile you built on a
+          calm day turns the panic into one tap. */}
       <section className="max-w-4xl mx-auto px-4 md:px-8 pb-16">
         <div className="bg-midnight-950 rounded-3xl p-8 md:p-12">
           <p className="text-center text-xs font-extrabold uppercase tracking-[0.2em] text-flash-400/80 mb-3">
             If the worst day ever comes
           </p>
           <h2 className="text-white font-bold text-2xl md:text-3xl text-center max-w-2xl mx-auto leading-tight">
-            Pets go missing more often than you think. The prepared ones come home.
+            When a pet slips out, the first hour is the whole game.
           </h2>
+          <p className="text-midnight-300 text-[15px] mt-5 max-w-2xl mx-auto text-center leading-relaxed">
+            About 1 in 3 pets goes missing in their lifetime, and the ones who make it
+            home are almost always found fast. The clock is brutal for a simple reason:
+            a scared animal keeps moving outward, so every minute you lose multiplies the
+            ground you have to cover. Wait twice as long to start and the area to search
+            is roughly four times the size, the trail colder, the sightings fewer.
+          </p>
+          <p className="text-midnight-300 text-[15px] mt-4 max-w-2xl mx-auto text-center leading-relaxed">
+            What burns those first minutes is the scramble: hunting for a clear photo,
+            the microchip number, the vet records, then building a flyer and working out
+            where to post it. Your Health Book already holds every piece of that.
+          </p>
+          <p className="text-white text-lg font-bold mt-6 text-center">
+            So the worst day of pet ownership doesn&apos;t have to begin with a scramble.
+            It begins with one tap.
+          </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-            {LOSS_STATS.map(({ big, label }) => (
-              <div key={big} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
-                <p className="text-flash-400 font-extrabold text-3xl tracking-tight">{big}</p>
-                <p className="text-midnight-300 text-sm mt-1.5 leading-snug">{label}</p>
+            {DEPLOY.map(({ icon: Icon, title, body }) => (
+              <div key={title} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-left">
+                <span className="w-10 h-10 rounded-xl bg-flash-400/15 text-flash-400 flex items-center justify-center mb-3">
+                  <Icon size={20} />
+                </span>
+                <p className="text-white font-bold text-sm leading-snug">{title}</p>
+                <p className="text-midnight-400 text-xs mt-1.5 leading-relaxed">{body}</p>
               </div>
             ))}
           </div>
 
           <p className="text-midnight-300 text-[15px] mt-8 max-w-2xl mx-auto text-center leading-relaxed">
-            What decides whether a pet comes home is almost always identification,
-            and that is exactly what panic erases. Your Health Book keeps the
-            microchip number, a flyer-ready photo, the description, and behavior
-            notes like &ldquo;friendly, does not bolt&rdquo; ready, so the moment your
-            pet slips out it deploys as the search party&apos;s brief in one tap, with
-            your neighborhood&apos;s Rescue Force already behind you.
+            That tap puts the search to work while the trail is still warm, minutes in,
+            not an hour later. And readiness is what brings them home: pets with a
+            registered microchip and current contact details, exactly what your Health
+            Book keeps ready, are reunited up to <span className="text-white font-bold">20&times;</span> more often.
           </p>
 
           <div className="flex justify-center mt-7">
@@ -277,15 +307,13 @@ export default function CareLandingPage() {
           </div>
 
           <p className="text-center text-[11px] text-midnight-500 mt-6 max-w-2xl mx-auto leading-relaxed">
-            Sources:{' '}
-            <a href="https://doi.org/10.3390/ani2020301" target="_blank" rel="noopener noreferrer" className="underline decoration-midnight-600 hover:text-midnight-300">
-              Weiss, Slater &amp; Lord, Animals 2012;2(2):301-315
-            </a>{' '}
-            (14% of dogs and 15% of cats lost within five years; 56% of lost cats had no ID) and{' '}
+            Sources: the 1-in-3 lifetime figure is an American Humane Association
+            estimate (widely cited; no national lost-pet registry exists). Reunion
+            rates are peer-reviewed:{' '}
             <a href="https://doi.org/10.2460/javma.235.2.160" target="_blank" rel="noopener noreferrer" className="underline decoration-midnight-600 hover:text-midnight-300">
               Lord et al., J. Am. Vet. Med. Assoc. 2009;235(2):160-167
             </a>{' '}
-            (microchipped pets returned 2.5&times; more often for dogs, 20&times; for cats).
+            found microchipped pets returned 2.5&times; more often for dogs and 20&times; for cats.
           </p>
         </div>
         <p className="text-center text-xs text-midnight-400 mt-8">
