@@ -76,12 +76,24 @@ export default function CareLandingPage() {
           @keyframes heartbeat-march { to { stroke-dashoffset: -120; } }
           @keyframes care-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
           @keyframes care-pulse { 0%,100% { opacity:.35; transform: scale(1); } 50% { opacity:.9; transform: scale(1.35); } }
+          @keyframes drift-a { 0%,100% { transform: translate(-50%,0) scale(1); opacity:.85; } 50% { transform: translate(-46%,-26px) scale(1.12); opacity:1; } }
+          @keyframes drift-b { 0%,100% { transform: translate(0,0) scale(1); opacity:.7; } 50% { transform: translate(38px,22px) scale(1.18); opacity:1; } }
+          @keyframes drift-c { 0%,100% { transform: translate(0,0) scale(1.06); opacity:.55; } 50% { transform: translate(-32px,-18px) scale(.94); opacity:.9; } }
+          @keyframes rise { 0% { transform: translateY(24px); opacity:0; } 18% { opacity:.7; } 100% { transform: translateY(-140px); opacity:0; } }
+          @media (prefers-reduced-motion: reduce) { [data-care-anim] { animation: none !important; } }
         `}</style>
 
-        {/* one calm warm glow, nothing that competes with the content */}
-        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div className="absolute -top-44 left-1/2 -translate-x-1/2 w-[64rem] h-[34rem] rounded-full bg-flash-400/12 blur-3xl" />
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[40rem] h-[20rem] rounded-full bg-emerald-400/[0.07] blur-3xl" />
+        {/* A living aurora: warm light that slowly breathes and drifts, with
+            a few embers of warmth rising through it. Ambient, never a focal
+            point, so it reads as atmosphere rather than a moving object. */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div data-care-anim className="absolute -top-44 left-1/2 w-[60rem] h-[34rem] rounded-full bg-flash-400/12 blur-3xl" style={{ animation: 'drift-a 20s ease-in-out infinite' }} />
+          <div data-care-anim className="absolute top-1/4 left-[6%] w-[34rem] h-[24rem] rounded-full bg-emerald-400/[0.09] blur-3xl" style={{ animation: 'drift-b 27s ease-in-out infinite' }} />
+          <div data-care-anim className="absolute -bottom-24 right-[4%] w-[36rem] h-[24rem] rounded-full bg-amber-500/[0.08] blur-3xl" style={{ animation: 'drift-c 23s ease-in-out infinite' }} />
+          <span data-care-anim className="absolute bottom-24 left-[20%] w-1 h-1 rounded-full bg-flash-300/50" style={{ animation: 'rise 9s ease-in infinite' }} />
+          <span data-care-anim className="absolute bottom-20 left-[46%] w-0.5 h-0.5 rounded-full bg-white/40" style={{ animation: 'rise 11s ease-in infinite 2s' }} />
+          <span data-care-anim className="absolute bottom-28 right-[28%] w-1 h-1 rounded-full bg-emerald-300/40" style={{ animation: 'rise 10s ease-in infinite 4s' }} />
+          <span data-care-anim className="absolute bottom-16 right-[40%] w-0.5 h-0.5 rounded-full bg-flash-200/40" style={{ animation: 'rise 12s ease-in infinite 1s' }} />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-24 text-center">
