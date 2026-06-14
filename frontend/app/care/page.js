@@ -68,62 +68,58 @@ export default function CareLandingPage() {
   return (
     <div className="min-h-screen bg-midnight-50">
      <CareGate>
-      {/* Hero: the daily promise. Atmosphere from a calm glow and the
-          floating product card; the only motion is in the product
-          itself (it breathes, its vitals beat), not background gimmickry. */}
-      <section className="relative bg-midnight-950 text-white overflow-hidden">
+      {/* Hero: the daily promise, in its OWN register. The midnight theme
+          is the rescue product's soul (a light in the shadows, search at
+          night); the Health Book is its opposite, warm daylight and home.
+          So this is sunlit, not dark. The "worst day" stats section later
+          is where the dark rescue world rightly takes back over. */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-flash-50 via-amber-50/40 to-midnight-50">
         <style>{`
           @keyframes heartbeat-march { to { stroke-dashoffset: -120; } }
           @keyframes care-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-          @keyframes care-pulse { 0%,100% { opacity:.35; transform: scale(1); } 50% { opacity:.9; transform: scale(1.35); } }
-          @keyframes drift-a { 0%,100% { transform: translate(-50%,0) scale(1); opacity:.85; } 50% { transform: translate(-46%,-26px) scale(1.12); opacity:1; } }
-          @keyframes drift-b { 0%,100% { transform: translate(0,0) scale(1); opacity:.7; } 50% { transform: translate(38px,22px) scale(1.18); opacity:1; } }
-          @keyframes drift-c { 0%,100% { transform: translate(0,0) scale(1.06); opacity:.55; } 50% { transform: translate(-32px,-18px) scale(.94); opacity:.9; } }
-          @keyframes rise { 0% { transform: translateY(24px); opacity:0; } 18% { opacity:.7; } 100% { transform: translateY(-140px); opacity:0; } }
+          @keyframes care-pulse { 0%,100% { opacity:.4; transform: scale(1); } 50% { opacity:1; transform: scale(1.35); } }
+          @keyframes drift-a { 0%,100% { transform: translate(-50%,0) scale(1); opacity:.8; } 50% { transform: translate(-45%,-30px) scale(1.14); opacity:1; } }
+          @keyframes drift-b { 0%,100% { transform: translate(0,0) scale(1); opacity:.6; } 50% { transform: translate(42px,24px) scale(1.2); opacity:.95; } }
+          @keyframes drift-c { 0%,100% { transform: translate(0,0) scale(1.06); opacity:.55; } 50% { transform: translate(-34px,-20px) scale(.92); opacity:.9; } }
           @media (prefers-reduced-motion: reduce) { [data-care-anim] { animation: none !important; } }
         `}</style>
 
-        {/* A living aurora: warm light that slowly breathes and drifts, with
-            a few embers of warmth rising through it. Ambient, never a focal
-            point, so it reads as atmosphere rather than a moving object. */}
+        {/* Sunlight, pooling and drifting: warm pools of light that slowly
+            breathe across a bright day. Ambient, never a focal point. */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          <div data-care-anim className="absolute -top-44 left-1/2 w-[60rem] h-[34rem] rounded-full bg-flash-400/12 blur-3xl" style={{ animation: 'drift-a 20s ease-in-out infinite' }} />
-          <div data-care-anim className="absolute top-1/4 left-[6%] w-[34rem] h-[24rem] rounded-full bg-emerald-400/[0.09] blur-3xl" style={{ animation: 'drift-b 27s ease-in-out infinite' }} />
-          <div data-care-anim className="absolute -bottom-24 right-[4%] w-[36rem] h-[24rem] rounded-full bg-amber-500/[0.08] blur-3xl" style={{ animation: 'drift-c 23s ease-in-out infinite' }} />
-          <span data-care-anim className="absolute bottom-24 left-[20%] w-1 h-1 rounded-full bg-flash-300/50" style={{ animation: 'rise 9s ease-in infinite' }} />
-          <span data-care-anim className="absolute bottom-20 left-[46%] w-0.5 h-0.5 rounded-full bg-white/40" style={{ animation: 'rise 11s ease-in infinite 2s' }} />
-          <span data-care-anim className="absolute bottom-28 right-[28%] w-1 h-1 rounded-full bg-emerald-300/40" style={{ animation: 'rise 10s ease-in infinite 4s' }} />
-          <span data-care-anim className="absolute bottom-16 right-[40%] w-0.5 h-0.5 rounded-full bg-flash-200/40" style={{ animation: 'rise 12s ease-in infinite 1s' }} />
+          <div data-care-anim className="absolute -top-48 left-1/2 w-[62rem] h-[36rem] rounded-full bg-flash-300/40 blur-3xl" style={{ animation: 'drift-a 20s ease-in-out infinite' }} />
+          <div data-care-anim className="absolute top-1/4 left-[4%] w-[34rem] h-[24rem] rounded-full bg-amber-200/50 blur-3xl" style={{ animation: 'drift-b 27s ease-in-out infinite' }} />
+          <div data-care-anim className="absolute -bottom-28 right-[2%] w-[38rem] h-[26rem] rounded-full bg-emerald-200/45 blur-3xl" style={{ animation: 'drift-c 23s ease-in-out infinite' }} />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-24 text-center">
           <div className="flex items-center justify-center gap-2 mb-6" aria-hidden="true">
             {['DOG', 'CAT', 'BIRD', 'RABBIT'].map((s) => (
-              <span key={s} className="w-10 h-10 rounded-2xl bg-white/10 ring-1 ring-white/10 flex items-center justify-center text-flash-400">
+              <span key={s} className="w-10 h-10 rounded-2xl bg-white ring-1 ring-midnight-100 shadow-sm flex items-center justify-center text-amber-500">
                 <SpeciesIcon species={s} size={22} />
               </span>
             ))}
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight">
+          <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight text-midnight-900">
             Your pet&apos;s Health Book.
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-300 via-flash-400 to-flash-500">Free forever.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-flash-500 to-amber-600">Free forever.</span>
           </h1>
-          <p className="text-midnight-300 text-lg mt-5 max-w-2xl mx-auto">
+          <p className="text-midnight-600 text-lg mt-5 max-w-2xl mx-auto">
             Medications with one-tap logging, vaccine records, weight tracking,
             and a link any vet or sitter can read. No app, no fees, no catch.
           </p>
           <div className="flex items-center justify-center gap-3 mt-8 flex-wrap">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 px-6 py-3.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition text-lg"
+              className="inline-flex items-center gap-2 px-6 py-3.5 bg-flash-400 hover:bg-flash-500 text-midnight-950 font-bold rounded-2xl shadow-lg shadow-flash-500/25 transition text-lg"
             >
               Start your pet&apos;s book
               <ArrowRight size={18} />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-6 py-3.5 text-midnight-200 hover:text-white font-bold rounded-2xl transition"
+              className="inline-flex items-center gap-2 px-6 py-3.5 text-midnight-600 hover:text-midnight-900 font-bold rounded-2xl transition"
             >
               Sign in
             </Link>
@@ -139,8 +135,8 @@ export default function CareLandingPage() {
           {/* Show the product, not just describe it: a real Health Book,
               glowing on the dark hero, is the page's centerpiece */}
           <div className="relative mt-14 max-w-md mx-auto text-left" style={{ animation: 'care-float 6s ease-in-out infinite' }}>
-            <div className="absolute -inset-5 bg-flash-400/15 blur-3xl rounded-[2.5rem]" aria-hidden="true" />
-            <div className="relative bg-white rounded-3xl shadow-2xl shadow-black/50 ring-1 ring-white/10 p-5">
+            <div className="absolute -inset-6 bg-amber-300/25 blur-3xl rounded-[2.5rem]" aria-hidden="true" />
+            <div className="relative bg-white rounded-3xl shadow-2xl shadow-amber-900/10 ring-1 ring-midnight-100 p-5">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="w-11 h-11 rounded-2xl bg-amber-400 flex items-center justify-center shrink-0">
