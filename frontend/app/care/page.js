@@ -68,20 +68,60 @@ export default function CareLandingPage() {
   return (
     <div className="min-h-screen bg-midnight-50">
       <MembersBanner />
-      {/* Hero: the daily promise, nothing else */}
-      <section className="bg-midnight-950 text-white">
-        <div className="max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-24 text-center">
+      {/* Hero: the daily promise, given the homepage's atmosphere. The
+          Health Book's signature is a heartbeat tracing across the night,
+          the calm-day counterpart to the homepage's GPS search trail. */}
+      <section className="relative bg-midnight-950 text-white overflow-hidden">
+        <style>{`
+          @keyframes heartbeat-march { to { stroke-dashoffset: -340; } }
+          @keyframes care-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+          @keyframes care-pulse { 0%,100% { opacity:.35; transform: scale(1); } 50% { opacity:.9; transform: scale(1.35); } }
+        `}</style>
+
+        {/* warm hearth glow + soft ambient motes */}
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[64rem] h-[36rem] rounded-full bg-flash-400/12 blur-3xl" />
+          <div className="absolute top-1/3 left-[20%] w-[30rem] h-[20rem] rounded-full bg-emerald-400/10 blur-3xl" />
+          <div className="absolute top-16 left-[14%] w-1 h-1 rounded-full bg-white/60" />
+          <div className="absolute top-28 right-[20%] w-1 h-1 rounded-full bg-white/40" />
+          <div className="absolute top-48 left-[30%] w-0.5 h-0.5 rounded-full bg-white/50" />
+          <div className="absolute bottom-40 right-[28%] w-1 h-1 rounded-full bg-flash-300/40" />
+          <div className="absolute bottom-56 left-[22%] w-0.5 h-0.5 rounded-full bg-white/40" />
+        </div>
+
+        {/* the heartbeat trace: a faint ECG line marching across, with a
+            bright pulse traveling its length */}
+        <svg
+          className="absolute inset-x-0 top-[42%] w-full h-40 pointer-events-none hidden sm:block"
+          viewBox="0 0 1440 200"
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <path
+            d="M -40 110 H 250 l 18 -14 l 14 14 l 22 0 l 10 16 l 12 -120 l 12 138 l 10 -34 H 620 l 18 -14 l 14 14 l 22 0 l 10 16 l 12 -120 l 12 138 l 10 -34 H 1000 l 18 -14 l 14 14 l 22 0 l 10 16 l 12 -120 l 12 138 l 10 -34 H 1480"
+            fill="none"
+            stroke="#34d399"
+            strokeOpacity="0.35"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="6 12"
+            style={{ animation: 'heartbeat-march 5s linear infinite' }}
+          />
+        </svg>
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-24 text-center">
           <div className="flex items-center justify-center gap-2 mb-6" aria-hidden="true">
             {['DOG', 'CAT', 'BIRD', 'RABBIT'].map((s) => (
-              <span key={s} className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-flash-400">
+              <span key={s} className="w-10 h-10 rounded-2xl bg-white/10 ring-1 ring-white/10 flex items-center justify-center text-flash-400">
                 <SpeciesIcon species={s} size={22} />
               </span>
             ))}
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+          <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight">
             Your pet&apos;s Health Book.
             <br />
-            <span className="text-flash-400">Free forever.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-300 via-flash-400 to-flash-500">Free forever.</span>
           </h1>
           <p className="text-midnight-300 text-lg mt-5 max-w-2xl mx-auto">
             Medications with one-tap logging, vaccine records, weight tracking,
@@ -112,8 +152,8 @@ export default function CareLandingPage() {
 
           {/* Show the product, not just describe it: a real Health Book,
               glowing on the dark hero, is the page's centerpiece */}
-          <div className="relative mt-14 max-w-md mx-auto text-left">
-            <div className="absolute -inset-4 bg-flash-400/10 blur-2xl rounded-[2rem]" aria-hidden="true" />
+          <div className="relative mt-14 max-w-md mx-auto text-left" style={{ animation: 'care-float 6s ease-in-out infinite' }}>
+            <div className="absolute -inset-5 bg-flash-400/15 blur-3xl rounded-[2.5rem]" aria-hidden="true" />
             <div className="relative bg-white rounded-3xl shadow-2xl shadow-black/50 ring-1 ring-white/10 p-5">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3 min-w-0">
@@ -125,7 +165,10 @@ export default function CareLandingPage() {
                     <p className="text-xs text-midnight-400">Golden Retriever · 65 lb</p>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">Home</span>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" style={{ animation: 'care-pulse 2.2s ease-in-out infinite' }} />
+                  Home
+                </span>
               </div>
 
               <div className="flex items-center gap-3 rounded-2xl bg-emerald-50/70 border border-emerald-100 px-4 py-3 mb-4">
