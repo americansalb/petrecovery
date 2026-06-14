@@ -10,8 +10,8 @@
 import Link from 'next/link';
 import { Check, ArrowRight } from 'lucide-react';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
-import { PillGlyph, DropletsGlyph, SparkleGlyph } from '@/app/components/icons/MedGlyphs';
-import { WalkIcon, BoneIcon, PawIcon } from '@/app/components/icons/CareIcons';
+import { PillGlyph, SparkleGlyph } from '@/app/components/icons/MedGlyphs';
+import { WalkIcon } from '@/app/components/icons/CareIcons';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import MembersBanner from './MembersBanner';
 
@@ -46,6 +46,15 @@ const STEPS = [
   ['Add your pet', 'Name, photo, and the basics. About a minute.'],
   ['Set it up once', 'Meds, routines, vaccines. Snap a label, tap a chip.'],
   ['Use it forever', 'One tap a day. Share it with family. Free, always.'],
+];
+
+// Real, attributed figures. American Humane's lifetime/annual loss numbers
+// and the JAVMA microchip reunion study (Lord et al., 2009) are widely
+// cited; sources are shown on the page so the claim stays honest.
+const LOSS_STATS = [
+  { big: '1 in 3', label: 'pets goes missing at some point in their life' },
+  { big: '~10M', label: 'dogs and cats lost or stolen in the U.S. every year' },
+  { big: '52% vs 22%', label: 'how often dogs come home with their ID on file, versus without' },
 ];
 
 export default function CareLandingPage() {
@@ -129,27 +138,47 @@ export default function CareLandingPage() {
         </div>
       </section>
 
-      {/* The quiet kicker: the safety net, once, at the bottom */}
+      {/* The safety net, made concrete with real numbers. Kept at the
+          bottom so the daily promise stays the headline (PRODUCT_IA_PLAN). */}
       <section className="max-w-4xl mx-auto px-4 md:px-8 pb-16">
-        <div className="bg-midnight-950 rounded-3xl p-8 md:p-10 text-center">
-          <span className="w-11 h-11 rounded-2xl bg-flash-400/15 text-flash-400 flex items-center justify-center mx-auto mb-4">
-            <PawIcon size={24} />
-          </span>
-          <h2 className="text-white font-bold text-xl">
-            The profile you keep for the good days is the one that brings them home on the worst one.
-          </h2>
-          <p className="text-midnight-300 text-sm mt-3 max-w-xl mx-auto">
-            If your pet ever slips out, their Health Book becomes a search party&apos;s
-            briefing in one tap: photos for the flyer, behavior notes for the
-            searchers, and a whole neighborhood&apos;s Rescue Force behind you.
+        <div className="bg-midnight-950 rounded-3xl p-8 md:p-12">
+          <p className="text-center text-xs font-extrabold uppercase tracking-[0.2em] text-flash-400/80 mb-3">
+            If the worst day ever comes
           </p>
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-2 mt-6 px-5 py-3 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition"
-          >
-            Start free
-            <ArrowRight size={16} />
-          </Link>
+          <h2 className="text-white font-bold text-2xl md:text-3xl text-center max-w-2xl mx-auto leading-tight">
+            Most pets go missing at least once. The prepared ones come home.
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+            {LOSS_STATS.map(({ big, label }) => (
+              <div key={big} className="bg-white/5 border border-white/10 rounded-2xl p-5 text-center">
+                <p className="text-flash-400 font-extrabold text-3xl tracking-tight">{big}</p>
+                <p className="text-midnight-300 text-sm mt-1.5 leading-snug">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-midnight-300 text-[15px] mt-8 max-w-2xl mx-auto text-center leading-relaxed">
+            A panicked owner can&apos;t recall the microchip number or find a flyer-ready
+            photo. Your Health Book already holds them, so the moment your pet slips
+            out, it becomes the search party&apos;s briefing in one tap: the photo, the
+            description, behavior notes like &ldquo;friendly, does not bolt,&rdquo; the chip
+            number, your vet. And your neighborhood&apos;s Rescue Force is already behind you.
+          </p>
+
+          <div className="flex justify-center mt-7">
+            <Link
+              href="/register"
+              className="inline-flex items-center gap-2 px-6 py-3.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition text-lg"
+            >
+              Start a free Health Book
+              <ArrowRight size={18} />
+            </Link>
+          </div>
+
+          <p className="text-center text-[11px] text-midnight-500 mt-6">
+            Sources: American Humane; J. Am. Vet. Med. Assoc. (Lord et al., 2009), reunion rates for dogs with vs. without a registered microchip (for cats the gap is wider, ~38% vs. under 2%).
+          </p>
         </div>
         <p className="text-center text-xs text-midnight-400 mt-8">
           A record you keep, not medical advice. Your vet&apos;s guidance comes first.
