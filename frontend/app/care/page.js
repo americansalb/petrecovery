@@ -13,7 +13,7 @@ import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { PillGlyph, SparkleGlyph, SyringeGlyph } from '@/app/components/icons/MedGlyphs';
 import { WalkIcon } from '@/app/components/icons/CareIcons';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
-import MembersBanner from './MembersBanner';
+import CareGate from './CareGate';
 
 const FEATURES = [
   {
@@ -67,48 +67,22 @@ const LOSS_STATS = [
 export default function CareLandingPage() {
   return (
     <div className="min-h-screen bg-midnight-50">
-      <MembersBanner />
-      {/* Hero: the daily promise, given the homepage's atmosphere. The
-          Health Book's signature is a heartbeat tracing across the night,
-          the calm-day counterpart to the homepage's GPS search trail. */}
+     <CareGate>
+      {/* Hero: the daily promise. Atmosphere from a calm glow and the
+          floating product card; the only motion is in the product
+          itself (it breathes, its vitals beat), not background gimmickry. */}
       <section className="relative bg-midnight-950 text-white overflow-hidden">
         <style>{`
-          @keyframes heartbeat-march { to { stroke-dashoffset: -340; } }
+          @keyframes heartbeat-march { to { stroke-dashoffset: -120; } }
           @keyframes care-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
           @keyframes care-pulse { 0%,100% { opacity:.35; transform: scale(1); } 50% { opacity:.9; transform: scale(1.35); } }
         `}</style>
 
-        {/* warm hearth glow + soft ambient motes */}
+        {/* one calm warm glow, nothing that competes with the content */}
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[64rem] h-[36rem] rounded-full bg-flash-400/12 blur-3xl" />
-          <div className="absolute top-1/3 left-[20%] w-[30rem] h-[20rem] rounded-full bg-emerald-400/10 blur-3xl" />
-          <div className="absolute top-16 left-[14%] w-1 h-1 rounded-full bg-white/60" />
-          <div className="absolute top-28 right-[20%] w-1 h-1 rounded-full bg-white/40" />
-          <div className="absolute top-48 left-[30%] w-0.5 h-0.5 rounded-full bg-white/50" />
-          <div className="absolute bottom-40 right-[28%] w-1 h-1 rounded-full bg-flash-300/40" />
-          <div className="absolute bottom-56 left-[22%] w-0.5 h-0.5 rounded-full bg-white/40" />
+          <div className="absolute -top-44 left-1/2 -translate-x-1/2 w-[64rem] h-[34rem] rounded-full bg-flash-400/12 blur-3xl" />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[40rem] h-[20rem] rounded-full bg-emerald-400/[0.07] blur-3xl" />
         </div>
-
-        {/* the heartbeat trace: a faint ECG line marching across, with a
-            bright pulse traveling its length */}
-        <svg
-          className="absolute inset-x-0 top-[42%] w-full h-40 pointer-events-none hidden sm:block"
-          viewBox="0 0 1440 200"
-          preserveAspectRatio="xMidYMid slice"
-          aria-hidden="true"
-        >
-          <path
-            d="M -40 110 H 250 l 18 -14 l 14 14 l 22 0 l 10 16 l 12 -120 l 12 138 l 10 -34 H 620 l 18 -14 l 14 14 l 22 0 l 10 16 l 12 -120 l 12 138 l 10 -34 H 1000 l 18 -14 l 14 14 l 22 0 l 10 16 l 12 -120 l 12 138 l 10 -34 H 1480"
-            fill="none"
-            stroke="#34d399"
-            strokeOpacity="0.35"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray="6 12"
-            style={{ animation: 'heartbeat-march 5s linear infinite' }}
-          />
-        </svg>
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-24 text-center">
           <div className="flex items-center justify-center gap-2 mb-6" aria-hidden="true">
@@ -179,6 +153,15 @@ export default function CareLandingPage() {
                   <p className="text-sm font-bold text-midnight-900 leading-tight">Max is doing well.</p>
                   <p className="text-xs text-midnight-500">Vaccines current · checkup in 3 weeks</p>
                 </div>
+                {/* a contained vitals beat: the heartbeat lives inside the
+                    product as a health reading, not as background wallpaper */}
+                <svg className="ml-auto shrink-0 hidden sm:block" width="60" height="22" viewBox="0 0 60 22" fill="none" aria-hidden="true">
+                  <path
+                    d="M0 11 H15 l2 -6 l3 12 l3 -9 l2 3 H32 l2 -6 l3 12 l3 -9 l2 3 H60"
+                    stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.7"
+                    strokeDasharray="4 8" style={{ animation: 'heartbeat-march 2.6s linear infinite' }}
+                  />
+                </svg>
               </div>
 
               <div className="grid grid-cols-3 gap-2.5 mb-4">
@@ -301,6 +284,7 @@ export default function CareLandingPage() {
           A record you keep, not medical advice. Your vet&apos;s guidance comes first.
         </p>
       </section>
+     </CareGate>
     </div>
   );
 }
