@@ -41,7 +41,6 @@ import ProbabilityZoneToggle from './components/simple/ProbabilityZoneToggle';
 import ProbabilityZoneSlider from '@/app/components/mission/ProbabilityZoneSlider';
 import ContextualTip, { TIPS } from './components/simple/ContextualTip';
 import { printFlyer } from '@/app/lib/flyerGenerator';
-import { isNativeAsync } from '@/app/lib/nativeGpsService';
 
 // Dynamic import for map (no SSR)
 const SARMapView = dynamic(
@@ -268,8 +267,9 @@ function MissionControlContent() {
 
   // Handle start search - check if native app first
   const handleStartSearch = useCallback(async () => {
-    // Check if we're in the native app
-    const isNative = await isNativeAsync();
+    // Native app rebuilt from scratch (docs/MOBILE_APP_PLAN.md); until Field
+    // Mode ships, web always gets the app-download prompt.
+    const isNative = false;
 
     if (!isNative) {
       // Show app download prompt for web users

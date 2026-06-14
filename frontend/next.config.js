@@ -219,23 +219,6 @@ const nextConfig = {
       };
     }
 
-    // Mark Capacitor packages as external - they're only needed for native app builds
-    // This prevents webpack from trying to bundle them in the web build
-    const capacitorExternals = [
-      '@capacitor/core',
-      '@capacitor/app',
-      '@capacitor/splash-screen',
-      '@capacitor/status-bar',
-      '@capacitor-community/background-geolocation',
-    ];
-
-    config.externals = [
-      ...(config.externals || []),
-      ...capacitorExternals.map((pkg) => ({
-        [pkg]: pkg,
-      })),
-    ];
-
     // Memory optimizations for large builds
     config.optimization = {
       ...config.optimization,

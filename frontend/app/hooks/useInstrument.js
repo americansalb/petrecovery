@@ -16,7 +16,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { isNativeAsync } from '@/app/lib/nativeGpsService';
 
 export const INSTRUMENTS = {
   COMMAND: 'command',
@@ -25,16 +24,12 @@ export const INSTRUMENTS = {
 };
 
 export default function useInstrument() {
-  const [isNative, setIsNative] = useState(null); // null while resolving
+  // The native app is being rebuilt from scratch (docs/MOBILE_APP_PLAN.md).
+  // Until Field Mode ships there is no field instrument: web resolves to
+  // command (desktop) or bridge (mobile). This constant is the seam where
+  // Capacitor native detection plugs back in.
+  const isNative = false;
   const [isDesktop, setIsDesktop] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    isNativeAsync()
-      .then((v) => { if (alive) setIsNative(!!v); })
-      .catch(() => { if (alive) setIsNative(false); });
-    return () => { alive = false; };
-  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');

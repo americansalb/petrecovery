@@ -31,9 +31,21 @@ worth doing natively, and the only part.
 
 ## 2. Where we actually stand (honest inventory)
 
-The app was scaffolded once and left half-finished. The truth on disk:
+**Reset 2026-06-14 (owner: "start from scratch").** The previous
+half-finished native scaffolding was deleted so Phase 1 begins on a clean
+slate: `capacitor.config.ts`, the `ios/` and `android/` projects, `out/`,
+`NATIVE_APP.md`, the stubbed `app/lib/nativeGpsService.js`, the dead
+`app/api/mobile/config` route, plus the Capacitor scripts/deps in
+`package.json`, the webpack externals in `next.config.js`, and the stale
+`.gitignore` block. The website is untouched and still builds; its two
+native-detection call sites (`app/hooks/useInstrument.js` and mission
+control) now default to non-native — the exact seam where Capacitor
+detection returns in Phase 1.
 
-| Piece | State |
+For the record, what that scaffolding had been (and why none of it was worth
+keeping):
+
+| Piece | State before the reset |
 |---|---|
 | `frontend/capacitor.config.ts` | Present. App id `com.reunitepets.app`, name `ReunitePets`. **Server URL is still the placeholder `https://your-app-domain.com`.** Loads from a remote URL (not bundled). |
 | `frontend/ios/`, `frontend/android/` | Native projects exist (scaffolded). |
