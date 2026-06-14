@@ -13,6 +13,7 @@ import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { PillGlyph, DropletsGlyph, SparkleGlyph } from '@/app/components/icons/MedGlyphs';
 import { WalkIcon, BoneIcon, PawIcon } from '@/app/components/icons/CareIcons';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
+import MembersBanner from './MembersBanner';
 
 const FEATURES = [
   {
@@ -50,6 +51,7 @@ const STEPS = [
 export default function CareLandingPage() {
   return (
     <div className="min-h-screen bg-midnight-50">
+      <MembersBanner />
       {/* Hero: the daily promise, nothing else */}
       <section className="bg-midnight-950 text-white">
         <div className="max-w-4xl mx-auto px-4 md:px-8 py-16 md:py-24 text-center">

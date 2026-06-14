@@ -124,18 +124,17 @@ export default function Navigation() {
                 </NavLink>
               )}
 
+              {/* The everyday door, a peer of Lost & Found and visible to all:
+                  this is how a first-time visitor learns the Health Book exists */}
+              <NavLink href="/care" active={pathname.startsWith('/care')}>
+                <Heart className="w-4 h-4" />
+                Pet Care
+              </NavLink>
+
               <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
                 <Search className="w-4 h-4" />
                 Lost &amp; Found
               </NavLink>
-
-              {/* The second door: the daily product, visible before you need the first */}
-              {!session && (
-                <NavLink href="/care" active={pathname.startsWith('/care')}>
-                  <Heart className="w-4 h-4" />
-                  Pet Care
-                </NavLink>
-              )}
 
               {userSquads.length > 0 ? (
                 <NavDropdown
@@ -387,10 +386,8 @@ export default function Navigation() {
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
           </div>
+          <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
-          {!session && (
-            <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
-          )}
           <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
           <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
 

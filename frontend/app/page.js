@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
+import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { PillGlyph, SyringeGlyph } from '@/app/components/icons/MedGlyphs';
 import dynamic from 'next/dynamic';
 import {
@@ -148,6 +149,17 @@ function Hero({ metrics }) {
             I found a pet
           </Link>
         </div>
+
+        {/* The everyday door, on the main page from the first second:
+            the rescue product is the headline, this is the quiet peer */}
+        <Link
+          href="/care"
+          className="group inline-flex items-center gap-2 mb-7 text-midnight-200 hover:text-white font-semibold text-sm transition-colors"
+        >
+          <ShieldIcon size={16} className="text-flash-400" />
+          Pet at home? Keep their whole life here — start a free Health Book
+          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+        </Link>
 
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-midnight-300 text-sm">
           {['Always free', 'Takes about a minute', 'Powered by neighbors near you'].map((t) => (
