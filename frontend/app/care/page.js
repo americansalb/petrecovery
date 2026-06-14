@@ -48,13 +48,20 @@ const STEPS = [
   ['Use it forever', 'One tap a day. Share it with family. Free, always.'],
 ];
 
-// Real, attributed figures. American Humane's lifetime/annual loss numbers
-// and the JAVMA microchip reunion study (Lord et al., 2009) are widely
-// cited; sources are shown on the page so the claim stays honest.
+// Every figure below is from peer-reviewed primary research, verified
+// against the papers and cited on the page (DOIs linked). No folklore
+// stats: the common "1 in 3 / 10M a year" numbers lack a primary source
+// and were dropped for these.
+//   - Weiss, Slater & Lord, Animals 2012;2(2):301-315 (DOI 10.3390/ani2020301):
+//     14% of dogs / 15% of cats lost within 5 years; 93% vs 75% recovered;
+//     56% of lost cats had no ID.
+//   - Lord, Ingwersen, Gray & Wintz, JAVMA 2009;235(2):160-167
+//     (DOI 10.2460/javma.235.2.160): microchipped pets returned to owner
+//     2.5x more often (dogs) and 20x more often (cats) than all strays.
 const LOSS_STATS = [
-  { big: '1 in 3', label: 'pets goes missing at some point in their life' },
-  { big: '~10M', label: 'dogs and cats lost or stolen in the U.S. every year' },
-  { big: '52% vs 22%', label: 'how often dogs come home with their ID on file, versus without' },
+  { big: '1 in 7', label: 'dogs and cats goes missing within just five years' },
+  { big: '93% vs 75%', label: 'of lost dogs make it home, versus lost cats' },
+  { big: 'Up to 20×', label: 'more likely to be reunited when microchipped' },
 ];
 
 export default function CareLandingPage() {
@@ -159,11 +166,12 @@ export default function CareLandingPage() {
           </div>
 
           <p className="text-midnight-300 text-[15px] mt-8 max-w-2xl mx-auto text-center leading-relaxed">
-            A panicked owner can&apos;t recall the microchip number or find a flyer-ready
-            photo. Your Health Book already holds them, so the moment your pet slips
-            out, it becomes the search party&apos;s briefing in one tap: the photo, the
-            description, behavior notes like &ldquo;friendly, does not bolt,&rdquo; the chip
-            number, your vet. And your neighborhood&apos;s Rescue Force is already behind you.
+            The pets that don&apos;t come home are usually the ones without ID: 56% of
+            lost cats have none. Your Health Book keeps the microchip number, a
+            flyer-ready photo, the description, and behavior notes like
+            &ldquo;friendly, does not bolt&rdquo; ready, so the moment your pet slips out
+            it deploys as the search party&apos;s brief in one tap, with your
+            neighborhood&apos;s Rescue Force already behind you.
           </p>
 
           <div className="flex justify-center mt-7">
@@ -176,8 +184,16 @@ export default function CareLandingPage() {
             </Link>
           </div>
 
-          <p className="text-center text-[11px] text-midnight-500 mt-6">
-            Sources: American Humane; J. Am. Vet. Med. Assoc. (Lord et al., 2009), reunion rates for dogs with vs. without a registered microchip (for cats the gap is wider, ~38% vs. under 2%).
+          <p className="text-center text-[11px] text-midnight-500 mt-6 max-w-2xl mx-auto leading-relaxed">
+            Sources:{' '}
+            <a href="https://doi.org/10.3390/ani2020301" target="_blank" rel="noopener noreferrer" className="underline decoration-midnight-600 hover:text-midnight-300">
+              Weiss, Slater &amp; Lord, Animals 2012;2(2):301-315
+            </a>{' '}
+            (14% of dogs and 15% of cats lost within five years; 93% vs. 75% recovered; 56% of lost cats had no ID) and{' '}
+            <a href="https://doi.org/10.2460/javma.235.2.160" target="_blank" rel="noopener noreferrer" className="underline decoration-midnight-600 hover:text-midnight-300">
+              Lord et al., J. Am. Vet. Med. Assoc. 2009;235(2):160-167
+            </a>{' '}
+            (microchipped pets returned 2.5&times; more often for dogs, 20&times; for cats).
           </p>
         </div>
         <p className="text-center text-xs text-midnight-400 mt-8">
