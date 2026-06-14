@@ -20,6 +20,7 @@ import { Button } from '@/components/ui';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { SyringeGlyph } from '@/app/components/icons/MedGlyphs';
 import { MedCard, ActivityFeed } from '@/app/components/medications/MedCards';
+import { sameDay } from '@/lib/medications';
 import {
   vaccinationStatus, healthBookStatus, vaccinePresetsFor, DUE_SOON_DAYS,
 } from '@/lib/healthBook';
@@ -334,6 +335,22 @@ export default function HealthBookPage() {
       setMeds((prev) => prev.map((m) => (m.id === med.id ? { ...m, doses: [data.dose, ...(m.doses || [])], quantityRemaining: data.quantityRemaining ?? m.quantityRemaining } : m)));
     });
 
+  // Reverse an accidental "Log dose now": remove the most recent of today's
+  const undoPrn = (med) =>
+    withMedBusy(med, async () => {
+      const last = (med.doses || [])
+        .filter((d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), new Date()))
+        .sort((a, b) => new Date(b.scheduledFor) - new Date(a.scheduledFor))[0];
+      if (!last) return;
+      const iso = new Date(last.scheduledFor).toISOString();
+      const res = await fetch(`/api/pets/${petId}/medications/${med.id}/doses?scheduledFor=${encodeURIComponent(iso)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to undo');
+      setMeds((prev) => prev.map((m) => (m.id === med.id
+        ? { ...m, doses: (m.doses || []).filter((d) => new Date(d.scheduledFor).getTime() !== new Date(iso).getTime()), quantityRemaining: data.quantityRemaining ?? m.quantityRemaining }
+        : m)));
+    });
+
   const deleteMed = (med) =>
     withMedBusy(med, async () => {
       const res = await fetch(`/api/pets/${petId}/medications/${med.id}`, { method: 'DELETE' });
@@ -493,7 +510,7 @@ export default function HealthBookPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {meds.filter((m) => m.isActive).map((med) => (
                   <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
-                    onLogPrn={logPrn} onTogglePause={togglePause} onDelete={setConfirmDelete} />
+                    onLogPrn={logPrn} onUndoPrn={undoPrn} onTogglePause={togglePause} onDelete={setConfirmDelete} />
                 ))}
               </div>
               {meds.some((m) => !m.isActive) && (
@@ -502,7 +519,7 @@ export default function HealthBookPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {meds.filter((m) => !m.isActive).map((med) => (
                       <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
-                        onLogPrn={logPrn} onTogglePause={togglePause} onDelete={setConfirmDelete} />
+                        onLogPrn={logPrn} onUndoPrn={undoPrn} onTogglePause={togglePause} onDelete={setConfirmDelete} />
                     ))}
                   </div>
                 </>
