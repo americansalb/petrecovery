@@ -153,7 +153,7 @@ export default function CareLandingPage() {
             If the worst day ever comes
           </p>
           <h2 className="text-white font-bold text-2xl md:text-3xl text-center max-w-2xl mx-auto leading-tight">
-            Most pets go missing at least once. The prepared ones come home.
+            Pets go missing more often than you think. The prepared ones come home.
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
