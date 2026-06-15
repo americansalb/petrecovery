@@ -80,7 +80,7 @@ export default function CareLandingPage() {
           is where the dark rescue world rightly takes back over. */}
       <section className="relative overflow-hidden bg-gradient-to-b from-flash-50 via-amber-50/40 to-midnight-50">
         <style>{`
-          @keyframes heartbeat-march { to { stroke-dashoffset: -120; } }
+          @keyframes heartbeat-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
           @keyframes care-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
           @keyframes care-pulse { 0%,100% { opacity:.4; transform: scale(1); } 50% { opacity:1; transform: scale(1.35); } }
           @keyframes drift-a { 0%,100% { transform: translate(-50%,0) scale(1); opacity:.8; } 50% { transform: translate(-45%,-30px) scale(1.14); opacity:1; } }
@@ -172,13 +172,14 @@ export default function CareLandingPage() {
                   <p className="text-sm font-bold text-midnight-900 leading-tight">Max is doing well.</p>
                   <p className="text-xs text-midnight-500">Vaccines current · checkup in 3 weeks</p>
                 </div>
-                {/* a contained vitals beat: the heartbeat lives inside the
-                    product as a health reading, not as background wallpaper */}
+                {/* a contained vitals reading: a solid EKG trace that
+                    breathes slowly, a calm sign of life, not a marquee */}
                 <svg className="ml-auto shrink-0 hidden sm:block" width="60" height="22" viewBox="0 0 60 22" fill="none" aria-hidden="true">
                   <path
+                    data-care-anim
                     d="M0 11 H15 l2 -6 l3 12 l3 -9 l2 3 H32 l2 -6 l3 12 l3 -9 l2 3 H60"
-                    stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" strokeOpacity="0.7"
-                    strokeDasharray="4 8" style={{ animation: 'heartbeat-march 2.6s linear infinite' }}
+                    stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ opacity: 0.7, animation: 'heartbeat-pulse 1.8s ease-in-out infinite' }}
                   />
                 </svg>
               </div>
