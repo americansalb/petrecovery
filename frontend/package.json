@@ -17,13 +17,22 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cap:sync": "npx cap sync",
+    "cap:add:ios": "npx cap add ios",
+    "cap:add:android": "npx cap add android",
+    "cap:open:ios": "npx cap open ios",
+    "cap:open:android": "npx cap open android"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
     "@prisma/client": "^5.10.0",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20.0.0",
@@ -55,6 +64,9 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.0",
     "eslint": "^8.56.0",

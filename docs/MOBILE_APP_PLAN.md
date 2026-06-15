@@ -185,7 +185,8 @@ since the app now genuinely ships native):
 
 ## 8. Phased plan
 
-**Phase 1 — A real app in your hand (shell + parity).**
+**Phase 1 — A real app in your hand (shell + parity).** *(repo side done
+2026-06-15; native generation + signing pending on a Mac — docs/MOBILE_SETUP.md.)*
 - Point `capacitor.config.ts` at the production URL; wire `App` (deep links
   so shared pet/mission links open in-app), `StatusBar`, `SplashScreen`,
   safe-area insets. Re-add native plugins (webpack already externalizes them).

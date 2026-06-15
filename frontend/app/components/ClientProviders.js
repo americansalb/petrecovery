@@ -1,7 +1,13 @@
 'use client';
 
 import { ToastProvider } from './ui/Toast';
+import CapacitorBootstrap from './CapacitorBootstrap';
 
 export default function ClientProviders({ children }) {
-  return <ToastProvider>{children}</ToastProvider>;
+  return (
+    <ToastProvider>
+      <CapacitorBootstrap />
+      {children}
+    </ToastProvider>
+  );
 }
