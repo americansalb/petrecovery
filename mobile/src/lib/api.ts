@@ -2,8 +2,11 @@
  * The data connection — the "same body".
  *
  * The app talks to the exact backend the website uses, so accounts, pets,
- * cases, and everything else are one shared source of truth: add a pet in the
- * app and it's on the website instantly, and vice versa.
+ * cases, and everything else are one shared source of truth.
+ *
+ * Auth: after login we hold a real NextAuth session token (from
+ * /api/mobile/auth/login) and send it as the session cookie, so every
+ * existing route that uses getServerSession authenticates the app unchanged.
  *
  * Override the base URL for local testing via app.json → expo.extra.apiBaseUrl.
  */
@@ -13,11 +16,13 @@ export const API_BASE_URL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) ||
   'https://www.reunitepets.org';
 
-let authToken: string | null = null;
+type Session = { token: string; cookieName: string } | null;
 
-/** Set after login so requests are authenticated; cleared on logout. */
-export function setAuthToken(token: string | null) {
-  authToken = token;
+let session: Session = null;
+
+/** Set on login / restore; cleared on logout. */
+export function setSession(next: Session) {
+  session = next;
 }
 
 async function request(path: string, options: RequestInit = {}) {
@@ -26,7 +31,7 @@ async function request(path: string, options: RequestInit = {}) {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(session ? { Cookie: `${session.cookieName}=${session.token}` } : {}),
       ...(options.headers || {}),
     },
   });
