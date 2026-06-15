@@ -1,33 +1,23 @@
 'use client';
 
 /**
- * The pet shell - one house, a visible hallway
+ * The pet shell - identity, exactly once.
  *
- * Every page under a pet shares this header, and identity lives here
- * EXACTLY ONCE: breadcrumb row (with the rest of the family one tap
- * away), then one identity row — photo, name, status, the two
- * whole-pet actions — then the tabs. Rooms below render content only;
- * none of them repeats who the pet is. Switching pets keeps you in
- * the same room (meds tab to meds tab), because that is what you meant.
+ * Every page under a pet shares this header. It carries the way out
+ * (breadcrumb), the rest of the family (the avatar switcher), and one
+ * identity row: photo, name, status, and the two whole-pet actions
+ * (Edit, Share). The dashboard below owns the content and its own
+ * section nav, so nothing here repeats who the pet is.
  */
 
 import { useState, useEffect } from 'react';
 import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, Heart, AlertTriangle, Plus, LayoutGrid, Sun, Share2, Pencil,
+  ArrowLeft, Heart, AlertTriangle, Plus, Share2, Pencil,
 } from 'lucide-react';
-import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { cn } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
-
-
-const TABS = [
-  { id: '', label: 'Overview', icon: LayoutGrid },
-  { id: 'today', label: 'Today', icon: Sun },
-  { id: 'health', label: 'Health Book', icon: ShieldIcon },
-  { id: 'share', label: 'Sharing', icon: Share2 },
-];
 
 function activeCaseOf(pet) {
   const c = pet?.cases?.[0];
@@ -58,9 +48,10 @@ export default function PetShellLayout({ children }) {
     return () => { alive = false; };
   }, [petId]);
 
-  // Which room are we in? ('' = overview, 'medications', 'share', 'edit'...)
+  // Switching pets keeps you in Sharing if that is where you are; everything
+  // else (the dashboard, edit) lands on the other pet's dashboard.
   const segment = pathname.split('/')[3] || '';
-  const sectionForSwitch = ['today', 'share', 'health'].includes(segment) ? `/${segment}` : '';
+  const sectionForSwitch = segment === 'share' ? '/share' : '';
   const activeCase = activeCaseOf(pet);
 
   const detailLine = pet
@@ -73,7 +64,7 @@ export default function PetShellLayout({ children }) {
   return (
     <div className="min-h-screen bg-midnight-50">
       <div className="bg-white border-b border-midnight-100">
-        <div className="max-w-4xl mx-auto px-4 pt-4 md:px-8">
+        <div className="max-w-4xl mx-auto px-4 pt-4 pb-4 md:px-8">
           {/* Breadcrumb row: the way out, and the rest of the family */}
           <div className="flex items-center justify-between gap-3">
             <Link href="/pets" className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors">
@@ -169,29 +160,6 @@ export default function PetShellLayout({ children }) {
             )}
           </div>
 
-          {/* The hallway */}
-          <nav className="flex gap-1 pt-2 -mb-px" aria-label="Pet sections">
-            {TABS.map(({ id, label, icon: Icon }) => {
-              const href = `/pets/${petId}${id ? `/${id}` : ''}`;
-              const active = segment === id;
-              return (
-                <Link
-                  key={label}
-                  href={href}
-                  aria-current={active ? 'page' : undefined}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold border-b-2 transition-colors',
-                    active
-                      ? 'border-flash-400 text-midnight-900'
-                      : 'border-transparent text-midnight-400 hover:text-midnight-700'
-                  )}
-                >
-                  <Icon size={15} />
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
         </div>
       </div>
 

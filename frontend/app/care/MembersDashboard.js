@@ -55,7 +55,7 @@ export default function MembersDashboard() {
             return (
               <Link
                 key={p.id}
-                href={`/pets/${p.id}/health`}
+                href={`/pets/${p.id}`}
                 className="group flex items-center gap-4 bg-white border border-midnight-100 rounded-3xl p-5 transition-all hover:shadow-lg hover:shadow-midnight-200/50 hover:-translate-y-0.5"
               >
                 <span className="w-14 h-14 rounded-2xl overflow-hidden bg-midnight-100 flex items-center justify-center shrink-0">
