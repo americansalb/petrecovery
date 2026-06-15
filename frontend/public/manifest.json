@@ -2,7 +2,7 @@
   "name": "ReunitePets",
   "short_name": "ReunitePets",
   "description": "Find lost pets and reunite families. Report lost and found pets in your community.",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#F5A623",
