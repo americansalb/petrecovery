@@ -12,17 +12,21 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, X, Check, Loader2, Trash2, Phone } from 'lucide-react';
+import {
+  Plus, X, Check, Loader2, Trash2, Phone, ArrowRight, ShieldCheck,
+  AlertTriangle, TrendingUp, TrendingDown, Minus,
+} from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Badge, cn } from '@/components/ui';
+import { Card, cn } from '@/components/ui';
 import Link from 'next/link';
 import { Button } from '@/components/ui';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
-import { SyringeGlyph } from '@/app/components/icons/MedGlyphs';
-import { MedCard, ActivityFeed } from '@/app/components/medications/MedCards';
+import { SyringeGlyph, PillGlyph } from '@/app/components/icons/MedGlyphs';
+import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
+import { MedCard } from '@/app/components/medications/MedCards';
 import { sameDay } from '@/lib/medications';
 import {
-  vaccinationStatus, healthBookStatus, vaccinePresetsFor, DUE_SOON_DAYS,
+  vaccinationStatus, healthBookStatus, vaccinePresetsFor,
 } from '@/lib/healthBook';
 
 const STATUS_STYLE = {
@@ -30,13 +34,6 @@ const STATUS_STYLE = {
   DUE_SOON: { label: 'Due soon', chip: 'bg-amber-100 text-amber-700', ic: 'bg-amber-100 text-amber-700' },
   EXPIRED: { label: 'Expired', chip: 'bg-red-100 text-red-700', ic: 'bg-red-100 text-red-600' },
   ON_FILE: { label: 'On file', chip: 'bg-slate-200 text-slate-700', ic: 'bg-slate-200 text-slate-600' },
-};
-
-const TONE_STYLE = {
-  good: 'bg-emerald-100 text-emerald-700',
-  warn: 'bg-amber-100 text-amber-700',
-  bad: 'bg-red-100 text-red-600',
-  empty: 'bg-midnight-100 text-midnight-400',
 };
 
 function shortDate(d) {
@@ -178,25 +175,145 @@ function AddVaccineModal({ petId, species, onClose, onSaved }) {
   );
 }
 
-/* ------------------------------ Weight spark ------------------------------- */
+/* --------------------------- Presentation helpers -------------------------- */
 
-function WeightSpark({ weights }) {
-  if (weights.length < 2) return null;
-  const w = 460; const h = 72; const pad = 6;
-  const vals = weights.map((e) => e.weightLbs);
-  const min = Math.min(...vals); const max = Math.max(...vals);
-  const span = max - min || 1;
-  const pts = weights.map((e, i) => {
-    const x = pad + (i / (weights.length - 1)) * (w - 2 * pad);
-    const y = h - pad - ((e.weightLbs - min) / span) * (h - 2 * pad);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const last = pts[pts.length - 1].split(',');
+// The hero's register, keyed to healthBookStatus tone: a calm, warm
+// daylight verdict, not a clinical banner.
+const HERO_TONE = {
+  good:  { wash: 'from-emerald-100/80 via-white to-amber-50/50', ring: 'ring-emerald-100', glyph: 'bg-emerald-500', icon: ShieldCheck,   head: (n) => `${n} is doing great.` },
+  warn:  { wash: 'from-amber-100/80 via-white to-amber-50/40',   ring: 'ring-amber-100',   glyph: 'bg-amber-500',   icon: AlertTriangle, head: (n) => `${n} has one thing due.` },
+  bad:   { wash: 'from-rose-100/80 via-white to-amber-50/30',    ring: 'ring-rose-100',    glyph: 'bg-rose-500',    icon: AlertTriangle, head: (n) => `${n} needs attention.` },
+  empty: { wash: 'from-flash-100/80 via-white to-white',         ring: 'ring-midnight-100',glyph: 'bg-midnight-400',icon: ShieldIcon,    head: (n) => `Let's start ${n}'s book.` },
+};
+
+function protectionSummary(vaccinations) {
+  const live = (vaccinations || []).filter((v) => !v.deletedAt);
+  const withExpiry = live.filter((v) => v.expiresAt);
+  return {
+    total: live.length,
+    withExpiry: withExpiry.length,
+    protectedCount: withExpiry.filter((v) => vaccinationStatus(v) === 'PROTECTED').length,
+    dueSoon: withExpiry.filter((v) => vaccinationStatus(v) === 'DUE_SOON').length,
+    expired: withExpiry.filter((v) => vaccinationStatus(v) === 'EXPIRED').length,
+  };
+}
+
+function weightTrend(weights) {
+  if (!weights.length) return null;
+  const latest = weights[weights.length - 1];
+  const delta = +(latest.weightLbs - weights[0].weightLbs).toFixed(1);
+  return { latest: latest.weightLbs, delta, dir: delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat' };
+}
+
+// Three vital-sign readouts above the fold: protection, weight, meds.
+function VitalsTrio({ vaccinations, weights, meds }) {
+  const p = protectionSummary(vaccinations);
+  const wt = weightTrend(weights);
+  const activeMeds = (meds || []).filter((m) => m.isActive);
+
+  const protSub = p.expired ? `${p.expired} expired` : p.dueSoon ? `${p.dueSoon} due soon` : p.withExpiry ? 'all current' : 'on file';
+  const protTone = p.expired ? 'text-rose-600' : p.dueSoon ? 'text-amber-600' : 'text-emerald-600';
+  const TrendIcon = wt ? (wt.dir === 'up' ? TrendingUp : wt.dir === 'down' ? TrendingDown : Minus) : Minus;
+  const trendSub = !wt ? 'no entries' : wt.dir === 'flat' ? 'holding steady' : `${wt.dir === 'up' ? '+' : ''}${wt.delta} lb overall`;
+
+  const tile = 'rounded-2xl bg-white border border-midnight-100 p-4 flex flex-col gap-0.5';
+  const cap = 'text-[11px] font-bold uppercase tracking-wide text-midnight-400';
   return (
-    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="mt-3" aria-hidden="true">
-      <polyline points={pts.join(' ')} fill="none" stroke="#facc15" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={last[0]} cy={last[1]} r="4.5" fill="#0f172a" />
+    <div className="grid grid-cols-3 gap-3">
+      <div className={tile}>
+        <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1"><ShieldCheck size={17} /></span>
+        <p className="text-2xl font-extrabold text-midnight-900 leading-none">{p.withExpiry ? `${p.protectedCount}/${p.withExpiry}` : (p.total || '0')}</p>
+        <p className={cap}>Protected</p>
+        <p className={cn('text-xs font-semibold', protTone)}>{protSub}</p>
+      </div>
+      <div className={tile}>
+        <span className="w-8 h-8 rounded-xl bg-flash-100 text-flash-700 flex items-center justify-center mb-1"><TrendIcon size={17} /></span>
+        <p className="text-2xl font-extrabold text-midnight-900 leading-none">{wt ? <>{wt.latest}<span className="text-sm font-bold text-midnight-400 ml-0.5">lb</span></> : <span className="text-base font-bold text-midnight-400">none yet</span>}</p>
+        <p className={cap}>Weight</p>
+        <p className="text-xs font-semibold text-midnight-500">{trendSub}</p>
+      </div>
+      <div className={tile}>
+        <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-1"><PillGlyph size={16} /></span>
+        <p className="text-2xl font-extrabold text-midnight-900 leading-none">{activeMeds.length}</p>
+        <p className={cap}>Medications</p>
+        <p className="text-xs font-semibold text-midnight-500">{activeMeds.length ? 'logged in Today' : 'none active'}</p>
+      </div>
+    </div>
+  );
+}
+
+// Weight over time: soft area fill + line, every entry dotted, current
+// point anchored, first/last dates on the axis.
+function WeightChart({ weights }) {
+  if (weights.length < 2) return null;
+  const w = 600, h = 130, padX = 12, padTop = 16, padBot = 24;
+  const vals = weights.map((e) => e.weightLbs);
+  const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
+  const x = (i) => padX + (i / (weights.length - 1)) * (w - 2 * padX);
+  const y = (v) => padTop + (1 - (v - min) / span) * (h - padTop - padBot);
+  const pts = weights.map((e, i) => `${x(i).toFixed(1)},${y(e.weightLbs).toFixed(1)}`);
+  const area = `M ${x(0).toFixed(1)},${(h - padBot).toFixed(1)} L ${pts.join(' L ')} L ${x(weights.length - 1).toFixed(1)},${(h - padBot).toFixed(1)} Z`;
+  const last = weights[weights.length - 1];
+  const fmt = (d) => new Date(d).toLocaleDateString([], { month: 'short', year: '2-digit' });
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="mt-3" role="img" aria-label="Weight over time">
+      <defs>
+        <linearGradient id="wfill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#wfill)" />
+      <polyline points={pts.join(' ')} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {weights.map((e, i) => <circle key={i} cx={x(i)} cy={y(e.weightLbs)} r="2.4" fill="#f59e0b" />)}
+      <circle cx={x(weights.length - 1)} cy={y(last.weightLbs)} r="5" fill="#0f172a" stroke="#fff" strokeWidth="2" />
+      <text x={padX} y={h - 6} className="fill-midnight-400" fontSize="11" fontWeight="600">{fmt(weights[0].recordedAt)}</text>
+      <text x={w - padX} y={h - 6} textAnchor="end" className="fill-midnight-400" fontSize="11" fontWeight="600">{fmt(last.recordedAt)}</text>
     </svg>
+  );
+}
+
+// One record, grouped by month: vaccines + weights, newest first, on a rail.
+function MonthHistory({ vaccinations, weights }) {
+  const events = [];
+  for (const v of (vaccinations || []).filter((v) => !v.deletedAt)) {
+    events.push({ at: new Date(v.administeredAt), kind: 'vax', title: v.name, sub: v.vetName || 'Vaccine recorded', id: `v-${v.id}` });
+  }
+  for (const e of weights || []) {
+    events.push({ at: new Date(e.recordedAt), kind: 'weight', title: `${e.weightLbs} lb`, sub: e.note || 'Weight logged', id: `w-${e.id}` });
+  }
+  events.sort((a, b) => b.at - a.at);
+  if (!events.length) return null;
+  const groups = [];
+  for (const ev of events) {
+    const key = ev.at.toLocaleDateString([], { month: 'long', year: 'numeric' });
+    let g = groups.find((x) => x.key === key);
+    if (!g) { g = { key, items: [] }; groups.push(g); }
+    g.items.push(ev);
+  }
+  return (
+    <div className="space-y-5">
+      {groups.slice(0, 6).map((g) => (
+        <div key={g.key}>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-midnight-400 mb-2.5">{g.key}</p>
+          <div className="relative pl-6 space-y-3 before:absolute before:left-[9px] before:top-1 before:bottom-1 before:w-px before:bg-midnight-100">
+            {g.items.map((ev) => (
+              <div key={ev.id} className="relative flex items-center gap-3">
+                <span className={cn('absolute -left-6 top-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full ring-4 ring-white', ev.kind === 'vax' ? 'bg-emerald-500' : 'bg-flash-400')} />
+                <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', ev.kind === 'vax' ? 'bg-emerald-100 text-emerald-700' : 'bg-flash-100 text-flash-700')}>
+                  {ev.kind === 'vax' ? <SyringeGlyph size={17} /> : <span className="text-[10px] font-extrabold">lb</span>}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-midnight-900 leading-tight truncate">{ev.title}</p>
+                  <p className="text-xs text-midnight-400 truncate">{ev.sub}</p>
+                </div>
+                <span className="text-xs text-midnight-400 shrink-0">{ev.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -262,17 +379,6 @@ export default function HealthBookPage() {
     () => healthBookStatus(vaccinations, pet?.name || 'your pet'),
     [vaccinations, pet]
   );
-
-  const story = useMemo(() => {
-    const out = [];
-    for (const v of vaccinations) {
-      out.push({ at: new Date(v.administeredAt), node: `${v.name}${v.vetName ? ` · ${v.vetName}` : ''}`, kind: 'vax', id: `v-${v.id}` });
-    }
-    for (const e of weights) {
-      out.push({ at: new Date(e.recordedAt), node: `${e.weightLbs} lbs${e.note ? ` · ${e.note}` : ''}`, kind: 'weight', id: `w-${e.id}` });
-    }
-    return out.sort((a, b) => b.at - a.at).slice(0, 12);
-  }, [vaccinations, weights]);
 
   const logWeight = async () => {
     const v = parseFloat(weightInput);
@@ -394,9 +500,12 @@ export default function HealthBookPage() {
   const name = pet?.name || 'your pet';
   const isOwner = access === 'OWNER';
   const latestWeight = weights[weights.length - 1];
+  const tone = HERO_TONE[bookStatus.tone] || HERO_TONE.empty;
+  const VerdictIcon = tone.icon;
+  const chipCls = 'inline-flex items-center px-2.5 py-1 rounded-lg bg-white/70 border border-midnight-100 text-xs font-bold text-midnight-600';
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8">
+    <div className="px-4 py-6 md:px-8 md:py-8 bg-gradient-to-b from-amber-50/40 via-white to-white min-h-screen">
       <div className="max-w-4xl mx-auto">
         {error && (
           <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-xl mb-4 flex items-center justify-between">
@@ -405,45 +514,75 @@ export default function HealthBookPage() {
           </div>
         )}
 
-        {/* Status before data */}
-        <Card padding="lg" className="mb-4">
-          <div className="flex items-center gap-4 flex-wrap">
-            <span className={cn('w-11 h-11 rounded-2xl flex items-center justify-center shrink-0', TONE_STYLE[bookStatus.tone])}>
-              <ShieldIcon size={24} />
+        {/* ===== Hero: who this is, and the one-glance verdict ===== */}
+        <div className={cn('relative overflow-hidden rounded-3xl ring-1 bg-gradient-to-br p-5 md:p-7 mb-4', tone.wash, tone.ring)}>
+          <div className="flex items-start gap-4 md:gap-5">
+            <div className="w-[72px] h-[72px] md:w-24 md:h-24 rounded-3xl overflow-hidden ring-4 ring-white shadow-md shrink-0 bg-white">
+              {pet?.primaryPhotoUrl
+                ? <img src={pet.primaryPhotoUrl} alt={name} className="w-full h-full object-cover" />
+                : <span className="w-full h-full flex items-center justify-center bg-midnight-100 text-midnight-400"><SpeciesIcon species={pet?.species} size={40} /></span>}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-900 tracking-tight leading-none">{name}</h1>
+              <p className="mt-1.5 text-sm font-semibold text-midnight-500">
+                {[pet?.breed, pet?.age != null ? `${pet.age} ${pet.age === 1 ? 'yr' : 'yrs'}` : null, pet?.sex ? pet.sex.toLowerCase() : null]
+                  .filter(Boolean).join(' · ')}
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {pet?.weight != null && <span className={chipCls}>{pet.weight} lb</span>}
+                {pet?.color && <span className={cn(chipCls, 'capitalize')}>{pet.color}</span>}
+                {pet?.microchipId && <span className={cn(chipCls, 'font-mono tracking-tight')}>chip ····{String(pet.microchipId).slice(-4)}</span>}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mt-5 md:mt-6">
+            <span className={cn('w-11 h-11 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-sm', tone.glyph)}>
+              <VerdictIcon size={23} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-midnight-900">{name}&apos;s Health Book</p>
-              <p className="text-sm text-midnight-500">{bookStatus.sentence}</p>
+              <p className="font-extrabold text-midnight-900 leading-tight">{tone.head(name)}</p>
+              <p className="text-sm text-midnight-600">{bookStatus.sentence}</p>
             </div>
             {canManage && (
-              <div className="flex items-center gap-1.5">
-                {vaccinations.length > 0 && (
-                  <button
-                    onClick={() => setManaging((v) => !v)}
-                    className={cn(
-                      'px-3 py-2 rounded-xl text-sm font-bold transition-colors',
-                      managing ? 'bg-midnight-900 text-white' : 'text-midnight-500 hover:bg-midnight-100'
-                    )}
-                  >
-                    Manage
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowAdd(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-flash-400 hover:bg-flash-300 text-midnight-900 text-sm font-bold transition-colors"
-                >
-                  <Plus size={15} /> Add vaccine
-                </button>
-              </div>
+              <button
+                onClick={() => setShowAdd(true)}
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-midnight-900 hover:bg-midnight-800 text-white text-sm font-bold transition-colors shrink-0"
+              >
+                <Plus size={15} /> Add vaccine
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ===== Vital signs, at a glance ===== */}
+        <div className="mb-4">
+          <VitalsTrio vaccinations={vaccinations} weights={weights} meds={meds} />
+        </div>
+
+        {/* ===== Immunization passport ===== */}
+        <Card padding="lg" className="mb-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-emerald-600">Immunization passport</p>
+              <h2 className="font-bold text-midnight-900">Vaccines &amp; protection</h2>
+            </div>
+            {canManage && vaccinations.length > 0 && (
+              <button
+                onClick={() => setManaging((v) => !v)}
+                className={cn('px-3 py-1.5 rounded-xl text-sm font-bold transition-colors shrink-0',
+                  managing ? 'bg-midnight-900 text-white' : 'text-midnight-500 hover:bg-midnight-100')}
+              >
+                {managing ? 'Done' : 'Manage'}
+              </button>
             )}
           </div>
 
-          {/* The stamps */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
             {vaccinations.map((vax) => {
               const st = STATUS_STYLE[vaccinationStatus(vax)];
               return (
-                <div key={vax.id} className="relative rounded-2xl border-2 border-midnight-100 px-3 py-4 flex flex-col items-center gap-2 text-center">
+                <div key={vax.id} className="relative rounded-2xl border-2 border-midnight-100 bg-white px-3 py-4 flex flex-col items-center gap-2 text-center">
                   <span className={cn('absolute -top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide', st.chip)}>
                     {st.label}
                   </span>
@@ -471,7 +610,7 @@ export default function HealthBookPage() {
             {canManage && (
               <button
                 onClick={() => setShowAdd(true)}
-                className="rounded-2xl border-2 border-dashed border-midnight-200 px-3 py-4 flex flex-col items-center justify-center gap-2 text-center text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors"
+                className="rounded-2xl border-2 border-dashed border-midnight-200 px-3 py-4 flex flex-col items-center justify-center gap-2 text-center text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors min-h-[116px]"
               >
                 <span className="w-10 h-10 rounded-xl bg-midnight-50 flex items-center justify-center"><Plus size={18} /></span>
                 <span className="text-[13px] font-bold">{vaccinations.length ? 'Another stamp' : 'First stamp'}</span>
@@ -483,7 +622,10 @@ export default function HealthBookPage() {
         {/* Medications: the record and its management (logging lives in Today) */}
         <Card padding="lg" className="mb-4">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-            <h2 className="font-bold text-midnight-900">Medications</h2>
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-amber-600">Prescriptions</p>
+              <h2 className="font-bold text-midnight-900">Medications</h2>
+            </div>
             <div className="flex items-center gap-2">
               <a
                 href={`/api/pets/${petId}/medications/export`}
@@ -531,13 +673,24 @@ export default function HealthBookPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Weight */}
           <Card padding="lg">
-            <h2 className="font-bold text-midnight-900">Weight</h2>
-            <p className="text-sm text-midnight-500 mt-0.5">
-              {latestWeight
-                ? `${latestWeight.weightLbs} lbs · ${new Date(latestWeight.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}`
-                : 'No entries yet. One number, the chart draws itself.'}
-            </p>
-            <WeightSpark weights={weights} />
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-flash-600">Weight</p>
+                {latestWeight ? (
+                  <p className="text-2xl font-extrabold text-midnight-900 leading-tight">
+                    {latestWeight.weightLbs}<span className="text-base font-bold text-midnight-400 ml-1">lb</span>
+                  </p>
+                ) : (
+                  <p className="font-bold text-midnight-900">Track the trend</p>
+                )}
+              </div>
+              {latestWeight && (
+                <p className="text-xs font-semibold text-midnight-400">last {new Date(latestWeight.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</p>
+              )}
+            </div>
+            {weights.length >= 2
+              ? <WeightChart weights={weights} />
+              : <p className="text-sm text-midnight-500 mt-2">{latestWeight ? 'One more entry and the trend line appears.' : 'Log a weight and the chart draws itself.'}</p>}
             {canManage && (
               <div className="flex items-center gap-2 mt-4">
                 <div className="relative flex-1">
@@ -565,7 +718,10 @@ export default function HealthBookPage() {
           {/* Vet card */}
           <Card padding="lg">
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-midnight-900">The vet</h2>
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-sky-600">Care team</p>
+                <h2 className="font-bold text-midnight-900">The vet</h2>
+              </div>
               {isOwner && vetDraft === null && (
                 <button
                   onClick={() => setVetDraft({ vetName: pet?.vetName || '', vetClinic: pet?.vetClinic || '', vetPhone: pet?.vetPhone || '' })}
@@ -612,28 +768,14 @@ export default function HealthBookPage() {
           </Card>
         </div>
 
-        {/* The story */}
-        {story.length > 0 && (
+        {/* ===== The record: one unified history (doses live in Today) ===== */}
+        {(vaccinations.length > 0 || weights.length > 0) && (
           <Card padding="lg" className="mb-4">
-            <h2 className="font-bold text-midnight-900 mb-2">The story</h2>
-            <ul className="divide-y divide-midnight-100">
-              {story.map((item) => (
-                <li key={item.id} className="flex items-center gap-3 py-2.5 text-sm">
-                  <span className="text-midnight-400 text-xs w-16 shrink-0">
-                    {item.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                  </span>
-                  <span className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
-                    item.kind === 'vax' ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700')}>
-                    {item.kind === 'vax' ? <SyringeGlyph size={15} /> : <span className="text-[10px] font-extrabold">lb</span>}
-                  </span>
-                  <span className="text-midnight-800 font-semibold truncate">{item.node}</span>
-                </li>
-              ))}
-            </ul>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-midnight-400">The record</p>
+            <h2 className="font-bold text-midnight-900 mb-4">History</h2>
+            <MonthHistory vaccinations={vaccinations} weights={weights} />
           </Card>
         )}
-
-        <ActivityFeed meds={meds} />
 
         <p className="text-center text-xs text-midnight-400 pt-2 pb-6">
           A record you keep, not medical advice. Your vet&apos;s guidance comes first.
