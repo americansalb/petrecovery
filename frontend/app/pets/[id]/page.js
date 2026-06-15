@@ -1,32 +1,37 @@
 'use client';
 
 /**
- * The Pet Dashboard - one place for everything about this pet.
+ * The Pet Profile - one home per pet
  *
- * The profile used to be four tabs (Overview / Today / Health Book /
- * Sharing) that each re-stated slices of the same data. This is the
- * consolidation: one page that owns the data once and lays it out as
- * sections you can act on in place. Today's dose checklist lives here
- * (you log meds right where you see them), the full Health Book record
- * lives here, and so do the identity facts and the care team. The old
- * /today and /health routes redirect in.
+ * Everything about this pet, one screen: who they are, whether they're
+ * safe, today's care at a glance, the people who care for them, their
+ * photos, their history. The avatar strip up top jumps between all of
+ * your pets, so the whole family is one tap apart. Editing moved to
+ * /pets/[id]/edit; this page is for living, not form-filling.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { PawPrint, AlertTriangle, Radar, Users, ChevronRight, Sun, ShieldCheck, IdCard, Images } from 'lucide-react';
+import { PawPrint, Pill, AlertTriangle, Radar, Users, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, cn } from '@/components/ui';
+import { Card, Button, Badge, cn } from '@/components/ui';
+import { MedIconChip } from '@/app/components/medications/MedIcon';
+import { slotsWithStatus, sameDay, formatTime } from '@/lib/medications';
+import { CareIconChip } from '@/app/components/icons/CareIcons';
 import RescueReadiness from '@/app/components/pets/RescueReadiness';
-import CareToday from '@/app/components/care/CareToday';
-import GoodStuff from '@/app/components/care/GoodStuff';
-import HealthBook from '@/app/components/health/HealthBook';
+import { ShieldIcon } from '@/app/components/icons/HealthIcons';
+import { healthBookStatus } from '@/lib/healthBook';
+
 
 function parseJsonArray(value) {
-  try { const arr = JSON.parse(value || '[]'); return Array.isArray(arr) ? arr : []; }
-  catch { return []; }
+  try {
+    const arr = JSON.parse(value || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
 }
 
 function activeCaseOf(pet) {
@@ -36,15 +41,18 @@ function activeCaseOf(pet) {
   return c;
 }
 
-/* A profile fact row: the value when known, a one-tap "Add" when not. */
+/* A profile fact row: shows the value when known, a one-tap "Add" when not -
+   an empty record should read as an invitation, never as dead text. */
 function IdRow({ label, isOwner, addHref, children }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <dt className="text-midnight-500 shrink-0">{label}</dt>
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-midnight-500">{label}</dt>
       <dd className="font-semibold text-midnight-900 text-right min-w-0">
         {children || (
           isOwner ? (
-            <Link href={addHref} className="inline-flex items-center gap-0.5 text-flash-600 hover:text-flash-700 font-bold text-xs">Add <ChevronRight size={12} /></Link>
+            <Link href={addHref} className="inline-flex items-center gap-0.5 text-flash-600 hover:text-flash-700 font-bold text-xs">
+              Add <ChevronRight size={12} />
+            </Link>
           ) : (
             <span className="text-midnight-400 font-normal">Not noted</span>
           )
@@ -54,19 +62,9 @@ function IdRow({ label, isOwner, addHref, children }) {
   );
 }
 
-/* Section heading with an anchor the sticky nav scrolls to. */
-function SectionTitle({ id, icon: Icon, children, action }) {
-  return (
-    <div id={id} className="scroll-mt-24 flex items-center justify-between gap-3 mb-3 mt-10 first:mt-0">
-      <h2 className="flex items-center gap-2 text-lg font-extrabold text-midnight-900 tracking-tight">
-        <Icon size={19} className="text-midnight-400" /> {children}
-      </h2>
-      {action}
-    </div>
-  );
-}
+/* --------------------------------- Page ----------------------------------- */
 
-export default function PetDashboardPage() {
+export default function PetProfilePage() {
   const { status } = useSession();
   const router = useRouter();
   const params = useParams();
@@ -74,36 +72,34 @@ export default function PetDashboardPage() {
 
   const [pet, setPet] = useState(null);
   const [meds, setMeds] = useState([]);
-  const [vaccinations, setVaccinations] = useState([]);
-  const [weights, setWeights] = useState([]);
   const [access, setAccess] = useState('OWNER');
-  const [shares, setShares] = useState(null);
+  const [shares, setShares] = useState(null); // null = not loaded / not owner
   const [viewLinkUrl, setViewLinkUrl] = useState(null);
+  const [vaccinations, setVaccinations] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push(`/login?callbackUrl=/pets/${petId}`);
+    if (status === 'unauthenticated') {
+      router.push(`/login?callbackUrl=/pets/${petId}`);
+    }
   }, [status, router, petId]);
 
   const load = useCallback(async () => {
     try {
-      const [petRes, medsRes, vaxRes, wtRes] = await Promise.all([
+      const [petRes, medsRes] = await Promise.all([
         fetch(`/api/pets/${petId}`),
         fetch(`/api/pets/${petId}/medications`),
-        fetch(`/api/pets/${petId}/vaccinations`),
-        fetch(`/api/pets/${petId}/weights`),
       ]);
       const petData = await petRes.json();
       if (!petRes.ok) throw new Error(petData.error || 'Pet not found');
       setPet(petData.pet || petData);
+
       if (medsRes.ok) {
-        const m = await medsRes.json();
-        setMeds(m.medications || []);
-        setAccess(m.access || 'OWNER');
+        const medsData = await medsRes.json();
+        setMeds(medsData.medications || []);
+        setAccess(medsData.access || 'OWNER');
       }
-      if (vaxRes.ok) setVaccinations((await vaxRes.json()).vaccinations || []);
-      if (wtRes.ok) setWeights((await wtRes.json()).weights || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -115,17 +111,77 @@ export default function PetDashboardPage() {
     if (status === 'authenticated' && petId) load();
   }, [status, petId, load]);
 
-  // Care team + view link are owner territory; load quietly, tolerate 403.
+  // Care team is owner territory; load it quietly and tolerate a 403
   useEffect(() => {
     if (status !== 'authenticated' || !petId) return;
-    fetch(`/api/pets/${petId}/shares`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.shares) setShares(d.shares); }).catch(() => {});
-    fetch(`/api/pets/${petId}/share-link`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.url) setViewLinkUrl(d.url); }).catch(() => {});
+    fetch(`/api/pets/${petId}/shares`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.shares) setShares(data.shares); })
+      .catch(() => {});
+    fetch(`/api/pets/${petId}/share-link`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.url) setViewLinkUrl(data.url); })
+      .catch(() => {});
+    fetch(`/api/pets/${petId}/vaccinations`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.vaccinations) setVaccinations(data.vaccinations); })
+      .catch(() => {});
   }, [status, petId]);
 
+  // Today's care, computed from the same engine as the tracker
+  const today = useMemo(() => {
+    const now = new Date();
+    const medItems = meds.filter((m) => m.kind !== 'CARE' && m.isActive);
+    const careItems = meds.filter((m) => m.kind === 'CARE' && m.isActive);
+
+    let due = 0;
+    let given = 0;
+    let nextSlot = null;
+    for (const med of medItems.filter((m) => m.scheduleType !== 'AS_NEEDED')) {
+      for (const slot of slotsWithStatus(med, med.doses, now)) {
+        due += 1;
+        if (slot.status === 'GIVEN') given += 1;
+        else if (!slot.status && !nextSlot) nextSlot = { med, slot };
+      }
+    }
+
+    let careDue = 0;
+    let careDone = 0;
+    for (const care of careItems.filter((c) => c.scheduleType !== 'AS_NEEDED')) {
+      for (const slot of slotsWithStatus(care, care.doses, now)) {
+        careDue += 1;
+        if (slot.status === 'GIVEN') careDone += 1;
+      }
+    }
+    for (const care of careItems.filter((c) => c.scheduleType === 'AS_NEEDED')) {
+      careDone += (care.doses || []).filter(
+        (d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), now)
+      ).length;
+    }
+
+    return { due, given, nextSlot, careDue, careDone, medCount: medItems.length, careCount: careItems.length };
+  }, [meds]);
+
+  const recent = useMemo(() => {
+    const out = [];
+    for (const med of meds) {
+      for (const dose of med.doses || []) {
+        if (dose.deletedAt) continue;
+        out.push({ med, dose, at: new Date(dose.givenAt || dose.scheduledFor) });
+      }
+    }
+    return out.sort((a, b) => b.at - a.at).slice(0, 5);
+  }, [meds]);
+
   if (status === 'loading' || loading) {
-    return <div className="min-h-screen bg-midnight-50 flex items-center justify-center"><LoadingSpinner text="Loading profile..." /></div>;
+    return (
+      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+        <LoadingSpinner text="Loading profile..." />
+      </div>
+    );
   }
   if (status === 'unauthenticated') return null;
+
   if (error || !pet) {
     return (
       <div className="min-h-screen bg-midnight-50 flex items-center justify-center px-4">
@@ -139,7 +195,6 @@ export default function PetDashboardPage() {
   }
 
   const isOwner = access === 'OWNER';
-  const canManage = access !== 'VIEWER';
   const activeCase = activeCaseOf(pet);
   const photos = parseJsonArray(pet.photos);
   const personality = parseJsonArray(pet.personality);
@@ -150,139 +205,197 @@ export default function PetDashboardPage() {
     pet.sex && pet.sex.charAt(0) + pet.sex.slice(1).toLowerCase(),
   ].filter(Boolean).join(' · ');
 
-  const careTeamLine = shares === null
-    ? (isOwner ? null : `You help care for ${pet.name}.`)
-    : shares.length === 0
-      ? 'Just you so far. Invite family or share a view link.'
-      : shares.slice(0, 5).map((sh) => [sh.user?.firstName, sh.user?.lastName?.[0]].filter(Boolean).join(' ') || sh.email).join(', ');
-
-  const NAV = [
-    { href: '#today', label: 'Today', icon: Sun },
-    { href: '#health', label: 'Health', icon: ShieldCheck },
-    { href: '#about', label: 'About', icon: IdCard },
-    { href: '#people', label: 'People', icon: Users },
-  ];
-
   return (
-    <div className="bg-midnight-50 min-h-screen">
-      {/* Sticky in-page nav: the long dashboard's hallway */}
-      <div className="sticky top-0 z-20 bg-midnight-50/90 backdrop-blur border-b border-midnight-100">
-        <div className="max-w-4xl mx-auto px-4 md:px-8 flex gap-1 overflow-x-auto py-2">
-          {NAV.map(({ href, label, icon: Icon }) => (
-            <a key={href} href={href}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold text-midnight-500 hover:text-midnight-900 hover:bg-white transition-colors whitespace-nowrap">
-              <Icon size={15} /> {label}
-            </a>
-          ))}
-        </div>
-      </div>
-
-      <div className="px-4 py-6 md:px-8 md:py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Missing? Nothing else matters until they're home. */}
-          {activeCase ? (
-            <div className="rounded-3xl bg-midnight-950 border-2 border-red-500/60 p-5 mb-6">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/40 flex items-center justify-center shrink-0"><AlertTriangle size={22} className="text-red-400" /></span>
-                <div className="flex-1 min-w-[180px]">
-                  <p className="font-bold text-white">{pet.name} is missing</p>
-                  <p className="text-sm text-midnight-300">Case {activeCase.caseNumber} is live. The search is on.</p>
-                </div>
-                <Link href={`/mission-control?mission=${activeCase.caseNumber}`} className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition text-sm">
-                  <Radar size={16} /> Mission Control
-                </Link>
+    <div className="px-4 py-6 md:px-8 md:py-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Missing? Nothing else matters until they're home. */}
+        {activeCase && (
+          <div className="rounded-3xl bg-midnight-950 border-2 border-red-500/60 p-5 mb-6">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/40 flex items-center justify-center shrink-0">
+                <AlertTriangle size={22} className="text-red-400" />
+              </span>
+              <div className="flex-1 min-w-[180px]">
+                <p className="font-bold text-white">{pet.name} is missing</p>
+                <p className="text-sm text-midnight-300">
+                  Case {activeCase.caseNumber} is live. The search is on.
+                </p>
               </div>
+              <Link
+                href={`/mission-control?mission=${activeCase.caseNumber}`}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition text-sm"
+              >
+                <Radar size={16} />
+                Mission Control
+              </Link>
             </div>
-          ) : (
-            <RescueReadiness pet={pet} photos={uniquePhotos} personality={personality} shares={shares} viewLinkUrl={viewLinkUrl} isOwner={isOwner} />
-          )}
-
-          {/* ===== Today ===== */}
-          <SectionTitle id="today" icon={Sun}>Today</SectionTitle>
-          <CareToday petId={petId} meds={meds} setMeds={setMeds} canManage={canManage} />
-          <div className="mt-2">
-            <GoodStuff petId={petId} meds={meds} setMeds={setMeds} canManage={canManage} />
           </div>
+        )}
 
-          {/* ===== Health Book ===== */}
-          <SectionTitle id="health" icon={ShieldCheck}>Health Book</SectionTitle>
-          <HealthBook
-            petId={petId} pet={pet} setPet={setPet}
-            vaccinations={vaccinations} setVaccinations={setVaccinations}
-            weights={weights} setWeights={setWeights}
-            meds={meds} setMeds={setMeds} access={access}
+        {/* The profile's spine: how ready is this record for the worst day? */}
+        {!activeCase && (
+          <RescueReadiness
+            pet={pet}
+            photos={uniquePhotos}
+            personality={personality}
+            shares={shares}
+            viewLinkUrl={viewLinkUrl}
+            isOwner={isOwner}
           />
+        )}
 
-          {/* ===== About ===== */}
-          <SectionTitle id="about" icon={IdCard}>About {pet.name}</SectionTitle>
-          <Card padding="lg">
-            <dl className="space-y-3 text-sm">
-              {traitLine && (
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-midnight-500">Looks</dt>
-                  <dd className="font-semibold text-midnight-900 text-right">{traitLine}</dd>
-                </div>
+        {/* Today's care, one line */}
+        <Link href={`/pets/${petId}/today`} className="block group mb-3">
+          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
+            <div className="flex items-center gap-4">
+              <Pill size={20} className="text-midnight-300 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-midnight-900">Today</p>
+                <p className="text-sm text-midnight-500 truncate">
+                  {today.medCount === 0 && today.careCount === 0
+                    ? 'Nothing set up yet. Add meds or routines once, one tap forever.'
+                    : [
+                        today.due > 0 && `${today.given}/${today.due} doses given`,
+                        today.careDue > 0 && `${today.careDone}/${today.careDue} routines done`,
+                        today.careDue === 0 && today.careDone > 0 && `${today.careDone} happy ${today.careDone === 1 ? 'moment' : 'moments'} logged`,
+                        today.nextSlot && `next: ${today.nextSlot.med.name} at ${formatTime(today.nextSlot.slot.time)}`,
+                      ].filter(Boolean).join(' · ') || 'All clear today'}
+                </p>
+              </div>
+              {today.due > 0 && (
+                <span className={cn(
+                  'px-2.5 py-1 rounded-full text-xs font-bold shrink-0',
+                  today.given >= today.due ? 'bg-emerald-100 text-emerald-700' : 'bg-flash-100 text-flash-800'
+                )}>
+                  {today.given >= today.due ? 'Done' : `${today.due - today.given} to go`}
+                </span>
               )}
-              <IdRow label="Microchip" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
-                {pet.microchipId && <span className="font-mono text-xs">{pet.microchipId}</span>}
-              </IdRow>
-              <IdRow label="Collar" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>{pet.collarInfo}</IdRow>
-              {pet.distinctiveMarks && (
-                <div className="flex items-start justify-between gap-3">
-                  <dt className="text-midnight-500 shrink-0">Marks</dt>
-                  <dd className="text-midnight-800 text-right">{pet.distinctiveMarks}</dd>
-                </div>
-              )}
-              {pet.medicalConditions && (
-                <div className="flex items-start justify-between gap-3">
-                  <dt className="text-midnight-500 shrink-0">Medical</dt>
-                  <dd className="text-midnight-800 text-right">{pet.medicalConditions}</dd>
-                </div>
-              )}
-              {personality.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {personality.slice(0, 8).map((trait) => (
-                    <span key={trait} className="px-2.5 py-1 rounded-full bg-flash-50 border border-flash-200 text-flash-800 text-xs font-semibold">{trait}</span>
-                  ))}
-                </div>
-              )}
-            </dl>
+              <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </div>
+          </Card>
+        </Link>
 
-            {uniquePhotos.length >= 2 && (
-              <div className="mt-6 pt-5 border-t border-midnight-100">
-                <p className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.15em] text-midnight-400 mb-3"><Images size={13} /> Photos</p>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {uniquePhotos.slice(0, 10).map((url) => (
-                    <div key={url} className="aspect-square rounded-xl overflow-hidden bg-midnight-100">
-                      <img src={url} alt={pet.name} className="w-full h-full object-cover" loading="lazy" />
-                    </div>
-                  ))}
-                </div>
+        {/* The Health Book, one line */}
+        <Link href={`/pets/${petId}/health`} className="block group mb-3">
+          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
+            <div className="flex items-center gap-4">
+              <ShieldIcon size={20} className="text-midnight-300 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-midnight-900">Health Book</p>
+                <p className="text-sm text-midnight-500 truncate">
+                  {vaccinations === null
+                    ? '...'
+                    : healthBookStatus(vaccinations, pet.name).sentence}
+                </p>
+              </div>
+              <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </div>
+          </Card>
+        </Link>
+
+        {/* The people, one line */}
+        <Link href={`/pets/${petId}/share`} className="block group mb-6">
+          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
+            <div className="flex items-center gap-4">
+              <Users size={20} className="text-midnight-300 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-midnight-900">Care team</p>
+                <p className="text-sm text-midnight-500 truncate">
+                  {shares === null
+                    ? (isOwner ? '...' : `You help care for ${pet.name}.`)
+                    : shares.length === 0
+                      ? `Just you so far. Invite family or share a view link.`
+                      : shares.slice(0, 4).map((sh) => [sh.user?.firstName, sh.user?.lastName?.[0]].filter(Boolean).join(' ') || sh.email).join(', ')}
+                </p>
+              </div>
+              <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </div>
+          </Card>
+        </Link>
+
+        {/* About: the facts a finder or searcher would need */}
+        <Card padding="lg" className="mb-6">
+          <h2 className="font-bold text-midnight-900 mb-4">About {pet.name}</h2>
+          <dl className="space-y-3 text-sm">
+            {traitLine && (
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-midnight-500">Looks</dt>
+                <dd className="font-semibold text-midnight-900 text-right">{traitLine}</dd>
               </div>
             )}
-          </Card>
-
-          {/* ===== People ===== */}
-          <SectionTitle id="people" icon={Users} action={
-            <Link href={`/pets/${petId}/share`} className="text-sm font-bold text-midnight-400 hover:text-midnight-700">Manage</Link>
-          }>Care team</SectionTitle>
-          <Link href={`/pets/${petId}/share`} className="block group">
-            <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
-              <div className="flex items-center gap-4">
-                <Users size={20} className="text-midnight-300 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-midnight-900">The people who care for {pet.name}</p>
-                  <p className="text-sm text-midnight-500 truncate">{careTeamLine || 'Invite family, a sitter, or share a read-only link.'}</p>
-                </div>
-                <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            <IdRow label="Microchip" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
+              {pet.microchipId && <span className="font-mono text-xs">{pet.microchipId}</span>}
+            </IdRow>
+            <IdRow label="Collar" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
+              {pet.collarInfo}
+            </IdRow>
+            <IdRow label="Weight" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
+              {pet.weight ? `${pet.weight} lbs` : null}
+            </IdRow>
+            {pet.distinctiveMarks && (
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-midnight-500 shrink-0">Marks</dt>
+                <dd className="text-midnight-800 text-right">{pet.distinctiveMarks}</dd>
               </div>
-            </Card>
-          </Link>
+            )}
+            {pet.medicalConditions && (
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-midnight-500 shrink-0">Medical</dt>
+                <dd className="text-midnight-800 text-right">{pet.medicalConditions}</dd>
+              </div>
+            )}
+            {personality.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {personality.slice(0, 6).map((trait) => (
+                  <span key={trait} className="px-2.5 py-1 rounded-full bg-flash-50 border border-flash-200 text-flash-800 text-xs font-semibold">
+                    {trait}
+                  </span>
+                ))}
+              </div>
+            )}
+          </dl>
+        </Card>
 
-          <p className="text-center text-xs text-midnight-400 pt-10 pb-4">
-            A record you keep, not medical advice. Your vet&rsquo;s guidance comes first.
-          </p>
-        </div>
+        {/* Photos - only once there's more than the avatar already shows */}
+        {uniquePhotos.length >= 2 && (
+          <Card padding="lg" className="mb-6">
+            <h2 className="font-bold text-midnight-900 mb-4">Photos</h2>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {uniquePhotos.slice(0, 10).map((url) => (
+                <div key={url} className="aspect-square rounded-xl overflow-hidden bg-midnight-100">
+                  <img src={url} alt={pet.name} className="w-full h-full object-cover" loading="lazy" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Recent care history */}
+        {recent.length > 0 && (
+          <Card padding="lg" className="mb-6">
+            <h2 className="font-bold text-midnight-900 mb-3">Recent care</h2>
+            <ul className="divide-y divide-midnight-100">
+              {recent.map(({ med, dose, at }) => (
+                <li key={dose.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
+                  {med.kind === 'CARE' ? (
+                    <CareIconChip name={med.name} color={med.color} size="sm" />
+                  ) : (
+                    <MedIconChip med={med} size="sm" />
+                  )}
+                  <span className="flex-1 min-w-0 text-sm font-semibold text-midnight-800 truncate">{med.name}</span>
+                  <Badge variant={dose.status === 'GIVEN' ? 'success' : 'default'} size="sm">
+                    {dose.status === 'GIVEN' ? (med.kind === 'CARE' ? 'Done' : 'Given') : 'Skipped'}
+                  </Badge>
+                  <span className="text-xs text-midnight-500 whitespace-nowrap">
+                    {sameDay(at, new Date())
+                      ? at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                      : at.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -301,7 +301,7 @@ function MedicationWizard() {
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save');
-      router.push(`/pets/${petId}`);
+      router.push(`/pets/${petId}/medications`);
     } catch (err) {
       setError(err.message);
       setSaving(false);
@@ -329,10 +329,10 @@ function MedicationWizard() {
     <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-2xl mx-auto">
         <Link
-          href={`/pets/${petId}`}
+          href={`/pets/${petId}/medications`}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors mb-4"
         >
-          <ArrowLeft size={16} /> Back
+          <ArrowLeft size={16} /> Medications
         </Link>
 
         <h1 className="text-2xl md:text-3xl font-bold text-midnight-900 mb-1 text-center">
