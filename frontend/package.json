@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next && next build",
+    "build": "prisma generate && rm -rf .next && next build",
     "start": "prisma db push --skip-generate && node prisma/sync-legal-docs.js && next start -p ${PORT:-3000}",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
