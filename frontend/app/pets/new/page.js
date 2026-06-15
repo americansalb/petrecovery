@@ -464,7 +464,7 @@ export default function NewPetWizard() {
               )}
 
               {stepKey === 'about' && (
-                <StepShell icon={Dog} title="A few details" subtitle="All optional. Skip anything you're not sure of.">
+                <StepShell icon={Smile} title="A few details" subtitle="All optional. Skip anything you're not sure of.">
                   <div className="space-y-5">
                     <div>
                       <label className="block text-sm font-semibold text-midnight-800 mb-1.5">Sex</label>
