@@ -215,8 +215,21 @@ export default function CareLandingPage() {
         </div>
       </section>
 
-      {/* The four pillars */}
+      {/* The four pillars: the everyday product, sold on its own merits.
+          THIS is the reason to sign up. The rescue safety net further down
+          is a bonus on top, never the pitch. */}
       <section className="max-w-4xl mx-auto px-4 md:px-8 py-14">
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-amber-500 mb-3">Every single day</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-midnight-900 tracking-tight leading-tight">
+            The easiest way to take great care of them.
+          </h2>
+          <p className="text-midnight-600 text-lg mt-4">
+            One free place for all of it, the medical records and the daily joys
+            alike. Set it up once and it earns its keep on the ordinary days, not
+            just the hard ones.
+          </p>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {FEATURES.map(({ icon: Icon, tint, title, body }) => (
             <div key={title} className="bg-white border border-midnight-100 rounded-3xl p-6 transition-all hover:shadow-lg hover:shadow-midnight-200/50 hover:-translate-y-0.5">
@@ -248,14 +261,32 @@ export default function CareLandingPage() {
         </div>
       </section>
 
+      {/* The warm climax: the everyday product's emotional payoff. This is
+          the bright counterpart to the dark rescue card that follows, and it
+          keeps the page's center of gravity on the daily value, not the fear. */}
+      <section className="max-w-4xl mx-auto px-4 md:px-8 pb-6">
+        <div className="rounded-3xl bg-gradient-to-br from-flash-50 to-amber-100/60 border border-amber-100 p-8 md:p-12 text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-midnight-900 tracking-tight leading-tight max-w-2xl mx-auto">
+            Most days, it just makes loving them easier.
+          </h2>
+          <p className="text-midnight-700 text-[15px] md:text-base mt-4 max-w-2xl mx-auto leading-relaxed">
+            No more wondering whether the morning pill got given. No digging for
+            the vaccine card the night before boarding. No wall of instructions
+            texted to the sitter. Just a calm, organized place where all of it
+            lives, that you can share in a tap and never pay a cent for.
+          </p>
+        </div>
+      </section>
+
       {/* The worst day, made concrete. The dark register is the rescue/
-          shadow world reaching into the bright page. The pitch is the
-          MECHANIC: time is the whole game, and a profile you built on a
-          calm day turns the panic into one tap. */}
+          shadow world reaching into the bright page. It is framed as a BONUS
+          on top of the everyday value above ("And if..."), not the reason to
+          sign up. The pitch is the MECHANIC: time is the whole game, and a
+          profile you built on a calm day turns the panic into one tap. */}
       <section className="max-w-4xl mx-auto px-4 md:px-8 pb-16">
         <div className="bg-midnight-950 rounded-3xl p-8 md:p-12">
           <p className="text-center text-xs font-extrabold uppercase tracking-[0.2em] text-flash-400/80 mb-3">
-            If the worst day ever comes
+            And if the worst day ever comes
           </p>
           <h2 className="text-white font-bold text-2xl md:text-3xl text-center max-w-2xl mx-auto leading-tight">
             When a pet slips out, the first hour is the whole game.
