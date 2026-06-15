@@ -22,6 +22,7 @@ const RATE_LIMIT_CONFIG = {
   // Strict: Auth endpoints
   '/api/auth/register': { windowMs: 60000, maxRequests: 5 },
   '/api/auth/login': { windowMs: 60000, maxRequests: 10 },
+  '/api/mobile/auth/login': { windowMs: 60000, maxRequests: 10 },
   '/api/auth/forgot-password': { windowMs: 60000, maxRequests: 5 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
   '/api/geocode': { windowMs: 60000, maxRequests: 10 },
