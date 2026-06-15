@@ -8,22 +8,17 @@ dist
 .next
 *.tsbuildinfo
 
-# Capacitor / Native App
-# Keep ios/ and android/ directories but ignore build outputs
+# Capacitor — native build outputs (ios/ and android/ are generated on a
+# Mac via `npx cap add`; see docs/MOBILE_SETUP.md)
 ios/App/Pods/
 ios/App/Podfile.lock
 ios/App/App.xcworkspace/xcuserdata/
-ios/App/DerivedData/
-ios/capacitor-cordova-ios-plugins/
+ios/DerivedData/
 android/.gradle/
 android/app/build/
 android/build/
-android/capacitor-cordova-android-plugins/
 *.keystore
 *.jks
-
-# Keep the out directory for Capacitor but ignore Next.js static export
-frontend/out/_next/
 
 # Python
 __pycache__/

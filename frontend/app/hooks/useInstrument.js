@@ -10,13 +10,13 @@
  *             belongs in the app.
  *
  * Native always wins (a tablet running the app is still a field unit).
- * Resolution is async because Capacitor detection is; `resolving` lets
- * screens hold their primary CTA for a beat instead of flashing the
- * wrong one.
+ * Detection resolves just after mount (so the first paint matches the
+ * server and never flashes); `resolving` lets screens hold their primary
+ * CTA for that beat instead of showing the wrong one.
  */
 
 import { useState, useEffect } from 'react';
-import { isNativeAsync } from '@/app/lib/nativeGpsService';
+import { isNative as detectNative } from '@/app/lib/native';
 
 export const INSTRUMENTS = {
   COMMAND: 'command',
@@ -25,15 +25,16 @@ export const INSTRUMENTS = {
 };
 
 export default function useInstrument() {
-  const [isNative, setIsNative] = useState(null); // null while resolving
+  // Native detection (docs/MOBILE_APP_PLAN.md): false on the web, true only
+  // inside the Capacitor shell. Resolved in an effect so the first client
+  // render matches the server (never native) — no hydration flash.
+  const [isNative, setIsNative] = useState(false);
+  const [resolved, setResolved] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    let alive = true;
-    isNativeAsync()
-      .then((v) => { if (alive) setIsNative(!!v); })
-      .catch(() => { if (alive) setIsNative(false); });
-    return () => { alive = false; };
+    setIsNative(detectNative());
+    setResolved(true);
   }, []);
 
   useEffect(() => {
@@ -52,8 +53,8 @@ export default function useInstrument() {
 
   return {
     instrument,
-    isNative: !!isNative,
+    isNative,
     isDesktop,
-    resolving: isNative === null,
+    resolving: !resolved,
   };
 }
