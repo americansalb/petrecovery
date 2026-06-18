@@ -18,6 +18,17 @@ import prisma from './prisma';
 import bcrypt from 'bcryptjs';
 
 /**
+ * Founder admin(s): these emails are always treated as ADMIN, and the role is
+ * written to the database the first time they sign in. This bootstraps the
+ * very first admin (the chicken-and-egg: you need an admin to promote anyone,
+ * including yourself). After this, the founder promotes others from the admin
+ * UI; no SQL, no re-login.
+ */
+const FOUNDER_ADMIN_EMAILS = new Set([
+  'kevin.thakkar3791@gmail.com',
+]);
+
+/**
  * @type {import('next-auth').AuthOptions}
  * Typed so `session.strategy: 'jwt'` is the literal SessionStrategy (not widened
  * to `string`) — otherwise the 12 .ts routes calling getServerSession(authOptions)
@@ -301,6 +312,19 @@ export const authOptions = {
         if (session.firstName) token.firstName = session.firstName;
         if (session.lastName) token.lastName = session.lastName;
         if (session.role) token.role = session.role;
+      }
+
+      // Founder admins are always ADMIN. Persist it to the database once per
+      // session (the admin APIs re-check the DB role, so the token alone is
+      // not enough), and set token.role so the Admin menu lights up on the
+      // next page load without a re-login.
+      const founderEmail = (user?.email || token.email || '').toLowerCase();
+      if (founderEmail && FOUNDER_ADMIN_EMAILS.has(founderEmail)) {
+        token.role = 'ADMIN';
+        if (token.id && !token.founderAdminSynced) {
+          token.founderAdminSynced = true;
+          prisma.user.update({ where: { id: token.id }, data: { role: 'ADMIN' } }).catch(() => {});
+        }
       }
 
       return token;

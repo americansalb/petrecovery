@@ -11,7 +11,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ChevronLeft, ChevronRight, Mail, Phone, Calendar, Shield, Award,
-  PawPrint, Syringe, Pill, AlertTriangle, UserCheck,
+  PawPrint, Syringe, Pill, AlertTriangle, UserCheck, Loader2,
 } from 'lucide-react';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 
@@ -66,6 +66,27 @@ export default function AdminUserDetailPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [savingRole, setSavingRole] = useState(false);
+
+  const changeRole = async (role) => {
+    if (savingRole || role === user?.role) return;
+    setSavingRole(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update role');
+      setUser((u) => ({ ...u, role }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingRole(false);
+    }
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push(`/login?callbackUrl=/admin/users/${id}`);
@@ -117,13 +138,27 @@ export default function AdminUserDetailPage() {
             <h1 className="text-2xl font-bold text-gray-900 truncate">{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Unnamed user'}</h1>
             <p className="text-sm text-gray-500 truncate">{user.email}</p>
           </div>
-          {user.role === 'ADMIN' && (
-            <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700"><Shield className="w-3 h-3" /> Admin</span>
-          )}
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            <Shield className={`w-4 h-4 ${user.role === 'ADMIN' ? 'text-purple-600' : 'text-gray-300'}`} />
+            <select
+              value={user.role || 'USER'}
+              disabled={savingRole}
+              onChange={(e) => changeRole(e.target.value)}
+              className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              <option value="USER">User</option>
+              <option value="MODERATOR">Moderator</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+            {savingRole && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+        )}
         {/* Account facts */}
         <div className="bg-white rounded-lg shadow p-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div><p className="text-gray-500 flex items-center gap-1"><Mail className="w-3 h-3" /> Email</p><p className="font-medium text-gray-900 truncate">{user.email}</p></div>
