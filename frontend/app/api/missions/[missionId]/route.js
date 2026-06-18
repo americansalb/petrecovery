@@ -189,11 +189,33 @@ export async function GET(request, { params }) {
       }
     });
 
+    // Owner contact details are PII. This platform's whole contact model routes
+    // finder↔owner through the brokered relay (lib/relay.js) precisely so raw
+    // phone/email is never exposed until both sides opt in — so a case-detail
+    // read must not hand the owner's phone/email (or the reporter's email) to
+    // every waiver-accepting volunteer who can guess a case id. Only the case
+    // owner and admins see contact info; everyone else gets the operational
+    // case (pet, location, sightings, assignments) with contact PII stripped.
+    const isOwner = missionData.reporterId === session.user.id;
+    const isAdmin = session.user.role === 'ADMIN';
+    const canSeeContact = isOwner || isAdmin;
+
     // Normalize photo URL before returning
     const normalizedCase = {
       ...missionData,
       petPhotoUrl: normalizePhotoUrl(missionData.petPhotoUrl)
     };
+
+    if (!canSeeContact) {
+      normalizedCase.ownerPhone = null;
+      normalizedCase.ownerEmail = null;
+      if (normalizedCase.reporter) {
+        normalizedCase.reporter = {
+          id: normalizedCase.reporter.id,
+          firstName: normalizedCase.reporter.firstName,
+        };
+      }
+    }
 
     // Return case data directly (without wrapping in { case: ... })
     return NextResponse.json(normalizedCase);
