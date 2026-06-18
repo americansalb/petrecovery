@@ -13,6 +13,7 @@ import {
   timeOfDayBucket,
   isLowSupply,
   slotDate,
+  hasValidSchedule,
 } from '@/lib/medications';
 
 const day = (offset, hhmm = '00:00') => {
@@ -103,6 +104,39 @@ describe('schedule engine', () => {
     ];
     expect(adherenceForDay(med, doses, day(0))).toEqual({ due: 2, given: 1, skipped: 1 });
   });
+});
+
+describe('schedule integrity: fail-safe, never silently hide a med', () => {
+  test('EVERY_N_DAYS with a MISSING start date is shown, not silently hidden', () => {
+    const med = baseMed({ scheduleType: 'EVERY_N_DAYS', intervalDays: 3, startDate: null, timesOfDay: ['09:00'] });
+    expect(isDueOn(med, day(0))).toBe(true);          // visible, recoverable
+    expect(slotsForDate(med, day(0))).toHaveLength(1);
+  });
+
+  test('EVERY_N_DAYS with an INVALID start date does not NaN into hiding', () => {
+    const med = baseMed({ scheduleType: 'EVERY_N_DAYS', intervalDays: 2, startDate: 'not-a-date', timesOfDay: ['09:00'] });
+    expect(isDueOn(med, day(0))).toBe(true);
+  });
+
+  test('a valid anchor still computes the real cadence (no over-showing)', () => {
+    const med = baseMed({ scheduleType: 'EVERY_N_DAYS', intervalDays: 3, startDate: day(-6).toISOString(), timesOfDay: ['09:00'] });
+    expect(isDueOn(med, day(0))).toBe(true);   // -6, -3, 0
+    expect(isDueOn(med, day(-1))).toBe(false); // not every day
+  });
+
+  test('hasValidSchedule flags broken schedules so the UI can surface them', () => {
+    expect(hasValidSchedule(baseMed())).toBe(true);
+    expect(hasValidSchedule(baseMed({ scheduleType: 'EVERY_N_DAYS', intervalDays: 3 }))).toBe(true);
+    expect(hasValidSchedule(baseMed({ scheduleType: 'EVERY_N_DAYS', intervalDays: 3, startDate: null }))).toBe(false);
+    expect(hasValidSchedule(baseMed({ scheduleType: 'SPECIFIC_DAYS', daysOfWeek: JSON.stringify([]) }))).toBe(false);
+    expect(hasValidSchedule(baseMed({ scheduleType: 'AS_NEEDED' }))).toBe(true);
+  });
+
+  // KNOWN GAP: scheduled as a dedicated, migration-backed fix (see audit
+  // plan, finding #1): a dose's identity is an absolute instant computed in
+  // the LOGGER's timezone, so two caregivers in different timezones can each
+  // log the "same" 8 AM slot as two rows, defeating the double-dose guard.
+  test.todo('slot identity is timezone-independent across caregivers and edits');
 });
 
 describe('display helpers', () => {

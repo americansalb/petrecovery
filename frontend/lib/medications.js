@@ -98,6 +98,14 @@ function daysBetween(a, b) {
   return Math.round((startOfDay(b) - startOfDay(a)) / 86400000);
 }
 
+/** Parse a date defensively; returns null for missing/invalid input so the
+ *  schedule engine can never silently miscompute (NaN) on corrupt data. */
+function validDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function parseJsonArray(value, fallback = []) {
   if (Array.isArray(value)) return value;
   try {
@@ -128,12 +136,32 @@ export function isDueOn(med, day) {
     }
     case 'EVERY_N_DAYS': {
       const n = Math.max(1, med.intervalDays || 1);
-      const elapsed = daysBetween(new Date(med.startDate), d);
+      const anchor = validDate(med.startDate) || validDate(med.createdAt);
+      // Corrupt schedule data must never SILENTLY hide a medication. With no
+      // usable anchor, show it (visible, recoverable) rather than vanish it
+      // (silent, dangerous); hasValidSchedule lets the UI flag the breakage.
+      if (!anchor) return true;
+      const elapsed = daysBetween(anchor, d);
       return elapsed >= 0 && elapsed % n === 0;
     }
     case 'AS_NEEDED':
     default:
       return false; // PRN has no scheduled slots
+  }
+}
+
+/**
+ * Does a scheduled med have the data its cadence needs? Lets the UI flag a
+ * broken schedule loudly instead of silently mis-showing or hiding doses.
+ */
+export function hasValidSchedule(med) {
+  switch (med.scheduleType) {
+    case 'EVERY_N_DAYS':
+      return validDate(med.startDate) != null && Number(med.intervalDays) >= 1;
+    case 'SPECIFIC_DAYS':
+      return parseJsonArray(med.daysOfWeek).length > 0;
+    default:
+      return true;
   }
 }
 

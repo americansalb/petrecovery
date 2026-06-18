@@ -44,7 +44,12 @@ function readOutbox(petId) {
 function writeOutbox(petId, items) {
   try {
     localStorage.setItem(outboxKey(petId), JSON.stringify(items));
-  } catch { /* storage full or unavailable; nothing else to do */ }
+    return true;
+  } catch {
+    // Storage full/blocked/private-mode. The caller MUST surface this; we
+    // never let a dose look saved when the device couldn't store it.
+    return false;
+  }
 }
 
 function enqueueDose(petId, entry) {
@@ -52,8 +57,10 @@ function enqueueDose(petId, entry) {
     (i) => !(i.medId === entry.medId && i.scheduledFor === entry.scheduledFor)
   );
   items.push({ ...entry, queuedAt: new Date().toISOString() });
-  writeOutbox(petId, items);
-  return items.length;
+  const ok = writeOutbox(petId, items);
+  // count reflects what is actually persisted: on a failed write, re-read the
+  // unchanged store so we never report a dose as queued when it wasn't.
+  return { ok, count: ok ? items.length : readOutbox(petId).length };
 }
 
 function formatWhen(value) {
@@ -513,10 +520,15 @@ export default function TodayPage() {
           body: JSON.stringify(payload),
         });
       } catch {
-        // Network failure: keep the tap safe in the outbox and show it.
-        const count = enqueueDose(petId, { medId: med.id, scheduledFor: slot.scheduledFor.toISOString(), status: statusValue });
+        // Network failure: queue the tap on the device and retry on next load.
+        // If the device itself can't store it, NEVER claim it was saved.
+        const { ok, count } = enqueueDose(petId, { medId: med.id, scheduledFor: slot.scheduledFor.toISOString(), status: statusValue });
         setOutboxCount(count);
-        setNotice("You're offline. That dose is saved on this device and will sync automatically.");
+        if (ok) {
+          setNotice("You're offline. That dose is saved on this device and will sync automatically.");
+        } else {
+          setError("That tap was NOT saved: you're offline and this device's storage is full or blocked. Note the dose elsewhere and log it again once you're back online.");
+        }
         return;
       }
       const data = await res.json();
