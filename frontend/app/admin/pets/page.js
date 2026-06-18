@@ -271,7 +271,9 @@ export default function AdminPetsPage() {
                               </div>
                             )}
                             <div>
-                              <div className="font-medium text-midnight-900">{pet.name}</div>
+                              <Link href={`/admin/pets/${pet.id}`} className="font-medium text-midnight-900 hover:text-blue-600 hover:underline">
+                                {pet.name}
+                              </Link>
                               <div className="text-xs text-midnight-500">{pet.breed || '-'}</div>
                             </div>
                           </div>

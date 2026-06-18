@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Search, Users, Shield, ChevronLeft, ChevronRight,
-  Mail, Phone, Calendar, Award, UserCheck, AlertCircle
+  Mail, Phone, Calendar, Award, UserCheck, AlertCircle, PawPrint
 } from 'lucide-react';
 
 const RESCUE_LEVELS = {
@@ -260,6 +260,9 @@ export default function AdminUsersPage() {
                       Level
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Pets
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Activity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -273,7 +276,7 @@ export default function AdminUsersPage() {
                     const roleConfig = ROLES[user.role] || ROLES.USER;
 
                     return (
-                      <tr key={user.id} className="hover:bg-gray-50">
+                      <tr key={user.id} onClick={() => router.push(`/admin/users/${user.id}`)} className="hover:bg-blue-50/40 cursor-pointer">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-medium">
@@ -316,6 +319,12 @@ export default function AdminUsersPage() {
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${levelConfig.color}`}>
                             <Award className="w-3 h-3" />
                             {levelConfig.label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-900">
+                            <PawPrint className="w-4 h-4 text-gray-400" />
+                            {user._count?.pets || 0}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

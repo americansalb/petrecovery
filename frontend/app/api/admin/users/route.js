@@ -66,6 +66,7 @@ export async function GET(request) {
             select: {
               cases: true,
               rescueSquadMemberships: true,
+              pets: true,
             },
           },
         },

@@ -32,11 +32,25 @@ export async function GET(request, { params }) {
           orderBy: { createdAt: 'desc' },
           select: { id: true, caseNumber: true, petName: true, status: true },
         },
+        // The user's pets, each with a quick health summary, for the admin
+        // user-detail view. Full records live behind /admin/pets/[id].
+        pets: {
+          where: { isDeleted: false },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true, name: true, species: true, breed: true, age: true, sex: true,
+            color: true, size: true, weight: true, microchipId: true, primaryPhotoUrl: true,
+            createdAt: true,
+            cases: { select: { caseNumber: true, status: true }, orderBy: { createdAt: 'desc' }, take: 1 },
+            _count: { select: { vaccinations: true, medications: true, weightEntries: true } },
+          },
+        },
         _count: {
           select: {
             cases: true,
             caseParticipations: true,
             notifications: true,
+            pets: true,
           },
         },
       },

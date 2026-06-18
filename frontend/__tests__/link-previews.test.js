@@ -65,6 +65,8 @@ const KNOWN_PRIVATE = [
   'pets/[id]/today/page.js', // the daily checklist
   'messages/[id]/page.js', // private conversation
   'admin/missions/[missionId]/page.js', // admin-only
+  'admin/users/[id]/page.js', // admin-only user detail
+  'admin/pets/[id]/page.js', // admin-only pet record
   'missions/[missionNumber]/coordinate/page.js', // auth redirect into mission control
   'rescue-forces/[id]/command-center/page.js', // member surfaces
   'rescue-forces/[id]/divisions/page.js',
