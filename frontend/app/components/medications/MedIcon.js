@@ -26,7 +26,10 @@ export const MED_ICON_MAP = {
 };
 
 export function MedIcon({ icon, className }) {
-  const Icon = MED_ICON_MAP[icon] || Pill;
+  // Unknown/legacy tokens fall back to the pill glyph. Must be PillGlyph (the
+  // imported icon); a bare `Pill` here was an undefined-reference crash for any
+  // med whose icon token was not in the map.
+  const Icon = MED_ICON_MAP[icon] || PillGlyph;
   return <Icon className={className} />;
 }
 

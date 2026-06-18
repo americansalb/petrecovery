@@ -13,6 +13,7 @@ import {
   timeOfDayBucket,
   isLowSupply,
   slotDate,
+  slotKeyFor,
   hasValidSchedule,
 } from '@/lib/medications';
 
@@ -132,11 +133,29 @@ describe('schedule integrity: fail-safe, never silently hide a med', () => {
     expect(hasValidSchedule(baseMed({ scheduleType: 'AS_NEEDED' }))).toBe(true);
   });
 
-  // KNOWN GAP: scheduled as a dedicated, migration-backed fix (see audit
-  // plan, finding #1): a dose's identity is an absolute instant computed in
-  // the LOGGER's timezone, so two caregivers in different timezones can each
-  // log the "same" 8 AM slot as two rows, defeating the double-dose guard.
-  test.todo('slot identity is timezone-independent across caregivers and edits');
+  // FIXED (finding #1): dose identity is the timezone-independent slotKey.
+  test('slotKeyFor is a stable wall-clock key, independent of timezone', () => {
+    expect(slotKeyFor(new Date(2026, 5, 15), '08:00')).toBe('2026-06-15T08:00');
+  });
+
+  test('a slot matches by slotKey even when the logged instant differs (cross-timezone)', () => {
+    const med = baseMed();
+    const d = day(0);
+    // Another caregiver logged the SAME 8 AM slot from a different timezone:
+    // identical slotKey, but a raw instant 3 hours off. It must still resolve,
+    // so the second caregiver does not see it as un-given and re-dose.
+    const foreignInstant = new Date(slotDate(d, '08:00').getTime() + 3 * 3600 * 1000).toISOString();
+    const doses = [{ scheduledFor: foreignInstant, slotKey: slotKeyFor(d, '08:00'), status: 'GIVEN' }];
+    const slots = slotsWithStatus(med, doses, d);
+    expect(slots.find((s) => s.time === '08:00').status).toBe('GIVEN');
+    expect(slots.find((s) => s.time === '20:00').status).toBeNull();
+  });
+
+  test('legacy doses without a slotKey still match by raw instant', () => {
+    const med = baseMed();
+    const doses = [{ scheduledFor: slotDate(day(0), '08:00').toISOString(), status: 'GIVEN' }];
+    expect(slotsWithStatus(med, doses, day(0)).find((s) => s.time === '08:00').status).toBe('GIVEN');
+  });
 });
 
 describe('display helpers', () => {

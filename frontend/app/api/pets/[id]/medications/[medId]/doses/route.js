@@ -60,10 +60,22 @@ export async function POST(request, { params }) {
     const status = body.status === 'SKIPPED' ? 'SKIPPED' : 'GIVEN';
     const notes = (body.notes || '').trim().slice(0, 500) || null;
     const givenAt = status === 'GIVEN' ? new Date(body.givenAt || Date.now()) : null;
+    // Timezone-independent slot identity (new clients send it; legacy rows and
+    // PRN doses have none). It is what makes two caregivers in different
+    // timezones, or a re-timed schedule, resolve to the SAME dose row.
+    const slotKey = typeof body.slotKey === 'string' && body.slotKey ? body.slotKey : null;
 
-    const existing = await prisma.medicationDose.findUnique({
-      where: { medicationId_scheduledFor: { medicationId: medId, scheduledFor } },
-    });
+    // Find the slot's existing row by slotKey first (this recognizes a log made
+    // from another timezone, whose raw instant differs), then by instant for
+    // legacy rows that predate slotKey.
+    let existing = slotKey
+      ? await prisma.medicationDose.findFirst({ where: { medicationId: medId, slotKey } })
+      : null;
+    if (!existing) {
+      existing = await prisma.medicationDose.findUnique({
+        where: { medicationId_scheduledFor: { medicationId: medId, scheduledFor } },
+      });
+    }
 
     // Double-dose guard: a live GIVEN record is never overwritten by another
     // GIVEN. The second caregiver gets the original record back so their UI
@@ -82,11 +94,19 @@ export async function POST(request, { params }) {
     const isRevival = Boolean(existing);
 
     const result = await prisma.$transaction(async (tx) => {
-      const dose = await tx.medicationDose.upsert({
-        where: { medicationId_scheduledFor: { medicationId: medId, scheduledFor } },
-        update: { status, notes, givenAt, deletedAt: null },
-        create: { medicationId: medId, scheduledFor, status, notes, givenAt },
-      });
+      // Update the row we already identified (by slotKey or instant) in place,
+      // so a cross-timezone or re-timed log can never spawn a second row for
+      // the slot; backfill slotKey onto a legacy row the first time it is
+      // touched. Otherwise create it. The (medicationId, scheduledFor) unique
+      // still backstops same-timezone races at the database level.
+      const dose = existing
+        ? await tx.medicationDose.update({
+            where: { id: existing.id },
+            data: { status, notes, givenAt, deletedAt: null, slotKey: existing.slotKey ?? slotKey },
+          })
+        : await tx.medicationDose.create({
+            data: { medicationId: medId, scheduledFor, slotKey, status, notes, givenAt },
+          });
 
       const updatedMed = await tx.petMedication.update({
         where: { id: medId },
@@ -126,14 +146,24 @@ export async function DELETE(request, { params }) {
     if (!medication) return NextResponse.json({ error: 'Medication not found' }, { status: 404 });
 
     const { searchParams } = new URL(request.url);
-    const scheduledFor = new Date(searchParams.get('scheduledFor'));
-    if (Number.isNaN(scheduledFor.getTime())) {
-      return NextResponse.json({ error: 'Invalid scheduledFor' }, { status: 400 });
+    const slotKey = searchParams.get('slotKey') || null;
+    const scheduledForRaw = searchParams.get('scheduledFor');
+    const scheduledFor = scheduledForRaw ? new Date(scheduledForRaw) : null;
+    const instantValid = scheduledFor && !Number.isNaN(scheduledFor.getTime());
+    if (!slotKey && !instantValid) {
+      return NextResponse.json({ error: 'Invalid slot' }, { status: 400 });
     }
 
-    const existing = await prisma.medicationDose.findUnique({
-      where: { medicationId_scheduledFor: { medicationId: medId, scheduledFor } },
-    });
+    // Resolve the row the same way POST does, so an undo works from any
+    // timezone (by slotKey), falling back to the raw instant for legacy rows.
+    let existing = slotKey
+      ? await prisma.medicationDose.findFirst({ where: { medicationId: medId, slotKey } })
+      : null;
+    if (!existing && instantValid) {
+      existing = await prisma.medicationDose.findUnique({
+        where: { medicationId_scheduledFor: { medicationId: medId, scheduledFor } },
+      });
+    }
     if (!existing || existing.deletedAt) {
       return NextResponse.json({ error: 'No log for that slot' }, { status: 404 });
     }

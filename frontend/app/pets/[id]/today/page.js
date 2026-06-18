@@ -449,7 +449,7 @@ export default function TodayPage() {
         const res = await fetch(`/api/pets/${petId}/medications/${item.medId}/doses`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scheduledFor: item.scheduledFor, status: item.status }),
+          body: JSON.stringify({ scheduledFor: item.scheduledFor, slotKey: item.slotKey, status: item.status }),
         });
         if (!res.ok && res.status !== 409) remaining.push(item);
       } catch {
@@ -496,7 +496,13 @@ export default function TodayPage() {
   const applyDose = (medId, dose, quantityRemaining, removed = false) => {
     setMeds((prev) => prev.map((m) => {
       if (m.id !== medId) return m;
-      const doses = (m.doses || []).filter((d) => new Date(d.scheduledFor).getTime() !== new Date(dose.scheduledFor).getTime());
+      // Identify the slot's row by slotKey when both have one, else by instant,
+      // so a cross-timezone update replaces the right local row, never doubles.
+      const sameSlot = (d) =>
+        (dose.slotKey && d.slotKey)
+          ? d.slotKey === dose.slotKey
+          : new Date(d.scheduledFor).getTime() === new Date(dose.scheduledFor).getTime();
+      const doses = (m.doses || []).filter((d) => !sameSlot(d));
       if (!removed) doses.unshift(dose);
       return { ...m, doses, quantityRemaining: quantityRemaining !== undefined ? quantityRemaining : m.quantityRemaining };
     }));
@@ -509,6 +515,7 @@ export default function TodayPage() {
       const isBackfill = !sameDay(slot.scheduledFor, new Date()) && slot.scheduledFor < new Date();
       const payload = {
         scheduledFor: slot.scheduledFor.toISOString(),
+        slotKey: slot.slotKey,
         status: statusValue,
         ...(statusValue === 'GIVEN' && isBackfill ? { givenAt: slot.scheduledFor.toISOString() } : {}),
       };
@@ -522,7 +529,7 @@ export default function TodayPage() {
       } catch {
         // Network failure: queue the tap on the device and retry on next load.
         // If the device itself can't store it, NEVER claim it was saved.
-        const { ok, count } = enqueueDose(petId, { medId: med.id, scheduledFor: slot.scheduledFor.toISOString(), status: statusValue });
+        const { ok, count } = enqueueDose(petId, { medId: med.id, scheduledFor: slot.scheduledFor.toISOString(), slotKey: slot.slotKey, status: statusValue });
         setOutboxCount(count);
         if (ok) {
           setNotice("You're offline. That dose is saved on this device and will sync automatically.");
@@ -543,12 +550,12 @@ export default function TodayPage() {
   const undoDose = (med, slot) =>
     withBusy(`${med.id}-${slot.scheduledFor.getTime()}`, async () => {
       const res = await fetch(
-        `/api/pets/${petId}/medications/${med.id}/doses?scheduledFor=${encodeURIComponent(slot.scheduledFor.toISOString())}`,
+        `/api/pets/${petId}/medications/${med.id}/doses?scheduledFor=${encodeURIComponent(slot.scheduledFor.toISOString())}${slot.slotKey ? `&slotKey=${encodeURIComponent(slot.slotKey)}` : ''}`,
         { method: 'DELETE' }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to undo');
-      applyDose(med.id, { scheduledFor: slot.scheduledFor.toISOString() }, data.quantityRemaining, true);
+      applyDose(med.id, { scheduledFor: slot.scheduledFor.toISOString(), slotKey: slot.slotKey }, data.quantityRemaining, true);
     });
 
   // Historical as-needed dose: anchored to noon of the chosen day so the

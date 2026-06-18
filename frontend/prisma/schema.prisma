@@ -541,7 +541,12 @@ model MedicationDose {
   medicationId    String
   medication      PetMedication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
 
-  scheduledFor    DateTime   // slot identity (or actual time for AS_NEEDED)
+  scheduledFor    DateTime   // raw instant: kept for display, sort, legacy match
+  // Timezone-independent slot identity: a local "YYYY-MM-DDTHH:MM" wall-clock
+  // string, identical on every device. Two caregivers in different timezones
+  // (or a med whose times were edited) collapse to ONE row instead of double-
+  // dosing. Null on legacy rows and on AS_NEEDED (PRN) doses.
+  slotKey         String?
   status          DoseStatus @default(GIVEN)
   givenAt         DateTime?  // when actually administered
   notes           String?
@@ -551,6 +556,11 @@ model MedicationDose {
 
   // One log per slot - checking off the same slot twice updates, not duplicates
   @@unique([medicationId, scheduledFor])
+  // slotKey is the tz-independent identity; dedup is enforced in the dose API
+  // (find-by-slotKey before insert). Not a DB unique because adding one to a
+  // live table forces --accept-data-loss, which the deploy's `db push` must
+  // never carry. This index keeps that lookup fast.
+  @@index([medicationId, slotKey])
   @@index([medicationId, scheduledFor])
 }
 

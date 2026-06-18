@@ -75,12 +75,27 @@ export function formatTime(hhmm) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-/** Local Date for a calendar day + "HH:MM" — the canonical slot identity. */
+/** Local Date for a calendar day + "HH:MM". The raw instant, kept for display
+ *  and sorting; the timezone-independent identity is slotKeyFor (below). */
 export function slotDate(day, hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
   const d = new Date(day);
   d.setHours(h, m, 0, 0);
   return d;
+}
+
+/**
+ * Timezone-independent slot identity: the LOCAL calendar day + "HH:MM" as a
+ * "YYYY-MM-DDTHH:MM" string. It is the same on every device for the same
+ * displayed slot, so caregivers in different timezones (or a med whose times
+ * were edited) resolve to ONE dose instead of double-dosing on it.
+ */
+export function slotKeyFor(day, hhmm) {
+  const d = new Date(day);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${da}T${hhmm}`;
 }
 
 /** Midnight (local) for a date. */
@@ -174,7 +189,7 @@ export function slotsForDate(med, day) {
   const times = parseJsonArray(med.timesOfDay);
   return [...times]
     .sort()
-    .map((time) => ({ time, scheduledFor: slotDate(day, time) }));
+    .map((time) => ({ time, scheduledFor: slotDate(day, time), slotKey: slotKeyFor(day, time) }));
 }
 
 /**
@@ -182,11 +197,17 @@ export function slotsForDate(med, day) {
  * `doses` is the raw array from the API (scheduledFor as ISO strings).
  */
 export function slotsWithStatus(med, doses, day) {
-  const byTime = new Map(
-    (doses || []).map((d) => [new Date(d.scheduledFor).getTime(), d])
-  );
+  // Two ways to find the dose for a slot: by the tz-independent slotKey (the
+  // identity for doses logged once slotKey existed) and by the raw instant
+  // (the fallback for legacy doses that predate it).
+  const bySlotKey = new Map();
+  const byInstant = new Map();
+  for (const d of doses || []) {
+    if (d.slotKey) bySlotKey.set(d.slotKey, d);
+    byInstant.set(new Date(d.scheduledFor).getTime(), d);
+  }
   return slotsForDate(med, day).map((slot) => {
-    const dose = byTime.get(slot.scheduledFor.getTime()) || null;
+    const dose = bySlotKey.get(slot.slotKey) || byInstant.get(slot.scheduledFor.getTime()) || null;
     return { ...slot, dose, status: dose ? dose.status : null };
   });
 }
