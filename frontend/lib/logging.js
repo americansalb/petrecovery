@@ -160,6 +160,19 @@ async function emitEvent(event) {
       // Don't throw - logging failures shouldn't crash the app
       console.error('⚠️  [EventLog] Failed to persist event to database:', dbError.message);
     }
+
+    // Forward GENUINE server faults to Sentry (errors-only, quota-safe). We only
+    // send INTERNAL_ERROR failures — real bugs — never routine 4xx denials
+    // (UNAUTHORIZED / FORBIDDEN / NOT_FOUND / WAIVER_NOT_ACCEPTED etc.), which
+    // keeps the event volume tiny. No-op unless SENTRY_DSN is configured.
+    if (event.result === 'failure' && event.error_code === 'INTERNAL_ERROR') {
+      try {
+        const { captureServerError } = await import('@/app/lib/observability');
+        await captureServerError(event);
+      } catch {
+        // Monitoring must never break logging.
+      }
+    }
   }
 }
 

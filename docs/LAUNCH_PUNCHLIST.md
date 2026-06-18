@@ -21,6 +21,7 @@ Code-level launch hardening found by reading the actual implementation
 |-----|---------|---------|
 | `ENABLE_ADMIN_MAINTENANCE` | unset (disabled) | Set to `true` only when you intentionally need to wipe squads, run a raw migration, or regenerate Prisma. Leave **unset in production**. |
 | `FOUNDER_ADMIN_EMAILS` | unset | Optional comma-separated list of emails to grant ADMIN on login, without a code change. |
+| `SENTRY_DSN` | unset | Turns on **server-side** error monitoring. Paste the "Copy DSN" value from your Sentry project into the deploy env. Dormant (no-op) when unset. |
 
 ## Residual (operational — not code)
 
@@ -28,11 +29,15 @@ Code-level launch hardening found by reading the actual implementation
   stay auth-blocked until their live DB passwords are rotated and
   `SEC18_ROTATED=true` is set. The owner does **not** need this — log in as
   `payments@aalb.org` (now a founder admin).
-- **Error monitoring (Sentry):** browser-side is now wired — the Sentry loader
-  script loads in production and `error.js` + `ErrorBoundary` report React
-  crashes to it. This covers what users hit in the browser. **Server-side**
-  capture (API/route-handler failures) is the remaining piece — it needs the
-  `@sentry/nextjs` SDK and is a careful, separate change.
+- **Error monitoring (Sentry):** both sides wired, configured **errors-only** to
+  protect the free-tier quota.
+  - *Browser:* the loader script loads in production; `error.js` + `ErrorBoundary`
+    report React crashes. **Quota action for you:** in the Sentry project's
+    Loader Script settings, turn **off** "Tracing" and "Session Replay" (keep
+    "Error Monitoring") — those defaults are the biggest quota users.
+  - *Server:* `@sentry/node` with `tracesSampleRate: 0`; only genuine
+    `INTERNAL_ERROR` failures are forwarded (via the `logEvent` chokepoint), so
+    volume stays tiny. Set `SENTRY_DSN` in the deploy env to switch it on.
 - **Rate limiting:** still in-memory in `middleware.js`. Moving it to the
   already-present Redis (so limits survive restarts / multiple instances) is
   fiddly because middleware runs in the edge runtime — worth doing carefully,
