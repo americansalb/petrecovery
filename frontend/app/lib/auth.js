@@ -26,6 +26,16 @@ import bcrypt from 'bcryptjs';
  */
 const FOUNDER_ADMIN_EMAILS = new Set([
   'kevin.thakkar3791@gmail.com',
+  // AALB owner. Uses payments@aalb.org (the account on file) rather than the
+  // SEC-18-blocked contact@aalb.org, so the owner gets ADMIN on next login
+  // without touching the SEC-18 mitigation or rotating a seeded password.
+  'payments@aalb.org',
+  // Add or change founder admins without a code change via the
+  // FOUNDER_ADMIN_EMAILS env var (comma-separated). Lowercased + trimmed.
+  ...(process.env.FOUNDER_ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
 ]);
 
 /**

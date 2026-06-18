@@ -30,6 +30,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Maintenance tool (runs a shell command) — off by default. The build and
+    // start scripts already run `prisma generate` / `db push`, so this is only an
+    // emergency lever. Set ENABLE_ADMIN_MAINTENANCE=true to run intentionally.
+    if (process.env.ENABLE_ADMIN_MAINTENANCE !== 'true') {
+      return NextResponse.json(
+        { error: 'Maintenance tools are disabled. Set ENABLE_ADMIN_MAINTENANCE=true to enable.' },
+        { status: 403 }
+      );
+    }
+
     console.log('[PRISMA-GENERATE] Starting Prisma client generation...');
     console.log('[PRISMA-GENERATE] User:', session.user.email);
 

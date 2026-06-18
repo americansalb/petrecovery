@@ -358,12 +358,30 @@ export async function POST(request) {
 
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
 
-      // If no squads cover this location, auto-create one for this city AND find nearby squads
+      // If no squads cover this location, reuse-or-create one for this city AND find nearby squads
       if (squadsToNotify.length === 0 && cityName) {
-        console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
+        // Dedup guard: the coverage + exact-city checks above can still miss an
+        // existing force for this city — its center may sit outside this report's
+        // radius, or its stored city string differs in case/spacing. Reuse it
+        // instead of spawning a duplicate "<City> Pet Rescue". One force per city
+        // is the design (VISION.md), so match case-insensitively on city OR the
+        // canonical auto-created name before creating anything.
+        const existingForce = await prisma.rescueForce.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              { city: { equals: cityName, mode: 'insensitive' } },
+              { name: { equals: `${cityName} Pet Rescue`, mode: 'insensitive' } },
+            ],
+          },
+          select: {
+            id: true, name: true, city: true,
+            centerLatitude: true, centerLongitude: true, radiusMiles: true,
+          },
+        });
 
-        // Auto-create a rescue force for this city
-        const newSquad = await prisma.rescueForce.create({
+        const isAutoCreated = !existingForce;
+        const newSquad = existingForce || await prisma.rescueForce.create({
           data: {
             name: `${cityName} Pet Rescue`,
             city: cityName,
@@ -376,14 +394,20 @@ export async function POST(request) {
           },
         });
 
-        console.log('[Report Debug] Auto-created squad:', { id: newSquad.id, name: newSquad.name });
+        console.log(`[Report Debug] ${isAutoCreated ? 'Auto-created' : 'Reusing existing'} squad:`, { id: newSquad.id, name: newSquad.name });
 
-        // Add the auto-created squad to the list
+        // Distance from this report to the force center (0 for a brand-new force
+        // centered on the report; the real distance for a reused existing force).
+        const forceDistance = (newSquad.centerLatitude != null && newSquad.centerLongitude != null)
+          ? calculateDistance(center[0], center[1], newSquad.centerLatitude, newSquad.centerLongitude)
+          : 0;
+
+        // Add the squad to the list
         squadsToNotify.push({
           ...newSquad,
-          distance: 0,
-          effectiveRadius: newSquad.radiusMiles + COVERAGE_BUFFER,
-          isAutoCreated: true,
+          distance: forceDistance,
+          effectiveRadius: (newSquad.radiusMiles || 5) + COVERAGE_BUFFER,
+          isAutoCreated,
         });
 
         // Also find squads within 10 miles as "nearby assist" squads
@@ -584,20 +608,23 @@ export async function POST(request) {
         // Send verification email (will be implemented in Phase 3.1)
         sendEmail({
           to: email,
-          subject: 'Welcome to ReunitePets.org - Verify Your Email',
+          subject: `Your lost pet report for ${petName} is live — ReunitePets.org`,
           html: `
-            <h2>Welcome to ReunitePets.org, ${firstName}!</h2>
-            <p>Thank you for creating an account. Your lost pet report for <strong>${petName}</strong> has been submitted successfully.</p>
-            <p><strong>Case Number:</strong> ${report.caseNumber}</p>
-            <p>You can now log in with your email (${email}) and the password you created.</p>
-            <p><strong>Next steps:</strong></p>
-            <ul>
-              <li>Log in to view your case dashboard</li>
-              <li>Coordinate with your assigned rescue force</li>
-              <li>Update information as needed</li>
-            </ul>
-            <p>We'll send you updates when volunteers report sightings.</p>
-            <p>Email verification link will be sent separately (coming soon).</p>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #dc2626;">Welcome to ReunitePets.org, ${firstName}!</h2>
+              <p>Your lost pet report for <strong>${petName}</strong> is live. Your account is ready — log in any time with your email (${email}) and the password you created.</p>
+              <p><strong>Case Number:</strong> ${report.caseNumber}</p>
+              <p><strong>Next steps:</strong></p>
+              <ul>
+                <li>View your pet's page and share it to get more eyes on the search</li>
+                <li>Coordinate with your assigned rescue force</li>
+                <li>Update details any time from your dashboard</li>
+              </ul>
+              <p style="text-align:center;margin:24px 0;">
+                <a href="${getEmailBaseUrl()}/cases/${report.caseNumber}" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">View your pet's page</a>
+              </p>
+              <p>We'll email you the moment someone reports a sighting.</p>
+            </div>
           `
         }).catch(err => {
           logEvent({
@@ -618,16 +645,19 @@ export async function POST(request) {
       // Send "claim your report" email (will be fully implemented in Phase 3.3)
       sendEmail({
         to: email,
-        subject: 'Lost Pet Report Submitted - Track Your Case',
+        subject: `Your lost pet report for ${petName} is live — ReunitePets.org`,
         html: `
-          <h2>Lost Pet Report Submitted</h2>
-          <p>Hi ${firstName},</p>
-          <p>Your lost pet report for <strong>${petName}</strong> has been submitted.</p>
-          <p><strong>Case Number:</strong> ${report.caseNumber}</p>
-          <p>We'll notify you by email if anyone spots your pet.</p>
-          <p><strong>Want to track progress and coordinate with volunteers?</strong></p>
-          <p>Create an account to access your case dashboard and work with your rescue force.</p>
-          <p>[Claim Report button will be added in Phase 3.3]</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #dc2626;">Lost pet report submitted</h2>
+            <p>Hi ${firstName},</p>
+            <p>Your lost pet report for <strong>${petName}</strong> is live, and your local rescue force has been alerted.</p>
+            <p><strong>Case Number:</strong> ${report.caseNumber}</p>
+            <p style="text-align:center;margin:24px 0;">
+              <a href="${getEmailBaseUrl()}/cases/${report.caseNumber}" style="display:inline-block;background:#dc2626;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">View your pet's page</a>
+            </p>
+            <p>Share that link on social media and with neighbors — more eyes nearby is the single most effective thing you can do right now.</p>
+            <p>We'll email you the moment someone reports a sighting.</p>
+          </div>
         `
       }).catch(err => {
         logEvent({

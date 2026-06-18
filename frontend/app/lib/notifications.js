@@ -545,12 +545,12 @@ export async function sendFoundPetNotification(data) {
             </p>
 
             <div style="background: ${urgencyColor}22; border: 2px solid ${urgencyColor}; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-              <p style="margin: 0; font-size: 14px; color: #666;">Match Confidence</p>
-              <p style="margin: 10px 0 0 0; font-size: 36px; font-weight: bold; color: ${urgencyColor};">
-                ${matchScore}%
+              <p style="margin: 0; font-size: 14px; color: #666;">How strong is this match?</p>
+              <p style="margin: 10px 0 0 0; font-size: 30px; font-weight: bold; color: ${urgencyColor};">
+                ${matchQuality} match
               </p>
-              <p style="margin: 5px 0 0 0; color: ${urgencyColor}; font-weight: 600;">
-                ${matchQuality} Match
+              <p style="margin: 8px 0 0 0; color: #666; font-size: 13px;">
+                Based on species, location, breed, color and timing. Please look closely at the photos and decide for yourself.
               </p>
             </div>
 
@@ -586,7 +586,7 @@ export async function sendFoundPetNotification(data) {
 
     const result = await sendEmail({
       to,
-      subject: `${matchQuality} Match Found for ${lostPetName}! (${matchScore}% confidence)`,
+      subject: `${matchQuality} match found for ${lostPetName}!`,
       html
     });
 

@@ -36,6 +36,7 @@ function call() {
 describe('SEC-14: POST /api/admin/wipe-squads is admin-only', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.ENABLE_ADMIN_MAINTENANCE; // gated off by default
     getServerSession.mockResolvedValue({ user: { id: 'u1', email: 'u@x.com' } });
     isAdmin.mockResolvedValue(false);
     // Make the admin happy-path complete without throwing.
@@ -64,8 +65,16 @@ describe('SEC-14: POST /api/admin/wipe-squads is admin-only', () => {
     expect(prisma.caseAssignment.deleteMany).not.toHaveBeenCalled();
   });
 
-  test('an admin is allowed to run the wipe (gate passes through)', async () => {
+  test('even an admin is BLOCKED by default (maintenance disabled) AND nothing is wiped', async () => {
+    isAdmin.mockResolvedValue(true); // env intentionally unset — see beforeEach
+    const res = await call();
+    expect(res.status).toBe(403);
+    expect(prisma.rescueForce.deleteMany).not.toHaveBeenCalled();
+  });
+
+  test('an admin WITH maintenance explicitly enabled can run the wipe', async () => {
     isAdmin.mockResolvedValue(true);
+    process.env.ENABLE_ADMIN_MAINTENANCE = 'true';
     const res = await call();
     expect(res.status).toBeLessThan(400);
     expect(prisma.rescueForce.deleteMany).toHaveBeenCalled();

@@ -27,6 +27,17 @@ export async function POST(request) {
     }
     console.log(`✅ Authenticated as admin: ${session.user?.email || session.user?.id}`);
 
+    // Destructive tool — off by default so the entire rescue-force dataset can't
+    // be wiped in production (even by an admin) by accident or a stray click.
+    // Set ENABLE_ADMIN_MAINTENANCE=true to run intentionally.
+    if (process.env.ENABLE_ADMIN_MAINTENANCE !== 'true') {
+      console.log('❌ Maintenance tools disabled (ENABLE_ADMIN_MAINTENANCE != true)');
+      return NextResponse.json(
+        { error: 'Maintenance tools are disabled. Set ENABLE_ADMIN_MAINTENANCE=true to enable.' },
+        { status: 403 }
+      );
+    }
+
     // Step 2: Count existing data
     console.log('\n📊 Step 2: Counting existing data...');
     try {
