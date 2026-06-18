@@ -28,6 +28,12 @@ Code-level launch hardening found by reading the actual implementation
   stay auth-blocked until their live DB passwords are rotated and
   `SEC18_ROTATED=true` is set. The owner does **not** need this — log in as
   `payments@aalb.org` (now a founder admin).
-- **Production ops still pending** (separate from this branch): wire Sentry
-  (errors currently fail silently) and move the in-memory rate limiter to the
-  already-present Redis so limits survive restarts / multiple instances.
+- **Error monitoring (Sentry):** browser-side is now wired — the Sentry loader
+  script loads in production and `error.js` + `ErrorBoundary` report React
+  crashes to it. This covers what users hit in the browser. **Server-side**
+  capture (API/route-handler failures) is the remaining piece — it needs the
+  `@sentry/nextjs` SDK and is a careful, separate change.
+- **Rate limiting:** still in-memory in `middleware.js`. Moving it to the
+  already-present Redis (so limits survive restarts / multiple instances) is
+  fiddly because middleware runs in the edge runtime — worth doing carefully,
+  not rushed.

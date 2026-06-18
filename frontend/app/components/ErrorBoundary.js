@@ -39,8 +39,13 @@ class ErrorBoundary extends React.Component {
       errorInfo: errorInfo
     });
 
-    // TODO: Send error to logging service in production
-    // Example: sendToErrorService({ error, errorInfo });
+    // Report to Sentry. The browser loader script installs window.Sentry (and
+    // buffers calls until the SDK finishes loading); safe no-op without it.
+    if (typeof window !== 'undefined' && window.Sentry) {
+      window.Sentry.captureException(error, {
+        extra: { componentStack: errorInfo?.componentStack },
+      });
+    }
   }
 
   handleReload = () => {

@@ -20,7 +20,12 @@ export default function Error({ error, reset }) {
     console.error(`[ERROR-PAGE] Timestamp: ${new Date().toISOString()}`);
     console.error('========================================');
 
-    // TODO: Send to error tracking service in production
+    // Report to Sentry. The browser loader script installs window.Sentry (and
+    // buffers calls until the SDK finishes loading); this is a safe no-op in
+    // dev / anywhere the loader isn't present.
+    if (typeof window !== 'undefined' && window.Sentry) {
+      window.Sentry.captureException(error);
+    }
   }, [error]);
 
   const handleRetry = () => {

@@ -1,4 +1,5 @@
 import './globals.css';
+import Script from 'next/script';
 import { Inter } from 'next/font/google';
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
@@ -53,6 +54,16 @@ export default function RootLayout({ children }) {
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossOrigin=""
         />
+        {/* Sentry browser error monitoring (loader script). Production only so
+            local-dev errors don't burn the quota. The id in the URL is a public
+            client-side identifier by design — safe to ship. */}
+        {process.env.NODE_ENV === 'production' && (
+          <Script
+            src="https://js.sentry-cdn.com/da308880e7ca45e1b66322014bd4849d.min.js"
+            crossOrigin="anonymous"
+            strategy="beforeInteractive"
+          />
+        )}
       </head>
       <body className="m-0 p-0 font-sans antialiased bg-midnight-50 text-midnight-900">
         <SessionProvider>
