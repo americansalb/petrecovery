@@ -13,7 +13,6 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
@@ -187,13 +186,29 @@ function Hero({ metrics }) {
 /* ------------------------ Geography entry (canonical) --------------------- */
 
 function FindYourForce() {
-  const router = useRouter();
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState(null); // null until the first search
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState('');
 
-  const go = (e) => {
+  // Search in place — nobody gets shipped to another page mid-thought.
+  const go = async (e) => {
     e.preventDefault();
     const q = query.trim();
-    router.push(q ? `/rescue-forces/search?q=${encodeURIComponent(q)}` : '/rescue-forces/search');
+    if (!q || searching) return;
+    setSearching(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/rescue-forces?search=${encodeURIComponent(q)}&radius=25&country=US`);
+      if (!res.ok) throw new Error('search failed');
+      const data = await res.json();
+      setResults((data.cities || []).slice(0, 4));
+    } catch {
+      setResults(null);
+      setError('Search hit a snag — try again, or browse all forces.');
+    } finally {
+      setSearching(false);
+    }
   };
 
   return (
@@ -222,12 +237,74 @@ function FindYourForce() {
           </div>
           <button
             type="submit"
-            className="inline-flex items-center justify-center gap-2 bg-midnight-900 hover:bg-midnight-800 text-white font-bold px-7 py-3.5 rounded-2xl transition-colors"
+            disabled={searching}
+            className="inline-flex items-center justify-center gap-2 bg-midnight-900 hover:bg-midnight-800 disabled:opacity-60 text-white font-bold px-7 py-3.5 rounded-2xl transition-colors"
           >
-            <Search className="w-5 h-5" />
-            Search
+            <Search className={cn('w-5 h-5', searching && 'animate-pulse-soft')} />
+            {searching ? 'Searching…' : 'Search'}
           </button>
         </form>
+
+        {error && <p className="text-rose-600 text-sm font-semibold mt-4">{error}</p>}
+
+        {results !== null && (
+          <div className="mt-5 space-y-2.5">
+            {results.length === 0 && (
+              <p className="text-midnight-500 text-sm">
+                No matches for &ldquo;{query}&rdquo; — try your city name or a ZIP code.
+              </p>
+            )}
+            {results.map((c) =>
+              c.exists && c.squad ? (
+                <Link
+                  key={`${c.city}-${c.state}`}
+                  href={`/rescue-forces/${c.squad.id}`}
+                  className="group flex items-center gap-3 rounded-2xl border border-midnight-100 bg-midnight-50 hover:border-flash-400 hover:bg-flash-50 px-4 py-3.5 transition-colors"
+                >
+                  <span className="w-9 h-9 rounded-xl bg-midnight-900 text-flash-400 flex items-center justify-center shrink-0">
+                    <Shield className="w-[18px] h-[18px]" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-bold text-midnight-900 truncate">{c.squad.name}</span>
+                    <span className="block text-midnight-500 text-sm truncate">
+                      {c.city}, {c.state} · {c.squad.memberCount} member{c.squad.memberCount !== 1 ? 's' : ''}
+                      {c.squad.successfulReunions > 0 && ` · ${c.squad.successfulReunions} reunions`}
+                    </span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-midnight-900 group-hover:text-flash-700 shrink-0 transition-colors">
+                    View <ArrowRight className="w-4 h-4" />
+                  </span>
+                </Link>
+              ) : (
+                <Link
+                  key={`${c.city}-${c.state}`}
+                  href={`/rescue-forces/search?q=${encodeURIComponent(`${c.city}, ${c.state}`)}`}
+                  className="group flex items-center gap-3 rounded-2xl border-2 border-dashed border-midnight-200 hover:border-flash-400 px-4 py-3.5 transition-colors"
+                >
+                  <span className="w-9 h-9 rounded-xl bg-flash-100 text-flash-700 flex items-center justify-center shrink-0">
+                    <Users className="w-[18px] h-[18px]" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-bold text-midnight-900 truncate">{c.city}, {c.state}</span>
+                    <span className="block text-midnight-500 text-sm">No force yet — be the neighbor who starts it</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-sm font-bold text-midnight-900 group-hover:text-flash-700 shrink-0 transition-colors">
+                    Start it <ArrowRight className="w-4 h-4" />
+                  </span>
+                </Link>
+              )
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 text-right">
+          <Link
+            href="/rescue-forces/search"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-midnight-400 hover:text-midnight-700 transition-colors"
+          >
+            Browse all forces <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -276,6 +353,33 @@ function HowItWorks() {
             <p className="text-midnight-500 text-sm leading-relaxed">{body}</p>
           </div>
         ))}
+      </div>
+
+      {/* Step 3, shown instead of described: the real Mission Control */}
+      <div className="mt-10 md:mt-12">
+        <div className="rounded-3xl overflow-hidden border border-midnight-200 shadow-2xl bg-midnight-950">
+          <div className="flex items-center gap-1.5 px-4 py-3 bg-midnight-900 border-b border-midnight-800">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-400/80" />
+            <span className="w-2.5 h-2.5 rounded-full bg-flash-400/80" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
+            <span className="ml-3 text-midnight-300 text-xs font-semibold tracking-wide">
+              Mission Control · AUS-2026-0001
+            </span>
+            <span className="ml-auto inline-flex items-center gap-1.5 text-emerald-300 text-[11px] font-bold uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-soft" /> Live
+            </span>
+          </div>
+          <img
+            src="/landing/mission-control.jpg"
+            alt="Mission Control: a live satellite map with the search zone, sighting reports, one-tap flyers, and the team's mission log"
+            className="w-full h-auto"
+            loading="lazy"
+          />
+        </div>
+        <p className="text-center text-midnight-500 text-sm mt-4 max-w-2xl mx-auto">
+          This is Mission Control — where your force marks the search zone,
+          tracks sightings, prints flyers, and logs every move until the reunion.
+        </p>
       </div>
     </section>
   );
@@ -367,6 +471,45 @@ function ActiveMissions({ missions, loading }) {
             )}
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------ Health Book (shown, not told) ------------------- */
+
+function HealthBookLane() {
+  return (
+    <section className="max-w-5xl mx-auto px-4 mb-16 md:mb-24">
+      <div className="bg-white border border-midnight-100 rounded-3xl p-8 md:p-10 md:flex items-center gap-10">
+        <div className="flex-1 min-w-0 mb-8 md:mb-0">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-flash-600 mb-2">Not lost? Keep it that way.</p>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-midnight-900 leading-tight">
+            The Health Book is the same record.
+          </h2>
+          <p className="text-midnight-500 mt-3">
+            Meds with one-tap logging, vaccines, weight, a care team any vet or
+            sitter can read. And if the worst day ever comes, this profile
+            becomes the search mission — photos, chip, quirks, all ready.
+          </p>
+          <Link
+            href="/care"
+            className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-midnight-900 hover:bg-midnight-800 text-white font-bold rounded-2xl transition"
+          >
+            Start a free Health Book
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+        <div className="md:w-[46%] shrink-0">
+          <div className="rounded-2xl overflow-hidden border border-midnight-200 shadow-xl">
+            <img
+              src="/landing/health-book-today.jpg"
+              alt="A pet's Health Book: today's dose checklist with morning and evening medications, one tap to log each"
+              className="w-full h-auto"
+              loading="lazy"
+            />
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -514,6 +657,7 @@ export default function HomePage() {
       <FindYourForce />
       <HowItWorks />
       <ActiveMissions missions={missions} loading={missionsLoading} />
+      <HealthBookLane />
       <FreeForever />
       <FooterCta />
     </main>
