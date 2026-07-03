@@ -8,12 +8,17 @@ import { NextRequest } from 'next/server';
 // Mock prisma with the mock object defined INSIDE the factory (avoids the
 // "Cannot access 'mockPrisma' before initialization" TDZ when the route's
 // hoisted prisma import fires this factory). Aliased as `mockPrisma` below.
-jest.mock('@/app/lib/prisma', () => ({
-  __esModule: true,
-  default: {
+jest.mock('@/app/lib/prisma', () => {
+  const mock = {
     user: { findUnique: jest.fn(), create: jest.fn() },
-  },
-}));
+    pet: { create: jest.fn() },
+    petMedication: { create: jest.fn() },
+    // The route creates user (+ optional Health Book pet) transactionally;
+    // hand the callback this same mock so user.create expectations hold.
+    $transaction: jest.fn(async (fn) => fn(mock)),
+  };
+  return { __esModule: true, default: mock };
+});
 
 // Mock bcrypt
 jest.mock('bcryptjs', () => ({

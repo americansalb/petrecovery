@@ -122,7 +122,7 @@ export default function CareLandingPage() {
           </p>
           <div className="flex items-center justify-center gap-3 mt-8 flex-wrap">
             <Link
-              href="/register"
+              href="/care/start"
               className="inline-flex items-center gap-2 px-6 py-3.5 bg-flash-400 hover:bg-flash-500 text-midnight-950 font-bold rounded-2xl shadow-lg shadow-flash-500/25 transition text-lg"
             >
               Start your pet&apos;s book
@@ -330,7 +330,7 @@ export default function CareLandingPage() {
 
           <div className="flex justify-center mt-7">
             <Link
-              href="/register"
+              href="/care/start"
               className="inline-flex items-center gap-2 px-6 py-3.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition text-lg"
             >
               Start a free Health Book
