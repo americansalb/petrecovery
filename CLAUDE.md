@@ -5,6 +5,10 @@ NextAuth, Tailwind, Leaflet). Naming history: Case = Mission = lost-pet report;
 RescueSquad → RescueForce; the forum is "the Hub" (`ForumThread` etc.);
 `/communities/*` is legacy and redirected in `frontend/next.config.js`.
 
+Orientation: `docs/APP_MAP.md` maps every route, API domain, data model,
+auth layer, and open gap; `screenshots/README.md` indexes full-page captures
+of every route (regenerate with `frontend/scripts/gallery-sweep.js`).
+
 ## Rules
 
 ### Link previews are mandatory on shareable routes
