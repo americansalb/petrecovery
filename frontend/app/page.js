@@ -125,7 +125,7 @@ function Hero({ metrics }) {
           </span>
         </h1>
         <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto mb-8">
-          Your city has a Rescue Force — neighbors organized like a volunteer
+          Your city has a Rescue Force: neighbors organized like a volunteer
           fire department for lost pets. Report once, and they search with you
           until your pet is home.
         </p>
@@ -205,7 +205,7 @@ function FindYourForce() {
       setResults((data.cities || []).slice(0, 4));
     } catch {
       setResults(null);
-      setError('Search hit a snag — try again, or browse all forces.');
+      setError('Search hit a snag. Try again, or browse all forces.');
     } finally {
       setSearching(false);
     }
@@ -251,7 +251,7 @@ function FindYourForce() {
           <div className="mt-5 space-y-2.5">
             {results.length === 0 && (
               <p className="text-midnight-500 text-sm">
-                No matches for &ldquo;{query}&rdquo; — try your city name or a ZIP code.
+                No matches for &ldquo;{query}&rdquo;. Try your city name or a ZIP code.
               </p>
             )}
             {results.map((c) =>
@@ -286,7 +286,7 @@ function FindYourForce() {
                   </span>
                   <span className="flex-1 min-w-0">
                     <span className="block font-bold text-midnight-900 truncate">{c.city}, {c.state}</span>
-                    <span className="block text-midnight-500 text-sm">No force yet — be the neighbor who starts it</span>
+                    <span className="block text-midnight-500 text-sm">No force yet. Be the neighbor who starts it</span>
                   </span>
                   <span className="inline-flex items-center gap-1 text-sm font-bold text-midnight-900 group-hover:text-flash-700 shrink-0 transition-colors">
                     Start it <ArrowRight className="w-4 h-4" />
@@ -328,7 +328,7 @@ const STEPS = [
   {
     icon: Target,
     title: 'It becomes a Mission',
-    body: 'Search sectors on a live map, sighting reports, team chat, shelter checks, flyers — until reunion.',
+    body: 'Search sectors on a live map, sighting reports, team chat, shelter checks, flyers. Until reunion.',
     color: 'bg-emerald-100 text-emerald-700',
   },
 ];
@@ -377,7 +377,7 @@ function HowItWorks() {
           />
         </div>
         <p className="text-center text-midnight-500 text-sm mt-4 max-w-2xl mx-auto">
-          This is Mission Control — where your force marks the search zone,
+          This is Mission Control, where your force marks the search zone,
           tracks sightings, prints flyers, and logs every move until the reunion.
         </p>
       </div>
@@ -490,7 +490,7 @@ function HealthBookLane() {
           <p className="text-midnight-500 mt-3">
             Meds with one-tap logging, vaccines, weight, a care team any vet or
             sitter can read. And if the worst day ever comes, this profile
-            becomes the search mission — photos, chip, quirks, all ready.
+            becomes the search mission: photos, chip, quirks, all ready.
           </p>
           <Link
             href="/care/start"

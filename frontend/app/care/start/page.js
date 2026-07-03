@@ -101,8 +101,7 @@ function TodayPreview({ draft }) {
 
       {doses.length === 0 ? (
         <p className="text-sm text-midnight-500 bg-white border border-dashed border-midnight-200 rounded-xl px-4 py-5 text-center">
-          No meds yet — {draft.name || 'your pet'}&rsquo;s vaccines, weight, and routines
-          will live here too.
+          No meds yet. Vaccines, weight, and routines will live here too.
         </p>
       ) : (
         <div className="space-y-3">
@@ -280,7 +279,7 @@ export default function HealthBookStart() {
             href="/login"
             className="inline-flex items-center gap-2 bg-midnight-900 hover:bg-midnight-800 text-white font-bold px-6 py-3.5 rounded-2xl transition-colors"
           >
-            I&rsquo;ve verified — sign in <ArrowRight className="w-4 h-4" />
+            I&rsquo;ve verified, sign in <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </main>
@@ -308,7 +307,7 @@ export default function HealthBookStart() {
 
           {resumed && step === 0 && (
             <p className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2.5 mb-5">
-              <Sparkles className="w-4 h-4 shrink-0" /> Picked up where you left off — nothing was lost.
+              <Sparkles className="w-4 h-4 shrink-0" /> Picked up where you left off. Nothing was lost.
             </p>
           )}
 
@@ -318,7 +317,7 @@ export default function HealthBookStart() {
               <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-900 mb-1.5">
                 Who&rsquo;s this Health Book for?
               </h1>
-              <p className="text-midnight-500 mb-6">No account needed yet — let&rsquo;s meet your pet first.</p>
+              <p className="text-midnight-500 mb-6">Let&rsquo;s meet your pet.</p>
               <label className="block text-sm font-bold text-midnight-700 mb-1.5" htmlFor="hb-name">Their name</label>
               <input
                 id="hb-name"
@@ -357,7 +356,7 @@ export default function HealthBookStart() {
                 What does {draft.name} look like?
               </h1>
               <p className="text-midnight-500 mb-6">
-                Two answers that double as {draft.name}&rsquo;s rescue profile — ready long
+                These details double as {draft.name}&rsquo;s rescue profile, ready long
                 before you&rsquo;d ever need it.
               </p>
               <label className="block text-sm font-bold text-midnight-700 mb-1.5" htmlFor="hb-color">Color &amp; coat</label>
@@ -455,7 +454,7 @@ export default function HealthBookStart() {
                 <input
                   value={medName}
                   onChange={(e) => setMedName(e.target.value.slice(0, 120))}
-                  placeholder="Medication name — e.g. Apoquel 16 mg"
+                  placeholder="Apoquel 16 mg"
                   className="w-full rounded-xl border-2 border-midnight-200 px-4 py-3 text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition mb-3"
                 />
                 <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -518,7 +517,7 @@ export default function HealthBookStart() {
               <p className="text-midnight-500 mb-5">
                 {status === 'authenticated'
                   ? 'Save it to your account and start logging today.'
-                  : 'It’s real — save it so it’s never lost.'}
+                  : 'Save it so it’s never lost.'}
               </p>
 
               <div className="mb-6">
@@ -539,7 +538,7 @@ export default function HealthBookStart() {
               ) : (
                 <form onSubmit={saveAsGuest} className="space-y-3">
                   <p className="text-sm font-bold text-midnight-700">
-                    Save it with a free account — this is the only reason we ask:
+                    Create a free account to keep {draft.name}&rsquo;s book safe:
                   </p>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-midnight-400" />
@@ -603,8 +602,8 @@ export default function HealthBookStart() {
                     Already have an account?{' '}
                     <Link href={`/login?callbackUrl=${encodeURIComponent('/care/start')}`} className="font-semibold text-midnight-700 underline">
                       Sign in
-                    </Link>{' '}
-                    — {draft.name}&rsquo;s draft will be waiting.
+                    </Link>
+                    . {draft.name}&rsquo;s draft will be waiting.
                   </p>
                 </form>
               )}
