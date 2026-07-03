@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { validateMedicationInput } from '@/app/lib/medicationValidation';
 import { logEvent } from '@/lib/logging';
 import { sendVerificationEmail } from '@/app/lib/email';
 import crypto from 'crypto';
@@ -17,6 +18,49 @@ const PHONE_REGEX = /^[\d\s\-\(\)\+\.]{7,20}$/;
 
 // Password requirements
 const PASSWORD_MIN_LENGTH = 8;
+
+/**
+ * The guest-first Health Book wizard (/care/start) sends the pet the
+ * visitor already built so registration and "save my pet" are one
+ * atomic step. Returns { data } or { error }; mirrors /api/pets rules.
+ */
+function validatePetDraft(pet) {
+  if (typeof pet !== 'object' || pet === null) return { error: 'Invalid pet payload' };
+  const name = (pet.name || '').trim();
+  if (!name || name.length > 50) return { error: 'Pet name is required' };
+  if (!['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER'].includes(pet.species)) return { error: 'Invalid species' };
+  const color = (pet.color || '').trim();
+  if (!color || color.length > 60) return { error: 'Pet color is required' };
+  if (!['TINY', 'SMALL', 'MEDIUM', 'LARGE', 'GIANT'].includes(pet.size)) return { error: 'Invalid size' };
+  const age = pet.age == null || pet.age === '' ? null : Number(pet.age);
+  if (age !== null && (!Number.isFinite(age) || age < 0 || age > 40)) return { error: 'Invalid age' };
+
+  const meds = Array.isArray(pet.medications) ? pet.medications : [];
+  if (meds.length > 10) return { error: 'Too many medications (max 10 during signup)' };
+  const medications = [];
+  for (const med of meds) {
+    const { data, error } = validateMedicationInput({
+      kind: 'MEDICATION',
+      name: med?.name,
+      scheduleType: 'DAILY',
+      timesOfDay: Array.isArray(med?.timesOfDay) ? med.timesOfDay : [],
+    });
+    if (error) return { error: `Medication "${med?.name || ''}": ${error}` };
+    medications.push(data);
+  }
+
+  return {
+    data: {
+      name,
+      species: pet.species,
+      breed: (pet.breed || '').trim().slice(0, 60) || null,
+      age: age === null ? null : Math.round(age),
+      color,
+      size: pet.size,
+      medications,
+    },
+  };
+}
 
 export async function POST(request) {
   const correlationId = crypto.randomUUID();
@@ -39,7 +83,18 @@ export async function POST(request) {
   }
 
   try {
-    const { email, password, firstName, phone, acceptedTerms } = await request.json();
+    const { email, password, firstName, phone, acceptedTerms, pet } = await request.json();
+
+    // Validate any pet draft BEFORE creating the user, so a bad draft
+    // can't produce an account with a half-saved Health Book.
+    let petDraft = null;
+    if (pet !== undefined && pet !== null) {
+      const { data, error } = validatePetDraft(pet);
+      if (error) {
+        return NextResponse.json({ error }, { status: 400 });
+      }
+      petDraft = data;
+    }
 
     // Validate required fields
     if (!email || !password || !firstName) {
@@ -123,23 +178,45 @@ export async function POST(request) {
     const emailVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
     const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Create user with waiver acceptance if provided
-    const user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        passwordHash,
-        firstName: sanitizedFirstName,
-        phone: sanitizedPhone,
-        role: 'USER',
-        emailVerified: null, // Requires email verification
-        emailVerifyToken,
-        emailVerifyExpiry,
-        // Set waiver acceptance if user accepted during registration
-        ...(acceptedTerms && {
-          waiverAcceptedAt: new Date(),
-          waiverVersionAccepted: '1.0',
-        }),
-      },
+    // Create user — plus their Health Book pet when one rode along with
+    // signup (/care/start) — in one transaction, so "register to save
+    // your pet" can never half-succeed.
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email: normalizedEmail,
+          passwordHash,
+          firstName: sanitizedFirstName,
+          phone: sanitizedPhone,
+          role: 'USER',
+          emailVerified: null, // Requires email verification
+          emailVerifyToken,
+          emailVerifyExpiry,
+          // Set waiver acceptance if user accepted during registration
+          ...(acceptedTerms && {
+            waiverAcceptedAt: new Date(),
+            waiverVersionAccepted: '1.0',
+          }),
+        },
+      });
+
+      if (petDraft) {
+        const { medications, ...petFields } = petDraft;
+        const createdPet = await tx.pet.create({
+          data: {
+            ownerId: created.id,
+            ...petFields,
+            personality: JSON.stringify([]),
+            photos: JSON.stringify([]),
+            primaryPhotoUrl: '',
+          },
+        });
+        for (const med of medications) {
+          await tx.petMedication.create({ data: { petId: createdPet.id, ...med } });
+        }
+      }
+
+      return created;
     });
 
     // Send verification email (non-blocking)

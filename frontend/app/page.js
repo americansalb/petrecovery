@@ -152,7 +152,7 @@ function Hero({ metrics }) {
         {/* The everyday door, on the main page from the first second:
             the rescue product is the headline, this is the quiet peer */}
         <Link
-          href="/care"
+          href="/care/start"
           className="group inline-flex items-center gap-2 mb-7 text-midnight-200 hover:text-white font-semibold text-sm transition-colors"
         >
           <ShieldIcon size={16} className="text-flash-400" />
@@ -493,7 +493,7 @@ function HealthBookLane() {
             becomes the search mission — photos, chip, quirks, all ready.
           </p>
           <Link
-            href="/care"
+            href="/care/start"
             className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-midnight-900 hover:bg-midnight-800 text-white font-bold rounded-2xl transition"
           >
             Start a free Health Book
