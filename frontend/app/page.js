@@ -17,7 +17,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
-import { PillGlyph, SyringeGlyph } from '@/app/components/icons/MedGlyphs';
 import dynamic from 'next/dynamic';
 import {
   Bell, Heart, MapPin, Search, Shield, Users, Target, ArrowRight,
@@ -47,7 +46,9 @@ function Hero({ metrics }) {
     { value: metrics?.pets_reunited, one: 'happy reunion', many: 'happy reunions' },
     { value: metrics?.active_squads, one: 'rescue force', many: 'rescue forces' },
     { value: metrics?.total_volunteers, one: 'neighbor ready', many: 'neighbors ready' },
-  ].filter((s) => s.value > 0);
+    // Only brag once the numbers reassure; a row of 1s reads as an empty
+    // room. The row self-heals on as the platform grows.
+  ].filter((s) => Number(s.value) >= 25);
 
   return (
     <section className="relative bg-midnight-950 overflow-hidden">
@@ -97,18 +98,16 @@ function Hero({ metrics }) {
         <MapPin className="relative w-7 h-7 text-flash-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.7)]" />
       </div>
 
-      <div className="relative max-w-5xl mx-auto px-4 pt-12 pb-24 md:pt-16 md:pb-32 text-center">
-        {/* Sarama, the guide home: the heart of the brand, front and center.
-            Block-level wrapper so the live badge below never shares her line. */}
-        <div className="relative w-fit mx-auto mb-6">
-          <div className="absolute inset-0 scale-125 rounded-full bg-flash-400/20 blur-2xl" aria-hidden="true" />
+      <div className="relative max-w-5xl mx-auto px-4 pt-10 pb-24 md:pt-14 md:pb-32 text-center">
+        {/* Sarama presides, but the headline leads: guide-sized, not hero-sized */}
+        <div className="relative w-fit mx-auto mb-5">
           <img
             src={SARAMA_AVATAR_PNG}
             alt={`${SARAMA_NAME}, ${SARAMA_TAGLINE}`}
-            className="relative h-36 md:h-48 w-auto mx-auto drop-shadow-[0_12px_32px_rgba(250,204,21,0.25)]"
+            className="relative h-24 md:h-32 w-auto mx-auto drop-shadow-[0_12px_32px_rgba(250,204,21,0.25)]"
             onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
           />
-          <p className="relative text-flash-300/90 text-xs font-semibold uppercase tracking-[0.25em] mt-2 text-center">
+          <p className="relative text-flash-300/90 text-[11px] font-semibold uppercase tracking-[0.25em] mt-2 text-center">
             {SARAMA_NAME} · {SARAMA_TAGLINE}
           </p>
         </div>
@@ -126,10 +125,10 @@ function Hero({ metrics }) {
             a search party
           </span>
         </h1>
-        <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto mb-9">
-          Your city has a Rescue Force: neighbors organized and ready, like a
-          volunteer fire department for lost pets. Report once, and they run
-          the mission with you until your pet is home.
+        <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto mb-8">
+          Your city has a Rescue Force — neighbors organized like a volunteer
+          fire department for lost pets. Report once, and they search with you
+          until your pet is home.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7">
@@ -141,9 +140,10 @@ function Hero({ metrics }) {
             My pet is lost
             <ArrowRight className="w-5 h-5" />
           </Link>
+          {/* Outline, not fill: the crisis button must be the loudest thing here */}
           <Link
             href="/report/found"
-            className="inline-flex items-center gap-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-flash-900/20 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
+            className="inline-flex items-center gap-2.5 border-2 border-flash-400/70 text-flash-300 hover:bg-flash-400/10 hover:border-flash-400 font-bold text-lg px-8 py-[14px] rounded-2xl transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
           >
             <Heart className="w-5 h-5" />
             I found a pet
@@ -157,7 +157,7 @@ function Hero({ metrics }) {
           className="group inline-flex items-center gap-2 mb-7 text-midnight-200 hover:text-white font-semibold text-sm transition-colors"
         >
           <ShieldIcon size={16} className="text-flash-400" />
-          Pet at home? Keep their whole life here — start a free Health Book
+          Pet safe at home? Start their free Health Book
           <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
         </Link>
 
@@ -245,13 +245,13 @@ const STEPS = [
   {
     icon: Shield,
     title: 'Your Rescue Force gets it',
-    body: 'The volunteer team covering your geography sees the case the moment it lands. Big cities organize further into neighborhood divisions.',
+    body: 'The volunteer team covering your neighborhood sees the case the moment it lands.',
     color: 'bg-flash-100 text-flash-700',
   },
   {
     icon: Target,
     title: 'It becomes a Mission',
-    body: 'The force accepts the case and coordinates: search sectors on a live map, sighting reports, team chat, shelter checks, flyers. Until reunion.',
+    body: 'Search sectors on a live map, sighting reports, team chat, shelter checks, flyers — until reunion.',
     color: 'bg-emerald-100 text-emerald-700',
   },
 ];
@@ -270,7 +270,7 @@ function HowItWorks() {
               <span className={cn('w-11 h-11 rounded-2xl flex items-center justify-center', color)}>
                 <Icon className="w-5 h-5" />
               </span>
-              <span className="text-4xl font-extrabold text-midnight-100">{i + 1}</span>
+              <span className="text-4xl font-extrabold text-midnight-200">{i + 1}</span>
             </div>
             <h3 className="font-bold text-lg text-midnight-900 mb-1.5">{title}</h3>
             <p className="text-midnight-500 text-sm leading-relaxed">{body}</p>
@@ -352,6 +352,19 @@ function ActiveMissions({ missions, loading }) {
                 </div>
               </Link>
             ))}
+            {/* Fill sparse grids with an invitation instead of a void */}
+            {missions.length < 3 && (
+              <Link
+                href="/rescue-forces/search"
+                className="group border-2 border-dashed border-midnight-700 hover:border-flash-400/60 rounded-2xl flex flex-col items-center justify-center text-center p-6 min-h-[176px] transition-colors"
+              >
+                <Shield className="w-8 h-8 text-midnight-500 group-hover:text-flash-400 transition-colors mb-3" />
+                <p className="text-white font-bold mb-1">More eyes bring them home</p>
+                <p className="text-midnight-400 text-sm">
+                  Join your Rescue Force and be ready when a neighbor needs you.
+                </p>
+              </Link>
+            )}
           </div>
         )}
       </div>
@@ -384,47 +397,6 @@ const PILLARS = [
     label: 'Visit the Rescue Hub',
   },
 ];
-
-/* The second door: the daily product, one calm lane (docs/PRODUCT_IA_PLAN.md §2) */
-function SecondLane() {
-  return (
-    <section className="max-w-5xl mx-auto px-4 mb-16 md:mb-24">
-      <div className="bg-white border border-midnight-100 rounded-3xl p-8 md:p-10 md:flex items-center gap-8">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-extrabold uppercase tracking-widest text-flash-600 mb-2">Not lost? Keep it that way.</p>
-          <h2 className="text-2xl md:text-3xl font-extrabold text-midnight-900 leading-tight">
-            Your pet&apos;s Health Book lives here too.
-          </h2>
-          <p className="text-midnight-500 mt-3">
-            Medications with one-tap logging, vaccine records, weight tracking, and a
-            link any vet or sitter can read. Free forever, and ready long before you
-            ever need a search party.
-          </p>
-          <Link
-            href="/care"
-            className="inline-flex items-center gap-2 mt-5 px-5 py-3 bg-midnight-900 hover:bg-midnight-800 text-white font-bold rounded-2xl transition"
-          >
-            See the Health Book
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-        <div className="hidden md:flex flex-col gap-2.5 shrink-0 mt-6 md:mt-0">
-          {[
-            [<PillGlyph key="i" size={17} />, 'bg-amber-100 text-amber-700', 'Apoquel · 8:00 AM', 'Given'],
-            [<SyringeGlyph key="i" size={17} />, 'bg-emerald-100 text-emerald-700', 'Rabies', 'until 2028'],
-            [<span key="i" className="text-[10px] font-extrabold">lb</span>, 'bg-sky-100 text-sky-700', '65 lbs', 'steady'],
-          ].map(([icon, tint, label, status]) => (
-            <div key={label} className="flex items-center gap-3 bg-midnight-50 border border-midnight-100 rounded-2xl px-4 py-3 w-64">
-              <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${tint}`}>{icon}</span>
-              <span className="text-sm font-bold text-midnight-900 flex-1 truncate">{label}</span>
-              <span className="text-xs font-bold text-emerald-600 shrink-0">{status}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 function FreeForever() {
   return (
@@ -542,7 +514,6 @@ export default function HomePage() {
       <FindYourForce />
       <HowItWorks />
       <ActiveMissions missions={missions} loading={missionsLoading} />
-      <SecondLane />
       <FreeForever />
       <FooterCta />
     </main>

@@ -207,7 +207,8 @@ export default function Navigation() {
               {/* Notifications bell - logged-in only */}
               {session && <NotificationBell active={pathname.startsWith('/notifications')} />}
 
-              {/* Report Pet CTA - Always visible on desktop */}
+              {/* Report Pet CTA - hidden on the homepage, where the hero owns this job */}
+              {pathname !== '/' && (
               <div className="hidden md:block relative" data-dropdown="report">
                 <button
                   onClick={() => toggleDropdown('report')}
@@ -240,6 +241,7 @@ export default function Navigation() {
                   </div>
                 )}
               </div>
+              )}
 
               {session ? (
                 <>
