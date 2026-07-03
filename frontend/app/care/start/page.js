@@ -473,29 +473,40 @@ export default function HealthBookStart() {
                       <Icon className="w-4 h-4" /> {label}
                     </button>
                   ))}
+                  {/* Custom times join the row as removable chips, 12-hour like
+                      everything else. The chips ARE the state; no summary line. */}
+                  {medTimes
+                    .filter((t) => !TIME_PRESETS.some((p) => p.value === t))
+                    .map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => toggleTime(t)}
+                        aria-label={`Remove ${timeLabel(t)}`}
+                        className="inline-flex items-center gap-1.5 rounded-xl border-2 border-flash-400 bg-flash-50 text-midnight-900 px-3 py-2 text-sm font-bold transition-colors"
+                      >
+                        <Clock className="w-4 h-4" /> {timeLabel(t)}
+                        <X className="w-3.5 h-3.5 text-midnight-400" />
+                      </button>
+                    ))}
                   <span className="inline-flex items-center gap-1">
                     <input
+                      type="time"
                       value={customTime}
                       onChange={(e) => setCustomTime(e.target.value)}
-                      placeholder="15:30"
-                      aria-label="Custom time (24h HH:MM)"
-                      className="w-20 rounded-xl border-2 border-midnight-100 px-2.5 py-2 text-sm text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 transition"
+                      aria-label="Another time"
+                      className="rounded-xl border-2 border-midnight-100 px-2.5 py-[7px] text-sm text-midnight-600 focus:outline-none focus:border-flash-400 transition"
                     />
                     <button
                       type="button"
                       onClick={addCustomTime}
-                      aria-label="Add custom time"
+                      aria-label="Add this time"
                       className="p-2 rounded-xl border-2 border-midnight-100 text-midnight-500 hover:border-midnight-300 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
                     </button>
                   </span>
                 </div>
-                {medTimes.length > 0 && (
-                  <p className="text-xs text-midnight-500 mb-3">
-                    {medTimes.map(timeLabel).join(' · ')}
-                  </p>
-                )}
                 <button
                   type="button"
                   onClick={addMed}
