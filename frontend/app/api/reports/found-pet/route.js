@@ -14,7 +14,7 @@ export async function POST(request) {
     const body = await request.json();
     let {
       email, phone, firstName,
-      petName, breed, color, size, distinctiveMarks,
+      petName, breed, color, size, distinctiveMarks, microchipId,
       foundAddress, center, radiusMiles, timeElapsed, petType,
       photos
     } = body;
@@ -146,6 +146,7 @@ export async function POST(request) {
         color,
         size,
         distinctiveMarks: distinctiveMarks || '',
+        microchipId: microchipId?.trim() || null,
         primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
         photos: JSON.stringify(photos || []),
         personality: "[]",

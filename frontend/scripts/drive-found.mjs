@@ -1,5 +1,9 @@
 // Drives the FOUND wizard and screenshots each step, so the multi-step UX can be
 // observed (not just step 1). Best-effort: clicks by visible button text.
+//
+// New wizard sequence (app/report/found/page.js):
+//   species → where (map, "Use my location" → "Confirm this spot") → when →
+//   photo (skippable) → colors → tag details → contact → review.
 import puppeteer from 'puppeteer-core';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,13 +36,16 @@ async function shot(name) {
 }
 
 await page.goto(`${BASE}/report/found`, { waitUntil: 'networkidle2', timeout: 60000 });
-await shot('1-type');
+await shot('1-species');
 
-if (await clickByText(page, 'Dog')) await shot('2-location');
-// Step 2 → Continue
-if (await clickByText(page, 'Continue')) await shot('3-pinpoint');
-if (await clickByText(page, 'Continue')) await shot('4-next');
-if (await clickByText(page, 'Continue')) await shot('5-details');
+if (await clickByText(page, 'Dog')) await shot('2-where');
+if (await clickByText(page, 'Use my location')) await shot('3-pin');
+if (await clickByText(page, 'Confirm this spot')) await shot('4-when');
+if (await clickByText(page, 'Just now')) await shot('5-photo');
+if (await clickByText(page, "I can't take a photo right now")) await shot('6-colors');
+if (await clickByText(page, 'Black')) { /* pick a color chip */ }
+if (await clickByText(page, 'Continue')) await shot('7-details');
+if (await clickByText(page, 'Nothing to add')) await shot('8-contact');
 
 await browser.close();
 console.log('Done.');

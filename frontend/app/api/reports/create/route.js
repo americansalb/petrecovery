@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail, sendVerificationEmail } from '../../../lib/email';
+import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
@@ -25,7 +26,9 @@ export async function POST(request) {
       petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId,
       createAccount, password, // Account creation consent fields
-      reporterLocation // Reporter's auto-detected GPS [lat, lng]
+      reporterLocation, // Reporter's auto-detected GPS [lat, lng]
+      escapeScenario, // How the pet got out (wizard details step)
+      collarInfo, microchipId // Optional identifiers, stored on the Pet
     } = body;
 
     // For dogs, use petSize if provided (more specific than generic size)
@@ -46,6 +49,16 @@ export async function POST(request) {
     // would create an account that credentials login (which lowercases) can
     // never find, and a duplicate once the user registers properly.
     email = email?.toLowerCase().trim() || null;
+
+    // Phone-only reporters: User.email is required + unique, so synthesize a
+    // deterministic placeholder from the phone digits (same phone → same
+    // account next time). Placeholder addresses are undeliverable by design;
+    // every email send below is skipped for them.
+    let phoneOnly = false;
+    if (!email && phone) {
+      email = placeholderEmailForPhone(phone);
+      phoneOnly = true;
+    }
 
     // Validate required fields - need at least email OR phone for contact
     if ((!email && !phone) || !firstName || !petName || !color || !lastSeenAddress || !center) {
@@ -140,6 +153,8 @@ export async function POST(request) {
             breed: breed || pet.breed,
             size: size || pet.size,
             distinctiveMarks: distinctiveMarks || pet.distinctiveMarks,
+            collarInfo: collarInfo || pet.collarInfo,
+            microchipId: microchipId || pet.microchipId,
             primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : pet.primaryPhotoUrl,
             photos: photos && photos.length > 0 ? JSON.stringify(photos) : pet.photos,
           }
@@ -155,6 +170,8 @@ export async function POST(request) {
             color,
             size: size || 'MEDIUM', // Default to medium if not provided
             distinctiveMarks: distinctiveMarks || '',
+            collarInfo: collarInfo || null,
+            microchipId: microchipId || null,
             primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
             photos: JSON.stringify(photos || []),
             personality: "[]",
@@ -190,7 +207,7 @@ export async function POST(request) {
           petDescription,
           ownerName: firstName,
           ownerPhone: phone || 'Not provided',
-          ownerEmail: email,
+          ownerEmail: phoneOnly ? 'Not provided' : email,
           lastSeenAt,
           lastSeenLatitude: center[0],
           lastSeenLongitude: center[1],
@@ -200,7 +217,7 @@ export async function POST(request) {
           // prime meridian) is falsy and `0 || null` would drop it.
           reporterLatitude: reporterLocation?.[0] != null ? reporterLocation[0] : null,
           reporterLongitude: reporterLocation?.[1] != null ? reporterLocation[1] : null,
-          escapeScenario: 'unknown',
+          escapeScenario: escapeScenario || 'unknown',
           status: 'ACTIVE',
           priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
         }
@@ -213,30 +230,35 @@ export async function POST(request) {
 
     // Send verification email for ALL new users (Fix 4: unified for guest + createAccount paths)
     if (isNewUser && !session?.user) {
-      const rawVerifyToken = crypto.randomBytes(32).toString('hex');
-      const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
-      const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      // Also set case expiry for unverified users
+      // Case expiry applies to every unverified reporter — including
+      // phone-only ones, who can never verify an email.
       const caseExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          emailVerifyToken: hashedVerifyToken,
-          emailVerifyExpiry: verifyExpiry,
-        }
-      });
-
       await prisma.case.update({
         where: { id: report.id },
         data: { expiresAt: caseExpiry }
       });
 
-      const BASE_URL = getEmailBaseUrl();
-      const verifyUrl = `${BASE_URL}/verify-email?token=${rawVerifyToken}`;
-      sendVerificationEmail(email, firstName, verifyUrl).catch((err) => {
-        console.error('Failed to send verification email:', err);
-      });
+      // Placeholder addresses (phone-only reporters) are undeliverable —
+      // skip the token + send entirely.
+      if (!phoneOnly) {
+        const rawVerifyToken = crypto.randomBytes(32).toString('hex');
+        const hashedVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
+        const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            emailVerifyToken: hashedVerifyToken,
+            emailVerifyExpiry: verifyExpiry,
+          }
+        });
+
+        const BASE_URL = getEmailBaseUrl();
+        const verifyUrl = `${BASE_URL}/verify-email?token=${rawVerifyToken}`;
+        sendVerificationEmail(email, firstName, verifyUrl).catch((err) => {
+          console.error('Failed to send verification email:', err);
+        });
+      }
     }
 
     // Find nearby patrol members (outside transaction as it's read-only)
@@ -613,7 +635,8 @@ export async function POST(request) {
     }
 
     // Send guest report email if account was not explicitly created
-    if (!accountCreated && !session?.user) {
+    // (skipped for phone-only reporters — their address is a placeholder)
+    if (!accountCreated && !session?.user && !phoneOnly) {
       // Guest report: user exists in DB but didn't opt in for account
       // Send "claim your report" email (will be fully implemented in Phase 3.3)
       sendEmail({

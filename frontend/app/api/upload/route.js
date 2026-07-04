@@ -123,8 +123,10 @@ export async function POST(request) {
     // but log them differently and apply stricter rate limiting
     if (!userId) {
       console.log('[UPLOAD] Anonymous upload');
-      // Anonymous uploads get stricter rate limiting
-      const anonRateLimit = withRateLimit(request, { ...RateLimitPresets.PUBLIC_WRITE, maxRequests: 5 }, 'upload:anon');
+      // Anonymous uploads get stricter rate limiting. 10/min: a guest
+      // reporter uploading a handful of wizard photos (plus a retry or two)
+      // must not trip the 5-minute block mid-report.
+      const anonRateLimit = withRateLimit(request, { ...RateLimitPresets.PUBLIC_WRITE, maxRequests: 10 }, 'upload:anon');
       if (!anonRateLimit.success) {
         return rateLimitResponse(anonRateLimit);
       }
