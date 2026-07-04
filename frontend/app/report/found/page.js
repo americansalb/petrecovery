@@ -1,228 +1,164 @@
 'use client';
-// UI: found-flow restyle + MatchCard-wired potential-matches (ui-architect)
 
-import { useState, useEffect, useRef } from 'react';
+/**
+ * Report Found Pet — one-decision-at-a-time wizard.
+ *
+ * Built for a helper looking at the animal right now: observable facts first
+ * (species → where → when → photo → colors), tag details optional, contact
+ * last, and potential matches as the payoff on the success screen.
+ *
+ * Photos upload to the CDN via /api/upload (no more base64), and the merged
+ * Where step replaces the old text-geocode + separate-pinpoint screens.
+ * Shares every primitive (and the exact look) of the lost wizard — only the
+ * emerald FOUND semantics and copy differ.
+ */
+
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import Link from 'next/link';
-import { theme } from '../../lib/theme';
-import BreedSelector from '../../components/BreedSelector';
+import {
+  PawPrint, Clock, MapPin, Camera, Palette, Mail, Megaphone, Tag,
+} from 'lucide-react';
+import WizardShell from '../../components/report/WizardShell';
+import StepScreen from '../../components/report/StepScreen';
+import OptionCardGrid from '../../components/report/OptionCardGrid';
+import LocationPicker from '../../components/report/LocationPicker';
+import PhotoStep from '../../components/report/PhotoStep';
+import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
+import ReviewPosterCard from '../../components/report/ReviewPosterCard';
+import SuccessScreen from '../../components/report/SuccessScreen';
+import TagDetailsStep from '../../components/report/found/TagDetailsStep';
 import ColorSelector from '../../components/ColorSelector';
-import { MatchCard } from '../../../components/case/MatchCard';
+import {
+  SPECIES_OPTIONS, FOUND_TIME_OPTIONS, WIZARD_THEMES,
+} from '../../components/report/wizardTheme';
+
+const VARIANT = 'found';
+const CONTACT_MODE = 'email-first'; // matches are emailed — email stays required
+const LOCATION_STORAGE_KEY = 'reportLocation';
+
+const GROUP_OF = {
+  species: 'animal', where: 'where', when: 'when', photo: 'photo',
+  colors: 'colors', details: 'details', contact: 'contact', review: 'post',
+};
 
 export default function ReportFoundPet() {
-  const { data: session } = useSession();
-  const [step, setStep] = useState(1);
-  const [petType, setPetType] = useState('');
+  const { data: session, status: authStatus } = useSession();
+  const isLoggedIn = authStatus === 'authenticated';
 
-  // Location and map data
-  const [foundAddress, setFoundAddress] = useState('');
-  const [center, setCenter] = useState(null);
-  const [radiusMiles, setRadiusMiles] = useState(10); // Auto-set to 10 miles for matching (not user-configurable)
+  // ── Wizard navigation ─────────────────────────────────────────────
+  const [stepId, setStepId] = useState('species');
+  const [history, setHistory] = useState([]);
+  const returnToRef = useRef(null);
+
+  // ── Report data ───────────────────────────────────────────────────
+  const [species, setSpecies] = useState('');
+  const [location, setLocation] = useState(null); // { lat, lng, address, city }
   const [timeElapsed, setTimeElapsed] = useState('');
+  const [photos, setPhotos] = useState([]);
+  const [displayIndex, setDisplayIndex] = useState(0);
+  const [color, setColor] = useState('');
+  const [aiSuggested, setAiSuggested] = useState(false);
+  const [details, setDetails] = useState({ petName: '', breed: '', size: '', marks: '', microchipId: '' });
+  const [contact, setContact] = useState({ firstName: '', method: 'email', email: '', phone: '' });
 
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markerRef = useRef(null);
-  const circleRef = useRef(null);
-
-  // Report submission data
-  const [reportData, setReportData] = useState({
-    // User info
-    email: '',
-    phone: '',
-    firstName: '',
-    // Pet info
-    petName: '',
-    breed: '',
-    color: '',
-    size: 'MEDIUM',
-    age: '',
-    sex: 'UNKNOWN',
-    distinctiveMarks: '',
-    microchipId: '',
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [reportId, setReportId] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [potentialMatches, setPotentialMatches] = useState([]);
+  const [result, setResult] = useState(null);
 
-  // Auto-fill user data from session
+  // Prefill contact from session
   useEffect(() => {
     if (session?.user) {
-      setReportData(prev => ({
+      setContact((prev) => ({
         ...prev,
-        email: session.user.email || '',
-        firstName: session.user.name || '',
+        firstName: prev.firstName || session.user.name || '',
+        email: prev.email || session.user.email || '',
       }));
     }
   }, [session]);
 
-  // Initialize map
-  useEffect(() => {
-    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 3) {
-      if (step !== 3 && mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
-      }
+  // ── Navigation ────────────────────────────────────────────────────
+  const go = (next) => {
+    setError(null);
+    setHistory((h) => [...h, stepId]);
+    setStepId(next);
+  };
+
+  const goBack = () => {
+    setError(null);
+    returnToRef.current = null;
+    setHistory((h) => {
+      if (!h.length) return h;
+      setStepId(h[h.length - 1]);
+      return h.slice(0, -1);
+    });
+  };
+
+  const editFromReview = (target) => {
+    returnToRef.current = 'review';
+    go(target);
+  };
+
+  const advance = () => {
+    if (returnToRef.current) {
+      const back = returnToRef.current;
+      returnToRef.current = null;
+      go(back);
       return;
     }
-
-    if (mapInstanceRef.current) return;
-
-    import('leaflet').then((L) => {
-      const map = L.map(mapRef.current).setView(center, 13);
-      mapInstanceRef.current = map;
-
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 19,
-      }).addTo(map);
-
-      const marker = L.marker(center, { draggable: true }).addTo(map);
-      markerRef.current = marker;
-
-      const circle = L.circle(center, {
-        color: '#94a3b8',
-        fillColor: '#94a3b8',
-        fillOpacity: 0.1,
-        weight: 1,
-        radius: radiusMiles * 1609.34,
-      }).addTo(map);
-      circleRef.current = circle;
-
-      marker.on('dragend', function (e) {
-        const pos = e.target.getLatLng();
-        setCenter([pos.lat, pos.lng]);
-      });
-    });
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
-      }
+    const chain = {
+      species: 'where',
+      where: 'when',
+      when: 'photo',
+      photo: 'colors',
+      colors: 'details',
+      details: isLoggedIn ? 'review' : 'contact',
+      contact: 'review',
     };
-  }, [step]);
-
-  useEffect(() => {
-    if (markerRef.current && circleRef.current && center) {
-      markerRef.current.setLatLng(center);
-      circleRef.current.setLatLng(center);
-    }
-  }, [center]);
-
-  useEffect(() => {
-    if (circleRef.current) {
-      circleRef.current.setRadius(radiusMiles * 1609.34);
-    }
-  }, [radiusMiles]);
-
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files);
-    const maxPhotos = 5;
-
-    if (photos.length + files.length > maxPhotos) {
-      setError(`You can only upload up to ${maxPhotos} photos`);
-      return;
-    }
-
-    // Convert files to data URLs (base64)
-    files.forEach(file => {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        setError('Each photo must be under 5MB');
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotos(prev => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    setError(null);
+    if (chain[stepId]) go(chain[stepId]);
   };
 
-  const removePhoto = (index) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const geocodeAddress = async () => {
-    if (!foundAddress || foundAddress.length < 3) {
-      setError('Please enter a valid address or zip code');
-      return;
-    }
-
-    setError(null);
-
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(foundAddress)}&format=json&limit=1&countrycodes=us`,
-        {
-          headers: {
-            'User-Agent': 'PetRecovery.org'
-          }
-        }
-      );
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        setCenter([lat, lon]);
-        setStep(3);
-      } else {
-        setError('Could not find that address. Please try again or be more specific.');
-      }
-    } catch (err) {
-      setError('Error finding address. Please try again.');
-      console.error('Geocoding error:', err);
+  const handleAnalysis = (analysis) => {
+    if (analysis?.colors?.length > 0 && !color) {
+      setColor(analysis.colors.join(', '));
+      setAiSuggested(true);
     }
   };
+
+  // ── Submit ────────────────────────────────────────────────────────
+  const effectiveEmail = isLoggedIn ? session?.user?.email || '' : contact.email.trim();
+  const effectiveName = isLoggedIn ? session?.user?.name || 'Helpful Neighbor' : contact.firstName.trim();
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
-
     try {
-      // Call found-pet API endpoint
+      const orderedPhotos = photos.length
+        ? [photos[displayIndex], ...photos.filter((_, i) => i !== displayIndex)]
+        : [];
       const response = await fetch('/api/reports/found-pet', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: reportData.email,
-          phone: reportData.phone,
-          firstName: reportData.firstName,
-          petName: reportData.petName,
-          breed: reportData.breed,
-          color: reportData.color,
-          size: reportData.size,
-          distinctiveMarks: reportData.distinctiveMarks,
-          foundAddress,
-          center,
-          radiusMiles,
+          email: effectiveEmail,
+          phone: contact.phone.trim(),
+          firstName: effectiveName,
+          petName: details.petName.trim(),
+          breed: details.breed,
+          color,
+          size: details.size || 'MEDIUM',
+          distinctiveMarks: details.marks,
+          microchipId: details.microchipId.trim() || undefined,
+          foundAddress: location.address,
+          center: [location.lat, location.lng],
+          radiusMiles: 10, // match radius, not user-facing
           timeElapsed,
-          petType,
-          photos: photos, // Base64 encoded photos
+          petType: species,
+          photos: orderedPhotos, // CDN URLs from /api/upload — never base64
         }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create report');
-      }
-
-      setReportId(data.reportId);
-      setPotentialMatches(data.potentialMatches || []);
-      setStep(6); // Success step
+      if (!response.ok) throw new Error(data.error || 'Failed to create report');
+      setResult(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -230,953 +166,308 @@ export default function ReportFoundPet() {
     }
   };
 
+  // ── Shell step groups ─────────────────────────────────────────────
+  const steps = useMemo(
+    () => [
+      {
+        id: 'animal',
+        label: 'The animal',
+        sidebarIcon: PawPrint,
+        sidebarTitle: 'You might be the reunion',
+        sidebarCopy: 'Most found pets are missed by someone nearby. A quick report starts the match search.',
+      },
+      {
+        id: 'where',
+        label: 'Where',
+        sidebarIcon: MapPin,
+        sidebarTitle: 'Location is the #1 signal',
+        sidebarCopy: 'Lost pets are matched by distance first — pin the spot where you found them.',
+      },
+      {
+        id: 'when',
+        label: 'When',
+        sidebarIcon: Clock,
+        sidebarTitle: 'Fresh sightings match faster',
+        sidebarCopy: 'Owners search hardest in the first hours — timing helps us rank the matches.',
+      },
+      {
+        id: 'photo',
+        label: 'Photo',
+        sidebarIcon: Camera,
+        sidebarTitle: 'Photos triple match speed',
+        sidebarCopy: 'An owner will recognize their pet in a heartbeat. Even a quick phone snap helps.',
+      },
+      {
+        id: 'colors',
+        label: 'Colors',
+        sidebarIcon: Palette,
+        sidebarTitle: 'Colors drive the match',
+        sidebarCopy: 'Our match engine compares colors against every lost report nearby.',
+      },
+      {
+        id: 'details',
+        label: 'Details',
+        sidebarIcon: Tag,
+        sidebarTitle: 'Check the collar',
+        sidebarCopy: 'A tag name or chip number can end the search instantly. All optional.',
+      },
+      ...(!isLoggedIn
+        ? [{
+            id: 'contact',
+            label: 'Contact',
+            sidebarIcon: Mail,
+            sidebarTitle: 'Where matches go',
+            sidebarCopy: 'When an owner matches, we connect you by email. No password, no hoops.',
+          }]
+        : []),
+      {
+        id: 'post',
+        label: 'Post it',
+        sidebarIcon: Megaphone,
+        sidebarTitle: 'Start the match search',
+        sidebarCopy: 'We compare your report with every nearby lost pet the moment you post.',
+      },
+    ],
+    [isLoggedIn]
+  );
+
+  const summary = useMemo(() => {
+    const items = [];
+    if (species) {
+      const opt = SPECIES_OPTIONS.find((o) => o.value === species);
+      if (opt) items.push({ icon: opt.icon, text: `Found ${opt.label.toLowerCase()}` });
+    }
+    if (location?.address) items.push({ icon: MapPin, text: location.address });
+    if (timeElapsed) {
+      const opt = FOUND_TIME_OPTIONS.find((o) => o.value === timeElapsed);
+      if (opt) items.push({ icon: Clock, text: `Found: ${opt.label.toLowerCase()}` });
+    }
+    if (photos.length > 0) items.push({ icon: Camera, text: `${photos.length} photo${photos.length > 1 ? 's' : ''} added` });
+    return items;
+  }, [species, location, timeElapsed, photos]);
+
+  const theme = WIZARD_THEMES[VARIANT];
+  const speciesLabel = SPECIES_OPTIONS.find((o) => o.value === species)?.label?.toLowerCase() || 'pet';
+
+  if (result) {
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        <SuccessScreen
+          variant={VARIANT}
+          caseNumber={result.caseNumber}
+          petName={details.petName || `the ${speciesLabel}`}
+          photoMissing={photos.length === 0}
+          isLoggedIn={isLoggedIn}
+          accountCreated={result.accountCreated}
+          contactEmail={effectiveEmail}
+          matches={result.potentialMatches || []}
+          matchesNotified={result.matchesNotified || 0}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
-      fontFamily: theme.fonts.sans,
-    }}>
-      {/* Header */}
-      <div style={{
-        background: '#0f172a', // midnight-900
-        padding: '1.5rem 2rem',
-        boxShadow: theme.shadows.sm,
-        borderBottom: '1px solid #1e293b',
-      }}>
-        <div style={{
-          maxWidth: '900px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <Link
-            href="/"
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: '800',
-              color: 'white',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
+    <WizardShell
+      variant={VARIANT}
+      steps={steps}
+      activeStepId={GROUP_OF[stepId] || 'animal'}
+      summary={summary}
+      onBack={history.length > 0 ? goBack : null}
+      closeHref={isLoggedIn ? '/dashboard' : '/'}
+    >
+      {stepId === 'species' && (
+        <StepScreen
+          stepKey="species"
+          variant={VARIANT}
+          eyebrow="Thank you for stopping"
+          question="What kind of animal did you find?"
+          wide
+        >
+          <OptionCardGrid
+            variant={VARIANT}
+            options={SPECIES_OPTIONS}
+            value={species}
+            columns={5}
+            centered
+            onSelect={(value) => {
+              setSpecies(value);
+              advance();
             }}
-          >
-            <span style={{ color: '#fbbf24' }}>←</span> Reunite<span style={{ color: '#fbbf24' }}>Pets</span>
-          </Link>
-          {session?.user && (
-            <div style={{
-              padding: '0.5rem 1rem',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: theme.radius.lg,
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              color: '#94a3b8',
-            }}>
-              ✓ Logged in as {session.user.email}
-            </div>
-          )}
-        </div>
-      </div>
+          />
+        </StepScreen>
+      )}
 
-      <div style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        padding: '3rem 2rem',
-      }}>
-        {/* Progress Bar */}
-        {step > 1 && step < 6 && (
-          <div style={{
-            display: 'flex',
-            gap: '0.5rem',
-            marginBottom: '2rem',
-          }}>
-            {[2, 3, 4, 5].map((s) => (
-              <div
-                key={s}
-                style={{
-                  flex: 1,
-                  height: '6px',
-                  backgroundColor: step >= s ? '#10b981' : '#e5e7eb', // emerald = FOUND accent (red is the LOST semantic)
-                  borderRadius: '3px',
-                }}
-              />
-            ))}
-          </div>
-        )}
+      {stepId === 'where' && (
+        <StepScreen
+          stepKey="where"
+          variant={VARIANT}
+          question="Where did you find them?"
+          wide
+          fillBody
+          primary={{ label: 'Confirm this spot', onClick: advance, disabled: !location }}
+        >
+          <LocationPicker
+            variant={VARIANT}
+            value={location}
+            onChange={setLocation}
+            storageKey={LOCATION_STORAGE_KEY}
+          />
+        </StepScreen>
+      )}
 
-        {/* Error Display */}
-        {error && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            border: '2px solid #fca5a5',
-            color: '#991b1b',
-            padding: '1rem',
-            borderRadius: theme.radius.lg,
-            marginBottom: '1.5rem',
-            fontWeight: '600',
-          }}>
-            {error}
-          </div>
-        )}
+      {stepId === 'when' && (
+        <StepScreen
+          stepKey="when"
+          variant={VARIANT}
+          question="When did you find them?"
+          wide
+        >
+          <OptionCardGrid
+            variant={VARIANT}
+            options={FOUND_TIME_OPTIONS}
+            value={timeElapsed}
+            columns={2}
+            onSelect={(value) => {
+              setTimeElapsed(value);
+              advance();
+            }}
+          />
+        </StepScreen>
+      )}
 
-        {/* Step 1: Pet Type */}
-        {step === 1 && (
-          <div style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
-            <h1 style={{
-              fontSize: '3rem',
-              fontWeight: '900',
-              marginBottom: '1rem',
-              color: '#10b981',
-              lineHeight: '1.1',
-            }}>
-              Report Found Pet
-            </h1>
-            <p style={{
-              fontSize: '1.2rem',
-              color: theme.colors.gray[600],
-              marginBottom: '3rem',
-            }}>
-              Help reunite a lost pet with their family
-            </p>
+      {stepId === 'photo' && (
+        <StepScreen
+          stepKey="photo"
+          variant={VARIANT}
+          question="Snap a photo if you can"
+          hint="An owner will recognize their pet instantly — photos triple match speed."
+          primary={{ label: 'Continue', onClick: advance, disabled: photos.length === 0 }}
+          skip={photos.length === 0 ? { label: "I can't take a photo right now", onClick: advance } : null}
+        >
+          <PhotoStep
+            variant={VARIANT}
+            photos={photos}
+            displayIndex={displayIndex}
+            onPhotosChange={setPhotos}
+            onDisplayChange={setDisplayIndex}
+            onAnalysis={handleAnalysis}
+          />
+        </StepScreen>
+      )}
 
-            <h2 style={{
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              marginBottom: '1.5rem',
-              color: theme.colors.gray[900],
-            }}>
-              What type of pet did you find?
-            </h2>
+      {stepId === 'colors' && (
+        <StepScreen
+          stepKey="colors"
+          variant={VARIANT}
+          question="What colors are they?"
+          hint={
+            aiSuggested
+              ? 'We spotted these in the photo — tap to adjust, then continue.'
+              : 'Pick every color that fits — matches are compared by color.'
+          }
+          primary={{ label: 'Continue', onClick: advance, disabled: !color }}
+        >
+          <ColorSelector value={color} onChange={setColor} />
+        </StepScreen>
+      )}
 
-            <div style={{
-              display: 'grid',
-              gap: '0.75rem',
-              maxWidth: '420px',
-              margin: '0 auto',
-            }}>
-              {[
-                { type: 'dog', emoji: '🐕', label: 'Dog', accent: '#3b82f6' },
-                { type: 'cat', emoji: '🐈', label: 'Cat', accent: '#8b5cf6' },
-                { type: 'bird', emoji: '🦜', label: 'Bird', accent: '#10b981' },
-                { type: 'other', emoji: '🐰', label: 'Other Pet', accent: '#f59e0b' },
-              ].map((pet) => (
-                <button
-                  key={pet.type}
-                  onClick={() => {
-                    setPetType(pet.type);
-                    setStep(2);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '1rem',
-                    width: '100%',
-                    padding: '1.1rem 1.25rem',
-                    background: '#ffffff',
-                    color: '#0f172a', // midnight-900
-                    border: '2px solid #e2e8f0', // midnight-200
-                    borderRadius: '1rem',
-                    fontSize: '1.15rem',
-                    fontWeight: '700',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease',
-                    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#facc15'; // flash-400
-                    e.currentTarget.style.boxShadow = '0 6px 18px rgba(15,23,42,0.10)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04)';
-                    e.currentTarget.style.transform = 'none';
-                  }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = '#facc15'; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; }}
-                >
-                  <span style={{
-                    width: '44px',
-                    height: '44px',
-                    flexShrink: 0,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '0.75rem',
-                    background: `${pet.accent}1a`, // ~10% tint, keeps per-type recognition
-                    fontSize: '1.5rem',
-                  }}>
-                    {pet.emoji}
-                  </span>
-                  <span style={{ flex: 1 }}>{pet.label}</span>
-                  <span style={{ color: '#94a3b8', fontSize: '1.4rem', lineHeight: 1 }} aria-hidden="true">›</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      {stepId === 'details' && (
+        <StepScreen
+          stepKey="details"
+          variant={VARIANT}
+          question="Anything from a collar or tag?"
+          hint="All optional — a tag name or chip number can end the search instantly."
+          primary={{ label: 'Continue', onClick: advance }}
+          skip={{ label: 'Nothing to add', onClick: advance }}
+        >
+          <TagDetailsStep variant={VARIANT} species={species} value={details} onChange={setDetails} />
+        </StepScreen>
+      )}
 
-        {/* Step 2: Found Location & Time */}
-        {step === 2 && (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '3rem 2rem',
-            maxWidth: '600px',
-            margin: '0 auto',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-            }}>
-              Where did you find the pet?
-            </h2>
-            <p style={{
-              fontSize: '1.05rem',
-              color: theme.colors.gray[600],
-              marginBottom: '2rem',
-            }}>
-              Enter the address or zip code where you found the pet
-            </p>
+      {stepId === 'contact' && (
+        <StepScreen
+          stepKey="contact"
+          variant={VARIANT}
+          question="Where should we send matches?"
+          hint="When an owner matches, this is how we connect you."
+          primary={{
+            label: 'Continue',
+            onClick: advance,
+            disabled: !contactIsValid(contact, CONTACT_MODE),
+          }}
+        >
+          <ContactFields
+            variant={VARIANT}
+            mode={CONTACT_MODE}
+            value={contact}
+            onChange={setContact}
+            emailHint="Match alerts land here — that's why we need it."
+            phoneHint="Optional — for faster coordination on a strong match."
+          />
+        </StepScreen>
+      )}
 
-            <label htmlFor="found-address" style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '700',
-              color: theme.colors.gray[700],
-            }}>
-              Found At Address or Zip Code
-            </label>
-            <input
-              id="found-address"
-              type="text"
-              value={foundAddress}
-              onChange={(e) => setFoundAddress(e.target.value)}
-              placeholder="123 Main St, City, State or 60601"
-              style={{
-                width: '100%',
-                padding: '1rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: theme.radius.lg,
-                fontSize: '1rem',
-                marginBottom: '2rem',
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && foundAddress && timeElapsed) {
-                  geocodeAddress();
-                }
-              }}
-            />
-
-            <label htmlFor="found-time" style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '700',
-              color: theme.colors.gray[700],
-            }}>
-              When did you find them?
-            </label>
-            <select
-              id="found-time"
-              value={timeElapsed}
-              onChange={(e) => setTimeElapsed(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: theme.radius.lg,
-                fontSize: '1rem',
-                marginBottom: '2rem',
-              }}
-            >
-              <option value="">Select time...</option>
-              <option value="less_than_hour">Less than 1 hour ago</option>
-              <option value="1_to_6_hours">1-6 hours ago</option>
-              <option value="6_to_24_hours">6-24 hours ago</option>
-              <option value="1_to_3_days">1-3 days ago</option>
-              <option value="3_to_7_days">3-7 days ago</option>
-              <option value="1_to_2_weeks">1-2 weeks ago</option>
-              <option value="more_than_2_weeks">More than 2 weeks ago</option>
-            </select>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setStep(1)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={geocodeAddress}
-                disabled={!foundAddress || !timeElapsed}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: foundAddress && timeElapsed ? '#10b981' : '#cbd5e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: foundAddress && timeElapsed ? 'pointer' : 'not-allowed',
-                }}
-              >
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Pinpoint Exact Location */}
-        {step === 3 && center && (
-          <div style={{
-            background: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '2rem',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-            }}>
-              📍 Pinpoint Exact Location
-            </h2>
-            <p style={{
-              fontSize: '1.05rem',
-              color: theme.colors.gray[600],
-              marginBottom: '2rem',
-            }}>
-              Drag the marker to show exactly where you found the pet. We'll search for matching lost pet reports within a 10-mile radius automatically.
-            </p>
-
-            {/* Map */}
-            <div style={{
-              borderRadius: theme.radius.lg,
-              overflow: 'hidden',
-              marginBottom: '2rem',
-              height: '450px',
-              boxShadow: theme.shadows.md,
-            }}>
-              <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
-            </div>
-
-            <div style={{
-              background: '#dbeafe',
-              border: '2px solid #0ea5e9',
-              borderRadius: theme.radius.lg,
-              padding: '1rem',
-              marginBottom: '2rem',
-            }}>
-              <p style={{
-                margin: 0,
-                color: '#075985',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-              }}>
-                💡 Tip: Be as precise as possible with the location. Lost pets are often found within 1-2 miles of where they went missing.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => {
-                  setStep(2);
-                  setCenter(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setStep(session?.user ? 5 : 4)}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: '#10b981', // emerald = FOUND primary CTA (consistent across steps)
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Contact Info */}
-        {step === 4 && !session?.user && (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '3rem 2rem',
-            maxWidth: '600px',
-            margin: '0 auto',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '0.5rem',
-              color: theme.colors.gray[900],
-            }}>
-              Your Contact Information
-            </h2>
-            <p style={{
-              color: theme.colors.gray[600],
-              marginBottom: '1rem',
-              fontSize: '1.05rem',
-            }}>
-              So the pet owner can contact you if this is their pet
-            </p>
-            {session?.user && (
-              <div style={{
-                background: '#dbeafe',
-                border: '2px solid #0ea5e9',
-                borderRadius: theme.radius.lg,
-                padding: '1rem',
-                marginBottom: '2rem',
-                fontSize: '0.9rem',
-                color: '#075985',
-              }}>
-                <strong>✓ We've pre-filled your info from your account.</strong> Verify your phone number so pet owners can reach you.
-              </div>
-            )}
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label htmlFor="found-name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Your Name
-              </label>
-              <input
-                id="found-name"
-                type="text"
-                value={reportData.firstName}
-                onChange={(e) => setReportData({ ...reportData, firstName: e.target.value })}
-                placeholder="John"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
-                required
-              />
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label htmlFor="found-email" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Email
-              </label>
-              <input
-                id="found-email"
-                type="email"
-                value={reportData.email}
-                onChange={(e) => setReportData({ ...reportData, email: e.target.value })}
-                placeholder="john@example.com"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
-                required
-              />
-            </div>
-
-            <div style={{ marginBottom: '2rem' }}>
-              <label htmlFor="found-phone" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Phone Number
-              </label>
-              <input
-                id="found-phone"
-                type="tel"
-                value={reportData.phone}
-                onChange={(e) => setReportData({ ...reportData, phone: e.target.value })}
-                placeholder="(555) 123-4567"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
-                required
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setStep(3)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setStep(5)}
-                disabled={!reportData.firstName || !reportData.email || !reportData.phone}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: (reportData.firstName && reportData.email && reportData.phone) ? '#10b981' : '#cbd5e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: (reportData.firstName && reportData.email && reportData.phone) ? 'pointer' : 'not-allowed',
-                }}
-              >
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 5: Pet Details */}
-        {step === 5 && (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '3rem 2rem',
-            maxWidth: '700px',
-            margin: '0 auto',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '0.5rem',
-              color: theme.colors.gray[900],
-            }}>
-              Describe the pet you found
-            </h2>
-            <p style={{
-              color: theme.colors.gray[600],
-              marginBottom: '2rem',
-              fontSize: '1.05rem',
-            }}>
-              Help us match this pet with their owner
-            </p>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label htmlFor="found-petname" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Name (if visible on collar/tag)
-              </label>
-              <input
-                id="found-petname"
-                type="text"
-                value={reportData.petName}
-                onChange={(e) => setReportData({ ...reportData, petName: e.target.value })}
-                placeholder="Unknown (leave blank if no tag)"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
-              />
-              <p style={{ fontSize: '0.85rem', color: theme.colors.gray[500], marginTop: '0.5rem' }}>
-                Optional - only if you can see the name on a collar or tag
-              </p>
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Breed
-              </label>
-              <BreedSelector
-                species={petType}
-                value={reportData.breed}
-                onChange={(breed) => setReportData({ ...reportData, breed })}
-              />
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Color/Pattern (select multiple)
-              </label>
-              <ColorSelector
-                value={reportData.color}
-                onChange={(color) => setReportData({ ...reportData, color })}
-              />
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label htmlFor="found-size" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Size
-              </label>
-              <select
-                id="found-size"
-                value={reportData.size}
-                onChange={(e) => setReportData({ ...reportData, size: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
-              >
-                {petType === 'bird' ? (
-                  <>
-                    <option value="TINY">Small (Parakeet, Finch)</option>
-                    <option value="SMALL">Medium (Cockatiel, Conure)</option>
-                    <option value="MEDIUM">Large (African Grey, Amazon)</option>
-                    <option value="LARGE">Very Large (Macaw, Cockatoo)</option>
-                  </>
-                ) : petType === 'cat' ? (
-                  <>
-                    <option value="TINY">Small (&lt; 8 lbs)</option>
-                    <option value="SMALL">Medium (8-12 lbs)</option>
-                    <option value="MEDIUM">Large (12-18 lbs)</option>
-                    <option value="LARGE">Very Large (&gt; 18 lbs)</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="TINY">Tiny (&lt; 10 lbs)</option>
-                    <option value="SMALL">Small (10-25 lbs)</option>
-                    <option value="MEDIUM">Medium (25-60 lbs)</option>
-                    <option value="LARGE">Large (60-90 lbs)</option>
-                    <option value="GIANT">Giant (&gt; 90 lbs)</option>
-                  </>
-                )}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label htmlFor="found-photos" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Photos of the Pet You Found
-              </label>
-              <p style={{ fontSize: '0.9rem', color: theme.colors.gray[600], marginBottom: '0.5rem' }}>
-                Upload up to 5 clear photos to help identify the pet (max 5MB each)
-              </p>
-              <input
-                id="found-photos"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoUpload}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                }}
-              />
-              {photos.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  gap: '0.5rem',
-                  marginTop: '1rem',
-                  flexWrap: 'wrap',
-                }}>
-                  {photos.map((photo, index) => (
-                    <div key={index} style={{ position: 'relative' }}>
-                      <img
-                        src={photo}
-                        alt={`Pet photo ${index + 1}`}
-                        style={{
-                          width: '100px',
-                          height: '100px',
-                          objectFit: 'cover',
-                          borderRadius: theme.radius.md,
-                          border: '2px solid #e5e7eb',
-                        }}
-                      />
-                      <button
-                        onClick={() => removePhoto(index)}
-                        style={{
-                          position: 'absolute',
-                          top: '-8px',
-                          right: '-8px',
-                          background: '#dc2626',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                          fontSize: '14px',
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label htmlFor="found-marks" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '700' }}>
-                Distinctive Marks, Features, or Collar Information
-              </label>
-              <textarea
-                id="found-marks"
-                value={reportData.distinctiveMarks}
-                onChange={(e) => setReportData({ ...reportData, distinctiveMarks: e.target.value })}
-                placeholder="Collar color and type, tags (if any), unique markings, scars, behavior when approached, microchip visible? Very friendly/scared/aggressive?"
-                rows={4}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1rem',
-                  fontFamily: 'inherit',
-                }}
-              />
-              <p style={{ fontSize: '0.85rem', color: theme.colors.gray[500], marginTop: '0.5rem' }}>
-                Include any collar details, tags, behavior, and identifying features
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setStep(session?.user ? 3 : 4)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!reportData.color || isSubmitting}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: (reportData.color && !isSubmitting) ? '#10b981' : '#cbd5e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: (reportData.color && !isSubmitting) ? 'pointer' : 'not-allowed',
-                }}
-              >
-                {isSubmitting ? 'Creating Alert...' : '🎉 Report Found Pet'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 6: Success */}
-        {step === 6 && reportId && (
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '3rem 2rem',
-            maxWidth: '600px',
-            margin: '0 auto',
-            boxShadow: theme.shadows.lg,
-            textAlign: 'center',
-          }}>
-            <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>✅</div>
-            <h1 style={{
-              fontSize: '2.5rem',
-              fontWeight: '900',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-            }}>
-              Alert Created!
-            </h1>
-            <p style={{
-              fontSize: '1.2rem',
-              color: theme.colors.gray[700],
-              marginBottom: '2rem',
-              lineHeight: '1.6',
-            }}>
-              Thank you for helping! We've notified nearby pet owners who reported a lost pet matching this description.
-            </p>
-
-            <div style={{
-              background: '#f0fdf4',
-              border: '2px solid #10b981',
-              borderRadius: theme.radius.lg,
-              padding: '2rem',
-              marginBottom: '2rem',
-              textAlign: 'left',
-            }}>
-              <h3 style={{
-                fontSize: '1.2rem',
-                fontWeight: '700',
-                marginBottom: '1rem',
-                color: '#065f46',
-              }}>
-                What happens next:
-              </h3>
-              <ul style={{
-                margin: 0,
-                paddingLeft: '1.5rem',
-                color: theme.colors.gray[700],
-                lineHeight: '1.8',
-              }}>
-                <li>Pet owners in your area who reported lost pets will be notified</li>
-                <li>If a match is found, the owner will contact you directly</li>
-                <li>Check your email and phone for messages from potential owners</li>
-                <li>Keep the pet safe until the owner contacts you</li>
-              </ul>
-            </div>
-
-            <div style={{
-              background: '#dbeafe',
-              border: '2px solid #0ea5e9',
-              borderRadius: theme.radius.lg,
-              padding: '1.5rem',
-              marginBottom: '2rem',
-              textAlign: 'left',
-            }}>
-              <h3 style={{
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                marginBottom: '0.75rem',
-                color: '#075985',
-              }}>
-                💡 While You Wait:
-              </h3>
-              <ul style={{
-                margin: 0,
-                paddingLeft: '1.5rem',
-                color: '#075985',
-                lineHeight: '1.7',
-                fontSize: '0.95rem',
-              }}>
-                <li>Provide food, water, and a safe place for the pet</li>
-                <li>Check for a microchip at a local vet or animal shelter (free service)</li>
-                <li>Take additional photos if possible</li>
-                <li>Post on local community groups and social media</li>
-                <li>If no owner is found, contact local animal shelters about next steps</li>
-              </ul>
-            </div>
-
-            {/* Potential Matches — rendered via the shared MatchCard (§4d PII-free,
-                band-driven). connectAvailable=false until the relay broker tables
-                are activated; actionable matches already alert the owner server-side. */}
-            {potentialMatches.length > 0 && (
-              <div style={{ marginBottom: '2rem', textAlign: 'left' }}>
-                <h3 style={{
-                  fontSize: '1.3rem',
-                  fontWeight: '700',
-                  marginBottom: '0.5rem',
-                  color: theme.colors.gray[900],
-                }}>
-                  Potential Matches ({potentialMatches.length})
-                </h3>
-                <p style={{
-                  color: theme.colors.gray[600],
-                  marginBottom: '1rem',
-                  fontSize: '0.95rem',
-                }}>
-                  We checked nearby lost-pet reports. Strong matches alert the owner automatically.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {potentialMatches.slice(0, 5).map((match) => (
-                    <MatchCard
-                      key={match.reportId}
-                      connectAvailable={false}
-                      match={{
-                        matchId: match.reportId,
-                        petPhoto: match.petPhoto,
-                        petName: match.petName,
-                        species: match.petSpecies,
-                        coarseArea: match.coarseArea,
-                        pTrueMatch: match.pTrueMatch,
-                        matchSource: match.matchSource,
-                        band: match.band,
-                        canConnect: match.canConnect,
-                      }}
-                    />
-                  ))}
-                </div>
-                {potentialMatches.length > 5 && (
-                  <p style={{
-                    textAlign: 'center',
-                    color: theme.colors.gray[500],
-                    marginTop: '1rem',
-                    fontSize: '0.9rem',
-                  }}>
-                    +{potentialMatches.length - 5} more potential matches
-                  </p>
-                )}
-              </div>
-            )}
-
-            <Link
-              href="/dashboard"
-              style={{
-                display: 'inline-block',
-                padding: '1.25rem 2.5rem',
-                background: '#10b981', // emerald = FOUND positive CTA (was red, the LOST semantic)
-                color: 'white',
-                border: 'none',
-                borderRadius: theme.radius.lg,
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                textDecoration: 'none',
-                boxShadow: theme.shadows.md,
-              }}
-            >
-              Go to Dashboard →
-            </Link>
-          </div>
-        )}
-      </div>
-    </div>
+      {stepId === 'review' && (
+        <StepScreen
+          stepKey="review"
+          variant={VARIANT}
+          question="Ready to post?"
+          hint="Tap any detail to change it."
+          error={error}
+          primary={{
+            label: `Post ${theme.stamp} report`,
+            tone: 'post',
+            onClick: handleSubmit,
+            loading: isSubmitting,
+            loadingLabel: 'Checking for matches…',
+          }}
+        >
+          <ReviewPosterCard
+            variant={VARIANT}
+            photoUrl={photos[displayIndex] || photos[0]}
+            species={species}
+            petName={details.petName || `Found ${speciesLabel}`}
+            chips={[
+              ...color.split(',').map((c) => c.trim()).filter(Boolean),
+              details.size ? details.size.toLowerCase() : null,
+              details.breed || null,
+              details.microchipId ? 'chip scanned' : null,
+            ]}
+            rows={[
+              {
+                id: 'where',
+                icon: MapPin,
+                label: 'Found near',
+                value: location ? location.city || location.address : '',
+              },
+              {
+                id: 'when',
+                icon: Clock,
+                label: 'Found',
+                value: FOUND_TIME_OPTIONS.find((o) => o.value === timeElapsed)?.label || '',
+              },
+              {
+                id: 'details',
+                icon: Tag,
+                label: 'Details',
+                value:
+                  [details.petName, details.breed, details.marks].filter(Boolean).join(' · ') ||
+                  'None added',
+              },
+              ...(!isLoggedIn
+                ? [{
+                    id: 'contact',
+                    icon: Mail,
+                    label: 'Contact',
+                    value: [contact.firstName, contact.email].filter(Boolean).join(' · '),
+                  }]
+                : []),
+            ]}
+            onEdit={editFromReview}
+          />
+        </StepScreen>
+      )}
+    </WizardShell>
   );
 }
