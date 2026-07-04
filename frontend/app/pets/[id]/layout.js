@@ -69,7 +69,9 @@ function PetShell({ children }) {
     : '';
 
   return (
-    <div className="min-h-screen bg-midnight-50">
+    /* The care product's warm daylight register, worn by every room —
+       not just the Health Book. Rescue surfaces stay midnight. */
+    <div className="min-h-screen bg-gradient-to-b from-amber-50/50 via-midnight-50 to-midnight-50 pb-20 lg:pb-0">
       <div className="bg-white border-b border-midnight-100">
         <div className="max-w-4xl mx-auto px-4 pt-4 md:px-8">
           {focused ? (

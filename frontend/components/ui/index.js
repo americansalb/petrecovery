@@ -14,3 +14,4 @@ export { Button, IconButton, ButtonGroup } from './Button';
 export { Badge, StatusBadge, CountBadge } from './Badge';
 export { EmptyState, CardSkeleton, ListItemSkeleton } from './EmptyState';
 export { PageLayout, PageHeader, PageContent, PageSection, Breadcrumbs } from './PageLayout';
+export { Modal, ConfirmModal } from './Modal';

@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * The Pet Profile - one home per pet
+ * The Pet Profile Overview - STATE, and only state
  *
- * Everything about this pet, one screen: who they are, whether they're
- * safe, today's care at a glance, the people who care for them, their
- * photos, their history. The avatar strip up top jumps between all of
- * your pets, so the whole family is one tap apart. Editing moved to
- * /pets/[id]/edit; this page is for living, not form-filling.
+ * The glance: whether they're safe, rescue readiness, one line per
+ * room (Today / Health Book / Care team), the About facts, photos.
+ * The Overview owns nothing (PET_PROFILE_DESIGN.md §3): every card is
+ * a summary that links into its room — dose history lives in Today's
+ * week strip, the record's history lives in the Health Book.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -16,16 +16,15 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { PawPrint, Pill, AlertTriangle, Radar, Users, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, Badge, cn } from '@/components/ui';
-import { MedIconChip } from '@/app/components/medications/MedIcon';
+import { Card, Button, cn } from '@/components/ui';
 import { slotsWithStatus, sameDay, formatTime } from '@/lib/medications';
-import { CareIconChip } from '@/app/components/icons/CareIcons';
 import RescueReadiness from '@/app/components/pets/RescueReadiness';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { healthBookStatus } from '@/lib/healthBook';
-
+import { usePet } from '@/app/components/care/PetProvider';
 
 function parseJsonArray(value) {
+  if (Array.isArray(value)) return value;
   try {
     const arr = JSON.parse(value || '[]');
     return Array.isArray(arr) ? arr : [];
@@ -43,7 +42,7 @@ function activeCaseOf(pet) {
 
 /* A profile fact row: shows the value when known, a one-tap "Add" when not -
    an empty record should read as an invitation, never as dead text. */
-function IdRow({ label, isOwner, addHref, children }) {
+function IdRow({ label, isOwner, addHref, addLabel = 'Add', children }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="text-midnight-500">{label}</dt>
@@ -51,7 +50,7 @@ function IdRow({ label, isOwner, addHref, children }) {
         {children || (
           isOwner ? (
             <Link href={addHref} className="inline-flex items-center gap-0.5 text-flash-600 hover:text-flash-700 font-bold text-xs">
-              Add <ChevronRight size={12} />
+              {addLabel} <ChevronRight size={12} />
             </Link>
           ) : (
             <span className="text-midnight-400 font-normal">Not noted</span>
@@ -69,15 +68,13 @@ export default function PetProfilePage() {
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
+  const { pet, access, loading: petLoading, error: petError } = usePet();
 
-  const [pet, setPet] = useState(null);
   const [meds, setMeds] = useState([]);
-  const [access, setAccess] = useState('OWNER');
   const [shares, setShares] = useState(null); // null = not loaded / not owner
   const [viewLinkUrl, setViewLinkUrl] = useState(null);
   const [vaccinations, setVaccinations] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -87,21 +84,11 @@ export default function PetProfilePage() {
 
   const load = useCallback(async () => {
     try {
-      const [petRes, medsRes] = await Promise.all([
-        fetch(`/api/pets/${petId}`),
-        fetch(`/api/pets/${petId}/medications`),
-      ]);
-      const petData = await petRes.json();
-      if (!petRes.ok) throw new Error(petData.error || 'Pet not found');
-      setPet(petData.pet || petData);
-
+      const medsRes = await fetch(`/api/pets/${petId}/medications`);
       if (medsRes.ok) {
         const medsData = await medsRes.json();
         setMeds(medsData.medications || []);
-        setAccess(medsData.access || 'OWNER');
       }
-    } catch (err) {
-      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -162,32 +149,21 @@ export default function PetProfilePage() {
     return { due, given, nextSlot, careDue, careDone, medCount: medItems.length, careCount: careItems.length };
   }, [meds]);
 
-  const recent = useMemo(() => {
-    const out = [];
-    for (const med of meds) {
-      for (const dose of med.doses || []) {
-        if (dose.deletedAt) continue;
-        out.push({ med, dose, at: new Date(dose.givenAt || dose.scheduledFor) });
-      }
-    }
-    return out.sort((a, b) => b.at - a.at).slice(0, 5);
-  }, [meds]);
-
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || petLoading || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center">
         <LoadingSpinner text="Loading profile..." />
       </div>
     );
   }
   if (status === 'unauthenticated') return null;
 
-  if (error || !pet) {
+  if (petError || !pet) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center px-4">
+      <div className="min-h-[50vh] flex items-center justify-center px-4">
         <Card className="max-w-md w-full p-8 text-center">
           <PawPrint className="w-12 h-12 text-midnight-300 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-midnight-900 mb-2">{error || 'Pet not found'}</h1>
+          <h1 className="text-xl font-bold text-midnight-900 mb-2">{petError || 'Pet not found'}</h1>
           <Button href="/pets" variant="primary">Back to My Pets</Button>
         </Card>
       </div>
@@ -329,7 +305,9 @@ export default function PetProfilePage() {
             <IdRow label="Collar" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
               {pet.collarInfo}
             </IdRow>
-            <IdRow label="Weight" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
+            {/* Weight is a log, not a form field: it's read here, written in
+                the Health Book's weight card (the one write path). */}
+            <IdRow label="Weight" isOwner={access !== 'VIEWER'} addHref={`/pets/${petId}/health`} addLabel="Log">
               {pet.weight ? `${pet.weight} lbs` : null}
             </IdRow>
             {pet.distinctiveMarks && (
@@ -367,33 +345,6 @@ export default function PetProfilePage() {
                 </div>
               ))}
             </div>
-          </Card>
-        )}
-
-        {/* Recent care history */}
-        {recent.length > 0 && (
-          <Card padding="lg" className="mb-6">
-            <h2 className="font-bold text-midnight-900 mb-3">Recent care</h2>
-            <ul className="divide-y divide-midnight-100">
-              {recent.map(({ med, dose, at }) => (
-                <li key={dose.id} className="flex items-center gap-3 py-2 first:pt-0 last:pb-0">
-                  {med.kind === 'CARE' ? (
-                    <CareIconChip name={med.name} color={med.color} size="sm" />
-                  ) : (
-                    <MedIconChip med={med} size="sm" />
-                  )}
-                  <span className="flex-1 min-w-0 text-sm font-semibold text-midnight-800 truncate">{med.name}</span>
-                  <Badge variant={dose.status === 'GIVEN' ? 'success' : 'default'} size="sm">
-                    {dose.status === 'GIVEN' ? (med.kind === 'CARE' ? 'Done' : 'Given') : 'Skipped'}
-                  </Badge>
-                  <span className="text-xs text-midnight-500 whitespace-nowrap">
-                    {sameDay(at, new Date())
-                      ? at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                      : at.toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                  </span>
-                </li>
-              ))}
-            </ul>
           </Card>
         )}
       </div>
