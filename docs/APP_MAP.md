@@ -74,7 +74,8 @@ How the renames were physically executed (see §6 Data Model): the LostReport→
 | `/about` | "Meet Sarama" mascot/brand page | client | none | — |
 | `/about-sarama` | Extended Sarama origin story (framer-motion) | client | none | — |
 | `/advice` | Step-by-step lost-pet advice wizard (species/time/scenario → tips) | client | none | — |
-| `/care` | Daily-care product landing page pitching the Health Book | server (static) | none | — |
+| `/care` | Daily-care marketing door pitching the Health Book (signed-in members are redirected to `/pets`, the one dashboard) | server (static) + client gate | none | — |
+| `/care/start` | THE add-a-pet wizard (guest-first + members; coat swatches, optional meds, member photo step); `/pets/new` 301s here | client | none | — |
 | `/contact` | Contact/support page with quick-action cards | client | none | — |
 | `/shelters` | Public shelter/rescue-org search | client | none | — |
 | `/lost-and-found` | The "corkboard": browse lost/found/reunited cases, list or map | client | none | optional query: tab/species/search sync to URL |
@@ -96,19 +97,19 @@ How the renames were physically executed (see §6 Data Model): the LostReport→
 
 ### Pets (daily care product)
 
-All `/pets/[id]/*` share the client shell `app/pets/[id]/layout.js` (breadcrumb + identity row + tabs). `id` = `Pet.id` (cuid) owned by the session user (or shared via `PetShare`).
+All `/pets/[id]/*` share the client shell `app/pets/[id]/layout.js` (breadcrumb + identity row + tabs: Overview / Today / Health Book / Care team; the edit and medication-wizard segments render in a "focused mode" with a context bar instead of tabs). The shell mounts `PetProvider` (`app/components/care/PetProvider.js`), which fetches `/api/pets/[id]` once and feeds identity + access to every room. `id` = `Pet.id` (cuid) owned by the session user (or shared via `PetShare` — care-team members browse the same shell since `GET /api/pets/[id]` reads via `requirePetAccess`).
 
 | route | purpose | client/server | auth | dynamic params & source |
 |---|---|---|---|---|
-| `/pets` | "My Pets" list with delete confirm | client | logged-in | — |
-| `/pets/new` | Add-a-pet wizard | client | logged-in | — |
-| `/pets/[id]` | Pet overview tab | client | logged-in (redirect w/ callbackUrl) | `Pet.id` owned |
-| `/pets/[id]/edit` | Edit pet profile | client | logged-in | `Pet.id` owned |
-| `/pets/[id]/health` | Health Book: vaccines, weight, conditions, vet card | client | logged-in | `Pet.id` owned |
-| `/pets/[id]/today` | Today checklist: med doses + care routines | client | logged-in | `Pet.id` owned |
-| `/pets/[id]/share` | Manage caregivers, invites, read-only view link | client | logged-in (owner only) | `Pet.id` owned |
-| `/pets/[id]/medications/new` | Add/edit a medication | client | logged-in | `Pet.id` owned; `?edit=` = `PetMedication.id` |
-| `/pets/[id]/medications` | Redirect stub → `/pets/[id]/today` | server (`redirect()`) | n/a | `Pet.id` |
+| `/pets` | THE pet dashboard (2026-07 care redesign): warm register, Today/Health Book quick chips per card, pending invites, shared-with-me | client | logged-in | — |
+| `/pets/new` | **Unreachable**: `next.config.js` 301 → `/care/start` (the one wizard) | n/a | n/a | — |
+| `/pets/[id]` | Pet overview tab | client | logged-in (redirect w/ callbackUrl) | `Pet.id` owned/shared |
+| `/pets/[id]/edit` | Edit pet profile (weight read-only here; logged in the Health Book) | client | logged-in | `Pet.id` owned |
+| `/pets/[id]/health` | Health Book: alert ribbon (medical notes), status band, vaccines, meds record, weight, vet card, unified history | client | logged-in | `Pet.id` owned/shared |
+| `/pets/[id]/today` | Today checklist: the ONLY dose-action surface (scheduled + as-needed log/undo/backfill) + care routines | client | logged-in | `Pet.id` owned/shared |
+| `/pets/[id]/share` | Care team: caretaker requests, roster, invites, view link (owner manages; caregivers get a read-only note) | client | logged-in | `Pet.id` owned |
+| `/pets/[id]/medications/new` | Add/edit a medication (returns to `/health`) | client | logged-in | `Pet.id` owned; `?edit=` = `PetMedication.id` |
+| `/pets/[id]/medications` | Redirect stub → `/pets/[id]/health` (management lives in the Book) | server (`redirect()`) | n/a | `Pet.id` |
 | `/pets/[id]/care` | Redirect stub → `/pets/[id]/today` | server (`redirect()`) | n/a | `Pet.id` |
 | `/pets/view/[token]` | Public read-only care page (share link for vets/sitters) | server wrapper + client | none | `token` = `Pet.publicViewToken` (min 16 chars, `isDeleted: false`) |
 
@@ -274,7 +275,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 | Route | Methods | Purpose | Auth | Models |
 |---|---|---|---|---|
 | `pets/route.js` | GET, POST | List my/shared pets; create pet | session | pet, petShare, user |
-| `pets/[id]/route.js` | GET, PATCH, DELETE | Pet detail / edit / soft-delete | session (owner) | pet, case, user |
+| `pets/[id]/route.js` | GET, PATCH, DELETE | Pet detail / edit / soft-delete | GET: pet-access(VIEWER) returning `{pet, access}`; PATCH/DELETE: owner | pet, case, user |
 | `pets/[id]/medications/route.js` | GET, POST | List (+35-day dose history) / add medication | pet-access(VIEWER/CAREGIVER) | petMedication (+ medicationAudit lib) |
 | `pets/[id]/medications/[medId]/route.js` | PATCH, DELETE | Edit / soft-delete medication | pet-access | petMedication |
 | `pets/[id]/medications/[medId]/doses/route.js` | POST, DELETE | Log / undo a dose | pet-access(CAREGIVER) | medicationDose, petMedication |

@@ -1,8 +1,14 @@
 # Page Screenshot Gallery
 
-Full-page screenshots of every route in the app, captured 2026-07-03 against a local
+Full-page screenshots of every route in the app, captured 2026-07-04 against a local
 dev server (PostgreSQL seeded via `frontend/prisma/seed-sample-data.js`; login `admin@localdev.test`).
 Viewport 1440px, full-page. Regenerate with `frontend/scripts/gallery-sweep.js` (usage in its header).
+
+This capture includes the 2026-07 care-product redesign: one dashboard (`/pets`,
+warm register; signed-in `/care` redirects there), one wizard (`/care/start`;
+`/pets/new` 301s to it), Today as the only dose-action surface (incl. as-needed),
+the Health Book as the pure record (alert ribbon + status band, identity only in
+the shell), and the public view rebuilt on the same components.
 
 - `pub-*` — anonymous visitor session (34 captures)
 - `auth-*` — logged in as a local ADMIN user (73 captures)
@@ -22,7 +28,7 @@ Notes:
   (`session?.user?.role !== 'ADMIN'` / `!session`) fires while NextAuth is still `loading`,
   so direct loads redirect to /dashboard even for admins. Captured by clicking in-app links
   with a warm session instead: auth-74-admin, auth-75-admin-analytics, auth-92-admin-shelters, auth-93-admin-shelters-requests, auth-94-admin-users.
-- `/pets/[id]/care` and `/pets/[id]/medications` are now server-redirect stubs → `/pets/[id]/today`.
+- `/pets/[id]/care` is a server-redirect stub → `/pets/[id]/today`; `/pets/[id]/medications` → `/pets/[id]/health`.
 - Rows whose Final URL differs from Route document real redirect behavior (next.config.js
   permanent redirects and in-page bounces).
 - `/reset-password` + `/verify-email` are captured without `?token=` and show their
@@ -68,6 +74,7 @@ Notes:
 | pub-32-rescue-force-detail.png | `/rescue-forces/cmr4cj06y000urdvlagzaski8` | `/rescue-forces/cmr4cj06y000urdvlagzaski8` | 2 console errors |
 | pub-33-communities-legacy.png | `/communities/cmr4cj06y000urdvlagzaski8` | `/rescue-forces/search` | redirects |
 | pub-34-care.png | `/care` | `/care` |  |
+| pub-35-care-start.png | `/care/start` | `/care/start` | the one add-a-pet wizard (guest-first) |
 
 ## Admin session
 
@@ -75,11 +82,11 @@ Notes:
 |---|---|---|---|
 | auth-33-dashboard.png | `/dashboard` | `/dashboard` |  |
 | auth-34-pets.png | `/pets` | `/pets` |  |
-| auth-35-pets-new.png | `/pets/new` | `/pets/new` |  |
+| auth-35-care-start.png | `/care/start` | `/care/start` | replaces `/pets/new` (301 → `/care/start`) |
 | auth-36-pet-detail.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw` | `/pets/cmr4cj05d0005rdvl0xwkz2mw` |  |
 | auth-37-pet-care.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/care` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/today` | redirects |
 | auth-38-pet-edit.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/edit` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/edit` |  |
-| auth-39-pet-medications.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/medications` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/today` | redirects |
+| auth-39-pet-medications.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/medications` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/health` | redirects (management lives in the Book) |
 | auth-40-pet-medications-new.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/medications/new` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/medications/new` |  |
 | auth-41-pet-share.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/share` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/share` |  |
 | auth-42-profile.png | `/profile` | `/profile` |  |
@@ -137,7 +144,7 @@ Notes:
 | auth-94-admin-users.png | `/admin/users` | `/admin/users` | client-side nav (hard loads bounce — see above) |
 | auth-95-admin-wipe-squads.png | `/admin/wipe-squads` | `/admin/wipe-squads` |  |
 | auth-96-legal-consent.png | `/legal/consent` | `/legal/consent` |  |
-| auth-97-care.png | `/care` | `/care` |  |
+| auth-97-care.png | `/care` | `/pets` | signed-in redirect: one dashboard |
 | auth-98-pet-health.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/health` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/health` |  |
 | auth-99-pet-today.png | `/pets/cmr4cj05d0005rdvl0xwkz2mw/today` | `/pets/cmr4cj05d0005rdvl0xwkz2mw/today` |  |
 | auth-100-admin-pet-detail.png | `/admin/pets/cmr4cj05d0005rdvl0xwkz2mw` | `/admin/pets/cmr4cj05d0005rdvl0xwkz2mw` |  |
