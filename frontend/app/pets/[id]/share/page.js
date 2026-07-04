@@ -1,23 +1,25 @@
 'use client';
 
 /**
- * Pet Sharing Management
+ * Care team - the PEOPLE room (docs/PRODUCT_IA_PLAN.md §3)
  *
- * Route: /pets/[id]/share (owner only)
- * Invite family / sitters / co-caregivers by email, manage their roles,
- * see pending invites, and revoke access.
+ * Route: /pets/[id]/share
+ * The one home of the "care team" noun: pending caretaker requests
+ * first (they're waiting on you), then the team, then the invite form
+ * and the public view link. Owners manage; caregivers see a friendly
+ * read-only note instead of an error.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
 import {
-  ArrowLeft, UserPlus, X, Loader2, PawPrint, Mail, Clock,
+  UserPlus, X, Loader2, Mail, Clock,
   HeartHandshake, Eye, Trash2, Check, Users, Link2, Copy, RefreshCw,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { Card, Button, Badge, cn } from '@/components/ui';
+import { usePet } from '@/app/components/care/PetProvider';
 
 const ROLE_OPTIONS = [
   {
@@ -94,6 +96,7 @@ export default function PetSharePage() {
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
+  const { pet: ctxPet, access } = usePet();
 
   const [pet, setPet] = useState(null);
   const [shares, setShares] = useState([]);
@@ -121,12 +124,12 @@ export default function PetSharePage() {
     try {
       const res = await fetch(`/api/pets/${petId}/shares`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load');
+      // Non-owners can't read the roster; the page shows them a
+      // friendly note below instead of an error banner.
+      if (!res.ok) return;
       setPet(data.pet);
       setShares(data.shares);
-    } catch (err) {
-      setError(err.message);
-    } finally {
+    } catch { /* tolerated: non-owner or offline */ } finally {
       setLoading(false);
     }
   }, [petId]);
@@ -257,6 +260,30 @@ export default function PetSharePage() {
   }
   if (status === 'unauthenticated') return null;
 
+  const petName = pet?.name || ctxPet?.name || 'this pet';
+
+  // Caregivers and viewers get a warm note, not a wall: the roster is
+  // the owner's to manage.
+  if (access && access !== 'OWNER') {
+    return (
+      <div className="px-4 py-6 md:px-8 md:py-8">
+        <div className="max-w-2xl mx-auto">
+          <Card padding="lg" className="mt-6 text-center">
+            <span className="w-14 h-14 rounded-2xl bg-flash-100 text-flash-700 flex items-center justify-center mx-auto mb-4">
+              <HeartHandshake size={28} />
+            </span>
+            <h2 className="font-bold text-midnight-900 text-lg mb-1">You&apos;re on {petName}&apos;s care team</h2>
+            <p className="text-sm text-midnight-500 max-w-md mx-auto">
+              {access === 'CAREGIVER'
+                ? `You can log doses in Today and keep the Health Book up to date. Only the owner manages who has access.`
+                : `You can see ${petName}'s profile and schedule. Only the owner manages who has access.`}
+            </p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   const active = shares.filter((s) => s.status === 'ACTIVE');
   const pending = shares.filter((s) => s.status === 'PENDING');
   const requests = shares.filter((s) => s.status === 'REQUESTED');
@@ -271,14 +298,83 @@ export default function PetSharePage() {
           </div>
         )}
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg my-4 flex items-center justify-between">
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg my-4 flex items-center justify-between">
             <span className="inline-flex items-center gap-2"><Check size={16} /> {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-green-600 hover:text-green-800"><X size={18} /></button>
+            <button onClick={() => setSuccess(null)} className="text-emerald-600 hover:text-emerald-800"><X size={18} /></button>
           </div>
         )}
 
+        {/* Caretaker requests: someone is waiting on you — always first */}
+        {requests.length > 0 && (
+          <Card padding="lg" className="mt-6 mb-6 border-2 border-flash-300">
+            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
+              <HeartHandshake size={18} className="text-flash-500" /> Caretaker requests
+            </h2>
+            <p className="text-sm text-midnight-500 mb-3">
+              People who saw {petName}&apos;s page and want to help. They get no access until you approve.
+            </p>
+            <div className="divide-y divide-midnight-100">
+              {requests.map((share) => {
+                const displayName = [share.user?.firstName, share.user?.lastName].filter(Boolean).join(' ');
+                return (
+                  <div key={share.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="w-10 h-10 rounded-full bg-flash-100 text-flash-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {initialsOf(share)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-midnight-900 text-sm truncate">{displayName || share.email}</p>
+                      <p className="text-xs text-midnight-500 truncate">
+                        {displayName ? share.email : 'Asked to join as a caretaker'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => approve(share)}
+                      disabled={busyId === share.id}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                    >
+                      {busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => remove(share)}
+                      disabled={busyId === share.id}
+                      className="px-3 py-2 rounded-xl border border-midnight-200 text-midnight-500 hover:text-red-600 hover:border-red-300 text-xs font-semibold transition-colors disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* The team itself */}
+        <Card padding="lg" className={cn('mb-6', requests.length === 0 && 'mt-6')}>
+          <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
+            <Users size={18} className="text-midnight-400" /> {petName}&apos;s care team
+          </h2>
+          {active.length === 0 && pending.length === 0 ? (
+            <p className="text-sm text-midnight-500 py-4">
+              Just you so far. Invite someone below to share the load.
+            </p>
+          ) : (
+            <div className="divide-y divide-midnight-100 mt-3">
+              {[...active, ...pending].map((share) => (
+                <PersonRow
+                  key={share.id}
+                  share={share}
+                  busy={busyId === share.id}
+                  onRoleChange={changeRole}
+                  onRemove={remove}
+                />
+              ))}
+            </div>
+          )}
+        </Card>
+
         {/* Invite form */}
-        <Card padding="lg" className="mt-6 mb-6">
+        <Card padding="lg" className="mb-6">
           <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-4">
             <UserPlus size={18} className="text-midnight-400" /> Invite someone
           </h2>
@@ -332,7 +428,7 @@ export default function PetSharePage() {
             <Link2 size={18} className="text-midnight-400" /> View link
           </h2>
           <p className="text-sm text-midnight-500 mb-4">
-            Anyone with the link can see {pet?.name}&apos;s care page, no account needed.
+            Anyone with the link can see {petName}&apos;s care page, no account needed.
             They can ask to join as a caretaker; you approve every request here.
           </p>
 
@@ -383,74 +479,6 @@ export default function PetSharePage() {
           )}
         </Card>
 
-        {/* Caretaker requests */}
-        {requests.length > 0 && (
-          <Card padding="lg" className="mb-6 border-2 border-flash-300">
-            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
-              <HeartHandshake size={18} className="text-flash-500" /> Caretaker requests
-            </h2>
-            <p className="text-sm text-midnight-500 mb-3">
-              People who saw {pet?.name}&apos;s page and want to help. They get no access until you approve.
-            </p>
-            <div className="divide-y divide-midnight-100">
-              {requests.map((share) => {
-                const displayName = [share.user?.firstName, share.user?.lastName].filter(Boolean).join(' ');
-                return (
-                  <div key={share.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="w-10 h-10 rounded-full bg-flash-100 text-flash-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                      {initialsOf(share)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-midnight-900 text-sm truncate">{displayName || share.email}</p>
-                      <p className="text-xs text-midnight-500 truncate">
-                        {displayName ? share.email : 'Asked to join as a caretaker'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => approve(share)}
-                      disabled={busyId === share.id}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
-                    >
-                      {busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => remove(share)}
-                      disabled={busyId === share.id}
-                      className="px-3 py-2 rounded-xl border border-midnight-200 text-midnight-500 hover:text-red-600 hover:border-red-300 text-xs font-semibold transition-colors disabled:opacity-50"
-                    >
-                      Decline
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        )}
-
-        {/* Care team */}
-        <Card padding="lg">
-          <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
-            <Users size={18} className="text-midnight-400" /> {pet?.name}&apos;s care team
-          </h2>
-          {active.length === 0 && pending.length === 0 ? (
-            <p className="text-sm text-midnight-500 py-4">
-              Just you so far. Invite someone above to share the load.
-            </p>
-          ) : (
-            <div className="divide-y divide-midnight-100 mt-3">
-              {[...active, ...pending].map((share) => (
-                <PersonRow
-                  key={share.id}
-                  share={share}
-                  busy={busyId === share.id}
-                  onRoleChange={changeRole}
-                  onRemove={remove}
-                />
-              ))}
-            </div>
-          )}
-        </Card>
       </div>
     </div>
   );
