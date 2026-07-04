@@ -9,12 +9,12 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import {
-  Check, Loader2, Pause, Play, Trash2, Pencil, AlertTriangle,
-  PackageOpen, History, Undo2,
+  Pause, Play, Trash2, Pencil, AlertTriangle,
+  PackageOpen, History, Sun,
 } from 'lucide-react';
 import { Card, Badge, cn } from '@/components/ui';
 import { MedIconChip } from '@/app/components/medications/MedIcon';
-import { formatSchedule, isLowSupply, medColor, sameDay } from '@/lib/medications';
+import { formatSchedule, isLowSupply, medColor } from '@/lib/medications';
 
 function formatWhen(value) {
   const d = new Date(value);
@@ -24,16 +24,9 @@ function formatWhen(value) {
   return `${d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · ${time}`;
 }
 
-export function MedCard({ med, petId, busy, canManage, onLogPrn, onUndoPrn, onTogglePause, onDelete }) {
+export function MedCard({ med, petId, busy, canManage, onTogglePause, onDelete }) {
   const colors = medColor(med.color);
   const low = isLowSupply(med);
-  // As-needed doses logged today: shown so an accidental "Log dose now" is reversible
-  const prnToday =
-    med.scheduleType === 'AS_NEEDED'
-      ? (med.doses || []).filter(
-          (d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), new Date())
-        ).length
-      : 0;
 
   return (
     <Card padding="none" className={cn('border-l-4 overflow-hidden', colors.accent, !med.isActive && 'opacity-70')}>
@@ -65,31 +58,15 @@ export function MedCard({ med, petId, busy, canManage, onLogPrn, onUndoPrn, onTo
 
       {canManage && (
       <div className="flex items-center gap-1 px-3 py-2 border-t border-midnight-100 bg-midnight-50/50">
+        {/* Doses — scheduled and as-needed alike — are logged in Today,
+            the one action surface. This card only manages the record. */}
         {med.scheduleType === 'AS_NEEDED' && med.isActive && (
-          <>
-            <button
-              onClick={() => onLogPrn(med)}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-midnight-900 bg-flash-400 hover:bg-flash-500 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} strokeWidth={3} />}
-              {prnToday > 0 ? 'Log another' : 'Log dose now'}
-            </button>
-            {prnToday > 0 && onUndoPrn && (
-              <>
-                <span className="text-xs font-semibold text-midnight-500 ml-1">x{prnToday} today</span>
-                <button
-                  onClick={() => onUndoPrn(med)}
-                  disabled={busy}
-                  aria-label={`Undo last ${med.name}`}
-                  title="Undo last"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-500 hover:text-midnight-900 px-2 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors disabled:opacity-50"
-                >
-                  <Undo2 size={13} /> Undo
-                </button>
-              </>
-            )}
-          </>
+          <Link
+            href={`/pets/${petId}/today`}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-500 hover:text-midnight-900 px-2 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
+          >
+            <Sun size={13} /> Log doses in Today
+          </Link>
         )}
         <div className="flex-1" />
         <Link
