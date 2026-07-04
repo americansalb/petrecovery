@@ -72,12 +72,13 @@ const PUB = [
   ['pub-32-rescue-force-detail', `/rescue-forces/${ID.forceId}`],
   ['pub-33-communities-legacy', `/communities/${ID.forceId}`],
   ['pub-34-care', '/care'],
+  ['pub-35-care-start', '/care/start'],
 ];
 
 const AUTH = [
   ['auth-33-dashboard', '/dashboard'],
   ['auth-34-pets', '/pets'],
-  ['auth-35-pets-new', '/pets/new'],
+  ['auth-35-care-start', '/care/start'],
   ['auth-36-pet-detail', `/pets/${ID.petMaxId}`],
   ['auth-37-pet-care', `/pets/${ID.petMaxId}/care`],
   ['auth-38-pet-edit', `/pets/${ID.petMaxId}/edit`],

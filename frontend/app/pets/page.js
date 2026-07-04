@@ -190,7 +190,7 @@ export default function MyPetsPage() {
               Every Health Book, one tap away.
             </p>
           </div>
-          <Button variant="primary" href="/pets/new" size="lg">
+          <Button variant="primary" href="/care/start" size="lg">
             <Plus size={18} />
             Add a pet
           </Button>
@@ -269,7 +269,7 @@ export default function MyPetsPage() {
             icon={PawPrint}
             title="Start their Health Book"
             description="Medications with one-tap logging, vaccine records, weight over time, and a link any vet or sitter can read. Free forever."
-            action={{ href: '/pets/new', label: 'Add your first pet', icon: Plus }}
+            action={{ href: '/care/start', label: 'Add your first pet', icon: Plus }}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

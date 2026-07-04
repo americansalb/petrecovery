@@ -156,6 +156,13 @@ const nextConfig = {
         destination: '/report/new',
         permanent: true,
       },
+      // One add-a-pet wizard: the guest-first Health Book flow at /care/start
+      // absorbed the old members-only 9-step wizard.
+      {
+        source: '/pets/new',
+        destination: '/care/start',
+        permanent: true,
+      },
       // /terms duplicated /legal/terms; one canonical page
       {
         source: '/terms',

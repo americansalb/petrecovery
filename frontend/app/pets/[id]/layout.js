@@ -117,7 +117,7 @@ function PetShell({ children }) {
                     );
                   })}
                   <Link
-                    href="/pets/new"
+                    href="/care/start"
                     aria-label="Add a pet"
                     title="Add a pet"
                     className="w-8 h-8 rounded-full border-2 border-dashed border-midnight-300 flex items-center justify-center text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors shrink-0"
