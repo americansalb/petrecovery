@@ -23,7 +23,9 @@ export const WIZARD_THEMES = {
     progressFill: 'bg-red-500',
     posterGrad: 'bg-gradient-to-br from-red-400 via-orange-400 to-amber-300',
     mapHex: '#ef4444',
-    focusRing: 'focus:border-red-400 focus:ring-2 focus:ring-red-100',
+    // Focus is the flash brand accent on BOTH variants — a red focus border
+    // on the lost flow reads as a validation error.
+    focusRing: 'focus:border-flash-400 focus:ring-2 focus:ring-flash-100',
   },
   found: {
     stamp: 'FOUND',
@@ -39,7 +41,7 @@ export const WIZARD_THEMES = {
     progressFill: 'bg-emerald-500',
     posterGrad: 'bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-300',
     mapHex: '#10b981',
-    focusRing: 'focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100',
+    focusRing: 'focus:border-flash-400 focus:ring-2 focus:ring-flash-100',
   },
 };
 

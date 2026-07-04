@@ -53,7 +53,8 @@ export default function StepScreen({
           <h1
             ref={headingRef}
             tabIndex={-1}
-            className="text-[1.65rem] leading-tight lg:text-[2.1rem] font-extrabold tracking-tight text-midnight-900 outline-none"
+            className="text-[1.65rem] leading-tight lg:text-[2.1rem] font-extrabold tracking-tight text-midnight-900"
+            style={{ outline: 'none' }} /* beats the global :focus-visible rule */
           >
             {question}
           </h1>

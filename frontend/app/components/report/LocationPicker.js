@@ -54,8 +54,8 @@ async function searchWithNominatim(query) {
       const addr = result.address || {};
       const parts = [];
       if (result.name && result.name !== addr.road) parts.push(result.name);
-      if (addr.house_number && addr.road) parts.push(`${addr.house_number} ${addr.road}`);
-      else if (addr.road) parts.push(addr.road);
+      const houseRoad = addr.house_number && addr.road ? `${addr.house_number} ${addr.road}` : addr.road;
+      if (houseRoad && houseRoad !== result.name) parts.push(houseRoad);
       const city = addr.city || addr.town || addr.village || addr.municipality || addr.county || '';
       if (city) parts.push(city);
       if (addr.state) parts.push(addr.state);
@@ -369,7 +369,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
           value={query}
           onChange={(e) => runSearch(e.target.value)}
           placeholder="Search an address, park, or cross-streets…"
-          className="w-full pl-10 pr-10 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors focus:border-midnight-400"
+          className="w-full pl-10 pr-10 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors focus:border-flash-400 focus:ring-2 focus:ring-flash-100"
         />
         {isSearching && (
           <Loader2 size={17} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-midnight-400 animate-spin" />
