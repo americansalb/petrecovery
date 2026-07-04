@@ -15,7 +15,6 @@
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, Check, Plus, X, Sparkles, Loader2,
   CalendarDays, Package, Palette, FlaskConical,
@@ -301,7 +300,7 @@ function MedicationWizard() {
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save');
-      router.push(`/pets/${petId}/medications`);
+      router.push(`/pets/${petId}/health`);
     } catch (err) {
       setError(err.message);
       setSaving(false);
@@ -328,13 +327,7 @@ function MedicationWizard() {
   return (
     <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-2xl mx-auto">
-        <Link
-          href={`/pets/${petId}/medications`}
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-500 hover:text-midnight-800 transition-colors mb-4"
-        >
-          <ArrowLeft size={16} /> Medications
-        </Link>
-
+        {/* The way back lives in the shell's context bar (← Health Book) */}
         <h1 className="text-2xl md:text-3xl font-bold text-midnight-900 mb-1 text-center">
           {editId ? `Edit ${form.name || 'medication'}` : 'Add a medication'}
         </h1>
