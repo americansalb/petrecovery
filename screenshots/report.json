@@ -3,115 +3,246 @@
     "name": "pub-01-home",
     "route": "/",
     "finalUrl": "/",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-02-lost-and-found",
     "route": "/lost-and-found",
     "finalUrl": "/lost-and-found",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-03-about",
     "route": "/about",
     "finalUrl": "/about",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-04-about-sarama",
     "route": "/about-sarama",
     "finalUrl": "/about-sarama",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-05-advice",
     "route": "/advice",
     "finalUrl": "/advice",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-06-contact",
     "route": "/contact",
     "finalUrl": "/contact",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-07-found",
     "route": "/found",
     "finalUrl": "/report/found",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-08-shelters",
     "route": "/shelters",
     "finalUrl": "/shelters",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-09-login",
     "route": "/login",
     "finalUrl": "/login",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-10-register",
     "route": "/register",
     "finalUrl": "/register",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-11-forgot-password",
     "route": "/forgot-password",
     "finalUrl": "/forgot-password",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-12-reset-password",
     "route": "/reset-password",
     "finalUrl": "/reset-password",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-13-verify-email",
     "route": "/verify-email",
     "finalUrl": "/verify-email",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-14-legal-terms",
     "route": "/legal/terms",
     "finalUrl": "/legal/terms",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-15-legal-consent",
     "route": "/legal/consent",
     "finalUrl": "/login?returnUrl=%2Flegal%2Fconsent",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-16-privacy",
     "route": "/privacy",
     "finalUrl": "/privacy",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-17-offline",
     "route": "/offline",
     "finalUrl": "/offline",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-18-case-portal",
     "route": "/cases/AUS-2026-0001",
     "finalUrl": "/cases/AUS-2026-0001",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-19-lost-pet-location",
     "route": "/lost-pet/austin-tx",
     "finalUrl": "/lost-pet/austin-tx",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
       "Failed to load resource: the server responded with a status of 400 (Bad Request)",
@@ -120,15 +251,24 @@
   },
   {
     "name": "pub-20-pet-public-view",
-    "route": "/pets/view/eF6Q3wsZy1k-RJ3-TCaegQ0IM_OOCZ-VTlDTvSwQLxg",
-    "finalUrl": "/pets/view/eF6Q3wsZy1k-RJ3-TCaegQ0IM_OOCZ-VTlDTvSwQLxg",
-    "consoleErrors": []
+    "route": "/pets/view/hTZ9K_ZIrON7F4zKXRV78JK3_GyHjifeI_b5HSIK6Sw",
+    "finalUrl": "/pets/view/hTZ9K_ZIrON7F4zKXRV78JK3_GyHjifeI_b5HSIK6Sw",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-21-hub",
     "route": "/hub",
     "finalUrl": "/hub",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
@@ -139,6 +279,10 @@
     "route": "/hub/search?q=lost",
     "finalUrl": "/hub/search?q=lost",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
     ]
@@ -148,6 +292,10 @@
     "route": "/hub/c/lost-pet-help",
     "finalUrl": "/hub/c/lost-pet-help",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
     ]
@@ -156,34 +304,62 @@
     "name": "pub-24-hub-thread",
     "route": "/hub/thread/tips-for-shy-cats-hiding-nearby",
     "finalUrl": "/hub/thread/tips-for-shy-cats-hiding-nearby",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-25-hub-user",
-    "route": "/hub/u/cmr4cizxe0000rdvl50vvspav",
-    "finalUrl": "/hub/u/cmr4cizxe0000rdvl50vvspav",
-    "consoleErrors": []
+    "route": "/hub/u/cmr6x562s00006k6bjsy0evx2",
+    "finalUrl": "/hub/u/cmr6x562s00006k6bjsy0evx2",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-26-report-public-mission",
-    "route": "/reports/cmr4cj05x000drdvlz56tfxsw",
-    "finalUrl": "/reports/cmr4cj05x000drdvlz56tfxsw",
-    "consoleErrors": []
+    "route": "/reports/cmr6x56bb000d6k6bn7d3s1w4",
+    "finalUrl": "/reports/cmr6x56bb000d6k6bn7d3s1w4",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-27-alert-detail",
-    "route": "/alerts/cmr4cj05x000drdvlz56tfxsw",
+    "route": "/alerts/cmr6x56bb000d6k6bn7d3s1w4",
     "finalUrl": "/login",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
-      "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)"
+      "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "pub-28-join-mission",
-    "route": "/join/cmr4cj05x000drdvlz56tfxsw",
-    "finalUrl": "/join/cmr4cj05x000drdvlz56tfxsw",
+    "route": "/join/cmr6x56bb000d6k6bn7d3s1w4",
+    "finalUrl": "/join/cmr6x56bb000d6k6bn7d3s1w4",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
     ]
@@ -192,112 +368,228 @@
     "name": "pub-29-mission-detail",
     "route": "/missions/AUS-2026-0001",
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-30-rescue-forces",
     "route": "/rescue-forces",
     "finalUrl": "/rescue-forces/search",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-31-rescue-forces-search",
     "route": "/rescue-forces/search",
     "finalUrl": "/rescue-forces/search",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-32-rescue-force-detail",
-    "route": "/rescue-forces/cmr4cj06y000urdvlagzaski8",
-    "finalUrl": "/rescue-forces/cmr4cj06y000urdvlagzaski8",
+    "route": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe",
+    "finalUrl": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
     ]
   },
   {
     "name": "pub-33-communities-legacy",
-    "route": "/communities/cmr4cj06y000urdvlagzaski8",
+    "route": "/communities/cmr6x56cg000u6k6bmt7dxxpe",
     "finalUrl": "/rescue-forces/search",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "pub-34-care",
     "route": "/care",
     "finalUrl": "/care",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
+  },
+  {
+    "name": "pub-35-care-start",
+    "route": "/care/start",
+    "finalUrl": "/care/start",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-33-dashboard",
     "route": "/dashboard",
     "finalUrl": "/dashboard",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-34-pets",
     "route": "/pets",
     "finalUrl": "/pets",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
-    "name": "auth-35-pets-new",
-    "route": "/pets/new",
-    "finalUrl": "/pets/new",
-    "consoleErrors": []
+    "name": "auth-35-care-start",
+    "route": "/care/start",
+    "finalUrl": "/care/start",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-36-pet-detail",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-37-pet-care",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw/care",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw/today",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf/care",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf/today",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-38-pet-edit",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw/edit",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw/edit",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf/edit",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf/edit",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-39-pet-medications",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw/medications",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw/today",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf/medications",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf/health",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-40-pet-medications-new",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw/medications/new",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw/medications/new",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf/medications/new",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf/medications/new",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-41-pet-share",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw/share",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw/share",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf/share",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf/share",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-42-profile",
     "route": "/profile",
     "finalUrl": "/profile",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-43-settings",
     "route": "/settings",
     "finalUrl": "/settings",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-44-settings-accounts",
     "route": "/settings/accounts",
     "finalUrl": "/settings/accounts",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
       "Error checking password: SyntaxError: Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -309,6 +601,10 @@
     "route": "/settings/integrations",
     "finalUrl": "/settings/integrations",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
     ]
   },
@@ -316,31 +612,56 @@
     "name": "auth-46-settings-notifications",
     "route": "/settings/notifications",
     "finalUrl": "/settings/notifications",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-47-notifications",
     "route": "/notifications",
     "finalUrl": "/notifications",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-48-messages",
     "route": "/messages",
     "finalUrl": "/messages",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-49-message-conversation",
-    "route": "/messages/cmr4cj09j0024rdvl7q7hypdp",
-    "finalUrl": "/messages/cmr4cj09j0024rdvl7q7hypdp",
-    "consoleErrors": []
+    "route": "/messages/cmr6x56f700246k6bqii5kli1",
+    "finalUrl": "/messages/cmr6x56f700246k6bqii5kli1",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-50-alerts",
     "route": "/alerts",
     "finalUrl": "/alerts",
     "consoleErrors": [
+      "Failed to fetch messages: TypeError: Failed to fetch\n    at fetchMessages (webpack-internal:///6176:112:36)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)"
     ]
@@ -349,37 +670,103 @@
     "name": "auth-51-my-alerts",
     "route": "/my-alerts",
     "finalUrl": "/my-alerts",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-52-report-new",
     "route": "/report/new",
     "finalUrl": "/report/new",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-53-report-found",
     "route": "/report/found",
     "finalUrl": "/report/found",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-54-sightings-report",
-    "route": "/sightings/report?alertId=cmr4cj05x000drdvlz56tfxsw",
-    "finalUrl": "/sightings/report?alertId=cmr4cj05x000drdvlz56tfxsw",
-    "consoleErrors": []
+    "route": "/sightings/report?alertId=cmr6x56bb000d6k6bn7d3s1w4",
+    "finalUrl": "/sightings/report?alertId=cmr6x56bb000d6k6bn7d3s1w4",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-55-missions-report",
     "route": "/missions/report",
     "finalUrl": "/report/new",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-56-mission-coordinate",
     "route": "/missions/AUS-2026-0001/coordinate",
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-57-mission-control",
@@ -387,36 +774,85 @@
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
     "consoleErrors": [
       "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:146:13)",
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-58-hub-new",
     "route": "/hub/new",
     "finalUrl": "/hub/new",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+    ]
   },
   {
     "name": "auth-59-rescue-forces-create",
     "route": "/rescue-forces/create",
     "finalUrl": "/rescue-forces/create",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "Error loading squads: TypeError: Failed to fetch\n    at loadUserSquads (webpack-internal:///1613:101:31)\n    at Navigation._session_user (webpack-internal:///1613:65:13)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)"
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-60-rf-command-center",
-    "route": "/rescue-forces/cmr4cj06y000urdvlagzaski8/command-center",
-    "finalUrl": "/rescue-forces/cmr4cj06y000urdvlagzaski8",
-    "consoleErrors": []
+    "route": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/command-center",
+    "finalUrl": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-61-rf-divisions",
-    "route": "/rescue-forces/cmr4cj06y000urdvlagzaski8/divisions",
-    "finalUrl": "/rescue-forces/cmr4cj06y000urdvlagzaski8/divisions",
+    "route": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/divisions",
+    "finalUrl": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/divisions",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -425,21 +861,40 @@
   },
   {
     "name": "auth-62-rf-division-detail",
-    "route": "/rescue-forces/cmr4cj06y000urdvlagzaski8/divisions/cmr4cj071000wrdvl9tbmsp8h",
-    "finalUrl": "/rescue-forces/cmr4cj06y000urdvlagzaski8/divisions/cmr4cj071000wrdvl9tbmsp8h",
-    "consoleErrors": []
+    "route": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/divisions/cmr6x56ck000w6k6b74rfhluf",
+    "finalUrl": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/divisions/cmr6x56ck000w6k6b74rfhluf",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-63-rf-mission-control",
-    "route": "/rescue-forces/cmr4cj06y000urdvlagzaski8/mission-control",
-    "finalUrl": "/rescue-forces/cmr4cj06y000urdvlagzaski8",
-    "consoleErrors": []
+    "route": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/mission-control",
+    "finalUrl": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-64-rf-settings",
-    "route": "/rescue-forces/cmr4cj06y000urdvlagzaski8/settings",
-    "finalUrl": "/rescue-forces/cmr4cj06y000urdvlagzaski8/settings",
+    "route": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/settings",
+    "finalUrl": "/rescue-forces/cmr6x56cg000u6k6bmt7dxxpe/settings",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Error fetching squad: Error: Failed to fetch force\n    at SquadSettingsPage._session_user (webpack-internal:///7426:123:23)"
     ]
@@ -448,96 +903,213 @@
     "name": "auth-65-communities-my-requests",
     "route": "/communities/my-requests",
     "finalUrl": "/rescue-forces/search",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-66-communities-request",
     "route": "/communities/request",
     "finalUrl": "/rescue-forces/search",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-67-divisions-request",
     "route": "/divisions/request",
     "finalUrl": "/login?callbackUrl=/divisions/request",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-      "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-68-patrol-database",
     "route": "/patrol/database",
     "finalUrl": "/lost-and-found",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-69-patrol-join",
     "route": "/patrol/join",
     "finalUrl": "/patrol/join",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-70-shelter-dashboard",
     "route": "/shelter/dashboard",
     "finalUrl": "/shelter/dashboard",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-71-shelter-request",
     "route": "/shelter/request",
     "finalUrl": "/shelter/request",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-72-simulate",
     "route": "/simulate",
     "finalUrl": "/simulate",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-73-simulator",
     "route": "/simulator",
     "finalUrl": "/simulator",
-    "consoleErrors": []
-  },
-  {
-    "name": "auth-74-admin",
-    "route": "/admin",
-    "finalUrl": "/admin",
-    "consoleErrors": [],
-    "warmNav": true
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-75-admin-analytics",
     "route": "/admin/analytics",
-    "finalUrl": "/admin/analytics",
-    "consoleErrors": [],
-    "warmNav": true
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ],
+    "warmNavFailed": "no visible element for a[href=\"/admin/analytics\"]"
   },
   {
     "name": "auth-76-admin-auto-migrate",
     "route": "/admin/auto-migrate",
     "finalUrl": "/admin/auto-migrate",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-77-admin-check-config",
     "route": "/admin/check-config",
     "finalUrl": "/admin/check-config",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-78-admin-communities",
     "route": "/admin/communities",
     "finalUrl": "/admin/communities",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-79-admin-communities-create",
     "route": "/admin/communities/create",
     "finalUrl": "/admin/communities/create",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -552,19 +1124,33 @@
     "name": "auth-80-admin-divisions",
     "route": "/admin/divisions",
     "finalUrl": "/admin/divisions",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-81-admin-divisions-create",
     "route": "/admin/divisions/create",
     "finalUrl": "/admin/divisions/create",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-82-admin-divisions-requests",
     "route": "/admin/divisions/requests",
     "finalUrl": "/admin/divisions/requests",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
     ]
@@ -573,28 +1159,46 @@
     "name": "auth-83-admin-health",
     "route": "/admin/health",
     "finalUrl": "/admin/health",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-84-admin-missions",
     "route": "/admin/missions",
     "finalUrl": "/admin/missions",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-85-admin-missions-new",
     "route": "/admin/missions/new",
     "finalUrl": "/admin/missions/new",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
       "Failed to load resource: the server responded with a status of 404 (Not Found)"
     ]
   },
   {
     "name": "auth-86-admin-mission-detail",
-    "route": "/admin/missions/cmr4cj05x000drdvlz56tfxsw",
-    "finalUrl": "/admin/missions/cmr4cj05x000drdvlz56tfxsw",
+    "route": "/admin/missions/cmr6x56bb000d6k6bn7d3s1w4",
+    "finalUrl": "/admin/missions/cmr6x56bb000d6k6bn7d3s1w4",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -607,124 +1211,243 @@
     "name": "auth-87-admin-pets",
     "route": "/admin/pets",
     "finalUrl": "/admin/pets",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-88-admin-prisma",
     "route": "/admin/prisma",
     "finalUrl": "/admin/prisma",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-89-admin-qa",
     "route": "/admin/qa",
     "finalUrl": "/admin/qa",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-90-admin-rescue-forces",
     "route": "/admin/rescue-forces",
     "finalUrl": "/admin/rescue-forces",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-91-admin-rescue-forces-create",
     "route": "/admin/rescue-forces/create",
     "finalUrl": "/admin/rescue-forces/create",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-92-admin-shelters",
     "route": "/admin/shelters",
-    "finalUrl": "/admin/shelters",
-    "consoleErrors": [],
-    "warmNav": true
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ],
+    "warmNavFailed": "no visible element for a[href=\"/admin/shelters\"]"
   },
   {
     "name": "auth-93-admin-shelters-requests",
     "route": "/admin/shelters/requests",
-    "finalUrl": "/admin/shelters/requests",
-    "consoleErrors": [],
-    "warmNav": true
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ],
+    "warmNavFailed": "no visible element for a[href=\"/admin/shelters/requests\"]"
   },
   {
     "name": "auth-94-admin-users",
     "route": "/admin/users",
-    "finalUrl": "/admin/users",
-    "consoleErrors": [],
-    "warmNav": true
+    "finalUrl": "/dashboard",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ],
+    "warmNavFailed": "no visible element for a[href=\"/admin/users\"]"
   },
   {
     "name": "auth-95-admin-wipe-squads",
     "route": "/admin/wipe-squads",
     "finalUrl": "/admin/wipe-squads",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-96-legal-consent",
     "route": "/legal/consent",
     "finalUrl": "/legal/consent",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-97-care",
     "route": "/care",
-    "finalUrl": "/care",
-    "consoleErrors": []
+    "finalUrl": "/pets",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-98-pet-health",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw/health",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw/health",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf/health",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf/health",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-99-pet-today",
-    "route": "/pets/cmr4cj05d0005rdvl0xwkz2mw/today",
-    "finalUrl": "/pets/cmr4cj05d0005rdvl0xwkz2mw/today",
-    "consoleErrors": []
+    "route": "/pets/cmr6x56aq00056k6bnvg7znlf/today",
+    "finalUrl": "/pets/cmr6x56aq00056k6bnvg7znlf/today",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-100-admin-pet-detail",
-    "route": "/admin/pets/cmr4cj05d0005rdvl0xwkz2mw",
-    "finalUrl": "/admin/pets/cmr4cj05d0005rdvl0xwkz2mw",
-    "consoleErrors": []
+    "route": "/admin/pets/cmr6x56aq00056k6bnvg7znlf",
+    "finalUrl": "/admin/pets/cmr6x56aq00056k6bnvg7znlf",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-101-admin-user-detail",
-    "route": "/admin/users/cmr4cj0010001rdvl6h8bg1do",
-    "finalUrl": "/admin/users/cmr4cj0010001rdvl6h8bg1do",
-    "consoleErrors": []
+    "route": "/admin/users/cmr6x565x00016k6byibuzfm8",
+    "finalUrl": "/admin/users/cmr6x565x00016k6byibuzfm8",
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-102-alert-detail-authed",
-    "route": "/alerts/cmr4cj05x000drdvlz56tfxsw",
+    "route": "/alerts/cmr6x56bb000d6k6bn7d3s1w4",
     "finalUrl": "/alerts",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
       "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)",
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)"
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-103-mission-detail-authed",
     "route": "/missions/AUS-2026-0001",
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-104-missions-legacy",
     "route": "/missions",
     "finalUrl": "/lost-and-found",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
   },
   {
     "name": "auth-105-database-legacy",
     "route": "/database",
     "finalUrl": "/lost-and-found",
-    "consoleErrors": []
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+    ]
+  },
+  {
+    "name": "auth-74-admin",
+    "route": "/admin",
+    "finalUrl": "/admin",
+    "consoleErrors": [],
+    "warmNav": true
   }
 ]

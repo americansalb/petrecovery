@@ -11,26 +11,21 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { requirePetAccess } from '@/app/lib/petOwnership';
 
 // GET /api/pets/[id] - Get pet details
+// Read access follows the standard tiers (VIEWER < CAREGIVER < OWNER), so a
+// care-team member sees the same profile the owner shares with them; without
+// this, the shell and Overview render broken for shared pets while the
+// anonymous view link works. Writes below stay owner-only.
 export async function GET(request, { params }) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true }
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
     const { id } = await params;
+
+    const gate = await requirePetAccess(id, 'VIEWER');
+    if (gate.error) {
+      return NextResponse.json({ error: gate.error }, { status: gate.status });
+    }
 
     const pet = await prisma.pet.findUnique({
       where: { id, isDeleted: false },
@@ -52,12 +47,8 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Pet not found' }, { status: 404 });
     }
 
-    // Check ownership
-    if (pet.ownerId !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
     return NextResponse.json({
+      access: gate.access,
       pet: {
         ...pet,
         photos: JSON.parse(pet.photos || '[]'),

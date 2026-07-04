@@ -18,9 +18,11 @@ export default function GlobalBottomNav() {
   const pathname = usePathname();
 
   // Hide where a focused flow owns the screen: mission control, auth pages,
-  // and the report/join wizards.
+  // the report/join wizards, and the pet edit / medication wizards (whose
+  // fixed save bars would collide with this bar).
   if (pathname.startsWith('/mission-control')) return null;
   if (pathname.startsWith('/report/') || pathname.startsWith('/join/')) return null;
+  if (/^\/pets\/[^/]+\/(edit|medications\/new)/.test(pathname)) return null;
 
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
     pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');

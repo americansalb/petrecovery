@@ -36,6 +36,9 @@ export async function GET(request, { params }) {
         breed: true,
         color: true,
         primaryPhotoUrl: true,
+        // Medical notes ride the link on purpose: the whole point of this
+        // page is that a sitter or vet sees what they MUST know first.
+        medicalConditions: true,
         vetName: true,
         vetClinic: true,
         vetPhone: true,
@@ -81,6 +84,7 @@ export async function GET(request, { params }) {
         breed: pet.breed,
         color: pet.color,
         primaryPhotoUrl: pet.primaryPhotoUrl,
+        medicalConditions: pet.medicalConditions,
         vetName: pet.vetName,
         vetClinic: pet.vetClinic,
         vetPhone: pet.vetPhone,

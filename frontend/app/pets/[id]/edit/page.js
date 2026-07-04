@@ -155,6 +155,8 @@ export default function EditPetPage() {
 
   const [form, setForm] = useState(null);
   const [images, setImages] = useState([]);
+  // Weight is displayed here but logged in the Health Book — the one write path.
+  const [petWeight, setPetWeight] = useState(null);
   const [hasTeam, setHasTeam] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -191,7 +193,6 @@ export default function EditPetPage() {
         coatColors: coat.colors,
         coatPattern: coat.pattern,
         size: p.size || 'MEDIUM',
-        weight: p.weight?.toString() || '',
         distinctiveMarks: p.distinctiveMarks || '',
         microchipId: p.microchipId || '',
         collarInfo: p.collarInfo || '',
@@ -199,6 +200,7 @@ export default function EditPetPage() {
         medicalConditions: p.medicalConditions || '',
       };
       const nextImages = (p.photos?.length ? p.photos : []).map((url) => ({ url, uploaded: true }));
+      setPetWeight(p.weight ?? null);
       setForm(nextForm);
       setImages(nextImages);
       originalRef.current = JSON.stringify({ form: nextForm, urls: nextImages.map((i) => i.url) });
@@ -253,11 +255,11 @@ export default function EditPetPage() {
       !!form.distinctiveMarks.trim(),
       !!form.microchipId.trim(),
       form.personality.length > 0,
-      !!form.weight,
+      petWeight != null,
       hasTeam,
     ];
     return { met: checks.filter(Boolean).length, total: checks.length };
-  }, [form, images, hasTeam]);
+  }, [form, images, hasTeam, petWeight]);
 
   const toggleCoatColor = (value) => {
     const has = form.coatColors.includes(value);
@@ -325,7 +327,6 @@ export default function EditPetPage() {
     if (!form.name.trim()) next.name = `Every pet needs a name`;
     if (!colorValue.trim()) next.color = 'Tap the coat colors a stranger would name';
     if (form.age && (isNaN(form.age) || form.age < 0 || form.age > 50)) next.age = 'Age should be 0 to 50';
-    if (form.weight && (isNaN(form.weight) || form.weight < 0)) next.weight = 'Weight should be a number';
     if (form.microchipId && !validateMicrochip(form.microchipId)) next.microchipId = '9 to 15 letters and digits';
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -352,7 +353,6 @@ export default function EditPetPage() {
           isNeutered: form.isNeutered,
           color: colorValue,
           size: form.size,
-          weight: form.weight ? parseFloat(form.weight) : null,
           distinctiveMarks: form.distinctiveMarks,
           microchipId: form.microchipId ? normalizeMicrochip(form.microchipId) : '',
           collarInfo: form.collarInfo,
@@ -664,21 +664,19 @@ export default function EditPetPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="relative">
-                  <input
-                    value={form.weight}
-                    onChange={(e) => set({ weight: e.target.value })}
-                    placeholder="Weight"
-                    aria-label="Weight in pounds"
-                    inputMode="decimal"
-                    className={cn(inputClass, 'pr-12', errors.weight && 'border-red-300')}
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-midnight-400">lbs</span>
-                </div>
-                {errors.weight && <p className="text-xs text-red-600 mt-1.5">{errors.weight}</p>}
-              </div>
+            {/* Weight has ONE write path — the Health Book's weight log —
+                so the trend chart and this number can never disagree. */}
+            <div className="flex items-center justify-between gap-3 rounded-2xl border-2 border-midnight-100 bg-midnight-50/50 px-4 py-3">
+              <p className="text-sm text-midnight-600">
+                <span className="font-bold text-midnight-900">Weight:</span>{' '}
+                {petWeight != null ? `${petWeight} lbs` : 'not logged yet'}
+              </p>
+              <Link
+                href={`/pets/${petId}/health`}
+                className="text-xs font-bold text-flash-600 hover:text-flash-700 shrink-0"
+              >
+                Log changes in the Health Book →
+              </Link>
             </div>
 
             <textarea

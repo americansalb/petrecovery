@@ -197,7 +197,10 @@ export function AddCareModal({ petId, onClose, onSaved }) {
  * The interactive section for the pet profile: today's chips, one tap
  * each, plus add and a small manage view (pause / delete).
  */
-export default function GoodStuff({ petId, meds, setMeds, canManage }) {
+// `readOnly` renders the same chips as pure status (the public care
+// view); no add/manage affordances, no tap-to-log hints.
+export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = false }) {
+  const interactive = canManage && !readOnly;
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [showAdd, setShowAdd] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -336,7 +339,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
   scheduled.sort((a, b) => a.slot.time.localeCompare(b.slot.time));
   const whenever = active.filter((c) => c.scheduleType === 'AS_NEEDED');
 
-  if (active.length === 0 && !canManage) return null;
+  if (active.length === 0 && !interactive) return null;
 
   return (
     <>
@@ -353,7 +356,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
           <h2 className="flex items-center gap-2 font-bold text-midnight-900">
             <BallIcon size={18} className="text-flash-500" /> The good stuff
           </h2>
-          {canManage && (
+          {interactive && (
             <div className="flex items-center gap-1">
               {careItems.length > 0 && (
                 <button
@@ -376,9 +379,11 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
           )}
         </div>
         <p className="text-sm text-midnight-500 mb-4">
-          {active.length === 0
-            ? 'Walks, brushing, treats, playtime. One tap each, right here.'
-            : 'Daily life, one tap each.'}
+          {readOnly
+            ? 'Walks, brushing, treats: daily life, not medicine.'
+            : active.length === 0
+              ? 'Walks, brushing, treats, playtime. One tap each, right here.'
+              : 'Daily life, one tap each.'}
         </p>
 
         {error && (
@@ -414,7 +419,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
             ))}
           </ul>
         ) : active.length === 0 ? (
-          canManage && (
+          interactive && (
             <>
               <div className="flex flex-wrap gap-2.5">
                 {CARE_ACTIVITIES.slice(0, 6).map((a) => {
@@ -458,12 +463,12 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
                 <button
                   key={`${care.id}-${slot.time}`}
                   onClick={() => {
-                    if (!canManage || busy) return;
+                    if (!interactive || busy) return;
                     if (done) undo(care, slot);
                     else mark(care, slot);
                   }}
-                  disabled={!canManage || busy}
-                  title={done ? 'Tap to undo' : `Mark ${care.name} done`}
+                  disabled={!interactive || busy}
+                  title={!interactive ? undefined : done ? 'Tap to undo' : `Mark ${care.name} done`}
                   className={cn(
                     'flex items-center gap-2.5 rounded-2xl border-2 px-3.5 py-2.5 transition-all active:scale-95',
                     done ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-midnight-200 hover:border-flash-400'
@@ -497,20 +502,20 @@ export default function GoodStuff({ petId, meds, setMeds, canManage }) {
                   )}
                 >
                   <button
-                    onClick={() => canManage && !busy && logPrn(care)}
-                    disabled={!canManage || busy}
-                    title={count > 0 ? `Log another ${care.name}` : `Log ${care.name}`}
+                    onClick={() => interactive && !busy && logPrn(care)}
+                    disabled={!interactive || busy}
+                    title={!interactive ? undefined : count > 0 ? `Log another ${care.name}` : `Log ${care.name}`}
                     className="flex items-center gap-2.5 px-3.5 py-2.5 text-left active:scale-95 transition-transform"
                   >
                     <CareIconChip name={care.name} color={care.color} size="sm" />
                     <span>
                       <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
                       <span className="block text-[11px] text-midnight-500">
-                        {busy ? '...' : count > 0 ? `x${count} today` : 'Tap when it happens'}
+                        {busy ? '...' : count > 0 ? `x${count} today` : readOnly ? 'Whenever' : 'Tap when it happens'}
                       </span>
                     </span>
                   </button>
-                  {canManage && count > 0 && (
+                  {interactive && count > 0 && (
                     <button
                       onClick={() => !busy && undoPrn(care)}
                       disabled={busy}
