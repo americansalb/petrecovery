@@ -25,7 +25,9 @@ export async function POST(request) {
       petSize, isIndoorCat, // New fields for probability zones
       photos, locationType, cityName, selectedPetId,
       createAccount, password, // Account creation consent fields
-      reporterLocation // Reporter's auto-detected GPS [lat, lng]
+      reporterLocation, // Reporter's auto-detected GPS [lat, lng]
+      escapeScenario, // How the pet got out (wizard details step)
+      collarInfo, microchipId // Optional identifiers, stored on the Pet
     } = body;
 
     // For dogs, use petSize if provided (more specific than generic size)
@@ -140,6 +142,8 @@ export async function POST(request) {
             breed: breed || pet.breed,
             size: size || pet.size,
             distinctiveMarks: distinctiveMarks || pet.distinctiveMarks,
+            collarInfo: collarInfo || pet.collarInfo,
+            microchipId: microchipId || pet.microchipId,
             primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : pet.primaryPhotoUrl,
             photos: photos && photos.length > 0 ? JSON.stringify(photos) : pet.photos,
           }
@@ -155,6 +159,8 @@ export async function POST(request) {
             color,
             size: size || 'MEDIUM', // Default to medium if not provided
             distinctiveMarks: distinctiveMarks || '',
+            collarInfo: collarInfo || null,
+            microchipId: microchipId || null,
             primaryPhotoUrl: photos && photos.length > 0 ? photos[0] : '',
             photos: JSON.stringify(photos || []),
             personality: "[]",
@@ -200,7 +206,7 @@ export async function POST(request) {
           // prime meridian) is falsy and `0 || null` would drop it.
           reporterLatitude: reporterLocation?.[0] != null ? reporterLocation[0] : null,
           reporterLongitude: reporterLocation?.[1] != null ? reporterLocation[1] : null,
-          escapeScenario: 'unknown',
+          escapeScenario: escapeScenario || 'unknown',
           status: 'ACTIVE',
           priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'NORMAL',
         }
