@@ -3,11 +3,14 @@
 /**
  * Navigation Component - Universal Nav Bar
  *
- * One consistent nav that adapts based on auth state:
- * - Always visible: Browse links (Database, Shelters, Rescue Forces, Hub)
- * - Logged-in only: Dashboard, My Pets, My Rescue Forces, Admin, User Menu
- * - Guest only: Login + Sign Up buttons
- * - Hidden on: /mission-control (has its own nav)
+ * THE one top bar, identical on every route: same h-16 height, same links,
+ * same Report CTA — content and size never change from page to page. It
+ * only adapts to auth STATE (guests get Sign in/Join, members get their
+ * menu), never to the route; the sole exception is the immersive-route
+ * list in app/lib/navChrome.js (Mission Control ships its own chrome).
+ * While the session is resolving, a fixed-size placeholder holds the
+ * right-side slot so the bar never reflows after load.
+ * Enforced by __tests__/global-chrome.test.js.
  */
 
 import { useSession, signOut } from 'next-auth/react';
@@ -40,11 +43,12 @@ import {
   Megaphone,
   Heart,
 } from 'lucide-react';
-import { Button, Badge, CountBadge } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
+import { isImmersiveRoute } from '@/app/lib/navChrome';
 
 export default function Navigation() {
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const pathname = usePathname();
   const [userSquads, setUserSquads] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -62,7 +66,7 @@ export default function Navigation() {
     setActiveDropdown(null);
   }, [pathname]);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (e) => {
       const isDropdownButton = e.target.closest('[data-dropdown]');
@@ -70,8 +74,18 @@ export default function Navigation() {
         setActiveDropdown(null);
       }
     };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setActiveDropdown(null);
+        setMobileMenuOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [activeDropdown]);
 
   // Prevent body scroll when mobile menu is open
@@ -92,12 +106,10 @@ export default function Navigation() {
     }
   };
 
-  // Hide nav on mission control (has its own nav) and auth pages (keep them clean)
-  if (pathname.startsWith('/mission-control')) return null;
-
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
-    pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
-  if (isAuthPage) return null;
+  // The bar renders everywhere except intentional immersive takeovers
+  // (shared policy in app/lib/navChrome.js) — auth pages included, so the
+  // chrome never blinks in and out while moving through the site.
+  if (isImmersiveRoute(pathname)) return null;
 
   const toggleDropdown = (name) => {
     setActiveDropdown(activeDropdown === name ? null : name);
@@ -108,10 +120,11 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4">
           <div className="h-16 flex items-center justify-between gap-4">
-            {/* Logo */}
+            {/* Logo — explicit box so the bar never reflows while the CDN image
+                loads; wordmark only where the full link set still fits */}
             <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
-              <img src={LOGO_ICON} alt="ReunitePets" className="h-14 w-auto" />
-              <span className="hidden sm:inline">Reunite<span className="text-flash-400">Pets</span></span>
+              <img src={LOGO_ICON} alt="ReunitePets" width={56} height={56} className="h-14 w-14 object-contain" />
+              <span className="hidden sm:inline lg:hidden xl:inline">Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
             {/* Desktop Navigation: one home per domain, same for guests and members */}
@@ -136,83 +149,60 @@ export default function Navigation() {
                 Lost &amp; Found
               </NavLink>
 
-              {userSquads.length > 0 ? (
-                <NavDropdown
-                  label="Rescue Forces"
-                  icon={Shield}
-                  active={pathname.includes('/rescue-forces')}
-                  isOpen={activeDropdown === 'squads'}
-                  onToggle={() => toggleDropdown('squads')}
-                  badge={userSquads.length}
-                >
-                  <div className="max-h-64 overflow-y-auto">
-                    {userSquads.map(squad => (
-                      <Link
-                        key={squad.id}
-                        href={`/rescue-forces/${squad.id}`}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                          {squad.name?.[0] || '?'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                          <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                  <DropdownDivider />
-                  <DropdownLink href="/rescue-forces/search" icon={Search} title="Find rescue forces" description="Every neighborhood needs one" />
-                </NavDropdown>
-              ) : (
-                <NavLink href="/rescue-forces/search" active={pathname.includes('/rescue-forces')}>
-                  <Shield className="w-4 h-4" />
-                  Rescue Forces
-                </NavLink>
-              )}
+              {/* Always the same trigger — the user's squads only change what's
+                  INSIDE the dropdown, never the size or shape of the bar */}
+              <NavDropdown
+                label="Rescue Forces"
+                icon={Shield}
+                active={pathname.startsWith('/rescue-forces') || pathname.startsWith('/divisions')}
+                isOpen={activeDropdown === 'squads'}
+                onToggle={() => toggleDropdown('squads')}
+              >
+                {userSquads.length > 0 && (
+                  <>
+                    <div className="max-h-64 overflow-y-auto">
+                      {userSquads.map(squad => (
+                        <Link
+                          key={squad.id}
+                          href={`/rescue-forces/${squad.id}`}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
+                            {squad.name?.[0] || '?'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
+                            <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                    <DropdownDivider />
+                  </>
+                )}
+                <DropdownLink href="/rescue-forces/search" icon={Search} title="Find rescue forces" description="Every neighborhood needs one" />
+                <DropdownLink href="/rescue-forces/create" icon={Shield} title="Start a rescue force" description="Organize your city's searchers" />
+              </NavDropdown>
 
               <NavLink href="/hub" active={pathname.startsWith('/hub')}>
                 <Sparkles className="w-4 h-4" />
                 Hub
               </NavLink>
 
-              {session && (
-                <>
-                  {/* Admin Dropdown */}
-                  {session?.user?.role === 'ADMIN' && (
-                    <NavDropdown
-                      label="Admin"
-                      icon={Settings}
-                      active={pathname.startsWith('/admin')}
-                      isOpen={activeDropdown === 'admin'}
-                      onToggle={() => toggleDropdown('admin')}
-                    >
-                      <DropdownLink href="/admin" icon={BarChart3} title="Dashboard" description="Overview & stats" />
-                      <DropdownLink href="/admin/users" icon={Users} title="Users" description="Manage all users" />
-                      <DropdownLink href="/admin/pets" icon={PawPrint} title="Pets" description="All pet profiles" />
-                      <DropdownLink href="/admin/rescue-forces" icon={Shield} title="Rescue Forces" description="Manage rescue forces" />
-                      <DropdownLink href="/admin/divisions" icon={MapPin} title="Divisions" description="Geographic areas" />
-                      <DropdownLink href="/admin/missions" icon={ClipboardList} title="Missions" description="All lost pet missions" />
-                      <DropdownDivider />
-                      <DropdownLink href="/admin/analytics" icon={BarChart3} title="Analytics" description="Reports & metrics" />
-                    </NavDropdown>
-                  )}
-                </>
-              )}
+              {/* Admin tooling lives in the user menu, not the bar: the
+                  bar's link set is identical for every role */}
             </div>
 
-            {/* Right Side */}
+            {/* Right Side — CTA first so it never moves; everything that
+                depends on the session renders to its right */}
             <div className="flex items-center gap-2">
-              {/* Notifications bell - logged-in only */}
-              {session && <NotificationBell active={pathname.startsWith('/notifications')} />}
-
-              {/* Report Pet CTA - hidden on the homepage, where the hero owns this job */}
-              {pathname !== '/' && (
+              {/* Report Pet CTA - on every page, always the same size */}
               <div className="hidden md:block relative" data-dropdown="report">
                 <button
                   onClick={() => toggleDropdown('report')}
-                  className="flex items-center gap-2 px-4 py-2 bg-flash-400 hover:bg-flash-500 text-midnight-900 font-bold text-sm rounded-xl transition-all"
+                  aria-haspopup="true"
+                  aria-expanded={activeDropdown === 'report'}
+                  className="flex items-center gap-2 px-4 py-2 bg-flash-400 hover:bg-flash-500 text-midnight-900 font-bold text-sm rounded-xl transition-all whitespace-nowrap"
                 >
                   <Megaphone className="w-4 h-4" />
                   Report Pet
@@ -241,26 +231,34 @@ export default function Navigation() {
                   </div>
                 )}
               </div>
-              )}
 
-              {session ? (
+              {sessionStatus === 'loading' ? (
+                /* Placeholder with the footprint of the bell + user chip so
+                   the bar settles without shifting once the session resolves */
+                <div className="hidden lg:block w-40 h-9 rounded-xl bg-midnight-800 animate-pulse" aria-hidden="true" />
+              ) : session ? (
                 <>
+                  {/* Notifications bell - logged-in only */}
+                  <NotificationBell active={pathname.startsWith('/notifications')} />
+
                   {/* User Menu - Desktop (logged in) */}
                   <div className="hidden lg:block relative" data-dropdown="user">
                     <button
                       onClick={() => toggleDropdown('user')}
+                      aria-haspopup="true"
+                      aria-expanded={activeDropdown === 'user'}
                       className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-midnight-800 hover:bg-midnight-700 transition"
                     >
                       <div className="w-8 h-8 rounded-lg bg-flash-400 flex items-center justify-center text-midnight-900 font-bold text-sm">
                         {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
                       </div>
-                      <span className="text-white font-medium text-sm max-w-[100px] truncate">
+                      <span className="hidden xl:inline text-white font-medium text-sm max-w-[100px] truncate">
                         {session.user.firstName || 'User'}
                       </span>
                       <ChevronDown className={`w-4 h-4 text-midnight-400 transition-transform ${activeDropdown === 'user' ? 'rotate-180' : ''}`} />
                     </button>
                     {activeDropdown === 'user' && (
-                      <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-midnight-100 py-2 z-50">
+                      <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-midnight-100 py-2 z-50 max-h-[calc(100vh-5rem)] overflow-y-auto">
                         <div className="px-4 py-3 border-b border-midnight-100">
                           <div className="font-semibold text-midnight-900">{session.user.firstName} {session.user.lastName}</div>
                           <div className="text-xs text-midnight-500 truncate">{session.user.email}</div>
@@ -285,6 +283,34 @@ export default function Navigation() {
                           <Settings className="w-4 h-4" />
                           <span className="font-medium">Settings</span>
                         </Link>
+                        {session?.user?.role === 'ADMIN' && (
+                          <>
+                            <div className="border-t border-midnight-100 my-1" />
+                            <div className="px-4 pt-2 pb-1 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
+                              Admin
+                            </div>
+                            <Link href="/admin" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                              <BarChart3 className="w-4 h-4" />
+                              <span className="font-medium">Admin Dashboard</span>
+                            </Link>
+                            <Link href="/admin/users" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                              <Users className="w-4 h-4" />
+                              <span className="font-medium">Users</span>
+                            </Link>
+                            <Link href="/admin/missions" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                              <ClipboardList className="w-4 h-4" />
+                              <span className="font-medium">Missions</span>
+                            </Link>
+                            <Link href="/admin/rescue-forces" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                              <Shield className="w-4 h-4" />
+                              <span className="font-medium">Rescue Forces</span>
+                            </Link>
+                            <Link href="/admin/analytics" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                              <BarChart3 className="w-4 h-4" />
+                              <span className="font-medium">Analytics</span>
+                            </Link>
+                          </>
+                        )}
                         <div className="border-t border-midnight-100 my-1" />
                         <button
                           onClick={() => signOut({ callbackUrl: '/' })}
@@ -301,12 +327,12 @@ export default function Navigation() {
                 /* Guest: Sign in + Join */
                 <div className="hidden lg:flex items-center gap-2">
                   <Link href="/login">
-                    <Button variant="ghost" size="sm" className="text-white hover:bg-midnight-800">
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-midnight-800 whitespace-nowrap">
                       Sign in
                     </Button>
                   </Link>
                   <Link href="/register">
-                    <Button size="sm">Join</Button>
+                    <Button size="sm" className="whitespace-nowrap">Join</Button>
                   </Link>
                 </div>
               )}
@@ -547,7 +573,8 @@ function NavLink({ href, active, children }) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition ${active
+      aria-current={active ? 'page' : undefined}
+      className={`flex items-center gap-2 px-3 xl:px-4 py-2 text-sm font-medium rounded-xl transition whitespace-nowrap ${active
         ? 'bg-midnight-800 text-white'
         : 'text-midnight-300 hover:bg-midnight-800 hover:text-white'
         }`}
@@ -557,23 +584,20 @@ function NavLink({ href, active, children }) {
   );
 }
 
-function NavDropdown({ label, icon: Icon, active, isOpen, onToggle, badge, children }) {
+function NavDropdown({ label, icon: Icon, active, isOpen, onToggle, children }) {
   return (
     <div className="relative" data-dropdown={label.toLowerCase()}>
       <button
         onClick={onToggle}
-        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition ${active
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        className={`flex items-center gap-2 px-3 xl:px-4 py-2 text-sm font-medium rounded-xl transition whitespace-nowrap ${active
           ? 'bg-midnight-800 text-white'
           : 'text-midnight-300 hover:bg-midnight-800 hover:text-white'
           }`}
       >
         <Icon className="w-4 h-4" />
         {label}
-        {badge && (
-          <span className="ml-1 px-1.5 py-0.5 text-xs bg-flash-400 text-midnight-900 rounded-full font-semibold">
-            {badge}
-          </span>
-        )}
         <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
@@ -608,6 +632,7 @@ function MobileNavLink({ href, icon: Icon, label, active, onClick }) {
     <Link
       href={href}
       onClick={onClick}
+      aria-current={active ? 'page' : undefined}
       className={`flex items-center gap-3 px-4 py-3 transition ${active
         ? 'bg-flash-50 text-midnight-900 border-l-4 border-flash-400'
         : 'text-midnight-700 hover:bg-midnight-50 border-l-4 border-transparent'

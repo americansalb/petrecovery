@@ -24,6 +24,19 @@ Full recipe and house rules: `docs/LINK_PREVIEWS.md`.
 Enforced by `frontend/__tests__/link-previews.test.js` — it fails CI on any
 new dynamic route that lacks metadata and isn't explicitly listed as private.
 
+### The universal navbar never changes between pages
+
+The global chrome (top bar + mobile tab bar) is identical on every route —
+same height, same links, same CTA — and hides only inside intentional
+immersive takeovers. That list lives in ONE place:
+`frontend/app/lib/navChrome.js`. Pages never hide chrome ad hoc and never
+ship their own `sticky top-0` bar (page sub-headers anchor below it with
+`sticky top-16`). Full policy: `docs/APP_MAP.md` §8.2.
+Enforced by `frontend/__tests__/global-chrome.test.js`.
+
+Related trap: `overflow-x` on `html`/`body` must stay `clip` — `hidden`
+silently breaks `position: sticky` site-wide, including the navbar.
+
 ### Other conventions
 
 - Tests: `cd frontend && npm test` (Jest, node env). CI runs on `pet_main`.

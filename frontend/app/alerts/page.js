@@ -116,16 +116,17 @@ export default function AlertsPage() {
 
   return (
     <div className="min-h-screen bg-midnight-50 font-sans">
-      {/* Header */}
-      <div className="bg-midnight-900 text-white p-4 shadow-md sticky top-0 z-50">
+      {/* In-flow page header — the universal navbar owns the top of the
+          screen; this heading scrolls away with the page */}
+      <div className="bg-white border-b border-midnight-100 p-4">
         <div className="max-w-3xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-white no-underline" aria-label="Back to dashboard">
+            <Link href="/dashboard" className="text-midnight-500 hover:text-midnight-700 no-underline" aria-label="Back to dashboard">
               <ArrowLeft size={24} />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold">Community Alerts</h1>
-              <p className="text-sm text-midnight-300">{alerts.length} active in your area</p>
+              <h1 className="text-2xl font-bold text-midnight-900">Community Alerts</h1>
+              <p className="text-sm text-midnight-500">{alerts.length} active in your area</p>
             </div>
           </div>
           <Link href="/report/new">

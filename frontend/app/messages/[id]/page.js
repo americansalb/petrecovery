@@ -198,8 +198,10 @@ export default function ConversationPage() {
   const isClosed = conversation.status === 'CLOSED' || conversation.status === 'REUNITED';
   const SpeciesIcon = SPECIES_ICONS[lostCase?.petSpecies] || Heart;
 
+  // Fill the viewport below the global chrome: h-16 navbar always, h-16
+  // bottom tab bar on mobile (see app/lib/navChrome.js)
   return (
-    <div className="h-[100dvh] bg-gray-50 flex flex-col">
+    <div className="h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0">
         <div className="px-4 py-3 flex items-center gap-3">

@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 flex items-center justify-center p-4">
+    <div className="min-h-[calc(100dvh-8rem)] lg:min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-midnight-100 to-midnight-200 flex items-center justify-center p-4">
       <main role="main" aria-labelledby="forgot-password-heading" className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">

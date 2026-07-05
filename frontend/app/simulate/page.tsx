@@ -498,7 +498,7 @@ export default function SimulatePage() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden relative bg-gray-900">
+    <div className="h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] w-full overflow-hidden relative bg-gray-900">
       {/* Full-screen Map */}
       <div className="absolute inset-0">
         <SimulationMap
