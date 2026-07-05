@@ -666,6 +666,10 @@ model Case {
   lostConnections   MatchConnection[] @relation("LostConnections")
   foundConnections  MatchConnection[] @relation("FoundConnections")
 
+  // Report-time action cascade (see app/lib/cascade/*)
+  activation        CaseActivation?
+  followUps         CaseFollowUp[]
+
   @@index([status])
   @@index([caseNumber])
   @@index([lastSeenLatitude, lastSeenLongitude])
@@ -5262,4 +5266,138 @@ model MedicationAuditLog {
 
   @@index([petId, createdAt])
   @@index([medicationId])
+}
+
+// ============================================================================
+// Report-time action cascade (app/lib/cascade/*)
+// When a lost report is created, a fire-and-forget cascade runs ~12 actions
+// that generate flyers, social cards, AI copy, matches, a search plan, and
+// neighbor alerts. Results are PERSISTED here so the success screen and the
+// public case page can render "everything we did" on a plain reload with no
+// live connection; SSE is only a live-update enhancement over these rows.
+// ============================================================================
+
+enum CascadeStatus {
+  PENDING
+  RUNNING
+  PARTIAL    // finished, but one or more steps failed/skipped
+  COMPLETE
+  FAILED
+}
+
+enum CascadeStepStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  SKIPPED    // a dependency failed, or the step is not applicable
+}
+
+enum CaseAssetKind {
+  QR
+  FLYER_LETTER
+  FLYER_HALF
+  FLYER_POSTER
+  SOCIAL_OG
+  SOCIAL_SQUARE
+  SOCIAL_STORY
+  SEARCH_PLAN_PDF
+}
+
+enum FollowUpStatus {
+  PENDING
+  SUCCESS
+  SKIPPED
+  FAILED
+}
+
+// One row per lost case: the durable "we promised this" record + a
+// denormalized summary rollup so a single query renders the dashboard.
+model CaseActivation {
+  id            String        @id @default(cuid())
+  caseId        String        @unique
+  caseNumber    String        @unique // SSE + read-API key (exists the instant the case does)
+  case          Case          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  status        CascadeStatus @default(PENDING)
+  correlationId String                 // threads to EventLog + the create-route UUID
+  attemptCount  Int           @default(0)
+  summary       Json          @default("{}") // denormalized counts/flags for one-query render
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  steps  CascadeStep[]
+  assets CaseAsset[]
+
+  @@index([status, updatedAt]) // resume/boot sweep for orphaned RUNNING/PENDING
+  @@index([correlationId])
+}
+
+// One row per action per activation. Derived (non-file) output lives in
+// `result`; binary files live in CaseAsset.
+model CascadeStep {
+  id           String            @id @default(cuid())
+  activationId String
+  activation   CaseActivation    @relation(fields: [activationId], references: [id], onDelete: Cascade)
+  caseId       String
+  caseNumber   String
+  key          String            // qr|flyers|social|ai_copy|reverse_match|shelters|search_plan|
+                                 // neighbor_alert|rescue_force|share_kit|checklist|recovery_email|followups
+  status       CascadeStepStatus @default(PENDING)
+  count        Int?              // N matches / shelters / neighbors (UI convenience)
+  result       Json              @default("{}")
+  error        String?
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  durationMs   Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([activationId, key]) // idempotency boundary - re-run upserts, never duplicates
+  @@index([caseNumber])
+}
+
+// One row per downloadable binary artifact (PDF/PNG on the CDN).
+model CaseAsset {
+  id           String         @id @default(cuid())
+  activationId String
+  activation   CaseActivation @relation(fields: [activationId], references: [id], onDelete: Cascade)
+  caseId       String
+  caseNumber   String         // denormalized: public read joins on this
+  kind         CaseAssetKind
+  status       String         @default("pending") // pending|ready|failed
+  url          String?                            // Bunny CDN url (null until ready)
+  thumbnailUrl String?
+  mimeType     String?                            // application/pdf | image/png
+  label        String         @default("")
+  width        Int?
+  height       Int?
+  sizeBytes    Int?
+  error        String?
+  meta         Json           @default("{}")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([caseId, kind]) // idempotency - one asset per (case, kind); re-run overwrites
+  @@index([caseNumber, status])
+}
+
+// Scheduled day-1/3/7 nudges. Drained by /api/cascade/sweep + an opportunistic
+// piggyback (no cron infra); rows accumulate harmlessly until sent.
+model CaseFollowUp {
+  id        String         @id @default(cuid())
+  caseId    String
+  case      Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  day       Int            // 1 | 3 | 7
+  dueAt     DateTime
+  channel   String         // email | sms
+  status    FollowUpStatus @default(PENDING)
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([caseId, day]) // idempotency - one follow-up per (case, day)
+  @@index([status, dueAt])
 }
