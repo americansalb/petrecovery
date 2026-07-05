@@ -88,21 +88,23 @@ export default function WeekStrip({ meds, selectedDay, onSelectDay }) {
                   {day.getDate()}
                 </span>
               </span>
+              {/* Days with progress get a filled bar; untouched days stay a
+                  quiet hairline — seven tall gray boxes said nothing. */}
               <div
-                className={cn('w-full h-12 rounded-lg relative overflow-hidden', due ? 'bg-midnight-100' : 'bg-transparent')}
+                className={cn('w-full h-9 rounded-lg relative overflow-hidden', pct ? 'bg-midnight-100' : 'bg-midnight-50')}
                 title={due ? `${given}/${due} given` : 'Nothing scheduled'}
               >
-                {pct != null ? (
+                {pct != null && pct > 0 ? (
                   <div
                     className={cn('absolute bottom-0 left-0 right-0 rounded-lg transition-all',
-                      pct >= 1 ? 'bg-emerald-400' : pct > 0 ? 'bg-flash-400' : 'bg-midnight-200')}
-                    style={{ height: `${Math.max(pct * 100, pct > 0 ? 18 : 8)}%` }}
+                      pct >= 1 ? 'bg-emerald-400' : 'bg-flash-400')}
+                    style={{ height: `${Math.max(pct * 100, 22)}%` }}
                   />
                 ) : (
-                  <span className="absolute inset-0 flex items-center justify-center text-midnight-200 text-lg leading-none">·</span>
+                  <span className={cn('absolute bottom-0 left-1 right-1 rounded-full', due ? 'h-[3px] bg-midnight-200' : 'h-px bg-midnight-100')} />
                 )}
               </div>
-              <span className={cn('text-[10px] tabular-nums', due ? 'text-midnight-500' : 'text-transparent')}>{due ? `${given}/${due}` : '·'}</span>
+              <span className={cn('text-[10px] tabular-nums', given > 0 ? 'text-midnight-500 font-semibold' : due ? 'text-midnight-300' : 'text-transparent')}>{due ? `${given}/${due}` : '·'}</span>
             </Cell>
           );
         })}

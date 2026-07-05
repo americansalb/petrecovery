@@ -329,14 +329,15 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
       setMeds((prev) => prev.filter((m) => m.id !== care.id));
     });
 
-  // Build today's chips
+  // Build today's chips: ONE chip per routine, its times as pills inside.
+  // (A walk at 8, 6, and 11 is one habit with three moments, not three
+  // identical cards.)
   const scheduled = [];
   for (const care of active.filter((c) => c.scheduleType !== 'AS_NEEDED')) {
-    for (const slot of slotsWithStatus(care, care.doses, day)) {
-      scheduled.push({ care, slot });
-    }
+    const slots = slotsWithStatus(care, care.doses, day);
+    if (slots.length) scheduled.push({ care, slots });
   }
-  scheduled.sort((a, b) => a.slot.time.localeCompare(b.slot.time));
+  scheduled.sort((a, b) => a.slots[0].time.localeCompare(b.slots[0].time));
   const whenever = active.filter((c) => c.scheduleType === 'AS_NEEDED');
 
   if (active.length === 0 && !interactive) return null;
@@ -456,35 +457,58 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
           )
         ) : (
           <div className="flex flex-wrap gap-2.5">
-            {scheduled.map(({ care, slot }) => {
-              const done = slot.status === 'GIVEN';
-              const busy = busyKeys.has(`${care.id}-${slot.scheduledFor.getTime()}`);
+            {scheduled.map(({ care, slots }) => {
+              const doneCount = slots.filter((s) => s.status === 'GIVEN').length;
+              const allDone = doneCount === slots.length;
               return (
-                <button
-                  key={`${care.id}-${slot.time}`}
-                  onClick={() => {
-                    if (!interactive || busy) return;
-                    if (done) undo(care, slot);
-                    else mark(care, slot);
-                  }}
-                  disabled={!interactive || busy}
-                  title={!interactive ? undefined : done ? 'Tap to undo' : `Mark ${care.name} done`}
+                <div
+                  key={care.id}
                   className={cn(
-                    'flex items-center gap-2.5 rounded-2xl border-2 px-3.5 py-2.5 transition-all active:scale-95',
-                    done ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-midnight-200 hover:border-flash-400'
+                    'flex items-center gap-2.5 rounded-2xl border-2 px-3 py-2 transition-colors',
+                    allDone ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-midnight-200'
                   )}
                 >
                   <CareIconChip name={care.name} color={care.color} size="sm" />
-                  <span className="text-left">
-                    <span className={cn('block text-sm font-bold', done ? 'text-emerald-700' : 'text-midnight-900')}>
+                  <span className="text-left mr-0.5">
+                    <span className={cn('block text-sm font-bold leading-tight', allDone ? 'text-emerald-700' : 'text-midnight-900')}>
                       {care.name}
                     </span>
-                    <span className={cn('block text-[11px]', done ? 'text-emerald-600' : 'text-midnight-500')}>
-                      {busy ? '...' : done ? 'Done!' : formatTime(slot.time)}
-                    </span>
+                    {slots.length > 1 && (
+                      <span className={cn('block text-[11px]', allDone ? 'text-emerald-600' : 'text-midnight-400')}>
+                        {doneCount}/{slots.length} today
+                      </span>
+                    )}
                   </span>
-                  {done && <Check size={16} strokeWidth={3} className="text-emerald-500" />}
-                </button>
+                  <span className="flex items-center gap-1">
+                    {slots.map((slot) => {
+                      const done = slot.status === 'GIVEN';
+                      const busy = busyKeys.has(`${care.id}-${slot.scheduledFor.getTime()}`);
+                      return (
+                        <button
+                          key={slot.time}
+                          onClick={() => {
+                            if (!interactive || busy) return;
+                            if (done) undo(care, slot);
+                            else mark(care, slot);
+                          }}
+                          disabled={!interactive || busy}
+                          title={!interactive ? undefined : done ? `Undo ${formatTime(slot.time)}` : `Mark ${formatTime(slot.time)} done`}
+                          aria-label={`${care.name} ${formatTime(slot.time)}${done ? ', done, tap to undo' : ''}`}
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-1.5 text-[11px] font-bold transition-all',
+                            interactive && 'active:scale-95',
+                            done
+                              ? 'bg-emerald-500 border-emerald-500 text-white'
+                              : cn('bg-white border-midnight-200 text-midnight-600', interactive && 'hover:border-flash-400 hover:bg-flash-50')
+                          )}
+                        >
+                          {busy ? <Loader2 size={12} className="animate-spin" /> : done ? <Check size={12} strokeWidth={3.5} /> : null}
+                          {formatTime(slot.time)}
+                        </button>
+                      );
+                    })}
+                  </span>
+                </div>
               );
             })}
 
