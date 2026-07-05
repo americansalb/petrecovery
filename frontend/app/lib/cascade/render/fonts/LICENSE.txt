@@ -1,0 +1,5 @@
+Inter font family — SIL Open Font License 1.1
+Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
+Vendored (Regular/SemiBold/Bold/Black weights) so server-side flyer/social
+rendering (@react-pdf/renderer, satori, @resvg/resvg-js) has deterministic
+fonts without any runtime network fetch. Full license: https://openfontlicense.org
