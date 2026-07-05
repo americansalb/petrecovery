@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * The Health Book's record components — the passport pages, shared
- * between the logged-in Health tab and the public vet/sitter view.
+ * The Health record components, shared between the logged-in Health tab
+ * and the public sitter/vet view.
  *
- * Paper Passport vocabulary throughout (paper/Paper.js): the margin
- * note in red ink, a handwritten verdict line, vaccines as round
- * rubber stamps, weight as a pencil line, the history as a diary
- * timeline. One physical language for the record everywhere.
+ * Health answers one question: is everything OK, and what is on file?
+ * So the verdict comes first as a single sentence colored by state,
+ * then the facts as plain rows. Color means state, nothing else:
+ * emerald is current, amber is due soon, red needs attention.
  */
 
 import { useMemo, useState } from 'react';
@@ -15,12 +15,20 @@ import { Plus, Loader2, Phone } from 'lucide-react';
 import { Modal, cn } from '@/components/ui';
 import { vaccinationStatus, vaccinePresetsFor } from '@/lib/healthBook';
 import { adherenceForDay, startOfDay } from '@/lib/medications';
-import {
-  Sheet, SectionInk, StampText, InkStampCircle, RuledList, RuledRow, MarginNote,
-} from '@/app/components/care/paper/Paper';
 
-const VAX_TONE = { PROTECTED: 'green', DUE_SOON: 'red', EXPIRED: 'red', ON_FILE: 'ink' };
+const VAX_DOT = {
+  PROTECTED: 'bg-emerald-500',
+  DUE_SOON: 'bg-amber-500',
+  EXPIRED: 'bg-red-500',
+  ON_FILE: 'bg-neutral-300',
+};
 const VAX_LABEL = { PROTECTED: 'Protected', DUE_SOON: 'Due soon', EXPIRED: 'Expired', ON_FILE: 'On file' };
+const VAX_TEXT = {
+  PROTECTED: 'text-emerald-600',
+  DUE_SOON: 'text-amber-600',
+  EXPIRED: 'text-red-600',
+  ON_FILE: 'text-neutral-400',
+};
 
 function shortDate(d) {
   return new Date(d).toLocaleDateString([], { month: 'short', year: 'numeric' });
@@ -28,14 +36,11 @@ function shortDate(d) {
 
 /* ------------------------------ SectionHeader ------------------------------ */
 
-/** Paper section head: diary-hand title with a quiet action slot. */
+/** A section label with an optional quiet action on the right. */
 export function SectionHeader({ eyebrow, title, action }) {
   return (
-    <div className="flex items-end justify-between gap-3">
-      <div>
-        {eyebrow && <p className="font-stamp text-[9px] uppercase tracking-[0.18em] text-pen-400">{eyebrow}</p>}
-        <h2 className="font-diary italic text-[19px] text-pen-900 leading-tight">{title}</h2>
-      </div>
+    <div className="flex items-center justify-between gap-3 mb-1">
+      <h2 className="text-[13px] font-medium text-neutral-500">{title || eyebrow}</h2>
       {action}
     </div>
   );
@@ -43,35 +48,43 @@ export function SectionHeader({ eyebrow, title, action }) {
 
 /* ------------------------------- AlertRibbon ------------------------------- */
 
-/** Medical notes at the front of the book — a red-ink margin note. */
+/** Medical conditions, stated plainly in red at the top of the record. */
 export function AlertRibbon({ text, href }) {
-  return <MarginNote href={href}>{text?.trim() || null}</MarginNote>;
+  const value = text?.trim();
+  if (!value) return null;
+  const body = <span className="text-[15px] text-red-600">{value}</span>;
+  return (
+    <div className="mb-5">
+      {href ? (
+        <a href={href} className="hover:underline">{body}</a>
+      ) : body}
+    </div>
+  );
 }
 
 /* ----------------------------- HealthStatusBand ---------------------------- */
 
-// The verdict, written by hand at the top of the page.
-const TONE_INK = {
-  good: 'text-stampgreen',
-  warn: 'text-[#8f6a14]', // marker's ink-dark cousin: readable on paper
-  bad: 'text-stampred',
-  empty: 'text-pen-400',
+const TONE_TEXT = {
+  good: 'text-emerald-600',
+  warn: 'text-amber-600',
+  bad: 'text-red-600',
+  empty: 'text-neutral-400',
 };
 const TONE_HEAD = {
-  good: (n) => `${n} is doing great.`,
+  good: (n) => `${n} is up to date.`,
   warn: (n) => `${n} has one thing due.`,
   bad: (n) => `${n} needs attention.`,
-  empty: (n) => `Let's start ${n}'s book.`,
+  empty: (n) => `${n}'s record is empty.`,
 };
 
 export function HealthStatusBand({ name, status, action }) {
-  const ink = TONE_INK[status.tone] || TONE_INK.empty;
+  const tone = TONE_TEXT[status.tone] || TONE_TEXT.empty;
   const head = (TONE_HEAD[status.tone] || TONE_HEAD.empty)(name);
   return (
-    <div className="flex items-end justify-between gap-4 border-b-2 border-pen-900 pb-3 mb-5 flex-wrap">
+    <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
       <div className="min-w-0">
-        <p className={cn('font-diary italic text-[24px] leading-tight', ink)}>{head}</p>
-        <p className="font-diary italic text-[13.5px] text-pen-400 mt-1">{status.sentence}</p>
+        <p className={cn('text-xl font-semibold tracking-tight', tone)}>{head}</p>
+        {status.sentence && <p className="text-[15px] text-neutral-500 mt-0.5">{status.sentence}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -99,48 +112,48 @@ function weightTrend(weights) {
   return { latest: latest.weightLbs, delta, dir: delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat' };
 }
 
-/** Three figures written in the margin: protection, weight, meds. */
+/** Three plain figures: protection, weight, active meds. */
 export function VitalsTrio({ vaccinations, weights, meds }) {
   const p = protectionSummary(vaccinations);
   const wt = weightTrend(weights);
   const activeMeds = (meds || []).filter((m) => m.isActive);
 
   const protSub = p.expired ? `${p.expired} expired` : p.dueSoon ? `${p.dueSoon} due soon` : p.withExpiry ? 'all current' : 'on file';
-  const protInk = p.expired ? 'text-stampred' : p.dueSoon ? 'text-marker' : 'text-stampgreen';
-  const trendSub = !wt ? 'no entries' : wt.dir === 'flat' ? 'holding steady' : `${wt.dir === 'up' ? '+' : ''}${wt.delta} lb overall`;
+  const protTone = p.expired ? 'text-red-600' : p.dueSoon ? 'text-amber-600' : 'text-emerald-600';
+  const trendSub = !wt ? 'no entries' : wt.dir === 'flat' ? 'steady' : `${wt.dir === 'up' ? '+' : ''}${wt.delta} lb overall`;
 
-  const fig = 'flex-1 min-w-[110px] py-1';
-  const big = 'font-diary italic text-[26px] leading-none text-pen-900 tabular-nums';
-  const cap = 'font-stamp text-[8.5px] uppercase tracking-[0.16em] text-pen-400 mt-1.5';
+  const fig = 'flex-1 min-w-[100px]';
+  const big = 'text-2xl font-semibold tracking-tight text-neutral-900 tabular-nums';
+  const cap = 'text-[13px] text-neutral-500 mt-0.5';
   return (
-    <div className="flex flex-wrap gap-x-8 gap-y-2 border-b border-pen-900/[0.16] pb-4 mb-5">
+    <div className="flex flex-wrap gap-x-8 gap-y-3 mb-8">
       <div className={fig}>
         <p className={big}>{p.withExpiry ? `${p.protectedCount}/${p.withExpiry}` : (p.total || '0')}</p>
         <p className={cap}>Protected</p>
-        <p className={cn('font-diary italic text-[12px]', protInk)}>{protSub}</p>
+        <p className={cn('text-[13px]', protTone)}>{protSub}</p>
       </div>
       <div className={fig}>
-        <p className={big}>{wt ? <>{wt.latest}<span className="text-[15px] text-pen-400"> lb</span></> : <span className="text-[16px] text-pen-300">none yet</span>}</p>
+        <p className={big}>{wt ? <>{wt.latest}<span className="text-base text-neutral-400"> lb</span></> : <span className="text-base text-neutral-300">none yet</span>}</p>
         <p className={cap}>Weight</p>
-        <p className="font-diary italic text-[12px] text-pen-400">{trendSub}</p>
+        <p className="text-[13px] text-neutral-500">{trendSub}</p>
       </div>
       <div className={fig}>
         <p className={big}>{activeMeds.length}</p>
         <p className={cap}>Medications</p>
-        <p className="font-diary italic text-[12px] text-pen-400">{activeMeds.length ? 'written in Today' : 'none active'}</p>
+        <p className="text-[13px] text-neutral-500">{activeMeds.length ? 'active' : 'none active'}</p>
       </div>
     </div>
   );
 }
 
-/* ---------------------------- Vaccine passport ----------------------------- */
+/* ---------------------------- Vaccine records ------------------------------ */
 
 export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   const presets = vaccinePresetsFor(species);
   const [picked, setPicked] = useState(null);
   const [customName, setCustomName] = useState('');
   const [givenOn, setGivenOn] = useState(new Date().toISOString().slice(0, 10));
-  const [duration, setDuration] = useState(null); // years | 0 (no expiry)
+  const [duration, setDuration] = useState(null);
   const [vetName, setVetName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -174,20 +187,21 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   };
 
   const chip = (active) => cn(
-    'px-3.5 py-2 rounded-[5px] border font-stamp text-[10.5px] uppercase tracking-[0.08em] transition-all',
-    active ? 'border-stampred bg-stampred text-paper-50' : 'border-paper-400 text-pen-600 hover:border-pen-300'
+    'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+    active ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
   );
-  const input = 'w-full mb-4 rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred';
+  const input = 'w-full mb-4 rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900';
+  const label = 'text-[13px] font-medium text-neutral-700 mb-1.5';
 
   return (
-    <Modal variant="paper" onClose={onClose} title="Stamp the book" subtitle="Straight off the certificate.">
+    <Modal onClose={onClose} title="Add a vaccine">
       <div className="flex flex-wrap gap-2 mb-4">
         {presets.map((p) => (
           <button key={p.name} onClick={() => { setPicked(p); if (duration === null) setDuration(p.years); }} className={chip(picked?.name === p.name)}>
             {p.name}
           </button>
         ))}
-        <button onClick={() => setPicked({ custom: true })} className={cn(chip(picked?.custom), !picked?.custom && 'border-dashed')}>
+        <button onClick={() => setPicked({ custom: true })} className={chip(picked?.custom)}>
           Other
         </button>
       </div>
@@ -198,7 +212,7 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
 
       {picked && (
         <>
-          <p className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-2">Given on</p>
+          <p className={label}>Given on</p>
           <input
             type="date"
             value={givenOn}
@@ -206,7 +220,7 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
             onChange={(e) => setGivenOn(e.target.value)}
             className={input}
           />
-          <p className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-2">Good for</p>
+          <p className={label}>Good for</p>
           <div className="flex gap-2 mb-4">
             {[{ l: '1 year', v: 1 }, { l: '3 years', v: 3 }, { l: 'No expiry', v: 0 }].map(({ l, v }) => (
               <button key={l} onClick={() => setDuration(v)} className={chip(duration === v)}>{l}</button>
@@ -216,78 +230,88 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
         </>
       )}
 
-      {error && <p className="text-sm text-stampred mb-3">{error}</p>}
+      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
 
       <button
         onClick={save}
         disabled={!ready || saving}
-        className="w-full font-stamp text-[11px] uppercase tracking-[0.14em] bg-stampred text-paper-50 rounded-[5px] py-3 hover:bg-stampred-dark transition-colors disabled:opacity-40"
+        className="w-full rounded-full bg-neutral-900 text-white text-sm font-medium py-2.5 hover:bg-neutral-700 transition-colors disabled:opacity-40"
       >
-        {saving ? 'Stamping…' : 'Stamp the book'}
+        {saving ? 'Saving...' : 'Add vaccine'}
       </button>
     </Modal>
   );
 }
 
-/** The passport spread: round rubber stamps, one per vaccine. */
+/** Vaccines as plain rows: a status dot, the name, when it lapses. */
 export function VaccinePassport({ vaccinations, canManage, managing, onToggleManage, onAdd, onRemove }) {
   return (
-    <Sheet className="mb-5">
+    <section className="mb-8">
       <SectionHeader
-        eyebrow="Immunization passport"
-        title="vaccines & protection"
-        action={canManage && vaccinations.length > 0 && (
-          <button
-            onClick={onToggleManage}
-            className={cn('font-stamp text-[9.5px] uppercase tracking-[0.12em] transition-colors',
-              managing ? 'text-stampred' : 'text-pen-400 hover:text-pen-900')}
-          >
-            {managing ? 'done' : 'manage'}
-          </button>
+        title="Vaccines"
+        action={(
+          <span className="flex items-center gap-4">
+            {canManage && vaccinations.length > 0 && (
+              <button
+                onClick={onToggleManage}
+                className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+              >
+                {managing ? 'Done' : 'Manage'}
+              </button>
+            )}
+            {canManage && (
+              <button
+                onClick={onAdd}
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+              >
+                <Plus size={13} /> Add
+              </button>
+            )}
+          </span>
         )}
       />
 
-      <div className="flex flex-wrap items-start gap-x-5 gap-y-6 mt-6 pl-1">
-        {vaccinations.map((vax, i) => {
-          const st = vaccinationStatus(vax);
-          return (
-            <div key={vax.id} className="flex flex-col items-center gap-2">
-              <InkStampCircle
-                tone={VAX_TONE[st]}
-                rotate={i % 2 ? 6 : -7}
-                over={VAX_LABEL[st]}
-                title={vax.name}
-                under={vax.expiresAt
-                  ? (st === 'EXPIRED' ? `exp ${shortDate(vax.expiresAt)}` : `to ${shortDate(vax.expiresAt)}`)
-                  : shortDate(vax.administeredAt)}
-                onRemove={managing ? () => onRemove(vax) : undefined}
-                removeLabel={`Remove ${vax.name}`}
-              />
-            </div>
-          );
-        })}
-        {canManage && (
-          <button
-            onClick={onAdd}
-            className="w-[86px] h-[86px] border-[2px] border-dashed border-pen-300 rounded-full flex flex-col items-center justify-center gap-1 text-pen-400 hover:border-stampred hover:text-stampred transition-colors"
-            style={{ transform: 'rotate(4deg)' }}
-          >
-            <Plus size={16} />
-            <span className="font-stamp text-[7.5px] uppercase tracking-[0.1em]">{vaccinations.length ? 'another' : 'first stamp'}</span>
-          </button>
-        )}
-      </div>
-    </Sheet>
+      {vaccinations.length === 0 ? (
+        <p className="text-[15px] text-neutral-500 py-3">No vaccines on file.</p>
+      ) : (
+        <div className="divide-y divide-neutral-100">
+          {vaccinations.map((vax) => {
+            const st = vaccinationStatus(vax);
+            return (
+              <div key={vax.id} className="flex items-center gap-3 py-3">
+                <span className={cn('w-2 h-2 rounded-full shrink-0', VAX_DOT[st])} aria-hidden="true" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[15px] font-medium text-neutral-900 truncate">{vax.name}</p>
+                  <p className="text-[13px] text-neutral-500">
+                    {vax.expiresAt
+                      ? (st === 'EXPIRED' ? `Expired ${shortDate(vax.expiresAt)}` : `Good until ${shortDate(vax.expiresAt)}`)
+                      : `Recorded ${shortDate(vax.administeredAt)}`}
+                  </p>
+                </div>
+                <span className={cn('text-[13px] shrink-0', VAX_TEXT[st])}>{VAX_LABEL[st]}</span>
+                {managing && (
+                  <button
+                    onClick={() => onRemove(vax)}
+                    className="text-[13px] font-medium text-red-600 hover:text-red-700 transition-colors shrink-0"
+                    aria-label={`Remove ${vax.name}`}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
 /* --------------------------------- Weight ---------------------------------- */
 
-// Weight over time as a pencil line: ink stroke, dashed baseline, the
-// current point circled like a marked reading.
 export function WeightChart({ weights }) {
   if (weights.length < 2) return null;
-  const w = 600, h = 130, padX = 12, padTop = 16, padBot = 24;
+  const w = 600, h = 120, padX = 4, padTop = 12, padBot = 20;
   const vals = weights.map((e) => e.weightLbs);
   const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
   const x = (i) => padX + (i / (weights.length - 1)) * (w - 2 * padX);
@@ -297,94 +321,78 @@ export function WeightChart({ weights }) {
   const fmt = (d) => new Date(d).toLocaleDateString([], { month: 'short', year: '2-digit' });
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="mt-3" role="img" aria-label="Weight over time">
-      <line x1={padX} y1={h - padBot} x2={w - padX} y2={h - padBot} stroke="#8a7f68" strokeWidth="1" strokeDasharray="3 5" />
-      <polyline points={pts.join(' ')} fill="none" stroke="#232a3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {weights.map((e, i) => <circle key={i} cx={x(i)} cy={y(e.weightLbs)} r="2.2" fill="#232a3d" />)}
-      <circle cx={x(weights.length - 1)} cy={y(last.weightLbs)} r="6.5" fill="none" stroke="#b3392e" strokeWidth="2" />
-      <text x={padX} y={h - 6} fill="#8a7f68" fontSize="11" fontStyle="italic" fontFamily="Georgia, serif">{fmt(weights[0].recordedAt)}</text>
-      <text x={w - padX} y={h - 6} textAnchor="end" fill="#8a7f68" fontSize="11" fontStyle="italic" fontFamily="Georgia, serif">{fmt(last.recordedAt)}</text>
+      <polyline points={pts.join(' ')} fill="none" stroke="#171717" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      {weights.map((e, i) => <circle key={i} cx={x(i)} cy={y(e.weightLbs)} r="2" fill="#171717" />)}
+      <circle cx={x(weights.length - 1)} cy={y(last.weightLbs)} r="4" fill="#171717" />
+      <text x={padX} y={h - 4} fill="#a3a3a3" fontSize="11" fontFamily="ui-sans-serif, system-ui">{fmt(weights[0].recordedAt)}</text>
+      <text x={w - padX} y={h - 4} textAnchor="end" fill="#a3a3a3" fontSize="11" fontFamily="ui-sans-serif, system-ui">{fmt(last.recordedAt)}</text>
     </svg>
   );
 }
 
-/**
- * The weight story: latest reading, the pencil line, and (for
- * caregivers) the one place a weight is written in.
- */
 export function WeightCard({ weights, canManage, weightInput, onWeightInput, onLog, saving }) {
   const latestWeight = weights[weights.length - 1];
   return (
-    <Sheet>
+    <section className="mb-8">
       <SectionHeader
-        eyebrow="Vitals"
-        title="weight"
+        title="Weight"
         action={latestWeight && (
-          <span className="font-stamp text-[9px] uppercase tracking-[0.12em] text-pen-400">
+          <span className="text-[13px] text-neutral-500">
             last {new Date(latestWeight.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
           </span>
         )}
       />
       {latestWeight ? (
-        <p className="font-diary italic text-[30px] leading-none text-pen-900 mt-2 tabular-nums">
-          {latestWeight.weightLbs}<span className="text-[16px] text-pen-400"> lb</span>
+        <p className="text-2xl font-semibold tracking-tight text-neutral-900 tabular-nums">
+          {latestWeight.weightLbs}<span className="text-base text-neutral-400"> lb</span>
         </p>
       ) : (
-        <p className="font-diary italic text-[13.5px] text-pen-400 mt-2">log a weight and the pencil line draws itself.</p>
+        <p className="text-[15px] text-neutral-500">No weight logged yet.</p>
       )}
-      {weights.length >= 2
-        ? <WeightChart weights={weights} />
-        : latestWeight && <p className="font-diary italic text-[12px] text-pen-400 mt-2">one more entry and the trend appears.</p>}
+      {weights.length >= 2 && <WeightChart weights={weights} />}
       {canManage && (
         <div className="flex items-center gap-2 mt-4">
-          <div className="relative flex-1">
-            <input
-              value={weightInput}
-              onChange={(e) => onWeightInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onLog()}
-              placeholder="Today's weight"
-              inputMode="decimal"
-              className="w-full rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 pr-11 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred"
-            />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-stamp text-[9px] uppercase text-pen-400">lbs</span>
-          </div>
+          <input
+            value={weightInput}
+            onChange={(e) => onWeightInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onLog()}
+            placeholder="Today's weight (lb)"
+            inputMode="decimal"
+            aria-label="Today's weight in pounds"
+            className="flex-1 rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900"
+          />
           <button
             onClick={onLog}
             disabled={saving || !weightInput}
-            className="font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-3.5 py-2.5 hover:bg-pen-900 hover:text-paper-50 disabled:opacity-40 transition-colors"
+            className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2.5 hover:bg-neutral-700 disabled:opacity-40 transition-colors"
           >
-            {saving ? <Loader2 size={13} className="animate-spin" /> : 'Write it in'}
+            {saving ? <Loader2 size={15} className="animate-spin" /> : 'Log'}
           </button>
         </div>
       )}
-    </Sheet>
+    </section>
   );
 }
 
 /* -------------------------------- Vet card --------------------------------- */
 
-/**
- * The veterinarian's contact — an address-book entry in the record.
- * ("Care team" means the PEOPLE you share the book with; that noun
- * lives on the Care team tab, never here.)
- */
 export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, saving, petName }) {
-  const input = 'w-full rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred';
+  const input = 'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900';
   return (
-    <Sheet>
+    <section className="mb-8">
       <SectionHeader
-        eyebrow="The record"
-        title="the vet"
+        title="Vet"
         action={isOwner && vetDraft === null && (
           <button
             onClick={() => onDraft({ vetName: pet?.vetName || '', vetClinic: pet?.vetClinic || '', vetPhone: pet?.vetPhone || '' })}
-            className="font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900"
+            className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
           >
-            {pet?.vetName || pet?.vetClinic ? 'edit' : 'add'}
+            {pet?.vetName || pet?.vetClinic ? 'Edit' : 'Add'}
           </button>
         )}
       />
       {vetDraft ? (
-        <div className="space-y-2.5 mt-3">
+        <div className="space-y-2.5">
           {[['vetName', 'Vet name'], ['vetClinic', 'Clinic'], ['vetPhone', 'Phone']].map(([key, ph]) => (
             <input
               key={key}
@@ -395,36 +403,32 @@ export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, sav
             />
           ))}
           <div className="flex gap-2 pt-1">
-            <button onClick={onSave} disabled={saving} className="font-stamp text-[10px] uppercase tracking-[0.12em] bg-pen-900 text-paper-50 rounded-[4px] px-3.5 py-2 hover:bg-pen-600 transition-colors">
-              {saving ? 'Saving…' : 'Save'}
+            <button onClick={onSave} disabled={saving} className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40">
+              {saving ? 'Saving...' : 'Save'}
             </button>
-            <button onClick={onCancel} className="font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 px-2 py-2">
+            <button onClick={onCancel} className="rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-2 hover:border-neutral-900 transition-colors">
               Cancel
             </button>
           </div>
         </div>
       ) : pet?.vetName || pet?.vetClinic ? (
-        <div className="mt-3">
-          <p className="font-diary italic text-[17px] text-pen-900">{[pet.vetName, pet.vetClinic].filter(Boolean).join(' · ')}</p>
+        <div>
+          <p className="text-[15px] font-medium text-neutral-900">{[pet.vetName, pet.vetClinic].filter(Boolean).join(', ')}</p>
           {pet.vetPhone && (
-            <a href={`tel:${pet.vetPhone}`} className="inline-flex items-center gap-1.5 mt-1.5 font-stamp text-[11px] tracking-[0.06em] text-pen-600 hover:text-pen-900">
-              <Phone size={12} /> {pet.vetPhone}
+            <a href={`tel:${pet.vetPhone}`} className="inline-flex items-center gap-1.5 mt-1 text-[15px] text-neutral-600 hover:text-neutral-900">
+              <Phone size={14} /> {pet.vetPhone}
             </a>
           )}
         </div>
       ) : (
-        <p className="font-diary italic text-[13px] text-pen-400 mt-3">
-          {isOwner ? `who takes care of ${petName}? one tap from a sitter's phone in an emergency.` : 'no vet on file yet.'}
-        </p>
+        <p className="text-[15px] text-neutral-500">No vet on file.</p>
       )}
-    </Sheet>
+    </section>
   );
 }
 
 /* ------------------------------- MonthHistory ------------------------------ */
 
-// Dose adherence for the days of one month that fall inside the API's
-// 35-day dose window (older months carry no dose data and show nothing).
 function monthAdherence(meds, monthKeyDate) {
   const scheduled = (meds || []).filter((m) => m.kind !== 'CARE' && m.scheduleType !== 'AS_NEEDED');
   if (!scheduled.length) return null;
@@ -443,16 +447,14 @@ function monthAdherence(meds, monthKeyDate) {
   return { due, given, pct: Math.round((given / due) * 100) };
 }
 
-// One record, grouped by month: vaccines + weights + a quiet dose
-// adherence line, newest first — the diary read backwards.
 export function MonthHistory({ vaccinations, weights, meds }) {
   const groups = useMemo(() => {
     const events = [];
     for (const v of (vaccinations || []).filter((v) => !v.deletedAt)) {
-      events.push({ at: new Date(v.administeredAt), kind: 'vax', title: v.name, sub: v.vetName || 'vaccine recorded', id: `v-${v.id}` });
+      events.push({ at: new Date(v.administeredAt), kind: 'vax', title: v.name, sub: v.vetName || 'Vaccine recorded', id: `v-${v.id}` });
     }
     for (const e of weights || []) {
-      events.push({ at: new Date(e.recordedAt), kind: 'weight', title: `${e.weightLbs} lb`, sub: e.note || 'weight written in', id: `w-${e.id}` });
+      events.push({ at: new Date(e.recordedAt), kind: 'weight', title: `${e.weightLbs} lb`, sub: e.note || 'Weight logged', id: `w-${e.id}` });
     }
     events.sort((a, b) => b.at - a.at);
     const out = [];
@@ -473,31 +475,29 @@ export function MonthHistory({ vaccinations, weights, meds }) {
         const adherence = meds ? monthAdherence(meds, g.at) : null;
         return (
           <div key={g.key}>
-            <div className="flex items-baseline justify-between gap-3 mb-1 border-b border-pen-900/[0.16] pb-1">
-              <p className="font-stamp text-[9.5px] uppercase tracking-[0.18em] text-pen-400">{g.key}</p>
+            <div className="flex items-baseline justify-between gap-3 mb-1">
+              <p className="text-[13px] font-medium text-neutral-500">{g.key}</p>
               {adherence && (
-                <p className="font-diary italic text-[11.5px] text-pen-400">
-                  doses: <span className={cn('not-italic font-stamp text-[10px]', adherence.pct >= 90 ? 'text-stampgreen' : adherence.pct >= 60 ? 'text-marker' : 'text-stampred')}>{adherence.pct}%</span> given ({adherence.given}/{adherence.due})
+                <p className="text-[13px] text-neutral-500">
+                  doses <span className={cn(
+                    'tabular-nums',
+                    adherence.pct >= 90 ? 'text-emerald-600' : adherence.pct >= 60 ? 'text-amber-600' : 'text-red-600'
+                  )}>{adherence.pct}%</span> ({adherence.given}/{adherence.due})
                 </p>
               )}
             </div>
-            <RuledList>
+            <div className="divide-y divide-neutral-100">
               {g.items.map((ev) => (
-                <RuledRow key={ev.id} className="py-2.5">
-                  <span className={cn(
-                    'font-stamp text-[8px] uppercase tracking-[0.06em] w-9 shrink-0 text-center border rounded-[3px] py-1',
-                    ev.kind === 'vax' ? 'text-stampgreen border-stampgreen' : 'text-pen-400 border-pen-300'
-                  )} style={{ transform: 'rotate(-3deg)' }}>
-                    {ev.kind === 'vax' ? 'VAX' : 'LB'}
-                  </span>
+                <div key={ev.id} className="flex items-center gap-3 py-2.5">
+                  <span className={cn('w-2 h-2 rounded-full shrink-0', ev.kind === 'vax' ? 'bg-emerald-500' : 'bg-neutral-300')} aria-hidden="true" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-pen-900 leading-tight truncate">{ev.title}</p>
-                    <p className="font-diary italic text-[11.5px] text-pen-400 truncate">{ev.sub}</p>
+                    <p className="text-[15px] font-medium text-neutral-900 truncate">{ev.title}</p>
+                    <p className="text-[13px] text-neutral-500 truncate">{ev.sub}</p>
                   </div>
-                  <span className="font-stamp text-[9.5px] text-pen-400 shrink-0">{ev.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
-                </RuledRow>
+                  <span className="text-[13px] text-neutral-500 shrink-0">{ev.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                </div>
               ))}
-            </RuledList>
+            </div>
           </div>
         );
       })}

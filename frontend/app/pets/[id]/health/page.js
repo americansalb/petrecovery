@@ -1,24 +1,23 @@
 'use client';
 
 /**
- * The Health Book - the RECORD room (docs/PRODUCT_IA_PLAN.md §3)
- *
- * Status before data: medical notes first (the ribbon), one verdict
- * sentence, then the vitals, the stamps, the medication record, the
- * weight story, the vet, and the unified history. Who the pet IS lives
- * in the shell's identity row — this room never repeats it. Doses are
- * tapped in Today; this room is what's TRUE about the pet.
+ * Health: the record. One question, is everything OK and what is on
+ * file, answered top to bottom: a verdict sentence, any medical
+ * alerts, the vitals, then plain sections for medications, vaccines,
+ * weight, the vet, history, and the pet's profile (which absorbed the
+ * old Overview). Doses are logged on Today; this screen is what is
+ * true about the pet, and where the record is managed.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { ConfirmModal } from '@/components/ui';
-import { Sheet } from '@/app/components/care/paper/Paper';
 import { MedCard } from '@/app/components/medications/MedCards';
+import RescueReadiness from '@/app/components/pets/RescueReadiness';
 import { usePet } from '@/app/components/care/PetProvider';
 import {
   SectionHeader, AlertRibbon, HealthStatusBand, VitalsTrio,
@@ -26,7 +25,17 @@ import {
 } from '@/app/components/care/HealthRecord';
 import { healthBookStatus } from '@/lib/healthBook';
 
-export default function HealthBookPage() {
+function parseJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  try {
+    const arr = JSON.parse(value || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+export default function HealthPage() {
   const { status } = useSession();
   const router = useRouter();
   const params = useParams();
@@ -43,7 +52,7 @@ export default function HealthBookPage() {
   const [meds, setMeds] = useState([]);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busyMed, setBusyMed] = useState(null);
-  const [vetDraft, setVetDraft] = useState(null); // null = closed
+  const [vetDraft, setVetDraft] = useState(null);
   const [savingVet, setSavingVet] = useState(false);
   const [error, setError] = useState(null);
 
@@ -92,8 +101,6 @@ export default function HealthBookPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not log weight');
       setWeights((prev) => [...prev, data.entry]);
-      // Pet.weight follows the newest entry server-side; mirror it locally
-      // so every surface reading the scalar stays in step.
       setPet((prev) => (prev ? { ...prev, weight: v } : prev));
       setWeightInput('');
     } catch (err) {
@@ -163,7 +170,7 @@ export default function HealthBookPage() {
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
-        <LoadingSpinner text="Opening the book..." />
+        <LoadingSpinner text="Loading..." />
       </div>
     );
   }
@@ -172,139 +179,187 @@ export default function HealthBookPage() {
   const canManage = access !== 'VIEWER';
   const isOwner = access === 'OWNER';
 
+  const photos = parseJsonArray(pet?.photos);
+  const personality = parseJsonArray(pet?.personality);
+  const uniquePhotos = [...new Set([pet?.primaryPhotoUrl, ...photos].filter(Boolean))];
+  const traitLine = pet ? [
+    pet.breed || pet.species,
+    pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
+    pet.color,
+    pet.size && pet.size.charAt(0) + pet.size.slice(1).toLowerCase(),
+    pet.sex && pet.sex.charAt(0) + pet.sex.slice(1).toLowerCase(),
+  ].filter(Boolean).join(', ') : '';
+
   const addVaccineButton = canManage && (
     <button
       onClick={() => setShowAdd(true)}
-      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 font-stamp text-[10.5px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-3.5 py-2.5 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors shrink-0"
+      className="rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-1.5 hover:border-neutral-900 transition-colors"
     >
-      <Plus size={13} /> Stamp a vaccine
+      Add vaccine
     </button>
   );
 
+  const profileRow = (label, value) => (
+    <div className="flex items-start justify-between gap-4 py-2.5">
+      <dt className="text-[13px] text-neutral-500 shrink-0">{label}</dt>
+      <dd className="text-[15px] text-neutral-900 text-right min-w-0">{value}</dd>
+    </div>
+  );
+
   return (
-    <div className="px-4 py-5 md:px-8 md:py-6">
-      <div className="max-w-4xl mx-auto">
-        {error && (
-          <div role="alert" className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark text-sm px-4 py-3 mb-4 flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} aria-label="Dismiss" className="text-stampred hover:text-stampred-dark"><X size={16} /></button>
-          </div>
-        )}
-
-        {/* ===== Front of the book: what a vet must see first ===== */}
-        <AlertRibbon text={pet?.medicalConditions} href={isOwner ? `/pets/${petId}/edit` : undefined} />
-
-        {/* ===== The one-glance verdict (identity lives in the shell) ===== */}
-        <HealthStatusBand name={name} status={bookStatus} action={addVaccineButton} />
-
-        {/* ===== Vital signs, at a glance ===== */}
-        <div className="mb-4">
-          <VitalsTrio vaccinations={vaccinations} weights={weights} meds={meds} />
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+      {error && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3 mb-4">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} aria-label="Dismiss" className="text-red-600 hover:text-red-800"><X size={16} /></button>
         </div>
+      )}
 
-        {/* ===== Immunization passport ===== */}
-        <VaccinePassport
-          vaccinations={vaccinations}
-          canManage={canManage}
-          managing={managing}
-          onToggleManage={() => setManaging((v) => !v)}
-          onAdd={() => setShowAdd(true)}
-          onRemove={removeVax}
-        />
+      <AlertRibbon text={pet?.medicalConditions} href={isOwner ? `/pets/${petId}/edit` : undefined} />
+      <HealthStatusBand name={name} status={bookStatus} action={addVaccineButton} />
+      <VitalsTrio vaccinations={vaccinations} weights={weights} meds={meds} />
 
-        {/* Medications: the record and its management (logging lives in Today) */}
-        <Sheet className="mb-5">
-          <SectionHeader
-            eyebrow="Prescriptions"
-            title="medications"
-            action={(
-              <div className="flex items-center gap-3">
-                <a
-                  href={`/api/pets/${petId}/medications/export`}
-                  download
-                  className="font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
-                  title="Download a full backup of all medication data"
+      {/* Medications */}
+      <section className="mb-8">
+        <SectionHeader
+          title="Medications"
+          action={(
+            <span className="flex items-center gap-4">
+              <a
+                href={`/api/pets/${petId}/medications/export`}
+                download
+                className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+                title="Download a full backup of all medication data"
+              >
+                Backup
+              </a>
+              {canManage && (
+                <Link
+                  href={`/pets/${petId}/medications/new`}
+                  className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
                 >
-                  backup
-                </a>
-                {canManage && (
-                  <Link
-                    href={`/pets/${petId}/medications/new`}
-                    className="inline-flex items-center gap-1 font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-3 py-2 hover:bg-pen-900 hover:text-paper-50 transition-colors"
-                  >
-                    <Plus size={12} /> Add
-                  </Link>
-                )}
-              </div>
+                  <Plus size={13} /> Add
+                </Link>
+              )}
+            </span>
+          )}
+        />
+        {meds.length === 0 ? (
+          <p className="text-[15px] text-neutral-500 py-3">No medications on file. Doses are logged on <Link href={`/pets/${petId}/today`} className="text-neutral-900 underline underline-offset-2">Today</Link>.</p>
+        ) : (
+          <>
+            <div className="divide-y divide-neutral-100">
+              {meds.filter((m) => m.isActive).map((med) => (
+                <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
+                  onTogglePause={togglePause} onDelete={setConfirmDelete} />
+              ))}
+            </div>
+            {meds.some((m) => !m.isActive) && (
+              <>
+                <p className="text-[13px] font-medium text-neutral-500 mt-5 mb-1">Paused</p>
+                <div className="divide-y divide-neutral-100">
+                  {meds.filter((m) => !m.isActive).map((med) => (
+                    <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
+                      onTogglePause={togglePause} onDelete={setConfirmDelete} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </section>
+
+      <VaccinePassport
+        vaccinations={vaccinations}
+        canManage={canManage}
+        managing={managing}
+        onToggleManage={() => setManaging((v) => !v)}
+        onAdd={() => setShowAdd(true)}
+        onRemove={removeVax}
+      />
+
+      <WeightCard
+        weights={weights}
+        canManage={canManage}
+        weightInput={weightInput}
+        onWeightInput={setWeightInput}
+        onLog={logWeight}
+        saving={savingWeight}
+      />
+
+      <VetCard
+        pet={pet}
+        petName={name}
+        isOwner={isOwner}
+        vetDraft={vetDraft}
+        onDraft={setVetDraft}
+        onSave={saveVet}
+        onCancel={() => setVetDraft(null)}
+        saving={savingVet}
+      />
+
+      {(vaccinations.length > 0 || weights.length > 0) && (
+        <section className="mb-8">
+          <SectionHeader title="History" />
+          <MonthHistory vaccinations={vaccinations} weights={weights} meds={meds} />
+        </section>
+      )}
+
+      {/* Profile: the facts a finder or searcher would need (was Overview) */}
+      {pet && (
+        <section className="mb-4">
+          <SectionHeader
+            title="Profile"
+            action={isOwner && (
+              <Link
+                href={`/pets/${petId}/edit`}
+                className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+              >
+                Edit
+              </Link>
             )}
           />
-          <p className="font-diary italic text-[12.5px] text-pen-400 mt-1 mb-4">
-            schedules and supply — daily check-offs live in <Link href={`/pets/${petId}/today`} className="text-pen-600 hover:text-pen-900 underline underline-offset-2">Today</Link>.
-          </p>
-          {meds.length === 0 ? (
-            <p className="font-diary italic text-[13px] text-pen-400">no medications on file.</p>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {meds.filter((m) => m.isActive).map((med) => (
-                  <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
-                    onTogglePause={togglePause} onDelete={setConfirmDelete} />
+          {isOwner && (
+            <RescueReadiness pet={pet} photos={uniquePhotos} personality={personality} isOwner={isOwner} />
+          )}
+          <dl className="divide-y divide-neutral-100">
+            {traitLine && profileRow('Looks', traitLine)}
+            {profileRow('Microchip', pet.microchipId || (
+              isOwner ? <Link href={`/pets/${petId}/edit`} className="inline-flex items-center gap-0.5 text-neutral-500 hover:text-neutral-900">Add <ChevronRight size={13} /></Link> : <span className="text-neutral-400">Not noted</span>
+            ))}
+            {profileRow('Collar', pet.collarInfo || (
+              isOwner ? <Link href={`/pets/${petId}/edit`} className="inline-flex items-center gap-0.5 text-neutral-500 hover:text-neutral-900">Add <ChevronRight size={13} /></Link> : <span className="text-neutral-400">Not noted</span>
+            ))}
+            {pet.distinctiveMarks && profileRow('Marks', pet.distinctiveMarks)}
+            {pet.medicalConditions && (
+              <div className="flex items-start justify-between gap-4 py-2.5">
+                <dt className="text-[13px] text-neutral-500 shrink-0">Medical</dt>
+                <dd className="text-[15px] text-red-600 text-right min-w-0">{pet.medicalConditions}</dd>
+              </div>
+            )}
+            {personality.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-3">
+                {personality.slice(0, 8).map((trait) => (
+                  <span key={trait} className="text-[13px] px-2.5 py-0.5 rounded-full border border-neutral-200 text-neutral-600">
+                    {trait}
+                  </span>
                 ))}
               </div>
-              {meds.some((m) => !m.isActive) && (
-                <>
-                  <h3 className="font-stamp text-[9px] uppercase tracking-[0.18em] text-pen-400 mt-5 mb-3">Paused</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {meds.filter((m) => !m.isActive).map((med) => (
-                      <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
-                        onTogglePause={togglePause} onDelete={setConfirmDelete} />
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </Sheet>
+            )}
+          </dl>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-          <WeightCard
-            weights={weights}
-            canManage={canManage}
-            weightInput={weightInput}
-            onWeightInput={setWeightInput}
-            onLog={logWeight}
-            saving={savingWeight}
-          />
-          <VetCard
-            pet={pet}
-            petName={name}
-            isOwner={isOwner}
-            vetDraft={vetDraft}
-            onDraft={setVetDraft}
-            onSave={saveVet}
-            onCancel={() => setVetDraft(null)}
-            saving={savingVet}
-          />
-        </div>
-
-        {/* ===== The record: one unified history ===== */}
-        {(vaccinations.length > 0 || weights.length > 0) && (
-          <Sheet perforated className="mb-5">
-            <SectionHeader eyebrow="The record" title="history" />
-            <div className="mt-4">
-              <MonthHistory vaccinations={vaccinations} weights={weights} meds={meds} />
+          {uniquePhotos.length >= 2 && (
+            <div className="flex flex-wrap gap-2 mt-4">
+              {uniquePhotos.slice(0, 10).map((url) => (
+                <img key={url} src={url} alt={pet.name} className="w-20 h-20 rounded-xl object-cover" />
+              ))}
             </div>
-          </Sheet>
-        )}
-
-        <p className="text-center font-diary italic text-[12px] text-pen-400 pt-2 pb-6">
-          a record you keep, not medical advice · your vet&apos;s guidance comes first
-        </p>
-      </div>
+          )}
+        </section>
+      )}
 
       {confirmDelete && (
         <ConfirmModal
-          variant="paper"
           onClose={() => setConfirmDelete(null)}
           title={`Delete ${confirmDelete.name}?`}
           body="This removes the medication and its full dose history. This cannot be undone."

@@ -1,108 +1,47 @@
 'use client';
 
 /**
- * My Pets — the bookshelf.
- *
- * The care product is the Paper Passport: every pet is a cloth-bound
- * Health Book on a shelf. The cover carries a taped-in polaroid, the
- * pet's name on a paper plate, a stamped status, and two bookmarks —
- * Today and the Health Book — so the daily rooms are two taps from
- * anywhere. Pending care-team invites are notes slipped between the
- * books; pets shared with you sit on their own shelf below.
+ * My pets: a plain list. Each row is a pet (photo, name, a line of
+ * basics, and a red Missing badge when there is an open case) that
+ * opens straight to Today. Pending care invites sit at the top as
+ * rows; pets shared with you sit in their own group below.
  */
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, X, Check } from 'lucide-react';
+import { Plus, X, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
-import {
-  PaperScaffold, Sheet, Polaroid, StampText,
-} from '@/app/components/care/paper/Paper';
 
-// Cloth colors for the covers, rotated per book: oxblood, navy, olive, tan.
-const CLOTH = [
-  { bg: '#8a3033', edge: '#6f2629' },
-  { bg: '#2f4156', edge: '#243347' },
-  { bg: '#4a6b52', edge: '#3a5641' },
-  { bg: '#7c5c34', edge: '#654a29' },
-];
-
-function caseStamp(pet) {
+function missingBadge(pet) {
   const status = pet.cases?.[0]?.status;
-  const map = {
-    OPEN: { tone: 'red', label: 'Missing' },
-    ACTIVE_SEARCH: { tone: 'red', label: 'Active search' },
-    RESOLVED: { tone: 'green', label: 'Found' },
-    CLOSED_OTHER: { tone: 'ink', label: 'Closed' },
-  };
-  return status ? map[status] || null : null;
+  if (!status || ['RESOLVED', 'CLOSED_OTHER', 'REUNITED'].includes(status)) return null;
+  return 'Missing';
 }
 
-/**
- * One book on the shelf. The cover opens the Overview; the two
- * bookmarks jump straight into the daily rooms.
- */
-function BookCover({ pet, index, stamp, plateLine, byline }) {
-  const cloth = CLOTH[index % CLOTH.length];
+function PetRow({ pet, href, basics, badge, note }) {
   return (
-    <div className="group" style={{ transform: `rotate(${index % 2 ? 0.4 : -0.5}deg)` }}>
-      <Link href={`/pets/${pet.id}`} className="block">
-        <div
-          className="relative rounded-[6px] rounded-l-[3px] px-5 pt-6 pb-5 shadow-[inset_10px_0_14px_-10px_rgba(0,0,0,0.55),0_14px_28px_-14px_rgba(35,42,61,0.55)] transition-transform group-hover:-translate-y-1"
-          style={{ background: cloth.bg }}
-        >
-          {/* the spine's binding groove */}
-          <span aria-hidden="true" className="absolute left-2.5 top-2 bottom-2 w-px opacity-40" style={{ background: cloth.edge, boxShadow: `3px 0 0 ${cloth.edge}` }} />
-
-          <div className="flex items-start gap-4 pl-3">
-            <Polaroid
-              src={pet.primaryPhotoUrl}
-              alt={pet.name}
-              fallback={<SpeciesIcon species={pet.species} size={30} />}
-              size="md"
-              rotate={index % 2 ? 3 : -3}
-              className="shrink-0"
-            />
-            <div className="min-w-0 flex-1 pt-1">
-              {/* the pasted-on name plate */}
-              <div className="bg-paper-50 border border-paper-400 rounded-[3px] px-3 py-2 shadow-[0_2px_5px_rgba(0,0,0,0.3)]" style={{ transform: 'rotate(-0.6deg)' }}>
-                <p className="font-diary italic text-[19px] leading-tight text-pen-900 truncate">{pet.name}</p>
-                <p className="font-stamp text-[8.5px] uppercase tracking-[0.14em] text-pen-400 truncate mt-0.5">{plateLine}</p>
-              </div>
-              {byline && (
-                <p className="font-diary italic text-[11px] text-paper-200/90 mt-2 truncate">{byline}</p>
-              )}
-            </div>
-            <span className="shrink-0 pt-1">
-              {stamp ? (
-                <StampText tone={stamp.tone} rotate={5} size="sm" className="bg-paper-50/95">{stamp.label}</StampText>
-              ) : (
-                <StampText tone="green" rotate={5} size="sm" className="bg-paper-50/95">Home</StampText>
-              )}
-            </span>
-          </div>
+    <Link href={href} className="flex items-center gap-3 py-3 group">
+      {pet.primaryPhotoUrl ? (
+        <img src={pet.primaryPhotoUrl} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
+      ) : (
+        <span className="w-11 h-11 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 shrink-0">
+          <SpeciesIcon species={pet.species} size={22} />
+        </span>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-[15px] font-medium text-neutral-900 truncate">{pet.name}</p>
+          {badge && (
+            <span className="text-[12px] font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0">{badge}</span>
+          )}
         </div>
-      </Link>
-
-      {/* the bookmarks hanging out of the book */}
-      <div className="flex gap-2 pl-8 -mt-px">
-        <Link
-          href={`/pets/${pet.id}/today`}
-          className="font-stamp text-[9px] uppercase tracking-[0.14em] bg-marker text-pen-900 rounded-b-[4px] px-3.5 pt-1.5 pb-2 shadow-[0_3px_6px_rgba(35,42,61,0.25)] hover:pb-3 transition-all"
-        >
-          Today
-        </Link>
-        <Link
-          href={`/pets/${pet.id}/health`}
-          className="font-stamp text-[9px] uppercase tracking-[0.14em] bg-paper-300 text-pen-600 rounded-b-[4px] px-3.5 pt-1.5 pb-2 shadow-[0_3px_6px_rgba(35,42,61,0.25)] hover:pb-3 transition-all"
-        >
-          Health Book
-        </Link>
+        {(basics || note) && <p className="text-[13px] text-neutral-500 truncate">{note || basics}</p>}
       </div>
-    </div>
+      <ChevronRight size={16} className="text-neutral-300 group-hover:text-neutral-500 transition-colors shrink-0" />
+    </Link>
   );
 }
 
@@ -164,7 +103,7 @@ export default function MyPetsPage() {
       setPendingInvites((prev) => prev.filter((i) => i.shareId !== invite.shareId));
       if (accept) {
         setSharedPets((prev) => [{ ...invite }, ...prev]);
-        setSuccessMessage(`You now help care for ${invite.pet.name}!`);
+        setSuccessMessage(`You now help care for ${invite.pet.name}.`);
       }
     } catch (err) {
       setError(err.message);
@@ -175,151 +114,134 @@ export default function MyPetsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <PaperScaffold className="flex items-center justify-center">
-        <LoadingSpinner text="Opening the shelf..." />
-      </PaperScaffold>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <LoadingSpinner text="Loading..." />
+      </div>
     );
   }
 
   if (status === 'unauthenticated') return null;
 
   const firstName = session?.user?.firstName || session?.user?.name;
-  const bylineFor = (pet) => [
+  const basicsFor = (pet) => [
     pet.breed || pet.species,
     pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
-    pet.microchipId && 'microchipped',
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(', ');
 
   return (
-    <PaperScaffold className="pb-24 lg:pb-12">
-      <div className="max-w-3xl mx-auto px-4 md:px-8 pt-8 md:pt-10">
-        {/* The shelf's title, written by hand */}
-        <div className="flex items-end justify-between gap-4 border-b-2 border-pen-900 pb-3 mb-6 flex-wrap">
-          <div>
-            <p className="font-stamp text-[9px] uppercase tracking-[0.2em] text-pen-400 mb-1">The bookshelf</p>
-            <h1 className="font-diary italic text-[34px] leading-none text-pen-900">
-              {firstName ? `${firstName}'s pets` : 'My Pets'}
-            </h1>
-          </div>
+    <div className="min-h-screen bg-white pb-24 lg:pb-12">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-8">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+            {firstName ? `${firstName}'s pets` : 'My pets'}
+          </h1>
           <Link
             href="/care/start"
-            className="inline-flex items-center gap-1.5 font-stamp text-[10.5px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-3.5 py-2.5 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-700 transition-colors"
           >
-            <Plus size={13} /> Start a new book
+            <Plus size={15} /> Add pet
           </Link>
         </div>
 
         {successMessage && (
-          <div className="border-l-[3px] border-stampgreen bg-stampgreen-wash/70 text-stampgreen px-4 py-3 mb-5 flex items-center justify-between text-sm">
-            <span className="inline-flex items-center gap-2"><Check size={15} /> {successMessage}</span>
-            <button onClick={() => setSuccessMessage('')} className="text-stampgreen hover:opacity-70" aria-label="Dismiss">
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 text-emerald-700 px-4 py-3 mb-4 text-sm">
+            <span>{successMessage}</span>
+            <button onClick={() => setSuccessMessage('')} className="text-emerald-600 hover:text-emerald-800" aria-label="Dismiss">
               <X size={16} />
             </button>
           </div>
         )}
 
         {error && (
-          <div className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark px-4 py-3 mb-5 text-sm">
-            {error}
-          </div>
+          <div className="rounded-lg bg-red-50 text-red-700 px-4 py-3 mb-4 text-sm">{error}</div>
         )}
 
-        {/* Pending care-team invites: notes slipped between the books */}
         {pendingInvites.length > 0 && (
-          <div className="space-y-3 mb-7">
-            {pendingInvites.map((invite) => (
-              <Sheet key={invite.shareId} className="flex items-center gap-4 flex-wrap">
-                <Polaroid
-                  src={invite.pet.primaryPhotoUrl}
-                  alt={invite.pet.name}
-                  fallback={<SpeciesIcon species={invite.pet.species} size={22} />}
-                  size="sm"
-                  rotate={2}
-                />
-                <div className="flex-1 min-w-[200px]">
-                  <p className="font-diary italic text-[15px] text-pen-900">
-                    {invite.ownerName} shared {invite.pet.name}&rsquo;s book with you
-                  </p>
-                  <p className="font-diary italic text-[12px] text-pen-400">
-                    as {invite.role === 'CAREGIVER' ? 'a caregiver — you can write in doses and keep the record' : 'a viewer — you can read the book and the schedule'}
-                  </p>
+          <div className="mb-8">
+            <p className="text-[13px] font-medium text-neutral-500 mb-1">Invitations</p>
+            <div className="divide-y divide-neutral-100">
+              {pendingInvites.map((invite) => (
+                <div key={invite.shareId} className="flex items-center gap-3 py-3">
+                  {invite.pet.primaryPhotoUrl ? (
+                    <img src={invite.pet.primaryPhotoUrl} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <span className="w-11 h-11 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 shrink-0">
+                      <SpeciesIcon species={invite.pet.species} size={22} />
+                    </span>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-medium text-neutral-900 truncate">{invite.pet.name}</p>
+                    <p className="text-[13px] text-neutral-500 truncate">
+                      {invite.ownerName} invited you as {invite.role === 'CAREGIVER' ? 'a caregiver' : 'a viewer'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => respondToInvite(invite, false)}
+                      disabled={respondingId === invite.shareId}
+                      className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                    <button
+                      onClick={() => respondToInvite(invite, true)}
+                      disabled={respondingId === invite.shareId}
+                      className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => respondToInvite(invite, true)}
-                    disabled={respondingId === invite.shareId}
-                    className="inline-flex items-center gap-1 font-stamp text-[10px] uppercase tracking-[0.12em] bg-stampgreen text-paper-50 rounded-[4px] px-3.5 py-2 hover:opacity-90 transition disabled:opacity-50"
-                  >
-                    <Check size={12} /> Accept
-                  </button>
-                  <button
-                    onClick={() => respondToInvite(invite, false)}
-                    disabled={respondingId === invite.shareId}
-                    className="font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 px-2 py-2 transition-colors disabled:opacity-50"
-                  >
-                    Decline
-                  </button>
-                </div>
-              </Sheet>
-            ))}
-          </div>
-        )}
-
-        {/* The shelf */}
-        {pets.length === 0 && sharedPets.length === 0 ? (
-          <Sheet perforated className="text-center py-10">
-            <p className="font-diary italic text-[22px] text-pen-900 mb-2">Start their Health Book</p>
-            <p className="font-diary italic text-[13.5px] text-pen-400 max-w-md mx-auto mb-6">
-              medications with one-tap logging, vaccine stamps, weight over time,
-              and a link any vet or sitter can read. free forever.
-            </p>
-            <Link
-              href="/care/start"
-              className="inline-flex items-center gap-1.5 font-stamp text-[11px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-4 py-3 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors"
-            >
-              <Plus size={13} /> Write the first page
-            </Link>
-          </Sheet>
-        ) : (
-          <div className="space-y-7">
-            {pets.map((pet, i) => (
-              <BookCover
-                key={pet.id}
-                pet={pet}
-                index={i}
-                stamp={caseStamp(pet)}
-                plateLine={bylineFor(pet)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Shared with me: the borrowed books */}
-        {sharedPets.length > 0 && (
-          <div className="mt-10">
-            <div className="border-b border-pen-900/[0.25] pb-1.5 mb-6">
-              <p className="font-stamp text-[9px] uppercase tracking-[0.2em] text-pen-400">Shared with me</p>
-              <p className="font-diary italic text-[15px] text-pen-600">books you help keep</p>
-            </div>
-            <div className="space-y-7">
-              {sharedPets.map(({ shareId, role, ownerName, pet }, i) => (
-                <BookCover
-                  key={shareId}
-                  pet={pet}
-                  index={pets.length + i}
-                  stamp={{ tone: role === 'CAREGIVER' ? 'green' : 'ink', label: role === 'CAREGIVER' ? 'Caregiver' : 'Viewer' }}
-                  plateLine={pet.breed || pet.species}
-                  byline={`${ownerName}'s pet — they keep the book, you help write it`}
-                />
               ))}
             </div>
           </div>
         )}
 
-        <p className="text-center font-diary italic text-[12px] text-pen-400 mt-12">
-          a record you keep, not medical advice · your vet&rsquo;s guidance comes first
-        </p>
+        {pets.length === 0 && sharedPets.length === 0 ? (
+          <div className="py-10 text-center">
+            <p className="text-lg font-medium text-neutral-900 mb-1">Add your first pet</p>
+            <p className="text-[15px] text-neutral-500 max-w-sm mx-auto mb-6">
+              Track medications with one-tap logging, keep vaccine and weight records,
+              and share a link any vet or sitter can read. Free forever.
+            </p>
+            <Link
+              href="/care/start"
+              className="inline-flex items-center gap-1.5 rounded-full bg-neutral-900 text-white text-sm font-medium px-5 py-2.5 hover:bg-neutral-700 transition-colors"
+            >
+              <Plus size={15} /> Add pet
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-neutral-100">
+            {pets.map((pet) => (
+              <PetRow
+                key={pet.id}
+                pet={pet}
+                href={`/pets/${pet.id}/today`}
+                basics={basicsFor(pet)}
+                badge={missingBadge(pet)}
+              />
+            ))}
+          </div>
+        )}
+
+        {sharedPets.length > 0 && (
+          <div className="mt-8">
+            <p className="text-[13px] font-medium text-neutral-500 mb-1">Shared with me</p>
+            <div className="divide-y divide-neutral-100">
+              {sharedPets.map(({ shareId, role, ownerName, pet }) => (
+                <PetRow
+                  key={shareId}
+                  pet={pet}
+                  href={`/pets/${pet.id}/today`}
+                  badge={missingBadge(pet)}
+                  note={`${ownerName}'s pet, you help as ${role === 'CAREGIVER' ? 'a caregiver' : 'a viewer'}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </PaperScaffold>
+    </div>
   );
 }

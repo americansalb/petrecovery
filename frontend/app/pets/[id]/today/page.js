@@ -1,27 +1,24 @@
 'use client';
 
 /**
- * Today - the rhythm surface (docs/PRODUCT_IA_PLAN.md §3)
+ * Today: the one screen where a caregiver acts.
  *
- * Route: /pets/[id]/today
- * The ONE place anyone taps "done": scheduled doses, as-needed doses
- * (log-now, count, undo), past-day catch-up, and care routines — all of
- * it, nothing else. Management and history live in the Health Book;
- * nothing here is reference material.
+ * It answers a single question, what does this pet need now, and shows
+ * the answer as a plain list: doses due, routines, as-needed, then what
+ * is already done. Management and history live in Health; nothing here
+ * is reference material. Past days can be caught up from a toggle at
+ * the bottom.
  *
- * The checklist itself (DayChecklist/WeekStrip) is shared with the
- * public care view; this page owns the write path — including the
- * offline outbox, so a check-off can never be silently lost between
- * the tap and the database.
+ * This page owns the write path, including the offline outbox, so a
+ * check-off is never silently lost between the tap and the database.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, X, Sparkles, CloudOff, Info } from 'lucide-react';
+import { X } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Sheet } from '@/app/components/care/paper/Paper';
 import GoodStuff from '@/app/components/care/GoodStuff';
 import { DayChecklist } from '@/app/components/care/DoseChecklist';
 import WeekStrip from '@/app/components/care/WeekStrip';
@@ -46,8 +43,6 @@ function writeOutbox(petId, items) {
     localStorage.setItem(outboxKey(petId), JSON.stringify(items));
     return true;
   } catch {
-    // Storage full/blocked/private-mode. The caller MUST surface this; we
-    // never let a dose look saved when the device couldn't store it.
     return false;
   }
 }
@@ -58,8 +53,6 @@ function enqueueDose(petId, entry) {
   );
   items.push({ ...entry, queuedAt: new Date().toISOString() });
   const ok = writeOutbox(petId, items);
-  // count reflects what is actually persisted: on a failed write, re-read the
-  // unchanged store so we never report a dose as queued when it wasn't.
   return { ok, count: ok ? items.length : readOutbox(petId).length };
 }
 
@@ -78,8 +71,7 @@ export default function TodayPage() {
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [notice, setNotice] = useState(null);
   const [outboxCount, setOutboxCount] = useState(0);
-  // Which day the checklist shows. Today by default; tapping a day in the
-  // week strip rewinds it so missed documentation can be caught up.
+  const [showPast, setShowPast] = useState(false);
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(new Date()));
 
   useEffect(() => {
@@ -106,7 +98,6 @@ export default function TodayPage() {
     if (status === 'authenticated' && petId) fetchMeds();
   }, [status, petId, fetchMeds]);
 
-  // Retry any queued dose writes, then pull fresh state.
   const flushOutbox = useCallback(async () => {
     const items = readOutbox(petId);
     setOutboxCount(items.length);
@@ -164,8 +155,6 @@ export default function TodayPage() {
   const applyDose = (medId, dose, quantityRemaining, removed = false) => {
     setMeds((prev) => prev.map((m) => {
       if (m.id !== medId) return m;
-      // Identify the slot's row by slotKey when both have one, else by instant,
-      // so a cross-timezone update replaces the right local row, never doubles.
       const sameSlot = (d) =>
         (dose.slotKey && d.slotKey)
           ? d.slotKey === dose.slotKey
@@ -178,8 +167,6 @@ export default function TodayPage() {
 
   const markDose = (med, slot, statusValue) =>
     withBusy(`${med.id}-${slot.scheduledFor.getTime()}`, async () => {
-      // Backfilled doses record the slot's own time as givenAt, so the
-      // history says when the dose actually happened, not when it was typed.
       const isBackfill = !sameDay(slot.scheduledFor, new Date()) && slot.scheduledFor < new Date();
       const payload = {
         scheduledFor: slot.scheduledFor.toISOString(),
@@ -195,14 +182,12 @@ export default function TodayPage() {
           body: JSON.stringify(payload),
         });
       } catch {
-        // Network failure: queue the tap on the device and retry on next load.
-        // If the device itself can't store it, NEVER claim it was saved.
         const { ok, count } = enqueueDose(petId, { medId: med.id, scheduledFor: slot.scheduledFor.toISOString(), slotKey: slot.slotKey, status: statusValue });
         setOutboxCount(count);
         if (ok) {
           setNotice("You're offline. That dose is saved on this device and will sync automatically.");
         } else {
-          setError("That tap was NOT saved: you're offline and this device's storage is full or blocked. Note the dose elsewhere and log it again once you're back online.");
+          setError("That tap was not saved. You're offline and this device's storage is full or blocked. Note the dose elsewhere and log it again once you're back online.");
         }
         return;
       }
@@ -210,7 +195,7 @@ export default function TodayPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to log dose');
       if (data.alreadyLogged) {
         const at = data.dose.givenAt ? new Date(data.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
-        setNotice(`Heads up: this dose was already logged${at ? ` at ${at}` : ''}, likely by another caregiver. Nothing was double-counted.`);
+        setNotice(`This dose was already logged${at ? ` at ${at}` : ''}, likely by another caregiver. Nothing was double counted.`);
       }
       applyDose(med.id, data.dose, data.quantityRemaining);
     });
@@ -226,7 +211,6 @@ export default function TodayPage() {
       applyDose(med.id, { scheduledFor: slot.scheduledFor.toISOString(), slotKey: slot.slotKey }, data.quantityRemaining, true);
     });
 
-  // As-needed, right now: each log is its own instant, never collapsed.
   const logPrnNow = (med) =>
     withBusy(`prn-${med.id}`, async () => {
       const res = await fetch(`/api/pets/${petId}/medications/${med.id}/doses`, {
@@ -239,7 +223,6 @@ export default function TodayPage() {
       applyDose(med.id, data.dose, data.quantityRemaining);
     });
 
-  // Reverse an accidental "Log dose now": remove the most recent of today's.
   const undoPrnLast = (med) =>
     withBusy(`prn-${med.id}`, async () => {
       const last = (med.doses || [])
@@ -253,8 +236,6 @@ export default function TodayPage() {
       applyDose(med.id, { scheduledFor: iso }, data.quantityRemaining, true);
     });
 
-  // Historical as-needed dose: anchored to noon of the chosen day so the
-  // record lands on the right date in every timezone view.
   const logPrnFor = (med, day) =>
     withBusy(`prn-${med.id}`, async () => {
       const when = new Date(day);
@@ -271,107 +252,94 @@ export default function TodayPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
-        <LoadingSpinner text="Loading medications..." />
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <LoadingSpinner text="Loading..." />
       </div>
     );
   }
   if (status === 'unauthenticated') return null;
 
-  // CARE-kind rows belong to the good-stuff section below;
-  // the checklist is purely medical
   const medItems = meds.filter((m) => m.kind !== 'CARE');
   const active = medItems.filter((m) => m.isActive);
   const lowCount = active.filter(isLowSupply).length;
   const canManage = access !== 'VIEWER';
+  const viewingToday = sameDay(selectedDay, new Date());
 
   return (
-    <div className="px-4 py-5 md:px-8 md:py-6">
-      <div className="max-w-4xl mx-auto">
-        {/* One quiet mono line: today's scope, and where the record lives */}
-        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-          <p className="font-stamp text-[9.5px] uppercase tracking-[0.16em] text-pen-400">
-            {active.length} active medication{active.length !== 1 && 's'}
-            {lowCount > 0 && (
-              <Link href={`/pets/${petId}/health`} className="text-stampred hover:underline"> · {lowCount} low on supply</Link>
-            )}
-          </p>
-          <Link href={`/pets/${petId}/health`} className="font-stamp text-[9.5px] uppercase tracking-[0.16em] text-pen-400 hover:text-pen-900 transition-colors">
-            manage in the Health Book →
-          </Link>
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+      {error && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-lg bg-red-50 text-red-700 text-sm px-4 py-3 mb-4">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800" aria-label="Dismiss"><X size={16} /></button>
         </div>
+      )}
 
-        {error && (
-          <div className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark text-sm px-4 py-3 mb-5 flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-stampred hover:text-stampred-dark" aria-label="Dismiss"><X size={16} /></button>
-          </div>
-        )}
+      {notice && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-amber-50 text-amber-800 text-sm px-4 py-3 mb-4">
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} className="text-amber-600 hover:text-amber-800" aria-label="Dismiss"><X size={16} /></button>
+        </div>
+      )}
 
-        {notice && (
-          <div className="border-l-[3px] border-marker bg-marker-wash/70 text-pen-600 text-sm px-4 py-3 mb-5 flex items-center justify-between gap-3">
-            <span className="inline-flex items-start gap-2"><Info size={16} className="flex-shrink-0 mt-0.5 text-marker" /> {notice}</span>
-            <button onClick={() => setNotice(null)} className="text-pen-400 hover:text-pen-900" aria-label="Dismiss"><X size={16} /></button>
-          </div>
-        )}
+      {outboxCount > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-neutral-100 text-neutral-600 text-sm px-4 py-3 mb-4">
+          <span>{outboxCount} dose log{outboxCount !== 1 ? 's' : ''} saved on this device, waiting to sync.</span>
+          <button onClick={flushOutbox} className="font-medium text-neutral-900 hover:text-neutral-700">Sync now</button>
+        </div>
+      )}
 
-        {outboxCount > 0 && (
-          <div className="border-l-[3px] border-pen-400 bg-paper-200/70 text-pen-600 text-sm px-4 py-3 mb-5 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2">
-              <CloudOff size={15} />
-              {outboxCount} dose log{outboxCount !== 1 ? 's' : ''} saved on this device, waiting to sync.
-            </span>
-            <button onClick={flushOutbox} className="font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-900 hover:text-stampred">Sync now</button>
-          </div>
-        )}
+      {lowCount > 0 && (
+        <Link
+          href={`/pets/${petId}/health`}
+          className="block text-sm text-red-600 hover:text-red-700 mb-4"
+        >
+          {lowCount} medication{lowCount !== 1 ? 's' : ''} low on supply
+        </Link>
+      )}
 
-        {/* Medications: the dose checklist, or a gentle nudge to add one.
-            Routines (GoodStuff) render below regardless — a care-only pet
-            must still see Today, which is why this no longer hides them. */}
-        {medItems.length === 0 ? (
-          <Sheet className="border-dashed mb-5">
-            <div className="flex items-center gap-4">
-              <span className="w-10 h-10 rounded-[5px] border-[1.5px] border-pen-300 text-pen-400 flex items-center justify-center shrink-0">
-                <Sparkles size={19} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-pen-900">No medications in the book yet</p>
-                <p className="font-diary italic text-[13px] text-pen-400">add one and check off doses with a tap — the book watches the schedule and warns you before refills run out.</p>
-              </div>
-              {canManage && (
-                <Link
-                  href={`/pets/${petId}/medications/new`}
-                  className="inline-flex items-center gap-1.5 font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-3 py-2 hover:bg-pen-900 hover:text-paper-50 transition-colors shrink-0"
-                >
-                  <Plus size={12} /> Add
-                </Link>
-              )}
-            </div>
-          </Sheet>
-        ) : (
-          <>
-            <DayChecklist
-              meds={medItems}
-              day={selectedDay}
-              busyKeys={busyKeys}
-              readOnly={!canManage}
-              onMark={markDose}
-              onUndo={undoDose}
-              onLogPrnNow={logPrnNow}
-              onUndoPrnLast={undoPrnLast}
-              onLogPrnFor={logPrnFor}
-              onBackToToday={() => setSelectedDay(startOfDay(new Date()))}
-            />
+      {medItems.length === 0 ? (
+        <div className="py-4">
+          <p className="text-[15px] text-neutral-500">No medications yet.</p>
+          {canManage && (
+            <Link
+              href={`/pets/${petId}/medications/new`}
+              className="inline-block mt-3 rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-700 transition-colors"
+            >
+              Add a medication
+            </Link>
+          )}
+        </div>
+      ) : (
+        <DayChecklist
+          meds={medItems}
+          day={selectedDay}
+          busyKeys={busyKeys}
+          readOnly={!canManage}
+          onMark={markDose}
+          onUndo={undoDose}
+          onLogPrnNow={logPrnNow}
+          onUndoPrnLast={undoPrnLast}
+          onLogPrnFor={logPrnFor}
+          onBackToToday={() => { setSelectedDay(startOfDay(new Date())); setShowPast(false); }}
+        />
+      )}
+
+      <GoodStuff petId={petId} meds={meds} setMeds={setMeds} canManage={canManage} />
+
+      {medItems.length > 0 && (
+        <div className="mt-8 pt-4 border-t border-neutral-100">
+          {!showPast && viewingToday ? (
+            <button
+              onClick={() => setShowPast(true)}
+              className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+            >
+              Past days
+            </button>
+          ) : (
             <WeekStrip meds={medItems} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-          </>
-        )}
-
-        <GoodStuff petId={petId} meds={meds} setMeds={setMeds} canManage={canManage} />
-
-        <p className="text-center font-diary italic text-[12px] text-pen-400 pt-2 pb-6">
-          free forever · a helper for remembering · your vet&rsquo;s guidance always comes first
-        </p>
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

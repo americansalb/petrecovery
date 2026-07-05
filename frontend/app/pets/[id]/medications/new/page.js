@@ -1,30 +1,22 @@
 'use client';
 
 /**
- * Add / Edit Medication Wizard
+ * Add or edit a medication.
  *
  * Route: /pets/[id]/medications/new        (create)
  *        /pets/[id]/medications/new?edit=… (edit)
  *
- * Four friendly steps: What → Schedule → Supply → Look. Step 1 has a smart
- * box: type the medication like you'd say it ("Apoquel 16mg twice a day with
- * food") and Auto-fill parses it — Claude when configured, a local parser
- * otherwise — pre-filling the rest of the wizard.
- *
- * Renders under the pet shell, which provides the paper ground and the
- * context bar; the wizard itself is one sheet of the book.
+ * Four steps: What, Schedule, Supply, Look. Step 1 has a quick box: type
+ * the medication the way the vet said it and Auto-fill parses it (Claude
+ * when configured, a local parser otherwise) to prefill the rest.
  */
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import {
-  ArrowLeft, ArrowRight, Check, Plus, X, Sparkles, Loader2,
-  CalendarDays, Package, Palette, FlaskConical,
-} from 'lucide-react';
+import { ArrowLeft, Check, Plus, X, Loader2 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { cn } from '@/components/ui';
-import { Sheet } from '@/app/components/care/paper/Paper';
 import { MedIcon, MedIconChip } from '@/app/components/medications/MedIcon';
 import {
   MED_COLORS, MED_COLOR_TOKENS, MED_ICON_TOKENS, FORM_OPTIONS, FORM_DEFAULT_ICON,
@@ -32,16 +24,16 @@ import {
 } from '@/lib/medications';
 
 const STEPS = [
-  { key: 'what', label: 'What', icon: FlaskConical },
-  { key: 'schedule', label: 'Schedule', icon: CalendarDays },
-  { key: 'supply', label: 'Supply', icon: Package },
-  { key: 'look', label: 'Look', icon: Palette },
+  { key: 'what', label: 'What' },
+  { key: 'schedule', label: 'Schedule' },
+  { key: 'supply', label: 'Supply' },
+  { key: 'look', label: 'Look' },
 ];
 
 const TIME_PRESETS = [
   { label: 'Once a day', times: ['08:00'] },
   { label: 'Twice a day', times: ['08:00', '20:00'] },
-  { label: '3× a day', times: ['08:00', '14:00', '20:00'] },
+  { label: '3 times a day', times: ['08:00', '14:00', '20:00'] },
 ];
 
 const EMPTY_FORM = {
@@ -65,50 +57,23 @@ const EMPTY_FORM = {
   iconTouched: false,
 };
 
-function Stepper({ step }) {
-  return (
-    <div className="flex items-center justify-center gap-0 mb-8" role="list" aria-label="Wizard progress">
-      {STEPS.map((s, i) => {
-        const done = i < step;
-        const current = i === step;
-        return (
-          <div key={s.key} className="flex items-center" role="listitem">
-            <div className="flex flex-col items-center gap-1.5">
-              <div className={cn(
-                'w-9 h-9 rounded-full flex items-center justify-center border-2 transition-colors',
-                done ? 'border-pen-900 text-pen-900'
-                  : current ? 'bg-pen-900 border-pen-900 text-paper-50'
-                  : 'border-paper-400 text-pen-300'
-              )}>
-                {done ? <Check size={16} strokeWidth={3} /> : <s.icon size={16} />}
-              </div>
-              <span className={cn('font-stamp text-[8.5px] uppercase tracking-[0.14em]', current ? 'text-pen-900' : 'text-pen-400')}>{s.label}</span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div className={cn('w-10 sm:w-16 border-t-[1.5px] mx-1.5 mb-5', done ? 'border-pen-900' : 'border-paper-400')} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const inputClass =
+  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
+  'placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-colors';
+
+const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
 
 function Field({ label, hint, required, children }) {
   return (
     <label className="block">
-      <span className="block font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-1.5">
-        {label} {required && <span className="text-stampred">*</span>}
-        {hint && <span className="block font-diary italic normal-case tracking-normal text-[11px] text-pen-400 mt-0.5">{hint}</span>}
+      <span className={labelClass}>
+        {label} {required && <span className="text-red-600">*</span>}
+        {hint && <span className="block font-normal text-[13px] text-neutral-400 mt-0.5">{hint}</span>}
       </span>
       {children}
     </label>
   );
 }
-
-const inputClass =
-  'w-full rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 ' +
-  'placeholder:text-pen-300 focus:outline-none focus:border-stampred transition-colors';
 
 function ChipSelect({ options, value, onChange }) {
   return (
@@ -119,10 +84,10 @@ function ChipSelect({ options, value, onChange }) {
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            'px-3.5 py-2 rounded-[5px] text-sm border-[1.5px] transition-colors',
+            'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
             value === opt.value
-              ? 'border-stampred bg-stampred-wash text-pen-900'
-              : 'border-paper-400 text-pen-600 hover:border-pen-300'
+              ? 'border-neutral-900 bg-neutral-900 text-white'
+              : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
           )}
         >
           {opt.label}
@@ -146,7 +111,6 @@ function MedicationWizard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // Smart parse state
   const [smartText, setSmartText] = useState('');
   const [parsing, setParsing] = useState(false);
   const [parseNote, setParseNote] = useState(null);
@@ -157,7 +121,6 @@ function MedicationWizard() {
     }
   }, [status, router, petId]);
 
-  // Edit mode: load the medication into the form
   useEffect(() => {
     if (status !== 'authenticated' || !editId) return;
     (async () => {
@@ -167,10 +130,9 @@ function MedicationWizard() {
         if (!res.ok) throw new Error(data.error || 'Failed to load');
         const med = (data.medications || []).find((m) => m.id === editId);
         if (!med) throw new Error('Medication not found');
-        // Care routines are not medications; this wizard would mangle
-        // one into a medical shape. Their home is the Care tab.
+        // Care routines are managed on Today, not here.
         if (med.kind === 'CARE') {
-          router.replace(`/pets/${petId}/care`);
+          router.replace(`/pets/${petId}/today`);
           return;
         }
         setForm({
@@ -246,11 +208,7 @@ function MedicationWizard() {
         setParseNote({ tone: 'warn', text: "Couldn't pick out details. Fill the fields below and we'll take it from there." });
       } else {
         set(patch);
-        setParseNote({
-          tone: 'ok',
-          text: `Got it: ${understood.join(' · ')}`,
-          source: data.source,
-        });
+        setParseNote({ tone: 'ok', text: `Got it: ${understood.join(', ')}`, source: data.source });
       }
     } catch (err) {
       setParseNote({ tone: 'warn', text: err.message });
@@ -329,403 +287,328 @@ function MedicationWizard() {
   const colors = medColor(form.color);
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-10">
-      <div className="max-w-2xl mx-auto">
-        {/* The way back lives in the shell's context bar (← Health Book) */}
-        <h1 className="font-diary italic text-[26px] md:text-[30px] leading-tight text-pen-900 mb-1 text-center">
-          {editId ? `Edit ${form.name || 'medication'}` : 'Add a medication'}
-        </h1>
-        <p className="font-diary italic text-[13.5px] text-pen-400 text-center mb-8">
-          {editId ? 'tune anything. history stays put.' : 'a minute now, one-tap tracking forever.'}
-        </p>
+    <div className="max-w-lg mx-auto px-4 sm:px-6 py-8">
+      <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-1">
+        {editId ? `Edit ${form.name || 'medication'}` : 'Add a medication'}
+      </h1>
+      <p className="text-[13px] text-neutral-500 mb-6">Step {step + 1} of {STEPS.length}, {STEPS[step].label}</p>
 
-        <Stepper step={step} />
+      {/* Progress segments */}
+      <div className="flex gap-1.5 mb-8" role="list" aria-label="Wizard progress">
+        {STEPS.map((s, i) => (
+          <div key={s.key} role="listitem" className={cn('h-1 flex-1 rounded-full', i <= step ? 'bg-neutral-900' : 'bg-neutral-200')} />
+        ))}
+      </div>
 
-        {error && (
-          <div className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark px-4 py-3 mb-6 flex items-center justify-between text-sm">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-stampred hover:text-stampred-dark"><X size={18} /></button>
-          </div>
-        )}
+      {error && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-red-50 text-red-700 px-4 py-3 mb-6 text-sm">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800" aria-label="Dismiss"><X size={16} /></button>
+        </div>
+      )}
 
-        <Sheet>
-          {/* ------------------------------ Step 1: What ------------------------------ */}
-          {step === 0 && (
-            <div className="space-y-5">
-              {/* Smart fill */}
-              <div className="border-[1.5px] border-dashed border-stampred bg-stampred-wash/40 rounded-[6px] p-4">
-                <p className="flex items-center gap-2 font-diary italic text-[15px] text-pen-900 mb-2">
-                  <Sparkles size={16} className="text-stampred" /> Type it like the vet said it
-                </p>
-                <textarea
-                  value={smartText}
-                  onChange={(e) => setSmartText(e.target.value)}
-                  rows={2}
-                  placeholder={'e.g. "Apoquel 16mg twice a day with food for allergies"'}
-                  className={cn(inputClass, 'resize-none')}
-                />
-                <div className="flex items-center justify-between gap-3 mt-2.5 flex-wrap">
-                  <p className="font-diary italic text-[11.5px] text-pen-400">we&apos;ll fill the fields below. you stay in control.</p>
-                  <button
-                    type="button"
-                    onClick={runSmartFill}
-                    disabled={parsing || !smartText.trim()}
-                    className="inline-flex items-center gap-1.5 font-stamp text-[10px] uppercase tracking-[0.12em] bg-pen-900 text-paper-50 rounded-[4px] px-3 py-2 hover:bg-pen-600 transition-colors disabled:opacity-50"
-                  >
-                    {parsing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Auto-fill
-                  </button>
-                </div>
-                {parseNote && (
-                  <p className={cn(
-                    'mt-2.5 text-xs border-l-[3px] px-3 py-2',
-                    parseNote.tone === 'ok'
-                      ? 'border-stampgreen bg-stampgreen-wash/70 text-stampgreen'
-                      : 'border-stampred bg-stampred-wash/60 text-stampred-dark'
-                  )}>
-                    {parseNote.text}
-                    {parseNote.source === 'ai' && <span className="opacity-70"> · understood by AI</span>}
-                  </p>
-                )}
-              </div>
-
-              <Field label="Medication name" required>
-                <input
-                  value={form.name}
-                  onChange={(e) => set({ name: e.target.value })}
-                  placeholder="Apoquel"
-                  className={inputClass}
-                />
-              </Field>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Strength">
-                  <input
-                    value={form.strength}
-                    onChange={(e) => set({ strength: e.target.value })}
-                    placeholder="16 mg"
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="What's it for?">
-                  <input
-                    value={form.purpose}
-                    onChange={(e) => set({ purpose: e.target.value })}
-                    placeholder="Allergies"
-                    className={inputClass}
-                  />
-                </Field>
-              </div>
-
-              <Field label="Form">
-                <ChipSelect
-                  options={FORM_OPTIONS}
-                  value={form.form}
-                  onChange={(v) => set({ form: v, ...(form.iconTouched ? {} : { icon: FORM_DEFAULT_ICON[v] || 'pill' }) })}
-                />
-              </Field>
-
-              <Field label="Prescribed by" hint="optional, handy at refill time">
-                <input
-                  value={form.prescribedBy}
-                  onChange={(e) => set({ prescribedBy: e.target.value })}
-                  placeholder="Dr. Patel, Lakeview Animal Clinic"
-                  className={inputClass}
-                />
-              </Field>
+      {/* Step 1: What */}
+      {step === 0 && (
+        <div className="space-y-5">
+          <div className="rounded-xl border border-neutral-200 p-4">
+            <p className={labelClass}>Type it like the vet said it</p>
+            <textarea
+              value={smartText}
+              onChange={(e) => setSmartText(e.target.value)}
+              rows={2}
+              placeholder={'Apoquel 16mg twice a day with food for allergies'}
+              className={cn(inputClass, 'resize-none')}
+            />
+            <div className="flex items-center justify-between gap-3 mt-2.5 flex-wrap">
+              <p className="text-[13px] text-neutral-500">We'll fill the fields below. You stay in control.</p>
+              <button
+                type="button"
+                onClick={runSmartFill}
+                disabled={parsing || !smartText.trim()}
+                className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-700 transition-colors disabled:opacity-50"
+              >
+                {parsing ? 'Reading...' : 'Auto-fill'}
+              </button>
             </div>
-          )}
+            {parseNote && (
+              <p className={cn('mt-2.5 text-[13px]', parseNote.tone === 'ok' ? 'text-emerald-600' : 'text-red-600')}>
+                {parseNote.text}
+                {parseNote.source === 'ai' && <span className="text-neutral-400"> (read by AI)</span>}
+              </p>
+            )}
+          </div>
 
-          {/* ---------------------------- Step 2: Schedule ---------------------------- */}
-          {step === 1 && (
-            <div className="space-y-5">
-              <Field label="How often?">
-                <ChipSelect
-                  options={SCHEDULE_OPTIONS}
-                  value={form.scheduleType}
-                  onChange={(v) => set({ scheduleType: v })}
-                />
-              </Field>
+          <Field label="Medication name" required>
+            <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Apoquel" className={inputClass} />
+          </Field>
 
-              {form.scheduleType === 'AS_NEEDED' ? (
-                <p className="font-diary italic text-[13px] text-pen-600 bg-paper-100 border border-paper-400 rounded-[4px] px-4 py-3">
-                  no fixed schedule. you&apos;ll get a <strong className="not-italic text-pen-900">“Log dose now”</strong> button on the tracker for whenever you give it.
-                </p>
-              ) : (
-                <>
-                  {form.scheduleType === 'SPECIFIC_DAYS' && (
-                    <Field label="Which days?" required>
-                      <div className="flex flex-wrap gap-2">
-                        {WEEKDAYS.map((d, i) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => set({
-                              daysOfWeek: form.daysOfWeek.includes(i)
-                                ? form.daysOfWeek.filter((x) => x !== i)
-                                : [...form.daysOfWeek, i].sort(),
-                            })}
-                            className={cn(
-                              'w-11 h-11 rounded-full text-sm font-bold border-[1.5px] transition-colors',
-                              form.daysOfWeek.includes(i)
-                                ? 'bg-stampred border-stampred text-paper-50'
-                                : 'border-paper-400 text-pen-600 hover:border-pen-300'
-                            )}
-                          >
-                            {d[0]}
-                          </button>
-                        ))}
-                      </div>
-                    </Field>
-                  )}
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Strength">
+              <input value={form.strength} onChange={(e) => set({ strength: e.target.value })} placeholder="16 mg" className={inputClass} />
+            </Field>
+            <Field label="What's it for?">
+              <input value={form.purpose} onChange={(e) => set({ purpose: e.target.value })} placeholder="Allergies" className={inputClass} />
+            </Field>
+          </div>
 
-                  {form.scheduleType === 'EVERY_N_DAYS' && (
-                    <Field label="Every how many days?" required>
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="number" min="1" max="365"
-                          value={form.intervalDays}
-                          onChange={(e) => set({ intervalDays: e.target.value })}
-                          className={cn(inputClass, 'w-24')}
-                        />
-                        <span className="font-diary italic text-[13px] text-pen-600">
-                          days {Number(form.intervalDays) === 2 && '(every other day)'}
-                          {Number(form.intervalDays) === 7 && '(weekly)'}
-                          {Number(form.intervalDays) === 30 && '(monthly)'}
-                        </span>
-                      </div>
-                    </Field>
-                  )}
+          <Field label="Form">
+            <ChipSelect
+              options={FORM_OPTIONS}
+              value={form.form}
+              onChange={(v) => set({ form: v, ...(form.iconTouched ? {} : { icon: FORM_DEFAULT_ICON[v] || 'pill' }) })}
+            />
+          </Field>
 
-                  <Field label="At what times?" required>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {TIME_PRESETS.map((p) => (
-                        <button
-                          key={p.label}
-                          type="button"
-                          onClick={() => set({ timesOfDay: p.times })}
-                          className={cn(
-                            'px-3 py-1.5 rounded-[4px] font-stamp text-[9.5px] uppercase tracking-[0.1em] border-[1.5px] transition-colors',
-                            JSON.stringify(form.timesOfDay) === JSON.stringify(p.times)
-                              ? 'bg-pen-900 border-pen-900 text-paper-50'
-                              : 'border-paper-400 text-pen-600 hover:border-pen-300'
-                          )}
-                        >
-                          {p.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="space-y-2">
-                      {form.timesOfDay.map((t, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input
-                            type="time"
-                            value={t}
-                            onChange={(e) => {
-                              const next = [...form.timesOfDay];
-                              next[i] = e.target.value;
-                              set({ timesOfDay: next });
-                            }}
-                            className={cn(inputClass, 'w-36')}
-                          />
-                          <span className="font-stamp text-[9.5px] uppercase text-pen-400">{formatTime(t)}</span>
-                          {form.timesOfDay.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => set({ timesOfDay: form.timesOfDay.filter((_, x) => x !== i) })}
-                              className="p-1.5 text-pen-400 hover:text-stampred rounded-[4px] transition-colors"
-                              aria-label="Remove time"
-                            >
-                              <X size={15} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                      {form.timesOfDay.length < 6 && (
-                        <button
-                          type="button"
-                          onClick={() => set({ timesOfDay: [...form.timesOfDay, '12:00'] })}
-                          className="inline-flex items-center gap-1 font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
-                        >
-                          <Plus size={14} /> Add another time
-                        </button>
-                      )}
-                    </div>
-                  </Field>
-                </>
+          <Field label="Prescribed by" hint="Optional, handy at refill time">
+            <input value={form.prescribedBy} onChange={(e) => set({ prescribedBy: e.target.value })} placeholder="Dr. Patel, Lakeview Animal Clinic" className={inputClass} />
+          </Field>
+        </div>
+      )}
+
+      {/* Step 2: Schedule */}
+      {step === 1 && (
+        <div className="space-y-5">
+          <Field label="How often?">
+            <ChipSelect options={SCHEDULE_OPTIONS} value={form.scheduleType} onChange={(v) => set({ scheduleType: v })} />
+          </Field>
+
+          {form.scheduleType === 'AS_NEEDED' ? (
+            <p className="text-[15px] text-neutral-600 rounded-lg bg-neutral-50 px-4 py-3">
+              No fixed schedule. You'll get a <span className="font-medium text-neutral-900">Give</span> button on Today for whenever you give it.
+            </p>
+          ) : (
+            <>
+              {form.scheduleType === 'SPECIFIC_DAYS' && (
+                <Field label="Which days?" required>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAYS.map((d, i) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => set({
+                          daysOfWeek: form.daysOfWeek.includes(i)
+                            ? form.daysOfWeek.filter((x) => x !== i)
+                            : [...form.daysOfWeek, i].sort(),
+                        })}
+                        className={cn(
+                          'w-11 h-11 rounded-full text-sm font-medium border transition-colors',
+                          form.daysOfWeek.includes(i)
+                            ? 'bg-neutral-900 border-neutral-900 text-white'
+                            : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
+                        )}
+                      >
+                        {d[0]}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Starts">
-                  <input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) => set({ startDate: e.target.value })}
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="Ends" hint="leave empty if ongoing">
-                  <input
-                    type="date"
-                    value={form.endDate}
-                    onChange={(e) => set({ endDate: e.target.value })}
-                    className={inputClass}
-                  />
-                </Field>
-              </div>
-            </div>
-          )}
-
-          {/* ----------------------------- Step 3: Supply ----------------------------- */}
-          {step === 2 && (
-            <div className="space-y-5">
-              <p className="font-diary italic text-[13px] text-pen-400 -mt-1">
-                all optional. tell us what&apos;s in the bottle and we&apos;ll count down with every dose and warn you before it runs out.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Doses on hand">
-                  <input
-                    type="number" min="0" step="0.5"
-                    value={form.quantityRemaining}
-                    onChange={(e) => set({ quantityRemaining: e.target.value })}
-                    placeholder="30"
-                    className={inputClass}
-                  />
-                </Field>
-                <Field label="Warn me at">
-                  <input
-                    type="number" min="0" step="0.5"
-                    value={form.refillAlertAt}
-                    onChange={(e) => set({ refillAlertAt: e.target.value })}
-                    placeholder="5"
-                    className={inputClass}
-                  />
-                </Field>
-              </div>
-              <Field label="Instructions" hint='e.g. "Give with food", "Wrap in a pill pocket"'>
-                <input
-                  value={form.instructions}
-                  onChange={(e) => set({ instructions: e.target.value })}
-                  placeholder="Give with food"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="Notes">
-                <textarea
-                  rows={3}
-                  value={form.notes}
-                  onChange={(e) => set({ notes: e.target.value })}
-                  placeholder="Anything else worth remembering…"
-                  className={cn(inputClass, 'resize-none')}
-                />
-              </Field>
-            </div>
-          )}
-
-          {/* ------------------------------ Step 4: Look ------------------------------ */}
-          {step === 3 && (
-            <div className="space-y-6">
-              <Field label="Pick a color" hint="color-code meds so they're recognizable at a glance">
-                <div className="flex flex-wrap gap-2.5">
-                  {MED_COLOR_TOKENS.map((token) => (
-                    <button
-                      key={token}
-                      type="button"
-                      onClick={() => set({ color: token })}
-                      className={cn(
-                        'w-10 h-10 rounded-full transition-transform',
-                        MED_COLORS[token].swatch,
-                        form.color === token ? 'ring-2 ring-offset-2 ring-offset-paper-50 ring-stampred scale-110' : 'hover:scale-105'
-                      )}
-                      aria-label={MED_COLORS[token].label}
-                      title={MED_COLORS[token].label}
+              {form.scheduleType === 'EVERY_N_DAYS' && (
+                <Field label="Every how many days?" required>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number" min="1" max="365"
+                      value={form.intervalDays}
+                      onChange={(e) => set({ intervalDays: e.target.value })}
+                      className={cn(inputClass, 'w-24')}
                     />
-                  ))}
-                </div>
-              </Field>
+                    <span className="text-[15px] text-neutral-600">
+                      days {Number(form.intervalDays) === 2 && '(every other day)'}
+                      {Number(form.intervalDays) === 7 && '(weekly)'}
+                      {Number(form.intervalDays) === 30 && '(monthly)'}
+                    </span>
+                  </div>
+                </Field>
+              )}
 
-              <Field label="Pick an icon">
-                <div className="flex flex-wrap gap-2.5">
-                  {MED_ICON_TOKENS.map((token) => (
+              <Field label="At what times?" required>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {TIME_PRESETS.map((p) => (
                     <button
-                      key={token}
+                      key={p.label}
                       type="button"
-                      onClick={() => set({ icon: token, iconTouched: true })}
+                      onClick={() => set({ timesOfDay: p.times })}
                       className={cn(
-                        'w-11 h-11 rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors',
-                        form.icon === token
-                          ? cn('border-transparent', colors.iconBg, 'ring-2 ring-stampred')
-                          : 'border-paper-400 text-pen-600 hover:border-pen-300'
+                        'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
+                        JSON.stringify(form.timesOfDay) === JSON.stringify(p.times)
+                          ? 'bg-neutral-900 border-neutral-900 text-white'
+                          : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
                       )}
-                      aria-label={token}
                     >
-                      <MedIcon icon={token} className="w-5 h-5" />
+                      {p.label}
                     </button>
                   ))}
                 </div>
-              </Field>
-
-              {/* Live preview = review */}
-              <div>
-                <p className="font-diary italic text-[15px] text-pen-600 mb-2">how it&apos;ll look</p>
-                <div className={cn('bg-paper-100 border border-paper-400 rounded-[5px] border-l-4 p-4', colors.accent)}>
-                  <div className="flex items-start gap-3">
-                    <MedIconChip med={previewMed} size="lg" />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-pen-900">{form.name || 'Medication'}</span>
-                        {form.strength && (
-                          <span
-                            className="font-stamp text-[9px] uppercase border border-pen-400 text-pen-600 rounded-[3px] px-1.5 py-0.5"
-                            style={{ transform: 'rotate(-4deg)' }}
-                          >
-                            {form.strength}
-                          </span>
-                        )}
-                      </div>
-                      {form.purpose && <p className="font-diary italic text-[11.5px] text-pen-400 mt-0.5">{form.purpose}</p>}
-                      <p className="text-[13px] text-pen-600 mt-1">{formatSchedule(previewMed)}</p>
-                      {form.instructions && <p className="font-diary italic text-[12px] text-pen-400 mt-1">{form.instructions}</p>}
+                <div className="space-y-2">
+                  {form.timesOfDay.map((t, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={t}
+                        onChange={(e) => {
+                          const next = [...form.timesOfDay];
+                          next[i] = e.target.value;
+                          set({ timesOfDay: next });
+                        }}
+                        className={cn(inputClass, 'w-36')}
+                      />
+                      <span className="text-[13px] text-neutral-500">{formatTime(t)}</span>
+                      {form.timesOfDay.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => set({ timesOfDay: form.timesOfDay.filter((_, x) => x !== i) })}
+                          className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors"
+                          aria-label="Remove time"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                     </div>
+                  ))}
+                  {form.timesOfDay.length < 6 && (
+                    <button
+                      type="button"
+                      onClick={() => set({ timesOfDay: [...form.timesOfDay, '12:00'] })}
+                      className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+                    >
+                      <Plus size={14} /> Add another time
+                    </button>
+                  )}
+                </div>
+              </Field>
+            </>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Starts">
+              <input type="date" value={form.startDate} onChange={(e) => set({ startDate: e.target.value })} className={inputClass} />
+            </Field>
+            <Field label="Ends" hint="Leave empty if ongoing">
+              <input type="date" value={form.endDate} onChange={(e) => set({ endDate: e.target.value })} className={inputClass} />
+            </Field>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Supply */}
+      {step === 2 && (
+        <div className="space-y-5">
+          <p className="text-[13px] text-neutral-500">
+            All optional. Tell us what's in the bottle and we'll count down with every dose and warn you before it runs out.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Doses on hand">
+              <input type="number" min="0" step="0.5" value={form.quantityRemaining} onChange={(e) => set({ quantityRemaining: e.target.value })} placeholder="30" className={inputClass} />
+            </Field>
+            <Field label="Warn me at">
+              <input type="number" min="0" step="0.5" value={form.refillAlertAt} onChange={(e) => set({ refillAlertAt: e.target.value })} placeholder="5" className={inputClass} />
+            </Field>
+          </div>
+          <Field label="Instructions" hint='e.g. "Give with food", "Wrap in a pill pocket"'>
+            <input value={form.instructions} onChange={(e) => set({ instructions: e.target.value })} placeholder="Give with food" className={inputClass} />
+          </Field>
+          <Field label="Notes">
+            <textarea rows={3} value={form.notes} onChange={(e) => set({ notes: e.target.value })} placeholder="Anything else worth remembering" className={cn(inputClass, 'resize-none')} />
+          </Field>
+        </div>
+      )}
+
+      {/* Step 4: Look */}
+      {step === 3 && (
+        <div className="space-y-6">
+          <Field label="Pick a color" hint="Color-code meds so they're recognizable at a glance">
+            <div className="flex flex-wrap gap-2.5">
+              {MED_COLOR_TOKENS.map((token) => (
+                <button
+                  key={token}
+                  type="button"
+                  onClick={() => set({ color: token })}
+                  className={cn(
+                    'w-10 h-10 rounded-full transition-transform',
+                    MED_COLORS[token].swatch,
+                    form.color === token ? 'ring-2 ring-offset-2 ring-neutral-900 scale-110' : 'hover:scale-105'
+                  )}
+                  aria-label={MED_COLORS[token].label}
+                  title={MED_COLORS[token].label}
+                />
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Pick an icon">
+            <div className="flex flex-wrap gap-2.5">
+              {MED_ICON_TOKENS.map((token) => (
+                <button
+                  key={token}
+                  type="button"
+                  onClick={() => set({ icon: token, iconTouched: true })}
+                  className={cn(
+                    'w-11 h-11 rounded-lg border flex items-center justify-center transition-colors',
+                    form.icon === token
+                      ? cn('border-transparent', colors.iconBg, 'ring-2 ring-neutral-900')
+                      : 'border-neutral-300 text-neutral-600 hover:border-neutral-900'
+                  )}
+                  aria-label={token}
+                >
+                  <MedIcon icon={token} className="w-5 h-5" />
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <div>
+            <p className={labelClass}>Preview</p>
+            <div className="rounded-xl border border-neutral-200 p-4">
+              <div className="flex items-start gap-3">
+                <MedIconChip med={previewMed} size="lg" />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[15px] font-medium text-neutral-900">{form.name || 'Medication'}</span>
+                    {form.strength && <span className="text-[13px] text-neutral-400">{form.strength}</span>}
                   </div>
+                  {form.purpose && <p className="text-[13px] text-neutral-500 mt-0.5">{form.purpose}</p>}
+                  <p className="text-[13px] text-neutral-600 mt-1">{formatSchedule(previewMed)}</p>
+                  {form.instructions && <p className="text-[13px] text-neutral-500 mt-0.5">{form.instructions}</p>}
                 </div>
               </div>
             </div>
-          )}
-
-          {/* -------------------------------- Nav row -------------------------------- */}
-          <div className="flex items-center justify-between gap-3 mt-8 pt-5 border-t border-paper-400">
-            {step > 0 ? (
-              <button
-                type="button"
-                onClick={() => setStep(step - 1)}
-                className="inline-flex items-center gap-1.5 font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
-              >
-                <ArrowLeft size={14} /> Back
-              </button>
-            ) : <span />}
-
-            {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep(step + 1)}
-                disabled={!stepValid}
-                className="inline-flex items-center gap-2 font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-4 py-2.5 hover:bg-pen-900 hover:text-paper-50 transition-colors disabled:opacity-40"
-              >
-                Continue <ArrowRight size={14} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={save}
-                disabled={!form.name.trim() || saving}
-                className="inline-flex items-center gap-2 font-stamp text-[10.5px] uppercase tracking-[0.14em] bg-stampred text-paper-50 rounded-[5px] px-5 py-3 hover:bg-stampred-dark transition-colors disabled:opacity-50"
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {editId ? 'Save changes' : 'Add medication'}
-              </button>
-            )}
           </div>
-        </Sheet>
+        </div>
+      )}
+
+      {/* Nav row */}
+      <div className="flex items-center justify-between gap-3 mt-8">
+        {step > 0 ? (
+          <button
+            type="button"
+            onClick={() => setStep(step - 1)}
+            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+          >
+            <ArrowLeft size={15} /> Back
+          </button>
+        ) : <span />}
+
+        {step < STEPS.length - 1 ? (
+          <button
+            type="button"
+            onClick={() => setStep(step + 1)}
+            disabled={!stepValid}
+            className="rounded-full bg-neutral-900 text-white text-sm font-medium px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+          >
+            Continue
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={save}
+            disabled={!form.name.trim() || saving}
+            className="inline-flex items-center gap-2 rounded-full bg-neutral-900 text-white text-sm font-medium px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-50"
+          >
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {editId ? 'Save changes' : 'Add medication'}
+          </button>
+        )}
       </div>
     </div>
   );
