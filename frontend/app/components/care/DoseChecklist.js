@@ -46,24 +46,30 @@ export function ProgressRing({ given, due }) {
 }
 
 export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo }) {
+  const colors = medColor(med.color);
   const given = slot.status === 'GIVEN';
   const skipped = slot.status === 'SKIPPED';
 
   return (
+    /* Each med's own color rides its row (same accent as its card in the
+       Book), so a two-med day reads as two distinct things, not two gray
+       stripes. The action is a labeled button, not a mystery circle. */
     <div className={cn(
-      'flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors',
+      'flex items-center gap-3 rounded-xl border border-l-4 px-3 py-3 transition-colors',
+      colors.accent,
       given ? 'bg-emerald-50/70 border-emerald-200' : skipped ? 'bg-midnight-50 border-midnight-200' : 'bg-white border-midnight-200'
     )}>
       <MedIconChip med={med} size="sm" />
       <div className="flex-1 min-w-0">
-        <p className={cn('font-semibold text-sm text-midnight-900 truncate', skipped && 'line-through text-midnight-400')}>
+        <p className={cn('font-bold text-[15px] text-midnight-900 truncate leading-tight', skipped && 'line-through text-midnight-400 font-semibold')}>
           {med.name}
-          {med.strength && <span className="font-normal text-midnight-500"> · {med.strength}</span>}
+          {med.strength && <span className="font-medium text-midnight-400"> · {med.strength}</span>}
         </p>
-        <p className="text-xs text-midnight-500">
+        <p className={cn('text-xs mt-0.5', given ? 'text-emerald-700 font-semibold' : 'text-midnight-500')}>
           {given && slot.dose?.givenAt
             ? `Given at ${new Date(slot.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
             : skipped ? 'Skipped' : `Due ${formatTime(slot.time)}`}
+          {!given && !skipped && med.instructions && <span className="text-midnight-400 italic"> · {med.instructions}</span>}
         </p>
       </div>
 
@@ -84,10 +90,10 @@ export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo }) {
           <Undo2 size={14} /> Undo
         </button>
       ) : (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => onMark(med, slot, 'SKIPPED')}
-            className="p-2 rounded-full text-midnight-400 hover:text-midnight-700 hover:bg-midnight-100 transition-colors"
+            className="p-2 rounded-full text-midnight-300 hover:text-midnight-700 hover:bg-midnight-100 transition-colors"
             title={`Skip ${med.name}`}
             aria-label={`Skip ${med.name} ${formatTime(slot.time)}`}
           >
@@ -96,14 +102,14 @@ export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo }) {
           <button
             onClick={() => onMark(med, slot, 'GIVEN')}
             className={cn(
-              'w-9 h-9 rounded-full border-2 border-midnight-300 text-transparent',
-              'hover:border-emerald-500 hover:bg-emerald-500 hover:text-white',
-              'flex items-center justify-center transition-all duration-150 active:scale-90'
+              'inline-flex items-center gap-1.5 rounded-full border-2 border-emerald-400 bg-white text-emerald-700',
+              'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white',
+              'font-bold text-xs px-4 py-2 transition-all duration-150 active:scale-95 shrink-0'
             )}
             title={`Mark ${med.name} given`}
             aria-label={`Mark ${med.name} ${formatTime(slot.time)} as given`}
           >
-            <Check size={18} strokeWidth={3} />
+            <Check size={14} strokeWidth={3.5} /> Give
           </button>
         </div>
       )}
