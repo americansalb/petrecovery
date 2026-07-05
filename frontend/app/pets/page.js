@@ -1,98 +1,108 @@
 'use client';
 
 /**
- * My Pets — the one dashboard for the daily care product.
+ * My Pets — the bookshelf.
  *
- * This page absorbed the old /care members dashboard: same pets, one
- * home. It wears the care product's warm daylight register (the
- * midnight/dark register belongs to the rescue world), and every card
- * offers the two daily doors directly — Today (log doses) and the
- * Health Book (the record) — so the most-used surfaces are two taps
- * from anywhere. Pending care-team invites are accepted here; pets
- * shared with you live below your own.
+ * The care product is the Paper Passport: every pet is a cloth-bound
+ * Health Book on a shelf. The cover carries a taped-in polaroid, the
+ * pet's name on a paper plate, a stamped status, and two bookmarks —
+ * Today and the Health Book — so the daily rooms are two taps from
+ * anywhere. Pending care-team invites are notes slipped between the
+ * books; pets shared with you sit on their own shelf below.
  */
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  PawPrint, Plus, X, HeartHandshake, Check, ChevronRight, Heart, Sun, AlertTriangle,
-} from 'lucide-react';
+import { Plus, X, Check } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, Badge, EmptyState } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
-import { ShieldIcon } from '@/app/components/icons/HealthIcons';
+import {
+  PaperScaffold, Sheet, Polaroid, StampText,
+} from '@/app/components/care/paper/Paper';
 
-function caseBadge(pet) {
+// Cloth colors for the covers, rotated per book: oxblood, navy, olive, tan.
+const CLOTH = [
+  { bg: '#8a3033', edge: '#6f2629' },
+  { bg: '#2f4156', edge: '#243347' },
+  { bg: '#4a6b52', edge: '#3a5641' },
+  { bg: '#7c5c34', edge: '#654a29' },
+];
+
+function caseStamp(pet) {
   const status = pet.cases?.[0]?.status;
-  const badges = {
-    OPEN: { variant: 'warning', label: 'Missing' },
-    ACTIVE_SEARCH: { variant: 'primary', label: 'Active Search' },
-    RESOLVED: { variant: 'success', label: 'Found' },
-    CLOSED_OTHER: { variant: 'default', label: 'Closed' },
+  const map = {
+    OPEN: { tone: 'red', label: 'Missing' },
+    ACTIVE_SEARCH: { tone: 'red', label: 'Active search' },
+    RESOLVED: { tone: 'green', label: 'Found' },
+    CLOSED_OTHER: { tone: 'ink', label: 'Closed' },
   };
-  return status ? badges[status] || null : null;
+  return status ? map[status] || null : null;
 }
 
 /**
- * One pet, one card. The photo + name open the Overview; the two chips
- * below jump straight into the daily rooms. (Chips are separate links,
- * not nested inside the card link.)
+ * One book on the shelf. The cover opens the Overview; the two
+ * bookmarks jump straight into the daily rooms.
  */
-function PetCard({ pet, badge, byline }) {
+function BookCover({ pet, index, stamp, plateLine, byline }) {
+  const cloth = CLOTH[index % CLOTH.length];
   return (
-    <Card padding="none" className="overflow-hidden border-2 border-transparent hover:border-flash-400 hover:shadow-xl hover:-translate-y-1 transition-all">
-      <Link href={`/pets/${pet.id}`} className="group block">
-        <div className="aspect-[4/3] bg-gradient-to-br from-amber-50 to-midnight-100 relative flex items-center justify-center">
-          {pet.primaryPhotoUrl ? (
-            <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
-          ) : (
-            <SpeciesIcon species={pet.species} size={64} className="text-midnight-300" />
-          )}
-          <div className="absolute top-3 right-3">
-            {badge ? (
-              badge.variant ? (
-                <Badge variant={badge.variant}>
-                  {badge.label === 'Missing' && <AlertTriangle size={11} className="inline -mt-0.5 mr-1" />}
-                  {badge.label}
-                </Badge>
+    <div className="group" style={{ transform: `rotate(${index % 2 ? 0.4 : -0.5}deg)` }}>
+      <Link href={`/pets/${pet.id}`} className="block">
+        <div
+          className="relative rounded-[6px] rounded-l-[3px] px-5 pt-6 pb-5 shadow-[inset_10px_0_14px_-10px_rgba(0,0,0,0.55),0_14px_28px_-14px_rgba(35,42,61,0.55)] transition-transform group-hover:-translate-y-1"
+          style={{ background: cloth.bg }}
+        >
+          {/* the spine's binding groove */}
+          <span aria-hidden="true" className="absolute left-2.5 top-2 bottom-2 w-px opacity-40" style={{ background: cloth.edge, boxShadow: `3px 0 0 ${cloth.edge}` }} />
+
+          <div className="flex items-start gap-4 pl-3">
+            <Polaroid
+              src={pet.primaryPhotoUrl}
+              alt={pet.name}
+              fallback={<SpeciesIcon species={pet.species} size={30} />}
+              size="md"
+              rotate={index % 2 ? 3 : -3}
+              className="shrink-0"
+            />
+            <div className="min-w-0 flex-1 pt-1">
+              {/* the pasted-on name plate */}
+              <div className="bg-paper-50 border border-paper-400 rounded-[3px] px-3 py-2 shadow-[0_2px_5px_rgba(0,0,0,0.3)]" style={{ transform: 'rotate(-0.6deg)' }}>
+                <p className="font-diary italic text-[19px] leading-tight text-pen-900 truncate">{pet.name}</p>
+                <p className="font-stamp text-[8.5px] uppercase tracking-[0.14em] text-pen-400 truncate mt-0.5">{plateLine}</p>
+              </div>
+              {byline && (
+                <p className="font-diary italic text-[11px] text-paper-200/90 mt-2 truncate">{byline}</p>
+              )}
+            </div>
+            <span className="shrink-0 pt-1">
+              {stamp ? (
+                <StampText tone={stamp.tone} rotate={5} size="sm" className="bg-paper-50/95">{stamp.label}</StampText>
               ) : (
-                badge.node
-              )
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur text-emerald-700 text-xs font-bold">
-                <Heart size={11} /> Home
-              </span>
-            )}
+                <StampText tone="green" rotate={5} size="sm" className="bg-paper-50/95">Home</StampText>
+              )}
+            </span>
           </div>
-        </div>
-        <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-lg font-bold text-midnight-900 truncate group-hover:text-flash-600 transition-colors">
-              {pet.name}
-            </h3>
-            <p className="text-sm text-midnight-500 truncate">{byline}</p>
-          </div>
-          <ChevronRight size={18} className="text-midnight-300 group-hover:text-flash-500 group-hover:translate-x-0.5 transition-all shrink-0" />
         </div>
       </Link>
-      {/* The daily doors: straight into the rooms people visit every day */}
-      <div className="flex gap-2 px-4 pb-4">
+
+      {/* the bookmarks hanging out of the book */}
+      <div className="flex gap-2 pl-8 -mt-px">
         <Link
           href={`/pets/${pet.id}/today`}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-midnight-100 bg-midnight-50/60 px-3 py-2 text-xs font-bold text-midnight-600 hover:border-flash-400 hover:bg-flash-50 hover:text-midnight-900 transition-colors"
+          className="font-stamp text-[9px] uppercase tracking-[0.14em] bg-marker text-pen-900 rounded-b-[4px] px-3.5 pt-1.5 pb-2 shadow-[0_3px_6px_rgba(35,42,61,0.25)] hover:pb-3 transition-all"
         >
-          <Sun size={14} className="text-amber-500" /> Today
+          Today
         </Link>
         <Link
           href={`/pets/${pet.id}/health`}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-midnight-100 bg-midnight-50/60 px-3 py-2 text-xs font-bold text-midnight-600 hover:border-flash-400 hover:bg-flash-50 hover:text-midnight-900 transition-colors"
+          className="font-stamp text-[9px] uppercase tracking-[0.14em] bg-paper-300 text-pen-600 rounded-b-[4px] px-3.5 pt-1.5 pb-2 shadow-[0_3px_6px_rgba(35,42,61,0.25)] hover:pb-3 transition-all"
         >
-          <ShieldIcon size={14} className="text-emerald-600" /> Health Book
+          Health Book
         </Link>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -165,159 +175,151 @@ export default function MyPetsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
-        <LoadingSpinner text="Loading your pets..." />
-      </div>
+      <PaperScaffold className="flex items-center justify-center">
+        <LoadingSpinner text="Opening the shelf..." />
+      </PaperScaffold>
     );
   }
 
-  if (status === 'unauthenticated') {
-    return null;
-  }
+  if (status === 'unauthenticated') return null;
 
   const firstName = session?.user?.firstName || session?.user?.name;
+  const bylineFor = (pet) => [
+    pet.breed || pet.species,
+    pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
+    pet.microchipId && 'microchipped',
+  ].filter(Boolean).join(' · ');
 
   return (
-    <div className="min-h-screen bg-midnight-50 pb-24 lg:pb-12">
-      {/* Warm header band: this is the daily product's home, in daylight */}
-      <div className="bg-gradient-to-b from-flash-50 via-amber-50/40 to-midnight-50">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 md:pt-12 pb-6 flex justify-between items-end flex-wrap gap-4">
+    <PaperScaffold className="pb-24 lg:pb-12">
+      <div className="max-w-3xl mx-auto px-4 md:px-8 pt-8 md:pt-10">
+        {/* The shelf's title, written by hand */}
+        <div className="flex items-end justify-between gap-4 border-b-2 border-pen-900 pb-3 mb-6 flex-wrap">
           <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-midnight-900 tracking-tight">
+            <p className="font-stamp text-[9px] uppercase tracking-[0.2em] text-pen-400 mb-1">The bookshelf</p>
+            <h1 className="font-diary italic text-[34px] leading-none text-pen-900">
               {firstName ? `${firstName}'s pets` : 'My Pets'}
             </h1>
-            <p className="text-midnight-600 mt-2">
-              Every Health Book, one tap away.
-            </p>
           </div>
-          <Button variant="primary" href="/care/start" size="lg">
-            <Plus size={18} />
-            Add a pet
-          </Button>
+          <Link
+            href="/care/start"
+            className="inline-flex items-center gap-1.5 font-stamp text-[10.5px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-3.5 py-2.5 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors"
+          >
+            <Plus size={13} /> Start a new book
+          </Link>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-2">
-        {/* Success Message */}
         {successMessage && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl mb-6 flex items-center justify-between">
-            <span>{successMessage}</span>
-            <button
-              onClick={() => setSuccessMessage('')}
-              className="text-emerald-600 hover:text-emerald-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X size={20} />
+          <div className="border-l-[3px] border-stampgreen bg-stampgreen-wash/70 text-stampgreen px-4 py-3 mb-5 flex items-center justify-between text-sm">
+            <span className="inline-flex items-center gap-2"><Check size={15} /> {successMessage}</span>
+            <button onClick={() => setSuccessMessage('')} className="text-stampgreen hover:opacity-70" aria-label="Dismiss">
+              <X size={16} />
             </button>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6">
+          <div className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark px-4 py-3 mb-5 text-sm">
             {error}
           </div>
         )}
 
-        {/* Pending care-team invites */}
+        {/* Pending care-team invites: notes slipped between the books */}
         {pendingInvites.length > 0 && (
-          <div className="space-y-3 mb-8">
+          <div className="space-y-3 mb-7">
             {pendingInvites.map((invite) => (
-              <Card key={invite.shareId} accent="yellow" padding="md" className="flex items-center gap-4 flex-wrap">
-                <div className="w-12 h-12 rounded-xl bg-midnight-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-                  {invite.pet.primaryPhotoUrl ? (
-                    <img src={invite.pet.primaryPhotoUrl} alt={invite.pet.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <SpeciesIcon species={invite.pet.species} size={24} className="text-midnight-400" />
-                  )}
-                </div>
+              <Sheet key={invite.shareId} className="flex items-center gap-4 flex-wrap">
+                <Polaroid
+                  src={invite.pet.primaryPhotoUrl}
+                  alt={invite.pet.name}
+                  fallback={<SpeciesIcon species={invite.pet.species} size={22} />}
+                  size="sm"
+                  rotate={2}
+                />
                 <div className="flex-1 min-w-[200px]">
-                  <p className="font-semibold text-midnight-900">
-                    <HeartHandshake size={15} className="inline -mt-0.5 mr-1.5 text-flash-600" />
-                    {invite.ownerName} shared {invite.pet.name} with you
+                  <p className="font-diary italic text-[15px] text-pen-900">
+                    {invite.ownerName} shared {invite.pet.name}&rsquo;s book with you
                   </p>
-                  <p className="text-sm text-midnight-500">
-                    As {invite.role === 'CAREGIVER' ? 'a caregiver, so you can track and log their medications' : 'a viewer, so you can see their profile and schedule'}
+                  <p className="font-diary italic text-[12px] text-pen-400">
+                    as {invite.role === 'CAREGIVER' ? 'a caregiver — you can write in doses and keep the record' : 'a viewer — you can read the book and the schedule'}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
+                  <button
                     onClick={() => respondToInvite(invite, true)}
-                    loading={respondingId === invite.shareId}
+                    disabled={respondingId === invite.shareId}
+                    className="inline-flex items-center gap-1 font-stamp text-[10px] uppercase tracking-[0.12em] bg-stampgreen text-paper-50 rounded-[4px] px-3.5 py-2 hover:opacity-90 transition disabled:opacity-50"
                   >
-                    <Check size={14} />
-                    Accept
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                    <Check size={12} /> Accept
+                  </button>
+                  <button
                     onClick={() => respondToInvite(invite, false)}
                     disabled={respondingId === invite.shareId}
+                    className="font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 px-2 py-2 transition-colors disabled:opacity-50"
                   >
                     Decline
-                  </Button>
+                  </button>
                 </div>
-              </Card>
+              </Sheet>
             ))}
           </div>
         )}
 
-        {/* Pet Grid */}
+        {/* The shelf */}
         {pets.length === 0 && sharedPets.length === 0 ? (
-          <EmptyState
-            icon={PawPrint}
-            title="Start their Health Book"
-            description="Medications with one-tap logging, vaccine records, weight over time, and a link any vet or sitter can read. Free forever."
-            action={{ href: '/care/start', label: 'Add your first pet', icon: Plus }}
-          />
+          <Sheet perforated className="text-center py-10">
+            <p className="font-diary italic text-[22px] text-pen-900 mb-2">Start their Health Book</p>
+            <p className="font-diary italic text-[13.5px] text-pen-400 max-w-md mx-auto mb-6">
+              medications with one-tap logging, vaccine stamps, weight over time,
+              and a link any vet or sitter can read. free forever.
+            </p>
+            <Link
+              href="/care/start"
+              className="inline-flex items-center gap-1.5 font-stamp text-[11px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-4 py-3 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors"
+            >
+              <Plus size={13} /> Write the first page
+            </Link>
+          </Sheet>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pets.map((pet) => (
-              <PetCard
+          <div className="space-y-7">
+            {pets.map((pet, i) => (
+              <BookCover
                 key={pet.id}
                 pet={pet}
-                badge={caseBadge(pet)}
-                byline={[
-                  pet.breed || pet.species,
-                  pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
-                  pet.microchipId && 'Microchipped',
-                ].filter(Boolean).join(' · ')}
+                index={i}
+                stamp={caseStamp(pet)}
+                plateLine={bylineFor(pet)}
               />
             ))}
           </div>
         )}
 
-        {/* Shared with me */}
+        {/* Shared with me: the borrowed books */}
         {sharedPets.length > 0 && (
           <div className="mt-10">
-            <h2 className="text-xl font-bold text-midnight-900 mb-1 flex items-center gap-2">
-              <HeartHandshake className="w-5 h-5 text-flash-500" /> Shared with me
-            </h2>
-            <p className="text-midnight-500 text-sm mb-4">Pets you help care for</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sharedPets.map(({ shareId, role, ownerName, pet }) => (
-                <PetCard
+            <div className="border-b border-pen-900/[0.25] pb-1.5 mb-6">
+              <p className="font-stamp text-[9px] uppercase tracking-[0.2em] text-pen-400">Shared with me</p>
+              <p className="font-diary italic text-[15px] text-pen-600">books you help keep</p>
+            </div>
+            <div className="space-y-7">
+              {sharedPets.map(({ shareId, role, ownerName, pet }, i) => (
+                <BookCover
                   key={shareId}
                   pet={pet}
-                  badge={{
-                    node: (
-                      <Badge variant={role === 'CAREGIVER' ? 'primary' : 'default'}>
-                        {role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}
-                      </Badge>
-                    ),
-                  }}
-                  byline={`${ownerName}'s pet · ${pet.breed || pet.species}`}
+                  index={pets.length + i}
+                  stamp={{ tone: role === 'CAREGIVER' ? 'green' : 'ink', label: role === 'CAREGIVER' ? 'Caregiver' : 'Viewer' }}
+                  plateLine={pet.breed || pet.species}
+                  byline={`${ownerName}'s pet — they keep the book, you help write it`}
                 />
               ))}
             </div>
           </div>
         )}
 
-        <p className="text-center text-xs text-midnight-400 mt-12">
-          A record you keep, not medical advice. Your vet&apos;s guidance comes first.
+        <p className="text-center font-diary italic text-[12px] text-pen-400 mt-12">
+          a record you keep, not medical advice · your vet&rsquo;s guidance comes first
         </p>
       </div>
-    </div>
+    </PaperScaffold>
   );
 }

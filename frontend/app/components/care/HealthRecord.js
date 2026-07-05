@@ -1,37 +1,26 @@
 'use client';
 
 /**
- * The Health Book's record components, shared between the logged-in
- * Health tab and the public vet/sitter view. One visual language for
- * the record everywhere it appears:
+ * The Health Book's record components — the passport pages, shared
+ * between the logged-in Health tab and the public vet/sitter view.
  *
- * - SectionHeader     one quiet eyebrow style (color lives in icons, not text)
- * - AlertRibbon       medical notes, front of the book, thin, never a card
- * - HealthStatusBand  the one-sentence verdict (identity lives in the shell)
- * - VitalsTrio        protection / weight / meds at a glance
- * - VaccinePassport   stamp grid + ghost add (+ AddVaccineModal)
- * - WeightCard        latest + chart + log input
- * - VetCard           the vet's contact, readOnly for shared audiences
- * - MonthHistory      vaccines + weights + monthly dose adherence, one rail
+ * Paper Passport vocabulary throughout (paper/Paper.js): the margin
+ * note in red ink, a handwritten verdict line, vaccines as round
+ * rubber stamps, weight as a pencil line, the history as a diary
+ * timeline. One physical language for the record everywhere.
  */
 
 import { useMemo, useState } from 'react';
-import {
-  Plus, X, Check, Loader2, Trash2, Phone, ShieldCheck,
-  AlertTriangle, TrendingUp, TrendingDown, Minus,
-} from 'lucide-react';
-import { Card, Modal, cn } from '@/components/ui';
-import { ShieldIcon } from '@/app/components/icons/HealthIcons';
-import { SyringeGlyph, PillGlyph } from '@/app/components/icons/MedGlyphs';
+import { Plus, Loader2, Phone } from 'lucide-react';
+import { Modal, cn } from '@/components/ui';
 import { vaccinationStatus, vaccinePresetsFor } from '@/lib/healthBook';
 import { adherenceForDay, startOfDay } from '@/lib/medications';
+import {
+  Sheet, SectionInk, StampText, InkStampCircle, RuledList, RuledRow, MarginNote,
+} from '@/app/components/care/paper/Paper';
 
-export const VAX_STATUS_STYLE = {
-  PROTECTED: { label: 'Protected', chip: 'bg-emerald-100 text-emerald-700', ic: 'bg-emerald-100 text-emerald-700' },
-  DUE_SOON: { label: 'Due soon', chip: 'bg-amber-100 text-amber-700', ic: 'bg-amber-100 text-amber-700' },
-  EXPIRED: { label: 'Expired', chip: 'bg-red-100 text-red-700', ic: 'bg-red-100 text-red-600' },
-  ON_FILE: { label: 'On file', chip: 'bg-slate-200 text-slate-700', ic: 'bg-slate-200 text-slate-600' },
-};
+const VAX_TONE = { PROTECTED: 'green', DUE_SOON: 'red', EXPIRED: 'red', ON_FILE: 'ink' };
+const VAX_LABEL = { PROTECTED: 'Protected', DUE_SOON: 'Due soon', EXPIRED: 'Expired', ON_FILE: 'On file' };
 
 function shortDate(d) {
   return new Date(d).toLocaleDateString([], { month: 'short', year: 'numeric' });
@@ -39,12 +28,13 @@ function shortDate(d) {
 
 /* ------------------------------ SectionHeader ------------------------------ */
 
+/** Paper section head: diary-hand title with a quiet action slot. */
 export function SectionHeader({ eyebrow, title, action }) {
   return (
     <div className="flex items-end justify-between gap-3">
       <div>
-        {eyebrow && <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-midnight-400">{eyebrow}</p>}
-        <h2 className="font-bold text-midnight-900">{title}</h2>
+        {eyebrow && <p className="font-stamp text-[9px] uppercase tracking-[0.18em] text-pen-400">{eyebrow}</p>}
+        <h2 className="font-diary italic text-[19px] text-pen-900 leading-tight">{title}</h2>
       </div>
       {action}
     </div>
@@ -53,60 +43,37 @@ export function SectionHeader({ eyebrow, title, action }) {
 
 /* ------------------------------- AlertRibbon ------------------------------- */
 
-/**
- * Medical notes at the front of the book — allergies, conditions,
- * anything a vet or sitter must see first. Thin ribbon, not a card.
- */
+/** Medical notes at the front of the book — a red-ink margin note. */
 export function AlertRibbon({ text, href }) {
-  if (!text?.trim()) return null;
-  const inner = (
-    <span className="flex items-center gap-2.5 min-w-0">
-      <AlertTriangle size={15} className="text-rose-600 shrink-0" />
-      <span className="text-[13px] leading-snug text-rose-900 min-w-0">
-        <span className="font-extrabold">Medical notes</span>
-        <span className="mx-1.5 text-rose-300">·</span>
-        {text.trim()}
-      </span>
-    </span>
-  );
-  const cls = 'flex items-center justify-between gap-3 rounded-xl bg-rose-50 border border-rose-200 px-4 py-2.5 mb-4';
-  if (!href) return <div className={cls}>{inner}</div>;
-  return (
-    <a href={href} className={cn(cls, 'hover:border-rose-300 transition-colors')}>
-      {inner}
-      <span className="text-[11px] font-bold text-rose-400 shrink-0">Edit →</span>
-    </a>
-  );
+  return <MarginNote href={href}>{text?.trim() || null}</MarginNote>;
 }
 
 /* ----------------------------- HealthStatusBand ---------------------------- */
 
-// The verdict's register, keyed to healthBookStatus tone: a calm, warm
-// daylight sentence, not a clinical banner. Identity is NOT repeated
-// here — the shell's identity row already says who the pet is.
-const TONE = {
-  good:  { wash: 'from-emerald-100/80 via-white to-amber-50/50', ring: 'ring-emerald-100', glyph: 'bg-emerald-500', icon: ShieldCheck,   head: (n) => `${n} is doing great.` },
-  warn:  { wash: 'from-amber-100/80 via-white to-amber-50/40',   ring: 'ring-amber-100',   glyph: 'bg-amber-500',   icon: AlertTriangle, head: (n) => `${n} has one thing due.` },
-  bad:   { wash: 'from-rose-100/80 via-white to-amber-50/30',    ring: 'ring-rose-100',    glyph: 'bg-rose-500',    icon: AlertTriangle, head: (n) => `${n} needs attention.` },
-  empty: { wash: 'from-flash-100/80 via-white to-white',         ring: 'ring-midnight-100',glyph: 'bg-midnight-400',icon: ShieldIcon,    head: (n) => `Let's start ${n}'s book.` },
+// The verdict, written by hand at the top of the page.
+const TONE_INK = {
+  good: 'text-stampgreen',
+  warn: 'text-[#8f6a14]', // marker's ink-dark cousin: readable on paper
+  bad: 'text-stampred',
+  empty: 'text-pen-400',
+};
+const TONE_HEAD = {
+  good: (n) => `${n} is doing great.`,
+  warn: (n) => `${n} has one thing due.`,
+  bad: (n) => `${n} needs attention.`,
+  empty: (n) => `Let's start ${n}'s book.`,
 };
 
 export function HealthStatusBand({ name, status, action }) {
-  const tone = TONE[status.tone] || TONE.empty;
-  const VerdictIcon = tone.icon;
+  const ink = TONE_INK[status.tone] || TONE_INK.empty;
+  const head = (TONE_HEAD[status.tone] || TONE_HEAD.empty)(name);
   return (
-    <div className={cn('relative overflow-hidden rounded-3xl ring-1 bg-gradient-to-br p-4 md:p-5 mb-4', tone.wash, tone.ring)}>
-      <div className="flex items-center gap-3">
-        <span className={cn('w-11 h-11 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-sm', tone.glyph)}>
-          <VerdictIcon size={23} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-extrabold text-midnight-900 leading-tight">{tone.head(name)}</p>
-          <p className="text-sm text-midnight-600">{status.sentence}</p>
-        </div>
-        {action && <div className="hidden sm:block shrink-0">{action}</div>}
+    <div className="flex items-end justify-between gap-4 border-b-2 border-pen-900 pb-3 mb-5 flex-wrap">
+      <div className="min-w-0">
+        <p className={cn('font-diary italic text-[24px] leading-tight', ink)}>{head}</p>
+        <p className="font-diary italic text-[13.5px] text-pen-400 mt-1">{status.sentence}</p>
       </div>
-      {action && <div className="sm:hidden mt-3">{action}</div>}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
@@ -132,37 +99,35 @@ function weightTrend(weights) {
   return { latest: latest.weightLbs, delta, dir: delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat' };
 }
 
+/** Three figures written in the margin: protection, weight, meds. */
 export function VitalsTrio({ vaccinations, weights, meds }) {
   const p = protectionSummary(vaccinations);
   const wt = weightTrend(weights);
   const activeMeds = (meds || []).filter((m) => m.isActive);
 
   const protSub = p.expired ? `${p.expired} expired` : p.dueSoon ? `${p.dueSoon} due soon` : p.withExpiry ? 'all current' : 'on file';
-  const protTone = p.expired ? 'text-rose-600' : p.dueSoon ? 'text-amber-600' : 'text-emerald-600';
-  const TrendIcon = wt ? (wt.dir === 'up' ? TrendingUp : wt.dir === 'down' ? TrendingDown : Minus) : Minus;
+  const protInk = p.expired ? 'text-stampred' : p.dueSoon ? 'text-marker' : 'text-stampgreen';
   const trendSub = !wt ? 'no entries' : wt.dir === 'flat' ? 'holding steady' : `${wt.dir === 'up' ? '+' : ''}${wt.delta} lb overall`;
 
-  const tile = 'rounded-2xl bg-white border border-midnight-100 p-4 flex flex-col gap-0.5';
-  const cap = 'text-[11px] font-bold uppercase tracking-wide text-midnight-400';
+  const fig = 'flex-1 min-w-[110px] py-1';
+  const big = 'font-diary italic text-[26px] leading-none text-pen-900 tabular-nums';
+  const cap = 'font-stamp text-[8.5px] uppercase tracking-[0.16em] text-pen-400 mt-1.5';
   return (
-    <div className="grid grid-cols-3 gap-3">
-      <div className={tile}>
-        <span className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1"><ShieldCheck size={17} /></span>
-        <p className="text-2xl font-extrabold text-midnight-900 leading-none">{p.withExpiry ? `${p.protectedCount}/${p.withExpiry}` : (p.total || '0')}</p>
+    <div className="flex flex-wrap gap-x-8 gap-y-2 border-b border-pen-900/[0.16] pb-4 mb-5">
+      <div className={fig}>
+        <p className={big}>{p.withExpiry ? `${p.protectedCount}/${p.withExpiry}` : (p.total || '0')}</p>
         <p className={cap}>Protected</p>
-        <p className={cn('text-xs font-semibold', protTone)}>{protSub}</p>
+        <p className={cn('font-diary italic text-[12px]', protInk)}>{protSub}</p>
       </div>
-      <div className={tile}>
-        <span className="w-8 h-8 rounded-xl bg-flash-100 text-flash-700 flex items-center justify-center mb-1"><TrendIcon size={17} /></span>
-        <p className="text-2xl font-extrabold text-midnight-900 leading-none">{wt ? <>{wt.latest}<span className="text-sm font-bold text-midnight-400 ml-0.5">lb</span></> : <span className="text-base font-bold text-midnight-400">none yet</span>}</p>
+      <div className={fig}>
+        <p className={big}>{wt ? <>{wt.latest}<span className="text-[15px] text-pen-400"> lb</span></> : <span className="text-[16px] text-pen-300">none yet</span>}</p>
         <p className={cap}>Weight</p>
-        <p className="text-xs font-semibold text-midnight-500">{trendSub}</p>
+        <p className="font-diary italic text-[12px] text-pen-400">{trendSub}</p>
       </div>
-      <div className={tile}>
-        <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-1"><PillGlyph size={16} /></span>
-        <p className="text-2xl font-extrabold text-midnight-900 leading-none">{activeMeds.length}</p>
+      <div className={fig}>
+        <p className={big}>{activeMeds.length}</p>
         <p className={cap}>Medications</p>
-        <p className="text-xs font-semibold text-midnight-500">{activeMeds.length ? 'logged in Today' : 'none active'}</p>
+        <p className="font-diary italic text-[12px] text-pen-400">{activeMeds.length ? 'written in Today' : 'none active'}</p>
       </div>
     </div>
   );
@@ -208,160 +173,118 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
     }
   };
 
+  const chip = (active) => cn(
+    'px-3.5 py-2 rounded-[5px] border font-stamp text-[10.5px] uppercase tracking-[0.08em] transition-all',
+    active ? 'border-stampred bg-stampred text-paper-50' : 'border-paper-400 text-pen-600 hover:border-pen-300'
+  );
+  const input = 'w-full mb-4 rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred';
+
   return (
-    <Modal onClose={onClose} title="Add a stamp" subtitle="Straight off the certificate.">
+    <Modal variant="paper" onClose={onClose} title="Stamp the book" subtitle="Straight off the certificate.">
       <div className="flex flex-wrap gap-2 mb-4">
         {presets.map((p) => (
-          <button
-            key={p.name}
-            onClick={() => { setPicked(p); if (duration === null) setDuration(p.years); }}
-            className={cn(
-              'px-3.5 py-2 rounded-2xl border-2 text-sm font-bold transition-all',
-              picked?.name === p.name ? 'border-flash-400 bg-flash-50 text-midnight-900' : 'border-midnight-200 text-midnight-500 hover:border-midnight-300'
-            )}
-          >
+          <button key={p.name} onClick={() => { setPicked(p); if (duration === null) setDuration(p.years); }} className={chip(picked?.name === p.name)}>
             {p.name}
           </button>
         ))}
-        <button
-          onClick={() => setPicked({ custom: true })}
-          className={cn(
-            'px-3.5 py-2 rounded-2xl border-2 border-dashed text-sm font-bold transition-all',
-            picked?.custom ? 'border-flash-400 bg-flash-50 text-midnight-900' : 'border-midnight-300 text-midnight-400 hover:border-midnight-400'
-          )}
-        >
+        <button onClick={() => setPicked({ custom: true })} className={cn(chip(picked?.custom), !picked?.custom && 'border-dashed')}>
           Other
         </button>
       </div>
 
       {picked?.custom && (
-        <input
-          value={customName}
-          onChange={(e) => setCustomName(e.target.value)}
-          placeholder="Vaccine name"
-          className="w-full mb-4 rounded-xl border border-midnight-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flash-400"
-        />
+        <input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Vaccine name" className={input} />
       )}
 
       {picked && (
         <>
-          <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2">Given on</p>
+          <p className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-2">Given on</p>
           <input
             type="date"
             value={givenOn}
             max={new Date().toISOString().slice(0, 10)}
             onChange={(e) => setGivenOn(e.target.value)}
-            className="w-full mb-4 rounded-xl border border-midnight-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flash-400"
+            className={input}
           />
-          <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2">Good for</p>
+          <p className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-2">Good for</p>
           <div className="flex gap-2 mb-4">
             {[{ l: '1 year', v: 1 }, { l: '3 years', v: 3 }, { l: 'No expiry', v: 0 }].map(({ l, v }) => (
-              <button
-                key={l}
-                onClick={() => setDuration(v)}
-                className={cn(
-                  'px-3.5 py-2 rounded-2xl border-2 text-sm font-bold transition-all',
-                  duration === v ? 'border-flash-400 bg-flash-50 text-midnight-900' : 'border-midnight-200 text-midnight-500 hover:border-midnight-300'
-                )}
-              >
-                {l}
-              </button>
+              <button key={l} onClick={() => setDuration(v)} className={chip(duration === v)}>{l}</button>
             ))}
           </div>
-          <input
-            value={vetName}
-            onChange={(e) => setVetName(e.target.value)}
-            placeholder="Vet or clinic (optional)"
-            className="w-full mb-4 rounded-xl border border-midnight-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flash-400"
-          />
+          <input value={vetName} onChange={(e) => setVetName(e.target.value)} placeholder="Vet or clinic (optional)" className={input} />
         </>
       )}
 
-      {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">{error}</p>}
+      {error && <p className="text-sm text-stampred mb-3">{error}</p>}
 
       <button
         onClick={save}
         disabled={!ready || saving}
-        className={cn(
-          'w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl font-bold transition-colors',
-          ready ? 'bg-flash-400 hover:bg-flash-300 text-midnight-900' : 'bg-midnight-100 text-midnight-400'
-        )}
+        className="w-full font-stamp text-[11px] uppercase tracking-[0.14em] bg-stampred text-paper-50 rounded-[5px] py-3 hover:bg-stampred-dark transition-colors disabled:opacity-40"
       >
-        {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />}
-        Stamp the book
+        {saving ? 'Stamping…' : 'Stamp the book'}
       </button>
     </Modal>
   );
 }
 
-/**
- * The stamp grid. `compact` renders smaller stamps without the manage
- * affordances (the public view's variant).
- */
+/** The passport spread: round rubber stamps, one per vaccine. */
 export function VaccinePassport({ vaccinations, canManage, managing, onToggleManage, onAdd, onRemove }) {
   return (
-    <Card padding="lg" className="mb-4">
+    <Sheet className="mb-5">
       <SectionHeader
         eyebrow="Immunization passport"
-        title="Vaccines & protection"
+        title="vaccines & protection"
         action={canManage && vaccinations.length > 0 && (
           <button
             onClick={onToggleManage}
-            className={cn('px-3 py-1.5 rounded-xl text-sm font-bold transition-colors shrink-0',
-              managing ? 'bg-midnight-900 text-white' : 'text-midnight-500 hover:bg-midnight-100')}
+            className={cn('font-stamp text-[9.5px] uppercase tracking-[0.12em] transition-colors',
+              managing ? 'text-stampred' : 'text-pen-400 hover:text-pen-900')}
           >
-            {managing ? 'Done' : 'Manage'}
+            {managing ? 'done' : 'manage'}
           </button>
         )}
       />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-        {vaccinations.map((vax) => {
-          const st = VAX_STATUS_STYLE[vaccinationStatus(vax)];
+      <div className="flex flex-wrap items-start gap-x-5 gap-y-6 mt-6 pl-1">
+        {vaccinations.map((vax, i) => {
+          const st = vaccinationStatus(vax);
           return (
-            <div key={vax.id} className="relative rounded-2xl border-2 border-midnight-100 bg-white px-3 py-4 flex flex-col items-center gap-2 text-center">
-              <span className={cn('absolute -top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide', st.chip)}>
-                {st.label}
-              </span>
-              <span className={cn('w-10 h-10 rounded-xl flex items-center justify-center', st.ic)}>
-                <SyringeGlyph size={22} />
-              </span>
-              <span className="text-[13px] font-bold text-midnight-900 leading-tight">{vax.name}</span>
-              <span className="text-[11px] text-midnight-400 leading-tight">
-                {vax.expiresAt
-                  ? (vaccinationStatus(vax) === 'EXPIRED' ? 'expired ' : 'until ') + shortDate(vax.expiresAt)
+            <div key={vax.id} className="flex flex-col items-center gap-2">
+              <InkStampCircle
+                tone={VAX_TONE[st]}
+                rotate={i % 2 ? 6 : -7}
+                over={VAX_LABEL[st]}
+                title={vax.name}
+                under={vax.expiresAt
+                  ? (st === 'EXPIRED' ? `exp ${shortDate(vax.expiresAt)}` : `to ${shortDate(vax.expiresAt)}`)
                   : shortDate(vax.administeredAt)}
-              </span>
-              {managing && (
-                <button
-                  onClick={() => onRemove(vax)}
-                  aria-label={`Remove ${vax.name}`}
-                  className="absolute -top-2.5 left-2.5 w-6 h-6 rounded-full bg-white border border-midnight-200 text-midnight-400 hover:text-red-600 hover:border-red-300 flex items-center justify-center"
-                >
-                  <Trash2 size={12} />
-                </button>
-              )}
+                onRemove={managing ? () => onRemove(vax) : undefined}
+                removeLabel={`Remove ${vax.name}`}
+              />
             </div>
           );
         })}
         {canManage && (
           <button
             onClick={onAdd}
-            className="rounded-2xl border-2 border-dashed border-midnight-200 px-3 py-4 flex flex-col items-center justify-center gap-2 text-center text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors min-h-[116px]"
+            className="w-[86px] h-[86px] border-[2px] border-dashed border-pen-300 rounded-full flex flex-col items-center justify-center gap-1 text-pen-400 hover:border-stampred hover:text-stampred transition-colors"
+            style={{ transform: 'rotate(4deg)' }}
           >
-            <span className="w-10 h-10 rounded-xl bg-midnight-50 flex items-center justify-center"><Plus size={18} /></span>
-            <span className="text-[13px] font-bold">{vaccinations.length ? 'Another stamp' : 'First stamp'}</span>
+            <Plus size={16} />
+            <span className="font-stamp text-[7.5px] uppercase tracking-[0.1em]">{vaccinations.length ? 'another' : 'first stamp'}</span>
           </button>
         )}
       </div>
-    </Card>
+    </Sheet>
   );
 }
 
 /* --------------------------------- Weight ---------------------------------- */
 
-// Weight over time: soft area fill + line, every entry dotted, current
-// point anchored, first/last dates on the axis.
+// Weight over time as a pencil line: ink stroke, dashed baseline, the
+// current point circled like a marked reading.
 export function WeightChart({ weights }) {
   if (weights.length < 2) return null;
   const w = 600, h = 130, padX = 12, padTop = 16, padBot = 24;
@@ -370,53 +293,47 @@ export function WeightChart({ weights }) {
   const x = (i) => padX + (i / (weights.length - 1)) * (w - 2 * padX);
   const y = (v) => padTop + (1 - (v - min) / span) * (h - padTop - padBot);
   const pts = weights.map((e, i) => `${x(i).toFixed(1)},${y(e.weightLbs).toFixed(1)}`);
-  const area = `M ${x(0).toFixed(1)},${(h - padBot).toFixed(1)} L ${pts.join(' L ')} L ${x(weights.length - 1).toFixed(1)},${(h - padBot).toFixed(1)} Z`;
   const last = weights[weights.length - 1];
   const fmt = (d) => new Date(d).toLocaleDateString([], { month: 'short', year: '2-digit' });
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="mt-3" role="img" aria-label="Weight over time">
-      <defs>
-        <linearGradient id="wfill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#wfill)" />
-      <polyline points={pts.join(' ')} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {weights.map((e, i) => <circle key={i} cx={x(i)} cy={y(e.weightLbs)} r="2.4" fill="#f59e0b" />)}
-      <circle cx={x(weights.length - 1)} cy={y(last.weightLbs)} r="5" fill="#0f172a" stroke="#fff" strokeWidth="2" />
-      <text x={padX} y={h - 6} className="fill-midnight-400" fontSize="11" fontWeight="600">{fmt(weights[0].recordedAt)}</text>
-      <text x={w - padX} y={h - 6} textAnchor="end" className="fill-midnight-400" fontSize="11" fontWeight="600">{fmt(last.recordedAt)}</text>
+      <line x1={padX} y1={h - padBot} x2={w - padX} y2={h - padBot} stroke="#8a7f68" strokeWidth="1" strokeDasharray="3 5" />
+      <polyline points={pts.join(' ')} fill="none" stroke="#232a3d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {weights.map((e, i) => <circle key={i} cx={x(i)} cy={y(e.weightLbs)} r="2.2" fill="#232a3d" />)}
+      <circle cx={x(weights.length - 1)} cy={y(last.weightLbs)} r="6.5" fill="none" stroke="#b3392e" strokeWidth="2" />
+      <text x={padX} y={h - 6} fill="#8a7f68" fontSize="11" fontStyle="italic" fontFamily="Georgia, serif">{fmt(weights[0].recordedAt)}</text>
+      <text x={w - padX} y={h - 6} textAnchor="end" fill="#8a7f68" fontSize="11" fontStyle="italic" fontFamily="Georgia, serif">{fmt(last.recordedAt)}</text>
     </svg>
   );
 }
 
 /**
- * The weight story: latest reading, the trend chart, and (for
- * caregivers) the one place a weight is logged.
+ * The weight story: latest reading, the pencil line, and (for
+ * caregivers) the one place a weight is written in.
  */
 export function WeightCard({ weights, canManage, weightInput, onWeightInput, onLog, saving }) {
   const latestWeight = weights[weights.length - 1];
   return (
-    <Card padding="lg">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-midnight-400">Weight</p>
-          {latestWeight ? (
-            <p className="text-2xl font-extrabold text-midnight-900 leading-tight">
-              {latestWeight.weightLbs}<span className="text-base font-bold text-midnight-400 ml-1">lb</span>
-            </p>
-          ) : (
-            <p className="font-bold text-midnight-900">Track the trend</p>
-          )}
-        </div>
-        {latestWeight && (
-          <p className="text-xs font-semibold text-midnight-400">last {new Date(latestWeight.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</p>
+    <Sheet>
+      <SectionHeader
+        eyebrow="Vitals"
+        title="weight"
+        action={latestWeight && (
+          <span className="font-stamp text-[9px] uppercase tracking-[0.12em] text-pen-400">
+            last {new Date(latestWeight.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+          </span>
         )}
-      </div>
+      />
+      {latestWeight ? (
+        <p className="font-diary italic text-[30px] leading-none text-pen-900 mt-2 tabular-nums">
+          {latestWeight.weightLbs}<span className="text-[16px] text-pen-400"> lb</span>
+        </p>
+      ) : (
+        <p className="font-diary italic text-[13.5px] text-pen-400 mt-2">log a weight and the pencil line draws itself.</p>
+      )}
       {weights.length >= 2
         ? <WeightChart weights={weights} />
-        : <p className="text-sm text-midnight-500 mt-2">{latestWeight ? 'One more entry and the trend line appears.' : 'Log a weight and the chart draws itself.'}</p>}
+        : latestWeight && <p className="font-diary italic text-[12px] text-pen-400 mt-2">one more entry and the trend appears.</p>}
       {canManage && (
         <div className="flex items-center gap-2 mt-4">
           <div className="relative flex-1">
@@ -426,42 +343,43 @@ export function WeightCard({ weights, canManage, weightInput, onWeightInput, onL
               onKeyDown={(e) => e.key === 'Enter' && onLog()}
               placeholder="Today's weight"
               inputMode="decimal"
-              className="w-full rounded-xl border-2 border-midnight-200 px-3.5 py-2.5 pr-11 text-sm focus:outline-none focus:border-flash-400"
+              className="w-full rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 pr-11 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred"
             />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-midnight-400">lbs</span>
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-stamp text-[9px] uppercase text-pen-400">lbs</span>
           </div>
           <button
             onClick={onLog}
             disabled={saving || !weightInput}
-            className="px-3.5 py-2.5 rounded-xl bg-flash-400 text-midnight-900 text-sm font-bold hover:bg-flash-500 disabled:opacity-40 transition-colors"
+            className="font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-3.5 py-2.5 hover:bg-pen-900 hover:text-paper-50 disabled:opacity-40 transition-colors"
           >
-            {saving ? <Loader2 size={15} className="animate-spin" /> : 'Log'}
+            {saving ? <Loader2 size={13} className="animate-spin" /> : 'Write it in'}
           </button>
         </div>
       )}
-    </Card>
+    </Sheet>
   );
 }
 
 /* -------------------------------- Vet card --------------------------------- */
 
 /**
- * The veterinarian's contact — the record's one home for it. ("Care
- * team" means the PEOPLE you share the book with; that noun lives on
- * the Care team tab, never here.)
+ * The veterinarian's contact — an address-book entry in the record.
+ * ("Care team" means the PEOPLE you share the book with; that noun
+ * lives on the Care team tab, never here.)
  */
 export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, saving, petName }) {
+  const input = 'w-full rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred';
   return (
-    <Card padding="lg">
+    <Sheet>
       <SectionHeader
         eyebrow="The record"
-        title="The vet"
+        title="the vet"
         action={isOwner && vetDraft === null && (
           <button
             onClick={() => onDraft({ vetName: pet?.vetName || '', vetClinic: pet?.vetClinic || '', vetPhone: pet?.vetPhone || '' })}
-            className="text-sm font-bold text-midnight-400 hover:text-midnight-700"
+            className="font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900"
           >
-            {pet?.vetName || pet?.vetClinic ? 'Edit' : 'Add'}
+            {pet?.vetName || pet?.vetClinic ? 'edit' : 'add'}
           </button>
         )}
       />
@@ -473,33 +391,33 @@ export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, sav
               value={vetDraft[key]}
               onChange={(e) => onDraft({ ...vetDraft, [key]: e.target.value })}
               placeholder={ph}
-              className="w-full rounded-xl border-2 border-midnight-200 px-3.5 py-2.5 text-sm focus:outline-none focus:border-flash-400"
+              className={input}
             />
           ))}
           <div className="flex gap-2 pt-1">
-            <button onClick={onSave} disabled={saving} className="px-3.5 py-2 rounded-xl bg-flash-400 text-midnight-900 text-sm font-bold">
-              {saving ? 'Saving...' : 'Save'}
+            <button onClick={onSave} disabled={saving} className="font-stamp text-[10px] uppercase tracking-[0.12em] bg-pen-900 text-paper-50 rounded-[4px] px-3.5 py-2 hover:bg-pen-600 transition-colors">
+              {saving ? 'Saving…' : 'Save'}
             </button>
-            <button onClick={onCancel} className="px-3.5 py-2 rounded-xl text-sm font-bold text-midnight-400 hover:text-midnight-700">
+            <button onClick={onCancel} className="font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 px-2 py-2">
               Cancel
             </button>
           </div>
         </div>
       ) : pet?.vetName || pet?.vetClinic ? (
-        <div className="mt-3 text-sm">
-          <p className="font-semibold text-midnight-900">{[pet.vetName, pet.vetClinic].filter(Boolean).join(' · ')}</p>
+        <div className="mt-3">
+          <p className="font-diary italic text-[17px] text-pen-900">{[pet.vetName, pet.vetClinic].filter(Boolean).join(' · ')}</p>
           {pet.vetPhone && (
-            <a href={`tel:${pet.vetPhone}`} className="inline-flex items-center gap-1.5 mt-1.5 text-midnight-500 hover:text-midnight-900 font-semibold">
-              <Phone size={13} /> {pet.vetPhone}
+            <a href={`tel:${pet.vetPhone}`} className="inline-flex items-center gap-1.5 mt-1.5 font-stamp text-[11px] tracking-[0.06em] text-pen-600 hover:text-pen-900">
+              <Phone size={12} /> {pet.vetPhone}
             </a>
           )}
         </div>
       ) : (
-        <p className="text-sm text-midnight-500 mt-3">
-          {isOwner ? `Who takes care of ${petName}? One tap from a sitter's phone in an emergency.` : 'No vet on file yet.'}
+        <p className="font-diary italic text-[13px] text-pen-400 mt-3">
+          {isOwner ? `who takes care of ${petName}? one tap from a sitter's phone in an emergency.` : 'no vet on file yet.'}
         </p>
       )}
-    </Card>
+    </Sheet>
   );
 }
 
@@ -526,15 +444,15 @@ function monthAdherence(meds, monthKeyDate) {
 }
 
 // One record, grouped by month: vaccines + weights + a quiet dose
-// adherence line, newest first, on a rail.
+// adherence line, newest first — the diary read backwards.
 export function MonthHistory({ vaccinations, weights, meds }) {
   const groups = useMemo(() => {
     const events = [];
     for (const v of (vaccinations || []).filter((v) => !v.deletedAt)) {
-      events.push({ at: new Date(v.administeredAt), kind: 'vax', title: v.name, sub: v.vetName || 'Vaccine recorded', id: `v-${v.id}` });
+      events.push({ at: new Date(v.administeredAt), kind: 'vax', title: v.name, sub: v.vetName || 'vaccine recorded', id: `v-${v.id}` });
     }
     for (const e of weights || []) {
-      events.push({ at: new Date(e.recordedAt), kind: 'weight', title: `${e.weightLbs} lb`, sub: e.note || 'Weight logged', id: `w-${e.id}` });
+      events.push({ at: new Date(e.recordedAt), kind: 'weight', title: `${e.weightLbs} lb`, sub: e.note || 'weight written in', id: `w-${e.id}` });
     }
     events.sort((a, b) => b.at - a.at);
     const out = [];
@@ -550,34 +468,36 @@ export function MonthHistory({ vaccinations, weights, meds }) {
   if (!groups.length) return null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {groups.slice(0, 6).map((g) => {
         const adherence = meds ? monthAdherence(meds, g.at) : null;
         return (
           <div key={g.key}>
-            <div className="flex items-baseline justify-between gap-3 mb-2.5">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-midnight-400">{g.key}</p>
+            <div className="flex items-baseline justify-between gap-3 mb-1 border-b border-pen-900/[0.16] pb-1">
+              <p className="font-stamp text-[9.5px] uppercase tracking-[0.18em] text-pen-400">{g.key}</p>
               {adherence && (
-                <p className="text-[11px] font-semibold text-midnight-400">
-                  Doses: <span className={cn('font-extrabold', adherence.pct >= 90 ? 'text-emerald-600' : adherence.pct >= 60 ? 'text-amber-600' : 'text-rose-600')}>{adherence.pct}%</span> given ({adherence.given}/{adherence.due})
+                <p className="font-diary italic text-[11.5px] text-pen-400">
+                  doses: <span className={cn('not-italic font-stamp text-[10px]', adherence.pct >= 90 ? 'text-stampgreen' : adherence.pct >= 60 ? 'text-marker' : 'text-stampred')}>{adherence.pct}%</span> given ({adherence.given}/{adherence.due})
                 </p>
               )}
             </div>
-            <div className="relative pl-6 space-y-3 before:absolute before:left-[9px] before:top-1 before:bottom-1 before:w-px before:bg-midnight-100">
+            <RuledList>
               {g.items.map((ev) => (
-                <div key={ev.id} className="relative flex items-center gap-3">
-                  <span className={cn('absolute -left-6 top-1/2 -translate-y-1/2 w-[18px] h-[18px] rounded-full ring-4 ring-white', ev.kind === 'vax' ? 'bg-emerald-500' : 'bg-flash-400')} />
-                  <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', ev.kind === 'vax' ? 'bg-emerald-100 text-emerald-700' : 'bg-flash-100 text-flash-700')}>
-                    {ev.kind === 'vax' ? <SyringeGlyph size={17} /> : <span className="text-[10px] font-extrabold">lb</span>}
+                <RuledRow key={ev.id} className="py-2.5">
+                  <span className={cn(
+                    'font-stamp text-[8px] uppercase tracking-[0.06em] w-9 shrink-0 text-center border rounded-[3px] py-1',
+                    ev.kind === 'vax' ? 'text-stampgreen border-stampgreen' : 'text-pen-400 border-pen-300'
+                  )} style={{ transform: 'rotate(-3deg)' }}>
+                    {ev.kind === 'vax' ? 'VAX' : 'LB'}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-midnight-900 leading-tight truncate">{ev.title}</p>
-                    <p className="text-xs text-midnight-400 truncate">{ev.sub}</p>
+                    <p className="text-sm font-bold text-pen-900 leading-tight truncate">{ev.title}</p>
+                    <p className="font-diary italic text-[11.5px] text-pen-400 truncate">{ev.sub}</p>
                   </div>
-                  <span className="text-xs text-midnight-400 shrink-0">{ev.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
-                </div>
+                  <span className="font-stamp text-[9.5px] text-pen-400 shrink-0">{ev.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                </RuledRow>
               ))}
-            </div>
+            </RuledList>
           </div>
         );
       })}

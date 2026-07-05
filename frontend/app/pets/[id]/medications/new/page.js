@@ -10,6 +10,9 @@
  * box: type the medication like you'd say it ("Apoquel 16mg twice a day with
  * food") and Auto-fill parses it — Claude when configured, a local parser
  * otherwise — pre-filling the rest of the wizard.
+ *
+ * Renders under the pet shell, which provides the paper ground and the
+ * context bar; the wizard itself is one sheet of the book.
  */
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
@@ -20,7 +23,8 @@ import {
   CalendarDays, Package, Palette, FlaskConical,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, cn } from '@/components/ui';
+import { cn } from '@/components/ui';
+import { Sheet } from '@/app/components/care/paper/Paper';
 import { MedIcon, MedIconChip } from '@/app/components/medications/MedIcon';
 import {
   MED_COLORS, MED_COLOR_TOKENS, MED_ICON_TOKENS, FORM_OPTIONS, FORM_DEFAULT_ICON,
@@ -72,16 +76,16 @@ function Stepper({ step }) {
             <div className="flex flex-col items-center gap-1.5">
               <div className={cn(
                 'w-9 h-9 rounded-full flex items-center justify-center border-2 transition-colors',
-                done ? 'bg-emerald-500 border-emerald-500 text-white'
-                  : current ? 'bg-flash-400 border-flash-400 text-midnight-900'
-                  : 'bg-white border-midnight-200 text-midnight-400'
+                done ? 'border-pen-900 text-pen-900'
+                  : current ? 'bg-pen-900 border-pen-900 text-paper-50'
+                  : 'border-paper-400 text-pen-300'
               )}>
                 {done ? <Check size={16} strokeWidth={3} /> : <s.icon size={16} />}
               </div>
-              <span className={cn('text-[11px] font-semibold', current ? 'text-midnight-900' : 'text-midnight-400')}>{s.label}</span>
+              <span className={cn('font-stamp text-[8.5px] uppercase tracking-[0.14em]', current ? 'text-pen-900' : 'text-pen-400')}>{s.label}</span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={cn('w-10 sm:w-16 h-0.5 mx-1.5 mb-5 rounded', done ? 'bg-emerald-400' : 'bg-midnight-200')} />
+              <div className={cn('w-10 sm:w-16 border-t-[1.5px] mx-1.5 mb-5', done ? 'border-pen-900' : 'border-paper-400')} />
             )}
           </div>
         );
@@ -93,9 +97,9 @@ function Stepper({ step }) {
 function Field({ label, hint, required, children }) {
   return (
     <label className="block">
-      <span className="block text-sm font-semibold text-midnight-800 mb-1.5">
-        {label} {required && <span className="text-red-500">*</span>}
-        {hint && <span className="block text-xs font-normal text-midnight-400 mt-0.5">{hint}</span>}
+      <span className="block font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-1.5">
+        {label} {required && <span className="text-stampred">*</span>}
+        {hint && <span className="block font-diary italic normal-case tracking-normal text-[11px] text-pen-400 mt-0.5">{hint}</span>}
       </span>
       {children}
     </label>
@@ -103,8 +107,8 @@ function Field({ label, hint, required, children }) {
 }
 
 const inputClass =
-  'w-full rounded-xl border border-midnight-300 px-3.5 py-2.5 text-midnight-900 text-sm ' +
-  'placeholder:text-midnight-400 focus:outline-none focus:ring-2 focus:ring-flash-400 focus:border-flash-400 bg-white';
+  'w-full rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 ' +
+  'placeholder:text-pen-300 focus:outline-none focus:border-stampred transition-colors';
 
 function ChipSelect({ options, value, onChange }) {
   return (
@@ -115,10 +119,10 @@ function ChipSelect({ options, value, onChange }) {
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            'px-3.5 py-2 rounded-xl text-sm font-semibold border-2 transition-colors',
+            'px-3.5 py-2 rounded-[5px] text-sm border-[1.5px] transition-colors',
             value === opt.value
-              ? 'border-flash-400 bg-flash-50 text-midnight-900'
-              : 'border-midnight-200 bg-white text-midnight-600 hover:border-midnight-300'
+              ? 'border-stampred bg-stampred-wash text-pen-900'
+              : 'border-paper-400 text-pen-600 hover:border-pen-300'
           )}
         >
           {opt.label}
@@ -309,7 +313,7 @@ function MedicationWizard() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <LoadingSpinner text="Loading..." />
       </div>
     );
@@ -325,33 +329,33 @@ function MedicationWizard() {
   const colors = medColor(form.color);
 
   return (
-    <div className="min-h-screen bg-midnight-50 px-4 py-6 md:px-8 md:py-10">
+    <div className="px-4 py-6 md:px-8 md:py-10">
       <div className="max-w-2xl mx-auto">
         {/* The way back lives in the shell's context bar (← Health Book) */}
-        <h1 className="text-2xl md:text-3xl font-bold text-midnight-900 mb-1 text-center">
+        <h1 className="font-diary italic text-[26px] md:text-[30px] leading-tight text-pen-900 mb-1 text-center">
           {editId ? `Edit ${form.name || 'medication'}` : 'Add a medication'}
         </h1>
-        <p className="text-midnight-500 text-sm text-center mb-8">
-          {editId ? 'Tune anything. History stays put.' : 'A minute now, one-tap tracking forever.'}
+        <p className="font-diary italic text-[13.5px] text-pen-400 text-center mb-8">
+          {editId ? 'tune anything. history stays put.' : 'a minute now, one-tap tracking forever.'}
         </p>
 
         <Stepper step={step} />
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-center justify-between">
+          <div className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark px-4 py-3 mb-6 flex items-center justify-between text-sm">
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><X size={18} /></button>
+            <button onClick={() => setError(null)} className="text-stampred hover:text-stampred-dark"><X size={18} /></button>
           </div>
         )}
 
-        <Card padding="lg">
+        <Sheet>
           {/* ------------------------------ Step 1: What ------------------------------ */}
           {step === 0 && (
             <div className="space-y-5">
               {/* Smart fill */}
-              <div className="rounded-2xl border-2 border-dashed border-flash-300 bg-flash-50/60 p-4">
-                <p className="flex items-center gap-2 text-sm font-bold text-midnight-900 mb-2">
-                  <Sparkles size={16} className="text-flash-600" /> Type it like the vet said it
+              <div className="border-[1.5px] border-dashed border-stampred bg-stampred-wash/40 rounded-[6px] p-4">
+                <p className="flex items-center gap-2 font-diary italic text-[15px] text-pen-900 mb-2">
+                  <Sparkles size={16} className="text-stampred" /> Type it like the vet said it
                 </p>
                 <textarea
                   value={smartText}
@@ -361,22 +365,22 @@ function MedicationWizard() {
                   className={cn(inputClass, 'resize-none')}
                 />
                 <div className="flex items-center justify-between gap-3 mt-2.5 flex-wrap">
-                  <p className="text-xs text-midnight-500">We&apos;ll fill the fields below. You stay in control.</p>
-                  <Button
-                    variant="secondary"
-                    size="sm"
+                  <p className="font-diary italic text-[11.5px] text-pen-400">we&apos;ll fill the fields below. you stay in control.</p>
+                  <button
+                    type="button"
                     onClick={runSmartFill}
                     disabled={parsing || !smartText.trim()}
-                    leftIcon={parsing ? undefined : Sparkles}
-                    loading={parsing}
+                    className="inline-flex items-center gap-1.5 font-stamp text-[10px] uppercase tracking-[0.12em] bg-pen-900 text-paper-50 rounded-[4px] px-3 py-2 hover:bg-pen-600 transition-colors disabled:opacity-50"
                   >
-                    Auto-fill
-                  </Button>
+                    {parsing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Auto-fill
+                  </button>
                 </div>
                 {parseNote && (
                   <p className={cn(
-                    'mt-2.5 text-xs font-medium rounded-lg px-3 py-2',
-                    parseNote.tone === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'
+                    'mt-2.5 text-xs border-l-[3px] px-3 py-2',
+                    parseNote.tone === 'ok'
+                      ? 'border-stampgreen bg-stampgreen-wash/70 text-stampgreen'
+                      : 'border-stampred bg-stampred-wash/60 text-stampred-dark'
                   )}>
                     {parseNote.text}
                     {parseNote.source === 'ai' && <span className="opacity-70"> · understood by AI</span>}
@@ -420,7 +424,7 @@ function MedicationWizard() {
                 />
               </Field>
 
-              <Field label="Prescribed by" hint="Optional, handy at refill time">
+              <Field label="Prescribed by" hint="optional, handy at refill time">
                 <input
                   value={form.prescribedBy}
                   onChange={(e) => set({ prescribedBy: e.target.value })}
@@ -443,8 +447,8 @@ function MedicationWizard() {
               </Field>
 
               {form.scheduleType === 'AS_NEEDED' ? (
-                <p className="text-sm text-midnight-600 bg-midnight-50 border border-midnight-200 rounded-xl px-4 py-3">
-                  No fixed schedule. You&apos;ll get a <strong>“Log dose now”</strong> button on the tracker for whenever you give it.
+                <p className="font-diary italic text-[13px] text-pen-600 bg-paper-100 border border-paper-400 rounded-[4px] px-4 py-3">
+                  no fixed schedule. you&apos;ll get a <strong className="not-italic text-pen-900">“Log dose now”</strong> button on the tracker for whenever you give it.
                 </p>
               ) : (
                 <>
@@ -461,10 +465,10 @@ function MedicationWizard() {
                                 : [...form.daysOfWeek, i].sort(),
                             })}
                             className={cn(
-                              'w-11 h-11 rounded-full text-sm font-bold border-2 transition-colors',
+                              'w-11 h-11 rounded-full text-sm font-bold border-[1.5px] transition-colors',
                               form.daysOfWeek.includes(i)
-                                ? 'bg-flash-400 border-flash-400 text-midnight-900'
-                                : 'bg-white border-midnight-200 text-midnight-500 hover:border-midnight-300'
+                                ? 'bg-stampred border-stampred text-paper-50'
+                                : 'border-paper-400 text-pen-600 hover:border-pen-300'
                             )}
                           >
                             {d[0]}
@@ -483,7 +487,7 @@ function MedicationWizard() {
                           onChange={(e) => set({ intervalDays: e.target.value })}
                           className={cn(inputClass, 'w-24')}
                         />
-                        <span className="text-sm text-midnight-500">
+                        <span className="font-diary italic text-[13px] text-pen-600">
                           days {Number(form.intervalDays) === 2 && '(every other day)'}
                           {Number(form.intervalDays) === 7 && '(weekly)'}
                           {Number(form.intervalDays) === 30 && '(monthly)'}
@@ -500,10 +504,10 @@ function MedicationWizard() {
                           type="button"
                           onClick={() => set({ timesOfDay: p.times })}
                           className={cn(
-                            'px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+                            'px-3 py-1.5 rounded-[4px] font-stamp text-[9.5px] uppercase tracking-[0.1em] border-[1.5px] transition-colors',
                             JSON.stringify(form.timesOfDay) === JSON.stringify(p.times)
-                              ? 'bg-midnight-900 border-midnight-900 text-white'
-                              : 'bg-white border-midnight-200 text-midnight-600 hover:border-midnight-400'
+                              ? 'bg-pen-900 border-pen-900 text-paper-50'
+                              : 'border-paper-400 text-pen-600 hover:border-pen-300'
                           )}
                         >
                           {p.label}
@@ -523,12 +527,12 @@ function MedicationWizard() {
                             }}
                             className={cn(inputClass, 'w-36')}
                           />
-                          <span className="text-xs text-midnight-400">{formatTime(t)}</span>
+                          <span className="font-stamp text-[9.5px] uppercase text-pen-400">{formatTime(t)}</span>
                           {form.timesOfDay.length > 1 && (
                             <button
                               type="button"
                               onClick={() => set({ timesOfDay: form.timesOfDay.filter((_, x) => x !== i) })}
-                              className="p-1.5 text-midnight-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                              className="p-1.5 text-pen-400 hover:text-stampred rounded-[4px] transition-colors"
                               aria-label="Remove time"
                             >
                               <X size={15} />
@@ -540,7 +544,7 @@ function MedicationWizard() {
                         <button
                           type="button"
                           onClick={() => set({ timesOfDay: [...form.timesOfDay, '12:00'] })}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-600 hover:text-midnight-900 transition-colors"
+                          className="inline-flex items-center gap-1 font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
                         >
                           <Plus size={14} /> Add another time
                         </button>
@@ -559,7 +563,7 @@ function MedicationWizard() {
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Ends" hint="Leave empty if ongoing">
+                <Field label="Ends" hint="leave empty if ongoing">
                   <input
                     type="date"
                     value={form.endDate}
@@ -574,8 +578,8 @@ function MedicationWizard() {
           {/* ----------------------------- Step 3: Supply ----------------------------- */}
           {step === 2 && (
             <div className="space-y-5">
-              <p className="text-sm text-midnight-500 -mt-1">
-                All optional. Tell us what&apos;s in the bottle and we&apos;ll count down with every dose and warn you before it runs out.
+              <p className="font-diary italic text-[13px] text-pen-400 -mt-1">
+                all optional. tell us what&apos;s in the bottle and we&apos;ll count down with every dose and warn you before it runs out.
               </p>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Doses on hand">
@@ -620,7 +624,7 @@ function MedicationWizard() {
           {/* ------------------------------ Step 4: Look ------------------------------ */}
           {step === 3 && (
             <div className="space-y-6">
-              <Field label="Pick a color" hint="Color-code meds so they're recognizable at a glance">
+              <Field label="Pick a color" hint="color-code meds so they're recognizable at a glance">
                 <div className="flex flex-wrap gap-2.5">
                   {MED_COLOR_TOKENS.map((token) => (
                     <button
@@ -630,7 +634,7 @@ function MedicationWizard() {
                       className={cn(
                         'w-10 h-10 rounded-full transition-transform',
                         MED_COLORS[token].swatch,
-                        form.color === token ? 'ring-2 ring-offset-2 ring-midnight-900 scale-110' : 'hover:scale-105'
+                        form.color === token ? 'ring-2 ring-offset-2 ring-offset-paper-50 ring-stampred scale-110' : 'hover:scale-105'
                       )}
                       aria-label={MED_COLORS[token].label}
                       title={MED_COLORS[token].label}
@@ -647,10 +651,10 @@ function MedicationWizard() {
                       type="button"
                       onClick={() => set({ icon: token, iconTouched: true })}
                       className={cn(
-                        'w-11 h-11 rounded-xl border-2 flex items-center justify-center transition-colors',
+                        'w-11 h-11 rounded-[5px] border-[1.5px] flex items-center justify-center transition-colors',
                         form.icon === token
-                          ? cn('border-transparent', colors.iconBg, 'ring-2 ring-midnight-900')
-                          : 'border-midnight-200 text-midnight-500 bg-white hover:border-midnight-300'
+                          ? cn('border-transparent', colors.iconBg, 'ring-2 ring-stampred')
+                          : 'border-paper-400 text-pen-600 hover:border-pen-300'
                       )}
                       aria-label={token}
                     >
@@ -662,18 +666,25 @@ function MedicationWizard() {
 
               {/* Live preview = review */}
               <div>
-                <p className="text-sm font-semibold text-midnight-800 mb-2">How it&apos;ll look</p>
-                <div className={cn('rounded-2xl border border-midnight-200 bg-white border-l-4 p-4', colors.accent)}>
+                <p className="font-diary italic text-[15px] text-pen-600 mb-2">how it&apos;ll look</p>
+                <div className={cn('bg-paper-100 border border-paper-400 rounded-[5px] border-l-4 p-4', colors.accent)}>
                   <div className="flex items-start gap-3">
                     <MedIconChip med={previewMed} size="lg" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-midnight-900">{form.name || 'Medication'}</span>
-                        {form.strength && <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', colors.chip)}>{form.strength}</span>}
+                        <span className="font-bold text-pen-900">{form.name || 'Medication'}</span>
+                        {form.strength && (
+                          <span
+                            className="font-stamp text-[9px] uppercase border border-pen-400 text-pen-600 rounded-[3px] px-1.5 py-0.5"
+                            style={{ transform: 'rotate(-4deg)' }}
+                          >
+                            {form.strength}
+                          </span>
+                        )}
                       </div>
-                      {form.purpose && <p className="text-xs text-midnight-500 mt-0.5">{form.purpose}</p>}
-                      <p className="text-sm text-midnight-700 mt-1">{formatSchedule(previewMed)}</p>
-                      {form.instructions && <p className="text-xs text-midnight-500 italic mt-1">{form.instructions}</p>}
+                      {form.purpose && <p className="font-diary italic text-[11.5px] text-pen-400 mt-0.5">{form.purpose}</p>}
+                      <p className="text-[13px] text-pen-600 mt-1">{formatSchedule(previewMed)}</p>
+                      {form.instructions && <p className="font-diary italic text-[12px] text-pen-400 mt-1">{form.instructions}</p>}
                     </div>
                   </div>
                 </div>
@@ -682,22 +693,39 @@ function MedicationWizard() {
           )}
 
           {/* -------------------------------- Nav row -------------------------------- */}
-          <div className="flex items-center justify-between gap-3 mt-8 pt-5 border-t border-midnight-100">
+          <div className="flex items-center justify-between gap-3 mt-8 pt-5 border-t border-paper-400">
             {step > 0 ? (
-              <Button variant="ghost" onClick={() => setStep(step - 1)} leftIcon={ArrowLeft}>Back</Button>
+              <button
+                type="button"
+                onClick={() => setStep(step - 1)}
+                className="inline-flex items-center gap-1.5 font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
+              >
+                <ArrowLeft size={14} /> Back
+              </button>
             ) : <span />}
 
             {step < STEPS.length - 1 ? (
-              <Button variant="primary" onClick={() => setStep(step + 1)} disabled={!stepValid} rightIcon={ArrowRight}>
-                Continue
-              </Button>
+              <button
+                type="button"
+                onClick={() => setStep(step + 1)}
+                disabled={!stepValid}
+                className="inline-flex items-center gap-2 font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-4 py-2.5 hover:bg-pen-900 hover:text-paper-50 transition-colors disabled:opacity-40"
+              >
+                Continue <ArrowRight size={14} />
+              </button>
             ) : (
-              <Button variant="primary" onClick={save} disabled={!form.name.trim() || saving} loading={saving} leftIcon={Check}>
+              <button
+                type="button"
+                onClick={save}
+                disabled={!form.name.trim() || saving}
+                className="inline-flex items-center gap-2 font-stamp text-[10.5px] uppercase tracking-[0.14em] bg-stampred text-paper-50 rounded-[5px] px-5 py-3 hover:bg-stampred-dark transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                 {editId ? 'Save changes' : 'Add medication'}
-              </Button>
+              </button>
             )}
           </div>
-        </Card>
+        </Sheet>
       </div>
     </div>
   );
@@ -705,7 +733,7 @@ function MedicationWizard() {
 
 export default function MedicationWizardPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-midnight-50 flex items-center justify-center"><LoadingSpinner /></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center py-24"><LoadingSpinner /></div>}>
       <MedicationWizard />
     </Suspense>
   );

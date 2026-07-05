@@ -8,31 +8,38 @@
  * first (they're waiting on you), then the team, then the invite form
  * and the public view link. Owners manage; caregivers see a friendly
  * read-only note instead of an error.
+ *
+ * Presentation is the Paper Passport: the roster is a ruled page of
+ * the book, requests arrive as a red-edged note, and invites go out
+ * in mono ink.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import {
-  UserPlus, X, Loader2, Mail, Clock,
-  HeartHandshake, Eye, Trash2, Check, Users, Link2, Copy, RefreshCw,
+  UserPlus, X, Loader2, Mail,
+  HeartHandshake, Eye, Trash2, Check, Link2, Copy, RefreshCw,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, Badge, cn } from '@/components/ui';
+import { cn } from '@/components/ui';
 import { usePet } from '@/app/components/care/PetProvider';
+import {
+  Sheet, SectionInk, RuledList, RuledRow, StampText,
+} from '@/app/components/care/paper/Paper';
 
 const ROLE_OPTIONS = [
   {
     value: 'CAREGIVER',
     label: 'Caregiver',
     icon: HeartHandshake,
-    description: 'Can track + log medications and view the profile',
+    description: 'writes in doses and keeps the record up to date',
   },
   {
     value: 'VIEWER',
     label: 'Viewer',
     icon: Eye,
-    description: 'Can see the profile and med schedule, read-only',
+    description: 'reads the book and the schedule, nothing more',
   },
 ];
 
@@ -47,32 +54,35 @@ function PersonRow({ share, busy, onRoleChange, onRemove }) {
   const pending = share.status === 'PENDING';
 
   return (
-    <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-      <div className={cn(
-        'w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0',
-        pending ? 'bg-midnight-100 text-midnight-400' : 'bg-flash-100 text-flash-700'
-      )}>
+    <RuledRow>
+      <span
+        className={cn(
+          'w-9 h-9 border rounded-[3px] bg-paper-50 flex items-center justify-center font-stamp text-[11px] tracking-[0.06em] shrink-0',
+          pending ? 'border-pen-300 text-pen-300' : 'border-pen-400 text-pen-600'
+        )}
+        style={{ transform: 'rotate(-2deg)' }}
+      >
         {initialsOf(share)}
-      </div>
+      </span>
 
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-midnight-900 text-sm truncate">
+        <p className="font-bold text-[14px] text-pen-900 truncate leading-tight">
           {displayName || share.email}
         </p>
-        <p className="text-xs text-midnight-500 truncate">
-          {displayName ? share.email : pending ? 'Waiting for them to accept' : ''}
+        <p className="font-diary italic text-[12px] text-pen-400 truncate mt-0.5">
+          {displayName ? share.email : pending ? 'waiting for them to accept' : ''}
           {displayName && pending && ' · invite pending'}
         </p>
       </div>
 
-      {pending && <Badge variant="warning" size="sm" icon={Clock}>Pending</Badge>}
+      {pending && <StampText tone="ink" rotate={4} size="sm">Pending</StampText>}
 
       <select
         value={share.role}
         onChange={(e) => onRoleChange(share, e.target.value)}
         disabled={busy}
         aria-label={`Role for ${share.email}`}
-        className="text-xs font-semibold rounded-lg border border-midnight-200 bg-white px-2 py-1.5 text-midnight-700 focus:outline-none focus:ring-2 focus:ring-flash-400 disabled:opacity-50"
+        className="font-stamp text-[10px] uppercase tracking-[0.08em] rounded-[4px] border border-pen-300 bg-paper-50 px-2 py-1.5 text-pen-600 focus:outline-none focus:border-stampred disabled:opacity-50"
       >
         <option value="CAREGIVER">Caregiver</option>
         <option value="VIEWER">Viewer</option>
@@ -81,13 +91,13 @@ function PersonRow({ share, busy, onRoleChange, onRemove }) {
       <button
         onClick={() => onRemove(share)}
         disabled={busy}
-        className="p-2 text-midnight-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+        className="p-2 text-pen-400 hover:text-stampred transition-colors disabled:opacity-50"
         title={pending ? 'Cancel invite' : 'Remove access'}
         aria-label={`Remove ${share.email}`}
       >
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
       </button>
-    </div>
+    </RuledRow>
   );
 }
 
@@ -253,7 +263,7 @@ export default function PetSharePage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
+      <div className="px-4 py-20 flex items-center justify-center">
         <LoadingSpinner text="Loading..." />
       </div>
     );
@@ -268,17 +278,17 @@ export default function PetSharePage() {
     return (
       <div className="px-4 py-6 md:px-8 md:py-8">
         <div className="max-w-2xl mx-auto">
-          <Card padding="lg" className="mt-6 text-center">
-            <span className="w-14 h-14 rounded-2xl bg-flash-100 text-flash-700 flex items-center justify-center mx-auto mb-4">
-              <HeartHandshake size={28} />
-            </span>
-            <h2 className="font-bold text-midnight-900 text-lg mb-1">You&apos;re on {petName}&apos;s care team</h2>
-            <p className="text-sm text-midnight-500 max-w-md mx-auto">
+          <Sheet className="mt-6 text-center py-9">
+            <StampText tone="green" rotate={-4}>On the team</StampText>
+            <h2 className="font-diary italic text-[21px] text-pen-900 mt-4 mb-1.5">
+              You&apos;re on {petName}&apos;s care team
+            </h2>
+            <p className="font-diary italic text-[13.5px] text-pen-400 max-w-md mx-auto">
               {access === 'CAREGIVER'
-                ? `You can log doses in Today and keep the Health Book up to date. Only the owner manages who has access.`
-                : `You can see ${petName}'s profile and schedule. Only the owner manages who has access.`}
+                ? `you can write doses into Today and keep the Health Book up to date. only the owner decides who holds the book.`
+                : `you can read ${petName}'s book and the schedule. only the owner decides who holds the book.`}
             </p>
-          </Card>
+          </Sheet>
         </div>
       </div>
     );
@@ -292,45 +302,46 @@ export default function PetSharePage() {
     <div className="px-4 py-6 md:px-8 md:py-8">
       <div className="max-w-2xl mx-auto">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg my-4 flex items-center justify-between">
+          <div className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark px-4 py-3 my-4 text-sm flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700"><X size={18} /></button>
+            <button onClick={() => setError(null)} className="text-stampred hover:text-stampred-dark"><X size={18} /></button>
           </div>
         )}
         {success && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg my-4 flex items-center justify-between">
+          <div className="border-l-[3px] border-stampgreen bg-stampgreen-wash/70 text-stampgreen px-4 py-3 my-4 text-sm flex items-center justify-between">
             <span className="inline-flex items-center gap-2"><Check size={16} /> {success}</span>
-            <button onClick={() => setSuccess(null)} className="text-emerald-600 hover:text-emerald-800"><X size={18} /></button>
+            <button onClick={() => setSuccess(null)} className="text-stampgreen hover:opacity-70"><X size={18} /></button>
           </div>
         )}
 
         {/* Caretaker requests: someone is waiting on you — always first */}
         {requests.length > 0 && (
-          <Card padding="lg" className="mt-6 mb-6 border-2 border-flash-300">
-            <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
-              <HeartHandshake size={18} className="text-flash-500" /> Caretaker requests
-            </h2>
-            <p className="text-sm text-midnight-500 mb-3">
-              People who saw {petName}&apos;s page and want to help. They get no access until you approve.
+          <Sheet className="mt-6 mb-6 border-l-[3px] border-l-stampred">
+            <SectionInk>caretaker requests</SectionInk>
+            <p className="font-diary italic text-[12.5px] text-pen-400 -mt-1 mb-1">
+              people who saw {petName}&apos;s page and want to help. they get no access until you approve.
             </p>
-            <div className="divide-y divide-midnight-100">
+            <RuledList>
               {requests.map((share) => {
                 const displayName = [share.user?.firstName, share.user?.lastName].filter(Boolean).join(' ');
                 return (
-                  <div key={share.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="w-10 h-10 rounded-full bg-flash-100 text-flash-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  <RuledRow key={share.id}>
+                    <span
+                      className="w-9 h-9 border border-pen-400 rounded-[3px] bg-paper-50 flex items-center justify-center font-stamp text-[11px] tracking-[0.06em] text-pen-600 shrink-0"
+                      style={{ transform: 'rotate(2deg)' }}
+                    >
                       {initialsOf(share)}
-                    </div>
+                    </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-midnight-900 text-sm truncate">{displayName || share.email}</p>
-                      <p className="text-xs text-midnight-500 truncate">
-                        {displayName ? share.email : 'Asked to join as a caretaker'}
+                      <p className="font-bold text-[14px] text-pen-900 truncate leading-tight">{displayName || share.email}</p>
+                      <p className="font-diary italic text-[12px] text-pen-400 truncate mt-0.5">
+                        {displayName ? share.email : 'asked to join as a caretaker'}
                       </p>
                     </div>
                     <button
                       onClick={() => approve(share)}
                       disabled={busyId === share.id}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 font-stamp text-[10px] uppercase tracking-[0.12em] bg-stampgreen text-paper-50 rounded-[4px] px-3.5 py-2 hover:opacity-90 transition-colors disabled:opacity-50"
                     >
                       {busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}
                       Approve
@@ -338,28 +349,26 @@ export default function PetSharePage() {
                     <button
                       onClick={() => remove(share)}
                       disabled={busyId === share.id}
-                      className="px-3 py-2 rounded-xl border border-midnight-200 text-midnight-500 hover:text-red-600 hover:border-red-300 text-xs font-semibold transition-colors disabled:opacity-50"
+                      className="font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 px-2 py-2 transition-colors disabled:opacity-50"
                     >
                       Decline
                     </button>
-                  </div>
+                  </RuledRow>
                 );
               })}
-            </div>
-          </Card>
+            </RuledList>
+          </Sheet>
         )}
 
         {/* The team itself */}
-        <Card padding="lg" className={cn('mb-6', requests.length === 0 && 'mt-6')}>
-          <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
-            <Users size={18} className="text-midnight-400" /> {petName}&apos;s care team
-          </h2>
+        <Sheet className={cn('mb-6', requests.length === 0 && 'mt-6')}>
+          <SectionInk>{petName}&rsquo;s care team</SectionInk>
           {active.length === 0 && pending.length === 0 ? (
-            <p className="text-sm text-midnight-500 py-4">
-              Just you so far. Invite someone below to share the load.
+            <p className="font-diary italic text-[13.5px] text-pen-400 py-3">
+              just you so far. invite someone below to share the load.
             </p>
           ) : (
-            <div className="divide-y divide-midnight-100 mt-3">
+            <RuledList>
               {[...active, ...pending].map((share) => (
                 <PersonRow
                   key={share.id}
@@ -369,25 +378,23 @@ export default function PetSharePage() {
                   onRemove={remove}
                 />
               ))}
-            </div>
+            </RuledList>
           )}
-        </Card>
+        </Sheet>
 
         {/* Invite form */}
-        <Card padding="lg" className="mb-6">
-          <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-4">
-            <UserPlus size={18} className="text-midnight-400" /> Invite someone
-          </h2>
+        <Sheet className="mb-6">
+          <SectionInk>invite someone</SectionInk>
           <form onSubmit={invite} className="space-y-4">
             <div className="relative">
-              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-midnight-400" />
+              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-pen-300" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="their@email.com"
-                className="w-full rounded-xl border border-midnight-300 pl-10 pr-3.5 py-2.5 text-midnight-900 text-sm placeholder:text-midnight-400 focus:outline-none focus:ring-2 focus:ring-flash-400 focus:border-flash-400 bg-white"
+                className="w-full rounded-[5px] border border-pen-300 bg-paper-50 pl-10 pr-3.5 py-2.5 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred"
               />
             </div>
 
@@ -398,38 +405,41 @@ export default function PetSharePage() {
                   type="button"
                   onClick={() => setRole(opt.value)}
                   className={cn(
-                    'text-left rounded-xl border-2 p-3.5 transition-colors',
+                    'text-left rounded-[5px] border-[1.5px] p-3.5 transition-colors',
                     role === opt.value
-                      ? 'border-flash-400 bg-flash-50'
-                      : 'border-midnight-200 bg-white hover:border-midnight-300'
+                      ? 'border-stampred bg-stampred-wash'
+                      : 'border-paper-400 bg-paper-50 hover:border-pen-300'
                   )}
                 >
-                  <span className="flex items-center gap-2 font-bold text-sm text-midnight-900 mb-1">
-                    <opt.icon size={15} className={role === opt.value ? 'text-flash-600' : 'text-midnight-400'} />
+                  <span className="flex items-center gap-2 font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-900 mb-1">
+                    <opt.icon size={14} className={role === opt.value ? 'text-stampred' : 'text-pen-400'} />
                     {opt.label}
                   </span>
-                  <span className="text-xs text-midnight-500">{opt.description}</span>
+                  <span className="font-diary italic text-[12px] text-pen-400">{opt.description}</span>
                 </button>
               ))}
             </div>
 
-            <Button type="submit" variant="primary" loading={inviting} disabled={!email.trim()} fullWidth leftIcon={UserPlus}>
+            <button
+              type="submit"
+              disabled={inviting || !email.trim()}
+              className="w-full inline-flex items-center justify-center gap-2 font-stamp text-[11px] uppercase tracking-[0.12em] bg-pen-900 text-paper-50 rounded-[5px] px-4 py-3 hover:bg-pen-600 transition-colors disabled:opacity-50"
+            >
+              {inviting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
               Send invite
-            </Button>
-            <p className="text-xs text-midnight-400 text-center">
-              No account with that email yet? They&apos;ll get access as soon as they sign up with it and accept.
+            </button>
+            <p className="font-diary italic text-[12px] text-pen-400 text-center">
+              no account with that email yet? they&apos;ll get access as soon as they sign up with it and accept.
             </p>
           </form>
-        </Card>
+        </Sheet>
 
         {/* View link */}
-        <Card padding="lg" className="mb-6">
-          <h2 className="flex items-center gap-2 font-bold text-midnight-900 mb-1">
-            <Link2 size={18} className="text-midnight-400" /> View link
-          </h2>
-          <p className="text-sm text-midnight-500 mb-4">
-            Anyone with the link can see {petName}&apos;s care page, no account needed.
-            They can ask to join as a caretaker; you approve every request here.
+        <Sheet className="mb-6">
+          <SectionInk>the view link</SectionInk>
+          <p className="font-diary italic text-[12.5px] text-pen-400 -mt-1 mb-4">
+            anyone with the link can read {petName}&apos;s care page, no account needed.
+            they can ask to join as a caretaker; you approve every request here.
           </p>
 
           {linkUrl ? (
@@ -439,17 +449,19 @@ export default function PetSharePage() {
                   readOnly
                   value={absoluteLink || ''}
                   onFocus={(e) => e.target.select()}
-                  className="flex-1 min-w-0 rounded-xl border border-midnight-300 px-3.5 py-2.5 text-midnight-700 text-sm bg-midnight-50 focus:outline-none"
+                  className="flex-1 min-w-0 font-stamp text-[11px] rounded-[5px] border border-paper-400 bg-paper-200 px-3.5 py-2.5 text-pen-600 focus:outline-none"
                   aria-label="Public view link"
                 />
                 <button
                   onClick={copyLink}
                   className={cn(
-                    'shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors',
-                    copied ? 'bg-emerald-500 text-white' : 'bg-flash-400 hover:bg-flash-500 text-midnight-900'
+                    'shrink-0 inline-flex items-center gap-1.5 font-stamp text-[10px] uppercase tracking-[0.12em] rounded-[4px] px-3.5 py-2.5 transition-colors',
+                    copied
+                      ? 'border-[1.5px] border-stampgreen bg-stampgreen text-paper-50'
+                      : 'border-[1.5px] border-pen-900 text-pen-900 hover:bg-pen-900 hover:text-paper-50'
                   )}
                 >
-                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                  {copied ? <Check size={13} /> : <Copy size={13} />}
                   {copied ? 'Copied' : 'Copy'}
                 </button>
               </div>
@@ -457,27 +469,32 @@ export default function PetSharePage() {
                 <button
                   onClick={() => setLink('POST')}
                   disabled={linkBusy}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-midnight-600 hover:text-midnight-900 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors disabled:opacity-50"
                   title="Old links stop working"
                 >
-                  <RefreshCw size={13} className={linkBusy ? 'animate-spin' : ''} /> New link
+                  <RefreshCw size={12} className={linkBusy ? 'animate-spin' : ''} /> New link
                 </button>
-                <span className="text-midnight-300">·</span>
+                <span className="text-pen-300">·</span>
                 <button
                   onClick={() => setLink('DELETE')}
                   disabled={linkBusy}
-                  className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
+                  className="font-stamp text-[10px] uppercase tracking-[0.12em] text-stampred hover:text-stampred-dark transition-colors disabled:opacity-50"
                 >
                   Turn off link sharing
                 </button>
               </div>
             </div>
           ) : (
-            <Button onClick={() => setLink('POST')} loading={linkBusy} variant="outline" leftIcon={Link2}>
+            <button
+              onClick={() => setLink('POST')}
+              disabled={linkBusy}
+              className="inline-flex items-center gap-1.5 font-stamp text-[10.5px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-3.5 py-2.5 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors disabled:opacity-50"
+            >
+              {linkBusy ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
               Create view link
-            </Button>
+            </button>
           )}
-        </Card>
+        </Sheet>
 
       </div>
     </div>

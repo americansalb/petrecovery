@@ -36,10 +36,43 @@ module.exports = {
           800: '#854d0e',
           900: '#713f12',
         },
+        /* === The Paper Passport: the care product's world ===
+           The Health Book IS a book: cream paper, navy ink, rubber
+           stamps, a highlighter. Rescue surfaces stay midnight/flash;
+           these tokens belong to /pets and /care only. */
+        paper: {
+          50: '#fbf7ee',   // sheet
+          100: '#f6efe3',  // ground
+          200: '#efe5d2',
+          300: '#e7dcc6',  // edges, dividers
+          400: '#d9cdb2',  // borders
+        },
+        pen: {
+          900: '#232a3d',  // ink
+          600: '#5d5442',  // soft ink
+          400: '#8a7f68',  // faded ink (captions)
+          300: '#b3a88e',  // ghost ink
+        },
+        stampred: {
+          DEFAULT: '#b3392e',
+          dark: '#9c3227',
+          wash: '#f6e3e0',
+        },
+        stampgreen: {
+          DEFAULT: '#3e6b4f',
+          wash: '#e4ecdf',
+        },
+        marker: {
+          DEFAULT: '#e0a92c',
+          wash: '#f8ecd0',
+        },
       },
       /* === Font Family === */
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        // Paper Passport voices: the diary hand and the rubber stamp
+        diary: ['Georgia', '"Times New Roman"', 'serif'],
+        stamp: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       /* === Border Radius === */
       borderRadius: {

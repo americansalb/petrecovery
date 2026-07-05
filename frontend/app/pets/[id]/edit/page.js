@@ -4,21 +4,23 @@
  * Edit pet - tapping, not typing
  *
  * The same input vocabulary as the new-pet wizard (species cards, coat
- * swatches, paw-scale sizes, trait chips), laid out as conversational
- * cards instead of a form. A live Rescue-ready ring ticks up as fields
- * fill — editing IS protection, and the page shows it. A save bar
- * appears only when something actually changed.
+ * swatches, paw-scale sizes, trait chips), laid out as sheets of the
+ * Paper Passport instead of a form. A live rescue-ready count, written
+ * as an ink fraction, ticks up as fields fill — editing IS protection,
+ * and the page shows it. A paper save strip appears only when
+ * something actually changed.
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Check, Minus, Plus, Loader2, X, AlertTriangle } from 'lucide-react';
+import { Check, Minus, Plus, Loader2, X } from 'lucide-react';
 import { DogIcon, CatIcon, BirdIcon, RabbitIcon, PawIcon } from '@/app/components/icons/SpeciesIcons';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
-import { Card, Button, EmptyState, cn } from '@/components/ui';
+import { EmptyState, ConfirmModal, cn } from '@/components/ui';
+import { Sheet } from '@/app/components/care/paper/Paper';
 import {
   COAT_COLORS, COAT_PATTERNS, MAX_COAT_COLORS,
   composeColor, parseColor, validateMicrochip, normalizeMicrochip,
@@ -54,8 +56,8 @@ const PERSONALITY_TRAITS = [
 ];
 
 const inputClass =
-  'w-full rounded-2xl border-2 border-midnight-200 bg-white px-4 py-3 text-midnight-900 ' +
-  'placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition';
+  'w-full rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 ' +
+  'placeholder:text-pen-300 focus:outline-none focus:border-stampred transition-colors';
 
 /* Tap-first building blocks ------------------------------------------------ */
 
@@ -66,10 +68,10 @@ function ChoiceChip({ active, onClick, children, className }) {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'px-3.5 py-2 rounded-2xl border-2 text-sm font-bold transition-all active:scale-95',
+        'px-3.5 py-2 rounded-[5px] border-[1.5px] font-stamp text-[10px] uppercase tracking-[0.08em] transition-all active:scale-95',
         active
-          ? 'border-flash-400 bg-flash-50 text-midnight-900'
-          : 'border-midnight-200 bg-white text-midnight-500 hover:border-midnight-300 hover:text-midnight-800',
+          ? 'border-stampred bg-stampred-wash text-pen-900'
+          : 'border-paper-400 bg-transparent text-pen-600 hover:border-pen-300 hover:text-pen-900',
         className
       )}
     >
@@ -90,14 +92,14 @@ function InlineAdd({ value, onChange, onAdd, onCancel, placeholder }) {
           if (e.key === 'Escape') onCancel();
         }}
         placeholder={placeholder}
-        className="rounded-2xl border-2 border-flash-400 bg-white px-3 py-2 text-sm font-semibold text-midnight-900 placeholder:text-midnight-300 focus:outline-none w-44"
+        className="rounded-[5px] border-[1.5px] border-stampred bg-paper-50 px-3 py-2 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none w-44"
       />
       <button type="button" onClick={onAdd} aria-label="Add"
-        className="w-9 h-9 rounded-xl bg-flash-400 hover:bg-flash-300 text-midnight-900 flex items-center justify-center transition-colors">
+        className="w-9 h-9 rounded-[5px] bg-stampred hover:bg-stampred-dark text-paper-50 flex items-center justify-center transition-colors">
         <Check size={15} strokeWidth={3} />
       </button>
       <button type="button" onClick={onCancel} aria-label="Cancel"
-        className="w-9 h-9 rounded-xl text-midnight-400 hover:text-midnight-700 flex items-center justify-center">
+        className="w-9 h-9 rounded-[5px] text-pen-400 hover:text-pen-900 flex items-center justify-center">
         <X size={15} />
       </button>
     </span>
@@ -106,35 +108,22 @@ function InlineAdd({ value, onChange, onAdd, onCancel, placeholder }) {
 
 function SectionCard({ title, subtitle, children }) {
   return (
-    <Card padding="lg" className="mb-4">
-      <h2 className="text-lg font-bold text-midnight-900">{title}</h2>
-      {subtitle && <p className="text-sm text-midnight-500 mt-0.5 mb-4">{subtitle}</p>}
+    <Sheet className="mb-4">
+      <h2 className="font-diary italic text-[17px] leading-tight text-pen-900">{title}</h2>
+      {subtitle && <p className="font-diary italic text-[12.5px] text-pen-400 mt-0.5 mb-4">{subtitle}</p>}
       {!subtitle && <div className="mb-4" />}
       {children}
-    </Card>
+    </Sheet>
   );
 }
 
 function ReadyRing({ met, total }) {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const pct = total ? met / total : 0;
   return (
-    <div className="flex items-center gap-2.5" role="img" aria-label={`Rescue ready: ${met} of ${total}`}>
-      <div className="relative w-11 h-11">
-        <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-          <circle cx="32" cy="32" r={r} fill="none" strokeWidth="7" className="stroke-midnight-100" />
-          <circle
-            cx="32" cy="32" r={r} fill="none" strokeWidth="7" strokeLinecap="round"
-            strokeDasharray={c} strokeDashoffset={c * (1 - pct)}
-            className={cn('transition-all duration-500', pct >= 1 ? 'stroke-emerald-400' : 'stroke-flash-400')}
-          />
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-midnight-900 tabular-nums">
-          {met}/{total}
-        </span>
-      </div>
-      <span className="text-xs font-bold text-midnight-500 hidden sm:block leading-tight">
+    <div className="flex items-center gap-2.5 shrink-0" role="img" aria-label={`Rescue ready: ${met} of ${total}`}>
+      <span className="font-diary italic text-[24px] leading-none text-pen-900 tabular-nums">
+        {met}<span className="text-[15px] text-pen-400">/{total}</span>
+      </span>
+      <span className="font-stamp text-[8.5px] uppercase tracking-[0.16em] text-pen-400 hidden sm:block leading-tight">
         Rescue<br />ready
       </span>
     </div>
@@ -418,16 +407,16 @@ export default function EditPetPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between gap-3 mb-5">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-midnight-900">Edit {pet.name}</h1>
-            <p className="text-sm text-midnight-500">Every detail here is one a searcher or sitter could need.</p>
+            <h1 className="font-diary italic text-[26px] leading-tight text-pen-900">Edit {pet.name}</h1>
+            <p className="font-diary italic text-[13px] text-pen-400">every detail here is one a searcher or sitter could need.</p>
           </div>
           <ReadyRing met={readiness.met} total={readiness.total} />
         </div>
 
         {submitError && (
-          <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-xl mb-4 flex items-center justify-between">
+          <div role="alert" className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark text-sm px-4 py-3 mb-4 flex items-center justify-between">
             <span>{submitError}</span>
-            <button onClick={() => setSubmitError(null)} aria-label="Dismiss" className="text-red-400 hover:text-red-700"><X size={16} /></button>
+            <button onClick={() => setSubmitError(null)} aria-label="Dismiss" className="text-stampred hover:text-stampred-dark"><X size={16} /></button>
           </div>
         )}
 
@@ -457,9 +446,9 @@ export default function EditPetPage() {
                 placeholder="Name"
                 aria-label="Pet name"
                 maxLength={40}
-                className={cn(inputClass, 'text-lg font-bold', errors.name && 'border-red-300')}
+                className={cn(inputClass, 'font-diary italic text-lg', errors.name && 'border-stampred')}
               />
-              {errors.name && <p className="text-xs text-red-600 mt-1.5">{errors.name}</p>}
+              {errors.name && <p className="text-xs text-stampred mt-1.5">{errors.name}</p>}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -479,27 +468,27 @@ export default function EditPetPage() {
                 className={inputClass}
               />
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-midnight-500 shrink-0">Age</span>
+                <span className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 shrink-0">Age</span>
                 <button
                   type="button"
                   aria-label="Younger"
                   onClick={() => set({ age: String(Math.max(0, (parseInt(form.age, 10) || 0) - 1)) })}
-                  className="w-10 h-10 rounded-xl border-2 border-midnight-200 text-midnight-500 hover:border-midnight-300 flex items-center justify-center transition-colors"
+                  className="w-10 h-10 rounded-[5px] border-[1.5px] border-pen-900 text-pen-900 hover:bg-pen-900 hover:text-paper-50 flex items-center justify-center transition-colors"
                 >
                   <Minus size={15} />
                 </button>
-                <span className="w-16 text-center font-bold text-midnight-900 tabular-nums">
+                <span className="w-16 text-center font-diary italic text-pen-900 tabular-nums">
                   {form.age === '' ? 'Not set' : `${form.age} yr${form.age === '1' ? '' : 's'}`}
                 </span>
                 <button
                   type="button"
                   aria-label="Older"
                   onClick={() => set({ age: String(Math.min(50, (parseInt(form.age, 10) || 0) + 1)) })}
-                  className="w-10 h-10 rounded-xl border-2 border-midnight-200 text-midnight-500 hover:border-midnight-300 flex items-center justify-center transition-colors"
+                  className="w-10 h-10 rounded-[5px] border-[1.5px] border-pen-900 text-pen-900 hover:bg-pen-900 hover:text-paper-50 flex items-center justify-center transition-colors"
                 >
                   <Plus size={15} />
                 </button>
-                {errors.age && <p className="text-xs text-red-600">{errors.age}</p>}
+                {errors.age && <p className="text-xs text-stampred">{errors.age}</p>}
               </div>
             </div>
 
@@ -509,7 +498,7 @@ export default function EditPetPage() {
                   {label}
                 </ChoiceChip>
               ))}
-              <span className="w-px h-6 bg-midnight-100 mx-1" aria-hidden="true" />
+              <span className="w-px h-6 bg-paper-400 mx-1" aria-hidden="true" />
               <ChoiceChip active={form.isNeutered} onClick={() => set({ isNeutered: !form.isNeutered })}>
                 <span className="inline-flex items-center gap-1.5">
                   {form.isNeutered && <Check size={14} strokeWidth={3} />}
@@ -527,7 +516,7 @@ export default function EditPetPage() {
         >
           <div className="space-y-5">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2.5">
+              <p className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-2.5">
                 Coat (up to {MAX_COAT_COLORS} colors)
               </p>
               <div className="flex flex-wrap gap-3">
@@ -546,18 +535,18 @@ export default function EditPetPage() {
                       <span
                         className={cn(
                           'w-10 h-10 rounded-full transition-all flex items-center justify-center',
-                          border && 'border border-midnight-200',
-                          active ? 'ring-[3px] ring-offset-2 ring-flash-500 scale-110' : 'group-hover:scale-105'
+                          border && 'border border-paper-400',
+                          active ? 'ring-[3px] ring-stampred ring-offset-2 ring-offset-paper-50 scale-110' : 'group-hover:scale-105'
                         )}
                         style={{ background: css }}
                       >
                         {active && (
-                          <span className="w-4.5 h-4.5 w-5 h-5 rounded-full bg-white/95 text-midnight-900 flex items-center justify-center shadow">
+                          <span className="w-5 h-5 rounded-full bg-paper-50/95 text-pen-900 flex items-center justify-center shadow">
                             <Check size={12} strokeWidth={3.5} />
                           </span>
                         )}
                       </span>
-                      <span className={cn('text-[10px] font-semibold', active ? 'text-midnight-900' : 'text-midnight-400')}>
+                      <span className={cn('font-stamp text-[9px] uppercase tracking-[0.08em]', active ? 'text-pen-900' : 'text-pen-400')}>
                         {value}
                       </span>
                     </button>
@@ -574,10 +563,10 @@ export default function EditPetPage() {
                       title={`${c} (tap to remove)`}
                       className="flex flex-col items-center gap-1 group"
                     >
-                      <span className="w-10 h-10 rounded-full bg-midnight-900 text-white ring-[3px] ring-offset-2 ring-flash-500 flex items-center justify-center text-xs font-bold">
+                      <span className="w-10 h-10 rounded-full bg-pen-900 text-paper-50 ring-[3px] ring-stampred ring-offset-2 ring-offset-paper-50 flex items-center justify-center text-xs font-bold">
                         {c.slice(0, 2)}
                       </span>
-                      <span className="text-[10px] font-semibold text-midnight-900">{c}</span>
+                      <span className="font-stamp text-[9px] uppercase tracking-[0.08em] text-pen-900">{c}</span>
                     </button>
                   ))}
                 {customColorInput === null ? (
@@ -587,10 +576,10 @@ export default function EditPetPage() {
                     className="flex flex-col items-center gap-1 group"
                     aria-label="Add another color"
                   >
-                    <span className="w-10 h-10 rounded-full border-2 border-dashed border-midnight-300 text-midnight-400 group-hover:border-flash-400 group-hover:text-flash-500 flex items-center justify-center transition-colors">
+                    <span className="w-10 h-10 rounded-full border-[1.5px] border-dashed border-pen-300 text-pen-400 group-hover:border-stampred group-hover:text-stampred flex items-center justify-center transition-colors">
                       <Plus size={15} />
                     </span>
-                    <span className="text-[10px] font-semibold text-midnight-400">Other</span>
+                    <span className="font-stamp text-[9px] uppercase tracking-[0.08em] text-pen-400">Other</span>
                   </button>
                 ) : (
                   <InlineAdd
@@ -602,20 +591,20 @@ export default function EditPetPage() {
                   />
                 )}
               </div>
-              {errors.color && <p className="text-xs text-red-600 mt-2">{errors.color}</p>}
+              {errors.color && <p className="text-xs text-stampred mt-2">{errors.color}</p>}
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 {COAT_PATTERNS.map((p) => (
                   <ChoiceChip
                     key={p}
                     active={(form.coatPattern || 'Solid') === p}
                     onClick={() => set({ coatPattern: p === 'Solid' ? null : p })}
-                    className="px-3 py-1.5 text-xs"
+                    className="px-3 py-1.5"
                   >
                     {p}
                   </ChoiceChip>
                 ))}
                 {form.coatPattern && !COAT_PATTERNS.includes(form.coatPattern) && (
-                  <ChoiceChip active onClick={() => set({ coatPattern: null })} className="px-3 py-1.5 text-xs">
+                  <ChoiceChip active onClick={() => set({ coatPattern: null })} className="px-3 py-1.5">
                     <span className="inline-flex items-center gap-1">{form.coatPattern} <X size={12} /></span>
                   </ChoiceChip>
                 )}
@@ -623,7 +612,7 @@ export default function EditPetPage() {
                   <button
                     type="button"
                     onClick={() => setCustomPatternInput('')}
-                    className="px-3 py-1.5 rounded-2xl border-2 border-dashed border-midnight-300 text-xs font-bold text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors"
+                    className="px-3 py-1.5 rounded-[5px] border-[1.5px] border-dashed border-pen-300 font-stamp text-[9px] uppercase tracking-[0.08em] text-pen-400 hover:border-stampred hover:text-stampred transition-colors"
                   >
                     + Other
                   </button>
@@ -640,7 +629,7 @@ export default function EditPetPage() {
             </div>
 
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2.5">Size</p>
+              <p className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 mb-2.5">Size</p>
               <div className="grid grid-cols-5 gap-2">
                 {SIZE_OPTIONS.map(({ value, label, hint, paw }) => {
                   const active = form.size === value;
@@ -651,13 +640,13 @@ export default function EditPetPage() {
                       onClick={() => set({ size: value })}
                       aria-pressed={active}
                       className={cn(
-                        'flex flex-col items-center justify-end gap-1 rounded-2xl border-2 px-1 pt-3 pb-2 transition-all active:scale-95',
-                        active ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-300'
+                        'flex flex-col items-center justify-end gap-1 rounded-[5px] border-[1.5px] px-1 pt-3 pb-2 transition-all active:scale-95',
+                        active ? 'border-stampred bg-stampred-wash' : 'border-paper-400 hover:border-pen-300'
                       )}
                     >
-                      <PawIcon size={paw} className={active ? 'text-midnight-900' : 'text-midnight-300'} />
-                      <span className={cn('text-xs font-bold', active ? 'text-midnight-900' : 'text-midnight-500')}>{label}</span>
-                      <span className="text-[9px] text-midnight-400 leading-none hidden sm:block">{hint}</span>
+                      <PawIcon size={paw} className={active ? 'text-pen-900' : 'text-pen-300'} />
+                      <span className={cn('font-stamp text-[9.5px] uppercase tracking-[0.08em]', active ? 'text-pen-900' : 'text-pen-600')}>{label}</span>
+                      <span className="text-[9px] text-pen-400 leading-none hidden sm:block">{hint}</span>
                     </button>
                   );
                 })}
@@ -666,14 +655,14 @@ export default function EditPetPage() {
 
             {/* Weight has ONE write path — the Health Book's weight log —
                 so the trend chart and this number can never disagree. */}
-            <div className="flex items-center justify-between gap-3 rounded-2xl border-2 border-midnight-100 bg-midnight-50/50 px-4 py-3">
-              <p className="text-sm text-midnight-600">
-                <span className="font-bold text-midnight-900">Weight:</span>{' '}
+            <div className="flex items-center justify-between gap-3 rounded-[5px] border border-paper-400 bg-paper-200/60 px-4 py-3">
+              <p className="text-sm text-pen-600">
+                <span className="font-diary italic text-pen-900">Weight:</span>{' '}
                 {petWeight != null ? `${petWeight} lbs` : 'not logged yet'}
               </p>
               <Link
                 href={`/pets/${petId}/health`}
-                className="text-xs font-bold text-flash-600 hover:text-flash-700 shrink-0"
+                className="font-stamp text-[9.5px] uppercase tracking-[0.12em] text-stampred hover:text-stampred-dark shrink-0"
               >
                 Log changes in the Health Book →
               </Link>
@@ -728,7 +717,7 @@ export default function EditPetPage() {
               <button
                 type="button"
                 onClick={() => setCustomTraitInput('')}
-                className="px-3.5 py-2 rounded-2xl border-2 border-dashed border-midnight-300 text-sm font-bold text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors"
+                className="px-3.5 py-2 rounded-[5px] border-[1.5px] border-dashed border-pen-300 font-stamp text-[10px] uppercase tracking-[0.08em] text-pen-400 hover:border-stampred hover:text-stampred transition-colors"
               >
                 + Add your own
               </button>
@@ -742,7 +731,7 @@ export default function EditPetPage() {
               />
             )}
           </div>
-          {errors.personality && <p className="text-xs text-red-600 mb-3">{errors.personality}</p>}
+          {errors.personality && <p className="text-xs text-stampred mb-3">{errors.personality}</p>}
           <div className="mb-2.5" />
           <textarea
             value={form.medicalConditions}
@@ -766,9 +755,9 @@ export default function EditPetPage() {
                 onChange={(e) => set({ microchipId: e.target.value })}
                 placeholder="Microchip number"
                 aria-label="Microchip number"
-                className={cn(inputClass, 'font-mono text-sm', errors.microchipId && 'border-red-300')}
+                className={cn(inputClass, 'font-mono text-sm', errors.microchipId && 'border-stampred')}
               />
-              {errors.microchipId && <p className="text-xs text-red-600 mt-1.5">{errors.microchipId}</p>}
+              {errors.microchipId && <p className="text-xs text-stampred mt-1.5">{errors.microchipId}</p>}
             </div>
             <input
               value={form.collarInfo}
@@ -784,7 +773,7 @@ export default function EditPetPage() {
           <button
             onClick={() => setDeleteConfirmOpen(true)}
             disabled={deleting}
-            className="text-xs text-midnight-400 hover:text-red-600 underline underline-offset-2 transition-colors"
+            className="font-stamp text-[9.5px] uppercase tracking-[0.12em] text-stampred hover:text-stampred-dark underline underline-offset-2 transition-colors disabled:opacity-50"
           >
             {deleting ? 'Removing...' : `Remove ${pet.name} from ReunitePets`}
           </button>
@@ -795,19 +784,19 @@ export default function EditPetPage() {
       {dirty && (
         <div className="fixed inset-x-0 bottom-0 z-40 p-4 pointer-events-none">
           <div className="max-w-4xl mx-auto flex justify-center">
-            <div className="pointer-events-auto flex items-center gap-3 bg-midnight-950 text-white rounded-2xl shadow-2xl pl-5 pr-2 py-2">
-              <span className="text-sm font-semibold">Unsaved changes</span>
+            <div className="pointer-events-auto flex items-center gap-3 bg-paper-50 border-t-2 border-pen-900 border-x border-b border-paper-400 rounded-b-[6px] shadow-[0_14px_28px_-12px_rgba(35,42,61,0.55)] pl-5 pr-2 py-2">
+              <span className="font-diary italic text-[13.5px] text-pen-600">Unsaved changes</span>
               <button
                 onClick={discard}
                 disabled={submitting}
-                className="text-sm font-bold text-midnight-300 hover:text-white px-2 py-2 transition-colors"
+                className="font-stamp text-[10px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 px-2 py-2 transition-colors disabled:opacity-50"
               >
                 Discard
               </button>
               <button
                 onClick={save}
                 disabled={submitting}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 text-sm font-bold rounded-xl transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-stampred hover:bg-stampred-dark text-paper-50 font-stamp text-[10.5px] uppercase tracking-[0.12em] rounded-[5px] transition-colors disabled:opacity-60"
               >
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} strokeWidth={3} />}
                 Save changes
@@ -819,22 +808,15 @@ export default function EditPetPage() {
 
       {/* Delete confirm */}
       {deleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmOpen(false)} />
-          <Card className="relative w-full max-w-sm p-6 text-center">
-            <span className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-3">
-              <AlertTriangle size={22} />
-            </span>
-            <h3 className="text-lg font-bold text-midnight-900 mb-1">Remove {pet.name}?</h3>
-            <p className="text-sm text-midnight-500 mb-5">
-              Their profile, care history, and medication log go with them. This can&apos;t be undone.
-            </p>
-            <div className="flex gap-2 justify-center">
-              <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Keep {pet.name}</Button>
-              <Button variant="danger" onClick={confirmDelete}>Remove</Button>
-            </div>
-          </Card>
-        </div>
+        <ConfirmModal
+          variant="paper"
+          onClose={() => setDeleteConfirmOpen(false)}
+          title={`Remove ${pet.name}?`}
+          body="Their profile, care history, and medication log go with them. This can't be undone."
+          confirmLabel="Remove"
+          busy={deleting}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   );

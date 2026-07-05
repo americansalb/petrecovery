@@ -16,7 +16,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, ConfirmModal } from '@/components/ui';
+import { ConfirmModal } from '@/components/ui';
+import { Sheet } from '@/app/components/care/paper/Paper';
 import { MedCard } from '@/app/components/medications/MedCards';
 import { usePet } from '@/app/components/care/PetProvider';
 import {
@@ -174,19 +175,19 @@ export default function HealthBookPage() {
   const addVaccineButton = canManage && (
     <button
       onClick={() => setShowAdd(true)}
-      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-flash-400 hover:bg-flash-500 text-midnight-900 text-sm font-bold transition-colors shrink-0"
+      className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 font-stamp text-[10.5px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-3.5 py-2.5 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors shrink-0"
     >
-      <Plus size={15} /> Add vaccine
+      <Plus size={13} /> Stamp a vaccine
     </button>
   );
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8">
+    <div className="px-4 py-5 md:px-8 md:py-6">
       <div className="max-w-4xl mx-auto">
         {error && (
-          <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-xl mb-4 flex items-center justify-between">
+          <div role="alert" className="border-l-[3px] border-stampred bg-stampred-wash/60 text-stampred-dark text-sm px-4 py-3 mb-4 flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError(null)} aria-label="Dismiss" className="text-red-400 hover:text-red-700"><X size={16} /></button>
+            <button onClick={() => setError(null)} aria-label="Dismiss" className="text-stampred hover:text-stampred-dark"><X size={16} /></button>
           </div>
         )}
 
@@ -212,36 +213,39 @@ export default function HealthBookPage() {
         />
 
         {/* Medications: the record and its management (logging lives in Today) */}
-        <Card padding="lg" className="mb-4">
+        <Sheet className="mb-5">
           <SectionHeader
             eyebrow="Prescriptions"
-            title="Medications"
+            title="medications"
             action={(
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <a
                   href={`/api/pets/${petId}/medications/export`}
                   download
-                  className="inline-flex items-center gap-1.5 px-3 py-2 border-2 border-midnight-200 text-midnight-500 rounded-xl text-sm font-bold hover:border-midnight-300 hover:text-midnight-800 transition-colors"
+                  className="font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
                   title="Download a full backup of all medication data"
                 >
-                  Backup
+                  backup
                 </a>
                 {canManage && (
-                  <Button variant="primary" size="sm" href={`/pets/${petId}/medications/new`}>
-                    Add medication
-                  </Button>
+                  <Link
+                    href={`/pets/${petId}/medications/new`}
+                    className="inline-flex items-center gap-1 font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-3 py-2 hover:bg-pen-900 hover:text-paper-50 transition-colors"
+                  >
+                    <Plus size={12} /> Add
+                  </Link>
                 )}
               </div>
             )}
           />
-          <p className="text-sm text-midnight-500 mt-1 mb-4">
-            Schedules and supply. Daily check-offs live in <Link href={`/pets/${petId}/today`} className="font-bold text-midnight-700 hover:text-midnight-900 underline underline-offset-2">Today</Link>.
+          <p className="font-diary italic text-[12.5px] text-pen-400 mt-1 mb-4">
+            schedules and supply — daily check-offs live in <Link href={`/pets/${petId}/today`} className="text-pen-600 hover:text-pen-900 underline underline-offset-2">Today</Link>.
           </p>
           {meds.length === 0 ? (
-            <p className="text-sm text-midnight-400">No medications on file.</p>
+            <p className="font-diary italic text-[13px] text-pen-400">no medications on file.</p>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {meds.filter((m) => m.isActive).map((med) => (
                   <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
                     onTogglePause={togglePause} onDelete={setConfirmDelete} />
@@ -249,8 +253,8 @@ export default function HealthBookPage() {
               </div>
               {meds.some((m) => !m.isActive) && (
                 <>
-                  <h3 className="font-bold text-midnight-500 text-sm uppercase tracking-wide mt-5 mb-3">Paused</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <h3 className="font-stamp text-[9px] uppercase tracking-[0.18em] text-pen-400 mt-5 mb-3">Paused</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {meds.filter((m) => !m.isActive).map((med) => (
                       <MedCard key={med.id} med={med} petId={petId} busy={busyMed === med.id} canManage={canManage}
                         onTogglePause={togglePause} onDelete={setConfirmDelete} />
@@ -260,9 +264,9 @@ export default function HealthBookPage() {
               )}
             </>
           )}
-        </Card>
+        </Sheet>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
           <WeightCard
             weights={weights}
             canManage={canManage}
@@ -285,21 +289,22 @@ export default function HealthBookPage() {
 
         {/* ===== The record: one unified history ===== */}
         {(vaccinations.length > 0 || weights.length > 0) && (
-          <Card padding="lg" className="mb-4">
-            <SectionHeader eyebrow="The record" title="History" />
+          <Sheet perforated className="mb-5">
+            <SectionHeader eyebrow="The record" title="history" />
             <div className="mt-4">
               <MonthHistory vaccinations={vaccinations} weights={weights} meds={meds} />
             </div>
-          </Card>
+          </Sheet>
         )}
 
-        <p className="text-center text-xs text-midnight-400 pt-2 pb-6">
-          A record you keep, not medical advice. Your vet&apos;s guidance comes first.
+        <p className="text-center font-diary italic text-[12px] text-pen-400 pt-2 pb-6">
+          a record you keep, not medical advice · your vet&apos;s guidance comes first
         </p>
       </div>
 
       {confirmDelete && (
         <ConfirmModal
+          variant="paper"
           onClose={() => setConfirmDelete(null)}
           title={`Delete ${confirmDelete.name}?`}
           body="This removes the medication and its full dose history. This cannot be undone."

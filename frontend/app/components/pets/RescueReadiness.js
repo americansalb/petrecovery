@@ -3,16 +3,18 @@
 /**
  * Rescue Readiness - one calm line, one next step
  *
- * A complete profile is a pre-built rescue mission, but the meter must
- * never feel like homework: collapsed it is a single strip — the ring,
+ * A complete book is a pre-built rescue mission, but the meter must
+ * never feel like homework: collapsed it is a single written line —
  * the count, THE one next thing to add. The full checklist lives
- * behind "All 7", for the people who want to finish the job.
+ * behind "all 7", for the people who want to finish the job.
+ * Paper Passport register: an ink checklist inside the book.
  */
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Check, ChevronRight, ChevronDown } from 'lucide-react';
-import { Card, cn } from '@/components/ui';
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import { cn } from '@/components/ui';
+import { Sheet, InkCheckbox, StampText } from '@/app/components/care/paper/Paper';
 
 function readinessItems({ pet, photos, personality, shares, viewLinkUrl }) {
   const editHref = `/pets/${pet.id}/edit`;
@@ -31,27 +33,6 @@ function readinessItems({ pet, photos, personality, shares, viewLinkUrl }) {
   ];
 }
 
-function Ring({ met, total, size = 44 }) {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const pct = total ? met / total : 0;
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`Rescue ready: ${met} of ${total}`}>
-      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-        <circle cx="32" cy="32" r={r} fill="none" strokeWidth="7" className="stroke-midnight-100" />
-        <circle
-          cx="32" cy="32" r={r} fill="none" strokeWidth="7" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - pct)}
-          className={cn('transition-all duration-700', pct >= 1 ? 'stroke-emerald-400' : 'stroke-flash-400')}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-midnight-900 tabular-nums">
-        {met}/{total}
-      </span>
-    </div>
-  );
-}
-
 export default function RescueReadiness({ pet, photos, personality, shares, viewLinkUrl, isOwner }) {
   const [open, setOpen] = useState(false);
   const items = readinessItems({ pet, photos, personality, shares, viewLinkUrl });
@@ -61,77 +42,76 @@ export default function RescueReadiness({ pet, photos, personality, shares, view
 
   if (ready) {
     return (
-      <Card padding="lg" className="mb-3 border-emerald-200 bg-emerald-50/40">
+      <Sheet className="mb-4">
         <div className="flex items-center gap-4">
-          <Ring met={met} total={items.length} />
-          <div className="min-w-0">
-            <p className="font-bold text-midnight-900">Search-party ready</p>
-            <p className="text-sm text-midnight-500">
-              If {pet.name} ever slipped out, searchers would already know everything they need.
-            </p>
-          </div>
+          <StampText tone="green" rotate={-5}>Search-party ready</StampText>
+          <p className="font-diary italic text-[13px] text-pen-400 min-w-0">
+            if {pet.name} ever slipped out, searchers would already know everything they need.
+          </p>
         </div>
-      </Card>
+      </Sheet>
     );
   }
 
   return (
-    <Card padding="lg" className="mb-3">
-      <div className="flex items-center gap-4">
-        <Ring met={met} total={items.length} />
+    <Sheet className="mb-4">
+      <div className="flex items-center gap-4 flex-wrap">
+        <span className="font-diary italic text-[22px] leading-none text-pen-900 tabular-nums shrink-0" role="img" aria-label={`Rescue ready: ${met} of ${items.length}`}>
+          {met}<span className="text-[14px] text-pen-400">/{items.length}</span>
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-midnight-900">Rescue ready</p>
-          <p className="text-sm text-midnight-500 truncate">
-            What searchers would know if {pet.name} ever slipped out.
+          <p className="font-stamp text-[9px] uppercase tracking-[0.18em] text-pen-400">Rescue ready</p>
+          <p className="font-diary italic text-[13px] text-pen-600 truncate">
+            what searchers would know if {pet.name} ever slipped out.
           </p>
         </div>
         {isOwner && next && (
           <Link
             href={next.href}
-            className="hidden sm:inline-flex items-center gap-1 shrink-0 px-3.5 py-2 rounded-xl bg-flash-400 hover:bg-flash-300 text-midnight-900 text-sm font-bold transition-colors"
+            className="hidden sm:inline-flex items-center gap-1 shrink-0 font-stamp text-[10px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-3 py-2 hover:bg-stampred hover:text-paper-50 hover:border-solid transition-colors"
           >
             Add {next.label.toLowerCase()}
-            <ChevronRight size={15} />
+            <ChevronRight size={13} />
           </Link>
         )}
         <button
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="shrink-0 inline-flex items-center gap-1 text-sm font-bold text-midnight-400 hover:text-midnight-700 transition-colors"
+          className="shrink-0 inline-flex items-center gap-1 font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
         >
-          All {items.length}
-          <ChevronDown size={15} className={cn('transition-transform', open && 'rotate-180')} />
+          all {items.length}
+          <ChevronDown size={13} className={cn('transition-transform', open && 'rotate-180')} />
         </button>
       </div>
 
       {isOwner && next && (
         <Link
           href={next.href}
-          className="sm:hidden mt-3 inline-flex w-full items-center justify-center gap-1 px-3.5 py-2.5 rounded-xl bg-flash-400 text-midnight-900 text-sm font-bold"
+          className="sm:hidden mt-3 inline-flex w-full items-center justify-center gap-1 font-stamp text-[10px] uppercase tracking-[0.12em] text-stampred border-[1.5px] border-dashed border-stampred rounded-[4px] px-3 py-2.5"
         >
           Add {next.label.toLowerCase()}
-          <ChevronRight size={15} />
+          <ChevronRight size={13} />
         </Link>
       )}
 
       {open && (
-        <ul className="mt-4 pt-3 border-t border-midnight-100 space-y-1">
+        <ul className="mt-4 pt-3 border-t border-pen-900/[0.16] space-y-0.5">
           {items.map((item) => (
             <li key={item.id}>
               {item.met ? (
-                <span className="flex items-center gap-2.5 py-1 text-sm text-midnight-400">
-                  <Check size={15} strokeWidth={3} className="text-emerald-500 shrink-0" />
+                <span className="flex items-center gap-3 py-1.5 text-sm text-pen-400">
+                  <InkCheckbox done />
                   {item.label}
                 </span>
               ) : isOwner ? (
-                <Link href={item.href} className="group flex items-center gap-2.5 py-1 text-sm font-semibold text-midnight-800 hover:text-midnight-950">
-                  <span className="w-[15px] h-[15px] rounded-full border-2 border-midnight-200 group-hover:border-flash-400 shrink-0 transition-colors" />
+                <Link href={item.href} className="group flex items-center gap-3 py-1.5 text-sm font-semibold text-pen-900 hover:text-stampred">
+                  <InkCheckbox />
                   {item.label}
-                  <ChevronRight size={14} className="text-midnight-300 ml-auto" />
+                  <ChevronRight size={13} className="text-pen-300 ml-auto" />
                 </Link>
               ) : (
-                <span className="flex items-center gap-2.5 py-1 text-sm text-midnight-500">
-                  <span className="w-[15px] h-[15px] rounded-full border-2 border-midnight-200 shrink-0" />
+                <span className="flex items-center gap-3 py-1.5 text-sm text-pen-600">
+                  <InkCheckbox />
                   {item.label}
                 </span>
               )}
@@ -139,6 +119,6 @@ export default function RescueReadiness({ pet, photos, personality, shares, view
           ))}
         </ul>
       )}
-    </Card>
+    </Sheet>
   );
 }

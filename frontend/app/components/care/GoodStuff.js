@@ -1,25 +1,29 @@
 'use client';
 
 /**
- * The good stuff - daily care routines on the pet's profile
+ * The good stuff - daily care routines on the pet's Today page.
  *
  * Walks, brushing, treats, playtime. These are daily life, not
- * medicine, so they live on the pet's home page; the medication
- * tracker stays purely medical. Underneath they share the proven
- * dose engine (schedules, one-tap logs, history) as kind: 'CARE'
- * rows on PetMedication.
+ * medicine, so they get their own section of the diary page — one
+ * ruled line per habit, its times as little ink pills that fill in
+ * when done. Underneath they share the proven dose engine (schedules,
+ * one-tap logs, history) as kind: 'CARE' rows on PetMedication.
+ *
+ * `readOnly` renders the same lines as pure status (the public care
+ * view); no add/manage affordances, no tap-to-log hints.
  */
 
 import { useState } from 'react';
-import {
-  Plus, X, Check, Loader2, Pause, Play, Trash2, Settings2, Undo2,
-} from 'lucide-react';
-import { Card, Button, cn } from '@/components/ui';
+import { Plus, X, Loader2, Pause, Play, Trash2, Undo2 } from 'lucide-react';
+import { Modal, cn } from '@/components/ui';
 import {
   slotsWithStatus, sameDay, formatTime, formatSchedule,
   CARE_ACTIVITIES,
 } from '@/lib/medications';
-import { CareIconChip, BallIcon } from '@/app/components/icons/CareIcons';
+import { CareIconChip } from '@/app/components/icons/CareIcons';
+import {
+  Sheet, SectionInk, RuledList, RuledRow, MonoChip, StampText,
+} from '@/app/components/care/paper/Paper';
 
 const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -74,131 +78,124 @@ export function AddCareModal({ petId, onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <Card className="relative w-full max-w-md p-6 rounded-t-3xl sm:rounded-3xl max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} aria-label="Close" className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600">
-          <X size={20} />
-        </button>
-        <h3 className="text-xl font-bold text-midnight-900 mb-1">Add a care routine</h3>
-        <p className="text-sm text-midnight-500 mb-4">The happy stuff. No prescriptions required.</p>
-
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          {CARE_ACTIVITIES.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => pick(a)}
-              className={cn(
-                'flex flex-col items-center gap-1 rounded-2xl border-2 py-3 transition-all',
-                picked?.id === a.id ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-300'
-              )}
-            >
-              <CareIconChip name={a.label} color={a.color} size="sm" />
-              <span className="text-[11px] font-semibold text-midnight-700">{a.label}</span>
-            </button>
-          ))}
+    <Modal variant="paper" onClose={onClose} title="Add to the good stuff" subtitle="The happy pages. No prescriptions required.">
+      <div className="grid grid-cols-4 gap-2 mb-4">
+        {CARE_ACTIVITIES.map((a) => (
           <button
-            onClick={() => setPicked({ custom: true })}
+            key={a.id}
+            onClick={() => pick(a)}
             className={cn(
-              'flex flex-col items-center gap-1 rounded-2xl border-2 py-3 transition-all',
-              picked?.custom ? 'border-flash-400 bg-flash-50' : 'border-dashed border-midnight-300 hover:border-midnight-400'
+              'flex flex-col items-center gap-1 rounded-[5px] border py-3 transition-all',
+              picked?.id === a.id ? 'border-stampred bg-stampred-wash' : 'border-paper-400 hover:border-pen-300 bg-paper-50'
             )}
           >
-            <CareIconChip name="" color="slate" size="sm" />
-            <span className="text-[11px] font-semibold text-midnight-700">Custom</span>
+            <CareIconChip name={a.label} color={a.color} size="sm" />
+            <span className="text-[11px] font-semibold text-pen-600">{a.label}</span>
           </button>
-        </div>
+        ))}
+        <button
+          onClick={() => setPicked({ custom: true })}
+          className={cn(
+            'flex flex-col items-center gap-1 rounded-[5px] border py-3 transition-all',
+            picked?.custom ? 'border-stampred bg-stampred-wash' : 'border-dashed border-pen-300 hover:border-pen-400 bg-paper-50'
+          )}
+        >
+          <CareIconChip name="" color="slate" size="sm" />
+          <span className="text-[11px] font-semibold text-pen-600">Custom</span>
+        </button>
+      </div>
 
-        {picked?.custom && (
-          <input
-            value={customName}
-            onChange={(e) => setCustomName(e.target.value)}
-            placeholder="Name it (belly rubs, garden patrol...)"
-            className="w-full mb-4 rounded-xl border border-midnight-300 px-3.5 py-2.5 text-sm text-midnight-900 placeholder:text-midnight-400 focus:outline-none focus:ring-2 focus:ring-flash-400"
-          />
-        )}
+      {picked?.custom && (
+        <input
+          value={customName}
+          onChange={(e) => setCustomName(e.target.value)}
+          placeholder="Name it (belly rubs, garden patrol...)"
+          className="w-full mb-4 rounded-[5px] border border-pen-300 bg-paper-50 px-3.5 py-2.5 text-sm text-pen-900 placeholder:text-pen-300 focus:outline-none focus:border-stampred"
+        />
+      )}
 
-        {picked && (
-          <>
-            <div className="flex gap-1.5 mb-3">
-              {[
-                { id: 'DAILY', label: 'Every day' },
-                { id: 'SPECIFIC_DAYS', label: 'Some days' },
-                { id: 'AS_NEEDED', label: 'Whenever' },
-              ].map((f) => (
+      {picked && (
+        <>
+          <div className="flex gap-1.5 mb-3">
+            {[
+              { id: 'DAILY', label: 'Every day' },
+              { id: 'SPECIFIC_DAYS', label: 'Some days' },
+              { id: 'AS_NEEDED', label: 'Whenever' },
+            ].map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFreq(f.id)}
+                className={cn(
+                  'flex-1 py-2 rounded-[5px] border font-stamp text-[10px] uppercase tracking-[0.08em] transition',
+                  freq === f.id ? 'border-stampred bg-stampred text-paper-50' : 'border-paper-400 text-pen-600 hover:border-pen-300'
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {freq === 'SPECIFIC_DAYS' && (
+            <div className="flex gap-1.5 mb-3 justify-center">
+              {DAY_LETTERS.map((letter, i) => (
                 <button
-                  key={f.id}
-                  onClick={() => setFreq(f.id)}
+                  key={i}
+                  onClick={() => setDays((prev) => (prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i]))}
+                  aria-label={`Toggle day ${i}`}
                   className={cn(
-                    'flex-1 py-2 rounded-xl border-2 text-xs font-bold transition',
-                    freq === f.id ? 'border-flash-400 bg-flash-50 text-midnight-900' : 'border-midnight-200 text-midnight-500'
+                    'w-9 h-9 rounded-full border-[1.5px] font-stamp text-[11px] transition',
+                    days.includes(i) ? 'border-pen-900 bg-pen-900 text-paper-50' : 'border-paper-400 text-pen-400'
                   )}
                 >
-                  {f.label}
+                  {letter}
                 </button>
               ))}
             </div>
+          )}
 
-            {freq === 'SPECIFIC_DAYS' && (
-              <div className="flex gap-1.5 mb-3 justify-center">
-                {DAY_LETTERS.map((letter, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setDays((prev) => (prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i]))}
-                    aria-label={`Toggle day ${i}`}
-                    className={cn(
-                      'w-9 h-9 rounded-full border-2 text-xs font-bold transition',
-                      days.includes(i) ? 'border-flash-400 bg-flash-400 text-midnight-900' : 'border-midnight-200 text-midnight-400'
-                    )}
-                  >
-                    {letter}
-                  </button>
-                ))}
-              </div>
-            )}
+          {freq !== 'AS_NEEDED' && (
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {times.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTimes((prev) => prev.filter((x) => x !== t))}
+                  title="Remove"
+                  className="inline-flex items-center gap-1.5 font-stamp text-[10px] px-3 py-1.5 rounded-full border-[1.5px] border-pen-900 text-pen-900 hover:border-stampred hover:text-stampred transition"
+                >
+                  {formatTime(t)} <X size={11} />
+                </button>
+              ))}
+              <input
+                type="time"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v) setTimes((prev) => [...new Set([...prev, v])].sort());
+                }}
+                aria-label="Add a time"
+                className="rounded-[5px] border border-pen-300 bg-paper-50 px-2 py-1.5 text-sm text-pen-600"
+              />
+            </div>
+          )}
 
-            {freq !== 'AS_NEEDED' && (
-              <div className="flex flex-wrap items-center gap-2 mb-4">
-                {times.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTimes((prev) => prev.filter((x) => x !== t))}
-                    title="Remove"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-midnight-100 text-midnight-800 text-sm font-semibold hover:bg-red-50 hover:text-red-600 transition"
-                  >
-                    {formatTime(t)} <X size={12} />
-                  </button>
-                ))}
-                <input
-                  type="time"
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v) setTimes((prev) => [...new Set([...prev, v])].sort());
-                  }}
-                  aria-label="Add a time"
-                  className="rounded-xl border border-midnight-300 px-2 py-1.5 text-sm text-midnight-700"
-                />
-              </div>
-            )}
+          {error && <p className="text-sm text-stampred mb-3">{error}</p>}
 
-            {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-
-            <Button variant="primary" fullWidth loading={saving} disabled={!ready} onClick={save}>
-              Add {name || 'routine'}
-            </Button>
-          </>
-        )}
-      </Card>
-    </div>
+          <button
+            onClick={save}
+            disabled={!ready || saving}
+            className="w-full font-stamp text-[11px] uppercase tracking-[0.14em] bg-pen-900 text-paper-50 rounded-[5px] py-3 hover:bg-pen-600 transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Writing it in…' : `Add ${name || 'routine'}`}
+          </button>
+        </>
+      )}
+    </Modal>
   );
 }
 
 /**
- * The interactive section for the pet profile: today's chips, one tap
- * each, plus add and a small manage view (pause / delete).
+ * The section for Today: one ruled line per routine, its times as ink
+ * pills, plus add and a small manage view (pause / delete).
  */
-// `readOnly` renders the same chips as pure status (the public care
-// view); no add/manage affordances, no tap-to-log hints.
 export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = false }) {
   const interactive = canManage && !readOnly;
   const [busyKeys, setBusyKeys] = useState(new Set());
@@ -269,8 +266,8 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
       applyDose(care.id, data.dose, data.quantityRemaining);
     });
 
-  // Tapping a "whenever" chip logs another; an accidental tap has to be
-  // reversible, so the corner undo removes the most recent of today's.
+  // Tapping a "whenever" pill logs another; an accidental tap has to be
+  // reversible, so the undo removes the most recent of today's.
   const undoPrn = (care) =>
     withBusy(`prn-${care.id}`, async () => {
       const last = (care.doses || [])
@@ -287,7 +284,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
       applyDose(care.id, { scheduledFor: iso }, data.quantityRemaining, true);
     });
 
-  // One tap on an empty room starts a routine with its sensible defaults;
+  // One tap on an empty section starts a routine with its sensible defaults;
   // the modal stays available under "More..." for custom setups.
   const seedActivity = (a) =>
     withBusy(`seed-${a.id}`, async () => {
@@ -329,9 +326,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
       setMeds((prev) => prev.filter((m) => m.id !== care.id));
     });
 
-  // Build today's chips: ONE chip per routine, its times as pills inside.
-  // (A walk at 8, 6, and 11 is one habit with three moments, not three
-  // identical cards.)
+  // Build today's lines: ONE line per routine, its times as pills.
   const scheduled = [];
   for (const care of active.filter((c) => c.scheduleType !== 'AS_NEEDED')) {
     const slots = slotsWithStatus(care, care.doses, day);
@@ -352,77 +347,69 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
         />
       )}
 
-      <Card padding="lg" className={cn('mb-6', active.length === 0 && 'border-dashed')}>
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="flex items-center gap-2 font-bold text-midnight-900">
-            <BallIcon size={18} className="text-flash-500" /> The good stuff
-          </h2>
-          {interactive && (
-            <div className="flex items-center gap-1">
+      <Sheet className="mb-5">
+        <SectionInk
+          action={interactive && (
+            <span className="flex items-center gap-3">
               {careItems.length > 0 && (
                 <button
                   onClick={() => setManaging(!managing)}
                   className={cn(
-                    'inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors',
-                    managing ? 'bg-midnight-900 text-white' : 'text-midnight-500 hover:text-midnight-900 hover:bg-midnight-100'
+                    'font-stamp text-[9.5px] uppercase tracking-[0.12em] transition-colors',
+                    managing ? 'text-stampred' : 'text-pen-400 hover:text-pen-900'
                   )}
                 >
-                  <Settings2 size={13} /> Manage
+                  {managing ? 'done' : 'manage'}
                 </button>
               )}
               <button
                 onClick={() => setShowAdd(true)}
-                className="inline-flex items-center gap-1 text-xs font-bold text-midnight-500 hover:text-midnight-900 px-2.5 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
+                className="inline-flex items-center gap-1 font-stamp text-[9.5px] uppercase tracking-[0.12em] text-pen-400 hover:text-pen-900 transition-colors"
               >
-                <Plus size={14} /> Add
+                <Plus size={11} /> add
               </button>
-            </div>
+            </span>
           )}
-        </div>
-        <p className="text-sm text-midnight-500 mb-4">
-          {readOnly
-            ? 'Walks, brushing, treats: daily life, not medicine.'
-            : active.length === 0
-              ? 'Walks, brushing, treats, playtime. One tap each, right here.'
-              : 'Daily life, one tap each.'}
-        </p>
+        >
+          the good stuff
+        </SectionInk>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 mb-3">{error}</p>
+          <p className="text-sm text-stampred border-l-[3px] border-stampred pl-3 py-1 mb-3">{error}</p>
         )}
 
         {managing ? (
-          <ul className="space-y-2">
+          <RuledList>
             {careItems.map((care) => (
-              <li key={care.id} className={cn('flex items-center gap-3 rounded-2xl border-2 border-midnight-200 px-3.5 py-2.5', !care.isActive && 'opacity-60')}>
+              <RuledRow key={care.id} faded={!care.isActive}>
                 <CareIconChip name={care.name} color={care.color} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-midnight-900 truncate">{care.name}</p>
-                  <p className="text-[11px] text-midnight-500 truncate">{formatSchedule(care)}{!care.isActive && ' · paused'}</p>
+                  <p className="text-sm font-bold text-pen-900 truncate">{care.name}</p>
+                  <p className="font-diary italic text-[11.5px] text-pen-400 truncate">{formatSchedule(care)}{!care.isActive && ' · paused'}</p>
                 </div>
                 <button
                   onClick={() => togglePause(care)}
                   disabled={busyKeys.has(`pause-${care.id}`)}
-                  className="p-2 rounded-lg text-midnight-500 hover:text-midnight-900 hover:bg-midnight-100 transition-colors"
+                  className="p-2 text-pen-400 hover:text-pen-900 transition-colors"
                   title={care.isActive ? 'Pause' : 'Resume'}
                 >
-                  {care.isActive ? <Pause size={15} /> : <Play size={15} />}
+                  {care.isActive ? <Pause size={14} /> : <Play size={14} />}
                 </button>
                 <button
                   onClick={() => remove(care)}
                   disabled={busyKeys.has(`delete-${care.id}`)}
-                  className="p-2 rounded-lg text-midnight-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  className="p-2 text-pen-400 hover:text-stampred transition-colors"
                   title="Remove"
                 >
-                  {busyKeys.has(`delete-${care.id}`) ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  {busyKeys.has(`delete-${care.id}`) ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
-              </li>
+              </RuledRow>
             ))}
-          </ul>
+          </RuledList>
         ) : active.length === 0 ? (
           interactive && (
             <>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-2">
                 {CARE_ACTIVITIES.slice(0, 6).map((a) => {
                   const busy = busyKeys.has(`seed-${a.id}`);
                   return (
@@ -430,85 +417,65 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
                       key={a.id}
                       onClick={() => seedActivity(a)}
                       disabled={busy}
-                      className="flex items-center gap-2.5 rounded-2xl border-2 border-dashed border-midnight-200 bg-white px-3.5 py-2.5 transition-all hover:border-flash-400 hover:bg-flash-50 active:scale-95"
+                      className="flex items-center gap-2 rounded-[5px] border border-dashed border-pen-300 bg-paper-50 px-3 py-2 transition-all hover:border-stampred active:scale-95"
                     >
                       <CareIconChip name={a.label} color={a.color} size="sm" />
                       <span className="text-left">
-                        <span className="block text-sm font-bold text-midnight-900">{a.label}</span>
-                        <span className="block text-[11px] text-midnight-500">
-                          {busy ? 'Adding...' : a.defaultTimes?.length ? a.defaultTimes.map(formatTime).join(' & ') : 'whenever it happens'}
+                        <span className="block text-sm font-bold text-pen-900">{a.label}</span>
+                        <span className="block font-diary italic text-[10.5px] text-pen-400">
+                          {busy ? 'writing it in…' : a.defaultTimes?.length ? a.defaultTimes.map(formatTime).join(' & ') : 'whenever it happens'}
                         </span>
                       </span>
-                      {busy ? <Loader2 size={15} className="animate-spin text-midnight-400" /> : <Plus size={15} className="text-midnight-300" />}
+                      {busy ? <Loader2 size={13} className="animate-spin text-pen-400" /> : <Plus size={13} className="text-pen-300" />}
                     </button>
                   );
                 })}
                 <button
                   onClick={() => setShowAdd(true)}
-                  className="flex items-center gap-2 rounded-2xl border-2 border-dashed border-midnight-200 px-3.5 py-2.5 text-sm font-bold text-midnight-500 hover:border-midnight-300 hover:text-midnight-800 transition-all"
+                  className="flex items-center gap-2 rounded-[5px] border border-dashed border-pen-300 px-3 py-2 font-stamp text-[10px] uppercase tracking-[0.1em] text-pen-400 hover:border-pen-400 hover:text-pen-600 transition-all"
                 >
-                  More...
+                  more…
                 </button>
               </div>
-              <p className="text-[11px] text-midnight-400 mt-3">
-                Tap one to start it with sensible times. Adjust anytime under Manage.
+              <p className="font-diary italic text-[11.5px] text-pen-400 mt-3">
+                tap one to start it with sensible times; adjust anytime under manage.
               </p>
             </>
           )
         ) : (
-          <div className="flex flex-wrap gap-2.5">
+          <RuledList>
             {scheduled.map(({ care, slots }) => {
               const doneCount = slots.filter((s) => s.status === 'GIVEN').length;
               const allDone = doneCount === slots.length;
               return (
-                <div
-                  key={care.id}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-2xl border-2 px-3 py-2 transition-colors',
-                    allDone ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-midnight-200'
-                  )}
-                >
+                <RuledRow key={care.id}>
                   <CareIconChip name={care.name} color={care.color} size="sm" />
-                  <span className="text-left mr-0.5">
-                    <span className={cn('block text-sm font-bold leading-tight', allDone ? 'text-emerald-700' : 'text-midnight-900')}>
-                      {care.name}
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn('text-sm font-bold truncate', allDone ? 'text-stampgreen' : 'text-pen-900')}>{care.name}</p>
                     {slots.length > 1 && (
-                      <span className={cn('block text-[11px]', allDone ? 'text-emerald-600' : 'text-midnight-400')}>
-                        {doneCount}/{slots.length} today
-                      </span>
+                      <p className="font-diary italic text-[11px] text-pen-400">{doneCount}/{slots.length} today</p>
                     )}
-                  </span>
-                  <span className="flex items-center gap-1">
+                  </div>
+                  <span className="flex items-center gap-1.5 flex-wrap justify-end">
                     {slots.map((slot) => {
                       const done = slot.status === 'GIVEN';
                       const busy = busyKeys.has(`${care.id}-${slot.scheduledFor.getTime()}`);
                       return (
-                        <button
+                        <MonoChip
                           key={slot.time}
-                          onClick={() => {
-                            if (!interactive || busy) return;
-                            if (done) undo(care, slot);
-                            else mark(care, slot);
-                          }}
+                          tone="green"
+                          filled={done}
                           disabled={!interactive || busy}
+                          onClick={interactive ? () => (done ? undo(care, slot) : mark(care, slot)) : undefined}
                           title={!interactive ? undefined : done ? `Undo ${formatTime(slot.time)}` : `Mark ${formatTime(slot.time)} done`}
-                          aria-label={`${care.name} ${formatTime(slot.time)}${done ? ', done, tap to undo' : ''}`}
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-1.5 text-[11px] font-bold transition-all',
-                            interactive && 'active:scale-95',
-                            done
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
-                              : cn('bg-white border-midnight-200 text-midnight-600', interactive && 'hover:border-flash-400 hover:bg-flash-50')
-                          )}
+                          ariaLabel={`${care.name} ${formatTime(slot.time)}${done ? ', done, tap to undo' : ''}`}
                         >
-                          {busy ? <Loader2 size={12} className="animate-spin" /> : done ? <Check size={12} strokeWidth={3.5} /> : null}
-                          {formatTime(slot.time)}
-                        </button>
+                          {busy ? '…' : done ? `✓ ${formatTime(slot.time)}` : formatTime(slot.time)}
+                        </MonoChip>
                       );
                     })}
                   </span>
-                </div>
+                </RuledRow>
               );
             })}
 
@@ -518,44 +485,43 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
               ).length;
               const busy = busyKeys.has(`prn-${care.id}`);
               return (
-                <div
-                  key={care.id}
-                  className={cn(
-                    'flex items-stretch rounded-2xl border-2 overflow-hidden transition-colors',
-                    count > 0 ? 'bg-flash-50 border-flash-300' : 'bg-white border-midnight-200 hover:border-flash-400'
-                  )}
-                >
-                  <button
-                    onClick={() => interactive && !busy && logPrn(care)}
-                    disabled={!interactive || busy}
-                    title={!interactive ? undefined : count > 0 ? `Log another ${care.name}` : `Log ${care.name}`}
-                    className="flex items-center gap-2.5 px-3.5 py-2.5 text-left active:scale-95 transition-transform"
-                  >
-                    <CareIconChip name={care.name} color={care.color} size="sm" />
-                    <span>
-                      <span className="block text-sm font-bold text-midnight-900">{care.name}</span>
-                      <span className="block text-[11px] text-midnight-500">
-                        {busy ? '...' : count > 0 ? `x${count} today` : readOnly ? 'Whenever' : 'Tap when it happens'}
-                      </span>
+                <RuledRow key={care.id}>
+                  <CareIconChip name={care.name} color={care.color} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-pen-900 truncate">{care.name}</p>
+                    <p className="font-diary italic text-[11px] text-pen-400">
+                      {count > 0 ? `×${count} today` : readOnly ? 'whenever' : 'tap when it happens'}
+                    </p>
+                  </div>
+                  {readOnly ? (
+                    count > 0 && <StampText tone="green" rotate={-5}>×{count}</StampText>
+                  ) : busy ? (
+                    <Loader2 size={14} className="animate-spin text-pen-400" />
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      {interactive && count > 0 && (
+                        <button
+                          onClick={() => undoPrn(care)}
+                          aria-label={`Undo last ${care.name}`}
+                          title="Undo last"
+                          className="inline-flex items-center gap-1 font-stamp text-[9px] uppercase tracking-[0.1em] text-pen-400 hover:text-pen-900 transition-colors"
+                        >
+                          <Undo2 size={12} /> undo
+                        </button>
+                      )}
+                      {interactive && (
+                        <MonoChip tone="green" onClick={() => logPrn(care)} ariaLabel={count > 0 ? `Log another ${care.name}` : `Log ${care.name}`}>
+                          {count > 0 ? '+ again' : '+ done'}
+                        </MonoChip>
+                      )}
                     </span>
-                  </button>
-                  {interactive && count > 0 && (
-                    <button
-                      onClick={() => !busy && undoPrn(care)}
-                      disabled={busy}
-                      aria-label={`Undo last ${care.name}`}
-                      title="Undo last"
-                      className="shrink-0 px-3 border-l border-flash-300/70 text-midnight-400 hover:text-midnight-900 hover:bg-flash-100/60 transition-colors flex items-center"
-                    >
-                      <Undo2 size={15} />
-                    </button>
                   )}
-                </div>
+                </RuledRow>
               );
             })}
-          </div>
+          </RuledList>
         )}
-      </Card>
+      </Sheet>
     </>
   );
 }

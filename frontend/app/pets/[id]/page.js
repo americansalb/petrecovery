@@ -14,14 +14,15 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { PawPrint, Pill, AlertTriangle, Radar, Users, ChevronRight } from 'lucide-react';
+import { PawPrint, AlertTriangle, Radar, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, cn } from '@/components/ui';
 import { slotsWithStatus, sameDay, formatTime } from '@/lib/medications';
 import RescueReadiness from '@/app/components/pets/RescueReadiness';
-import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import { healthBookStatus } from '@/lib/healthBook';
 import { usePet } from '@/app/components/care/PetProvider';
+import {
+  Sheet, SectionInk, RuledList, RuledRow, Polaroid, StampText,
+} from '@/app/components/care/paper/Paper';
 
 function parseJsonArray(value) {
   if (Array.isArray(value)) return value;
@@ -42,18 +43,18 @@ function activeCaseOf(pet) {
 
 /* A profile fact row: shows the value when known, a one-tap "Add" when not -
    an empty record should read as an invitation, never as dead text. */
-function IdRow({ label, isOwner, addHref, addLabel = 'Add', children }) {
+function IdRow({ label, isOwner, addHref, addLabel = 'add', children }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-midnight-500">{label}</dt>
-      <dd className="font-semibold text-midnight-900 text-right min-w-0">
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-pen-900/[0.14] last:border-b-0 text-sm">
+      <dt className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400">{label}</dt>
+      <dd className="font-semibold text-pen-900 text-right min-w-0">
         {children || (
           isOwner ? (
-            <Link href={addHref} className="inline-flex items-center gap-0.5 text-flash-600 hover:text-flash-700 font-bold text-xs">
-              {addLabel} <ChevronRight size={12} />
+            <Link href={addHref} className="inline-flex items-center gap-0.5 font-stamp text-[9.5px] uppercase tracking-[0.1em] text-stampred hover:text-stampred-dark">
+              {addLabel} <ChevronRight size={11} />
             </Link>
           ) : (
-            <span className="text-midnight-400 font-normal">Not noted</span>
+            <span className="font-diary italic text-pen-300 font-normal">not noted</span>
           )
         )}
       </dd>
@@ -161,11 +162,13 @@ export default function PetProfilePage() {
   if (petError || !pet) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center px-4">
-        <Card className="max-w-md w-full p-8 text-center">
-          <PawPrint className="w-12 h-12 text-midnight-300 mx-auto mb-4" />
-          <h1 className="text-xl font-bold text-midnight-900 mb-2">{petError || 'Pet not found'}</h1>
-          <Button href="/pets" variant="primary">Back to My Pets</Button>
-        </Card>
+        <Sheet className="max-w-md w-full p-8 text-center">
+          <PawPrint className="w-10 h-10 text-pen-300 mx-auto mb-4" />
+          <h1 className="font-diary italic text-[19px] text-pen-900 mb-3">{petError || 'Pet not found'}</h1>
+          <Link href="/pets" className="inline-block font-stamp text-[10px] uppercase tracking-[0.12em] border-[1.5px] border-pen-900 text-pen-900 rounded-[4px] px-3.5 py-2 hover:bg-pen-900 hover:text-paper-50 transition-colors">
+            Back to My Pets
+          </Link>
+        </Sheet>
       </div>
     );
   }
@@ -182,13 +185,15 @@ export default function PetProfilePage() {
   ].filter(Boolean).join(' · ');
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8">
+    <div className="px-4 py-5 md:px-8 md:py-6">
       <div className="max-w-4xl mx-auto">
-        {/* Missing? Nothing else matters until they're home. */}
+        {/* Missing? Nothing else matters until they're home. The rescue
+            world's dark telegram lands ON the paper — the one place the
+            midnight register is allowed into the book. */}
         {activeCase && (
-          <div className="rounded-3xl bg-midnight-950 border-2 border-red-500/60 p-5 mb-6">
+          <div className="rounded-[6px] bg-midnight-950 border-2 border-red-500/60 p-5 mb-5 shadow-[0_10px_24px_-12px_rgba(35,42,61,0.5)]">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/40 flex items-center justify-center shrink-0">
+              <span className="w-11 h-11 rounded-[6px] bg-red-500/15 border border-red-500/40 flex items-center justify-center shrink-0">
                 <AlertTriangle size={22} className="text-red-400" />
               </span>
               <div className="flex-1 min-w-[180px]">
@@ -199,7 +204,7 @@ export default function PetProfilePage() {
               </div>
               <Link
                 href={`/mission-control?mission=${activeCase.caseNumber}`}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-2xl transition text-sm"
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold rounded-[6px] transition text-sm"
               >
                 <Radar size={16} />
                 Mission Control
@@ -220,132 +225,115 @@ export default function PetProfilePage() {
           />
         )}
 
-        {/* Today's care, one line */}
-        <Link href={`/pets/${petId}/today`} className="block group mb-3">
-          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
-            <div className="flex items-center gap-4">
-              <Pill size={20} className="text-midnight-300 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-midnight-900">Today</p>
-                <p className="text-sm text-midnight-500 truncate">
+        {/* The table of contents: one written line per room */}
+        <Sheet perforated className="mb-5">
+          <SectionInk>in this book</SectionInk>
+          <RuledList>
+            <Link href={`/pets/${petId}/today`} className="block group">
+              <RuledRow>
+                <span className="font-diary italic text-[16px] text-pen-900 w-28 shrink-0">Today</span>
+                <span className="flex-1 min-w-0 font-diary italic text-[12.5px] text-pen-400 truncate">
                   {today.medCount === 0 && today.careCount === 0
-                    ? 'Nothing set up yet. Add meds or routines once, one tap forever.'
+                    ? 'nothing set up yet — add meds or routines once, one tap forever'
                     : [
                         today.due > 0 && `${today.given}/${today.due} doses given`,
                         today.careDue > 0 && `${today.careDone}/${today.careDue} routines done`,
                         today.careDue === 0 && today.careDone > 0 && `${today.careDone} happy ${today.careDone === 1 ? 'moment' : 'moments'} logged`,
                         today.nextSlot && `next: ${today.nextSlot.med.name} at ${formatTime(today.nextSlot.slot.time)}`,
-                      ].filter(Boolean).join(' · ') || 'All clear today'}
-                </p>
-              </div>
-              {today.due > 0 && (
-                <span className={cn(
-                  'px-2.5 py-1 rounded-full text-xs font-bold shrink-0',
-                  today.given >= today.due ? 'bg-emerald-100 text-emerald-700' : 'bg-flash-100 text-flash-800'
-                )}>
-                  {today.given >= today.due ? 'Done' : `${today.due - today.given} to go`}
+                      ].filter(Boolean).join(' · ') || 'all clear today'}
                 </span>
-              )}
-              <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </div>
-          </Card>
-        </Link>
+                {today.due > 0 && (
+                  <StampText tone={today.given >= today.due ? 'green' : 'red'} rotate={-4} size="sm">
+                    {today.given >= today.due ? 'Done' : `${today.due - today.given} to go`}
+                  </StampText>
+                )}
+                <ChevronRight size={15} className="text-pen-300 group-hover:translate-x-0.5 group-hover:text-pen-600 transition-all shrink-0" />
+              </RuledRow>
+            </Link>
 
-        {/* The Health Book, one line */}
-        <Link href={`/pets/${petId}/health`} className="block group mb-3">
-          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
-            <div className="flex items-center gap-4">
-              <ShieldIcon size={20} className="text-midnight-300 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-midnight-900">Health Book</p>
-                <p className="text-sm text-midnight-500 truncate">
+            <Link href={`/pets/${petId}/health`} className="block group">
+              <RuledRow>
+                <span className="font-diary italic text-[16px] text-pen-900 w-28 shrink-0">Health Book</span>
+                <span className="flex-1 min-w-0 font-diary italic text-[12.5px] text-pen-400 truncate">
                   {vaccinations === null
-                    ? '...'
-                    : healthBookStatus(vaccinations, pet.name).sentence}
-                </p>
-              </div>
-              <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </div>
-          </Card>
-        </Link>
+                    ? '…'
+                    : healthBookStatus(vaccinations, pet.name).sentence.toLowerCase()}
+                </span>
+                <ChevronRight size={15} className="text-pen-300 group-hover:translate-x-0.5 group-hover:text-pen-600 transition-all shrink-0" />
+              </RuledRow>
+            </Link>
 
-        {/* The people, one line */}
-        <Link href={`/pets/${petId}/share`} className="block group mb-6">
-          <Card padding="lg" className="group-hover:border-flash-400 border-2 border-transparent transition-colors">
-            <div className="flex items-center gap-4">
-              <Users size={20} className="text-midnight-300 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-midnight-900">Care team</p>
-                <p className="text-sm text-midnight-500 truncate">
+            <Link href={`/pets/${petId}/share`} className="block group">
+              <RuledRow>
+                <span className="font-diary italic text-[16px] text-pen-900 w-28 shrink-0">Care team</span>
+                <span className="flex-1 min-w-0 font-diary italic text-[12.5px] text-pen-400 truncate">
                   {shares === null
-                    ? (isOwner ? '...' : `You help care for ${pet.name}.`)
+                    ? (isOwner ? '…' : `you help care for ${pet.name}.`)
                     : shares.length === 0
-                      ? `Just you so far. Invite family or share a view link.`
+                      ? 'just you so far — invite family or share a view link'
                       : shares.slice(0, 4).map((sh) => [sh.user?.firstName, sh.user?.lastName?.[0]].filter(Boolean).join(' ') || sh.email).join(', ')}
-                </p>
-              </div>
-              <ChevronRight size={18} className="text-midnight-300 group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </div>
-          </Card>
-        </Link>
+                </span>
+                <ChevronRight size={15} className="text-pen-300 group-hover:translate-x-0.5 group-hover:text-pen-600 transition-all shrink-0" />
+              </RuledRow>
+            </Link>
+          </RuledList>
+        </Sheet>
 
         {/* About: the facts a finder or searcher would need */}
-        <Card padding="lg" className="mb-6">
-          <h2 className="font-bold text-midnight-900 mb-4">About {pet.name}</h2>
-          <dl className="space-y-3 text-sm">
+        <Sheet className="mb-5">
+          <SectionInk>about {pet.name}</SectionInk>
+          <dl>
             {traitLine && (
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-midnight-500">Looks</dt>
-                <dd className="font-semibold text-midnight-900 text-right">{traitLine}</dd>
+              <div className="flex items-center justify-between gap-3 py-2 border-b border-pen-900/[0.14] text-sm">
+                <dt className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400">Looks</dt>
+                <dd className="font-semibold text-pen-900 text-right">{traitLine}</dd>
               </div>
             )}
             <IdRow label="Microchip" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
-              {pet.microchipId && <span className="font-mono text-xs">{pet.microchipId}</span>}
+              {pet.microchipId && <span className="font-stamp text-[11px]">{pet.microchipId}</span>}
             </IdRow>
             <IdRow label="Collar" isOwner={isOwner} addHref={`/pets/${petId}/edit`}>
               {pet.collarInfo}
             </IdRow>
             {/* Weight is a log, not a form field: it's read here, written in
                 the Health Book's weight card (the one write path). */}
-            <IdRow label="Weight" isOwner={access !== 'VIEWER'} addHref={`/pets/${petId}/health`} addLabel="Log">
+            <IdRow label="Weight" isOwner={access !== 'VIEWER'} addHref={`/pets/${petId}/health`} addLabel="log">
               {pet.weight ? `${pet.weight} lbs` : null}
             </IdRow>
             {pet.distinctiveMarks && (
-              <div className="flex items-start justify-between gap-3">
-                <dt className="text-midnight-500 shrink-0">Marks</dt>
-                <dd className="text-midnight-800 text-right">{pet.distinctiveMarks}</dd>
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-pen-900/[0.14] text-sm">
+                <dt className="font-stamp text-[9px] uppercase tracking-[0.16em] text-pen-400 shrink-0 pt-0.5">Marks</dt>
+                <dd className="text-pen-600 text-right">{pet.distinctiveMarks}</dd>
               </div>
             )}
             {pet.medicalConditions && (
-              <div className="flex items-start justify-between gap-3">
-                <dt className="text-midnight-500 shrink-0">Medical</dt>
-                <dd className="text-midnight-800 text-right">{pet.medicalConditions}</dd>
+              <div className="flex items-start justify-between gap-3 py-2 border-b border-pen-900/[0.14] text-sm">
+                <dt className="font-stamp text-[9px] uppercase tracking-[0.16em] text-stampred shrink-0 pt-0.5">Medical</dt>
+                <dd className="text-pen-600 text-right">{pet.medicalConditions}</dd>
               </div>
             )}
             {personality.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              <div className="flex flex-wrap gap-1.5 pt-3">
                 {personality.slice(0, 6).map((trait) => (
-                  <span key={trait} className="px-2.5 py-1 rounded-full bg-flash-50 border border-flash-200 text-flash-800 text-xs font-semibold">
+                  <span key={trait} className="font-stamp text-[9px] uppercase tracking-[0.08em] px-2.5 py-1 rounded-full border-[1.5px] border-pen-300 text-pen-600">
                     {trait}
                   </span>
                 ))}
               </div>
             )}
           </dl>
-        </Card>
+        </Sheet>
 
-        {/* Photos - only once there's more than the avatar already shows */}
+        {/* Photos - taped in, only once there's more than the cover shows */}
         {uniquePhotos.length >= 2 && (
-          <Card padding="lg" className="mb-6">
-            <h2 className="font-bold text-midnight-900 mb-4">Photos</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {uniquePhotos.slice(0, 10).map((url) => (
-                <div key={url} className="aspect-square rounded-xl overflow-hidden bg-midnight-100">
-                  <img src={url} alt={pet.name} className="w-full h-full object-cover" loading="lazy" />
-                </div>
+          <Sheet className="mb-5">
+            <SectionInk>photos</SectionInk>
+            <div className="flex flex-wrap gap-5 pt-2 pl-1">
+              {uniquePhotos.slice(0, 10).map((url, i) => (
+                <Polaroid key={url} src={url} alt={pet.name} size="lg" rotate={i % 3 === 0 ? -3 : i % 3 === 1 ? 2 : -1} />
               ))}
             </div>
-          </Card>
+          </Sheet>
         )}
       </div>
     </div>
