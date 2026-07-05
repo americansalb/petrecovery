@@ -53,7 +53,7 @@ function PetShell({ children }) {
   const activeCase = activeCaseOf(pet);
 
   return (
-    <div className="min-h-screen bg-white pb-20 lg:pb-10">
+    <div className="min-h-screen bg-care-bg pb-20 lg:pb-10">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6">
         {focused ? (
           <Link
@@ -85,7 +85,7 @@ function PetShell({ children }) {
               )}
             </div>
 
-            <nav className="flex gap-6 mt-4 border-b border-neutral-200" aria-label="Pet sections">
+            <nav className="flex gap-6 mt-4 border-b border-care-line" aria-label="Pet sections">
               {TABS.map(({ id, label }) => {
                 const active = segment === id;
                 return (

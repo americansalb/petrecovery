@@ -66,6 +66,17 @@ module.exports = {
           DEFAULT: '#e0a92c',
           wash: '#f8ecd0',
         },
+        /* === Care product: the Apple Health register ===
+           A warm grouped background behind white rounded tiles, so tiles
+           read as tiles from contrast, not heavy borders. Rescue surfaces
+           stay midnight/flash; these belong to /pets and /care only. */
+        care: {
+          bg: '#f4f3f1',       // warm grouped background (the page)
+          surface: '#ffffff',  // tile
+          line: '#e7e5e1',     // hairline border / divider
+          ink: '#1c1c1e',      // primary text
+          sub: '#8a8a8e',      // secondary text / labels
+        },
       },
       /* === Font Family === */
       fontFamily: {
@@ -82,6 +93,7 @@ module.exports = {
       },
       /* === Box Shadows === */
       boxShadow: {
+        'tile': '0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03)',
         'soft': '0 2px 8px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06)',
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'card-hover': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
