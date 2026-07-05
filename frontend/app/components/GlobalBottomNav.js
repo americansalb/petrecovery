@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Home, Search, Shield, PawPrint, Plus } from 'lucide-react';
+import { hidesBottomNav } from '@/app/lib/navChrome';
 
 const leftItems = [
   { href: '/dashboard', icon: Home, label: 'Home', exact: true },
@@ -17,16 +18,10 @@ const rightItems = [
 export default function GlobalBottomNav() {
   const pathname = usePathname();
 
-  // Hide where a focused flow owns the screen: mission control, auth pages,
-  // the report/join wizards, and the pet edit / medication wizards (whose
-  // fixed save bars would collide with this bar).
-  if (pathname.startsWith('/mission-control')) return null;
-  if (pathname.startsWith('/report/') || pathname.startsWith('/join/')) return null;
-  if (/^\/pets\/[^/]+\/(edit|medications\/new)/.test(pathname)) return null;
-
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') ||
-    pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password');
-  if (isAuthPage) return null;
+  // Shared chrome policy (app/lib/navChrome.js): hidden only inside
+  // immersive takeovers and focused flows whose own fixed bars would
+  // collide with this one. Everywhere else this bar is always present.
+  if (hidesBottomNav(pathname)) return null;
 
   const renderItem = (item) => {
     const isActive = item.exact
@@ -38,6 +33,7 @@ export default function GlobalBottomNav() {
       <Link
         key={item.href}
         href={item.href}
+        aria-current={isActive ? 'page' : undefined}
         className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
           isActive ? 'text-midnight-900' : 'text-slate-500 hover:text-slate-700'
         }`}

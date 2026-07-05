@@ -149,9 +149,14 @@ body {
   background: #f8fafc;
 }
 
-/* Prevent horizontal scroll */
+/* Prevent horizontal scroll.
+   Must be `clip`, not `hidden`: overflow-x:hidden forces overflow-y to
+   compute to `auto`, turning body into a scroll container — which silently
+   breaks EVERY position:sticky descendant (the universal navbar scrolled
+   away with the page instead of pinning). `clip` clips without creating a
+   scroll container, so sticky keeps working. */
 html, body {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Better touch targets for mobile */

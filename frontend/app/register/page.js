@@ -177,7 +177,7 @@ export default function RegisterPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-midnight-100 to-midnight-200 flex items-center justify-center p-4 py-8">
+    <div className="min-h-[calc(100dvh-8rem)] lg:min-h-[calc(100dvh-4rem)] bg-gradient-to-b from-midnight-100 to-midnight-200 flex items-center justify-center p-4 py-8">
       <main role="main" aria-labelledby="register-heading" className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-6">
