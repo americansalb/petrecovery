@@ -12,7 +12,9 @@
  * fills the viewport with h-full.
  */
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft, X, Check, Search } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
 
@@ -23,12 +25,23 @@ export default function WizardShell({
   summary = [], // [{ icon: Icon, text }] — collected info, shown on desktop
   onBack, // undefined/null hides the back button
   closeHref = '/',
+  dirty = false, // unsaved report data — closing asks for confirmation
   children,
 }) {
   const theme = WIZARD_THEMES[variant];
+  const router = useRouter();
+  const [confirmLeave, setConfirmLeave] = useState(false);
   const activeIndex = Math.max(0, steps.findIndex((s) => s.id === activeStepId));
   const active = steps[activeIndex] || {};
   const SidebarIcon = active.sidebarIcon;
+
+  const requestClose = (e) => {
+    if (dirty) {
+      e.preventDefault();
+      setConfirmLeave(true);
+    }
+    // not dirty: let the Link navigate normally
+  };
 
   return (
     <div className="h-full w-full flex bg-white">
@@ -45,6 +58,7 @@ export default function WizardShell({
           </Link>
           <Link
             href={closeHref}
+            onClick={requestClose}
             aria-label="Close and leave the report"
             className="text-white/40 hover:text-white/80 transition-colors"
           >
@@ -148,6 +162,7 @@ export default function WizardShell({
             ) : (
               <Link
                 href={closeHref}
+                onClick={requestClose}
                 aria-label="Close and leave the report"
                 className="lg:hidden text-midnight-400 hover:text-midnight-700"
               >
@@ -188,6 +203,7 @@ export default function WizardShell({
             {onBack && (
               <Link
                 href={closeHref}
+                onClick={requestClose}
                 aria-label="Close and leave the report"
                 className="lg:hidden text-midnight-300 hover:text-midnight-600"
               >
@@ -199,6 +215,44 @@ export default function WizardShell({
 
         <main className="flex-1 flex flex-col min-h-0">{children}</main>
       </div>
+
+      {/* Leave confirmation */}
+      {confirmLeave && (
+        <div
+          className="absolute inset-0 z-[600] flex items-center justify-center p-6 bg-midnight-950/50 backdrop-blur-sm animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leave-confirm-title"
+        >
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-card-hover p-6 text-center">
+            <h2 id="leave-confirm-title" className="text-xl font-extrabold tracking-tight text-midnight-900">
+              Leave without posting?
+            </h2>
+            <p className="text-sm text-midnight-500 mt-2 leading-relaxed">
+              Your report isn&apos;t posted yet. We&apos;ll keep what you&apos;ve entered in case you
+              come back.
+            </p>
+            <div className="mt-6 space-y-2.5">
+              <button
+                type="button"
+                onClick={() => setConfirmLeave(false)}
+                autoFocus
+                style={{ outline: 'none' }} /* beats the global :focus-visible rule */
+                className="w-full py-3 rounded-2xl font-bold bg-midnight-900 text-white hover:bg-midnight-800 transition-all focus-visible:ring-2 focus-visible:ring-flash-400 focus-visible:ring-offset-2"
+              >
+                Keep going
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(closeHref)}
+                className="w-full py-3 rounded-2xl font-semibold text-midnight-500 hover:text-midnight-700 hover:bg-midnight-100 transition-colors"
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

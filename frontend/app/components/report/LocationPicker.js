@@ -114,6 +114,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locateError, setLocateError] = useState(null);
+  const [savedOffer, setSavedOffer] = useState(null); // last confirmed spot, applied only on tap
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -135,7 +136,9 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
     }
   }, []);
 
-  // Restore last confirmed location (legacy `reportLocation` shape)
+  // Surface the last confirmed location as an OFFER (legacy `reportLocation`
+  // shape) — never auto-apply it. A stale pin from a previous report that a
+  // stressed user confirms without noticing is worse than one extra tap.
   useEffect(() => {
     if (!storageKey || value) return;
     try {
@@ -144,11 +147,11 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
         const parsed = JSON.parse(saved);
         const [lat, lng] = parsed?.center || [];
         if (Number.isFinite(lat) && Number.isFinite(lng)) {
-          onChangeRef.current({ lat, lng, address: parsed.address || '', city: parsed.city || '' });
+          setSavedOffer({ lat, lng, address: parsed.address || '', city: parsed.city || '' });
         }
       }
     } catch (err) {
-      console.error('Failed to restore saved location:', err);
+      console.error('Failed to read saved location:', err);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
@@ -411,6 +414,18 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
                 {isLocating ? <Loader2 size={17} className="animate-spin" /> : <Navigation size={17} />}
                 {isLocating ? 'Finding you…' : 'Use my location'}
               </button>
+              {savedOffer && (
+                <button
+                  type="button"
+                  onClick={() => onChangeRef.current(savedOffer)}
+                  className="mt-3 inline-flex items-center gap-2 max-w-full px-4 py-2.5 rounded-full bg-white border border-midnight-200 text-sm font-medium text-midnight-600 shadow-card hover:border-midnight-400 hover:text-midnight-900 transition-all"
+                >
+                  <MapPin size={14} className="shrink-0" />
+                  <span className="truncate">
+                    Use your last spot: {savedOffer.city || savedOffer.address}
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         )}

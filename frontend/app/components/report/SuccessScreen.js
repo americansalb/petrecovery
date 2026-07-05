@@ -9,7 +9,7 @@
  */
 
 import Link from 'next/link';
-import { Check, Sparkles, Camera, Copy, Share2, Heart, Mail, Facebook } from 'lucide-react';
+import { Check, Sparkles, Camera, Copy, Share2, Heart, Mail, Facebook, MessageSquare } from 'lucide-react';
 import { MatchCard } from '@/components/case/MatchCard';
 import { WIZARD_THEMES } from './wizardTheme';
 
@@ -21,6 +21,7 @@ export default function SuccessScreen({
   isLoggedIn = false,
   accountCreated = false,
   contactEmail,
+  contactPhone, // phone-only guests: where the case-link SMS went
   // lost
   squadsNotified = 0,
   assignedSquad,
@@ -149,6 +150,20 @@ export default function SuccessScreen({
               <p className="font-bold text-midnight-900">Got a photo later?</p>
               <p className="text-midnight-600 mt-0.5">
                 Reports with photos get far more sightings — add one anytime from your case page.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Phone-only guests: the SMS is their only way back to the case */}
+        {!contactEmail && contactPhone && (
+          <div className="mt-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3 text-left">
+            <MessageSquare size={19} className="text-blue-500 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-bold text-blue-900">We texted you the link</p>
+              <p className="text-blue-700 mt-0.5">
+                Check <strong>{contactPhone}</strong> for your case link — save it, it&apos;s how you
+                manage this report.
               </p>
             </div>
           </div>

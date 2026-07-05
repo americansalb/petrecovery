@@ -3,6 +3,7 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail, sendVerificationEmail } from '../../../lib/email';
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
+import { sendSms } from '@/app/lib/sms';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
@@ -657,6 +658,37 @@ export async function POST(request) {
           event_type: 'email.send_failed',
           correlation_id: correlationId,
           resource_type: 'email',
+          action: 'create',
+          result: 'failure',
+          error_message: err.message
+        });
+      });
+    }
+
+    // Phone-only reporters get no email at all — text them the case link so
+    // they have a way back to their report after closing the tab. Best-effort
+    // (sendSms no-ops gracefully when Twilio isn't configured).
+    if (phoneOnly && phone) {
+      const caseUrl = `${getEmailBaseUrl()}/cases/${report.caseNumber}`;
+      sendSms(
+        phone,
+        `ReunitePets: your lost-pet report for ${petName} is live. Track sightings and manage it here: ${caseUrl}`
+      ).then(res => {
+        if (!res?.success) {
+          logEvent({
+            event_type: 'sms.send_failed',
+            correlation_id: correlationId,
+            resource_type: 'sms',
+            action: 'create',
+            result: 'failure',
+            error_message: res?.error || 'unknown'
+          });
+        }
+      }).catch(err => {
+        logEvent({
+          event_type: 'sms.send_failed',
+          correlation_id: correlationId,
+          resource_type: 'sms',
           action: 'create',
           result: 'failure',
           error_message: err.message
