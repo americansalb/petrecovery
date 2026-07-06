@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { CASCADE_ACTIONS } from '@/app/lib/cascade/registry';
+import { piggybackDrain } from '@/app/lib/cascade/followups';
 import { logEvent } from '@/lib/logging';
 
 export const runtime = 'nodejs';
@@ -99,6 +100,10 @@ export async function GET(_request, { params }) {
     result: 'success',
     metadata: { caseNumber, status: activation.status },
   }).catch(() => {});
+
+  // Opportunistically deliver a few due follow-ups on case-page traffic — keeps
+  // reminders punctual without a cron, and never delays this read.
+  piggybackDrain(3);
 
   return NextResponse.json(body, { headers: { 'Cache-Control': 'no-store' } });
 }

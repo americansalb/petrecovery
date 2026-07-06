@@ -17,6 +17,7 @@ import { upsertStep, upsertAsset, rollupSummary } from './store';
 import { caseUrl, qrDataUrl } from './render/qr.js';
 import { loadPetImageDataUrl } from './render/photo.js';
 import { broadcastActivation } from '../sse/cascadeStream';
+import { piggybackDrain } from './followups';
 
 /** Seed the activation + one PENDING step per enabled action (idempotent). */
 export async function seedActivation(caseData, correlationId) {
@@ -183,6 +184,11 @@ export async function runCascade(activation, caseData, correlationId) {
   const fresh = await prisma.caseActivation.findUnique({ where: { id: activation.id } });
   const rolled = await rollupSummary(fresh);
   broadcastActivation(activation.caseNumber, { type: 'done', status: rolled.status });
+
+  // Opportunistic, bounded drain of any due follow-ups from other cases — keeps
+  // reminders punctual with no cron, and never delays this cascade.
+  piggybackDrain(5);
+
   return rolled;
 }
 

@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check, Loader2, Sparkles, FileText, Image as ImageIcon, MapPin, Users, Search,
-  Megaphone, QrCode, Copy, Download, Heart, ChevronDown, ChevronUp,
+  Megaphone, QrCode, Copy, Download, Heart, ChevronDown, ChevronUp, Mail, Bell,
 } from 'lucide-react';
 import { MatchCard } from '@/components/case/MatchCard';
 import useRecoveryKitStream from './useRecoveryKitStream';
@@ -29,8 +29,10 @@ const STEP_META = {
   flyers: { icon: FileText, doneLabel: (n) => `${n || 3} printable flyers ready` },
   social: { icon: ImageIcon, doneLabel: (n) => `${n || 3} share images ready` },
   search_plan: { icon: Search, doneLabel: () => 'Your search plan is ready' },
+  recovery_email: { icon: Mail, doneLabel: () => 'Recovery kit emailed to you' },
+  followups: { icon: Bell, doneLabel: () => 'We’ll check in with you along the way' },
 };
-const STEP_ORDER = ['reverse_match', 'flyers', 'social', 'search_plan', 'shelters', 'neighbor_alert', 'rescue_force', 'ai_copy', 'qr'];
+const STEP_ORDER = ['reverse_match', 'flyers', 'social', 'search_plan', 'shelters', 'neighbor_alert', 'rescue_force', 'recovery_email', 'followups', 'ai_copy', 'qr'];
 
 function isTerminal(status) {
   return ['COMPLETE', 'PARTIAL', 'FAILED'].includes(status);

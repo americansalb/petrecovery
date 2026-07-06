@@ -24,11 +24,15 @@ export const CASCADE_ACTIONS = [
   { key: 'flyers', tier: 1, deps: ['qr'], label: 'Printable flyers', logAction: 'create', enabled: true },
   { key: 'social', tier: 1, deps: ['qr'], label: 'Social share images', logAction: 'create', enabled: true },
   { key: 'search_plan', tier: 1, deps: [], label: 'Search plan', logAction: 'create', enabled: true },
+  // `checklist` is intentionally folded into search_plan's "Do this first"
+  // section (same petAdvice source) rather than shipped as a redundant step.
   { key: 'checklist', tier: 1, deps: [], label: 'First-24h checklist', logAction: 'create', enabled: false },
   // ── Tier 2 (need finished assets) ────────────────────────────────
+  // `share_kit` is derivable client-side from the captions + social asset urls
+  // the case page already reads, so it isn't persisted as its own step.
   { key: 'share_kit', tier: 2, deps: ['flyers', 'social'], label: 'Share kit', logAction: 'create', enabled: false },
-  { key: 'recovery_email', tier: 2, deps: [], label: 'Recovery-kit email', logAction: 'create', enabled: false },
-  { key: 'followups', tier: 2, deps: [], label: 'Follow-up reminders', logAction: 'create', enabled: false },
+  { key: 'recovery_email', tier: 2, deps: [], label: 'Recovery-kit email', logAction: 'create', enabled: true },
+  { key: 'followups', tier: 2, deps: [], label: 'Follow-up reminders', logAction: 'create', enabled: true },
 ];
 
 export const ENABLED_ACTIONS = CASCADE_ACTIONS.filter((a) => a.enabled);

@@ -13,6 +13,8 @@ import { runReverseMatch } from './reverseMatch.js';
 import { runShelters } from './shelters.js';
 import { runNeighborAlert } from './neighborAlert.js';
 import { runRescueForce } from './rescueForce.js';
+import { runRecoveryEmail } from './recoveryEmail.js';
+import { runFollowups } from './followups.js';
 
 export const ACTION_RUNNERS = {
   qr: runQr,
@@ -24,4 +26,6 @@ export const ACTION_RUNNERS = {
   flyers: runFlyers,
   social: runSocial,
   search_plan: runSearchPlan,
+  recovery_email: runRecoveryEmail,
+  followups: runFollowups,
 };
