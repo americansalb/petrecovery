@@ -52,9 +52,6 @@ function safeKey(key) {
  * @throws if the CDN is unconfigured or the PUT fails (callers isolate per-asset)
  */
 export async function uploadBufferToCdn(buffer, { key, keyPrefix, filename, contentType } = {}) {
-  if (!isCdnConfigured()) {
-    throw new Error('CDN_NOT_CONFIGURED');
-  }
   if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
     throw new Error('CDN_EMPTY_BUFFER');
   }
@@ -63,6 +60,23 @@ export async function uploadBufferToCdn(buffer, { key, keyPrefix, filename, cont
   const cleanKey = safeKey(rawKey);
   if (!cleanKey) {
     throw new Error('CDN_INVALID_KEY');
+  }
+
+  // Local dev fallback: when Bunny isn't configured but CASCADE_LOCAL_CDN is set,
+  // write to public/_localcdn/<key> and return an app-served URL. Gated by env so
+  // it never runs in production. Lets the full cascade be verified without creds.
+  if (!isCdnConfigured() && process.env.CASCADE_LOCAL_CDN) {
+    const { writeFile, mkdir } = await import('node:fs/promises');
+    const { join, dirname } = await import('node:path');
+    const { getBaseUrl } = await import('@/app/lib/config');
+    const dest = join(process.cwd(), 'public', '_localcdn', cleanKey);
+    await mkdir(dirname(dest), { recursive: true });
+    await writeFile(dest, buffer);
+    return { url: `${getBaseUrl()}/_localcdn/${cleanKey}`, key: cleanKey, sizeBytes: buffer.length };
+  }
+
+  if (!isCdnConfigured()) {
+    throw new Error('CDN_NOT_CONFIGURED');
   }
 
   const uploadUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/${cleanKey}`;

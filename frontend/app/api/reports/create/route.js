@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { sendEmail, sendVerificationEmail } from '../../../lib/email';
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
 import { sendSms } from '@/app/lib/sms';
+import { seedActivation, enqueueCascade } from '@/app/lib/cascade/runCascade';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
@@ -228,6 +229,28 @@ export async function POST(request) {
     });
 
     const { user, report, isNewUser } = result;
+
+    // Fire the report-time action cascade — beautiful flyers, social cards,
+    // instant matches, a search plan, neighbor alerts, and more. Seed the
+    // durable activation now (cheap, awaited) so the success screen can read
+    // and poll it immediately, then run the heavy rendering/upload work
+    // FIRE-AND-FORGET so the reporter's response is never blocked.
+    let activationSnapshot = null;
+    try {
+      const activation = await seedActivation(report, correlationId);
+      activationSnapshot = { caseNumber: report.caseNumber, status: activation.status };
+      enqueueCascade(report.id, { correlationId }); // unawaited on purpose
+    } catch (cascadeErr) {
+      logEvent({
+        event_type: 'cascade.enqueue_failed',
+        correlation_id: correlationId,
+        resource_type: 'case',
+        resource_id: report.id,
+        action: 'create',
+        result: 'failure',
+        error_message: String(cascadeErr?.message || cascadeErr).slice(0, 300),
+      }).catch(() => {});
+    }
 
     // Send verification email for ALL new users (Fix 4: unified for guest + createAccount paths)
     if (isNewUser && !session?.user) {
@@ -701,6 +724,11 @@ export async function POST(request) {
       reportId: report.id,
       caseNumber: report.caseNumber,
       petName: report.petName,
+      petSpecies: report.petSpecies,
+      petBreed: report.petBreed,
+      petColor: report.petColor,
+      petPhotoUrl: report.petPhotoUrl,
+      activation: activationSnapshot,
       accountCreated,
       patrolAlerted: nearbyPatrol.length,
       assignedSquad,
