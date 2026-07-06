@@ -1,121 +1,148 @@
 import React from 'react';
 import { Document, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer';
-import { FLYER_THEME as T, PAGE, SPECIES_LABEL } from './theme';
+import { FLYER_THEME as T, PAGE } from './theme';
 
 /**
- * Three print-ready flyer layouts, all fed by the same normalized `data`.
- * No photo → a branded species block. `variant`: 'classic' | 'tabs' | 'poster'.
+ * Best-in-class, emotionally irresistible lost-pet flyers. Three layouts,
+ * one normalized `data`. The lever for "a stranger cannot scroll past" is the
+ * pet's photo as hero + the pet's own first-person plea + the family waiting.
+ *  - classic : full Letter poster (photo hero, plea, family line, ID, approach, CTA)
+ *  - tabs    : Letter with tear-off phone tabs along the bottom
+ *  - poster  : 11x17 pole/yard poster, readable from across a street
  */
 
-function PhotoOrBlock({ data, style, blockLabelSize = 44 }) {
-  if (data.photoDataUrl) {
-    return <Image src={data.photoDataUrl} style={[style, { objectFit: 'cover' }]} />;
-  }
+function PhotoOrBlock({ src, style, label, blockLabelSize = 44 }) {
+  if (src) return <Image src={src} style={[style, { objectFit: 'cover' }]} />;
   return (
     <View style={[style, { backgroundColor: T.midnight, alignItems: 'center', justifyContent: 'center' }]}>
-      <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: blockLabelSize, letterSpacing: 2 }}>
-        {data.speciesLabel}
-      </Text>
-      <Text style={{ color: T.flash, fontWeight: 700, fontSize: blockLabelSize * 0.32, marginTop: 6 }}>
+      <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: blockLabelSize, letterSpacing: 2 }}>{label}</Text>
+      <Text style={{ color: T.flash, fontWeight: 700, fontSize: blockLabelSize * 0.3, marginTop: 6 }}>
         photo coming soon
       </Text>
     </View>
   );
 }
 
-function TearTabs({ data }) {
-  const tabs = Array.from({ length: 8 });
+/** Photo hero with a dark scrim + the headline set on the image itself. */
+function PhotoHero({ data, height, headlineSize }) {
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        borderTopWidth: 1,
-        borderTopColor: T.hair,
-        borderTopStyle: 'dashed',
-        marginTop: 'auto',
-      }}
-    >
-      {tabs.map((_, i) => (
-        <View
-          key={i}
-          style={{
-            flex: 1,
-            paddingVertical: 10,
-            paddingHorizontal: 2,
-            alignItems: 'center',
-            borderRightWidth: i < tabs.length - 1 ? 1 : 0,
-            borderRightColor: T.hair,
-            borderRightStyle: 'dashed',
-          }}
-        >
-          <Text style={{ fontSize: 7, color: T.mute, fontWeight: 700 }}>
-            {data.stamp} {data.petName.toUpperCase()}
-          </Text>
-          <Text style={{ fontSize: 9, color: T.midnight, fontWeight: 700, marginTop: 3 }}>
-            {data.contactValue}
-          </Text>
+    <View style={{ position: 'relative', borderRadius: 8, overflow: 'hidden' }}>
+      <PhotoOrBlock src={data.photos[0]} label={data.speciesLabel} blockLabelSize={height * 0.2}
+        style={{ width: '100%', height }} />
+      {/* scrim */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: height * 0.42, backgroundColor: T.midnight, opacity: 0.62 }} />
+      {/* headline on the photo */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 18, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: headlineSize, letterSpacing: -0.5, flex: 1 }}>{data.headline}</Text>
+        <View style={{ backgroundColor: data.accentBg, borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginLeft: 10 }}>
+          <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: 12, letterSpacing: 1 }}>{data.stamp} {data.speciesLabel}</Text>
         </View>
+      </View>
+      {data.reward ? (
+        <View style={{ position: 'absolute', top: 12, right: 12 }}>
+          <RewardBadge data={data} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function RewardBadge({ data, size = 'md' }) {
+  if (!data.reward) return null;
+  const big = size === 'lg';
+  return (
+    <View style={{ backgroundColor: T.flash, borderWidth: big ? 3 : 2, borderColor: '#a16207', borderRadius: 8, paddingVertical: big ? 10 : 6, paddingHorizontal: big ? 20 : 13, alignItems: 'center' }}>
+      <Text style={{ fontSize: big ? 14 : 8.5, fontWeight: 700, color: '#854d0e', letterSpacing: 1 }}>REWARD</Text>
+      <Text style={{ fontSize: big ? 34 : 20, fontWeight: 900, color: '#713f12', marginTop: 1 }}>{data.reward}</Text>
+    </View>
+  );
+}
+
+function IdRow({ data, small }) {
+  const fs = small ? 8 : 9;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+      {data.chips.map((c, i) => (
+        <Text key={i} style={{ fontSize: 11, color: T.slate, fontWeight: 600, marginRight: 12 }}>{c}</Text>
       ))}
+      {data.microchipped ? (
+        <View style={{ backgroundColor: '#dcfce7', borderWidth: 1, borderColor: '#86efac', borderRadius: 4, paddingVertical: 2, paddingHorizontal: 7, marginRight: 6 }}>
+          <Text style={{ fontSize: fs, fontWeight: 700, color: '#166534' }}>✓ Microchipped</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function LookFor({ data }) {
+  if (!data.markings) return null;
+  return (
+    <View style={{ marginTop: 9, flexDirection: 'row' }}>
+      <Text style={{ fontSize: 11, fontWeight: 900, color: T.accent, marginRight: 6 }}>LOOK FOR:</Text>
+      <Text style={{ fontSize: 11, fontWeight: 600, color: T.midnight, flex: 1, lineHeight: 1.4 }}>{data.markings}</Text>
+    </View>
+  );
+}
+
+function ApproachBox({ data, compact }) {
+  return (
+    <View style={{ marginTop: compact ? 8 : 11, backgroundColor: '#f8fafc', borderLeftWidth: 3, borderLeftColor: T.flash, borderRadius: 4, padding: compact ? 7 : 9, flexDirection: 'row', alignItems: 'flex-start' }}>
+      <View style={{ width: 15, height: 15, borderRadius: 4, backgroundColor: '#f59e0b', alignItems: 'center', justifyContent: 'center', marginRight: 7 }}>
+        <Text style={{ fontSize: 11, fontWeight: 900, color: '#ffffff' }}>!</Text>
+      </View>
+      <Text style={{ fontSize: compact ? 9.5 : 10.5, color: T.slate, lineHeight: 1.45, flex: 1 }}>{data.approachLine}</Text>
+    </View>
+  );
+}
+
+/** The high-contrast foot: turns the pang into a call, a scan, or a share. */
+function CtaFooter({ data, big }) {
+  return (
+    <View style={{ marginTop: big ? 14 : 12, backgroundColor: '#f1f5f9', borderRadius: 10, padding: big ? 16 : 13 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexShrink: 1 }}>
+          <Text style={{ fontSize: big ? 12 : 10, color: T.mute, fontWeight: 700, letterSpacing: 1 }}>{data.contactVerb}</Text>
+          <Text style={{ fontWeight: 900, color: T.accent, fontSize: big ? 40 : 28 }}>{data.contactValue}</Text>
+          {data.contactSecondary ? <Text style={{ fontSize: 10, color: T.mute, marginTop: 1 }}>{data.contactSecondary}</Text> : null}
+        </View>
+        {data.qrDataUrl ? (
+          <View style={{ alignItems: 'center', width: (big ? 108 : 96) }}>
+            <Image src={data.qrDataUrl} style={{ width: big ? 96 : 84, height: big ? 96 : 84, borderWidth: 4, borderColor: T.midnight, borderRadius: 6 }} />
+            <Text style={{ fontSize: 7.5, color: T.mute, marginTop: 3, textAlign: 'center', fontWeight: 600, lineHeight: 1.25 }}>{data.scanCta}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={{ fontSize: big ? 11.5 : 10, color: T.midnight, fontWeight: 700, textAlign: 'center', marginTop: 10, paddingTop: 9, borderTopWidth: 1, borderTopColor: '#e2e8f0' }}>
+        {data.shareNudge}
+        <Text style={{ fontWeight: 400, color: T.faint }}>{'   '}Posted free via ReunitePets.org · Case {data.caseNumber}</Text>
+      </Text>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   page: { fontFamily: 'Inter', backgroundColor: T.paper, padding: 0 },
-  banner: {
-    paddingVertical: 18,
-    paddingHorizontal: 28,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  bannerTitle: { color: '#ffffff', fontWeight: 900, letterSpacing: 1 },
-  body: { paddingHorizontal: 28, paddingTop: 18, paddingBottom: 24, flexGrow: 1 },
-  name: { fontWeight: 900, color: T.midnight, letterSpacing: -0.5 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
-  chip: { fontSize: 11, color: T.slate, fontWeight: 600, marginRight: 12 },
-  desc: { fontSize: 12, color: T.slate, lineHeight: 1.5, marginTop: 12 },
-  metaRow: { flexDirection: 'row', marginTop: 14 },
+  body: { paddingHorizontal: 30, paddingTop: 18, paddingBottom: 18, flexGrow: 1 },
+  plea: { fontSize: 14, color: T.midnight, fontWeight: 600, lineHeight: 1.45, marginTop: 13 },
+  family: { fontSize: 11, color: T.mute, marginTop: 6, lineHeight: 1.4 },
+  metaRow: { flexDirection: 'row', marginTop: 10 },
   metaLabel: { fontSize: 8, color: T.faint, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' },
-  metaValue: { fontSize: 12, color: T.midnight, fontWeight: 600, marginTop: 2 },
-  reward: {
-    marginTop: 14,
-    alignSelf: 'flex-start',
-    backgroundColor: '#fef9c3',
-    borderWidth: 1,
-    borderColor: '#fde047',
-    borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  rewardText: { fontSize: 12, fontWeight: 900, color: '#854d0e' },
-  contactRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 16 },
-  callBox: { flexShrink: 1 },
-  callLabel: { fontSize: 10, color: T.mute, fontWeight: 700, letterSpacing: 1 },
-  callValue: { fontWeight: 900, color: T.accent },
-  qrWrap: { alignItems: 'center' },
-  qr: { borderWidth: 4, borderColor: T.midnight, borderRadius: 6 },
-  qrCaption: { fontSize: 7, color: T.mute, marginTop: 3, textAlign: 'center' },
+  metaValue: { fontSize: 11.5, color: T.midnight, fontWeight: 700, marginTop: 2 },
+  footer: { marginTop: 'auto', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' },
+  name: { fontWeight: 900, color: T.midnight, letterSpacing: -0.5 },
+  chip: { fontSize: 11, color: T.slate, fontWeight: 600, marginRight: 12 },
 });
 
 function ClassicLetter({ data }) {
   return (
     <Page size="LETTER" style={s.page}>
-      <View style={[s.banner, { backgroundColor: data.accentBg }]}>
-        <Text style={[s.bannerTitle, { fontSize: 40 }]}>{data.stamp} {data.speciesLabel}</Text>
-        <Text style={{ color: '#ffffff', fontWeight: 700, fontSize: 12, opacity: 0.85 }}>
-          Case {data.caseNumber}
-        </Text>
-      </View>
       <View style={s.body}>
-        <PhotoOrBlock data={data} style={{ width: '100%', height: 300, borderRadius: 8 }} blockLabelSize={54} />
-        <Text style={[s.name, { fontSize: 40, marginTop: 16 }]}>{data.petName}</Text>
-        <View style={s.chips}>
-          {data.chips.map((c, i) => (
-            <Text key={i} style={s.chip}>{c}</Text>
-          ))}
-        </View>
-        {data.description ? <Text style={s.desc}>{data.description}</Text> : null}
+        <PhotoHero data={data} height={262} headlineSize={25} />
+        <Text style={s.plea}>{data.plea}</Text>
+        <Text style={s.family}>{data.familyLine}</Text>
+        <IdRow data={data} />
+        <LookFor data={data} />
+        <ApproachBox data={data} />
         <View style={s.metaRow}>
           <View style={{ flex: 1 }}>
             <Text style={s.metaLabel}>Last seen</Text>
@@ -126,71 +153,43 @@ function ClassicLetter({ data }) {
             <Text style={s.metaValue}>{data.lastSeenWhen}</Text>
           </View>
         </View>
-        {data.reward ? (
-          <View style={s.reward}>
-            <Text style={s.rewardText}>{data.reward}</Text>
-          </View>
-        ) : null}
-        <View style={s.contactRow}>
-          <View style={s.callBox}>
-            <Text style={s.callLabel}>{data.contactVerb}</Text>
-            <Text style={[s.callValue, { fontSize: 26 }]}>{data.contactValue}</Text>
-            {data.contactSecondary ? (
-              <Text style={{ fontSize: 11, color: T.mute, marginTop: 2 }}>{data.contactSecondary}</Text>
-            ) : null}
-          </View>
-          {data.qrDataUrl ? (
-            <View style={s.qrWrap}>
-              <Image src={data.qrDataUrl} style={[s.qr, { width: 96, height: 96 }]} />
-              <Text style={s.qrCaption}>Scan for photos{'\n'}& live updates</Text>
-            </View>
-          ) : null}
-        </View>
+        <CtaFooter data={data} big />
       </View>
     </Page>
   );
 }
 
 function TearTabFlyer({ data }) {
+  const tabs = Array.from({ length: 8 });
   return (
     <Page size="LETTER" style={s.page}>
-      <View style={[s.banner, { backgroundColor: data.accentBg, paddingVertical: 14 }]}>
-        <Text style={[s.bannerTitle, { fontSize: 34 }]}>{data.stamp} {data.speciesLabel}</Text>
-        <Text style={{ color: '#ffffff', fontWeight: 700, fontSize: 11, opacity: 0.85 }}>Have you seen {data.petName}?</Text>
-      </View>
-      <View style={[s.body, { paddingTop: 14, paddingBottom: 8 }]}>
+      <View style={[s.body, { paddingBottom: 10 }]}>
         <View style={{ flexDirection: 'row' }}>
-          <PhotoOrBlock data={data} style={{ width: 200, height: 200, borderRadius: 8 }} blockLabelSize={34} />
-          <View style={{ flex: 1, paddingLeft: 18 }}>
-            <Text style={[s.name, { fontSize: 34 }]}>{data.petName}</Text>
-            <View style={[s.chips, { marginTop: 8 }]}>
-              {data.chips.map((c, i) => (
-                <Text key={i} style={s.chip}>{c}</Text>
-              ))}
+          <PhotoOrBlock src={data.photos[0]} label={data.speciesLabel} blockLabelSize={34}
+            style={{ width: 200, height: 200, borderRadius: 8 }} />
+          <View style={{ flex: 1, paddingLeft: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Text style={[s.name, { fontSize: 24, flex: 1 }]}>{data.headline}</Text>
+              {data.reward ? <RewardBadge data={data} /> : null}
             </View>
-            {data.description ? <Text style={[s.desc, { marginTop: 10 }]}>{data.description}</Text> : null}
-            <Text style={[s.metaLabel, { marginTop: 12 }]}>Last seen</Text>
-            <Text style={s.metaValue}>{data.lastSeenArea}</Text>
-            {data.reward ? (
-              <View style={[s.reward, { marginTop: 10 }]}>
-                <Text style={s.rewardText}>{data.reward}</Text>
-              </View>
-            ) : null}
+            <Text style={{ fontSize: 12.5, color: T.midnight, fontWeight: 600, lineHeight: 1.45, marginTop: 8 }}>{data.plea}</Text>
+            <IdRow data={data} small />
           </View>
         </View>
-        <View style={[s.contactRow, { marginTop: 14 }]}>
-          <View style={s.callBox}>
-            <Text style={s.callLabel}>{data.contactVerb}</Text>
-            <Text style={[s.callValue, { fontSize: 24 }]}>{data.contactValue}</Text>
-          </View>
-          {data.qrDataUrl ? (
-            <View style={s.qrWrap}>
-              <Image src={data.qrDataUrl} style={[s.qr, { width: 84, height: 84 }]} />
-              <Text style={s.qrCaption}>Scan for more</Text>
+        <LookFor data={data} />
+        <ApproachBox data={data} compact />
+        <Text style={[s.metaLabel, { marginTop: 10 }]}>Last seen</Text>
+        <Text style={s.metaValue}>{data.lastSeenArea} · {data.lastSeenWhen}</Text>
+        <CtaFooter data={data} />
+
+        <View style={{ flexDirection: 'row', marginTop: 'auto', borderTopWidth: 1, borderTopColor: T.hair, borderTopStyle: 'dashed', paddingTop: 4 }}>
+          {tabs.map((_, i) => (
+            <View key={i} style={{ flex: 1, alignItems: 'center', paddingVertical: 8, borderRightWidth: i < 7 ? 1 : 0, borderRightColor: T.hair, borderRightStyle: 'dashed' }}>
+              <Text style={{ fontSize: 6.5, color: T.mute, fontWeight: 700 }}>FIND {data.petName.toUpperCase()}</Text>
+              <Text style={{ fontSize: 8.5, color: T.midnight, fontWeight: 700, marginTop: 3 }}>{data.contactValue}</Text>
             </View>
-          ) : null}
+          ))}
         </View>
-        <TearTabs data={data} />
       </View>
     </Page>
   );
@@ -199,25 +198,30 @@ function TearTabFlyer({ data }) {
 function YardPoster({ data }) {
   return (
     <Page size={[PAGE.TABLOID.width, PAGE.TABLOID.height]} style={s.page}>
-      <View style={[s.banner, { backgroundColor: data.accentBg, paddingVertical: 34, justifyContent: 'center' }]}>
-        <Text style={[s.bannerTitle, { fontSize: 92, letterSpacing: 2 }]}>{data.stamp} {data.speciesLabel}</Text>
-      </View>
-      <View style={{ paddingHorizontal: 44, paddingTop: 28, paddingBottom: 36, flexGrow: 1 }}>
-        <PhotoOrBlock data={data} style={{ width: '100%', height: 560, borderRadius: 10 }} blockLabelSize={96} />
-        <Text style={[s.name, { fontSize: 76, marginTop: 22, textAlign: 'center' }]}>{data.petName}</Text>
-        <Text style={{ fontSize: 22, color: T.slate, fontWeight: 600, textAlign: 'center', marginTop: 6 }}>
-          {data.chips.join('  •  ')}
+      <View style={{ paddingHorizontal: 46, paddingTop: 40, paddingBottom: 34, flexGrow: 1 }}>
+        <PhotoHero data={data} height={620} headlineSize={58} />
+        <Text style={{ fontSize: 26, color: T.midnight, fontWeight: 600, lineHeight: 1.4, marginTop: 22, textAlign: 'center' }}>{data.plea}</Text>
+        <Text style={{ fontSize: 17, color: T.mute, textAlign: 'center', marginTop: 8 }}>
+          {data.chips.join('  •  ')}{data.microchipped ? '  •  ✓ Microchipped' : ''}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 30 }}>
-          {data.qrDataUrl ? <Image src={data.qrDataUrl} style={[s.qr, { width: 150, height: 150, marginRight: 28 }]} /> : null}
+        {data.markings ? (
+          <Text style={{ fontSize: 18, color: T.midnight, fontWeight: 700, textAlign: 'center', marginTop: 10 }}>Look for: {data.markings}</Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 26 }}>
+          {data.qrDataUrl ? (
+            <View style={{ alignItems: 'center', marginRight: 30 }}>
+              <Image src={data.qrDataUrl} style={{ width: 150, height: 150, borderWidth: 5, borderColor: T.midnight, borderRadius: 8 }} />
+              <Text style={{ fontSize: 12, color: T.mute, marginTop: 5, fontWeight: 600 }}>Scan for more</Text>
+            </View>
+          ) : null}
           <View>
-            <Text style={{ fontSize: 18, color: T.mute, fontWeight: 700, letterSpacing: 1 }}>{data.contactVerb}</Text>
-            <Text style={{ fontWeight: 900, color: data.accent, fontSize: 54 }}>{data.contactValue}</Text>
-            {data.reward ? <Text style={[s.rewardText, { fontSize: 22, marginTop: 8 }]}>{data.reward}</Text> : null}
+            <Text style={{ fontSize: 15, color: T.mute, fontWeight: 700, letterSpacing: 1 }}>{data.contactVerb}</Text>
+            <Text style={{ fontWeight: 900, color: T.accent, fontSize: 52 }}>{data.contactValue}</Text>
           </View>
         </View>
+        <Text style={{ fontSize: 15, color: T.midnight, fontWeight: 700, textAlign: 'center', marginTop: 20 }}>{data.shareNudge}</Text>
         <Text style={{ fontSize: 13, color: T.faint, textAlign: 'center', marginTop: 'auto' }}>
-          Last seen {data.lastSeenArea} • {data.lastSeenWhen} • Case {data.caseNumber} • ReunitePets.org
+          Last seen {data.lastSeenArea} • {data.lastSeenWhen} • Posted free via ReunitePets.org • Case {data.caseNumber}
         </Text>
       </View>
     </Page>

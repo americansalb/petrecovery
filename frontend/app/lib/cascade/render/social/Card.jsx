@@ -21,10 +21,11 @@ export function SocialCard({ data, size }) {
     : { width: '100%', height: isStory ? '52%' : '58%' };
 
   const pad = isStory ? 72 : isSquare ? 56 : 48;
-  const nameSize = isStory ? 116 : isSquare ? 84 : 72;
-  const stampSize = isStory ? 40 : 30;
-  const chipSize = isStory ? 32 : isSquare ? 26 : 24;
-  const qrSize = isStory ? 200 : isSquare ? 150 : 132;
+  const headSize = isStory ? 76 : isSquare ? 58 : 50;
+  const stampSize = isStory ? 34 : 26;
+  const pleaSize = isStory ? 34 : isSquare ? 27 : 24;
+  const chipSize = isStory ? 30 : isSquare ? 25 : 22;
+  const qrSize = isStory ? 190 : isSquare ? 148 : 128;
 
   const PhotoBlock = data.photoDataUrl ? (
     <img src={data.photoDataUrl} style={{ ...photoPane, objectFit: 'cover' }} />
@@ -38,7 +39,7 @@ export function SocialCard({ data, size }) {
         backgroundColor: MIDNIGHT,
       }}
     >
-      <div style={{ display: 'flex', color: '#ffffff', fontSize: nameSize, fontWeight: 900, letterSpacing: 4 }}>
+      <div style={{ display: 'flex', color: '#ffffff', fontSize: isStory ? 130 : 96, fontWeight: 900, letterSpacing: 4 }}>
         {data.speciesLabel}
       </div>
     </div>
@@ -50,9 +51,12 @@ export function SocialCard({ data, size }) {
         display: 'flex',
         flexDirection: 'column',
         flexGrow: 1,
-        justifyContent: 'center',
+        flexShrink: 1,
+        minWidth: 0, // let this flex item shrink below content width so text wraps
+        justifyContent: isWide ? 'flex-start' : 'center',
         padding: pad,
         backgroundColor: '#ffffff',
+        overflow: 'hidden',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -74,17 +78,19 @@ export function SocialCard({ data, size }) {
           {data.stamp} {data.speciesLabel}
         </div>
       </div>
-      <div style={{ display: 'flex', color: MIDNIGHT, fontSize: nameSize, fontWeight: 900, marginTop: 20, letterSpacing: -1 }}>
-        {data.petName}
+      <div style={{ display: 'flex', color: MIDNIGHT, fontSize: headSize, fontWeight: 900, marginTop: 18, letterSpacing: -1, lineHeight: 1.05 }}>
+        {data.headline}
       </div>
-      {data.chips ? (
-        <div style={{ display: 'flex', color: '#475569', fontSize: chipSize, fontWeight: 600, marginTop: 8 }}>
-          {data.chips}
+      {data.plea ? (
+        <div style={{ display: 'flex', color: '#334155', fontSize: pleaSize, fontWeight: 500, marginTop: 14, lineHeight: 1.35 }}>
+          {isStory ? data.plea : data.pleaShort}
         </div>
       ) : null}
-      <div style={{ display: 'flex', color: '#64748b', fontSize: chipSize, marginTop: isStory ? 24 : 14 }}>
-        Last seen {data.lastSeenArea}
-      </div>
+      {data.chips ? (
+        <div style={{ display: 'flex', color: '#64748b', fontSize: chipSize, fontWeight: 600, marginTop: isStory ? 18 : 10 }}>
+          {data.chips} · Last seen {data.lastSeenArea}
+        </div>
+      ) : null}
       <div style={{ display: 'flex', alignItems: 'center', marginTop: 'auto', paddingTop: 24 }}>
         {data.qrDataUrl ? (
           <img src={data.qrDataUrl} style={{ width: qrSize, height: qrSize, borderRadius: 10, border: '4px solid #0f172a' }} />
