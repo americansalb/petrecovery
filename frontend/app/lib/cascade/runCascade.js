@@ -16,6 +16,7 @@ import { ACTION_RUNNERS } from './actions/index.js';
 import { upsertStep, upsertAsset, rollupSummary } from './store';
 import { caseUrl, qrDataUrl } from './render/qr.js';
 import { loadPetImageDataUrl } from './render/photo.js';
+import { broadcastActivation } from '../sse/cascadeStream';
 
 /** Seed the activation + one PENDING step per enabled action (idempotent). */
 export async function seedActivation(caseData, correlationId) {
@@ -86,6 +87,7 @@ async function runOne(action, ctx) {
     const reason = !runner ? 'not implemented' : `dependency "${unmetDep}" did not succeed`;
     await upsertStep(ctx.activation, action.key, { status: 'SKIPPED', error: reason, finishedAt: new Date() });
     ctx.stepStatus[action.key] = 'SKIPPED';
+    broadcastActivation(ctx.activation.caseNumber, { type: 'step', key: action.key, status: 'SKIPPED' });
     return;
   }
 
@@ -101,6 +103,12 @@ async function runOne(action, ctx) {
       finishedAt: new Date(),
     });
     ctx.stepStatus[action.key] = 'SUCCESS';
+    broadcastActivation(ctx.activation.caseNumber, {
+      type: 'step',
+      key: action.key,
+      status: 'SUCCESS',
+      count: out.count ?? null,
+    });
     logEvent({
       event_type: `cascade.step.${action.key}`,
       correlation_id: ctx.correlationId,
@@ -121,6 +129,11 @@ async function runOne(action, ctx) {
       finishedAt: new Date(),
     });
     ctx.stepStatus[action.key] = isSkip ? 'SKIPPED' : 'FAILED';
+    broadcastActivation(ctx.activation.caseNumber, {
+      type: 'step',
+      key: action.key,
+      status: isSkip ? 'SKIPPED' : 'FAILED',
+    });
     if (isSkip) return;
     logEvent({
       event_type: `cascade.step.${action.key}`,
@@ -168,7 +181,9 @@ export async function runCascade(activation, caseData, correlationId) {
   }
 
   const fresh = await prisma.caseActivation.findUnique({ where: { id: activation.id } });
-  return rollupSummary(fresh);
+  const rolled = await rollupSummary(fresh);
+  broadcastActivation(activation.caseNumber, { type: 'done', status: rolled.status });
+  return rolled;
 }
 
 /**

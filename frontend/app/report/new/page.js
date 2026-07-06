@@ -420,6 +420,7 @@ export default function ReportLostPet() {
           contactPhone={!isLoggedIn && contact.method === 'phone' ? contact.phone : ''}
           squadsNotified={result.squadsNotified || 0}
           assignedSquad={result.assignedSquad}
+          activation={result.activation}
         />
       </div>
     );
