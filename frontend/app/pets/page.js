@@ -137,7 +137,7 @@ export default function MyPetsPage() {
           </h1>
           <Link
             href="/care/start"
-            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-700 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark transition-colors"
           >
             <Plus size={15} /> Add pet
           </Link>
@@ -186,7 +186,7 @@ export default function MyPetsPage() {
                     <button
                       onClick={() => respondToInvite(invite, true)}
                       disabled={respondingId === invite.shareId}
-                      className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                      className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5 hover:bg-care-tealDark transition-colors disabled:opacity-50"
                     >
                       Accept
                     </button>
@@ -206,7 +206,7 @@ export default function MyPetsPage() {
             </p>
             <Link
               href="/care/start"
-              className="inline-flex items-center gap-1.5 rounded-full bg-neutral-900 text-white text-sm font-medium px-5 py-2.5 hover:bg-neutral-700 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full bg-care-teal text-white text-sm font-medium px-5 py-2.5 hover:bg-care-tealDark transition-colors"
             >
               <Plus size={15} /> Add pet
             </Link>

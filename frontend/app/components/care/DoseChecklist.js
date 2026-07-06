@@ -87,7 +87,7 @@ export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo, day }) {
           </button>
           <button
             onClick={() => onMark(med, slot, 'GIVEN')}
-            className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-700 transition-colors"
+            className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5 hover:bg-care-tealDark transition-colors"
             aria-label={`Give ${med.name} at ${formatTime(slot.time)}`}
           >
             Give
@@ -146,7 +146,7 @@ export function PrnSection({ meds, day, busyKeys, readOnly, onLogPrnNow, onUndoP
                   )}
                   <button
                     onClick={() => onLogPrnNow(med)}
-                    className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-700 transition-colors"
+                    className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5 hover:bg-care-tealDark transition-colors"
                     aria-label={`Give ${med.name} now`}
                   >
                     {count > 0 ? 'Give again' : 'Give'}
@@ -156,7 +156,7 @@ export function PrnSection({ meds, day, busyKeys, readOnly, onLogPrnNow, onUndoP
                 count === 0 && (
                   <button
                     onClick={() => onLogPrnFor(med, day)}
-                    className="rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-1.5 hover:border-neutral-900 transition-colors shrink-0"
+                    className="rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-1.5 hover:border-care-teal transition-colors shrink-0"
                     aria-label={`Record a ${med.name} dose for this day`}
                   >
                     Record

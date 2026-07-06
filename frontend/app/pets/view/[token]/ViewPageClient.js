@@ -25,9 +25,9 @@ import { DayChecklist } from '@/app/components/care/DoseChecklist';
 import GoodStuff from '@/app/components/care/GoodStuff';
 import { formatSchedule, startOfDay } from '@/lib/medications';
 
-const primaryButton = 'w-full inline-flex items-center justify-center gap-2 rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2.5 hover:bg-neutral-700 disabled:opacity-40 transition-colors';
+const primaryButton = 'w-full inline-flex items-center justify-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2.5 hover:bg-care-tealDark disabled:opacity-40 transition-colors';
 const quietSwitch = 'text-[13px] font-medium text-neutral-500 underline underline-offset-2 hover:text-neutral-900 transition-colors';
-const inputClass = 'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900';
+const inputClass = 'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
 
 /* ------------------------------- Join modal ------------------------------- */
 
@@ -126,7 +126,7 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
                   ? `${ownerFirstName} had already invited you, so you are in right away.`
                   : `You already have access to ${petName}.`}
               </p>
-              <Link href="/pets" className="mt-6 inline-flex items-center justify-center rounded-full bg-neutral-900 text-white text-sm font-medium px-6 py-2.5 hover:bg-neutral-700 transition-colors">
+              <Link href="/pets" className="mt-6 inline-flex items-center justify-center rounded-full bg-care-teal text-white text-sm font-medium px-6 py-2.5 hover:bg-care-tealDark transition-colors">
                 Open my pets
               </Link>
             </>
@@ -139,7 +139,7 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
               </p>
               <button
                 onClick={onClose}
-                className="mt-6 rounded-full bg-neutral-900 text-white text-sm font-medium px-6 py-2.5 hover:bg-neutral-700 transition-colors"
+                className="mt-6 rounded-full bg-care-teal text-white text-sm font-medium px-6 py-2.5 hover:bg-care-tealDark transition-colors"
               >
                 Done
               </button>
@@ -367,7 +367,7 @@ export default function PublicPetViewPage() {
           <p className="text-sm text-neutral-500">Caring for {pet.name}? Ask to join to log doses yourself.</p>
           <button
             onClick={() => setShowJoin(true)}
-            className="shrink-0 rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-2 hover:border-neutral-900 transition-colors"
+            className="shrink-0 rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-2 hover:border-care-teal transition-colors"
           >
             Ask to join
           </button>

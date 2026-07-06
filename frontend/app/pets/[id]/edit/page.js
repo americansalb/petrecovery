@@ -54,7 +54,7 @@ const PERSONALITY_TRAITS = [
 
 const inputClass =
   'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
-  'placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900';
+  'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
 
 const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
 
@@ -72,8 +72,8 @@ function ChoiceChip({ active, onClick, children, className, ...props }) {
       className={cn(
         'px-3.5 py-2 rounded-full border text-sm font-medium transition-colors',
         active
-          ? 'border-neutral-900 bg-neutral-900 text-white'
-          : 'border-neutral-300 text-neutral-700 hover:border-neutral-900',
+          ? 'border-care-teal bg-care-teal text-white'
+          : 'border-neutral-300 text-neutral-700 hover:border-care-teal',
         className
       )}
       {...props}
@@ -95,10 +95,10 @@ function InlineAdd({ value, onChange, onAdd, onCancel, placeholder }) {
           if (e.key === 'Escape') onCancel();
         }}
         placeholder={placeholder}
-        className="w-44 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900"
+        className="w-44 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal"
       />
       <button type="button" onClick={onAdd} aria-label="Add"
-        className="w-9 h-9 rounded-full bg-neutral-900 hover:bg-neutral-700 text-white flex items-center justify-center transition-colors">
+        className="w-9 h-9 rounded-full bg-care-teal hover:bg-care-tealDark text-white flex items-center justify-center transition-colors">
         <Check size={15} strokeWidth={3} />
       </button>
       <button type="button" onClick={onCancel} aria-label="Cancel"
@@ -466,7 +466,7 @@ export default function EditPetPage() {
                     type="button"
                     aria-label="Younger"
                     onClick={() => set({ age: String(Math.max(0, (parseInt(form.age, 10) || 0) - 1)) })}
-                    className="w-9 h-9 rounded-full border border-neutral-300 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 flex items-center justify-center transition-colors"
+                    className="w-9 h-9 rounded-full border border-neutral-300 text-neutral-700 hover:border-care-teal hover:text-neutral-900 flex items-center justify-center transition-colors"
                   >
                     <Minus size={15} />
                   </button>
@@ -477,7 +477,7 @@ export default function EditPetPage() {
                     type="button"
                     aria-label="Older"
                     onClick={() => set({ age: String(Math.min(50, (parseInt(form.age, 10) || 0) + 1)) })}
-                    className="w-9 h-9 rounded-full border border-neutral-300 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 flex items-center justify-center transition-colors"
+                    className="w-9 h-9 rounded-full border border-neutral-300 text-neutral-700 hover:border-care-teal hover:text-neutral-900 flex items-center justify-center transition-colors"
                   >
                     <Plus size={15} />
                   </button>
@@ -561,7 +561,7 @@ export default function EditPetPage() {
                     type="button"
                     onClick={() => setCustomColorInput('')}
                     aria-label="Add another color"
-                    className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+                    className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
                   >
                     Add color
                   </button>
@@ -596,7 +596,7 @@ export default function EditPetPage() {
                   <button
                     type="button"
                     onClick={() => setCustomPatternInput('')}
-                    className="px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+                    className="px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
                   >
                     Add pattern
                   </button>
@@ -716,7 +716,7 @@ export default function EditPetPage() {
               <button
                 type="button"
                 onClick={() => setCustomTraitInput('')}
-                className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+                className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
               >
                 Add trait
               </button>
@@ -770,7 +770,7 @@ export default function EditPetPage() {
               <button
                 onClick={save}
                 disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-700 disabled:opacity-40 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark disabled:opacity-40 transition-colors"
               >
                 {submitting && <Loader2 size={15} className="animate-spin" />}
                 Save

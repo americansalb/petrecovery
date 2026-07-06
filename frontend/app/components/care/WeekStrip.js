@@ -47,7 +47,7 @@ export default function WeekStrip({ meds, selectedDay, onSelectDay }) {
               aria-label={`${day.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}: ${due ? `${given} of ${due} given` : 'nothing due'}. Tap to review or log.`}
               className={cn(
                 'flex flex-col items-center gap-1 rounded-lg border py-2 px-1 transition-colors',
-                isSelected ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+                isSelected ? 'border-care-teal bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
               )}
             >
               <span className="text-[12px] font-medium text-neutral-500">

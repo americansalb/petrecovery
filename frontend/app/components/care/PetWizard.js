@@ -60,18 +60,18 @@ const EMPTY_DRAFT = {
 
 const inputClass =
   'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
-  'placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900';
+  'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
 
 const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
 
 const primaryBtn =
-  'rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-2 hover:bg-neutral-700 ' +
+  'rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark ' +
   'disabled:opacity-40 transition-colors focus-visible:outline focus-visible:outline-2 ' +
   'focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
 
 const secondaryBtn =
   'rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-2 ' +
-  'hover:border-neutral-900 disabled:opacity-40 transition-colors focus-visible:outline ' +
+  'hover:border-care-teal disabled:opacity-40 transition-colors focus-visible:outline ' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
 
 const quietBtn =
@@ -116,8 +116,8 @@ function Chip({ active, onClick, children, className, ...rest }) {
         'rounded-full border px-3.5 py-2 text-sm transition-colors focus-visible:outline',
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900',
         active
-          ? 'border-neutral-900 bg-neutral-900 text-white'
-          : 'border-neutral-300 text-neutral-700 hover:border-neutral-900',
+          ? 'border-care-teal bg-care-teal text-white'
+          : 'border-neutral-300 text-neutral-700 hover:border-care-teal',
         className
       )}
       {...rest}

@@ -64,7 +64,7 @@ function TodayMock() {
           <div className="flex-1 min-w-0">
             <p className="text-[15px] font-medium text-neutral-900">Apoquel <span className="font-normal text-neutral-400">16 mg</span></p>
           </div>
-          <span className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-1.5">Give</span>
+          <span className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5">Give</span>
         </div>
         <div className="flex items-center gap-3 py-3">
           <span className="w-14 shrink-0 text-[13px] text-neutral-500 tabular-nums">Walk</span>
@@ -93,7 +93,7 @@ export default function CareLandingPage() {
         <div className="flex items-center justify-center gap-4 mt-8 flex-wrap">
           <Link
             href="/care/start"
-            className="inline-flex items-center gap-2 rounded-full bg-neutral-900 text-white text-sm font-medium px-6 py-3 hover:bg-neutral-700 transition-colors"
+            className="inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-6 py-3 hover:bg-care-tealDark transition-colors"
           >
             Start free <ArrowRight size={16} />
           </Link>

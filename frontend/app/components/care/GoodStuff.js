@@ -74,7 +74,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
 
   const chip = (active) => cn(
     'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
-    active ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
+    active ? 'bg-care-teal text-white border-care-teal' : 'border-neutral-300 text-neutral-700 hover:border-care-teal'
   );
 
   return (
@@ -86,7 +86,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
             onClick={() => pick(a)}
             className={cn(
               'flex flex-col items-center gap-1.5 rounded-lg border py-3 transition-colors',
-              picked?.id === a.id ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+              picked?.id === a.id ? 'border-care-teal bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
             )}
           >
             <CareIconChip name={a.label} color={a.color} size="sm" />
@@ -97,7 +97,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
           onClick={() => setPicked({ custom: true })}
           className={cn(
             'flex flex-col items-center gap-1.5 rounded-lg border py-3 transition-colors',
-            picked?.custom ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
+            picked?.custom ? 'border-care-teal bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
           )}
         >
           <CareIconChip name="" color="slate" size="sm" />
@@ -110,7 +110,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}
           placeholder="Name it (belly rubs, garden patrol)"
-          className="w-full mb-4 rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900"
+          className="w-full mb-4 rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal"
         />
       )}
 
@@ -137,7 +137,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
                   aria-label={`Toggle day ${i}`}
                   className={cn(
                     'w-9 h-9 rounded-full border text-sm font-medium transition-colors',
-                    days.includes(i) ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-300 text-neutral-500 hover:border-neutral-900'
+                    days.includes(i) ? 'bg-care-teal text-white border-care-teal' : 'border-neutral-300 text-neutral-500 hover:border-care-teal'
                   )}
                 >
                   {letter}
@@ -153,7 +153,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
                   key={t}
                   onClick={() => setTimes((prev) => prev.filter((x) => x !== t))}
                   title="Remove"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:border-neutral-900 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:border-care-teal transition-colors"
                 >
                   {formatTime(t)} <X size={13} />
                 </button>
@@ -165,7 +165,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
                   if (v) setTimes((prev) => [...new Set([...prev, v])].sort());
                 }}
                 aria-label="Add a time"
-                className="rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 focus:outline-none focus:border-neutral-900"
+                className="rounded-lg border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 focus:outline-none focus:border-care-teal"
               />
             </div>
           )}
@@ -175,7 +175,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
           <button
             onClick={save}
             disabled={!ready || saving}
-            className="w-full rounded-full bg-neutral-900 text-white text-sm font-medium py-2.5 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+            className="w-full rounded-full bg-care-teal text-white text-sm font-medium py-2.5 hover:bg-care-tealDark transition-colors disabled:opacity-40"
           >
             {saving ? 'Adding...' : `Add ${name || 'routine'}`}
           </button>
@@ -394,7 +394,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
                   key={a.id}
                   onClick={() => seedActivity(a)}
                   disabled={busy}
-                  className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-3.5 py-1.5 text-sm font-medium text-neutral-700 hover:border-neutral-900 transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-full border border-neutral-300 px-3.5 py-1.5 text-sm font-medium text-neutral-700 hover:border-care-teal transition-colors disabled:opacity-50"
                 >
                   <CareIconChip name={a.label} color={a.color} size="sm" />
                   {a.label}
@@ -404,7 +404,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
             })}
             <button
               onClick={() => setShowAdd(true)}
-              className="rounded-full border border-neutral-300 px-3.5 py-1.5 text-sm font-medium text-neutral-500 hover:border-neutral-900 hover:text-neutral-900 transition-colors"
+              className="rounded-full border border-neutral-300 px-3.5 py-1.5 text-sm font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
             >
               More
             </button>
@@ -439,7 +439,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
                           done
                             ? 'bg-emerald-600 text-white border-emerald-600'
                             : 'border-neutral-300 text-neutral-700',
-                          interactive && !done && 'hover:border-neutral-900',
+                          interactive && !done && 'hover:border-care-teal',
                           !interactive && 'cursor-default'
                         )}
                       >
@@ -483,7 +483,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
                       <button
                         onClick={() => logPrn(care)}
                         aria-label={count > 0 ? `Log another ${care.name}` : `Log ${care.name}`}
-                        className="rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-1.5 hover:border-neutral-900 transition-colors"
+                        className="rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-1.5 hover:border-care-teal transition-colors"
                       >
                         Done
                       </button>

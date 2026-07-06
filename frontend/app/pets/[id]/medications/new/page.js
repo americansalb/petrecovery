@@ -59,7 +59,7 @@ const EMPTY_FORM = {
 
 const inputClass =
   'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
-  'placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 transition-colors';
+  'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal transition-colors';
 
 const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
 
@@ -86,8 +86,8 @@ function ChipSelect({ options, value, onChange }) {
           className={cn(
             'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
             value === opt.value
-              ? 'border-neutral-900 bg-neutral-900 text-white'
-              : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
+              ? 'border-care-teal bg-care-teal text-white'
+              : 'border-neutral-300 text-neutral-700 hover:border-care-teal'
           )}
         >
           {opt.label}
@@ -296,7 +296,7 @@ function MedicationWizard() {
       {/* Progress segments */}
       <div className="flex gap-1.5 mb-8" role="list" aria-label="Wizard progress">
         {STEPS.map((s, i) => (
-          <div key={s.key} role="listitem" className={cn('h-1 flex-1 rounded-full', i <= step ? 'bg-neutral-900' : 'bg-neutral-200')} />
+          <div key={s.key} role="listitem" className={cn('h-1 flex-1 rounded-full', i <= step ? 'bg-care-teal' : 'bg-neutral-200')} />
         ))}
       </div>
 
@@ -325,7 +325,7 @@ function MedicationWizard() {
                 type="button"
                 onClick={runSmartFill}
                 disabled={parsing || !smartText.trim()}
-                className="rounded-full bg-neutral-900 text-white text-sm font-medium px-4 py-1.5 hover:bg-neutral-700 transition-colors disabled:opacity-50"
+                className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5 hover:bg-care-tealDark transition-colors disabled:opacity-50"
               >
                 {parsing ? 'Reading...' : 'Auto-fill'}
               </button>
@@ -393,8 +393,8 @@ function MedicationWizard() {
                         className={cn(
                           'w-11 h-11 rounded-full text-sm font-medium border transition-colors',
                           form.daysOfWeek.includes(i)
-                            ? 'bg-neutral-900 border-neutral-900 text-white'
-                            : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
+                            ? 'bg-care-teal border-care-teal text-white'
+                            : 'border-neutral-300 text-neutral-700 hover:border-care-teal'
                         )}
                       >
                         {d[0]}
@@ -432,8 +432,8 @@ function MedicationWizard() {
                       className={cn(
                         'rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors',
                         JSON.stringify(form.timesOfDay) === JSON.stringify(p.times)
-                          ? 'bg-neutral-900 border-neutral-900 text-white'
-                          : 'border-neutral-300 text-neutral-700 hover:border-neutral-900'
+                          ? 'bg-care-teal border-care-teal text-white'
+                          : 'border-neutral-300 text-neutral-700 hover:border-care-teal'
                       )}
                     >
                       {p.label}
@@ -547,7 +547,7 @@ function MedicationWizard() {
                     'w-11 h-11 rounded-lg border flex items-center justify-center transition-colors',
                     form.icon === token
                       ? cn('border-transparent', colors.iconBg, 'ring-2 ring-neutral-900')
-                      : 'border-neutral-300 text-neutral-600 hover:border-neutral-900'
+                      : 'border-neutral-300 text-neutral-600 hover:border-care-teal'
                   )}
                   aria-label={token}
                 >
@@ -594,7 +594,7 @@ function MedicationWizard() {
             type="button"
             onClick={() => setStep(step + 1)}
             disabled={!stepValid}
-            className="rounded-full bg-neutral-900 text-white text-sm font-medium px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-40"
+            className="rounded-full bg-care-teal text-white text-sm font-medium px-5 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-40"
           >
             Continue
           </button>
@@ -603,7 +603,7 @@ function MedicationWizard() {
             type="button"
             onClick={save}
             disabled={!form.name.trim() || saving}
-            className="inline-flex items-center gap-2 rounded-full bg-neutral-900 text-white text-sm font-medium px-5 py-2 hover:bg-neutral-700 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-5 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-50"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {editId ? 'Save changes' : 'Add medication'}
