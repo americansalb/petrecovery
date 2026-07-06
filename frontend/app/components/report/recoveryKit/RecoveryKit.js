@@ -122,7 +122,11 @@ function Panel({ title, icon: Icon, children, defaultOpen = true }) {
   );
 }
 
-export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fallback = null }) {
+export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fallback = null, mode = 'full', petName }) {
+  // 'full'  = live success-screen dashboard (checklist + matches + assets + plan)
+  // 'share' = public case-page toolkit (scannable QR + printable flyers + share
+  //           images/captions only; no internal checklist or owner-facing matches)
+  const shareMode = mode === 'share';
   const [kit, setKit] = useState(null);
   const [status, setStatus] = useState(initialStatus);
   const pollRef = useRef(null);
@@ -169,9 +173,21 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
   const anyStep = kit?.steps?.length > 0;
   const working = !isTerminal(status);
 
+  // Share mode has no live "building…" state — stay invisible until loaded so
+  // the case page never flashes an empty panel.
+  if (shareMode && !kit) return fallback;
+
   // If there is no activation at all (older cases / cascade never seeded), show
   // the caller's legacy static list instead of an empty dashboard.
   if (kit && kit.exists === false) return fallback;
+
+  // Share mode is a pure asset toolkit: if nothing shareable rendered (all
+  // assets failed, or still building on a cold case-page load), show nothing.
+  if (shareMode && kit) {
+    const hasShareable =
+      kit.assets?.qr?.url || kit.assets?.flyers?.length > 0 || kit.assets?.social?.length > 0;
+    if (!hasShareable) return fallback;
+  }
 
   return (
     <div className="text-left">
@@ -179,26 +195,66 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
       <div className="flex items-center gap-2 mb-1">
         <Sparkles size={18} className="text-flash-500" />
         <h3 className="font-extrabold text-midnight-900">
-          {working ? 'Building your recovery kit…' : 'Your recovery kit is ready'}
+          {shareMode
+            ? `${petName ? `${petName}'s` : 'Your'} share kit`
+            : working
+              ? 'Building your recovery kit…'
+              : 'Your recovery kit is ready'}
         </h3>
       </div>
       <p className="text-sm text-midnight-500 mb-4">
-        The moment you posted, we went to work. Here&apos;s everything we did to help bring them home.
+        {shareMode
+          ? 'Print a flyer, post an image, or share the link — every one is another pair of eyes.'
+          : 'The moment you posted, we went to work. Here’s everything we did to help bring them home.'}
       </p>
 
-      {/* Live checklist */}
-      <div className="rounded-2xl border border-midnight-100 bg-white px-4 py-2 mb-4">
-        {anyStep ? (
-          STEP_ORDER.filter((k) => steps[k]).map((k) => <ChecklistItem key={k} stepKey={k} step={steps[k]} />)
-        ) : (
-          <div className="flex items-center gap-3 py-3 text-sm text-midnight-400">
-            <Loader2 size={15} className="animate-spin" /> Starting…
-          </div>
-        )}
-      </div>
+      {/* Live checklist (success screen only) */}
+      {!shareMode && (
+        <div className="rounded-2xl border border-midnight-100 bg-white px-4 py-2 mb-4">
+          {anyStep ? (
+            STEP_ORDER.filter((k) => steps[k]).map((k) => <ChecklistItem key={k} stepKey={k} step={steps[k]} />)
+          ) : (
+            <div className="flex items-center gap-3 py-3 text-sm text-midnight-400">
+              <Loader2 size={15} className="animate-spin" /> Starting…
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* Possible matches — the payoff */}
-      {kit?.matches?.length > 0 && (
+      {/* Scannable QR (share mode only) — the printable/postable link back here */}
+      {shareMode && kit?.assets?.qr?.url && (
+        <div className="mb-4 flex items-center gap-4 rounded-2xl border border-midnight-100 bg-white p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={kit.assets.qr.url}
+            alt={`QR code linking to this page for ${petName || 'this pet'}`}
+            width={92}
+            height={92}
+            className="w-[92px] h-[92px] rounded-lg shrink-0"
+          />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <QrCode size={15} className="text-midnight-500" />
+              <p className="font-bold text-midnight-800 text-sm">Scan to open this page</p>
+            </div>
+            <p className="text-xs text-midnight-500 leading-relaxed">
+              Point a phone camera at this code to jump straight here — it&apos;s printed on every flyer, too.
+            </p>
+            <a
+              href={kit.assets.qr.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-midnight-600 hover:text-midnight-900"
+            >
+              <Download size={13} /> Download QR
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Possible matches — the payoff (success screen only) */}
+      {!shareMode && kit?.matches?.length > 0 && (
         <div className="mb-4">
           <Panel title={`${kit.matches.length} possible match${kit.matches.length === 1 ? '' : 'es'} near you`} icon={Heart}>
             <p className="text-xs text-midnight-500 mb-3">
@@ -269,8 +325,8 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
         </div>
       )}
 
-      {/* Search plan */}
-      {kit?.searchPlan?.sections?.length > 0 && (
+      {/* Search plan (success screen only) */}
+      {!shareMode && kit?.searchPlan?.sections?.length > 0 && (
         <div className="mb-3">
           <Panel title="Your search plan" icon={Search} defaultOpen={false}>
             {kit.searchPlan.narrative && (
@@ -295,8 +351,8 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
         </div>
       )}
 
-      {/* Shelters to call */}
-      {(kit?.shelters?.length > 0 || kit?.sheltersGuidance) && (
+      {/* Shelters to call (success screen only) */}
+      {!shareMode && (kit?.shelters?.length > 0 || kit?.sheltersGuidance) && (
         <div className="mb-3">
           <Panel title="Shelters to call today" icon={MapPin} defaultOpen={false}>
             {kit.shelters?.length > 0 ? (

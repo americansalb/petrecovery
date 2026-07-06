@@ -28,7 +28,8 @@ import {
   MapPreview,
   ActivityTimeline,
   ActionCards,
-  StickyMobileCTA
+  StickyMobileCTA,
+  RecoveryKitPanel
 } from './components';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
@@ -339,6 +340,12 @@ export default function CasePageClient() {
               updates={caseData?.updates || []}
               caseCreatedAt={caseData?.createdAt}
             />
+
+            {/* Share kit — printable flyers, social images + captions, scannable
+                QR generated at report time. Renders nothing for older cases. */}
+            {!isReunited && (
+              <RecoveryKitPanel caseNumber={caseNumber} petName={caseData?.petName} />
+            )}
           </div>
 
           {/* Right Column - Actions */}
