@@ -71,11 +71,22 @@ module.exports = {
            read as tiles from contrast, not heavy borders. Rescue surfaces
            stay midnight/flash; these belong to /pets and /care only. */
         care: {
-          bg: '#f4f3f1',       // warm grouped background (the page)
-          surface: '#ffffff',  // tile
-          line: '#e7e5e1',     // hairline border / divider
-          ink: '#1c1c1e',      // primary text
-          sub: '#8a8a8e',      // secondary text / labels
+          bg: '#f6f7f6',        // app background (the page)
+          panel: '#f3f4f3',     // right-rail panel
+          surface: '#ffffff',   // card
+          line: '#e9eae9',      // hairline border / divider
+          lineSoft: '#f0f1f0',  // softer inner divider
+          ink: '#1b1d1e',       // primary text
+          sub: '#6a7075',       // secondary text
+          faint: '#a0a5a9',     // labels / tertiary
+          teal: '#0f5750',      // primary accent / hero
+          tealDark: '#0b3f39',  // gradient end / strong
+          tealWash: '#eef3f2',  // tint fill
+          tealRing: '#dbe6e3',  // ring on tinted circles
+          mint: '#a9ddd2',      // accent on teal ground
+          amber: '#a2761c',     // due-soon
+          amberWash: '#f8f2e4',
+          amberLine: '#ecdcbb',
         },
       },
       /* === Font Family === */
@@ -94,6 +105,8 @@ module.exports = {
       /* === Box Shadows === */
       boxShadow: {
         'tile': '0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03)',
+        'care': '0 1px 2px rgba(20,40,38,.04), 0 6px 20px -12px rgba(20,40,38,.14), inset 0 0 0 1px #f0f1f0',
+        'care-hero': '0 18px 40px -18px rgba(11,63,57,.6), 0 2px 6px rgba(11,63,57,.18)',
         'soft': '0 2px 8px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06)',
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'card-hover': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',

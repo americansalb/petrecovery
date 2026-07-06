@@ -11,10 +11,10 @@
 import { cn } from '@/components/ui';
 
 const TONE = {
-  done: '#34c759',     // all given
-  going: '#1c1c1e',    // in progress (ink)
-  behind: '#ff9500',   // overdue doses waiting
-  empty: '#d1d1d6',    // nothing scheduled
+  done: '#0f5750',     // all given (teal)
+  going: '#0f5750',    // in progress (teal)
+  behind: '#a2761c',   // overdue doses waiting (amber)
+  empty: '#dbe6e3',    // nothing scheduled
 };
 
 export default function Ring({
@@ -36,7 +36,7 @@ export default function Ring({
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)} style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" role="img" aria-label={label ? `${label}: ${value} of ${total}` : `${value} of ${total}`}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#ececec" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e6ece9" strokeWidth={stroke} />
         {total > 0 && (
           <circle
             cx={size / 2}

@@ -1,38 +1,38 @@
 'use client';
 
 /**
- * The pet shell: one identity row and three tabs. Nothing else.
+ * The pet shell (direction D, clinical-lux).
  *
- * The row says whose page this is (photo, name, and a Missing badge
- * only when there is an open case; being home is not news). The tabs
- * are the product's three rooms: Today (act), Health (the record),
- * People (who can see and do what). Identity renders here exactly
- * once; pages render content only.
+ * The global universal navbar (lib/navChrome.js) is untouched. Below it,
+ * the pet section is a page-level layout: a persistent LEFT NAV RAIL on
+ * desktop (pet identity + the five rooms + pet switcher) that becomes a
+ * horizontal tab strip on mobile. The five rooms:
+ *   Today · Meds · Health · Profile · People
+ * Each room owns its content (and its own subtabs); identity + nav render
+ * here exactly once. Focused flows (edit, the medication wizard) drop the
+ * rail for a single way back.
  *
- * Focused flows (edit, the medication wizard) replace the tabs with a
- * single way back.
- *
- * Pet data is fetched ONCE here via PetProvider; pages read it from
- * context instead of refetching /api/pets/[id] per tab.
+ * Pet data is fetched ONCE via PetProvider; rooms read it from context.
  */
 
 import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Home, Pill, Activity, User, Users } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { PetProvider, usePet } from '@/app/components/care/PetProvider';
 
 const TABS = [
-  { id: 'today', label: 'Today' },
-  { id: 'health', label: 'Health' },
-  { id: 'share', label: 'People' },
+  { id: 'today', label: 'Today', icon: Home },
+  { id: 'meds', label: 'Meds', icon: Pill },
+  { id: 'health', label: 'Health', icon: Activity },
+  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'share', label: 'People', icon: Users },
 ];
 
-// Flows that own the screen: no tabs, just a way back.
 const FOCUSED = {
-  edit: { backLabel: 'Back', backTo: '/health' },
-  medications: { backLabel: 'Back', backTo: '/health' },
+  edit: { backLabel: 'Back', backTo: '/profile' },
+  medications: { backLabel: 'Back', backTo: '/meds' },
 };
 
 function activeCaseOf(pet) {
@@ -42,74 +42,151 @@ function activeCaseOf(pet) {
   return c;
 }
 
+function initials(name) {
+  return (name || '?').trim().charAt(0).toUpperCase();
+}
+
+function PetIdentity({ pet }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="relative w-11 h-11 rounded-full shrink-0 bg-gradient-to-br from-[#f1f6f4] to-[#e7efec] ring-1 ring-care-tealRing flex items-center justify-center overflow-hidden">
+        {pet?.primaryPhotoUrl ? (
+          <img src={pet.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="font-serif text-[19px] font-semibold text-care-teal">{initials(pet?.name)}</span>
+        )}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[17px] font-semibold tracking-tight text-care-ink leading-tight truncate">{pet?.name || ' '}</p>
+        {pet && (
+          <p className="text-[11.5px] text-care-sub truncate">
+            {[pet.breed || pet.species, pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PetShell({ children }) {
   const params = useParams();
   const pathname = usePathname();
   const petId = params.id;
-  const { pet } = usePet();
+  const { pet, allPets } = usePet();
 
-  const segment = pathname.split('/')[3] || '';
+  const segment = pathname.split('/')[3] || 'today';
   const focused = FOCUSED[segment];
   const activeCase = activeCaseOf(pet);
 
-  return (
-    <div className="min-h-screen bg-care-bg pb-20 lg:pb-10">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6">
-        {focused ? (
+  if (focused) {
+    return (
+      <div className="min-h-screen bg-care-bg">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6">
           <Link
             href={`/pets/${petId}${focused.backTo}`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-care-sub hover:text-care-ink transition-colors"
           >
             <ArrowLeft size={15} /> {focused.backLabel}
           </Link>
-        ) : (
-          <>
-            <div className="flex items-center gap-3">
-              {pet?.primaryPhotoUrl ? (
-                <img src={pet.primaryPhotoUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
-              ) : (
-                <span className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400">
-                  {pet && <SpeciesIcon species={pet.species} size={20} />}
-                </span>
-              )}
-              <h1 className="text-xl font-semibold tracking-tight text-neutral-900 truncate">
-                {pet?.name || ' '}
-              </h1>
-              {activeCase && (
-                <Link
-                  href={`/mission-control?mission=${activeCase.caseNumber}`}
-                  className="text-[12px] font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5 shrink-0 hover:bg-red-100 transition-colors"
-                >
-                  Missing
-                </Link>
-              )}
-            </div>
+        </div>
+        {children}
+      </div>
+    );
+  }
 
-            <nav className="flex gap-6 mt-4 border-b border-care-line" aria-label="Pet sections">
-              {TABS.map(({ id, label }) => {
-                const active = segment === id;
+  const tabHref = (id) => `/pets/${petId}/${id}`;
+
+  return (
+    <div className="min-h-screen bg-care-bg">
+      <div className="lg:grid lg:grid-cols-[240px_1fr] max-w-[1240px] mx-auto">
+        {/* LEFT NAV RAIL — desktop */}
+        <aside className="hidden lg:flex flex-col gap-6 px-5 py-7 border-r border-care-line bg-care-surface min-h-[calc(100vh-4rem)]">
+          <PetIdentity pet={pet} />
+
+          {activeCase && (
+            <Link
+              href={`/mission-control?mission=${activeCase.caseNumber}`}
+              className="flex items-center gap-2 text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 hover:bg-red-100 transition-colors"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {pet?.name} is missing
+            </Link>
+          )}
+
+          <nav className="flex flex-col gap-0.5" aria-label="Pet sections">
+            <p className="px-2 pb-2 text-[10.5px] font-bold uppercase tracking-[0.16em] text-care-faint">Menu</p>
+            {TABS.map(({ id, label, icon: Icon }) => {
+              const on = segment === id;
+              return (
+                <Link
+                  key={id}
+                  href={tabHref(id)}
+                  aria-current={on ? 'page' : undefined}
+                  className={cn(
+                    'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors',
+                    on ? 'bg-care-tealWash text-care-teal font-semibold' : 'text-care-sub hover:text-care-ink hover:bg-care-bg'
+                  )}
+                >
+                  {on && <span className="absolute -left-5 top-2.5 bottom-2.5 w-[3px] rounded-r bg-care-teal" />}
+                  <Icon size={18} strokeWidth={1.9} />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {allPets.length > 1 && (
+            <div className="pt-5 border-t border-care-line">
+              <p className="px-2 pb-2 text-[10.5px] font-bold uppercase tracking-[0.16em] text-care-faint">Pets</p>
+              {allPets.map((p) => {
+                const on = p.id === petId;
                 return (
                   <Link
-                    key={id}
-                    href={`/pets/${petId}/${id}`}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'py-2.5 -mb-px text-sm font-medium border-b-2 transition-colors',
-                      active
-                        ? 'text-neutral-900 border-neutral-900'
-                        : 'text-neutral-500 border-transparent hover:text-neutral-900'
-                    )}
+                    key={p.id}
+                    href={`/pets/${p.id}/${segment}`}
+                    className={cn('flex items-center gap-3 px-2.5 py-2 rounded-xl', on ? 'bg-care-bg ring-1 ring-care-tealRing' : 'hover:bg-care-bg')}
                   >
-                    {label}
+                    <span className="w-7 h-7 rounded-full shrink-0 bg-gradient-to-br from-[#f1f6f4] to-[#e7efec] ring-1 ring-care-tealRing flex items-center justify-center overflow-hidden">
+                      {p.primaryPhotoUrl ? <img src={p.primaryPhotoUrl} alt="" className="w-full h-full object-cover" /> : <span className="font-serif text-[13px] font-semibold text-care-teal">{initials(p.name)}</span>}
+                    </span>
+                    <span className="text-[13px] font-semibold text-care-ink truncate">{p.name}</span>
                   </Link>
                 );
               })}
-            </nav>
-          </>
-        )}
-      </div>
+            </div>
+          )}
 
-      {children}
+          <Link href="/pets" className="mt-auto text-[12px] font-medium text-care-sub hover:text-care-ink transition-colors">
+            All pets
+          </Link>
+        </aside>
+
+        {/* MOBILE: identity + horizontal tab strip */}
+        <div className="lg:hidden px-4 sm:px-6 pt-5 bg-care-surface border-b border-care-line">
+          <PetIdentity pet={pet} />
+          {activeCase && (
+            <Link href={`/mission-control?mission=${activeCase.caseNumber}`} className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Missing
+            </Link>
+          )}
+          <nav className="flex gap-5 mt-3 overflow-x-auto -mb-px" aria-label="Pet sections">
+            {TABS.map(({ id, label }) => {
+              const on = segment === id;
+              return (
+                <Link
+                  key={id}
+                  href={tabHref(id)}
+                  aria-current={on ? 'page' : undefined}
+                  className={cn('py-2.5 text-[13.5px] font-medium border-b-2 whitespace-nowrap transition-colors', on ? 'text-care-teal border-care-teal' : 'text-care-sub border-transparent')}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        <main className="min-w-0 pb-24 lg:pb-10">{children}</main>
+      </div>
     </div>
   );
 }
