@@ -1,32 +1,26 @@
 'use client';
 
 /**
- * The one add-a-pet wizard (/care/start) — guest-first, member-fast.
+ * The one add-a-pet wizard (/care/start), guest-first, member-fast.
  *
- * A visitor builds their pet's Health Book (who → looks → meds), SEES
- * it as a live preview, and only meets a signup form at the moment it
- * exists to serve: "save this". The draft lives in localStorage so
- * nothing is ever lost. Signed-in members skip the account step, gain
- * a photo step, and save straight to /api/pets.
+ * A visitor describes their pet (who, looks, meds) and only meets a
+ * signup form at the moment it exists to serve: saving. The draft lives
+ * in localStorage so nothing is lost. Signed-in members skip the
+ * account step, gain a photo step, and save straight to /api/pets.
  *
  * Looks are structured (coat swatches + pattern via lib/petAppearance)
  * so the color a guest taps here round-trips into the edit page's
- * swatch UI and reads correctly on flyers — the same canonical
- * vocabulary as everywhere else. Everything rarer (sex, microchip,
- * marks, personality, vet) is invited later by Rescue Readiness on the
- * profile, never demanded at the door.
+ * swatch UI and reads correctly on flyers, the same canonical
+ * vocabulary as everywhere else. Rarer details (sex, microchip, marks,
+ * personality, vet) are invited later on the profile, never demanded
+ * at the door.
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import {
-  ArrowRight, ArrowLeft, Plus, X, Sun, Moon, Clock, CheckCircle2, Check,
-  Sparkles, Mail, Lock, User, PawPrint,
-} from 'lucide-react';
 import { cn } from '@/components/ui';
-import { SpeciesIcon, DogIcon, CatIcon, BirdIcon, RabbitIcon, PawIcon } from '@/app/components/icons/SpeciesIcons';
 import ImageUpload from '@/app/components/ImageUpload';
 import { getBreedsForSpecies } from '@/app/lib/breeds';
 import {
@@ -37,25 +31,25 @@ const DRAFT_KEY = 'rp_healthbook_draft';
 const NAME_MAX = 40;
 
 const SPECIES_OPTIONS = [
-  { value: 'DOG', label: 'Dog', icon: DogIcon },
-  { value: 'CAT', label: 'Cat', icon: CatIcon },
-  { value: 'BIRD', label: 'Bird', icon: BirdIcon },
-  { value: 'RABBIT', label: 'Rabbit', icon: RabbitIcon },
-  { value: 'OTHER', label: 'Other', icon: PawIcon },
+  { value: 'DOG', label: 'Dog' },
+  { value: 'CAT', label: 'Cat' },
+  { value: 'BIRD', label: 'Bird' },
+  { value: 'RABBIT', label: 'Rabbit' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 const SIZE_OPTIONS = [
-  { value: 'TINY', label: 'Tiny', hint: '< 10 lb', paw: 13 },
-  { value: 'SMALL', label: 'Small', hint: '10–25 lb', paw: 16 },
-  { value: 'MEDIUM', label: 'Medium', hint: '25–60 lb', paw: 20 },
-  { value: 'LARGE', label: 'Large', hint: '60–100 lb', paw: 24 },
-  { value: 'GIANT', label: 'Giant', hint: '100+ lb', paw: 28 },
+  { value: 'TINY', label: 'Tiny', hint: 'under 10 lb' },
+  { value: 'SMALL', label: 'Small', hint: '10-25 lb' },
+  { value: 'MEDIUM', label: 'Medium', hint: '25-60 lb' },
+  { value: 'LARGE', label: 'Large', hint: '60-100 lb' },
+  { value: 'GIANT', label: 'Giant', hint: '100+ lb' },
 ];
 
 const TIME_PRESETS = [
-  { value: '08:00', label: 'Morning', icon: Sun },
-  { value: '12:00', label: 'Midday', icon: Clock },
-  { value: '20:00', label: 'Evening', icon: Moon },
+  { value: '08:00', label: 'Morning' },
+  { value: '12:00', label: 'Midday' },
+  { value: '20:00', label: 'Evening' },
 ];
 
 const EMPTY_DRAFT = {
@@ -65,8 +59,24 @@ const EMPTY_DRAFT = {
 };
 
 const inputClass =
-  'w-full rounded-2xl border-2 border-midnight-200 bg-white px-4 py-3.5 text-lg text-midnight-900 ' +
-  'placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition';
+  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
+  'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
+
+const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
+
+const primaryBtn =
+  'rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark ' +
+  'disabled:opacity-40 transition-colors focus-visible:outline focus-visible:outline-2 ' +
+  'focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
+
+const secondaryBtn =
+  'rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-2 ' +
+  'hover:border-care-teal disabled:opacity-40 transition-colors focus-visible:outline ' +
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
+
+const quietBtn =
+  'text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors ' +
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
 
 function loadDraft() {
   try {
@@ -96,95 +106,26 @@ function timeLabel(t) {
   return `${hr}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
-function Chip({ active, onClick, children, className }) {
+function Chip({ active, onClick, children, className, ...rest }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        'px-3.5 py-2 rounded-xl text-sm font-semibold border-2 transition-colors',
+        'rounded-full border px-3.5 py-2 text-sm transition-colors focus-visible:outline',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900',
         active
-          ? 'border-flash-400 bg-flash-50 text-midnight-900'
-          : 'border-midnight-200 bg-white text-midnight-600 hover:border-midnight-300',
+          ? 'border-care-teal bg-care-teal text-white'
+          : 'border-neutral-300 text-neutral-700 hover:border-care-teal',
         className
       )}
+      {...rest}
     >
       {children}
     </button>
   );
 }
-
-/* ------------------------- The live Today preview ------------------------- */
-
-function TodayPreview({ draft }) {
-  const doses = draft.meds.flatMap((med) => med.times.map((t) => ({ med: med.name, time: t })));
-  doses.sort((a, b) => a.time.localeCompare(b.time));
-  const morning = doses.filter((d) => Number(d.time.slice(0, 2)) < 12);
-  const evening = doses.filter((d) => Number(d.time.slice(0, 2)) >= 12);
-
-  const Row = ({ dose }) => (
-    <div className="flex items-center gap-3 bg-white border border-midnight-100 rounded-xl px-4 py-3">
-      <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 text-xs font-extrabold">
-        Rx
-      </span>
-      <span className="flex-1 min-w-0">
-        <span className="block text-sm font-bold text-midnight-900 truncate">{dose.med}</span>
-        <span className="block text-xs text-midnight-500">Due {timeLabel(dose.time)}</span>
-      </span>
-      <span className="w-6 h-6 rounded-full border-2 border-midnight-200 shrink-0" />
-    </div>
-  );
-
-  const looksLine = [
-    composeColor(draft.coatColors, draft.coatPattern),
-    draft.breed?.trim(),
-  ].filter(Boolean).join(' · ');
-
-  return (
-    <div className="bg-midnight-50 border border-midnight-100 rounded-2xl p-5 text-left">
-      <div className="flex items-center gap-3 mb-4">
-        <span className="w-11 h-11 rounded-xl bg-flash-100 text-flash-700 flex items-center justify-center">
-          <SpeciesIcon species={draft.species || 'OTHER'} size={22} />
-        </span>
-        <div className="min-w-0">
-          <p className="font-extrabold text-midnight-900 leading-tight truncate">{draft.name}&rsquo;s Health Book</p>
-          <p className="text-xs text-midnight-500 truncate">
-            {looksLine || (doses.length > 0
-              ? `Today · ${doses.length} dose${doses.length !== 1 ? 's' : ''} to log`
-              : 'Today · routines appear here')}
-          </p>
-        </div>
-      </div>
-
-      {doses.length === 0 ? (
-        <p className="text-sm text-midnight-500 bg-white border border-dashed border-midnight-200 rounded-xl px-4 py-5 text-center">
-          No meds yet. Vaccines, weight, and routines will live here too.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {morning.length > 0 && (
-            <div>
-              <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-midnight-400 mb-1.5">
-                <Sun className="w-3.5 h-3.5" /> Morning
-              </p>
-              <div className="space-y-2">{morning.map((d, i) => <Row key={`m${i}`} dose={d} />)}</div>
-            </div>
-          )}
-          {evening.length > 0 && (
-            <div>
-              <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-midnight-400 mb-1.5">
-                <Moon className="w-3.5 h-3.5" /> Midday &amp; evening
-              </p>
-              <div className="space-y-2">{evening.map((d, i) => <Row key={`e${i}`} dose={d} />)}</div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* --------------------------------- Wizard --------------------------------- */
 
 export default function PetWizard() {
   const router = useRouter();
@@ -244,7 +185,7 @@ export default function PetWizard() {
   const toggleCoatColor = (value) => {
     const has = draft.coatColors.includes(value);
     if (!has && draft.coatColors.length >= MAX_COAT_COLORS) {
-      setError(`Pick up to ${MAX_COAT_COLORS} main colors, the ones a stranger would name`);
+      setError(`Pick up to ${MAX_COAT_COLORS} main colors`);
       return;
     }
     set({ coatColors: has ? draft.coatColors.filter((c) => c !== value) : [...draft.coatColors, value] });
@@ -354,494 +295,382 @@ export default function PetWizard() {
     }
   };
 
-  /* ------------------------------ Save screen ----------------------------- */
+  const petName = draft.name.trim() || 'your pet';
+
+  /* ------------------------------ Saved screen ----------------------------- */
 
   if (savedGuest) {
     return (
-      <main className="min-h-screen bg-gradient-to-b from-flash-50 via-amber-50/40 to-midnight-50 px-4 py-16">
-        <div className="max-w-lg mx-auto bg-white rounded-3xl border border-midnight-100 shadow-xl p-8 text-center">
-          <span className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle2 className="w-7 h-7" />
-          </span>
-          <h1 className="text-2xl font-extrabold text-midnight-900 mb-2">
-            {draft.name}&rsquo;s Health Book is saved
+      <main className="min-h-screen bg-white">
+        <div className="max-w-lg mx-auto px-4 sm:px-6 py-16">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-2">
+            {draft.name} is saved
           </h1>
-          <p className="text-midnight-500 mb-6">
-            One tap left: we sent a link to <span className="font-semibold text-midnight-900">{account.email}</span>.
-            Verify your email and {draft.name}&rsquo;s book unlocks.
+          <p className="text-sm text-neutral-500 mb-6">
+            We sent a link to <span className="font-medium text-neutral-900">{account.email}</span>.
+            Verify your email, then sign in.
           </p>
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-500 text-midnight-950 font-bold px-6 py-3.5 rounded-2xl transition-colors"
-          >
-            I&rsquo;ve verified, sign in <ArrowRight className="w-4 h-4" />
+          <Link href="/login" className={cn(primaryBtn, 'inline-block')}>
+            Sign in
           </Link>
         </div>
       </main>
     );
   }
 
-  const petName = draft.name.trim() || 'your pet';
   const lastStep = step === STEPS.length - 1;
 
+  const TITLES = {
+    who: 'Add your pet',
+    looks: `What does ${petName} look like?`,
+    meds: 'Any medications?',
+    photo: 'Add photos',
+    save: `Save ${petName}`,
+  };
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-flash-50 via-amber-50/40 to-midnight-50 px-4 py-10 md:py-14">
-      <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-3xl border border-midnight-100 shadow-xl p-6 md:p-8">
-          {/* progress */}
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-midnight-400">
-              {draft.name.trim() ? `${draft.name.trim()}'s Health Book` : 'A free Health Book'}
-            </p>
-            <p className="text-xs font-semibold text-midnight-400">{step + 1} / {STEPS.length}</p>
-          </div>
-          <div className="flex gap-1.5 mb-7">
-            {STEPS.map((s, i) => (
-              <span key={s.key} className={cn('h-1.5 flex-1 rounded-full transition-colors', i <= step ? 'bg-flash-400' : 'bg-midnight-100')} />
-            ))}
-          </div>
+    <main className="min-h-screen bg-white">
+      <div className="max-w-lg mx-auto px-4 sm:px-6 py-8">
+        <p className="text-[13px] text-neutral-500 mb-1">Step {step + 1} of {STEPS.length}</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-6">{TITLES[stepKey]}</h1>
 
-          {resumed && step === 0 && (
-            <p className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2.5 mb-5">
-              <Sparkles className="w-4 h-4 shrink-0" /> Picked up where you left off. Nothing was lost.
-            </p>
-          )}
+        {resumed && step === 0 && (
+          <p className="text-[13px] text-neutral-500 mb-5">Resumed your saved draft.</p>
+        )}
 
-          {/* STEP: who — the pet, not the person */}
-          {stepKey === 'who' && (
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-900 mb-1.5">
-                Who&rsquo;s this Health Book for?
-              </h1>
-              <p className="text-midnight-500 mb-6">Let&rsquo;s meet your pet.</p>
-              <label className="block text-sm font-bold text-midnight-700 mb-1.5" htmlFor="hb-name">Their name</label>
-              <input
-                id="hb-name"
-                value={draft.name}
-                maxLength={NAME_MAX}
-                onChange={(e) => set({ name: e.target.value })}
-                placeholder="Max"
-                autoFocus
-                className={cn(inputClass, 'mb-5')}
-              />
-              <p className="text-sm font-bold text-midnight-700 mb-2">They&rsquo;re a…</p>
-              <div className="grid grid-cols-5 gap-2">
-                {SPECIES_OPTIONS.map(({ value, label, icon: Icon }) => (
+        {/* STEP: who */}
+        {stepKey === 'who' && (
+          <div>
+            <label className={labelClass} htmlFor="hb-name">Name</label>
+            <input
+              id="hb-name"
+              value={draft.name}
+              maxLength={NAME_MAX}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder="Max"
+              autoFocus
+              className={cn(inputClass, 'mb-5')}
+            />
+            <p className={labelClass}>Species</p>
+            <div className="flex flex-wrap gap-2">
+              {SPECIES_OPTIONS.map(({ value, label }) => (
+                <Chip key={value} active={draft.species === value} onClick={() => set({ species: value })}>
+                  {label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* STEP: looks. Structured swatches double as the rescue profile. */}
+        {stepKey === 'looks' && (
+          <div>
+            <p className={labelClass}>Colors (up to {MAX_COAT_COLORS})</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-3 mb-5">
+              {COAT_COLORS.map(({ value, css, border }) => {
+                const active = draft.coatColors.includes(value);
+                return (
                   <button
                     key={value}
                     type="button"
-                    onClick={() => set({ species: value })}
-                    className={cn(
-                      'flex flex-col items-center gap-1.5 rounded-2xl border-2 px-2 py-3.5 transition-colors',
-                      draft.species === value
-                        ? 'border-flash-400 bg-flash-50 text-midnight-900'
-                        : 'border-midnight-100 hover:border-midnight-300 text-midnight-500'
-                    )}
+                    onClick={() => toggleCoatColor(value)}
+                    aria-pressed={active}
+                    aria-label={value}
+                    className="flex flex-col items-center gap-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
                   >
-                    <Icon size={26} className={draft.species === value ? 'text-flash-600' : undefined} />
-                    <span className="text-xs font-bold">{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* STEP: looks — structured swatches; doubles as the rescue profile */}
-          {stepKey === 'looks' && (
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-900 mb-1.5">
-                What does {petName} look like?
-              </h1>
-              <p className="text-midnight-500 mb-6">
-                Tap the colors a stranger would name. These details double as
-                {' '}{petName}&rsquo;s rescue profile, ready long before you&rsquo;d ever need it.
-              </p>
-
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mb-4">
-                {COAT_COLORS.map(({ value, css, border }) => {
-                  const active = draft.coatColors.includes(value);
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => toggleCoatColor(value)}
-                      aria-pressed={active}
-                      aria-label={value}
-                      className="flex flex-col items-center gap-1.5 group"
-                    >
-                      <span
-                        className={cn(
-                          'w-11 h-11 rounded-full transition-all flex items-center justify-center',
-                          border && 'border border-midnight-200',
-                          active ? 'ring-[3px] ring-offset-2 ring-flash-500 scale-110' : 'group-hover:scale-105'
-                        )}
-                        style={{ background: css }}
-                      >
-                        {active && (
-                          <span className="w-5 h-5 rounded-full bg-white/95 text-midnight-900 flex items-center justify-center shadow">
-                            <Check size={13} strokeWidth={3.5} />
-                          </span>
-                        )}
-                      </span>
-                      <span className={cn('text-[11px] font-semibold', active ? 'text-midnight-900' : 'text-midnight-500')}>
-                        {value}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                {COAT_PATTERNS.map((p) => (
-                  <Chip key={p} active={draft.coatPattern === p} onClick={() => set({ coatPattern: draft.coatPattern === p ? null : p })}>
-                    {p}
-                  </Chip>
-                ))}
-              </div>
-
-              {draft.coatColors.length > 0 && (
-                <p className="text-sm text-midnight-600 bg-midnight-50 border border-midnight-200 rounded-xl px-4 py-2.5 mb-5">
-                  On flyers: <strong className="text-midnight-900">{composeColor(draft.coatColors, draft.coatPattern)}</strong>
-                </p>
-              )}
-
-              <p className="text-sm font-bold text-midnight-700 mb-2">Size</p>
-              <div className="grid grid-cols-5 gap-2 mb-5">
-                {SIZE_OPTIONS.map(({ value, label, hint, paw }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => set({ size: value })}
-                    className={cn(
-                      'flex flex-col items-center gap-1 rounded-2xl border-2 px-1 py-3 transition-colors',
-                      draft.size === value
-                        ? 'border-flash-400 bg-flash-50 text-midnight-900'
-                        : 'border-midnight-100 hover:border-midnight-300 text-midnight-500'
-                    )}
-                  >
-                    <PawIcon size={paw} className={draft.size === value ? 'text-flash-600' : 'text-midnight-300'} />
-                    <span className="text-xs font-bold">{label}</span>
-                    <span className="text-[10px] text-midnight-400">{hint}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="relative">
-                  <label className="block text-sm font-bold text-midnight-700 mb-1.5" htmlFor="hb-breed">
-                    Breed <span className="font-normal text-midnight-400">(optional)</span>
-                  </label>
-                  <input
-                    id="hb-breed"
-                    value={draft.breed}
-                    onChange={(e) => { set({ breed: e.target.value.slice(0, 60) }); setBreedQuery(e.target.value); }}
-                    placeholder={draft.species === 'CAT' ? 'Siamese' : 'Golden Retriever'}
-                    className="w-full rounded-2xl border-2 border-midnight-200 px-4 py-3 text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition"
-                  />
-                  {breedSuggestions.length > 0 && (
-                    <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-midnight-200 rounded-xl shadow-lg overflow-hidden">
-                      {breedSuggestions.map((b) => (
-                        <button
-                          key={b}
-                          type="button"
-                          onClick={() => { set({ breed: b }); setBreedQuery(''); }}
-                          className="w-full text-left px-4 py-2 text-sm font-medium text-midnight-700 hover:bg-flash-50 transition-colors"
-                        >
-                          {b}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-midnight-700 mb-1.5" htmlFor="hb-age">
-                    Age <span className="font-normal text-midnight-400">(optional)</span>
-                  </label>
-                  <input
-                    id="hb-age"
-                    type="number"
-                    min="0"
-                    max="40"
-                    value={draft.age}
-                    onChange={(e) => set({ age: e.target.value })}
-                    placeholder="4"
-                    className="w-full rounded-2xl border-2 border-midnight-200 px-4 py-3 text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP: meds & routines (fully skippable) */}
-          {stepKey === 'meds' && (
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-900 mb-1.5">
-                Any meds or daily routines?
-              </h1>
-              <p className="text-midnight-500 mb-6">
-                One-tap logging starts today. Skip this if {petName} takes nothing.
-              </p>
-
-              {draft.meds.length > 0 && (
-                <div className="space-y-2 mb-5">
-                  {draft.meds.map((m, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-midnight-50 border border-midnight-100 rounded-xl px-4 py-2.5">
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-bold text-midnight-900 truncate">{m.name}</span>
-                        <span className="block text-xs text-midnight-500">{m.times.map(timeLabel).join(' · ')}</span>
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={`Remove ${m.name}`}
-                        onClick={() => set({ meds: draft.meds.filter((_, j) => j !== i) })}
-                        className="text-midnight-400 hover:text-red-600 transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="border-2 border-dashed border-midnight-200 rounded-2xl p-4">
-                <input
-                  value={medName}
-                  onChange={(e) => setMedName(e.target.value.slice(0, 120))}
-                  placeholder="Apoquel 16 mg"
-                  aria-label="Medication name"
-                  className="w-full rounded-xl border-2 border-midnight-200 px-4 py-3 text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition mb-3"
-                />
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {TIME_PRESETS.map(({ value, label, icon: Icon }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => toggleTime(value)}
+                    <span
                       className={cn(
-                        'inline-flex items-center gap-1.5 rounded-xl border-2 px-3 py-2 text-sm font-bold transition-colors',
-                        medTimes.includes(value)
-                          ? 'border-flash-400 bg-flash-50 text-midnight-900'
-                          : 'border-midnight-100 text-midnight-500 hover:border-midnight-300'
+                        'w-9 h-9 rounded-full',
+                        border && 'border border-neutral-200',
+                        active && 'ring-2 ring-offset-2 ring-neutral-900'
                       )}
-                    >
-                      <Icon className="w-4 h-4" /> {label}
-                    </button>
-                  ))}
-                  {/* Custom times join the row as removable chips, 12-hour like
-                      everything else. The chips ARE the state; no summary line. */}
-                  {medTimes
-                    .filter((t) => !TIME_PRESETS.some((p) => p.value === t))
-                    .map((t) => (
+                      style={{ background: css }}
+                    />
+                    <span className={cn('text-[11px]', active ? 'font-medium text-neutral-900' : 'text-neutral-500')}>
+                      {value}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className={labelClass}>Pattern</p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {COAT_PATTERNS.map((p) => (
+                <Chip key={p} active={draft.coatPattern === p} onClick={() => set({ coatPattern: draft.coatPattern === p ? null : p })}>
+                  {p}
+                </Chip>
+              ))}
+            </div>
+
+            {draft.coatColors.length > 0 && (
+              <p className="text-[13px] text-neutral-500 mb-5">
+                On flyers: <span className="font-medium text-neutral-900">{composeColor(draft.coatColors, draft.coatPattern)}</span>
+              </p>
+            )}
+
+            <p className={labelClass}>Size</p>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {SIZE_OPTIONS.map(({ value, label, hint }) => (
+                <Chip key={value} active={draft.size === value} onClick={() => set({ size: value })}>
+                  {label}
+                  <span className={cn('ml-1.5 text-xs', draft.size === value ? 'text-neutral-300' : 'text-neutral-400')}>
+                    {hint}
+                  </span>
+                </Chip>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="relative">
+                <label className={labelClass} htmlFor="hb-breed">
+                  Breed <span className="font-normal text-neutral-400">(optional)</span>
+                </label>
+                <input
+                  id="hb-breed"
+                  value={draft.breed}
+                  onChange={(e) => { set({ breed: e.target.value.slice(0, 60) }); setBreedQuery(e.target.value); }}
+                  placeholder={draft.species === 'CAT' ? 'Siamese' : 'Golden Retriever'}
+                  className={inputClass}
+                />
+                {breedSuggestions.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                    {breedSuggestions.map((b) => (
                       <button
-                        key={t}
+                        key={b}
                         type="button"
-                        onClick={() => toggleTime(t)}
-                        aria-label={`Remove ${timeLabel(t)}`}
-                        className="inline-flex items-center gap-1.5 rounded-xl border-2 border-flash-400 bg-flash-50 text-midnight-900 px-3 py-2 text-sm font-bold transition-colors"
+                        onClick={() => { set({ breed: b }); setBreedQuery(''); }}
+                        className="w-full text-left px-3.5 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 transition-colors"
                       >
-                        <Clock className="w-4 h-4" /> {timeLabel(t)}
-                        <X className="w-3.5 h-3.5 text-midnight-400" />
+                        {b}
                       </button>
                     ))}
-                  <span className="inline-flex items-center gap-1">
-                    <input
-                      type="time"
-                      value={customTime}
-                      onChange={(e) => setCustomTime(e.target.value)}
-                      aria-label="Another time"
-                      className="rounded-xl border-2 border-midnight-100 px-2.5 py-[7px] text-sm text-midnight-600 focus:outline-none focus:border-flash-400 transition"
-                    />
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="hb-age">
+                  Age <span className="font-normal text-neutral-400">(optional)</span>
+                </label>
+                <input
+                  id="hb-age"
+                  type="number"
+                  min="0"
+                  max="40"
+                  value={draft.age}
+                  onChange={(e) => set({ age: e.target.value })}
+                  placeholder="4"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP: meds (fully skippable) */}
+        {stepKey === 'meds' && (
+          <div>
+            {draft.meds.length > 0 && (
+              <div className="divide-y divide-neutral-100 mb-6">
+                {draft.meds.map((m, i) => (
+                  <div key={i} className="flex items-center gap-3 py-3">
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[15px] font-medium text-neutral-900 truncate">{m.name}</span>
+                      <span className="block text-[13px] text-neutral-500">{m.times.map(timeLabel).join(' · ')}</span>
+                    </span>
                     <button
                       type="button"
-                      onClick={addCustomTime}
-                      aria-label="Add this time"
-                      className="p-2 rounded-xl border-2 border-midnight-100 text-midnight-500 hover:border-midnight-300 transition-colors"
+                      aria-label={`Remove ${m.name}`}
+                      onClick={() => set({ meds: draft.meds.filter((_, j) => j !== i) })}
+                      className={quietBtn}
                     >
-                      <Plus className="w-4 h-4" />
+                      Remove
                     </button>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={addMed}
-                  disabled={!medName.trim() || medTimes.length === 0}
-                  className="inline-flex items-center gap-2 bg-midnight-900 hover:bg-midnight-800 disabled:opacity-40 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition-colors"
-                >
-                  <Plus className="w-4 h-4" /> Add to the book
-                </button>
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* STEP: photo (members only — guests get invited after signup) */}
-          {stepKey === 'photo' && (
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-900 mb-1.5">
-                Show {petName} off
-              </h1>
-              <p className="text-midnight-500 mb-6">
-                The first photo becomes the cover of the book — and the face on
-                a flyer if the worst day ever came. Skippable.
-              </p>
-              <ImageUpload
-                images={images}
-                onUpload={(newImages) => setImages((prev) => [...prev, ...newImages])}
-                onRemove={(index) => setImages((prev) => prev.filter((_, i) => i !== index))}
-                maxImages={5}
-                context="pet"
-                label="Pet Photos"
-                helpText="Drag photos here, or click to browse"
+            <label className={labelClass} htmlFor="hb-med-name">Medication name</label>
+            <input
+              id="hb-med-name"
+              value={medName}
+              onChange={(e) => setMedName(e.target.value.slice(0, 120))}
+              placeholder="Apoquel 16 mg"
+              className={cn(inputClass, 'mb-4')}
+            />
+            <p className={labelClass}>Times</p>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {TIME_PRESETS.map(({ value, label }) => (
+                <Chip key={value} active={medTimes.includes(value)} onClick={() => toggleTime(value)}>
+                  {label}
+                </Chip>
+              ))}
+              {/* Custom times join the row as removable chips, 12-hour like
+                  everything else. The chips ARE the state; no summary line. */}
+              {medTimes
+                .filter((t) => !TIME_PRESETS.some((p) => p.value === t))
+                .map((t) => (
+                  <Chip key={t} active onClick={() => toggleTime(t)} aria-label={`Remove ${timeLabel(t)}`}>
+                    {timeLabel(t)}
+                    <span aria-hidden="true" className="ml-1.5 text-neutral-300">&times;</span>
+                  </Chip>
+                ))}
+            </div>
+            <div className="flex items-center gap-2 mb-5">
+              <input
+                type="time"
+                value={customTime}
+                onChange={(e) => setCustomTime(e.target.value)}
+                aria-label="Another time"
+                className={cn(inputClass, 'w-36')}
               />
+              <button type="button" onClick={addCustomTime} className={secondaryBtn}>
+                Add time
+              </button>
             </div>
-          )}
+            <button
+              type="button"
+              onClick={addMed}
+              disabled={!medName.trim() || medTimes.length === 0}
+              className={secondaryBtn}
+            >
+              Add medication
+            </button>
+          </div>
+        )}
 
-          {/* STEP: the reveal + save */}
-          {stepKey === 'save' && (
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-midnight-900 mb-1.5">
-                Here&rsquo;s {petName}&rsquo;s Health Book
-              </h1>
-              <p className="text-midnight-500 mb-5">
-                {isMember
-                  ? 'Save it to your account and start logging today.'
-                  : 'Save it so it’s never lost.'}
-              </p>
+        {/* STEP: photo (members only, guests get invited after signup) */}
+        {stepKey === 'photo' && (
+          <div>
+            <ImageUpload
+              images={images}
+              onUpload={(newImages) => setImages((prev) => [...prev, ...newImages])}
+              onRemove={(index) => setImages((prev) => prev.filter((_, i) => i !== index))}
+              maxImages={5}
+              context="pet"
+              label="Pet photos"
+              helpText="Drag photos here, or click to browse"
+            />
+          </div>
+        )}
 
-              <div className="mb-6">
-                <TodayPreview draft={draft} />
-              </div>
+        {/* STEP: save */}
+        {stepKey === 'save' && (
+          <div>
+            {error && (
+              <p className="text-sm text-red-600 mb-4" role="alert">{error}</p>
+            )}
 
-              {error && <p className="text-red-600 text-sm font-semibold mb-4" role="alert">{error}</p>}
-
-              {isMember ? (
-                <button
-                  type="button"
-                  onClick={saveAsMember}
-                  disabled={saving}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-flash-400 hover:bg-flash-500 disabled:opacity-60 text-midnight-950 font-bold text-lg px-6 py-4 rounded-2xl shadow-lg shadow-flash-500/25 transition-all"
-                >
-                  {saving ? 'Saving…' : `Save ${petName}'s Health Book`} <ArrowRight className="w-5 h-5" />
-                </button>
-              ) : (
-                <form onSubmit={saveAsGuest} className="space-y-3">
-                  <p className="text-sm font-bold text-midnight-700">
-                    Create a free account to keep {petName}&rsquo;s book safe:
-                  </p>
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-midnight-400" />
-                    <input
-                      value={account.firstName}
-                      onChange={(e) => setAccount((a) => ({ ...a, firstName: e.target.value.slice(0, 100) }))}
-                      placeholder="Your first name"
-                      required
-                      aria-label="Your first name"
-                      className="w-full rounded-2xl border-2 border-midnight-200 pl-11 pr-4 py-3 text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-midnight-400" />
-                    <input
-                      type="email"
-                      value={account.email}
-                      onChange={(e) => setAccount((a) => ({ ...a, email: e.target.value }))}
-                      placeholder="you@example.com"
-                      required
-                      aria-label="Email"
-                      className="w-full rounded-2xl border-2 border-midnight-200 pl-11 pr-4 py-3 text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition"
-                    />
-                  </div>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-midnight-400" />
-                    <input
-                      type="password"
-                      value={account.password}
-                      onChange={(e) => setAccount((a) => ({ ...a, password: e.target.value }))}
-                      placeholder="Password (8+ characters)"
-                      required
-                      minLength={8}
-                      aria-label="Password"
-                      className="w-full rounded-2xl border-2 border-midnight-200 pl-11 pr-4 py-3 text-midnight-900 placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition"
-                    />
-                  </div>
-                  <label className="flex items-start gap-2.5 text-sm text-midnight-500 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={account.terms}
-                      onChange={(e) => setAccount((a) => ({ ...a, terms: e.target.checked }))}
-                      required
-                      className="mt-0.5 w-4 h-4 rounded accent-flash-500"
-                    />
-                    <span>
-                      I agree to the{' '}
-                      <Link href="/legal/terms" target="_blank" className="font-semibold text-midnight-700 underline">Terms</Link>
-                      {' '}and{' '}
-                      <Link href="/privacy" target="_blank" className="font-semibold text-midnight-700 underline">Privacy Policy</Link>.
-                    </span>
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={saving || !account.terms}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-flash-400 hover:bg-flash-500 disabled:opacity-60 text-midnight-950 font-bold text-lg px-6 py-4 rounded-2xl shadow-lg shadow-flash-500/25 transition-all"
-                  >
-                    {saving ? 'Saving…' : `Save ${petName}'s Health Book`} <ArrowRight className="w-5 h-5" />
+            {!isMember && (
+              <form onSubmit={saveAsGuest} className="space-y-4">
+                <p className="text-[13px] text-neutral-500">Saving needs a free account.</p>
+                <div>
+                  <label className={labelClass} htmlFor="hb-first-name">First name</label>
+                  <input
+                    id="hb-first-name"
+                    value={account.firstName}
+                    onChange={(e) => setAccount((a) => ({ ...a, firstName: e.target.value.slice(0, 100) }))}
+                    placeholder="Sam"
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="hb-email">Email</label>
+                  <input
+                    id="hb-email"
+                    type="email"
+                    value={account.email}
+                    onChange={(e) => setAccount((a) => ({ ...a, email: e.target.value }))}
+                    placeholder="you@example.com"
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass} htmlFor="hb-password">Password</label>
+                  <input
+                    id="hb-password"
+                    type="password"
+                    value={account.password}
+                    onChange={(e) => setAccount((a) => ({ ...a, password: e.target.value }))}
+                    placeholder="8+ characters"
+                    required
+                    minLength={8}
+                    className={inputClass}
+                  />
+                </div>
+                <label className="flex items-start gap-2.5 text-[13px] text-neutral-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={account.terms}
+                    onChange={(e) => setAccount((a) => ({ ...a, terms: e.target.checked }))}
+                    required
+                    className="mt-0.5 w-4 h-4 rounded accent-neutral-900"
+                  />
+                  <span>
+                    I agree to the{' '}
+                    <Link href="/legal/terms" target="_blank" className="font-medium text-neutral-900 underline">Terms</Link>
+                    {' '}and{' '}
+                    <Link href="/privacy" target="_blank" className="font-medium text-neutral-900 underline">Privacy Policy</Link>.
+                  </span>
+                </label>
+                <div className="flex justify-end">
+                  <button type="submit" disabled={saving || !account.terms} className={primaryBtn}>
+                    {saving ? 'Saving...' : 'Create account and save'}
                   </button>
-                  <p className="text-center text-sm text-midnight-400">
-                    Already have an account?{' '}
-                    <Link href={`/login?callbackUrl=${encodeURIComponent('/care/start')}`} className="font-semibold text-midnight-700 underline">
-                      Sign in
-                    </Link>
-                    . {petName}&rsquo;s draft will be waiting.
-                  </p>
-                </form>
-              )}
-            </div>
-          )}
+                </div>
+                <p className="text-[13px] text-neutral-500">
+                  Already have an account?{' '}
+                  <Link href={`/login?callbackUrl=${encodeURIComponent('/care/start')}`} className="font-medium text-neutral-900 underline">
+                    Sign in
+                  </Link>
+                  . {petName}&rsquo;s draft will be waiting.
+                </p>
+              </form>
+            )}
+          </div>
+        )}
 
-          {error && stepKey !== 'save' && (
-            <p className="text-red-600 text-sm font-semibold mt-4" role="alert">{error}</p>
-          )}
+        {error && stepKey !== 'save' && (
+          <p className="text-sm text-red-600 mt-4" role="alert">{error}</p>
+        )}
 
-          {/* nav row */}
+        {/* nav row */}
+        <div className="flex items-center justify-between mt-8">
+          {step > 0 ? (
+            <button
+              type="button"
+              onClick={() => { setError(''); setStep((s) => s - 1); }}
+              className={quietBtn}
+            >
+              Back
+            </button>
+          ) : <span />}
           {!lastStep && (
-            <div className="flex items-center justify-between mt-8">
-              {step > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => { setError(''); setStep((s) => s - 1); }}
-                  className="inline-flex items-center gap-1.5 text-midnight-400 hover:text-midnight-700 font-semibold text-sm transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back
-                </button>
-              ) : <span />}
-              <button
-                type="button"
-                onClick={() => canNext && setStep((s) => s + 1)}
-                disabled={!canNext}
-                className="inline-flex items-center gap-2 bg-midnight-900 hover:bg-midnight-800 disabled:opacity-40 text-white font-bold px-6 py-3 rounded-2xl transition-colors"
-              >
-                {(stepKey === 'meds' && draft.meds.length === 0) || (stepKey === 'photo' && images.length === 0)
-                  ? 'Skip for now'
-                  : 'Continue'}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => canNext && setStep((s) => s + 1)}
+              disabled={!canNext}
+              className={primaryBtn}
+            >
+              {(stepKey === 'meds' && draft.meds.length === 0) || (stepKey === 'photo' && images.length === 0)
+                ? 'Skip for now'
+                : 'Continue'}
+            </button>
           )}
-          {lastStep && (
-            <div className="mt-5 text-center">
-              <button
-                type="button"
-                onClick={() => setStep((s) => s - 1)}
-                className="inline-flex items-center gap-1.5 text-midnight-400 hover:text-midnight-700 font-semibold text-sm transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back
-              </button>
-            </div>
+          {lastStep && isMember && (
+            <button
+              type="button"
+              onClick={saveAsMember}
+              disabled={saving}
+              className={primaryBtn}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
           )}
         </div>
-
-        <p className="flex items-center justify-center gap-1.5 text-midnight-400 text-xs mt-5">
-          <PawPrint className="w-3.5 h-3.5" /> Free forever · takes about a minute · yours to delete anytime
-        </p>
       </div>
     </main>
   );

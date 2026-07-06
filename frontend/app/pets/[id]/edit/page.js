@@ -1,24 +1,23 @@
 'use client';
 
 /**
- * Edit pet - tapping, not typing
+ * Edit pet
  *
- * The same input vocabulary as the new-pet wizard (species cards, coat
- * swatches, paw-scale sizes, trait chips), laid out as conversational
- * cards instead of a form. A live Rescue-ready ring ticks up as fields
- * fill — editing IS protection, and the page shows it. A save bar
- * appears only when something actually changed.
+ * A plain form on a white page. Same input vocabulary as the new-pet
+ * wizard (species chips, coat swatches, size chips, trait chips).
+ * All state, fetch calls, validation, save, and delete logic is
+ * unchanged; only the rendering is minimal and information-first.
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Check, Minus, Plus, Loader2, X, AlertTriangle } from 'lucide-react';
-import { DogIcon, CatIcon, BirdIcon, RabbitIcon, PawIcon } from '@/app/components/icons/SpeciesIcons';
+import { Check, Minus, Plus, Loader2, X } from 'lucide-react';
+import { PawIcon } from '@/app/components/icons/SpeciesIcons';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
-import { Card, Button, EmptyState, cn } from '@/components/ui';
+import { EmptyState, ConfirmModal, cn } from '@/components/ui';
 import {
   COAT_COLORS, COAT_PATTERNS, MAX_COAT_COLORS,
   composeColor, parseColor, validateMicrochip, normalizeMicrochip,
@@ -26,19 +25,19 @@ import {
 } from '@/lib/petAppearance';
 
 const SPECIES_OPTIONS = [
-  { value: 'DOG', label: 'Dog', icon: DogIcon },
-  { value: 'CAT', label: 'Cat', icon: CatIcon },
-  { value: 'BIRD', label: 'Bird', icon: BirdIcon },
-  { value: 'RABBIT', label: 'Rabbit', icon: RabbitIcon },
-  { value: 'OTHER', label: 'Other', icon: PawIcon },
+  { value: 'DOG', label: 'Dog' },
+  { value: 'CAT', label: 'Cat' },
+  { value: 'BIRD', label: 'Bird' },
+  { value: 'RABBIT', label: 'Rabbit' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 const SIZE_OPTIONS = [
-  { value: 'TINY', label: 'Tiny', hint: 'under 10 lbs', paw: 14 },
-  { value: 'SMALL', label: 'Small', hint: '10-25 lbs', paw: 18 },
-  { value: 'MEDIUM', label: 'Medium', hint: '25-50 lbs', paw: 23 },
-  { value: 'LARGE', label: 'Large', hint: '50-90 lbs', paw: 28 },
-  { value: 'GIANT', label: 'Giant', hint: '90+ lbs', paw: 34 },
+  { value: 'TINY', label: 'Tiny', hint: 'under 10 lbs' },
+  { value: 'SMALL', label: 'Small', hint: '10 to 25 lbs' },
+  { value: 'MEDIUM', label: 'Medium', hint: '25 to 50 lbs' },
+  { value: 'LARGE', label: 'Large', hint: '50 to 90 lbs' },
+  { value: 'GIANT', label: 'Giant', hint: '90+ lbs' },
 ];
 
 const SEX_OPTIONS = [
@@ -54,24 +53,30 @@ const PERSONALITY_TRAITS = [
 ];
 
 const inputClass =
-  'w-full rounded-2xl border-2 border-midnight-200 bg-white px-4 py-3 text-midnight-900 ' +
-  'placeholder:text-midnight-300 focus:outline-none focus:border-flash-400 focus:ring-4 focus:ring-flash-100 transition';
+  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
+  'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
 
-/* Tap-first building blocks ------------------------------------------------ */
+const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
 
-function ChoiceChip({ active, onClick, children, className }) {
+const quietAction =
+  'text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors';
+
+/* Building blocks ----------------------------------------------------------- */
+
+function ChoiceChip({ active, onClick, children, className, ...props }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'px-3.5 py-2 rounded-2xl border-2 text-sm font-bold transition-all active:scale-95',
+        'px-3.5 py-2 rounded-full border text-sm font-medium transition-colors',
         active
-          ? 'border-flash-400 bg-flash-50 text-midnight-900'
-          : 'border-midnight-200 bg-white text-midnight-500 hover:border-midnight-300 hover:text-midnight-800',
+          ? 'border-care-teal bg-care-teal text-white'
+          : 'border-neutral-300 text-neutral-700 hover:border-care-teal',
         className
       )}
+      {...props}
     >
       {children}
     </button>
@@ -90,54 +95,26 @@ function InlineAdd({ value, onChange, onAdd, onCancel, placeholder }) {
           if (e.key === 'Escape') onCancel();
         }}
         placeholder={placeholder}
-        className="rounded-2xl border-2 border-flash-400 bg-white px-3 py-2 text-sm font-semibold text-midnight-900 placeholder:text-midnight-300 focus:outline-none w-44"
+        className="w-44 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal"
       />
       <button type="button" onClick={onAdd} aria-label="Add"
-        className="w-9 h-9 rounded-xl bg-flash-400 hover:bg-flash-300 text-midnight-900 flex items-center justify-center transition-colors">
+        className="w-9 h-9 rounded-full bg-care-teal hover:bg-care-tealDark text-white flex items-center justify-center transition-colors">
         <Check size={15} strokeWidth={3} />
       </button>
       <button type="button" onClick={onCancel} aria-label="Cancel"
-        className="w-9 h-9 rounded-xl text-midnight-400 hover:text-midnight-700 flex items-center justify-center">
+        className="w-9 h-9 rounded-full text-neutral-500 hover:text-neutral-900 flex items-center justify-center transition-colors">
         <X size={15} />
       </button>
     </span>
   );
 }
 
-function SectionCard({ title, subtitle, children }) {
+function Section({ label, children }) {
   return (
-    <Card padding="lg" className="mb-4">
-      <h2 className="text-lg font-bold text-midnight-900">{title}</h2>
-      {subtitle && <p className="text-sm text-midnight-500 mt-0.5 mb-4">{subtitle}</p>}
-      {!subtitle && <div className="mb-4" />}
+    <section className="mb-10">
+      <h2 className="text-[13px] font-medium text-neutral-500 mb-4">{label}</h2>
       {children}
-    </Card>
-  );
-}
-
-function ReadyRing({ met, total }) {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const pct = total ? met / total : 0;
-  return (
-    <div className="flex items-center gap-2.5" role="img" aria-label={`Rescue ready: ${met} of ${total}`}>
-      <div className="relative w-11 h-11">
-        <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-          <circle cx="32" cy="32" r={r} fill="none" strokeWidth="7" className="stroke-midnight-100" />
-          <circle
-            cx="32" cy="32" r={r} fill="none" strokeWidth="7" strokeLinecap="round"
-            strokeDasharray={c} strokeDashoffset={c * (1 - pct)}
-            className={cn('transition-all duration-500', pct >= 1 ? 'stroke-emerald-400' : 'stroke-flash-400')}
-          />
-        </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-midnight-900 tabular-nums">
-          {met}/{total}
-        </span>
-      </div>
-      <span className="text-xs font-bold text-midnight-500 hidden sm:block leading-tight">
-        Rescue<br />ready
-      </span>
-    </div>
+    </section>
   );
 }
 
@@ -155,7 +132,7 @@ export default function EditPetPage() {
 
   const [form, setForm] = useState(null);
   const [images, setImages] = useState([]);
-  // Weight is displayed here but logged in the Health Book — the one write path.
+  // Weight is displayed here but logged on the Health tab, the one write path.
   const [petWeight, setPetWeight] = useState(null);
   const [hasTeam, setHasTeam] = useState(false);
   const [errors, setErrors] = useState({});
@@ -215,7 +192,7 @@ export default function EditPetPage() {
     if (status === 'authenticated' && petId) fetchPet();
   }, [status, petId, fetchPet]);
 
-  // Team state feeds the same 7-point readiness the Overview shows
+  // Team state feeds the same 7-point readiness the profile shows
   useEffect(() => {
     if (status !== 'authenticated' || !petId) return;
     fetch(`/api/pets/${petId}/shares`)
@@ -324,8 +301,8 @@ export default function EditPetPage() {
 
   const validate = () => {
     const next = {};
-    if (!form.name.trim()) next.name = `Every pet needs a name`;
-    if (!colorValue.trim()) next.color = 'Tap the coat colors a stranger would name';
+    if (!form.name.trim()) next.name = 'Name is required';
+    if (!colorValue.trim()) next.color = 'Pick at least one coat color';
     if (form.age && (isNaN(form.age) || form.age < 0 || form.age > 50)) next.age = 'Age should be 0 to 50';
     if (form.microchipId && !validateMicrochip(form.microchipId)) next.microchipId = '9 to 15 letters and digits';
     setErrors(next);
@@ -411,31 +388,28 @@ export default function EditPetPage() {
     );
   }
 
-  const name = form.name.trim() || 'your pet';
-
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8 pb-32">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between gap-3 mb-5">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-midnight-900">Edit {pet.name}</h1>
-            <p className="text-sm text-midnight-500">Every detail here is one a searcher or sitter could need.</p>
-          </div>
-          <ReadyRing met={readiness.met} total={readiness.total} />
+    <div className="px-4 py-8">
+      <div className="max-w-lg mx-auto">
+        <div className="flex items-baseline justify-between gap-3 mb-8">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 truncate">
+            Edit {pet.name}
+          </h1>
+          <p className="text-sm text-neutral-500 shrink-0 tabular-nums">
+            {readiness.met} of {readiness.total} emergency fields
+          </p>
         </div>
 
         {submitError && (
-          <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm px-4 py-3 rounded-xl mb-4 flex items-center justify-between">
+          <div role="alert" className="flex items-center justify-between gap-3 text-sm text-red-600 mb-6">
             <span>{submitError}</span>
-            <button onClick={() => setSubmitError(null)} aria-label="Dismiss" className="text-red-400 hover:text-red-700"><X size={16} /></button>
+            <button onClick={() => setSubmitError(null)} aria-label="Dismiss" className="hover:text-red-700 transition-colors">
+              <X size={16} />
+            </button>
           </div>
         )}
 
-        {/* The face on the flyer */}
-        <SectionCard
-          title="The face on the flyer"
-          subtitle={`Clear, recent photos. If ${name} ever went missing, the first one becomes the poster.`}
-        >
+        <Section label="Photos">
           <ImageUpload
             images={images}
             onUpload={(newImages) => setImages((prev) => [...prev, ...newImages])}
@@ -445,91 +419,96 @@ export default function EditPetPage() {
             label=""
             helpText=""
           />
-        </SectionCard>
+        </Section>
 
-        {/* Who is X? */}
-        <SectionCard title={`Who is ${name}?`}>
+        <Section label="Basics">
           <div className="space-y-5">
             <div>
+              <label htmlFor="pet-name" className={labelClass}>Name</label>
               <input
+                id="pet-name"
                 value={form.name}
                 onChange={(e) => set({ name: e.target.value })}
-                placeholder="Name"
                 aria-label="Pet name"
                 maxLength={40}
-                className={cn(inputClass, 'text-lg font-bold', errors.name && 'border-red-300')}
+                className={cn(inputClass, errors.name && 'border-red-600')}
               />
-              {errors.name && <p className="text-xs text-red-600 mt-1.5">{errors.name}</p>}
+              {errors.name && <p className="text-[13px] text-red-600 mt-1.5">{errors.name}</p>}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {SPECIES_OPTIONS.map(({ value, label, icon: Icon }) => (
-                <ChoiceChip key={value} active={form.species === value} onClick={() => set({ species: value })}>
-                  <span className="inline-flex items-center gap-1.5"><Icon size={15} /> {label}</span>
-                </ChoiceChip>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <input
-                value={form.breed}
-                onChange={(e) => set({ breed: e.target.value })}
-                placeholder="Breed (best guess is fine)"
-                aria-label="Breed"
-                className={inputClass}
-              />
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-midnight-500 shrink-0">Age</span>
-                <button
-                  type="button"
-                  aria-label="Younger"
-                  onClick={() => set({ age: String(Math.max(0, (parseInt(form.age, 10) || 0) - 1)) })}
-                  className="w-10 h-10 rounded-xl border-2 border-midnight-200 text-midnight-500 hover:border-midnight-300 flex items-center justify-center transition-colors"
-                >
-                  <Minus size={15} />
-                </button>
-                <span className="w-16 text-center font-bold text-midnight-900 tabular-nums">
-                  {form.age === '' ? 'Not set' : `${form.age} yr${form.age === '1' ? '' : 's'}`}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Older"
-                  onClick={() => set({ age: String(Math.min(50, (parseInt(form.age, 10) || 0) + 1)) })}
-                  className="w-10 h-10 rounded-xl border-2 border-midnight-200 text-midnight-500 hover:border-midnight-300 flex items-center justify-center transition-colors"
-                >
-                  <Plus size={15} />
-                </button>
-                {errors.age && <p className="text-xs text-red-600">{errors.age}</p>}
+            <div>
+              <p className={labelClass}>Species</p>
+              <div className="flex flex-wrap gap-2">
+                {SPECIES_OPTIONS.map(({ value, label }) => (
+                  <ChoiceChip key={value} active={form.species === value} onClick={() => set({ species: value })}>
+                    {label}
+                  </ChoiceChip>
+                ))}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {SEX_OPTIONS.map(({ value, label }) => (
-                <ChoiceChip key={label} active={form.sex === value} onClick={() => set({ sex: value })}>
-                  {label}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="pet-breed" className={labelClass}>Breed</label>
+                <input
+                  id="pet-breed"
+                  value={form.breed}
+                  onChange={(e) => set({ breed: e.target.value })}
+                  placeholder="Best guess is fine"
+                  aria-label="Breed"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <p className={labelClass}>Age</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="Younger"
+                    onClick={() => set({ age: String(Math.max(0, (parseInt(form.age, 10) || 0) - 1)) })}
+                    className="w-9 h-9 rounded-full border border-neutral-300 text-neutral-700 hover:border-care-teal hover:text-neutral-900 flex items-center justify-center transition-colors"
+                  >
+                    <Minus size={15} />
+                  </button>
+                  <span className="w-16 text-center text-[15px] text-neutral-900 tabular-nums">
+                    {form.age === '' ? 'Not set' : `${form.age} yr${form.age === '1' ? '' : 's'}`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Older"
+                    onClick={() => set({ age: String(Math.min(50, (parseInt(form.age, 10) || 0) + 1)) })}
+                    className="w-9 h-9 rounded-full border border-neutral-300 text-neutral-700 hover:border-care-teal hover:text-neutral-900 flex items-center justify-center transition-colors"
+                  >
+                    <Plus size={15} />
+                  </button>
+                  {errors.age && <p className="text-[13px] text-red-600">{errors.age}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className={labelClass}>Sex</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {SEX_OPTIONS.map(({ value, label }) => (
+                  <ChoiceChip key={label} active={form.sex === value} onClick={() => set({ sex: value })}>
+                    {label}
+                  </ChoiceChip>
+                ))}
+                <ChoiceChip active={form.isNeutered} onClick={() => set({ isNeutered: !form.isNeutered })}>
+                  <span className="inline-flex items-center gap-1.5">
+                    {form.isNeutered && <Check size={14} strokeWidth={3} />}
+                    Neutered / spayed
+                  </span>
                 </ChoiceChip>
-              ))}
-              <span className="w-px h-6 bg-midnight-100 mx-1" aria-hidden="true" />
-              <ChoiceChip active={form.isNeutered} onClick={() => set({ isNeutered: !form.isNeutered })}>
-                <span className="inline-flex items-center gap-1.5">
-                  {form.isNeutered && <Check size={14} strokeWidth={3} />}
-                  Neutered / spayed
-                </span>
-              </ChoiceChip>
+              </div>
             </div>
           </div>
-        </SectionCard>
+        </Section>
 
-        {/* What does X look like? */}
-        <SectionCard
-          title={`What does ${name} look like?`}
-          subtitle="This is how strangers search. Tap what they'd actually say."
-        >
+        <Section label="Appearance">
           <div className="space-y-5">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2.5">
-                Coat (up to {MAX_COAT_COLORS} colors)
-              </p>
+              <p className={labelClass}>Coat, up to {MAX_COAT_COLORS} colors</p>
               <div className="flex flex-wrap gap-3">
                 {COAT_COLORS.map(({ value, css, border }) => {
                   const active = form.coatColors.includes(value);
@@ -541,56 +520,50 @@ export default function EditPetPage() {
                       aria-pressed={active}
                       aria-label={value}
                       title={value}
-                      className="flex flex-col items-center gap-1 group"
+                      className="flex flex-col items-center gap-1"
                     >
                       <span
                         className={cn(
-                          'w-10 h-10 rounded-full transition-all flex items-center justify-center',
-                          border && 'border border-midnight-200',
-                          active ? 'ring-[3px] ring-offset-2 ring-flash-500 scale-110' : 'group-hover:scale-105'
+                          'w-9 h-9 rounded-full flex items-center justify-center transition-shadow',
+                          border && 'border border-neutral-300',
+                          active && 'ring-2 ring-neutral-900 ring-offset-2'
                         )}
                         style={{ background: css }}
                       >
                         {active && (
-                          <span className="w-4.5 h-4.5 w-5 h-5 rounded-full bg-white/95 text-midnight-900 flex items-center justify-center shadow">
-                            <Check size={12} strokeWidth={3.5} />
+                          <span className="w-5 h-5 rounded-full bg-white/90 text-neutral-900 flex items-center justify-center">
+                            <Check size={12} strokeWidth={3} />
                           </span>
                         )}
                       </span>
-                      <span className={cn('text-[10px] font-semibold', active ? 'text-midnight-900' : 'text-midnight-400')}>
+                      <span className={cn('text-[11px]', active ? 'text-neutral-900 font-medium' : 'text-neutral-500')}>
                         {value}
                       </span>
                     </button>
                   );
                 })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
                 {form.coatColors
                   .filter((c) => !COAT_COLORS.some((k) => k.value === c))
                   .map((c) => (
-                    <button
+                    <ChoiceChip
                       key={c}
-                      type="button"
+                      active
                       onClick={() => set({ coatColors: form.coatColors.filter((x) => x !== c) })}
                       aria-label={`Remove ${c}`}
-                      title={`${c} (tap to remove)`}
-                      className="flex flex-col items-center gap-1 group"
                     >
-                      <span className="w-10 h-10 rounded-full bg-midnight-900 text-white ring-[3px] ring-offset-2 ring-flash-500 flex items-center justify-center text-xs font-bold">
-                        {c.slice(0, 2)}
-                      </span>
-                      <span className="text-[10px] font-semibold text-midnight-900">{c}</span>
-                    </button>
+                      <span className="inline-flex items-center gap-1.5">{c} <X size={13} /></span>
+                    </ChoiceChip>
                   ))}
                 {customColorInput === null ? (
                   <button
                     type="button"
                     onClick={() => setCustomColorInput('')}
-                    className="flex flex-col items-center gap-1 group"
                     aria-label="Add another color"
+                    className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
                   >
-                    <span className="w-10 h-10 rounded-full border-2 border-dashed border-midnight-300 text-midnight-400 group-hover:border-flash-400 group-hover:text-flash-500 flex items-center justify-center transition-colors">
-                      <Plus size={15} />
-                    </span>
-                    <span className="text-[10px] font-semibold text-midnight-400">Other</span>
+                    Add color
                   </button>
                 ) : (
                   <InlineAdd
@@ -602,20 +575,20 @@ export default function EditPetPage() {
                   />
                 )}
               </div>
-              {errors.color && <p className="text-xs text-red-600 mt-2">{errors.color}</p>}
+              {errors.color && <p className="text-[13px] text-red-600 mt-2">{errors.color}</p>}
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 {COAT_PATTERNS.map((p) => (
                   <ChoiceChip
                     key={p}
                     active={(form.coatPattern || 'Solid') === p}
                     onClick={() => set({ coatPattern: p === 'Solid' ? null : p })}
-                    className="px-3 py-1.5 text-xs"
+                    className="px-3 py-1.5 text-[13px]"
                   >
                     {p}
                   </ChoiceChip>
                 ))}
                 {form.coatPattern && !COAT_PATTERNS.includes(form.coatPattern) && (
-                  <ChoiceChip active onClick={() => set({ coatPattern: null })} className="px-3 py-1.5 text-xs">
+                  <ChoiceChip active onClick={() => set({ coatPattern: null })} className="px-3 py-1.5 text-[13px]">
                     <span className="inline-flex items-center gap-1">{form.coatPattern} <X size={12} /></span>
                   </ChoiceChip>
                 )}
@@ -623,9 +596,9 @@ export default function EditPetPage() {
                   <button
                     type="button"
                     onClick={() => setCustomPatternInput('')}
-                    className="px-3 py-1.5 rounded-2xl border-2 border-dashed border-midnight-300 text-xs font-bold text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors"
+                    className="px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
                   >
-                    + Other
+                    Add pattern
                   </button>
                 ) : (
                   <InlineAdd
@@ -640,62 +613,77 @@ export default function EditPetPage() {
             </div>
 
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2.5">Size</p>
-              <div className="grid grid-cols-5 gap-2">
-                {SIZE_OPTIONS.map(({ value, label, hint, paw }) => {
-                  const active = form.size === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => set({ size: value })}
-                      aria-pressed={active}
-                      className={cn(
-                        'flex flex-col items-center justify-end gap-1 rounded-2xl border-2 px-1 pt-3 pb-2 transition-all active:scale-95',
-                        active ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-300'
-                      )}
-                    >
-                      <PawIcon size={paw} className={active ? 'text-midnight-900' : 'text-midnight-300'} />
-                      <span className={cn('text-xs font-bold', active ? 'text-midnight-900' : 'text-midnight-500')}>{label}</span>
-                      <span className="text-[9px] text-midnight-400 leading-none hidden sm:block">{hint}</span>
-                    </button>
-                  );
-                })}
+              <p className={labelClass}>Size</p>
+              <div className="flex flex-wrap gap-2">
+                {SIZE_OPTIONS.map(({ value, label, hint }) => (
+                  <ChoiceChip
+                    key={value}
+                    active={form.size === value}
+                    onClick={() => set({ size: value })}
+                    aria-label={`${label}, ${hint}`}
+                    title={hint}
+                  >
+                    {label}
+                  </ChoiceChip>
+                ))}
               </div>
             </div>
 
-            {/* Weight has ONE write path — the Health Book's weight log —
-                so the trend chart and this number can never disagree. */}
-            <div className="flex items-center justify-between gap-3 rounded-2xl border-2 border-midnight-100 bg-midnight-50/50 px-4 py-3">
-              <p className="text-sm text-midnight-600">
-                <span className="font-bold text-midnight-900">Weight:</span>{' '}
-                {petWeight != null ? `${petWeight} lbs` : 'not logged yet'}
+            {/* Weight has one write path, the Health tab's weight log, so the
+                trend chart and this number can never disagree. */}
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] text-neutral-500">
+                Weight: {petWeight != null ? `${petWeight} lbs` : 'not logged yet'}
               </p>
-              <Link
-                href={`/pets/${petId}/health`}
-                className="text-xs font-bold text-flash-600 hover:text-flash-700 shrink-0"
-              >
-                Log changes in the Health Book →
+              <Link href={`/pets/${petId}/health`} className={cn(quietAction, 'shrink-0')}>
+                Log weight in Health
               </Link>
             </div>
 
-            <textarea
-              value={form.distinctiveMarks}
-              onChange={(e) => set({ distinctiveMarks: e.target.value })}
-              placeholder={`What would a stranger notice first? White chest patch, torn left ear, walks with a hop...`}
-              aria-label="Distinctive marks"
-              rows={2}
-              className={inputClass}
-            />
+            <div>
+              <label htmlFor="pet-marks" className={labelClass}>Distinctive marks</label>
+              <textarea
+                id="pet-marks"
+                value={form.distinctiveMarks}
+                onChange={(e) => set({ distinctiveMarks: e.target.value })}
+                placeholder="White chest patch, torn left ear, walks with a hop"
+                aria-label="Distinctive marks"
+                rows={2}
+                className={inputClass}
+              />
+            </div>
           </div>
-        </SectionCard>
+        </Section>
 
-        {/* The vibe */}
-        <SectionCard
-          title={`${name}'s vibe`}
-          subtitle={`“Shy, do not chase” changes how a whole neighborhood searches.`}
-        >
-          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+        <Section label="Identification">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="pet-chip" className={labelClass}>Microchip number</label>
+              <input
+                id="pet-chip"
+                value={form.microchipId}
+                onChange={(e) => set({ microchipId: e.target.value })}
+                aria-label="Microchip number"
+                className={cn(inputClass, 'font-mono text-sm', errors.microchipId && 'border-red-600')}
+              />
+              {errors.microchipId && <p className="text-[13px] text-red-600 mt-1.5">{errors.microchipId}</p>}
+            </div>
+            <div>
+              <label htmlFor="pet-collar" className={labelClass}>Collar and tag</label>
+              <input
+                id="pet-collar"
+                value={form.collarInfo}
+                onChange={(e) => set({ collarInfo: e.target.value })}
+                placeholder="Blue collar, bone tag with phone number"
+                aria-label="Collar and tag description"
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section label="Personality">
+          <div className="flex flex-wrap items-center gap-2">
             {PERSONALITY_TRAITS.map((trait) => {
               const active = form.personality.some((t) => t.toLowerCase() === trait.toLowerCase());
               return (
@@ -728,9 +716,9 @@ export default function EditPetPage() {
               <button
                 type="button"
                 onClick={() => setCustomTraitInput('')}
-                className="px-3.5 py-2 rounded-2xl border-2 border-dashed border-midnight-300 text-sm font-bold text-midnight-400 hover:border-flash-400 hover:text-flash-500 transition-colors"
+                className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
               >
-                + Add your own
+                Add trait
               </button>
             ) : (
               <InlineAdd
@@ -742,99 +730,66 @@ export default function EditPetPage() {
               />
             )}
           </div>
-          {errors.personality && <p className="text-xs text-red-600 mb-3">{errors.personality}</p>}
-          <div className="mb-2.5" />
+          {errors.personality && <p className="text-[13px] text-red-600 mt-2">{errors.personality}</p>}
+        </Section>
+
+        <Section label="Vet">
+          <label htmlFor="pet-medical" className={labelClass}>Medical notes</label>
           <textarea
+            id="pet-medical"
             value={form.medicalConditions}
             onChange={(e) => set({ medicalConditions: e.target.value })}
-            placeholder="Anything a vet or sitter should know? Allergies, conditions, daily meds..."
+            placeholder="Allergies, conditions, daily medications"
             aria-label="Medical notes"
             rows={2}
             className={inputClass}
           />
-        </SectionCard>
+        </Section>
 
-        {/* If found */}
-        <SectionCard
-          title={`If ${name} is ever found`}
-          subtitle="The two things that prove who they are and bring them straight home."
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <input
-                value={form.microchipId}
-                onChange={(e) => set({ microchipId: e.target.value })}
-                placeholder="Microchip number"
-                aria-label="Microchip number"
-                className={cn(inputClass, 'font-mono text-sm', errors.microchipId && 'border-red-300')}
-              />
-              {errors.microchipId && <p className="text-xs text-red-600 mt-1.5">{errors.microchipId}</p>}
-            </div>
-            <input
-              value={form.collarInfo}
-              onChange={(e) => set({ collarInfo: e.target.value })}
-              placeholder="Collar & tag (e.g., blue collar, bone tag with phone)"
-              aria-label="Collar and tag description"
-              className={inputClass}
-            />
-          </div>
-        </SectionCard>
-
-        <p className="text-center pt-2 pb-6">
+        <p className="pt-2 pb-6">
           <button
             onClick={() => setDeleteConfirmOpen(true)}
             disabled={deleting}
-            className="text-xs text-midnight-400 hover:text-red-600 underline underline-offset-2 transition-colors"
+            className="text-[13px] font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
           >
-            {deleting ? 'Removing...' : `Remove ${pet.name} from ReunitePets`}
+            {deleting ? 'Removing...' : `Remove ${pet.name}`}
           </button>
         </p>
-      </div>
 
-      {/* Save bar: only exists once something changed */}
-      {dirty && (
-        <div className="fixed inset-x-0 bottom-0 z-40 p-4 pointer-events-none">
-          <div className="max-w-4xl mx-auto flex justify-center">
-            <div className="pointer-events-auto flex items-center gap-3 bg-midnight-950 text-white rounded-2xl shadow-2xl pl-5 pr-2 py-2">
-              <span className="text-sm font-semibold">Unsaved changes</span>
+        {/* Save bar: only exists once something changed */}
+        {dirty && (
+          <div className="sticky bottom-0 bg-white border-t border-neutral-200 py-3">
+            <div className="flex items-center justify-end gap-4">
               <button
                 onClick={discard}
                 disabled={submitting}
-                className="text-sm font-bold text-midnight-300 hover:text-white px-2 py-2 transition-colors"
+                className={cn(quietAction, 'disabled:opacity-50')}
               >
-                Discard
+                Cancel
               </button>
               <button
                 onClick={save}
                 disabled={submitting}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 text-sm font-bold rounded-xl transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark disabled:opacity-40 transition-colors"
               >
-                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} strokeWidth={3} />}
-                Save changes
+                {submitting && <Loader2 size={15} className="animate-spin" />}
+                Save
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Delete confirm */}
       {deleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmOpen(false)} />
-          <Card className="relative w-full max-w-sm p-6 text-center">
-            <span className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-3">
-              <AlertTriangle size={22} />
-            </span>
-            <h3 className="text-lg font-bold text-midnight-900 mb-1">Remove {pet.name}?</h3>
-            <p className="text-sm text-midnight-500 mb-5">
-              Their profile, care history, and medication log go with them. This can&apos;t be undone.
-            </p>
-            <div className="flex gap-2 justify-center">
-              <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Keep {pet.name}</Button>
-              <Button variant="danger" onClick={confirmDelete}>Remove</Button>
-            </div>
-          </Card>
-        </div>
+        <ConfirmModal
+          onClose={() => setDeleteConfirmOpen(false)}
+          title={`Remove ${pet.name}?`}
+          body="This deletes their profile, care history, and medication log. It cannot be undone."
+          confirmLabel="Remove"
+          busy={deleting}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   );

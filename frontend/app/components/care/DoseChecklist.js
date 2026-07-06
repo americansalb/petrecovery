@@ -1,191 +1,165 @@
 'use client';
 
 /**
- * The dose checklist — Today's heart, shared with the public care view.
+ * The dose checklist: Today's core, shared with the public care view.
  *
- * DayChecklist renders one day of scheduled doses (bucketed Morning /
- * Afternoon / Evening around a progress ring) plus the as-needed
- * section. Today is the ONLY surface where doses are logged — scheduled
- * check-offs, as-needed "log now", and past-day catch-up all live here;
- * the Health Book manages the medication list, never the taps.
+ * One question: what does this pet need now? Pending doses come first,
+ * sorted by time, each with a single Give action. As-needed doses
+ * follow. What is already handled drops to a quiet "Done" group so it
+ * is out of the way but still checkable. Today is the ONLY surface
+ * where doses are logged.
  *
- * `readOnly` renders the same layout with statuses instead of buttons
- * (the vet/sitter view link uses this — one component, two audiences).
+ * `readOnly` renders the same rows as status only (the sitter/vet view
+ * link uses this): one component, two audiences.
  */
 
 import { useMemo } from 'react';
-import { Check, X, Undo2, PartyPopper, Sun, Sunset, Moon, Loader2 } from 'lucide-react';
-import { Card, cn } from '@/components/ui';
-import { MedIconChip } from '@/app/components/medications/MedIcon';
+import { Loader2, Check } from 'lucide-react';
+import { cn } from '@/components/ui';
 import {
-  medColor, formatTime, timeOfDayBucket, slotsWithStatus, sameDay,
+  formatTime, slotsWithStatus, sameDay,
 } from '@/lib/medications';
 
-const BUCKET_ICONS = { Morning: Sun, Afternoon: Sunset, Evening: Moon };
-
-export function ProgressRing({ given, due }) {
-  const pct = due > 0 ? given / due : 0;
-  const r = 30;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative w-20 h-20 flex-shrink-0" role="img" aria-label={`${given} of ${due} doses given today`}>
-      <svg viewBox="0 0 72 72" className="w-20 h-20 -rotate-90">
-        <circle cx="36" cy="36" r={r} fill="none" strokeWidth="7" className="stroke-midnight-100" />
-        <circle
-          cx="36" cy="36" r={r} fill="none" strokeWidth="7" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - pct)}
-          className={cn('transition-all duration-500', pct >= 1 ? 'stroke-emerald-500' : 'stroke-flash-400')}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-midnight-900 leading-none">{given}<span className="text-midnight-400 text-sm">/{due}</span></span>
-        <span className="text-[10px] text-midnight-500 mt-0.5">doses</span>
-      </div>
-    </div>
-  );
+function isOverdue(slot, day) {
+  return !slot.status && sameDay(day, new Date()) && slot.scheduledFor < new Date();
 }
 
-export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo }) {
-  const colors = medColor(med.color);
+export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo, day }) {
   const given = slot.status === 'GIVEN';
   const skipped = slot.status === 'SKIPPED';
+  const handled = given || skipped;
+  const overdue = isOverdue(slot, day);
 
   return (
-    /* Each med's own color rides its row (same accent as its card in the
-       Book), so a two-med day reads as two distinct things, not two gray
-       stripes. The action is a labeled button, not a mystery circle. */
-    <div className={cn(
-      'flex items-center gap-3 rounded-xl border border-l-4 px-3 py-3 transition-colors',
-      colors.accent,
-      given ? 'bg-emerald-50/70 border-emerald-200' : skipped ? 'bg-midnight-50 border-midnight-200' : 'bg-white border-midnight-200'
-    )}>
-      <MedIconChip med={med} size="sm" />
+    <div className="flex items-center gap-3 py-3">
+      <span
+        className={cn(
+          'w-14 shrink-0 text-[13px] tabular-nums',
+          overdue ? 'text-red-600 font-medium' : 'text-neutral-500'
+        )}
+      >
+        {formatTime(slot.time)}
+      </span>
+
       <div className="flex-1 min-w-0">
-        <p className={cn('font-bold text-[15px] text-midnight-900 truncate leading-tight', skipped && 'line-through text-midnight-400 font-semibold')}>
+        <p className={cn('text-[15px] font-medium truncate', handled ? 'text-neutral-400' : 'text-neutral-900')}>
           {med.name}
-          {med.strength && <span className="font-medium text-midnight-400"> · {med.strength}</span>}
+          {med.strength && <span className="font-normal text-neutral-400"> {med.strength}</span>}
         </p>
-        <p className={cn('text-xs mt-0.5', given ? 'text-emerald-700 font-semibold' : 'text-midnight-500')}>
-          {given && slot.dose?.givenAt
-            ? `Given at ${new Date(slot.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-            : skipped ? 'Skipped' : `Due ${formatTime(slot.time)}`}
-          {!given && !skipped && med.instructions && <span className="text-midnight-400 italic"> · {med.instructions}</span>}
-        </p>
+        {(med.instructions || overdue) && !handled && (
+          <p className="text-[13px] text-neutral-500 truncate">
+            {overdue ? 'Overdue' : med.instructions}
+          </p>
+        )}
       </div>
 
       {busy ? (
-        <Loader2 className="w-5 h-5 animate-spin text-midnight-400 mr-1" />
+        <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
+      ) : handled ? (
+        <span className="flex items-center gap-3 shrink-0">
+          {given ? (
+            <span className="inline-flex items-center gap-1 text-[13px] text-emerald-600">
+              <Check size={15} />
+              {slot.dose?.givenAt ? new Date(slot.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Given'}
+            </span>
+          ) : (
+            <span className="text-[13px] text-neutral-400">Skipped</span>
+          )}
+          {!readOnly && (
+            <button
+              onClick={() => onUndo(med, slot)}
+              className="text-[13px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
+            >
+              Undo
+            </button>
+          )}
+        </span>
       ) : readOnly ? (
-        (given || skipped) && (
-          <span className={cn('text-xs font-bold px-2 py-1 rounded-full', given ? 'bg-emerald-100 text-emerald-700' : 'bg-midnight-100 text-midnight-500')}>
-            {given ? 'Given' : 'Skipped'}
-          </span>
-        )
-      ) : given || skipped ? (
-        <button
-          onClick={() => onUndo(med, slot)}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-500 hover:text-midnight-800 px-2 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
-          title="Undo"
-        >
-          <Undo2 size={14} /> Undo
-        </button>
+        <span className="text-[13px] text-neutral-400 shrink-0">Due</span>
       ) : (
-        <div className="flex items-center gap-2">
+        <span className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => onMark(med, slot, 'SKIPPED')}
-            className="p-2 rounded-full text-midnight-300 hover:text-midnight-700 hover:bg-midnight-100 transition-colors"
-            title={`Skip ${med.name}`}
-            aria-label={`Skip ${med.name} ${formatTime(slot.time)}`}
+            className="text-[13px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
+            aria-label={`Skip ${med.name} at ${formatTime(slot.time)}`}
           >
-            <X size={16} />
+            Skip
           </button>
           <button
             onClick={() => onMark(med, slot, 'GIVEN')}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border-2 border-emerald-400 bg-white text-emerald-700',
-              'hover:bg-emerald-500 hover:border-emerald-500 hover:text-white',
-              'font-bold text-xs px-4 py-2 transition-all duration-150 active:scale-95 shrink-0'
-            )}
-            title={`Mark ${med.name} given`}
-            aria-label={`Mark ${med.name} ${formatTime(slot.time)} as given`}
+            className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5 hover:bg-care-tealDark transition-colors"
+            aria-label={`Give ${med.name} at ${formatTime(slot.time)}`}
           >
-            <Check size={14} strokeWidth={3.5} /> Give
+            Give
           </button>
-        </div>
+        </span>
       )}
     </div>
   );
 }
 
 /**
- * As-needed medications. On today: log-now / log-another, the day's
- * count, and undo — the whole PRN story in the same room as every other
- * tap. On a past day: catch-up logging so the record can be documented
- * after the fact.
+ * As-needed medications: give now, the day's count, undo. On a past
+ * day, a single control to record that a dose was given.
  */
 export function PrnSection({ meds, day, busyKeys, readOnly, onLogPrnNow, onUndoPrnLast, onLogPrnFor }) {
   const isToday = sameDay(day, new Date());
   if (!meds.length) return null;
 
   return (
-    <div className="mt-5 pt-4 border-t border-midnight-100">
-      <p className="text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2">As needed</p>
-      <div className="space-y-2">
+    <section className="mt-8">
+      <p className="text-[13px] font-medium text-neutral-500 mb-1">As needed</p>
+      <div className="divide-y divide-neutral-100">
         {meds.map((med) => {
-          const dayDoses = (med.doses || []).filter(
+          const count = (med.doses || []).filter(
             (d) => !d.deletedAt && d.status === 'GIVEN' && sameDay(new Date(d.scheduledFor), day)
-          );
-          const count = dayDoses.length;
+          ).length;
           const busy = busyKeys?.has(`prn-${med.id}`);
           return (
-            <div key={med.id} className="flex items-center gap-3 rounded-xl border border-midnight-200 bg-white px-3 py-2.5 flex-wrap">
-              <MedIconChip med={med} size="sm" />
+            <div key={med.id} className="flex items-center gap-3 py-3">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-midnight-900 truncate">
+                <p className="text-[15px] font-medium text-neutral-900 truncate">
                   {med.name}
-                  {med.strength && <span className="font-normal text-midnight-500"> · {med.strength}</span>}
+                  {med.strength && <span className="font-normal text-neutral-400"> {med.strength}</span>}
                 </p>
-                <p className="text-xs text-midnight-500">
-                  {count > 0
-                    ? `${count} dose${count !== 1 ? 's' : ''} ${isToday ? 'today' : 'this day'}`
-                    : isToday ? 'When they need it, log it here' : 'Not logged this day'}
-                </p>
+                {count > 0 && (
+                  <p className="text-[13px] text-neutral-500">
+                    {count} given {isToday ? 'today' : 'this day'}
+                  </p>
+                )}
               </div>
 
               {readOnly ? (
-                count > 0 && (
-                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
-                    ×{count} {isToday ? 'today' : ''}
-                  </span>
-                )
+                count > 0 && <span className="text-[13px] text-emerald-600 shrink-0">{count} given</span>
               ) : busy ? (
-                <Loader2 className="w-5 h-5 animate-spin text-midnight-400 mr-1" />
+                <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
               ) : isToday ? (
-                <div className="flex items-center gap-1.5">
+                <span className="flex items-center gap-3 shrink-0">
                   {count > 0 && (
                     <button
                       onClick={() => onUndoPrnLast(med)}
+                      className="text-[13px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
                       aria-label={`Undo last ${med.name}`}
-                      title="Undo last"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-midnight-500 hover:text-midnight-900 px-2 py-1.5 rounded-lg hover:bg-midnight-100 transition-colors"
                     >
-                      <Undo2 size={13} /> Undo
+                      Undo
                     </button>
                   )}
                   <button
                     onClick={() => onLogPrnNow(med)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-midnight-900 bg-flash-400 hover:bg-flash-500 px-3 py-1.5 rounded-lg transition-colors"
+                    className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5 hover:bg-care-tealDark transition-colors"
+                    aria-label={`Give ${med.name} now`}
                   >
-                    <Check size={13} strokeWidth={3} /> {count > 0 ? 'Log another' : 'Log dose now'}
+                    {count > 0 ? 'Give again' : 'Give'}
                   </button>
-                </div>
+                </span>
               ) : (
                 count === 0 && (
                   <button
                     onClick={() => onLogPrnFor(med, day)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-midnight-900 bg-flash-400 hover:bg-flash-500 px-3 py-1.5 rounded-lg transition-colors"
+                    className="rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-1.5 hover:border-care-teal transition-colors shrink-0"
+                    aria-label={`Record a ${med.name} dose for this day`}
                   >
-                    <Check size={13} strokeWidth={3} /> Log a dose this day
+                    Record
                   </button>
                 )
               )}
@@ -193,7 +167,7 @@ export function PrnSection({ meds, day, busyKeys, readOnly, onLogPrnNow, onUndoP
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -205,90 +179,69 @@ export function DayChecklist({
   const scheduled = meds.filter((m) => m.isActive && m.scheduleType !== 'AS_NEEDED');
   const asNeeded = meds.filter((m) => m.isActive && m.scheduleType === 'AS_NEEDED');
 
-  const buckets = useMemo(() => {
-    const grouped = { Morning: [], Afternoon: [], Evening: [] };
+  const slots = useMemo(() => {
+    const out = [];
     for (const med of scheduled) {
       for (const slot of slotsWithStatus(med, med.doses, day)) {
-        grouped[timeOfDayBucket(slot.time)].push({ med, slot });
+        out.push({ med, slot });
       }
     }
-    for (const key of Object.keys(grouped)) {
-      grouped[key].sort((a, b) => a.slot.time.localeCompare(b.slot.time));
-    }
-    return grouped;
+    out.sort((a, b) => a.slot.time.localeCompare(b.slot.time));
+    return out;
   }, [meds, day]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const all = Object.values(buckets).flat();
-  const given = all.filter(({ slot }) => slot.status === 'GIVEN').length;
-  const handled = all.filter(({ slot }) => slot.status).length;
-  const due = all.length;
+  const pending = slots.filter(({ slot }) => !slot.status);
+  const done = slots.filter(({ slot }) => slot.status);
 
-  // Today with nothing scheduled AND nothing loggable stays invisible. A
-  // selected PAST day always renders so history can be documented even when
-  // nothing was on the schedule.
-  if (due === 0 && isToday && asNeeded.length === 0) return null;
+  // Today with nothing to do stays quiet; a past day always renders so
+  // the record can be caught up.
+  if (slots.length === 0 && asNeeded.length === 0 && isToday) return null;
 
-  const dayLabel = day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  const rowFor = ({ med, slot }) => (
+    <DoseRow
+      key={`${med.id}-${slot.time}`}
+      med={med}
+      slot={slot}
+      day={day}
+      busy={busyKeys?.has(`${med.id}-${slot.scheduledFor.getTime()}`)}
+      readOnly={readOnly}
+      onMark={onMark}
+      onUndo={onUndo}
+    />
+  );
 
   return (
-    <Card padding="lg" className="mb-6">
-      <div className="flex items-center gap-4 mb-5">
-        <ProgressRing given={given} due={due} />
-        <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-midnight-900">
-            {isToday ? (
-              due > 0 && handled >= due ? (
-                <span className="inline-flex items-center gap-2">All done for today <PartyPopper className="w-5 h-5 text-flash-500" /></span>
-              ) : 'Today'
-            ) : dayLabel}
-          </h2>
-          <p className="text-sm text-midnight-500">
-            {isToday
-              ? `${dayLabel}${handled < due ? ` · ${due - handled} dose${due - handled !== 1 ? 's' : ''} to go` : ''}`
-              : 'Catching up the record. Past doses go straight into the history.'}
+    <section className="mb-2">
+      {!isToday && (
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <p className="text-[13px] font-medium text-neutral-500">
+            {day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
+          {onBackToToday && (
+            <button
+              onClick={onBackToToday}
+              className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+            >
+              Back to today
+            </button>
+          )}
         </div>
-        {!isToday && onBackToToday && (
-          <button
-            onClick={onBackToToday}
-            className="text-xs font-bold text-midnight-500 hover:text-midnight-900 px-3 py-1.5 rounded-lg border border-midnight-200 hover:border-midnight-400 transition-colors whitespace-nowrap"
-          >
-            Back to today
-          </button>
-        )}
-      </div>
+      )}
 
-      {due === 0 ? (
-        <p className="text-sm text-midnight-500 mb-1">
-          {isToday ? 'Nothing on the schedule today.' : 'Nothing was on the schedule this day.'}
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {Object.entries(buckets).map(([bucket, items]) => {
-            if (!items.length) return null;
-            const BucketIcon = BUCKET_ICONS[bucket];
-            return (
-              <div key={bucket}>
-                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-midnight-400 mb-2">
-                  <BucketIcon size={14} /> {bucket}
-                </p>
-                <div className="space-y-2">
-                  {items.map(({ med, slot }) => (
-                    <DoseRow
-                      key={`${med.id}-${slot.time}`}
-                      med={med}
-                      slot={slot}
-                      busy={busyKeys?.has(`${med.id}-${slot.scheduledFor.getTime()}`)}
-                      readOnly={readOnly}
-                      onMark={onMark}
-                      onUndo={onUndo}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+      {pending.length > 0 && (
+        <div className="divide-y divide-neutral-100">
+          {pending.map(rowFor)}
         </div>
+      )}
+
+      {pending.length === 0 && slots.length > 0 && (
+        <p className="text-[15px] text-neutral-500 py-3">
+          {isToday ? 'All doses given.' : 'Nothing left for this day.'}
+        </p>
+      )}
+
+      {slots.length === 0 && !isToday && (
+        <p className="text-[15px] text-neutral-500 py-3">Nothing was scheduled this day.</p>
       )}
 
       <PrnSection
@@ -300,6 +253,15 @@ export function DayChecklist({
         onUndoPrnLast={onUndoPrnLast}
         onLogPrnFor={onLogPrnFor}
       />
-    </Card>
+
+      {done.length > 0 && (
+        <div className="mt-8">
+          <p className="text-[13px] font-medium text-neutral-500 mb-1">Done</p>
+          <div className="divide-y divide-neutral-100">
+            {done.map(rowFor)}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }

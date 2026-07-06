@@ -36,10 +36,65 @@ module.exports = {
           800: '#854d0e',
           900: '#713f12',
         },
+        /* === The Paper Passport: the care product's world ===
+           The Health Book IS a book: cream paper, navy ink, rubber
+           stamps, a highlighter. Rescue surfaces stay midnight/flash;
+           these tokens belong to /pets and /care only. */
+        paper: {
+          50: '#fbf7ee',   // sheet
+          100: '#f6efe3',  // ground
+          200: '#efe5d2',
+          300: '#e7dcc6',  // edges, dividers
+          400: '#d9cdb2',  // borders
+        },
+        pen: {
+          900: '#232a3d',  // ink
+          600: '#5d5442',  // soft ink
+          400: '#8a7f68',  // faded ink (captions)
+          300: '#b3a88e',  // ghost ink
+        },
+        stampred: {
+          DEFAULT: '#b3392e',
+          dark: '#9c3227',
+          wash: '#f6e3e0',
+        },
+        stampgreen: {
+          DEFAULT: '#3e6b4f',
+          wash: '#e4ecdf',
+        },
+        marker: {
+          DEFAULT: '#e0a92c',
+          wash: '#f8ecd0',
+        },
+        /* === Care product: the Apple Health register ===
+           A warm grouped background behind white rounded tiles, so tiles
+           read as tiles from contrast, not heavy borders. Rescue surfaces
+           stay midnight/flash; these belong to /pets and /care only. */
+        care: {
+          bg: '#f6f7f6',        // app background (the page)
+          panel: '#f3f4f3',     // right-rail panel
+          surface: '#ffffff',   // card
+          line: '#e9eae9',      // hairline border / divider
+          lineSoft: '#f0f1f0',  // softer inner divider
+          ink: '#1b1d1e',       // primary text
+          sub: '#6a7075',       // secondary text
+          faint: '#a0a5a9',     // labels / tertiary
+          teal: '#0f5750',      // primary accent / hero
+          tealDark: '#0b3f39',  // gradient end / strong
+          tealWash: '#eef3f2',  // tint fill
+          tealRing: '#dbe6e3',  // ring on tinted circles
+          mint: '#a9ddd2',      // accent on teal ground
+          amber: '#a2761c',     // due-soon
+          amberWash: '#f8f2e4',
+          amberLine: '#ecdcbb',
+        },
       },
       /* === Font Family === */
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        // Paper Passport voices: the diary hand and the rubber stamp
+        diary: ['Georgia', '"Times New Roman"', 'serif'],
+        stamp: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
       /* === Border Radius === */
       borderRadius: {
@@ -49,6 +104,9 @@ module.exports = {
       },
       /* === Box Shadows === */
       boxShadow: {
+        'tile': '0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03)',
+        'care': '0 1px 2px rgba(20,40,38,.04), 0 6px 20px -12px rgba(20,40,38,.14), inset 0 0 0 1px #f0f1f0',
+        'care-hero': '0 18px 40px -18px rgba(11,63,57,.6), 0 2px 6px rgba(11,63,57,.18)',
         'soft': '0 2px 8px -2px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06)',
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'card-hover': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',

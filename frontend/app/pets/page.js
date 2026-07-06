@@ -1,98 +1,47 @@
 'use client';
 
 /**
- * My Pets — the one dashboard for the daily care product.
- *
- * This page absorbed the old /care members dashboard: same pets, one
- * home. It wears the care product's warm daylight register (the
- * midnight/dark register belongs to the rescue world), and every card
- * offers the two daily doors directly — Today (log doses) and the
- * Health Book (the record) — so the most-used surfaces are two taps
- * from anywhere. Pending care-team invites are accepted here; pets
- * shared with you live below your own.
+ * My pets: a plain list. Each row is a pet (photo, name, a line of
+ * basics, and a red Missing badge when there is an open case) that
+ * opens straight to Today. Pending care invites sit at the top as
+ * rows; pets shared with you sit in their own group below.
  */
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  PawPrint, Plus, X, HeartHandshake, Check, ChevronRight, Heart, Sun, AlertTriangle,
-} from 'lucide-react';
+import { Plus, X, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
-import { Card, Button, Badge, EmptyState } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
-import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 
-function caseBadge(pet) {
+function missingBadge(pet) {
   const status = pet.cases?.[0]?.status;
-  const badges = {
-    OPEN: { variant: 'warning', label: 'Missing' },
-    ACTIVE_SEARCH: { variant: 'primary', label: 'Active Search' },
-    RESOLVED: { variant: 'success', label: 'Found' },
-    CLOSED_OTHER: { variant: 'default', label: 'Closed' },
-  };
-  return status ? badges[status] || null : null;
+  if (!status || ['RESOLVED', 'CLOSED_OTHER', 'REUNITED'].includes(status)) return null;
+  return 'Missing';
 }
 
-/**
- * One pet, one card. The photo + name open the Overview; the two chips
- * below jump straight into the daily rooms. (Chips are separate links,
- * not nested inside the card link.)
- */
-function PetCard({ pet, badge, byline }) {
+function PetRow({ pet, href, basics, badge, note }) {
   return (
-    <Card padding="none" className="overflow-hidden border-2 border-transparent hover:border-flash-400 hover:shadow-xl hover:-translate-y-1 transition-all">
-      <Link href={`/pets/${pet.id}`} className="group block">
-        <div className="aspect-[4/3] bg-gradient-to-br from-amber-50 to-midnight-100 relative flex items-center justify-center">
-          {pet.primaryPhotoUrl ? (
-            <img src={pet.primaryPhotoUrl} alt={pet.name} className="w-full h-full object-cover" />
-          ) : (
-            <SpeciesIcon species={pet.species} size={64} className="text-midnight-300" />
+    <Link href={href} className="flex items-center gap-3 py-3 group">
+      {pet.primaryPhotoUrl ? (
+        <img src={pet.primaryPhotoUrl} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
+      ) : (
+        <span className="w-11 h-11 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 shrink-0">
+          <SpeciesIcon species={pet.species} size={22} />
+        </span>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-[15px] font-medium text-neutral-900 truncate">{pet.name}</p>
+          {badge && (
+            <span className="text-[12px] font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0">{badge}</span>
           )}
-          <div className="absolute top-3 right-3">
-            {badge ? (
-              badge.variant ? (
-                <Badge variant={badge.variant}>
-                  {badge.label === 'Missing' && <AlertTriangle size={11} className="inline -mt-0.5 mr-1" />}
-                  {badge.label}
-                </Badge>
-              ) : (
-                badge.node
-              )
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur text-emerald-700 text-xs font-bold">
-                <Heart size={11} /> Home
-              </span>
-            )}
-          </div>
         </div>
-        <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="text-lg font-bold text-midnight-900 truncate group-hover:text-flash-600 transition-colors">
-              {pet.name}
-            </h3>
-            <p className="text-sm text-midnight-500 truncate">{byline}</p>
-          </div>
-          <ChevronRight size={18} className="text-midnight-300 group-hover:text-flash-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-        </div>
-      </Link>
-      {/* The daily doors: straight into the rooms people visit every day */}
-      <div className="flex gap-2 px-4 pb-4">
-        <Link
-          href={`/pets/${pet.id}/today`}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-midnight-100 bg-midnight-50/60 px-3 py-2 text-xs font-bold text-midnight-600 hover:border-flash-400 hover:bg-flash-50 hover:text-midnight-900 transition-colors"
-        >
-          <Sun size={14} className="text-amber-500" /> Today
-        </Link>
-        <Link
-          href={`/pets/${pet.id}/health`}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-midnight-100 bg-midnight-50/60 px-3 py-2 text-xs font-bold text-midnight-600 hover:border-flash-400 hover:bg-flash-50 hover:text-midnight-900 transition-colors"
-        >
-          <ShieldIcon size={14} className="text-emerald-600" /> Health Book
-        </Link>
+        {(basics || note) && <p className="text-[13px] text-neutral-500 truncate">{note || basics}</p>}
       </div>
-    </Card>
+      <ChevronRight size={16} className="text-neutral-300 group-hover:text-neutral-500 transition-colors shrink-0" />
+    </Link>
   );
 }
 
@@ -154,7 +103,7 @@ export default function MyPetsPage() {
       setPendingInvites((prev) => prev.filter((i) => i.shareId !== invite.shareId));
       if (accept) {
         setSharedPets((prev) => [{ ...invite }, ...prev]);
-        setSuccessMessage(`You now help care for ${invite.pet.name}!`);
+        setSuccessMessage(`You now help care for ${invite.pet.name}.`);
       }
     } catch (err) {
       setError(err.message);
@@ -165,158 +114,133 @@ export default function MyPetsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
-        <LoadingSpinner text="Loading your pets..." />
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <LoadingSpinner text="Loading..." />
       </div>
     );
   }
 
-  if (status === 'unauthenticated') {
-    return null;
-  }
+  if (status === 'unauthenticated') return null;
 
   const firstName = session?.user?.firstName || session?.user?.name;
+  const basicsFor = (pet) => [
+    pet.breed || pet.species,
+    pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
+  ].filter(Boolean).join(', ');
 
   return (
-    <div className="min-h-screen bg-midnight-50 pb-24 lg:pb-12">
-      {/* Warm header band: this is the daily product's home, in daylight */}
-      <div className="bg-gradient-to-b from-flash-50 via-amber-50/40 to-midnight-50">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 md:pt-12 pb-6 flex justify-between items-end flex-wrap gap-4">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-midnight-900 tracking-tight">
-              {firstName ? `${firstName}'s pets` : 'My Pets'}
-            </h1>
-            <p className="text-midnight-600 mt-2">
-              Every Health Book, one tap away.
-            </p>
-          </div>
-          <Button variant="primary" href="/care/start" size="lg">
-            <Plus size={18} />
-            Add a pet
-          </Button>
+    <div className="min-h-screen bg-white pb-24 lg:pb-12">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-8">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+            {firstName ? `${firstName}'s pets` : 'My pets'}
+          </h1>
+          <Link
+            href="/care/start"
+            className="inline-flex items-center gap-1.5 rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark transition-colors"
+          >
+            <Plus size={15} /> Add pet
+          </Link>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-2">
-        {/* Success Message */}
         {successMessage && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl mb-6 flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 text-emerald-700 px-4 py-3 mb-4 text-sm">
             <span>{successMessage}</span>
-            <button
-              onClick={() => setSuccessMessage('')}
-              className="text-emerald-600 hover:text-emerald-800 transition-colors"
-              aria-label="Dismiss"
-            >
-              <X size={20} />
+            <button onClick={() => setSuccessMessage('')} className="text-emerald-600 hover:text-emerald-800" aria-label="Dismiss">
+              <X size={16} />
             </button>
           </div>
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-6">
-            {error}
-          </div>
+          <div className="rounded-lg bg-red-50 text-red-700 px-4 py-3 mb-4 text-sm">{error}</div>
         )}
 
-        {/* Pending care-team invites */}
         {pendingInvites.length > 0 && (
-          <div className="space-y-3 mb-8">
-            {pendingInvites.map((invite) => (
-              <Card key={invite.shareId} accent="yellow" padding="md" className="flex items-center gap-4 flex-wrap">
-                <div className="w-12 h-12 rounded-xl bg-midnight-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+          <div className="mb-8">
+            <p className="text-[13px] font-medium text-neutral-500 mb-1">Invitations</p>
+            <div className="divide-y divide-neutral-100">
+              {pendingInvites.map((invite) => (
+                <div key={invite.shareId} className="flex items-center gap-3 py-3">
                   {invite.pet.primaryPhotoUrl ? (
-                    <img src={invite.pet.primaryPhotoUrl} alt={invite.pet.name} className="w-full h-full object-cover" />
+                    <img src={invite.pet.primaryPhotoUrl} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
                   ) : (
-                    <SpeciesIcon species={invite.pet.species} size={24} className="text-midnight-400" />
+                    <span className="w-11 h-11 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-400 shrink-0">
+                      <SpeciesIcon species={invite.pet.species} size={22} />
+                    </span>
                   )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[15px] font-medium text-neutral-900 truncate">{invite.pet.name}</p>
+                    <p className="text-[13px] text-neutral-500 truncate">
+                      {invite.ownerName} invited you as {invite.role === 'CAREGIVER' ? 'a caregiver' : 'a viewer'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => respondToInvite(invite, false)}
+                      disabled={respondingId === invite.shareId}
+                      className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                    <button
+                      onClick={() => respondToInvite(invite, true)}
+                      disabled={respondingId === invite.shareId}
+                      className="rounded-full bg-care-teal text-white text-sm font-medium px-4 py-1.5 hover:bg-care-tealDark transition-colors disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-[200px]">
-                  <p className="font-semibold text-midnight-900">
-                    <HeartHandshake size={15} className="inline -mt-0.5 mr-1.5 text-flash-600" />
-                    {invite.ownerName} shared {invite.pet.name} with you
-                  </p>
-                  <p className="text-sm text-midnight-500">
-                    As {invite.role === 'CAREGIVER' ? 'a caregiver, so you can track and log their medications' : 'a viewer, so you can see their profile and schedule'}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => respondToInvite(invite, true)}
-                    loading={respondingId === invite.shareId}
-                  >
-                    <Check size={14} />
-                    Accept
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => respondToInvite(invite, false)}
-                    disabled={respondingId === invite.shareId}
-                  >
-                    Decline
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Pet Grid */}
-        {pets.length === 0 && sharedPets.length === 0 ? (
-          <EmptyState
-            icon={PawPrint}
-            title="Start their Health Book"
-            description="Medications with one-tap logging, vaccine records, weight over time, and a link any vet or sitter can read. Free forever."
-            action={{ href: '/care/start', label: 'Add your first pet', icon: Plus }}
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pets.map((pet) => (
-              <PetCard
-                key={pet.id}
-                pet={pet}
-                badge={caseBadge(pet)}
-                byline={[
-                  pet.breed || pet.species,
-                  pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
-                  pet.microchipId && 'Microchipped',
-                ].filter(Boolean).join(' · ')}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Shared with me */}
-        {sharedPets.length > 0 && (
-          <div className="mt-10">
-            <h2 className="text-xl font-bold text-midnight-900 mb-1 flex items-center gap-2">
-              <HeartHandshake className="w-5 h-5 text-flash-500" /> Shared with me
-            </h2>
-            <p className="text-midnight-500 text-sm mb-4">Pets you help care for</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sharedPets.map(({ shareId, role, ownerName, pet }) => (
-                <PetCard
-                  key={shareId}
-                  pet={pet}
-                  badge={{
-                    node: (
-                      <Badge variant={role === 'CAREGIVER' ? 'primary' : 'default'}>
-                        {role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}
-                      </Badge>
-                    ),
-                  }}
-                  byline={`${ownerName}'s pet · ${pet.breed || pet.species}`}
-                />
               ))}
             </div>
           </div>
         )}
 
-        <p className="text-center text-xs text-midnight-400 mt-12">
-          A record you keep, not medical advice. Your vet&apos;s guidance comes first.
-        </p>
+        {pets.length === 0 && sharedPets.length === 0 ? (
+          <div className="py-10 text-center">
+            <p className="text-lg font-medium text-neutral-900 mb-1">Add your first pet</p>
+            <p className="text-[15px] text-neutral-500 max-w-sm mx-auto mb-6">
+              Track medications with one-tap logging, keep vaccine and weight records,
+              and share a link any vet or sitter can read. Free forever.
+            </p>
+            <Link
+              href="/care/start"
+              className="inline-flex items-center gap-1.5 rounded-full bg-care-teal text-white text-sm font-medium px-5 py-2.5 hover:bg-care-tealDark transition-colors"
+            >
+              <Plus size={15} /> Add pet
+            </Link>
+          </div>
+        ) : (
+          <div className="divide-y divide-neutral-100">
+            {pets.map((pet) => (
+              <PetRow
+                key={pet.id}
+                pet={pet}
+                href={`/pets/${pet.id}/today`}
+                basics={basicsFor(pet)}
+                badge={missingBadge(pet)}
+              />
+            ))}
+          </div>
+        )}
+
+        {sharedPets.length > 0 && (
+          <div className="mt-8">
+            <p className="text-[13px] font-medium text-neutral-500 mb-1">Shared with me</p>
+            <div className="divide-y divide-neutral-100">
+              {sharedPets.map(({ shareId, role, ownerName, pet }) => (
+                <PetRow
+                  key={shareId}
+                  pet={pet}
+                  href={`/pets/${pet.id}/today`}
+                  badge={missingBadge(pet)}
+                  note={`${ownerName}'s pet, you help as ${role === 'CAREGIVER' ? 'a caregiver' : 'a viewer'}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
