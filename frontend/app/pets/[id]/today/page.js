@@ -210,6 +210,17 @@ export default function TodayPage() {
   const pending = slots.filter((x) => !x.slot.status);
   const doneSlots = slots.filter((x) => x.slot.status);
 
+  // The hero features only the batch that needs attention now: any overdue
+  // doses, or else just the next upcoming time slot. The rest of the day is
+  // summarized in the card below, so the hero stays one calm focus.
+  const overduePending = pending.filter((x) => x.slot.scheduledFor < now);
+  const focus = overduePending.length
+    ? overduePending
+    : pending.length ? pending.filter((x) => x.slot.time === pending[0].slot.time) : [];
+  const focusOverdue = overduePending.length > 0;
+  const focusTime = focus.length ? focus[0].slot.time : null;
+  const laterCount = pending.length - focus.length;
+
   const busy = (k) => busyKeys.has(k);
   const hasAnything = activeMeds.length > 0 || careItems.length > 0;
 
@@ -224,7 +235,7 @@ export default function TodayPage() {
   const greeting = (() => { const h = now.getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })();
 
   const markAllDue = async () => {
-    for (const { med, slot } of pending) {
+    for (const { med, slot } of focus) {
       // sequential to keep supply counts consistent
       // eslint-disable-next-line no-await-in-loop
       await markDose(med, slot, 'GIVEN');
@@ -281,28 +292,27 @@ export default function TodayPage() {
                 style={{ background: 'radial-gradient(120% 130% at 88% -10%, rgba(169,221,210,.18), transparent 52%), linear-gradient(158deg,#0f5750 0%,#0b433c 100%)' }}>
                 <div className="flex items-center justify-between mb-5">
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.13] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.13em]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-care-mint" /> Due now
+                    <span className="w-1.5 h-1.5 rounded-full bg-care-mint" /> {focusOverdue ? 'Overdue' : 'Up next'}
                   </span>
                   <div className="text-right">
-                    <b className="block text-[14px] font-semibold">Next dose · {formatTime(pending[0].slot.time)}</b>
+                    <b className="block text-[14px] font-semibold">{focusOverdue ? `${focus.length} overdue` : `Next · ${formatTime(focusTime)}`}</b>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-6 sm:items-center">
                   <div className="sm:pr-7 sm:border-r sm:border-white/[0.14] shrink-0">
                     <div className="flex items-baseline gap-2.5">
-                      <span className="text-[56px] font-semibold tracking-tight leading-[0.86]">{pending.length}</span>
-                      <span className="text-[15px] text-white/80 font-medium max-w-[80px] leading-tight">{pending.length === 1 ? 'dose to give' : 'doses to give'}</span>
+                      <span className="text-[56px] font-semibold tracking-tight leading-[0.86]">{focus.length}</span>
+                      <span className="text-[15px] text-white/80 font-medium max-w-[90px] leading-tight">{focus.length === 1 ? 'dose to give' : 'doses to give'}</span>
                     </div>
                     {canManage && (
-                      <div className="flex gap-2.5 mt-5">
-                        <button onClick={markAllDue} className="h-12 px-5 rounded-2xl bg-white text-care-tealDark text-[14.5px] font-semibold inline-flex items-center gap-2 hover:bg-white/90 transition-colors shadow-lg">
-                          <Check size={18} strokeWidth={2.4} /> {pending.length === 1 ? 'Mark given' : 'Mark all given'}
-                        </button>
-                      </div>
+                      <button onClick={markAllDue} className="h-12 px-5 rounded-2xl bg-white text-care-tealDark text-[14.5px] font-semibold inline-flex items-center gap-2 hover:bg-white/90 transition-colors shadow-lg mt-5">
+                        <Check size={18} strokeWidth={2.4} /> {focus.length === 1 ? 'Mark given' : 'Mark all given'}
+                      </button>
                     )}
+                    {laterCount > 0 && <p className="mt-3 text-[12px] text-white/60">{laterCount} more later today</p>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    {pending.map(({ med, slot }) => {
+                    {focus.map(({ med, slot }) => {
                       const G = medGlyph(med);
                       const b = busy(`${med.id}-${slot.scheduledFor.getTime()}`);
                       return (
