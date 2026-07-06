@@ -7,9 +7,13 @@
 import { runQr } from './qr.js';
 import { runFlyers } from './flyers.js';
 import { runSocial } from './social.js';
+import { runAiCopy } from './aiCopy.js';
+import { runSearchPlan } from './searchPlan.js';
 
 export const ACTION_RUNNERS = {
   qr: runQr,
+  ai_copy: runAiCopy,
   flyers: runFlyers,
   social: runSocial,
+  search_plan: runSearchPlan,
 };

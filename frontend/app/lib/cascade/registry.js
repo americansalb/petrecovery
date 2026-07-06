@@ -15,7 +15,7 @@
 export const CASCADE_ACTIONS = [
   // ── Tier 0 ────────────────────────────────────────────────────────
   { key: 'qr', tier: 0, deps: [], label: 'QR code', logAction: 'create', enabled: true },
-  { key: 'ai_copy', tier: 0, deps: [], label: 'Flyer copy & captions', logAction: 'create', enabled: false },
+  { key: 'ai_copy', tier: 0, deps: [], label: 'Flyer copy & captions', logAction: 'create', enabled: true },
   { key: 'reverse_match', tier: 0, deps: [], label: 'Match against found pets', logAction: 'read', enabled: false },
   { key: 'shelters', tier: 0, deps: [], label: 'Nearby shelters', logAction: 'read', enabled: false },
   { key: 'neighbor_alert', tier: 0, deps: [], label: 'Alert neighbors', logAction: 'update', enabled: false },
@@ -23,7 +23,7 @@ export const CASCADE_ACTIONS = [
   // ── Tier 1 (need QR + copy) ──────────────────────────────────────
   { key: 'flyers', tier: 1, deps: ['qr'], label: 'Printable flyers', logAction: 'create', enabled: true },
   { key: 'social', tier: 1, deps: ['qr'], label: 'Social share images', logAction: 'create', enabled: true },
-  { key: 'search_plan', tier: 1, deps: [], label: 'Search plan', logAction: 'create', enabled: false },
+  { key: 'search_plan', tier: 1, deps: [], label: 'Search plan', logAction: 'create', enabled: true },
   { key: 'checklist', tier: 1, deps: [], label: 'First-24h checklist', logAction: 'create', enabled: false },
   // ── Tier 2 (need finished assets) ────────────────────────────────
   { key: 'share_kit', tier: 2, deps: ['flyers', 'social'], label: 'Share kit', logAction: 'create', enabled: false },
