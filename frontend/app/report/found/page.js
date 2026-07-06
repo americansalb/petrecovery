@@ -27,6 +27,9 @@ import ContactFields, { contactIsValid } from '../../components/report/ContactFi
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
 import SuccessScreen from '../../components/report/SuccessScreen';
 import TagDetailsStep from '../../components/report/found/TagDetailsStep';
+import DraftPrompt from '../../components/report/DraftPrompt';
+import useWizardHistory from '../../components/report/useWizardHistory';
+import { loadDraft, saveDraft, clearDraft } from '../../components/report/wizardDraft';
 import ColorSelector from '../../components/ColorSelector';
 import {
   SPECIES_OPTIONS, FOUND_TIME_OPTIONS, WIZARD_THEMES,
@@ -35,6 +38,7 @@ import {
 const VARIANT = 'found';
 const CONTACT_MODE = 'email-first'; // matches are emailed — email stays required
 const LOCATION_STORAGE_KEY = 'reportLocation';
+const DRAFT_KEY = 'reportDraft:found';
 
 const GROUP_OF = {
   species: 'animal', where: 'where', when: 'when', photo: 'photo',
@@ -64,6 +68,7 @@ export default function ReportFoundPet() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [pendingDraft, setPendingDraft] = useState(null); // unfinished draft awaiting resume/fresh choice
 
   // Prefill contact from session
   useEffect(() => {
@@ -77,12 +82,6 @@ export default function ReportFoundPet() {
   }, [session]);
 
   // ── Navigation ────────────────────────────────────────────────────
-  const go = (next) => {
-    setError(null);
-    setHistory((h) => [...h, stepId]);
-    setStepId(next);
-  };
-
   const goBack = () => {
     setError(null);
     returnToRef.current = null;
@@ -91,6 +90,17 @@ export default function ReportFoundPet() {
       setStepId(h[h.length - 1]);
       return h.slice(0, -1);
     });
+  };
+
+  // Browser back pops wizard steps (popstate → goBack); the in-app Back
+  // button routes through the same path so both stay in sync.
+  const { recordPush, browserBack, unwind } = useWizardHistory(goBack);
+
+  const go = (next) => {
+    setError(null);
+    setHistory((h) => [...h, stepId]);
+    setStepId(next);
+    recordPush();
   };
 
   const editFromReview = (target) => {
@@ -122,6 +132,69 @@ export default function ReportFoundPet() {
       setColor(analysis.colors.join(', '));
       setAiSuggested(true);
     }
+  };
+
+  // ── Draft persistence (session-scoped, explicit restore) ──────────
+  const dirty = Boolean(
+    species || location || timeElapsed || photos.length > 0 || color ||
+    details.petName || details.marks || details.microchipId || contact.firstName.trim()
+  );
+
+  const draftCheckedRef = useRef(false);
+  useEffect(() => {
+    if (draftCheckedRef.current) return;
+    draftCheckedRef.current = true;
+    const d = loadDraft(DRAFT_KEY);
+    if (d && (d.species || d.location || d.photos?.length || d.color)) setPendingDraft(d);
+  }, []);
+
+  useEffect(() => {
+    if (!dirty || pendingDraft || result) return;
+    saveDraft(DRAFT_KEY, {
+      species, location, timeElapsed, photos, displayIndex, color, details, contact,
+    });
+  }, [dirty, pendingDraft, result, species, location, timeElapsed, photos, displayIndex, color, details, contact]);
+
+  const resumeDraft = () => {
+    const d = pendingDraft;
+    setSpecies(d.species || '');
+    setLocation(d.location || null);
+    setTimeElapsed(d.timeElapsed || '');
+    setPhotos(d.photos || []);
+    setDisplayIndex(d.displayIndex || 0);
+    setColor(d.color || '');
+    setDetails(d.details || { petName: '', breed: '', size: '', marks: '', microchipId: '' });
+    setContact((prev) => d.contact || prev);
+
+    // Land on the first incomplete step, with a plausible back-stack.
+    const done = {
+      species: !!d.species,
+      where: !!d.location,
+      when: !!d.timeElapsed,
+      photo: true, // skippable
+      colors: !!d.color,
+      details: true, // all-optional
+      contact: isLoggedIn || contactIsValid(d.contact || {}, CONTACT_MODE),
+    };
+    const order = ['species', 'where', 'when', 'photo', 'colors', 'details', ...(!isLoggedIn ? ['contact'] : [])];
+    const chain = [];
+    let resume = 'review';
+    for (const s of order) {
+      if (!done[s]) {
+        resume = s;
+        break;
+      }
+      chain.push(s);
+    }
+    setHistory(chain);
+    chain.forEach(() => recordPush());
+    setStepId(resume);
+    setPendingDraft(null);
+  };
+
+  const startFresh = () => {
+    clearDraft(DRAFT_KEY);
+    setPendingDraft(null);
   };
 
   // ── Submit ────────────────────────────────────────────────────────
@@ -158,6 +231,8 @@ export default function ReportFoundPet() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to create report');
+      clearDraft(DRAFT_KEY);
+      unwind(); // drop pushed history entries so back exits from the success screen
       setResult(data);
     } catch (err) {
       setError(err.message);
@@ -267,14 +342,36 @@ export default function ReportFoundPet() {
     );
   }
 
+  if (pendingDraft) {
+    const bits = [
+      pendingDraft.species ? `found ${pendingDraft.species}` : null,
+      pendingDraft.location?.city || null,
+    ].filter(Boolean);
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        <DraftPrompt
+          variant={VARIANT}
+          summary={
+            bits.length
+              ? `You started a report earlier: ${bits.join(' · ')}.`
+              : 'You have an unfinished report from earlier.'
+          }
+          onResume={resumeDraft}
+          onStartFresh={startFresh}
+        />
+      </div>
+    );
+  }
+
   return (
     <WizardShell
       variant={VARIANT}
       steps={steps}
       activeStepId={GROUP_OF[stepId] || 'animal'}
       summary={summary}
-      onBack={history.length > 0 ? goBack : null}
+      onBack={history.length > 0 ? browserBack : null}
       closeHref={isLoggedIn ? '/dashboard' : '/'}
+      dirty={dirty}
     >
       {stepId === 'species' && (
         <StepScreen

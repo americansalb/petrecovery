@@ -142,11 +142,11 @@ export default function ActionCards({
           badge="Important"
         />
 
-        {/* 4. Print Flyers */}
+        {/* 4. Print Flyers — jump to the ready-made flyers/social kit below */}
         <ActionCard
-          href={`/mission-control?mission=${caseNumber}&tab=flyer`}
+          href="#share-kit"
           title="Print Flyers"
-          description="Post around the neighborhood"
+          description="Ready-made flyers & share images below"
           accentColor="bg-amber-500"
         />
 

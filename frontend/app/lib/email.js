@@ -38,26 +38,55 @@ function getSmtp() {
   return smtpTransporter;
 }
 
-export async function sendEmail({ to, subject, html }) {
+/**
+ * @param {object} opts
+ * @param {string} opts.to
+ * @param {string} opts.subject
+ * @param {string} opts.html
+ * @param {Array<{filename:string, content:(Buffer|string), contentType?:string}>} [opts.attachments]
+ *   Optional file attachments (e.g. a generated flyer PDF). `content` may be a
+ *   Buffer or a base64 string. Existing callers pass no attachments and are
+ *   unaffected.
+ */
+export async function sendEmail({ to, subject, html, attachments }) {
   const from = process.env.EMAIL_FROM
     || (process.env.EMAIL_USER ? `PetRecovery <${process.env.EMAIL_USER}>` : FROM_FALLBACK);
+
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 
   try {
     const resend = getResend();
     if (resend) {
-      const { data, error } = await resend.emails.send({ from, to, subject, html });
+      const payload = { from, to, subject, html };
+      if (hasAttachments) {
+        // Resend expects { filename, content } where content is a Buffer or
+        // base64 string; it ignores contentType.
+        payload.attachments = attachments.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+        }));
+      }
+      const { data, error } = await resend.emails.send(payload);
       if (error) {
         console.error('❌ Email error (resend):', error);
         return { success: false, error: error.message || String(error) };
       }
-      console.log(`✅ Email sent to ${to} via Resend (${data?.id || 'no id'})`);
+      console.log(`✅ Email sent to ${to} via Resend (${data?.id || 'no id'})${hasAttachments ? ` with ${attachments.length} attachment(s)` : ''}`);
       return { success: true, id: data?.id };
     }
 
     const smtp = getSmtp();
     if (smtp) {
-      await smtp.sendMail({ from, to, subject, html });
-      console.log(`✅ Email sent to ${to} via SMTP`);
+      const mail = { from, to, subject, html };
+      if (hasAttachments) {
+        mail.attachments = attachments.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        }));
+      }
+      await smtp.sendMail(mail);
+      console.log(`✅ Email sent to ${to} via SMTP${hasAttachments ? ` with ${attachments.length} attachment(s)` : ''}`);
       return { success: true };
     }
 

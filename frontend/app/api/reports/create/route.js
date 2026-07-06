@@ -3,6 +3,8 @@ import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail, sendVerificationEmail } from '../../../lib/email';
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
+import { sendSms } from '@/app/lib/sms';
+import { seedActivation, enqueueCascade } from '@/app/lib/cascade/runCascade';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
@@ -227,6 +229,27 @@ export async function POST(request) {
     });
 
     const { user, report, isNewUser } = result;
+
+    // Seed the durable cascade activation now (cheap, awaited) so the success
+    // screen can read/poll it immediately and the response can carry a
+    // snapshot. The heavy work is ENQUEUED later (just before the response),
+    // after the patrol Alert + rescue-force assignment rows exist — those are
+    // inputs the cascade's neighbor_alert / rescue_force actions read.
+    let activationSnapshot = null;
+    try {
+      const activation = await seedActivation(report, correlationId);
+      activationSnapshot = { caseNumber: report.caseNumber, status: activation.status };
+    } catch (cascadeErr) {
+      logEvent({
+        event_type: 'cascade.seed_failed',
+        correlation_id: correlationId,
+        resource_type: 'case',
+        resource_id: report.id,
+        action: 'create',
+        result: 'failure',
+        error_message: String(cascadeErr?.message || cascadeErr).slice(0, 300),
+      }).catch(() => {});
+    }
 
     // Send verification email for ALL new users (Fix 4: unified for guest + createAccount paths)
     if (isNewUser && !session?.user) {
@@ -664,11 +687,52 @@ export async function POST(request) {
       });
     }
 
+    // Phone-only reporters get no email at all — text them the case link so
+    // they have a way back to their report after closing the tab. Best-effort
+    // (sendSms no-ops gracefully when Twilio isn't configured).
+    if (phoneOnly && phone) {
+      const caseUrl = `${getEmailBaseUrl()}/cases/${report.caseNumber}`;
+      sendSms(
+        phone,
+        `ReunitePets: your lost-pet report for ${petName} is live. Track sightings and manage it here: ${caseUrl}`
+      ).then(res => {
+        if (!res?.success) {
+          logEvent({
+            event_type: 'sms.send_failed',
+            correlation_id: correlationId,
+            resource_type: 'sms',
+            action: 'create',
+            result: 'failure',
+            error_message: res?.error || 'unknown'
+          });
+        }
+      }).catch(err => {
+        logEvent({
+          event_type: 'sms.send_failed',
+          correlation_id: correlationId,
+          resource_type: 'sms',
+          action: 'create',
+          result: 'failure',
+          error_message: err.message
+        });
+      });
+    }
+
+    // Fire the report-time action cascade FIRE-AND-FORGET, now that the patrol
+    // Alert rows and rescue-force CaseAssignment rows exist. The reporter's
+    // response is never blocked — the cascade runs on the next tick.
+    enqueueCascade(report.id, { correlationId });
+
     return NextResponse.json({
       success: true,
       reportId: report.id,
       caseNumber: report.caseNumber,
       petName: report.petName,
+      petSpecies: report.petSpecies,
+      petBreed: report.petBreed,
+      petColor: report.petColor,
+      petPhotoUrl: report.petPhotoUrl,
+      activation: activationSnapshot,
       accountCreated,
       patrolAlerted: nearbyPatrol.length,
       assignedSquad,

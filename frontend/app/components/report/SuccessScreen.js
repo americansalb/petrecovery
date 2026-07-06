@@ -9,9 +9,10 @@
  */
 
 import Link from 'next/link';
-import { Check, Sparkles, Camera, Copy, Share2, Heart, Mail, Facebook } from 'lucide-react';
+import { Check, Sparkles, Camera, Copy, Share2, Heart, Mail, Facebook, MessageSquare } from 'lucide-react';
 import { MatchCard } from '@/components/case/MatchCard';
 import { WIZARD_THEMES } from './wizardTheme';
+import RecoveryKit from './recoveryKit/RecoveryKit';
 
 export default function SuccessScreen({
   variant = 'lost',
@@ -21,9 +22,11 @@ export default function SuccessScreen({
   isLoggedIn = false,
   accountCreated = false,
   contactEmail,
+  contactPhone, // phone-only guests: where the case-link SMS went
   // lost
   squadsNotified = 0,
   assignedSquad,
+  activation, // { caseNumber, status } snapshot from the create response; drives the live Recovery Kit
   // found
   matches = [],
   matchesNotified = 0,
@@ -154,6 +157,20 @@ export default function SuccessScreen({
           </div>
         )}
 
+        {/* Phone-only guests: the SMS is their only way back to the case */}
+        {!contactEmail && contactPhone && (
+          <div className="mt-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3 text-left">
+            <MessageSquare size={19} className="text-blue-500 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-bold text-blue-900">We texted you the link</p>
+              <p className="text-blue-700 mt-0.5">
+                Check <strong>{contactPhone}</strong> for your case link — save it, it&apos;s how you
+                manage this report.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Account created note for guests */}
         {accountCreated && contactEmail && (
           <div className="mt-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3 text-left">
@@ -178,22 +195,37 @@ export default function SuccessScreen({
           </div>
         )}
 
-        {/* What happens next */}
-        <div className="mt-6 p-5 rounded-2xl bg-white border border-midnight-100 shadow-card text-left">
-          <h3 className="font-bold text-midnight-900 mb-3.5">What happens next</h3>
-          <ol className="space-y-3">
-            {nextSteps.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-px text-white ${theme.accentBg}`}
-                >
-                  {i + 1}
-                </span>
-                <span className="text-sm text-midnight-600">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
+        {/* What happens next — the static fallback shown when there's no live cascade */}
+        {(() => {
+          const whatHappensNext = (
+            <div className="mt-6 p-5 rounded-2xl bg-white border border-midnight-100 shadow-card text-left">
+              <h3 className="font-bold text-midnight-900 mb-3.5">What happens next</h3>
+              <ol className="space-y-3">
+                {nextSteps.map((step, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-px text-white ${theme.accentBg}`}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="text-sm text-midnight-600">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          );
+
+          // Lost reports fire the cascade — show the live Recovery Kit, which
+          // falls back to the static list if the activation never seeded.
+          if (variant === 'lost' && caseNumber && activation) {
+            return (
+              <div className="mt-6">
+                <RecoveryKit caseNumber={caseNumber} initialStatus={activation.status} fallback={whatHappensNext} />
+              </div>
+            );
+          }
+          return whatHappensNext;
+        })()}
 
         {/* CTAs */}
         <div className="mt-6 space-y-3">

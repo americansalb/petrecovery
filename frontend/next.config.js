@@ -8,8 +8,13 @@ const nextConfig = {
 
   // Ensure static files needed at runtime are copied to standalone output
   experimental: {
+    // Keep the pure-JS render stack (react-pdf) and the resvg native addon out
+    // of the webpack server bundle — require()'d from node_modules at runtime.
+    serverComponentsExternalPackages: ['@react-pdf/renderer', '@resvg/resvg-js', 'satori', 'yoga-wasm-web'],
     outputFileTracingIncludes: {
       '/*': ['./app/lib/uscities.full.json'],
+      // Ensure the vendored flyer/social fonts ship with a standalone build.
+      '/api/**': ['./app/lib/cascade/render/fonts/**'],
     },
   },
 
@@ -224,6 +229,22 @@ const nextConfig = {
         net: false,
         tls: false,
       };
+    }
+
+    // Keep the cascade render stack out of the webpack bundle on the server so
+    // it's require()'d from node_modules at runtime. @resvg/resvg-js ships a
+    // native .node addon webpack can't parse; react-pdf/satori/yoga are heavy
+    // and pure-JS but don't need bundling. serverComponentsExternalPackages
+    // covers RSC but not always route handlers in dev, so pin externals too.
+    if (isServer) {
+      const externalize = ['@react-pdf/renderer', '@resvg/resvg-js', 'satori', 'yoga-wasm-web'];
+      config.externals = [
+        ...(Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean)),
+        ({ request }, cb) =>
+          externalize.some((p) => request === p || request.startsWith(`${p}/`))
+            ? cb(null, `commonjs ${request}`)
+            : cb(),
+      ];
     }
 
     // Memory optimizations for large builds
