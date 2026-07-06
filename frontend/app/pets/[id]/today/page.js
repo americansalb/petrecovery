@@ -19,17 +19,18 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   X, Check, Clock, Pill, Droplet, ChevronRight, Phone, Plus, Loader2,
-  TrendingDown, Heart, Syringe, AlertCircle,
+  TrendingDown, Heart, Syringe, AlertCircle, Pause, Play, Trash2, RotateCcw,
 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { usePet } from '@/app/components/care/PetProvider';
 import { AddCareModal } from '@/app/components/care/GoodStuff';
 import { CareIconChip } from '@/app/components/icons/CareIcons';
+import WeekStrip from '@/app/components/care/WeekStrip';
 import { Card, Overline } from '@/app/components/care/kit/Tile';
 import { cn } from '@/components/ui';
 import { vaccinationStatus } from '@/lib/healthBook';
 import {
-  isLowSupply, startOfDay, sameDay, slotsWithStatus, adherenceForDay, formatTime,
+  isLowSupply, startOfDay, sameDay, slotsWithStatus, adherenceForDay, formatTime, formatSchedule,
 } from '@/lib/medications';
 
 /* ----------------------------- Offline outbox ----------------------------- */
@@ -62,6 +63,9 @@ export default function TodayPage() {
   const [notice, setNotice] = useState(null);
   const [outboxCount, setOutboxCount] = useState(0);
   const [showAddRoutine, setShowAddRoutine] = useState(false);
+  const [managingRoutines, setManagingRoutines] = useState(false);
+  const [pastOpen, setPastOpen] = useState(false);
+  const [pastDay, setPastDay] = useState(null); // a startOfDay Date, or null for today
   const today = startOfDay(new Date());
 
   useEffect(() => {
@@ -186,6 +190,24 @@ export default function TodayPage() {
       applyDose(med.id, { scheduledFor: iso }, data.quantityRemaining, true);
     });
 
+  // Routine management: pause/resume and delete (care items are medications
+  // of kind CARE, so they use the same medication endpoints).
+  const togglePauseCare = (care) =>
+    withBusy(`care-${care.id}`, async () => {
+      const res = await fetch(`/api/pets/${petId}/medications/${care.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive: !care.isActive }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update');
+      setMeds((prev) => prev.map((m) => (m.id === care.id ? data.medication : m)));
+    });
+
+  const deleteCare = (care) =>
+    withBusy(`care-${care.id}`, async () => {
+      const res = await fetch(`/api/pets/${petId}/medications/${care.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to remove');
+      setMeds((prev) => prev.filter((m) => m.id !== care.id));
+    });
+
   if (status === 'loading' || loading) {
     return <div className="min-h-[50vh] flex items-center justify-center"><LoadingSpinner text="Loading..." /></div>;
   }
@@ -196,6 +218,7 @@ export default function TodayPage() {
   const medItems = meds.filter((m) => m.kind !== 'CARE');
   const activeMeds = medItems.filter((m) => m.isActive);
   const careItems = meds.filter((m) => m.kind === 'CARE' && m.isActive);
+  const allCareItems = meds.filter((m) => m.kind === 'CARE');
   const lowCount = activeMeds.filter(isLowSupply).length;
 
   const scheduledMeds = activeMeds.filter((m) => m.scheduleType !== 'AS_NEEDED');
@@ -209,6 +232,11 @@ export default function TodayPage() {
   slots.sort((a, b) => a.slot.time.localeCompare(b.slot.time));
   const pending = slots.filter((x) => !x.slot.status);
   const doneSlots = slots.filter((x) => x.slot.status);
+
+  // Past-day catch-up: the doses scheduled on the selected past day.
+  const pastSlots = pastDay
+    ? scheduledMeds.flatMap((m) => slotsWithStatus(m, m.doses, pastDay).map((s) => ({ med: m, slot: s }))).sort((a, b) => a.slot.time.localeCompare(b.slot.time))
+    : [];
 
   // The hero features only the batch that needs attention now: any overdue
   // doses, or else just the next upcoming time slot. The rest of the day is
@@ -388,8 +416,37 @@ export default function TodayPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Overline>Routines</Overline>
-                  {canManage && <button onClick={() => setShowAddRoutine(true)} className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-care-teal">Add <Plus size={13} /></button>}
+                  {canManage && (
+                    <span className="flex items-center gap-3">
+                      {allCareItems.length > 0 && <button onClick={() => setManagingRoutines((v) => !v)} className="text-[11.5px] font-semibold text-care-sub hover:text-care-ink">{managingRoutines ? 'Done' : 'Manage'}</button>}
+                      <button onClick={() => setShowAddRoutine(true)} className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-care-teal">Add <Plus size={13} /></button>
+                    </span>
+                  )}
                 </div>
+                {managingRoutines ? (
+                  <Card className="overflow-hidden divide-y divide-care-lineSoft">
+                    {allCareItems.length === 0 ? (
+                      <p className="text-[13px] text-care-sub px-5 py-4">No routines to manage.</p>
+                    ) : allCareItems.map((care) => {
+                      const b = busy(`care-${care.id}`);
+                      return (
+                        <div key={care.id} className={cn('flex items-center gap-3 px-5 py-3.5', !care.isActive && 'opacity-55')}>
+                          <CareIconChip name={care.name} color={care.color} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-semibold text-care-ink truncate">{care.name}</p>
+                            <p className="text-[12px] text-care-sub truncate">{formatSchedule(care)}{!care.isActive && ', paused'}</p>
+                          </div>
+                          {b ? <Loader2 size={16} className="animate-spin text-care-faint" /> : (
+                            <>
+                              <button onClick={() => togglePauseCare(care)} aria-label={care.isActive ? `Pause ${care.name}` : `Resume ${care.name}`} className="p-2 rounded-lg text-care-faint hover:text-care-ink hover:bg-care-bg transition-colors">{care.isActive ? <Pause size={16} /> : <Play size={16} />}</button>
+                              <button onClick={() => deleteCare(care)} aria-label={`Delete ${care.name}`} className="p-2 rounded-lg text-care-faint hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </Card>
+                ) : (
                 <Card className="p-5">
                   {careItems.length === 0 ? (
                     <p className="text-[13px] text-care-sub py-2">No routines yet.{canManage && ' Add walks, treats, brushing.'}</p>
@@ -431,6 +488,7 @@ export default function TodayPage() {
                     </div>
                   )}
                 </Card>
+                )}
               </div>
             </div>
 
@@ -458,6 +516,51 @@ export default function TodayPage() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+            {/* Past days catch-up: log a dose you missed on a previous day */}
+            {medItems.length > 0 && (
+              <div className="mt-1">
+                {!pastOpen ? (
+                  <button onClick={() => setPastOpen(true)} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors"><RotateCcw size={14} /> Catch up a missed day</button>
+                ) : (
+                  <Card className="p-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <Overline>Past days</Overline>
+                      <button onClick={() => { setPastOpen(false); setPastDay(null); }} className="text-[12.5px] font-medium text-care-sub hover:text-care-ink">Close</button>
+                    </div>
+                    <WeekStrip meds={medItems} selectedDay={pastDay || today} onSelectDay={(d) => setPastDay(sameDay(d, today) ? null : startOfDay(d))} />
+                    {pastDay && (
+                      <div className="mt-4 border-t border-care-lineSoft pt-3">
+                        <p className="text-[13px] font-semibold text-care-ink mb-1.5">{pastDay.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                        {pastSlots.length === 0 ? (
+                          <p className="text-[13px] text-care-sub py-2">Nothing was scheduled that day.</p>
+                        ) : pastSlots.map(({ med, slot }) => {
+                          const b = busy(`${med.id}-${slot.scheduledFor.getTime()}`);
+                          const done = slot.status === 'GIVEN';
+                          const skipped = slot.status === 'SKIPPED';
+                          return (
+                            <div key={`${med.id}-${slot.time}`} className="flex items-center gap-3 py-2.5 border-b border-care-lineSoft last:border-0">
+                              <span className="w-12 shrink-0 text-[12.5px] text-care-sub tabular-nums">{formatTime(slot.time)}</span>
+                              <span className="flex-1 min-w-0 text-[14px] font-semibold text-care-ink truncate">{med.name}<span className="font-normal text-care-faint ml-1.5">{med.strength}</span></span>
+                              {b ? <Loader2 size={15} className="animate-spin text-care-faint" /> : (done || skipped) ? (
+                                <span className="flex items-center gap-2.5 shrink-0 text-[12.5px]">
+                                  <span className={done ? 'text-care-teal' : 'text-care-faint'}>{done ? 'Given' : 'Skipped'}</span>
+                                  {canManage && <button onClick={() => undoDose(med, slot)} className="font-medium text-care-faint hover:text-care-ink">Undo</button>}
+                                </span>
+                              ) : canManage ? (
+                                <span className="flex items-center gap-2.5 shrink-0">
+                                  <button onClick={() => markDose(med, slot, 'SKIPPED')} className="text-[12.5px] font-medium text-care-faint hover:text-care-ink">Skip</button>
+                                  <button onClick={() => markDose(med, slot, 'GIVEN')} className="rounded-full bg-care-teal text-white text-[12.5px] font-semibold px-3.5 py-1 hover:bg-care-tealDark transition-colors">Log</button>
+                                </span>
+                              ) : <span className="text-[12.5px] text-care-faint">Missed</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Card>
+                )}
               </div>
             )}
           </div>

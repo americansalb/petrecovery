@@ -32,7 +32,6 @@ export default function WeekStrip({ meds, selectedDay, onSelectDay }) {
 
   return (
     <div>
-      <p className="text-[13px] font-medium text-neutral-500 mb-2">Past days</p>
       <div className="grid grid-cols-7 gap-1.5">
         {days.map(({ day, due, given }, i) => {
           const isToday = i === 6;
