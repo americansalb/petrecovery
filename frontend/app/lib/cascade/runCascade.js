@@ -111,13 +111,17 @@ async function runOne(action, ctx) {
       metadata: { key: action.key, count: out.count ?? null, ms: Date.now() - started },
     }).catch(() => {});
   } catch (err) {
+    // An action can raise a soft "not applicable" signal (err.skip) to record
+    // SKIPPED instead of FAILED — e.g. no rescue force was assigned.
+    const isSkip = Boolean(err?.skip);
     await upsertStep(ctx.activation, action.key, {
-      status: 'FAILED',
+      status: isSkip ? 'SKIPPED' : 'FAILED',
       error: String(err.message || err).slice(0, 500),
       durationMs: Date.now() - started,
       finishedAt: new Date(),
     });
-    ctx.stepStatus[action.key] = 'FAILED';
+    ctx.stepStatus[action.key] = isSkip ? 'SKIPPED' : 'FAILED';
+    if (isSkip) return;
     logEvent({
       event_type: `cascade.step.${action.key}`,
       correlation_id: ctx.correlationId,

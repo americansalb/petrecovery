@@ -230,19 +230,18 @@ export async function POST(request) {
 
     const { user, report, isNewUser } = result;
 
-    // Fire the report-time action cascade — beautiful flyers, social cards,
-    // instant matches, a search plan, neighbor alerts, and more. Seed the
-    // durable activation now (cheap, awaited) so the success screen can read
-    // and poll it immediately, then run the heavy rendering/upload work
-    // FIRE-AND-FORGET so the reporter's response is never blocked.
+    // Seed the durable cascade activation now (cheap, awaited) so the success
+    // screen can read/poll it immediately and the response can carry a
+    // snapshot. The heavy work is ENQUEUED later (just before the response),
+    // after the patrol Alert + rescue-force assignment rows exist — those are
+    // inputs the cascade's neighbor_alert / rescue_force actions read.
     let activationSnapshot = null;
     try {
       const activation = await seedActivation(report, correlationId);
       activationSnapshot = { caseNumber: report.caseNumber, status: activation.status };
-      enqueueCascade(report.id, { correlationId }); // unawaited on purpose
     } catch (cascadeErr) {
       logEvent({
-        event_type: 'cascade.enqueue_failed',
+        event_type: 'cascade.seed_failed',
         correlation_id: correlationId,
         resource_type: 'case',
         resource_id: report.id,
@@ -718,6 +717,11 @@ export async function POST(request) {
         });
       });
     }
+
+    // Fire the report-time action cascade FIRE-AND-FORGET, now that the patrol
+    // Alert rows and rescue-force CaseAssignment rows exist. The reporter's
+    // response is never blocked — the cascade runs on the next tick.
+    enqueueCascade(report.id, { correlationId });
 
     return NextResponse.json({
       success: true,

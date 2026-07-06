@@ -16,10 +16,10 @@ export const CASCADE_ACTIONS = [
   // ── Tier 0 ────────────────────────────────────────────────────────
   { key: 'qr', tier: 0, deps: [], label: 'QR code', logAction: 'create', enabled: true },
   { key: 'ai_copy', tier: 0, deps: [], label: 'Flyer copy & captions', logAction: 'create', enabled: true },
-  { key: 'reverse_match', tier: 0, deps: [], label: 'Match against found pets', logAction: 'read', enabled: false },
-  { key: 'shelters', tier: 0, deps: [], label: 'Nearby shelters', logAction: 'read', enabled: false },
-  { key: 'neighbor_alert', tier: 0, deps: [], label: 'Alert neighbors', logAction: 'update', enabled: false },
-  { key: 'rescue_force', tier: 0, deps: [], label: 'Rescue force', logAction: 'read', enabled: false },
+  { key: 'reverse_match', tier: 0, deps: [], label: 'Match against found pets', logAction: 'read', enabled: true },
+  { key: 'shelters', tier: 0, deps: [], label: 'Nearby shelters', logAction: 'read', enabled: true },
+  { key: 'neighbor_alert', tier: 0, deps: [], label: 'Alert neighbors', logAction: 'update', enabled: true },
+  { key: 'rescue_force', tier: 0, deps: [], label: 'Rescue force', logAction: 'read', enabled: true },
   // ── Tier 1 (need QR + copy) ──────────────────────────────────────
   { key: 'flyers', tier: 1, deps: ['qr'], label: 'Printable flyers', logAction: 'create', enabled: true },
   { key: 'social', tier: 1, deps: ['qr'], label: 'Social share images', logAction: 'create', enabled: true },
