@@ -73,31 +73,51 @@ function RewardStrip({ data, height, fontSize }) {
   );
 }
 
-/** The pet, given the room it deserves: fixed height (react-pdf images can't
- *  size against a flexGrow parent), large, and never with text over it. */
-function PhotoBlock({ data, height, radius = 10 }) {
+/** Frame size that shows the WHOLE photo: the photo's own aspect, bounded by
+ *  maxHeight and availWidth. Falls back to a full-width frame when unknown. */
+function photoDims(data, maxHeight, availWidth) {
+  const a = data.photoAspect;
+  if (!a) return { w: availWidth, h: maxHeight };
+  const h = Math.min(maxHeight, availWidth * a);
+  return { w: Math.min(availWidth, h / a), h };
+}
+
+/** The pet, given the room it deserves: the frame takes the PHOTO's shape
+ *  (up to maxHeight), centered, so the whole animal is always visible.
+ *  Only when the intrinsic size is unreadable do we fall back to a crop. */
+function PhotoBlock({ data, maxHeight, availWidth, radius = 10 }) {
   const src = data.photos[0];
-  return (
-    <View style={{ height, borderRadius: radius, overflow: 'hidden' }}>
-      {src ? (
-        // Top-biased crop: pet faces live in the upper half of most photos.
-        <Image src={src} style={{ width: '100%', height, objectFit: 'cover', objectPositionY: '25%' }} />
-      ) : (
-        <View
-          style={{
-            width: '100%',
-            height,
-            backgroundColor: T.midnight,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Paw size={Math.max(56, height * 0.24)} />
-          <Text style={{ color: '#94a3b8', fontWeight: 600, fontSize: Math.max(9, height * 0.038), marginTop: 10 }}>
-            No photo — please go by the description
-          </Text>
+  if (!src) {
+    return (
+      <View
+        style={{
+          height: maxHeight,
+          borderRadius: radius,
+          backgroundColor: T.midnight,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Paw size={Math.max(56, maxHeight * 0.24)} />
+        <Text style={{ color: '#94a3b8', fontWeight: 600, fontSize: Math.max(9, maxHeight * 0.038), marginTop: 10 }}>
+          No photo yet. Please go by the description.
+        </Text>
+      </View>
+    );
+  }
+  if (data.photoAspect) {
+    const { w, h } = photoDims(data, maxHeight, availWidth);
+    return (
+      <View style={{ alignItems: 'center' }}>
+        <View style={{ width: w, height: h, borderRadius: radius, overflow: 'hidden' }}>
+          <Image src={src} style={{ width: w, height: h }} />
         </View>
-      )}
+      </View>
+    );
+  }
+  return (
+    <View style={{ height: maxHeight, borderRadius: radius, overflow: 'hidden' }}>
+      <Image src={src} style={{ width: '100%', height: maxHeight, objectFit: 'cover', objectPositionY: '25%' }} />
     </View>
   );
 }
@@ -270,16 +290,34 @@ const M = 34; // letter margin
 const MP = 48; // poster margin
 
 function ClassicLetter({ data }) {
+  const bodyW = PAGE.LETTER.width - M * 2;
+  // Portrait photos get a side-by-side hero (tall photo, name beside it) so
+  // showing the WHOLE pet doesn't shrink the photo to a stamp.
+  const isPortrait = Boolean(data.photos[0]) && data.photoAspect > 1.05;
+  const heroH = data.reward ? 336 : 356;
+  const pw = isPortrait ? photoDims(data, heroH, bodyW * 0.46).w : 0;
   return (
     <Page size="LETTER" style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
       <HeaderBand data={data} height={data.reward ? 88 : 96} pad={M} />
       <RewardStrip data={data} height={32} fontSize={15} />
       <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 18, paddingBottom: 16 }}>
-        <PhotoBlock data={data} height={data.reward ? 250 : 262} />
-        <View style={{ marginTop: 15 }}>
-          <NameRow data={data} width={PAGE.LETTER.width - M * 2} base={40} />
-        </View>
-        <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 7 }}>{data.plea}</Text>
+        {isPortrait ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <PhotoBlock data={data} maxHeight={heroH} availWidth={bodyW * 0.46} />
+            <View style={{ flex: 1, paddingLeft: 20 }}>
+              <NameRow data={data} width={bodyW - pw - 20} base={40} />
+              <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>{data.plea}</Text>
+            </View>
+          </View>
+        ) : (
+          <>
+            <PhotoBlock data={data} maxHeight={data.reward ? 250 : 262} availWidth={bodyW} />
+            <View style={{ marginTop: 15 }}>
+              <NameRow data={data} width={bodyW} base={40} />
+            </View>
+            <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 7 }}>{data.plea}</Text>
+          </>
+        )}
         <SpecTable data={data} />
         <View style={{ flexGrow: 1 }} />
       </View>
@@ -296,15 +334,12 @@ function TearTabFlyer({ data }) {
       <RewardStrip data={data} height={26} fontSize={12.5} />
       <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 16, paddingBottom: 14 }}>
         <View style={{ flexGrow: 1 }} />
-        <View style={{ flexDirection: 'row' }}>
-          <View style={{ width: photoSide, height: photoSide, borderRadius: 10, overflow: 'hidden' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ width: photoSide }}>
             {data.photos[0] ? (
-              <Image
-                src={data.photos[0]}
-                style={{ width: photoSide, height: photoSide, objectFit: 'cover', objectPositionY: '25%' }}
-              />
+              <PhotoBlock data={data} maxHeight={photoSide} availWidth={photoSide} />
             ) : (
-              <View style={{ width: '100%', height: '100%', backgroundColor: T.midnight, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ height: photoSide, borderRadius: 10, backgroundColor: T.midnight, alignItems: 'center', justifyContent: 'center' }}>
                 <Paw size={56} />
               </View>
             )}
@@ -330,7 +365,7 @@ function YardPoster({ data }) {
       <HeaderBand data={data} height={data.reward ? 150 : 164} pad={MP} />
       <RewardStrip data={data} height={52} fontSize={26} />
       <View style={{ flexGrow: 1, paddingHorizontal: MP, paddingTop: 26, paddingBottom: 22 }}>
-        <PhotoBlock data={data} height={data.reward ? 480 : 528} radius={14} />
+        <PhotoBlock data={data} maxHeight={data.reward ? 480 : 528} availWidth={W - MP * 2} radius={14} />
         <View style={{ marginTop: 22, alignItems: 'center' }}>
           <NameRow data={data} width={W - MP * 2} base={64} center />
         </View>
@@ -360,7 +395,7 @@ export function FlyerDocument({ data, variant = 'classic' }) {
   const Variant = VARIANTS[variant] || ClassicLetter;
   const pageW = variant === 'poster' ? PAGE.TABLOID.width : PAGE.LETTER.width;
   return (
-    <Document title={`${data.stamp} ${data.petName} — ${data.caseNumber}`} author="ReunitePets">
+    <Document title={`${data.stamp} ${data.petName} (${data.caseNumber})`} author="ReunitePets">
       <Variant data={{ ...data, _pageW: pageW }} />
     </Document>
   );

@@ -35,6 +35,50 @@ function cap(str, n) {
 }
 
 /**
+ * Read intrinsic pixel dimensions from a PNG/JPEG data URL so the flyer can
+ * size the photo frame to the photo's real shape and show the WHOLE pet,
+ * never a letterboxed crop. Returns {w,h} or null (unknown format).
+ */
+export function imageDimsFromDataUrl(dataUrl) {
+  try {
+    const m = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)/i.exec(dataUrl || '');
+    if (!m) return null;
+    // Decode only a header window; SOF/IHDR live near the front.
+    const buf = Buffer.from(m[2].slice(0, 262144), 'base64');
+    if (m[1].toLowerCase() === 'png') {
+      if (buf.length < 24 || buf.readUInt32BE(12) !== 0x49484452) return null; // "IHDR"
+      return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    }
+    // JPEG: walk markers to the first SOFn frame header.
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) {
+        i += 1;
+        continue;
+      }
+      const marker = buf[i + 1];
+      if (marker === 0xff) {
+        i += 1;
+        continue;
+      }
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd9)) {
+        i += 2;
+        continue;
+      }
+      const len = buf.readUInt16BE(i + 2);
+      if (len < 2) return null;
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+      }
+      i += 2 + len;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * @param {object} caseData a Case row (may include petPhotos:string[] and overrides)
  * @param {object} shared render inputs
  * @param {string} [shared.photoDataUrl] primary photo data url
@@ -91,6 +135,10 @@ export function normalizeFlyerData(caseData, shared = {}) {
   const photos = (shared.photoDataUrls && shared.photoDataUrls.filter(Boolean)) || [];
   if (!photos.length && shared.photoDataUrl) photos.push(shared.photoDataUrl);
 
+  // aspect (h/w) of the primary photo so layouts can frame the full image.
+  const dims = photos.length ? imageDimsFromDataUrl(photos[0]) : null;
+  const photoAspect = dims && dims.w > 0 && dims.h > 0 ? dims.h / dims.w : null;
+
   const markings = cap(caseData.distinctiveMarks || '', 120);
   const microchipped = Boolean(caseData.microchipId);
 
@@ -123,6 +171,7 @@ export function normalizeFlyerData(caseData, shared = {}) {
     contactSecondary: cap(contactSecondary, 48),
     caseNumber: caseData.caseNumber,
     caseUrlLabel,
+    photoAspect,
     photos: photos.slice(0, 3),
     photoDataUrl: photos[0] || null, // back-compat for social card
     qrDataUrl: shared.qrDataUrl || null,

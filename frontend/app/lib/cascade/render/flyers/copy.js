@@ -12,24 +12,24 @@
 
 export const FLYER_COPY = {
   headline: "{name} hasn't come home.",
-  // ONE supporting sentence — species-true facts that make a stranger actually
-  // useful, not a plea. Also the body line on social cards.
+  // ONE supporting sentence: species-true facts that make a stranger actually
+  // useful, not a plea. Also the body line on social cards. No em dashes.
   pleaBySpecies: {
-    DOG: 'Most lost dogs are found within a mile or two of home — usually by a neighbor who simply kept an eye out.',
-    CAT: 'Most lost cats hide within a few houses of home — please check sheds, garages, and under porches and decks.',
-    BIRD: 'Lost birds tend to stay close and up high at first — listen at dawn and dusk, when they call.',
-    RABBIT: 'Lost rabbits stay low and close — check under bushes, decks, and porches, especially around dawn and dusk.',
-    OTHER: 'Most lost pets stay close to home — a careful look around yards and quiet corners goes a long way.',
+    DOG: 'Most lost dogs stay within a mile of home. A quick look around your yard, alley, or street could be the sighting that brings {name} back.',
+    CAT: 'Lost cats rarely go far. {name} is probably hiding within a few houses of home, so please check sheds, garages, and under porches and decks.',
+    BIRD: 'Lost birds stay close and perch high at first. Look up and listen at dawn and dusk. {name} may answer a calm, familiar voice.',
+    RABBIT: 'Lost rabbits tuck in low and close. Check under bushes, decks, and porches around dawn and dusk, when {name} is most likely to move.',
+    OTHER: 'Most lost pets stay close to home. A slow look around yards, garages, and quiet corners could be what brings {name} back.',
   },
-  // Scenario-aware "IF YOU SEE {NAME}" guidance — third person, practical.
+  // Scenario-aware "IF YOU SEE {NAME}" guidance. Third person, practical.
   approachByScenario: {
-    got_spooked: "Likely frightened and hiding — please don't chase or call out. Note the exact spot and get in touch right away.",
-    spooked: "Likely frightened and hiding — please don't chase or call out. Note the exact spot and get in touch right away.",
-    door_dashed: 'Friendly — crouch down, speak softly, and let {name} come to you. Then get in touch.',
-    door_left_open: 'Friendly — crouch down, speak softly, and let {name} come to you. Then get in touch.',
-    off_leash: 'Friendly — crouch down, speak softly, and let {name} come to you. Then get in touch.',
-    jumped_fence: "May be roaming, trying to get home — please don't chase. Note the spot and get in touch right away.",
-    unknown: "Please don't chase — a scared pet runs farther. Note the exact spot and time, and get in touch right away.",
+    got_spooked: "{name} is probably frightened and hiding. Please don't chase or call out. Note the exact spot and get in touch right away.",
+    spooked: "{name} is probably frightened and hiding. Please don't chase or call out. Note the exact spot and get in touch right away.",
+    door_dashed: '{name} is friendly. Crouch down, speak softly, and let {name} come to you. Then get in touch.',
+    door_left_open: '{name} is friendly. Crouch down, speak softly, and let {name} come to you. Then get in touch.',
+    off_leash: '{name} is friendly. Crouch down, speak softly, and let {name} come to you. Then get in touch.',
+    jumped_fence: "{name} may be roaming and trying to get home. Please don't chase. Note the spot and get in touch right away.",
+    unknown: "Please don't chase. A scared pet runs farther. Note the exact spot and time, then get in touch right away.",
   },
   shareNudge: 'One share could reach the person who finds {name}.',
   scanCta: 'Scan to report a sighting',
@@ -49,7 +49,7 @@ export function resolveFlyerCopy(caseData, shared = {}) {
 
   const plea = shared.plea
     ? shared.plea
-    : FLYER_COPY.pleaBySpecies[species] || FLYER_COPY.pleaBySpecies.OTHER;
+    : fillCopy(FLYER_COPY.pleaBySpecies[species] || FLYER_COPY.pleaBySpecies.OTHER, { name, species });
 
   return {
     headline: shared.headline ? shared.headline : fillCopy(FLYER_COPY.headline, { name }),
