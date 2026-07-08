@@ -152,7 +152,7 @@ export function normalizeFlyerData(caseData, shared = {}) {
     accentBg: theme.stampBg,
     speciesLabel,
     // emotional copy — the "cannot say no" heart of the flyer
-    headline: copy.headline, // "{name} hasn't come home."
+    headline: copy.headline, // "Have you seen {name}?"
     plea: copy.plea, // one species-true supporting sentence
     pleaShort: copy.pleaShort, // shorter, for social cards
     approachLine: copy.approachLine, // scenario-aware "if you see them" guidance

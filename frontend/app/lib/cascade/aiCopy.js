@@ -25,7 +25,7 @@ const OUTPUT_SCHEMA = {
   additionalProperties: false,
   required: ['headline', 'description', 'plea', 'captions', 'hashtags', 'searchPlan'],
   properties: {
-    headline: { type: 'string', description: 'flyer hook, <= 40 chars, e.g. "Max hasn\'t come home."' },
+    headline: { type: 'string', description: 'share-card hook, <= 40 chars, e.g. "Have you seen Max?"' },
     description: { type: 'string', description: 'warm 1-2 sentence flyer body, <= 240 chars' },
     plea: {
       type: 'string',
@@ -216,7 +216,8 @@ async function callClaude(caseData) {
           'direct neighbor asking neighbors. Factual, warm, dignified. Never cheesy, cutesy, ' +
           'guilt-trippy, or manipulative, and NEVER the pet "speaking" in first person. ' +
           'Never use em dashes; write short plain sentences. ' +
-          'The headline is a short hook (e.g. "Max hasn\'t come home."). The plea is ONE ' +
+          'The headline is a short direct hook, usually a question to the reader (e.g. ' +
+          '"Have you seen Max?"). Never imply the pet routinely roams (no "hasn\'t come home"). The plea is ONE ' +
           'third-person sentence of species-true search fact (where this kind of pet is usually ' +
           'found, or what a stranger should actually do). ' +
           'Captions are for the owner to post; drive people to the case URL to report a sighting; ' +

@@ -11,7 +11,8 @@
  */
 
 export const FLYER_COPY = {
-  headline: "{name} hasn't come home.",
+  headline: 'Have you seen {name}?',
+  headlineFound: 'Do you know this {species}?',
   // ONE supporting sentence: species-true facts that make a stranger actually
   // useful, not a plea. Also the body line on social cards. No em dashes.
   pleaBySpecies: {
@@ -51,8 +52,10 @@ export function resolveFlyerCopy(caseData, shared = {}) {
     ? shared.plea
     : fillCopy(FLYER_COPY.pleaBySpecies[species] || FLYER_COPY.pleaBySpecies.OTHER, { name, species });
 
+  const headlineTemplate = caseData.reportType === 'FOUND' ? FLYER_COPY.headlineFound : FLYER_COPY.headline;
+
   return {
-    headline: shared.headline ? shared.headline : fillCopy(FLYER_COPY.headline, { name }),
+    headline: shared.headline ? shared.headline : fillCopy(headlineTemplate, { name, species }),
     plea,
     // Same single sentence everywhere — kept as its own field so social cards
     // can stay short if the AI plea runs long.
