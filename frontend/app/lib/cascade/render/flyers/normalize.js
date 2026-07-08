@@ -48,25 +48,30 @@ export function normalizeFlyerData(caseData, shared = {}) {
   const speciesLabel = SPECIES_LABEL[caseData.petSpecies] || 'PET';
   const name = caseData.petName || 'Unknown';
 
+  const sizeWord = caseData.petSize ? String(caseData.petSize).toLowerCase() : '';
   const chips = [
     caseData.petBreed && caseData.petBreed !== 'Unknown' ? caseData.petBreed : null,
     caseData.petColor,
-    caseData.petSize ? String(caseData.petSize).toLowerCase() : null,
+    sizeWord ? sizeWord.charAt(0).toUpperCase() + sizeWord.slice(1) : null,
   ].filter(Boolean);
 
   const hasPhone = caseData.ownerPhone && caseData.ownerPhone !== 'Not provided';
   const hasEmail =
     caseData.ownerEmail && !isPlaceholderEmail(caseData.ownerEmail) && caseData.ownerEmail !== 'Not provided';
 
-  let contactVerb = 'CONTACT US';
-  let contactValue = '';
+  // Display URL for the microfooter + the no-contact fallback (the QR encodes
+  // the real absolute URL; this is the human-readable line).
+  const caseUrlLabel = `reunitepets.org/cases/${caseData.caseNumber}`;
+
+  let contactVerb = 'REPORT A SIGHTING AT';
+  let contactValue = caseUrlLabel;
   let contactSecondary = '';
   if (hasPhone) {
-    contactVerb = 'CALL OR TEXT 24/7';
+    contactVerb = 'CALL OR TEXT';
     contactValue = formatPhone(caseData.ownerPhone);
     if (hasEmail) contactSecondary = caseData.ownerEmail;
   } else if (hasEmail) {
-    contactVerb = 'EMAIL US';
+    contactVerb = 'EMAIL';
     contactValue = caseData.ownerEmail;
   }
 
@@ -100,10 +105,9 @@ export function normalizeFlyerData(caseData, shared = {}) {
     speciesLabel,
     // emotional copy — the "cannot say no" heart of the flyer
     headline: copy.headline, // "{name} hasn't come home."
-    plea: copy.plea, // first-person pet voice (full)
+    plea: copy.plea, // one species-true supporting sentence
     pleaShort: copy.pleaShort, // shorter, for social cards
-    familyLine: copy.familyLine, // the family, quietly waiting
-    approachLine: copy.approachLine, // gentle scenario-aware guidance
+    approachLine: copy.approachLine, // scenario-aware "if you see them" guidance
     shareNudge: copy.shareNudge,
     scanCta: copy.scanCta,
     petName: name,
@@ -118,6 +122,7 @@ export function normalizeFlyerData(caseData, shared = {}) {
     contactValue,
     contactSecondary: cap(contactSecondary, 48),
     caseNumber: caseData.caseNumber,
+    caseUrlLabel,
     photos: photos.slice(0, 3),
     photoDataUrl: photos[0] || null, // back-compat for social card
     qrDataUrl: shared.qrDataUrl || null,
