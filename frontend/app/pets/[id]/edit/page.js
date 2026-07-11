@@ -17,6 +17,7 @@ import { Check, Minus, Plus, Loader2, X } from 'lucide-react';
 import { PawIcon } from '@/app/components/icons/SpeciesIcons';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';
+import { useToast } from '@/app/components/ui/Toast';
 import { EmptyState, ConfirmModal, cn } from '@/components/ui';
 import {
   COAT_COLORS, COAT_PATTERNS, MAX_COAT_COLORS,
@@ -109,9 +110,11 @@ function InlineAdd({ value, onChange, onAdd, onCancel, placeholder }) {
   );
 }
 
-function Section({ label, children }) {
+function Section({ label, id, children }) {
+  // ids let "Add microchip" style links land on the right section
+  // (e.g. /pets/[id]/edit#identification) instead of the top of the form.
   return (
-    <section className="mb-10">
+    <section id={id} className="mb-10 scroll-mt-24">
       <h2 className="text-[13px] font-medium text-neutral-500 mb-4">{label}</h2>
       {children}
     </section>
@@ -125,6 +128,7 @@ export default function EditPetPage() {
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
+  const toast = useToast();
 
   const [pet, setPet] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -341,7 +345,9 @@ export default function EditPetPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update pet profile');
-      router.push(`/pets/${petId}`);
+      // Say it saved, and land back on the profile the edits belong to.
+      toast.success(`${form.name || 'Profile'} saved`);
+      router.push(`/pets/${petId}/profile`);
     } catch (err) {
       setSubmitError(err.message);
       setSubmitting(false);
@@ -409,7 +415,7 @@ export default function EditPetPage() {
           </div>
         )}
 
-        <Section label="Photos">
+        <Section id="photos" label="Photos">
           <ImageUpload
             images={images}
             onUpload={(newImages) => setImages((prev) => [...prev, ...newImages])}
@@ -421,7 +427,7 @@ export default function EditPetPage() {
           />
         </Section>
 
-        <Section label="Basics">
+        <Section id="basics" label="Basics">
           <div className="space-y-5">
             <div>
               <label htmlFor="pet-name" className={labelClass}>Name</label>
@@ -505,7 +511,7 @@ export default function EditPetPage() {
           </div>
         </Section>
 
-        <Section label="Appearance">
+        <Section id="appearance" label="Appearance">
           <div className="space-y-5">
             <div>
               <p className={labelClass}>Coat, up to {MAX_COAT_COLORS} colors</p>
@@ -655,7 +661,7 @@ export default function EditPetPage() {
           </div>
         </Section>
 
-        <Section label="Identification">
+        <Section id="identification" label="Identification">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="pet-chip" className={labelClass}>Microchip number</label>
@@ -682,7 +688,7 @@ export default function EditPetPage() {
           </div>
         </Section>
 
-        <Section label="Personality">
+        <Section id="personality" label="Personality">
           <div className="flex flex-wrap items-center gap-2">
             {PERSONALITY_TRAITS.map((trait) => {
               const active = form.personality.some((t) => t.toLowerCase() === trait.toLowerCase());
@@ -733,7 +739,7 @@ export default function EditPetPage() {
           {errors.personality && <p className="text-[13px] text-red-600 mt-2">{errors.personality}</p>}
         </Section>
 
-        <Section label="Vet">
+        <Section id="medical" label="Vet">
           <label htmlFor="pet-medical" className={labelClass}>Medical notes</label>
           <textarea
             id="pet-medical"

@@ -51,16 +51,20 @@ export function MedCard({ med, petId, busy, canManage, onTogglePause, onDelete }
 }
 
 export function ActivityFeed({ meds }) {
-  const events = useMemo(() => {
+  const { events, total } = useMemo(() => {
     const out = [];
     for (const med of meds) for (const dose of med.doses || []) out.push({ med, dose, at: new Date(dose.givenAt || dose.scheduledFor) });
-    return out.sort((a, b) => b.at - a.at).slice(0, 15);
+    out.sort((a, b) => b.at - a.at);
+    return { events: out.slice(0, 60), total: out.length };
   }, [meds]);
 
   if (!events.length) return <p className="text-[14px] text-care-sub px-5 py-4">No doses logged yet.</p>;
 
   return (
     <div>
+      {total > events.length && (
+        <p className="text-[12px] text-care-faint px-5 pt-1">Showing the latest {events.length} of {total}. The full record is in the backup download below.</p>
+      )}
       {events.map(({ med, dose, at }, i) => (
         <div key={dose.id} className={cn('flex items-center gap-3 px-5 py-3', i > 0 && 'border-t border-care-lineSoft')}>
           <span className={cn('w-2 h-2 rounded-full shrink-0', dose.status === 'GIVEN' ? 'bg-care-teal' : 'bg-care-faint')} aria-hidden="true" />

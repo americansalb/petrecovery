@@ -149,6 +149,9 @@ function PetShell({ children }) {
                       {p.primaryPhotoUrl ? <img src={p.primaryPhotoUrl} alt="" className="w-full h-full object-cover" /> : <span className="font-serif text-[13px] font-semibold text-care-teal">{initials(p.name)}</span>}
                     </span>
                     <span className="text-[13px] font-semibold text-care-ink truncate">{p.name}</span>
+                    {activeCaseOf(p) && (
+                      <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shrink-0" title={`${p.name} is missing`} aria-label={`${p.name} is missing`} />
+                    )}
                   </Link>
                 );
               })}

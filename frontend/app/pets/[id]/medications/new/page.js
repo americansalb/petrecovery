@@ -17,10 +17,11 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Check, Plus, X, Loader2 } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { cn } from '@/components/ui';
+import { useToast } from '@/app/components/ui/Toast';
 import { MedIcon, MedIconChip } from '@/app/components/medications/MedIcon';
 import {
   MED_COLORS, MED_COLOR_TOKENS, MED_ICON_TOKENS, FORM_OPTIONS, FORM_DEFAULT_ICON,
-  SCHEDULE_OPTIONS, WEEKDAYS, medColor, formatSchedule, formatTime,
+  SCHEDULE_OPTIONS, WEEKDAYS, medColor, formatSchedule,
 } from '@/lib/medications';
 
 const STEPS = [
@@ -105,6 +106,7 @@ function MedicationWizard() {
   const petId = params.id;
   const editId = searchParams.get('edit');
 
+  const toast = useToast();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(Boolean(editId));
@@ -262,7 +264,9 @@ function MedicationWizard() {
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save');
-      router.push(`/pets/${petId}/health`);
+      // Land back where medications live, and say what happened.
+      toast.success(editId ? `${form.name} updated` : `${form.name} added. Doses appear on Today.`);
+      router.push(`/pets/${petId}/meds`);
     } catch (err) {
       setError(err.message);
       setSaving(false);
@@ -307,9 +311,12 @@ function MedicationWizard() {
         </div>
       )}
 
-      {/* Step 1: What */}
+      {/* Step 1: What. The smart-parse box is for capturing a NEW
+          prescription; when editing, the fields are already filled and the
+          box would only invite accidentally overwriting them. */}
       {step === 0 && (
         <div className="space-y-5">
+          {!editId && (
           <div className="rounded-xl border border-neutral-200 p-4">
             <p className={labelClass}>Type it like the vet said it</p>
             <textarea
@@ -337,6 +344,7 @@ function MedicationWizard() {
               </p>
             )}
           </div>
+          )}
 
           <Field label="Medication name" required>
             <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Apoquel" className={inputClass} />
@@ -453,7 +461,6 @@ function MedicationWizard() {
                         }}
                         className={cn(inputClass, 'w-36')}
                       />
-                      <span className="text-[13px] text-neutral-500">{formatTime(t)}</span>
                       {form.timesOfDay.length > 1 && (
                         <button
                           type="button"

@@ -6,7 +6,7 @@
  * missing), and Photos. A calm read view; editing opens the full form.
  */
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -48,11 +48,22 @@ function ProfileInner() {
   const initial = ['id', 'photos'].includes(searchParams.get('tab')) ? searchParams.get('tab') : 'about';
   const [tab, setTab] = useState(initial);
 
+  // Team + view-link state feed the readiness count, so this page and the
+  // edit page always report the same N of 7 (they used to disagree).
+  const [shares, setShares] = useState([]);
+  const [viewLinkUrl, setViewLinkUrl] = useState(null);
+  useEffect(() => {
+    if (status !== 'authenticated' || !petId || access !== 'OWNER') return;
+    fetch(`/api/pets/${petId}/shares`).then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.shares) setShares(d.shares); }).catch(() => {});
+    fetch(`/api/pets/${petId}/share-link`).then((r) => (r.ok ? r.json() : null)).then((d) => setViewLinkUrl(d?.url || null)).catch(() => {});
+  }, [status, petId, access]);
+
   if (status === 'loading' || !pet) return <div className="min-h-[50vh] flex items-center justify-center"><LoadingSpinner text="Loading..." /></div>;
   if (status === 'unauthenticated') { router.push(`/login?callbackUrl=/pets/${petId}/profile`); return null; }
 
   const isOwner = access === 'OWNER';
   const editHref = isOwner ? `/pets/${petId}/edit` : undefined;
+  const anchored = (hash) => (editHref ? `${editHref}#${hash}` : undefined);
   const photos = parseJsonArray(pet.photos);
   const personality = parseJsonArray(pet.personality);
   const uniquePhotos = [...new Set([pet.primaryPhotoUrl, ...photos].filter(Boolean))];
@@ -91,14 +102,14 @@ function ProfileInner() {
 
       {tab === 'id' && (
         <div className="flex flex-col gap-5">
-          {isOwner && <RescueReadiness pet={pet} photos={uniquePhotos} personality={personality} isOwner={isOwner} />}
+          {isOwner && <RescueReadiness pet={pet} photos={uniquePhotos} personality={personality} shares={shares} viewLinkUrl={viewLinkUrl} isOwner={isOwner} />}
           <Rows>
-            <Row first label="Microchip" value={pet.microchipId} editHref={editHref} />
-            <Row label="Collar & tag" value={pet.collarInfo} editHref={editHref} />
-            <Row label="Distinctive marks" value={pet.distinctiveMarks} editHref={editHref} />
+            <Row first label="Microchip" value={pet.microchipId} editHref={anchored('identification')} />
+            <Row label="Collar & tag" value={pet.collarInfo} editHref={anchored('identification')} />
+            <Row label="Distinctive marks" value={pet.distinctiveMarks} editHref={anchored('appearance')} />
             <div className="flex items-start justify-between gap-4 px-5 py-3.5 border-t border-care-lineSoft">
               <dt className="text-[13px] text-care-sub shrink-0 pt-0.5">Medical</dt>
-              <dd className="text-[14.5px] text-right min-w-0">{pet.medicalConditions ? <span className="text-red-600 font-medium">{pet.medicalConditions}</span> : (editHref ? <Link href={editHref} className="inline-flex items-center gap-0.5 text-care-sub hover:text-care-ink">Add<ChevronRight size={13} /></Link> : <span className="text-care-faint">None noted</span>)}</dd>
+              <dd className="text-[14.5px] text-right min-w-0">{pet.medicalConditions ? <span className="text-red-600 font-medium">{pet.medicalConditions}</span> : (editHref ? <Link href={anchored('medical')} className="inline-flex items-center gap-0.5 text-care-sub hover:text-care-ink">Add<ChevronRight size={13} /></Link> : <span className="text-care-faint">None noted</span>)}</dd>
             </div>
           </Rows>
         </div>
