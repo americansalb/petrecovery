@@ -27,7 +27,7 @@ import { AddCareModal } from '@/app/components/care/GoodStuff';
 import { CareIconChip } from '@/app/components/icons/CareIcons';
 import WeekStrip from '@/app/components/care/WeekStrip';
 import { Card, Overline } from '@/app/components/care/kit/Tile';
-import { cn } from '@/components/ui';
+import { cn, ConfirmModal } from '@/components/ui';
 import { vaccinationStatus } from '@/lib/healthBook';
 import {
   isLowSupply, startOfDay, sameDay, slotsWithStatus, adherenceForDay, formatTime, formatSchedule,
@@ -64,6 +64,7 @@ export default function TodayPage() {
   const [outboxCount, setOutboxCount] = useState(0);
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [managingRoutines, setManagingRoutines] = useState(false);
+  const [confirmCareDelete, setConfirmCareDelete] = useState(null);
   const [pastOpen, setPastOpen] = useState(false);
   const [pastDay, setPastDay] = useState(null); // a startOfDay Date, or null for today
   const today = startOfDay(new Date());
@@ -206,6 +207,7 @@ export default function TodayPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to remove');
       setMeds((prev) => prev.filter((m) => m.id !== care.id));
+      setConfirmCareDelete(null);
     });
 
   if (status === 'loading' || loading) {
@@ -273,6 +275,16 @@ export default function TodayPage() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6">
       {showAddRoutine && <AddCareModal petId={petId} onClose={() => setShowAddRoutine(false)} onSaved={(m) => setMeds((prev) => [...prev, m])} />}
+      {confirmCareDelete && (
+        <ConfirmModal
+          onClose={() => setConfirmCareDelete(null)}
+          title={`Remove ${confirmCareDelete.name}?`}
+          body="This removes the routine and its history. It cannot be undone."
+          confirmLabel="Remove"
+          busy={busyKeys.has(`care-${confirmCareDelete.id}`)}
+          onConfirm={() => deleteCare(confirmCareDelete)}
+        />
+      )}
 
       {/* notices */}
       {error && (
@@ -292,7 +304,11 @@ export default function TodayPage() {
         </div>
       )}
 
-      {!hasAnything ? (
+      {!hasAnything && error ? (
+        /* A load failure must not masquerade as "you have no medications":
+           the error banner above is the whole story until a retry works. */
+        null
+      ) : !hasAnything ? (
         <Card className="text-center py-12 mt-2 px-6">
           <p className="text-[17px] font-semibold text-care-ink">Nothing to track yet</p>
           <p className="text-[14px] text-care-sub mt-1 mb-5">Add a medication and check off doses with a tap.</p>
@@ -404,10 +420,20 @@ export default function TodayPage() {
                     <p className="text-[13px] text-care-sub py-2">No doses logged yet today.</p>
                   )}
                   {pending.length > 0 && (
-                    <div className="mt-3.5 flex items-center gap-2.5 rounded-xl bg-care-tealWash px-3.5 py-2.5">
-                      <Clock size={16} className="text-care-teal" />
-                      <b className="text-[12.5px] font-semibold text-care-tealDark">{pending.length} dose{pending.length !== 1 ? 's' : ''} due</b>
-                      <span className="ml-auto text-[12px] font-semibold text-care-teal">{formatTime(pending[0].slot.time)}</span>
+                    /* Overdue and upcoming are different facts: never print a
+                       past slot time as if it were the next dose. */
+                    <div className={cn('mt-3.5 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5', overduePending.length ? 'bg-care-amberWash ring-1 ring-care-amberLine' : 'bg-care-tealWash')}>
+                      <Clock size={16} className={overduePending.length ? 'text-care-amber' : 'text-care-teal'} />
+                      <b className={cn('text-[12.5px] font-semibold', overduePending.length ? 'text-care-amber' : 'text-care-tealDark')}>
+                        {overduePending.length
+                          ? `${overduePending.length} overdue`
+                          : `${pending.length} dose${pending.length !== 1 ? 's' : ''} due`}
+                      </b>
+                      <span className={cn('ml-auto text-[12px] font-semibold', overduePending.length ? 'text-care-amber' : 'text-care-teal')}>
+                        {overduePending.length
+                          ? (pending.length > overduePending.length ? `next ${formatTime(pending.find((x) => x.slot.scheduledFor >= now)?.slot.time || pending[0].slot.time)}` : 'give now')
+                          : formatTime(pending[0].slot.time)}
+                      </span>
                     </div>
                   )}
                 </Card>
@@ -439,7 +465,7 @@ export default function TodayPage() {
                           {b ? <Loader2 size={16} className="animate-spin text-care-faint" /> : (
                             <>
                               <button onClick={() => togglePauseCare(care)} aria-label={care.isActive ? `Pause ${care.name}` : `Resume ${care.name}`} className="p-2 rounded-lg text-care-faint hover:text-care-ink hover:bg-care-bg transition-colors">{care.isActive ? <Pause size={16} /> : <Play size={16} />}</button>
-                              <button onClick={() => deleteCare(care)} aria-label={`Delete ${care.name}`} className="p-2 rounded-lg text-care-faint hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
+                              <button onClick={() => setConfirmCareDelete(care)} aria-label={`Delete ${care.name}`} className="p-2 rounded-lg text-care-faint hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 size={16} /></button>
                             </>
                           )}
                         </div>

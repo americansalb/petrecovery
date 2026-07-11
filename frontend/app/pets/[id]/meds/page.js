@@ -123,10 +123,15 @@ function MedsInner() {
           </div>
         )
       ) : (
-        <Card className="overflow-hidden">
-          <div className="px-5 pt-4 pb-1"><Overline>Dose log</Overline></div>
-          <ActivityFeed meds={meds} />
-        </Card>
+        <div className="flex flex-col gap-3">
+          <Card className="overflow-hidden">
+            <div className="px-5 pt-4 pb-1"><Overline>Dose log</Overline></div>
+            <ActivityFeed meds={meds} />
+          </Card>
+          <div className="flex justify-end">
+            <a href={`/api/pets/${petId}/medications/export`} download className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors" title="Download the complete medication and dose record">Download the full record</a>
+          </div>
+        </div>
       )}
 
       {confirmDelete && (

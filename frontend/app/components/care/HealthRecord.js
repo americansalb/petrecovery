@@ -127,7 +127,8 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
       const res = await fetch(`/api/pets/${petId}/vaccinations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, administeredAt, expiresAt, vetName: vetName.trim() || undefined }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not save');
-      onSaved(data.vaccination); onClose();
+      // `retired` = older same-name records the renewal replaced server-side
+      onSaved(data.vaccination, data.retired || []); onClose();
     } catch (err) { setError(err.message); } finally { setSaving(false); }
   };
 
@@ -217,8 +218,9 @@ export function WeightChart({ weights }) {
   );
 }
 
-export function WeightCard({ weights, canManage, weightInput, onWeightInput, onLog, saving }) {
+export function WeightCard({ weights, canManage, weightInput, onWeightInput, weightDate, onWeightDate, onLog, saving }) {
   const latest = weights[weights.length - 1];
+  const today = new Date().toISOString().slice(0, 10);
   return (
     <section>
       <SectionHeader title="Weight" action={latest && <span className="text-[12.5px] text-care-sub">last {new Date(latest.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>} />
@@ -228,9 +230,23 @@ export function WeightCard({ weights, canManage, weightInput, onWeightInput, onL
         ) : <p className="text-[14px] text-care-sub">No weight logged yet.</p>}
         {weights.length >= 2 && <WeightChart weights={weights} />}
         {canManage && (
-          <div className="flex items-center gap-2 mt-4">
-            <input value={weightInput} onChange={(e) => onWeightInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onLog()} placeholder="Today's weight (lb)" inputMode="decimal" aria-label="Today's weight in pounds" className="flex-1 rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal" />
-            <button onClick={onLog} disabled={saving || !weightInput} className="rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2.5 hover:bg-care-tealDark disabled:opacity-40 transition-colors">{saving ? <Loader2 size={15} className="animate-spin" /> : 'Log'}</button>
+          <div className="mt-4">
+            <div className="flex items-center gap-2">
+              <input value={weightInput} onChange={(e) => onWeightInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onLog()} placeholder="Weight (lb)" inputMode="decimal" aria-label="Weight in pounds" className="flex-1 rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal" />
+              {onWeightDate && (
+                <input
+                  type="date"
+                  value={weightDate || ''}
+                  max={today}
+                  onChange={(e) => onWeightDate(e.target.value === today ? '' : e.target.value)}
+                  aria-label="Date weighed (leave empty for today)"
+                  title="Date weighed. Leave empty for today, e.g. to enter a vet-visit weigh-in."
+                  className="rounded-xl border border-care-line px-3 py-2.5 text-[14px] text-care-sub focus:outline-none focus:border-care-teal"
+                />
+              )}
+              <button onClick={onLog} disabled={saving || !weightInput} className="rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2.5 hover:bg-care-tealDark disabled:opacity-40 transition-colors">{saving ? <Loader2 size={15} className="animate-spin" /> : 'Log'}</button>
+            </div>
+            <p className="text-[12px] text-care-faint mt-2">Pick a date to enter a past weigh-in, like a vet visit. Empty means today.</p>
           </div>
         )}
       </Card>
@@ -247,7 +263,12 @@ export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, sav
       <Card className="p-5">
         {vetDraft ? (
           <div className="space-y-2.5">
-            {[['vetName', 'Vet name'], ['vetClinic', 'Clinic'], ['vetPhone', 'Phone']].map(([k, ph]) => <input key={k} value={vetDraft[k]} onChange={(e) => onDraft({ ...vetDraft, [k]: e.target.value })} placeholder={ph} className={input} />)}
+            {[['vetName', 'Vet name'], ['vetClinic', 'Clinic'], ['vetPhone', 'Phone']].map(([k, ph]) => (
+              <label key={k} className="block">
+                <span className="block text-[12.5px] font-medium text-care-sub mb-1">{ph}</span>
+                <input value={vetDraft[k]} onChange={(e) => onDraft({ ...vetDraft, [k]: e.target.value })} placeholder={ph} className={input} />
+              </label>
+            ))}
             <div className="flex gap-2 pt-1">
               <button onClick={onSave} disabled={saving} className="rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-40">{saving ? 'Saving...' : 'Save'}</button>
               <button onClick={onCancel} className="rounded-xl border border-care-line text-sm font-medium text-care-ink px-4 py-2 hover:border-care-ink transition-colors">Cancel</button>
@@ -310,7 +331,12 @@ export function MonthHistory({ vaccinations, weights, meds }) {
           <div key={g.key}>
             <div className="flex items-baseline justify-between gap-3 mb-2">
               <Overline>{g.key}</Overline>
-              {adherence && <p className="text-[12.5px] text-care-sub">doses <span className={cn('font-semibold tabular-nums', adherence.pct >= 90 ? 'text-care-teal' : adherence.pct >= 60 ? 'text-care-amber' : 'text-red-600')}>{adherence.pct}%</span></p>}
+              {adherence && (
+                <p className="text-[12.5px] text-care-sub" title="Scheduled doses marked given this month (last 35 days)">
+                  {adherence.given} of {adherence.due} doses given{' '}
+                  <span className={cn('font-semibold tabular-nums', adherence.pct >= 90 ? 'text-care-teal' : adherence.pct >= 60 ? 'text-care-amber' : 'text-red-600')}>({adherence.pct}%)</span>
+                </p>
+              )}
             </div>
             <Card className="overflow-hidden">
               {g.items.map((ev, i) => (

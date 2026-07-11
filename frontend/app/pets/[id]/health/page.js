@@ -11,6 +11,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
+import { ConfirmModal } from '@/components/ui';
 import { usePet } from '@/app/components/care/PetProvider';
 import SubTabs from '@/app/components/care/kit/SubTabs';
 import { Overline } from '@/app/components/care/kit/Tile';
@@ -38,9 +39,12 @@ function HealthInner() {
   const [showAdd, setShowAdd] = useState(false);
   const [managing, setManaging] = useState(false);
   const [weightInput, setWeightInput] = useState('');
+  const [weightDate, setWeightDate] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
   const [vetDraft, setVetDraft] = useState(null);
   const [savingVet, setSavingVet] = useState(false);
+  const [confirmVaxRemove, setConfirmVaxRemove] = useState(null);
+  const [removingVax, setRemovingVax] = useState(false);
 
   useEffect(() => { if (status === 'unauthenticated') router.push(`/login?callbackUrl=/pets/${petId}/health`); }, [status, router, petId]);
 
@@ -67,21 +71,29 @@ function HealthInner() {
     if (isNaN(val) || val <= 0 || savingWeight) return;
     setSavingWeight(true); setError(null);
     try {
-      const res = await fetch(`/api/pets/${petId}/weights`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weightLbs: val }) });
+      // Backdating uses noon so the entry lands on the chosen calendar day
+      // in every timezone; the API sorts and recomputes the pet's current
+      // weight from the newest entry either way.
+      const payload = { weightLbs: val };
+      if (weightDate) payload.recordedAt = new Date(`${weightDate}T12:00:00`).toISOString();
+      const res = await fetch(`/api/pets/${petId}/weights`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not log weight');
-      setWeights((prev) => [...prev, data.entry]);
-      setPet((prev) => (prev ? { ...prev, weight: val } : prev));
+      setWeights((prev) => [...prev, data.entry].sort((a, b) => new Date(a.recordedAt) - new Date(b.recordedAt)));
+      if (!weightDate) setPet((prev) => (prev ? { ...prev, weight: val } : prev));
       setWeightInput('');
+      setWeightDate('');
     } catch (err) { setError(err.message); } finally { setSavingWeight(false); }
   };
 
   const removeVax = async (vax) => {
+    setRemovingVax(true);
     try {
       const res = await fetch(`/api/pets/${petId}/vaccinations?vaccinationId=${vax.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to remove');
       setVaccinations((prev) => prev.filter((v) => v.id !== vax.id));
-    } catch (err) { setError(err.message); }
+      setConfirmVaxRemove(null);
+    } catch (err) { setError(err.message); } finally { setRemovingVax(false); }
   };
 
   const saveVet = async () => {
@@ -138,19 +150,47 @@ function HealthInner() {
           managing={managing}
           onToggleManage={() => setManaging((v) => !v)}
           onAdd={() => setShowAdd(true)}
-          onRemove={removeVax}
+          onRemove={setConfirmVaxRemove}
         />
       )}
 
       {tab === 'weight' && (
-        <WeightCard weights={weights} canManage={canManage} weightInput={weightInput} onWeightInput={setWeightInput} onLog={logWeight} saving={savingWeight} />
+        <WeightCard
+          weights={weights}
+          canManage={canManage}
+          weightInput={weightInput}
+          onWeightInput={setWeightInput}
+          weightDate={weightDate}
+          onWeightDate={setWeightDate}
+          onLog={logWeight}
+          saving={savingWeight}
+        />
       )}
 
       {tab === 'vet' && (
         <VetCard pet={pet} isOwner={isOwner} vetDraft={vetDraft} onDraft={setVetDraft} onSave={saveVet} onCancel={() => setVetDraft(null)} saving={savingVet} />
       )}
 
-      {showAdd && <AddVaccineModal petId={petId} species={pet?.species} onClose={() => setShowAdd(false)} onSaved={(vax) => setVaccinations((prev) => [vax, ...prev])} />}
+      {showAdd && (
+        <AddVaccineModal
+          petId={petId}
+          species={pet?.species}
+          onClose={() => setShowAdd(false)}
+          onSaved={(vax, retired = []) =>
+            setVaccinations((prev) => [vax, ...prev.filter((v) => !retired.includes(v.id))])}
+        />
+      )}
+
+      {confirmVaxRemove && (
+        <ConfirmModal
+          onClose={() => setConfirmVaxRemove(null)}
+          title={`Remove ${confirmVaxRemove.name}?`}
+          body="This removes the vaccination record from the book. It cannot be undone here."
+          confirmLabel="Remove"
+          busy={removingVax}
+          onConfirm={() => removeVax(confirmVaxRemove)}
+        />
+      )}
     </div>
   );
 }

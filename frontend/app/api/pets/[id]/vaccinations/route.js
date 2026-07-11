@@ -62,8 +62,31 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Vaccination limit reached for this pet' }, { status: 400 });
     }
 
-    const vaccination = await prisma.petVaccination.create({ data: { ...data, petId: id } });
-    return NextResponse.json({ vaccination }, { status: 201 });
+    // A renewal retires the previous record of the same vaccine: adding the
+    // Bordetella booster must clear the old "due/expired" row, not sit next
+    // to it forever. Only records given on or before the new date are
+    // retired, and they are tombstoned (never hard-deleted), same as DELETE.
+    const replaced = await prisma.petVaccination.findMany({
+      where: {
+        petId: id,
+        deletedAt: null,
+        name: { equals: data.name, mode: 'insensitive' },
+        administeredAt: { lte: data.administeredAt },
+      },
+      select: { id: true },
+    });
+    const retired = replaced.map((r) => r.id);
+
+    const vaccination = await prisma.$transaction(async (tx) => {
+      if (retired.length) {
+        await tx.petVaccination.updateMany({
+          where: { id: { in: retired } },
+          data: { deletedAt: new Date() },
+        });
+      }
+      return tx.petVaccination.create({ data: { ...data, petId: id } });
+    });
+    return NextResponse.json({ vaccination, retired }, { status: 201 });
   } catch (error) {
     console.error('[VAX API] create failed:', error);
     return NextResponse.json({ error: 'Failed to add vaccination' }, { status: 500 });
