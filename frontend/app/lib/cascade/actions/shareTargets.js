@@ -26,6 +26,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { checkGlobalLimitAsync } from '@/app/lib/rateLimit';
+import { normalizeState } from '@/app/lib/usStates';
 
 const SPECIES_WORD = { DOG: 'dog', CAT: 'cat', BIRD: 'bird', RABBIT: 'rabbit', OTHER: 'pet' };
 const SEARCH_TIMEOUT_MS = 6000;
@@ -47,7 +48,9 @@ export function cityStateFromAddress(address) {
   const hasStreet = parts.length > 1 && /\d/.test(parts[0]);
   const city = (hasStreet ? parts[1] : parts[0]) || '';
   const stateRaw = (hasStreet ? parts[2] : parts[1]) || '';
-  const state = stateRaw.replace(/\d{5}(-\d{4})?/, '').trim();
+  // Normalize "Illinois" and "IL" to the same token so the group directory
+  // keys one area per city, however the geocoder spelled the state.
+  const state = normalizeState(stateRaw.replace(/\d{5}(-\d{4})?/, ''));
   return { city: city.replace(/\d/g, '').trim(), state };
 }
 
@@ -232,10 +235,11 @@ async function rankWithHaiku(city, state, candidates) {
  *  the cascade (on a cache miss) and the admin's manual "run a search" button.
  *  Returns the serveable groups (admin-REMOVED ones already dropped) plus how
  *  many raw candidates the search surfaced. */
-export async function sweepArea(city, state) {
+export async function sweepArea(city, rawState) {
   const key = process.env.BRAVE_SEARCH_API_KEY;
   if (!key) return { ok: false, reason: 'BRAVE_SEARCH_API_KEY is not configured', groups: [], candidates: 0 };
   if (!city) return { ok: false, reason: 'City is required', groups: [], candidates: 0 };
+  const state = normalizeState(rawState);
 
   const queries = [
     `site:facebook.com/groups ${city} ${state} lost found pets`,
