@@ -1,8 +1,10 @@
 /**
  * share_targets: the CommunityGroup directory must absorb repeat cases in the
- * same area (no search queries, no AI tokens), age out after
- * REFRESH_AFTER_DAYS, and mark dropped-out groups STALE only on a non-empty
- * fresh sweep.
+ * same area (no searches, no extra tokens), age out after REFRESH_AFTER_DAYS,
+ * and mark dropped-out groups STALE only on a non-empty fresh sweep.
+ * Discovery runs through Claude's server-side web_search tool on the
+ * ANTHROPIC_API_KEY; only URLs that appeared in real search results may be
+ * kept.
  */
 
 jest.mock('@/app/lib/prisma', () => ({
@@ -51,6 +53,27 @@ function dbRow(overrides = {}) {
   };
 }
 
+/** A messages-API response whose web_search tool surfaced `results` and whose
+ *  final text keeps `keep` (defaults to keeping everything surfaced). */
+function anthropicResponse(results, keep) {
+  const kept =
+    keep ??
+    results.map((r) => ({ name: r.title.replace(/\s*\|\s*Facebook\s*$/i, ''), url: r.url }));
+  return {
+    ok: true,
+    json: async () => ({
+      stop_reason: 'end_turn',
+      content: [
+        {
+          type: 'web_search_tool_result',
+          content: results.map((r) => ({ type: 'web_search_result', title: r.title, url: r.url })),
+        },
+        { type: 'text', text: JSON.stringify({ keep: kept }) },
+      ],
+    }),
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   // Default: empty directory reads and empty REMOVED-slug lookups; tests
@@ -58,7 +81,6 @@ beforeEach(() => {
   prisma.communityGroup.findMany.mockResolvedValue([]);
   prisma.communityGroup.updateMany.mockResolvedValue({ count: 0 });
   prisma.communityGroup.upsert.mockResolvedValue({});
-  delete process.env.BRAVE_SEARCH_API_KEY;
   delete process.env.ANTHROPIC_API_KEY;
   global.fetch = jest.fn();
 });
@@ -105,7 +127,7 @@ describe('groupSlugFromUrl / isFreshFetch', () => {
 
 describe('runShareTargets directory behavior', () => {
   test('fresh directory rows serve from cache with no search at all', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'k';
+    process.env.ANTHROPIC_API_KEY = 'k';
     prisma.communityGroup.findMany.mockResolvedValueOnce([dbRow()]);
 
     const { result } = await runShareTargets(ctxFor());
@@ -121,24 +143,15 @@ describe('runShareTargets directory behavior', () => {
   });
 
   test('aged rows trigger a re-sweep that upserts and stales dropped groups', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'k';
+    process.env.ANTHROPIC_API_KEY = 'k';
     prisma.communityGroup.findMany.mockResolvedValueOnce([
       dbRow({ fetchedAt: new Date(Date.now() - (REFRESH_AFTER_DAYS + 5) * DAY) }),
     ]);
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        web: {
-          results: [
-            {
-              title: 'Lost Dogs Chicago | Facebook',
-              url: 'https://www.facebook.com/groups/lostdogschicago',
-              description: 'Lost and found dogs in Chicago',
-            },
-          ],
-        },
-      }),
-    });
+    global.fetch.mockResolvedValue(
+      anthropicResponse([
+        { title: 'Lost Dogs Chicago | Facebook', url: 'https://www.facebook.com/groups/lostdogschicago' },
+      ])
+    );
 
     const { result } = await runShareTargets(ctxFor());
 
@@ -160,10 +173,10 @@ describe('runShareTargets directory behavior', () => {
   });
 
   test('empty sweep serves aged rows and stales nothing', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'k';
+    process.env.ANTHROPIC_API_KEY = 'k';
     const aged = dbRow({ fetchedAt: new Date(Date.now() - (REFRESH_AFTER_DAYS + 5) * DAY) });
     prisma.communityGroup.findMany.mockResolvedValue([aged]);
-    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ web: { results: [] } }) });
+    global.fetch.mockResolvedValue(anthropicResponse([]));
 
     const { result } = await runShareTargets(ctxFor());
 
@@ -174,7 +187,7 @@ describe('runShareTargets directory behavior', () => {
     );
   });
 
-  test('no search key still serves directory rows of any age', async () => {
+  test('no API key still serves directory rows of any age', async () => {
     prisma.communityGroup.findMany.mockResolvedValueOnce([
       dbRow({ fetchedAt: new Date(Date.now() - 90 * DAY) }),
     ]);
@@ -198,26 +211,17 @@ describe('runShareTargets directory behavior', () => {
   });
 
   test('admin-REMOVED groups are never served or resurrected by a sweep', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'k';
+    process.env.ANTHROPIC_API_KEY = 'k';
     // Directory read: empty (default). REMOVED lookup inside the sweep write:
     // the found group is blocked.
     prisma.communityGroup.findMany
       .mockResolvedValueOnce([]) // readGroupDirectory
       .mockResolvedValueOnce([{ slug: 'lostdogschicago' }]); // REMOVED slugs
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        web: {
-          results: [
-            {
-              title: 'Lost Dogs Chicago | Facebook',
-              url: 'https://www.facebook.com/groups/lostdogschicago',
-              description: 'Lost and found dogs in Chicago',
-            },
-          ],
-        },
-      }),
-    });
+    global.fetch.mockResolvedValue(
+      anthropicResponse([
+        { title: 'Lost Dogs Chicago | Facebook', url: 'https://www.facebook.com/groups/lostdogschicago' },
+      ])
+    );
 
     const { result } = await runShareTargets(ctxFor());
 
@@ -227,45 +231,55 @@ describe('runShareTargets directory behavior', () => {
 });
 
 describe('sweepArea (manual admin search)', () => {
-  test('reports not-ok without a search key', async () => {
+  test('reports not-ok without the Anthropic key', async () => {
     const sweep = await sweepArea('Elgin', 'IL');
     expect(sweep.ok).toBe(false);
-    expect(sweep.reason).toMatch(/BRAVE_SEARCH_API_KEY/);
+    expect(sweep.reason).toMatch(/ANTHROPIC_API_KEY/);
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
   test('searches, persists, and returns the kept groups', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'k';
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        web: {
-          results: [
-            {
-              title: 'Lost Pets of Elgin | Facebook',
-              url: 'https://www.facebook.com/groups/lostpetselgin',
-              description: 'Lost and found pets in Elgin IL',
-            },
-            {
-              title: 'Elgin Garage Sale | Facebook',
-              url: 'https://www.facebook.com/groups/elgingaragesale',
-              description: 'Buy and sell in Elgin',
-            },
-          ],
-        },
-      }),
-    });
+    process.env.ANTHROPIC_API_KEY = 'k';
+    global.fetch.mockResolvedValue(
+      anthropicResponse(
+        [
+          { title: 'Lost Pets of Elgin | Facebook', url: 'https://www.facebook.com/groups/lostpetselgin' },
+          { title: 'Elgin Garage Sale | Facebook', url: 'https://www.facebook.com/groups/elgingaragesale' },
+        ],
+        [{ name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin' }]
+      )
+    );
 
     const sweep = await sweepArea('Elgin', 'IL');
 
     expect(sweep.ok).toBe(true);
     expect(sweep.candidates).toBe(2);
-    // keyword fallback keeps only the lost-pet group, and it gets persisted
     expect(sweep.groups).toEqual([
       expect.objectContaining({ name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin' }),
     ]);
     expect(prisma.communityGroup.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ where: { slug: 'lostpetselgin' } })
     );
+    // the request went to the Anthropic API with the web_search tool declared
+    const [url, init] = global.fetch.mock.calls[0];
+    expect(url).toContain('api.anthropic.com');
+    expect(JSON.parse(init.body).tools[0].type).toBe('web_search_20250305');
+  });
+
+  test('model answers with URLs not in the search results are dropped, keyword fallback applies', async () => {
+    process.env.ANTHROPIC_API_KEY = 'k';
+    global.fetch.mockResolvedValue(
+      anthropicResponse(
+        [{ title: 'Lost Pets of Elgin | Facebook', url: 'https://www.facebook.com/groups/lostpetselgin' }],
+        [{ name: 'Fake Group', url: 'https://www.facebook.com/groups/hallucinated' }]
+      )
+    );
+
+    const sweep = await sweepArea('Elgin', 'IL');
+
+    // hallucinated URL rejected; deterministic filter keeps the real result
+    expect(sweep.groups).toEqual([
+      expect.objectContaining({ url: 'https://www.facebook.com/groups/lostpetselgin' }),
+    ]);
   });
 });

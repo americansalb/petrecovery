@@ -224,8 +224,8 @@ export default function AdminGroupsPage() {
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800">
-                Web search is off: set <code className="font-mono">BRAVE_SEARCH_API_KEY</code> on the server and
-                redeploy to enable this panel. Everything else on this page still works.
+                Group search runs through Claude web search and needs <code className="font-mono">ANTHROPIC_API_KEY</code> set
+                on the server (the same key that writes flyer copy). Everything else on this page still works.
               </p>
             </div>
           )}

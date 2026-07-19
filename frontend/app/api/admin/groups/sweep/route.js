@@ -6,11 +6,11 @@ import { sweepArea } from '@/app/lib/cascade/actions/shareTargets';
 /**
  * POST /api/admin/groups/sweep  { city, state }
  *
- * Manually run group discovery for an area: the same search + rank + persist
- * pipeline the cascade uses on a cache miss, on demand. Lets an admin
- * pre-warm the directory for a city before anyone reports there, or force a
- * refresh without waiting out the 30-day window. Requires
- * BRAVE_SEARCH_API_KEY; admin only.
+ * Manually run group discovery for an area: the same Claude-web-search +
+ * rank + persist pipeline the cascade uses on a cache miss, on demand. Lets
+ * an admin pre-warm the directory for a city before anyone reports there, or
+ * force a refresh without waiting out the 30-day window. Requires
+ * ANTHROPIC_API_KEY; admin only.
  */
 
 export const runtime = 'nodejs';

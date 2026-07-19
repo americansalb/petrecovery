@@ -43,11 +43,11 @@ test('rejects a missing city', async () => {
 
 test('surfaces a not-configured sweep as a 400 with the reason', async () => {
   getServerSession.mockResolvedValue({ user: { role: 'ADMIN' } });
-  sweepArea.mockResolvedValue({ ok: false, reason: 'BRAVE_SEARCH_API_KEY is not configured', groups: [], candidates: 0 });
+  sweepArea.mockResolvedValue({ ok: false, reason: 'ANTHROPIC_API_KEY is not configured', groups: [], candidates: 0 });
   const res = await post({ city: 'Elgin', state: 'IL' });
   expect(res.status).toBe(400);
   const data = await res.json();
-  expect(data.error).toMatch(/BRAVE_SEARCH_API_KEY/);
+  expect(data.error).toMatch(/ANTHROPIC_API_KEY/);
 });
 
 test('runs the sweep and returns the saved groups', async () => {
