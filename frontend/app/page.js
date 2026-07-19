@@ -137,18 +137,20 @@ function Hero({ metrics }) {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-6">
+              {/* Yellow-on-navy is THE brand move (navbar CTA, footer CTA, the
+                  posters' LOST DOG band) — the crisis button speaks it loudest */}
               <Link
                 href="/report/new"
-                className="inline-flex items-center gap-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-rose-900/40 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
+                className="inline-flex items-center gap-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-flash-400/25 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
               >
                 <Bell className="w-5 h-5" />
                 My pet is lost
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              {/* Outline, not fill: the crisis button must be the loudest thing here */}
+              {/* Quiet cream outline: clearly a peer action, never competing */}
               <Link
                 href="/report/found"
-                className="inline-flex items-center gap-2.5 border-2 border-flash-400/70 text-flash-300 hover:bg-flash-400/10 hover:border-flash-400 font-bold text-lg px-8 py-[14px] rounded-2xl transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
+                className="inline-flex items-center gap-2.5 border-2 border-white/35 text-white hover:bg-white/10 hover:border-white/60 font-bold text-lg px-8 py-[14px] rounded-2xl transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
               >
                 <Heart className="w-5 h-5" />
                 I found a pet
