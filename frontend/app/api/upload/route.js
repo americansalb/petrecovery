@@ -34,7 +34,10 @@ const BUNNY_STORAGE_URL = process.env.BUNNY_STORAGE_URL || 'https://storage.bunn
 
 // Allowed file types and max size
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// Backstop only: the report wizard compresses photos client-side (~2.5MB
+// target), so this ceiling exists for direct/legacy callers, not to gate
+// owners out of uploading a big phone photo.
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 // Magic bytes for file type validation
 const MAGIC_BYTES = {
