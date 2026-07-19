@@ -149,6 +149,12 @@ export default function AdminDashboard() {
             icon="📝"
           />
           <AdminCard
+            title="Community Groups"
+            description="Review discovered local groups, mark stale links, and block bad ones"
+            href="/admin/groups"
+            icon="📣"
+          />
+          <AdminCard
             title="Notifications"
             description="Send announcements and manage notification templates"
             href="/admin/notifications"

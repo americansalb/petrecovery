@@ -52,6 +52,9 @@ function dbRow(overrides = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Default: empty directory reads and empty REMOVED-slug lookups; tests
+  // queue specific directory rows with mockResolvedValueOnce.
+  prisma.communityGroup.findMany.mockResolvedValue([]);
   prisma.communityGroup.updateMany.mockResolvedValue({ count: 0 });
   prisma.communityGroup.upsert.mockResolvedValue({});
   delete process.env.BRAVE_SEARCH_API_KEY;
@@ -96,7 +99,7 @@ describe('groupSlugFromUrl / isFreshFetch', () => {
 describe('runShareTargets directory behavior', () => {
   test('fresh directory rows serve from cache with no search at all', async () => {
     process.env.BRAVE_SEARCH_API_KEY = 'k';
-    prisma.communityGroup.findMany.mockResolvedValue([dbRow()]);
+    prisma.communityGroup.findMany.mockResolvedValueOnce([dbRow()]);
 
     const { result } = await runShareTargets(ctxFor());
 
@@ -112,7 +115,7 @@ describe('runShareTargets directory behavior', () => {
 
   test('aged rows trigger a re-sweep that upserts and stales dropped groups', async () => {
     process.env.BRAVE_SEARCH_API_KEY = 'k';
-    prisma.communityGroup.findMany.mockResolvedValue([
+    prisma.communityGroup.findMany.mockResolvedValueOnce([
       dbRow({ fetchedAt: new Date(Date.now() - (REFRESH_AFTER_DAYS + 5) * DAY) }),
     ]);
     global.fetch.mockResolvedValue({
@@ -165,7 +168,7 @@ describe('runShareTargets directory behavior', () => {
   });
 
   test('no search key still serves directory rows of any age', async () => {
-    prisma.communityGroup.findMany.mockResolvedValue([
+    prisma.communityGroup.findMany.mockResolvedValueOnce([
       dbRow({ fetchedAt: new Date(Date.now() - 90 * DAY) }),
     ]);
 
@@ -185,5 +188,33 @@ describe('runShareTargets directory behavior', () => {
     expect(result.targets.map((t) => t.kind)).toEqual(
       expect.arrayContaining(['facebook_search', 'nextdoor', 'reddit'])
     );
+  });
+
+  test('admin-REMOVED groups are never served or resurrected by a sweep', async () => {
+    process.env.BRAVE_SEARCH_API_KEY = 'k';
+    // Directory read: empty (default). REMOVED lookup inside the sweep write:
+    // the found group is blocked.
+    prisma.communityGroup.findMany
+      .mockResolvedValueOnce([]) // readGroupDirectory
+      .mockResolvedValueOnce([{ slug: 'lostdogschicago' }]); // REMOVED slugs
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        web: {
+          results: [
+            {
+              title: 'Lost Dogs Chicago | Facebook',
+              url: 'https://www.facebook.com/groups/lostdogschicago',
+              description: 'Lost and found dogs in Chicago',
+            },
+          ],
+        },
+      }),
+    });
+
+    const { result } = await runShareTargets(ctxFor());
+
+    expect(prisma.communityGroup.upsert).not.toHaveBeenCalled();
+    expect(result.targets.filter((t) => t.kind === 'facebook_group')).toHaveLength(0);
   });
 });
