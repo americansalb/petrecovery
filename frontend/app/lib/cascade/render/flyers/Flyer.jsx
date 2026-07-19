@@ -317,13 +317,18 @@ function BigPhotoSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true 
   return (
     <Page size={[pageW, pageH]} style={{ backgroundColor: C.paper, fontFamily: 'Archivo', color: C.ink }}>
       <YellowStrip h={7.5 * k} />
-      {/* Header */}
-      <View style={{ paddingHorizontal: padH, paddingTop: 12 * k, paddingBottom: 10.5 * k, borderBottomWidth: 3 * k, borderBottomColor: C.ink }}>
+      {/* Header: yellow display on navy — hazard-signage conspicuity, and it
+          stands out on a pole full of white paper. */}
+      <View style={{ backgroundColor: C.navy, paddingHorizontal: padH, paddingTop: 12 * k, paddingBottom: 12 * k }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4.5 * k }}>
-          <Text style={{ fontWeight: 800, fontSize: 9 * k, letterSpacing: 2 * k, color: C.navy }}>{T.urgent}</Text>
-          <Text style={{ fontWeight: 800, fontSize: 9 * k, letterSpacing: 0.5 * k, color: C.mute }}>reunitepets.org</Text>
+          <Text style={{ fontWeight: 800, fontSize: 9 * k, letterSpacing: 2 * k, color: C.cream }}>{T.urgent}</Text>
+          <Text style={{ fontWeight: 800, fontSize: 9 * k, letterSpacing: 0.5 * k, color: 'rgba(255,249,238,0.6)' }}>
+            reunitepets.org
+          </Text>
         </View>
-        <Text style={{ fontFamily: 'Archivo Black', fontSize: hSize, lineHeight: 0.95, letterSpacing: -hSize * 0.01 }}>
+        <Text
+          style={{ fontFamily: 'Archivo Black', fontSize: hSize, lineHeight: 0.95, letterSpacing: -hSize * 0.01, color: C.yellow }}
+        >
           {headline}
         </Text>
       </View>
@@ -421,21 +426,20 @@ function SplitSheet({ data }) {
   return (
     <Page size={[W, H]} style={{ backgroundColor: C.paper, fontFamily: 'Archivo', color: C.ink }}>
       <YellowStrip />
-      {/* Header with reward on the right */}
+      {/* Header with reward on the right: yellow display on navy. */}
       <View
         style={{
+          backgroundColor: C.navy,
           paddingHorizontal: padH,
           paddingTop: 9.75,
           paddingBottom: 11.25,
-          borderBottomWidth: 3,
-          borderBottomColor: C.ink,
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
         <View style={{ minWidth: 0, flexShrink: 1 }}>
-          <Text style={{ fontWeight: 800, fontSize: 8.25, letterSpacing: 1.65, color: C.navy }}>
+          <Text style={{ fontWeight: 800, fontSize: 8.25, letterSpacing: 1.65, color: C.cream }}>
             {T.urgent} · REUNITEPETS.ORG
           </Text>
           <Text
@@ -444,6 +448,7 @@ function SplitSheet({ data }) {
               fontSize: fitSize(headline, cw - (data.reward ? 150 : 0), headline.length > 10 ? 30 : 42, 20),
               lineHeight: 1,
               marginTop: 2.25,
+              color: C.yellow,
             }}
           >
             {headline}
@@ -451,8 +456,10 @@ function SplitSheet({ data }) {
         </View>
         {data.reward ? (
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontWeight: 800, fontSize: 8.25, letterSpacing: 1.65, color: C.mute }}>{T.reward}</Text>
-            <Text style={{ fontFamily: 'Archivo Black', fontSize: 28.5, lineHeight: 1, color: C.navy }}>
+            <Text style={{ fontWeight: 800, fontSize: 8.25, letterSpacing: 1.65, color: 'rgba(255,249,238,0.6)' }}>
+              {T.reward}
+            </Text>
+            <Text style={{ fontFamily: 'Archivo Black', fontSize: 28.5, lineHeight: 1, color: C.yellow }}>
               {data.reward === 'REWARD' ? 'OFFERED' : data.reward}
             </Text>
           </View>
