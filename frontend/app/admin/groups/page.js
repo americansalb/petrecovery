@@ -64,7 +64,7 @@ export default function AdminGroupsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const limit = 25;
 
-  const [sweep, setSweep] = useState({ city: '', state: '' });
+  const [sweep, setSweep] = useState({ city: '', state: '', lat: null, lng: null });
   const [sweeping, setSweeping] = useState(false);
   const [sweepResult, setSweepResult] = useState(null);
   const [searchConfigured, setSearchConfigured] = useState(true);
@@ -133,7 +133,7 @@ export default function AdminGroupsPage() {
       const response = await fetch('/api/admin/groups/sweep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: sweep.city.trim(), state: sweep.state.trim() }),
+        body: JSON.stringify({ city: sweep.city.trim(), state: sweep.state.trim(), lat: sweep.lat, lng: sweep.lng }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Sweep failed');
@@ -233,8 +233,8 @@ export default function AdminGroupsPage() {
             <CityAutocomplete
               value={sweep.city}
               disabled={!searchConfigured}
-              onChange={(city) => setSweep((s) => ({ ...s, city }))}
-              onPick={(o) => setSweep({ city: o.city, state: o.state })}
+              onChange={(city) => setSweep((s) => ({ ...s, city, lat: null, lng: null }))}
+              onPick={(o) => setSweep({ city: o.city, state: o.state, lat: o.lat, lng: o.lng })}
             />
             <select
               value={sweep.state}
@@ -272,7 +272,7 @@ export default function AdminGroupsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search name, slug, or city"
+              placeholder="Search name, slug, city, or coverage"
               value={filters.search}
               onChange={(e) => {
                 setPage(1);
@@ -319,6 +319,7 @@ export default function AdminGroupsPage() {
                   <Th>Group</Th>
                   <Th>Kind</Th>
                   <Th>Area</Th>
+                  <Th>Covers</Th>
                   <Th>Status</Th>
                   <Th>Added</Th>
                   <Th>Last confirmed</Th>
@@ -330,13 +331,13 @@ export default function AdminGroupsPage() {
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-gray-400">
+                    <td colSpan={10} className="px-4 py-10 text-center text-gray-400">
                       <RefreshCw className="w-5 h-5 animate-spin inline" />
                     </td>
                   </tr>
                 ) : groups.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan={10} className="px-4 py-10 text-center text-gray-500">
                       No groups yet. The directory fills itself as owners in new areas report pets.
                     </td>
                   </tr>
@@ -364,6 +365,10 @@ export default function AdminGroupsPage() {
                       <td className="px-4 py-3 text-gray-600">
                         {g.city}
                         {g.state ? `, ${g.state}` : ''}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-[220px]">
+                        <div className="truncate" title={g.coverage || ''}>{g.coverage || '\u2014'}</div>
+                        <CityChips citiesJson={g.cities} />
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -487,7 +492,9 @@ function CityAutocomplete({ value, onChange, onPick, disabled }) {
             const a = r.address || {};
             const city = a.city || a.town || a.village || a.municipality || '';
             const state = normalizeState(a.state || '');
-            return city ? { city, state } : null;
+            const lat = parseFloat(r.lat);
+            const lng = parseFloat(r.lon);
+            return city ? { city, state, lat: Number.isFinite(lat) ? lat : null, lng: Number.isFinite(lng) ? lng : null } : null;
           })
           .filter(Boolean)
           .filter((o) => {
@@ -535,6 +542,23 @@ function CityAutocomplete({ value, onChange, onPick, disabled }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** The towns a group serves, from its JSON cities column. */
+function CityChips({ citiesJson }) {
+  let cities = [];
+  try {
+    const parsed = JSON.parse(citiesJson || '[]');
+    if (Array.isArray(parsed)) cities = parsed.filter((c) => typeof c === 'string');
+  } catch {
+    cities = [];
+  }
+  if (cities.length === 0) return null;
+  return (
+    <div className="text-xs text-gray-400 truncate" title={cities.join(', ')}>
+      {cities.join(', ')}
     </div>
   );
 }

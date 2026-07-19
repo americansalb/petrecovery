@@ -238,7 +238,7 @@ describe('sweepArea (manual admin search)', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('searches, persists, and returns kept groups with their categories', async () => {
+  test('searches, persists, and returns kept groups with categories, coverage, and area coords', async () => {
     process.env.ANTHROPIC_API_KEY = 'k';
     global.fetch.mockResolvedValue(
       anthropicResponse(
@@ -247,25 +247,48 @@ describe('sweepArea (manual admin search)', () => {
           { title: 'Elgin Community Board | Facebook', url: 'https://www.facebook.com/groups/elgincommunity' },
         ],
         [
-          { name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin', category: 'lost_pet' },
-          { name: 'Elgin Community Board', url: 'https://www.facebook.com/groups/elgincommunity', category: 'community' },
+          {
+            name: 'Lost Pets of Elgin',
+            url: 'https://www.facebook.com/groups/lostpetselgin',
+            category: 'lost_pet',
+            coverage: 'Kane County, IL',
+            cities: ['Elgin', 'South Elgin'],
+          },
+          {
+            name: 'Elgin Community Board',
+            url: 'https://www.facebook.com/groups/elgincommunity',
+            category: 'community',
+            coverage: 'Elgin',
+            cities: ['Elgin'],
+          },
         ]
       )
     );
 
-    const sweep = await sweepArea('Elgin', 'IL');
+    const sweep = await sweepArea('Elgin', 'IL', { lat: 42.04, lng: -88.28 });
 
     expect(sweep.ok).toBe(true);
     expect(sweep.candidates).toBe(2);
     expect(sweep.groups).toEqual([
-      expect.objectContaining({ url: 'https://www.facebook.com/groups/lostpetselgin', category: 'LOST_PET' }),
+      expect.objectContaining({
+        url: 'https://www.facebook.com/groups/lostpetselgin',
+        category: 'LOST_PET',
+        coverage: 'Kane County, IL',
+      }),
       expect.objectContaining({ url: 'https://www.facebook.com/groups/elgincommunity', category: 'COMMUNITY' }),
     ]);
-    // persisted with category and the honest source label
+    // persisted with category, coverage detail, area coords, and honest source
     expect(prisma.communityGroup.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { slug: 'elgincommunity' },
-        create: expect.objectContaining({ category: 'COMMUNITY', source: 'CLAUDE_WEB_SEARCH' }),
+        where: { slug: 'lostpetselgin' },
+        create: expect.objectContaining({
+          category: 'LOST_PET',
+          coverage: 'Kane County, IL',
+          cities: JSON.stringify(['Elgin', 'South Elgin']),
+          areaLat: 42.04,
+          areaLng: -88.28,
+          source: 'CLAUDE_WEB_SEARCH',
+        }),
       })
     );
     // the request went to the Anthropic API with the web_search tool declared

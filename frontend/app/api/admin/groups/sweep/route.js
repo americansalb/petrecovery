@@ -30,8 +30,11 @@ export async function POST(request) {
     if (!city) {
       return NextResponse.json({ error: 'City is required' }, { status: 400 });
     }
+    const lat = Number(body.lat);
+    const lng = Number(body.lng);
+    const geo = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 
-    const sweep = await sweepArea(city, state);
+    const sweep = await sweepArea(city, state, geo);
     if (!sweep.ok) {
       return NextResponse.json({ error: sweep.reason }, { status: 400 });
     }
