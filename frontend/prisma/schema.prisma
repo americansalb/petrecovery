@@ -1929,7 +1929,10 @@ model CommunityGroup {
   source      String    @default("BRAVE_SEARCH")
   rank        Int       @default(0) // serve order within its area (0 = best)
   fetchedAt   DateTime  @default(now()) // last confirmed by a fresh sweep
-  status      String    @default("ACTIVE") // ACTIVE, STALE
+  // ACTIVE = serveable. STALE = dropped out of a fresh sweep (or manually
+  // aged by an admin); a later sweep can revive it. REMOVED = admin block:
+  // never served, never resurrected by sweeps.
+  status      String    @default("ACTIVE")
   staleAt     DateTime?
   timesServed Int       @default(0)
 

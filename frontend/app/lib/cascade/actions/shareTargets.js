@@ -104,15 +104,25 @@ async function readGroupDirectory(city, state) {
 
 /** Persist a completed sweep: upsert kept groups (rank = serve order) and
  *  mark the area's previously ACTIVE rows that dropped out of a NON-EMPTY
- *  fresh sweep as STALE. Best-effort; discovery still returns its results
- *  when the DB write fails. */
+ *  fresh sweep as STALE. Admin-REMOVED groups are never touched, so a block
+ *  survives every future sweep. Best-effort; discovery still returns its
+ *  results when the DB write fails. Returns the slugs it skipped as blocked
+ *  so the caller can drop them from what it serves. */
 async function writeGroupDirectory(city, state, kept) {
   const now = new Date();
+  const blocked = new Set();
   try {
+    const allSlugs = kept.map((g) => groupSlugFromUrl(g.url)).filter(Boolean);
+    const removedRows = await prisma.communityGroup.findMany({
+      where: { slug: { in: allSlugs }, status: 'REMOVED' },
+      select: { slug: true },
+    });
+    for (const r of removedRows) blocked.add(r.slug);
+
     const slugs = [];
     for (let i = 0; i < kept.length; i++) {
       const slug = groupSlugFromUrl(kept[i].url);
-      if (!slug) continue;
+      if (!slug || blocked.has(slug)) continue;
       slugs.push(slug);
       await prisma.communityGroup.upsert({
         where: { slug },
@@ -129,6 +139,7 @@ async function writeGroupDirectory(city, state, kept) {
   } catch (err) {
     console.error('[share_targets] directory write failed:', err.message);
   }
+  return blocked;
 }
 
 /** Deterministic relevance filter: lost/found language + pet language. */
@@ -266,8 +277,12 @@ export async function runShareTargets(ctx) {
     ).slice(0, MAX_GROUPS);
 
     if (ranked.length > 0) {
-      await writeGroupDirectory(city, state, ranked);
-      for (const g of ranked) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+      const blocked = await writeGroupDirectory(city, state, ranked);
+      for (const g of ranked) {
+        const slug = groupSlugFromUrl(g.url);
+        if (slug && blocked.has(slug)) continue;
+        targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+      }
     } else if (directory?.length > 0) {
       // Sweep came back empty (API hiccup or thin results): aged rows beat
       // nothing, and we don't stale anything on an empty sweep.

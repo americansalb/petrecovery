@@ -305,6 +305,10 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                           <CopyButton text={kit.copy.captions.facebook} label="Copy your post" />
                         </div>
                       )}
+                      <p className="mt-2 text-[0.65rem] leading-snug text-[#8A8377]">
+                        These are independent communities we found in public search results, not groups we run
+                        or endorse. Follow each group&apos;s posting rules.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -316,7 +320,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-[#0A0D26] text-sm">Call the shelters on your list today</p>
                   <p className="text-xs text-[#8A8377] mt-0.5">
-                    File a lost report with each one — the call list is just below, with tap-to-call numbers.
+                    File a lost report with each one. The call list is just below, with tap-to-call numbers.
                   </p>
                 </div>
               </li>

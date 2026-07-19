@@ -1,0 +1,394 @@
+'use client';
+
+/**
+ * Admin Community Groups Page
+ *
+ * The full CommunityGroup directory: every group the share_targets cascade
+ * discovered, with kind, area, status, discovery dates, and usage. Admins can
+ * age a link out (Mark stale), revive it, block it permanently (Remove), or
+ * hard-delete junk rows. Listing a group is not an endorsement.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/app/components/ui/Toast';
+import {
+  Users,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Trash2,
+  RefreshCw,
+  AlertTriangle,
+  Ban,
+  Undo2,
+  Clock,
+} from 'lucide-react';
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'STALE', label: 'Stale' },
+  { value: 'REMOVED', label: 'Removed' },
+];
+
+const KIND_LABELS = { FACEBOOK_GROUP: 'Facebook group' };
+
+const STATUS_STYLES = {
+  ACTIVE: 'bg-green-100 text-green-800',
+  STALE: 'bg-amber-100 text-amber-800',
+  REMOVED: 'bg-red-100 text-red-800',
+};
+
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+export default function AdminGroupsPage() {
+  const toast = useToast();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const [groups, setGroups] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
+
+  const [filters, setFilters] = useState({ search: '', state: '', status: '' });
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 25;
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=/admin/groups');
+    } else if (session && session.user?.role !== 'ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [status, session, router]);
+
+  const fetchGroups = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (filters.search) params.set('search', filters.search);
+      if (filters.state) params.set('state', filters.state);
+      if (filters.status) params.set('status', filters.status);
+
+      const response = await fetch(`/api/admin/groups?${params}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to fetch groups');
+
+      setGroups(data.groups || []);
+      setStats(data.stats || null);
+      setTotalPages(Math.max(1, Math.ceil((data.total || 0) / limit)));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filters]);
+
+  useEffect(() => {
+    if (session?.user?.role === 'ADMIN') fetchGroups();
+  }, [session, fetchGroups]);
+
+  const setStatus = async (group, nextStatus) => {
+    setBusyId(group.id);
+    try {
+      const response = await fetch('/api/admin/groups', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: group.id, status: nextStatus }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Update failed');
+      toast.success(`${group.name}: ${nextStatus.toLowerCase()}`);
+      fetchGroups();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const deleteGroup = async (group) => {
+    if (!window.confirm(`Delete "${group.name}" from the directory? A future sweep may re-add it; use Remove to block it instead.`)) return;
+    setBusyId(group.id);
+    try {
+      const response = await fetch('/api/admin/groups', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [group.id] }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Delete failed');
+      toast.success('Deleted');
+      fetchGroups();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  if (status === 'loading' || session?.user?.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <RefreshCw className="w-6 h-6 text-gray-400 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Users className="w-7 h-7 text-gray-700" />
+          <h1 className="text-2xl font-bold text-gray-900">Community Groups</h1>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Local groups discovered automatically from public search results and suggested to owners as places
+          to post their case.
+        </p>
+
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800">
+            These groups are independent communities found in public search results. Listing one here is not an
+            endorsement, and we have no affiliation with any of them. Use Remove to block anything that should
+            never be suggested to owners.
+          </p>
+        </div>
+
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+            <StatCard label="Total" value={stats.total} />
+            <StatCard label="Active" value={stats.active} />
+            <StatCard label="Stale" value={stats.stale} />
+            <StatCard label="Removed" value={stats.removed} />
+            <StatCard label="Areas covered" value={stats.areas} />
+            <StatCard label="Times served" value={stats.timesServed} />
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search name, slug, or city"
+              value={filters.search}
+              onChange={(e) => {
+                setPage(1);
+                setFilters((f) => ({ ...f, search: e.target.value }));
+              }}
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <input
+            type="text"
+            placeholder="State"
+            value={filters.state}
+            onChange={(e) => {
+              setPage(1);
+              setFilters((f) => ({ ...f, state: e.target.value }));
+            }}
+            className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <select
+            value={filters.status}
+            onChange={(e) => {
+              setPage(1);
+              setFilters((f) => ({ ...f, status: e.target.value }));
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6 text-sm text-red-700">{error}</div>
+        )}
+
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <Th>Group</Th>
+                  <Th>Kind</Th>
+                  <Th>Area</Th>
+                  <Th>Status</Th>
+                  <Th>Added</Th>
+                  <Th>Last confirmed</Th>
+                  <Th>Served</Th>
+                  <Th>Source</Th>
+                  <Th>Actions</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-gray-400">
+                      <RefreshCw className="w-5 h-5 animate-spin inline" />
+                    </td>
+                  </tr>
+                ) : groups.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-gray-500">
+                      No groups yet. The directory fills itself as owners in new areas report pets.
+                    </td>
+                  </tr>
+                ) : (
+                  groups.map((g) => (
+                    <tr key={g.id} className={g.status === 'REMOVED' ? 'bg-red-50/40' : ''}>
+                      <td className="px-4 py-3">
+                        <a
+                          href={g.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          {g.name}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        <div className="text-xs text-gray-400">/groups/{g.slug}</div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{KIND_LABELS[g.kind] || g.kind}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {g.city}
+                        {g.state ? `, ${g.state}` : ''}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[g.status] || 'bg-gray-100 text-gray-700'}`}
+                        >
+                          {g.status}
+                        </span>
+                        {g.status !== 'ACTIVE' && g.staleAt && (
+                          <div className="text-xs text-gray-400 mt-0.5">since {fmtDate(g.staleAt)}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtDate(g.createdAt)}</td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtDate(g.fetchedAt)}</td>
+                      <td className="px-4 py-3 text-gray-600">{g.timesServed}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{g.source}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          {g.status === 'ACTIVE' && (
+                            <ActionButton
+                              title="Mark stale (a future sweep can revive it)"
+                              onClick={() => setStatus(g, 'STALE')}
+                              disabled={busyId === g.id}
+                            >
+                              <Clock className="w-4 h-4" />
+                            </ActionButton>
+                          )}
+                          {g.status !== 'ACTIVE' && (
+                            <ActionButton
+                              title="Reactivate"
+                              onClick={() => setStatus(g, 'ACTIVE')}
+                              disabled={busyId === g.id}
+                            >
+                              <Undo2 className="w-4 h-4" />
+                            </ActionButton>
+                          )}
+                          {g.status !== 'REMOVED' && (
+                            <ActionButton
+                              title="Remove (block permanently, sweeps never re-add it)"
+                              onClick={() => setStatus(g, 'REMOVED')}
+                              disabled={busyId === g.id}
+                              danger
+                            >
+                              <Ban className="w-4 h-4" />
+                            </ActionButton>
+                          )}
+                          <ActionButton
+                            title="Delete row (a future sweep may re-add it)"
+                            onClick={() => deleteGroup(g)}
+                            disabled={busyId === g.id}
+                            danger
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </ActionButton>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+            <p className="text-xs text-gray-500">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }) {
+  return (
+    <div className="bg-white rounded-lg shadow p-4">
+      <p className="text-xs font-medium text-gray-500">{label}</p>
+      <p className="text-xl font-bold text-gray-900 mt-1">{Number(value || 0).toLocaleString()}</p>
+    </div>
+  );
+}
+
+function Th({ children }) {
+  return (
+    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      {children}
+    </th>
+  );
+}
+
+function ActionButton({ title, onClick, disabled, danger, children }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className={`p-1.5 rounded-lg border transition-colors disabled:opacity-40 ${
+        danger
+          ? 'border-red-200 text-red-600 hover:bg-red-50'
+          : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
