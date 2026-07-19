@@ -60,6 +60,7 @@
     "redis": "^4.7.0",
     "resend": "^2.0.0",
     "satori": "0.10.14",
+    "sharp": "^0.35.3",
     "tailwindcss": "^3.4.14",
     "twilio": "^5.10.6",
     "typescript": "^5.0.0",

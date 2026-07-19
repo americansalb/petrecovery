@@ -27,8 +27,12 @@ const MAX_EDGE = 2000; // px — plenty for flyers, cards, and AI analysis
  */
 async function compressImage(file) {
   const isPng = /png$/i.test(file.type);
-  if (file.size <= TARGET_BYTES && !isPng) return file;
-  if (isPng && file.size <= 1024 * 1024) return file;
+  // WebP/GIF/HEIC always convert regardless of size: the server-side flyer
+  // and social renderers can only decode JPEG/PNG, so anything else would
+  // become a blank photo box on the generated posters.
+  const mustConvert = !/^image\/(jpeg|png)$/i.test(file.type);
+  if (!mustConvert && file.size <= TARGET_BYTES && !isPng) return file;
+  if (!mustConvert && isPng && file.size <= 1024 * 1024) return file;
   try {
     const bitmap = await createImageBitmap(file);
     const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
