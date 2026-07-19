@@ -1921,12 +1921,16 @@ model CommunityGroup {
   url  String
   name String
 
+  // LOST_PET = lost-and-found/pet group; COMMUNITY = broad local group
+  // (town chatter, community board) worth posting a case to.
+  category String @default("LOST_PET")
+
   // The area whose sweep found this group. A group found by two nearby
   // cities' sweeps lives under whichever searched it most recently.
   city  String
   state String
 
-  source      String    @default("BRAVE_SEARCH")
+  source      String    @default("CLAUDE_WEB_SEARCH")
   rank        Int       @default(0) // serve order within its area (0 = best)
   fetchedAt   DateTime  @default(now()) // last confirmed by a fresh sweep
   // ACTIVE = serveable. STALE = dropped out of a fresh sweep (or manually

@@ -31,11 +31,12 @@ import { checkGlobalLimitAsync } from '@/app/lib/rateLimit';
 import { normalizeState } from '@/app/lib/usStates';
 
 const SPECIES_WORD = { DOG: 'dog', CAT: 'cat', BIRD: 'bird', RABBIT: 'rabbit', OTHER: 'pet' };
-// The server-side search loop (2-3 searches + ranking) takes longer than a
+// The server-side search loop (a few searches + ranking) takes longer than a
 // plain completion; the admin route caps at maxDuration 30.
 const SWEEP_TIMEOUT_MS = 25000;
-const MAX_GROUPS = 5;
-const MAX_SEARCHES_PER_SWEEP = 3;
+const MAX_GROUPS = 8;
+const MAX_SEARCHES_PER_SWEEP = 4;
+const CATEGORIES = ['LOST_PET', 'COMMUNITY'];
 export const REFRESH_AFTER_DAYS = 30;
 
 /** City + state tokens from a stored address ("1847 W Addison St, Chicago,
@@ -109,10 +110,22 @@ async function writeGroupDirectory(city, state, kept) {
       const slug = groupSlugFromUrl(kept[i].url);
       if (!slug || blocked.has(slug)) continue;
       slugs.push(slug);
+      const category = CATEGORIES.includes(kept[i].category) ? kept[i].category : 'LOST_PET';
       await prisma.communityGroup.upsert({
         where: { slug },
-        update: { name: kept[i].name, url: kept[i].url, city, state, rank: i, fetchedAt: now, status: 'ACTIVE', staleAt: null },
-        create: { slug, name: kept[i].name, url: kept[i].url, city, state, rank: i },
+        update: {
+          name: kept[i].name,
+          url: kept[i].url,
+          city,
+          state,
+          category,
+          rank: i,
+          fetchedAt: now,
+          status: 'ACTIVE',
+          staleAt: null,
+          source: 'CLAUDE_WEB_SEARCH',
+        },
+        create: { slug, name: kept[i].name, url: kept[i].url, city, state, category, rank: i, source: 'CLAUDE_WEB_SEARCH' },
       });
     }
     if (slugs.length > 0) {
@@ -217,13 +230,18 @@ export async function sweepArea(city, rawState) {
         ],
         system:
           'You find public Facebook groups where an owner can post a lost-pet case for a given area. ' +
-          'Search the web with queries like "site:facebook.com/groups <city> lost found pets" ' +
-          '(try the city alone and with its state). From the results, keep ONLY groups that are ' +
-          'plausibly lost-and-found or pet-community groups serving the area (city, neighboring towns, ' +
-          'or its county/region). Drop buy/sell, unrelated cities, and generic national groups. ' +
-          'Clean each kept name (no "| Facebook" suffixes). Order most local first, maximum ' +
-          `${MAX_GROUPS}. Only include URLs that appeared in your search results. ` +
-          'Reply with ONLY this JSON, nothing else: {"keep": [{"name": "...", "url": "..."}]}',
+          'A lost pet travels, so cover the town AND the communities around it within roughly a ' +
+          '15 mile radius: neighboring towns, the county, the region. Search the web with queries ' +
+          'like "site:facebook.com/groups <city> lost found pets" and ' +
+          '"site:facebook.com/groups <city or neighboring town> community" (try the city alone and ' +
+          'with its state). Keep two kinds of groups: lost_pet (lost-and-found or pet groups serving ' +
+          'the area or its county/region) and community (broad local groups such as town chatter, ' +
+          'community boards, or neighborhood groups where a lost pet post would reach locals). ' +
+          'Drop groups for unrelated areas and generic national groups. Clean each kept name ' +
+          '(no "| Facebook" suffixes). Order lost_pet groups first, then community, most local ' +
+          `first, maximum ${MAX_GROUPS}. Only include URLs that appeared in your search results. ` +
+          'Reply with ONLY this JSON, nothing else: ' +
+          '{"keep": [{"name": "...", "url": "...", "category": "lost_pet" | "community"}]}',
         messages: [{ role: 'user', content: `Area: ${city}, ${state}` }],
       }),
     });
@@ -242,7 +260,11 @@ export async function sweepArea(city, rawState) {
 
   const kept = (parseKeepList(data.content) || [])
     .filter((k) => k?.url && allowed.has(groupSlugFromUrl(k.url)))
-    .map((k) => ({ name: String(k.name || '').slice(0, 120), url: String(k.url) }));
+    .map((k) => ({
+      name: String(k.name || '').slice(0, 120),
+      url: String(k.url),
+      category: String(k.category || '').toUpperCase() === 'COMMUNITY' ? 'COMMUNITY' : 'LOST_PET',
+    }));
 
   const ranked = (
     kept.length > 0
@@ -250,6 +272,7 @@ export async function sweepArea(city, rawState) {
       : keywordFilter(groupCandidates).map((r) => ({
           name: r.title.replace(/\s*[|·-]\s*Facebook\s*$/i, ''),
           url: r.url,
+          category: 'LOST_PET',
         }))
   ).slice(0, MAX_GROUPS);
 
@@ -279,7 +302,7 @@ export async function runShareTargets(ctx) {
   const directoryFresh = directory?.length > 0 && directory.every((g) => isFreshFetch(g.fetchedAt));
   if (directoryFresh) {
     cached = true;
-    for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+    for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url, category: g.category || 'LOST_PET' });
     prisma.communityGroup
       .updateMany({ where: { id: { in: directory.map((g) => g.id) } }, data: { timesServed: { increment: 1 } } })
       .catch(() => {});
@@ -293,17 +316,17 @@ export async function runShareTargets(ctx) {
     searched = true;
     const sweep = await sweepArea(city, state);
     if (sweep.groups.length > 0) {
-      for (const g of sweep.groups) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+      for (const g of sweep.groups) targets.push({ kind: 'facebook_group', name: g.name, url: g.url, category: g.category || 'LOST_PET' });
     } else if (directory?.length > 0) {
       // Sweep came back empty (API hiccup or thin results): aged rows beat
       // nothing, and we don't stale anything on an empty sweep.
       cached = true;
-      for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+      for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url, category: g.category || 'LOST_PET' });
     }
   } else if (!cached && directory?.length > 0) {
     // No search key: serve whatever the directory has, regardless of age.
     cached = true;
-    for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+    for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url, category: g.category || 'LOST_PET' });
   }
 
   // Layer 2: deep links that always work, no keys, no scraping.

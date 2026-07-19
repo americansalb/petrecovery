@@ -355,7 +355,12 @@ export default function AdminGroupsPage() {
                         </a>
                         <div className="text-xs text-gray-400">/groups/{g.slug}</div>
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{KIND_LABELS[g.kind] || g.kind}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {KIND_LABELS[g.kind] || g.kind}
+                        <div className="text-xs text-gray-400">
+                          {g.category === 'COMMUNITY' ? 'Community' : 'Lost pets'}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-gray-600">
                         {g.city}
                         {g.state ? `, ${g.state}` : ''}

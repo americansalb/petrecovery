@@ -282,7 +282,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                         Local places we found for you
                       </p>
                       <div className="space-y-1.5">
-                        {kit.shareTargets.slice(0, 8).map((t) => (
+                        {kit.shareTargets.slice(0, 12).map((t) => (
                           <a
                             key={t.url}
                             href={t.url}
@@ -294,7 +294,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                             <span className="text-xs font-semibold text-[#0A0D26] truncate">{t.name}</span>
                             {t.kind === 'facebook_group' && (
                               <span className="ml-auto shrink-0 text-[0.6rem] font-bold uppercase tracking-wide text-[#8A8377]">
-                                Group
+                                {t.category === 'COMMUNITY' ? 'Community' : 'Lost pets'}
                               </span>
                             )}
                           </a>
