@@ -161,6 +161,96 @@ function NameRow({ data, width, base = 46, center = false }) {
   );
 }
 
+/**
+ * The last-seen map: stitched basemap tiles with a red pin on the exact spot
+ * and a dashed distance ring for scale, so a reader knows how far they are
+ * from where the pet went missing. Renders a centered crop of the shared
+ * spec; silently absent when tiles couldn't be fetched.
+ */
+function MapBlock({ data, width, height }) {
+  const m = data.map;
+  if (!m) return null;
+  const ox = (width - m.width) / 2;
+  const oy = (height - m.height) / 2;
+  const pinX = ox + m.pin.x;
+  const pinY = oy + m.pin.y;
+  return (
+    <View style={{ width, height, overflow: 'hidden', borderWidth: 1, borderColor: T.hair }}>
+      <View style={{ position: 'absolute', left: ox, top: oy, width: m.width, height: m.height }}>
+        {m.tiles.map((t, i) => (
+          <Image
+            key={i}
+            src={t.src}
+            style={{ position: 'absolute', left: t.left, top: t.top, width: 128, height: 128 }}
+          />
+        ))}
+      </View>
+      {m.ring ? (
+        <>
+          <Svg
+            style={{ position: 'absolute', left: pinX - m.ring.r, top: pinY - m.ring.r }}
+            width={m.ring.r * 2}
+            height={m.ring.r * 2}
+            viewBox={`0 0 ${m.ring.r * 2} ${m.ring.r * 2}`}
+          >
+            <Circle
+              cx={m.ring.r}
+              cy={m.ring.r}
+              r={m.ring.r - 1.5}
+              fill="none"
+              stroke="#dc2626"
+              strokeWidth={1.4}
+              strokeDasharray="5,4"
+            />
+          </Svg>
+          <Text
+            style={{
+              position: 'absolute',
+              left: pinX - 30,
+              top: Math.min(height - 11, pinY + m.ring.r - 11),
+              width: 60,
+              textAlign: 'center',
+              fontSize: 6.5,
+              fontWeight: 900,
+              color: '#dc2626',
+              letterSpacing: 0.8,
+            }}
+          >
+            {m.ring.label}
+          </Text>
+        </>
+      ) : null}
+      <Svg
+        style={{ position: 'absolute', left: pinX - 11, top: pinY - 27 }}
+        width={22}
+        height={28}
+        viewBox="0 0 22 28"
+      >
+        <Path
+          d="M11 0C5 0 0.5 4.6 0.5 10.4 0.5 18 11 28 11 28s10.5-10 10.5-17.6C21.5 4.6 17 0 11 0z"
+          fill="#dc2626"
+        />
+        <Circle cx="11" cy="10.4" r="4" fill="#ffffff" />
+      </Svg>
+      <View
+        style={{
+          position: 'absolute',
+          left: 6,
+          top: 6,
+          backgroundColor: '#ffffff',
+          borderWidth: 1,
+          borderColor: T.hair,
+          paddingVertical: 3,
+          paddingHorizontal: 7,
+        }}
+      >
+        <Text style={{ fontSize: 7, fontWeight: 900, color: T.midnight, letterSpacing: 1 }}>LAST SEEN HERE</Text>
+      </View>
+      <Text style={{ position: 'absolute', right: 4, bottom: 3, fontSize: 5, color: T.mute }}>{m.attribution}</Text>
+    </View>
+  );
+}
+
 /** Quiet spec table: LOOK FOR / IF YOU SEE / LAST SEEN. Hairline rules only. */
 function SpecTable({ data, compact = false }) {
   const rows = [
@@ -317,11 +407,14 @@ const MP = 56; // poster margin
 
 function ClassicLetter({ data }) {
   const bodyW = PAGE.LETTER.width - M * 2;
+  const hasMap = Boolean(data.map);
   // Portrait photos get a side-by-side hero (tall photo, name beside it) so
   // showing the WHOLE pet doesn't shrink the photo to a stamp.
   const isPortrait = Boolean(data.photos[0]) && data.photoAspect > 1.05;
-  const heroH = data.reward ? 316 : 336;
+  const heroH = (data.reward ? 316 : 336) - (hasMap ? 34 : 0);
+  const flatH = (data.reward ? 236 : 250) - (hasMap ? 38 : 0);
   const pw = isPortrait ? photoDims(data, heroH, bodyW * 0.46).w : 0;
+  const mapW = 206;
   return (
     <Page size="LETTER" style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
       <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 34, paddingBottom: 30 }}>
@@ -339,7 +432,7 @@ function ClassicLetter({ data }) {
             </View>
           ) : (
             <>
-              <PhotoBlock data={data} maxHeight={data.reward ? 236 : 250} availWidth={bodyW} />
+              <PhotoBlock data={data} maxHeight={flatH} availWidth={bodyW} />
               <View style={{ marginTop: 16 }}>
                 <NameRow data={data} width={bodyW} base={44} />
               </View>
@@ -347,7 +440,18 @@ function ClassicLetter({ data }) {
             </>
           )}
         </View>
-        <SpecTable data={data} />
+        {hasMap ? (
+          <View style={{ flexDirection: 'row' }}>
+            <View style={{ flex: 1 }}>
+              <SpecTable data={data} />
+            </View>
+            <View style={{ width: mapW, marginLeft: 14, marginTop: 12 }}>
+              <MapBlock data={data} width={mapW} height={132} />
+            </View>
+          </View>
+        ) : (
+          <SpecTable data={data} />
+        )}
         <View style={{ flexGrow: 1 }} />
         <ContactBlock data={data} width={bodyW} phoneBase={46} qrSize={86} />
       </View>
@@ -359,7 +463,7 @@ function TearTabFlyer({ data }) {
   const bodyW = PAGE.LETTER.width - M * 2;
   // Tall bound for portraits, wide bound for landscapes: either way the whole
   // photo shows at real size beside the name column.
-  const heroH = data.reward ? 284 : 300;
+  const heroH = (data.reward ? 284 : 300) - (data.map ? 26 : 0);
   const photoW = Math.max(photoDims(data, heroH, bodyW * 0.5).w, data.photos[0] ? 0 : bodyW * 0.5);
   return (
     <Page size="LETTER" style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
@@ -380,6 +484,11 @@ function TearTabFlyer({ data }) {
           </View>
         </View>
         <View style={{ flexGrow: 1 }} />
+        {data.map ? (
+          <View style={{ marginTop: 12 }}>
+            <MapBlock data={data} width={bodyW} height={82} />
+          </View>
+        ) : null}
         <SpecTable data={data} compact />
         <View style={{ marginTop: 12 }}>
           <ContactBlock data={data} width={bodyW} phoneBase={32} qrSize={60} />
@@ -397,29 +506,37 @@ function YardPoster({ data }) {
     <Page size={[W, PAGE.TABLOID.height]} style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
       <View style={{ flexGrow: 1, paddingHorizontal: MP, paddingTop: 48, paddingBottom: 40 }}>
         <Headline data={data} width={bodyW} base={150} />
-        <RewardLine data={data} fontSize={30} marginTop={12} />
-        <Rule marginTop={20} weight={2.5} />
-        <View style={{ marginTop: 26 }}>
-          <PhotoBlock data={data} maxHeight={data.reward ? 490 : 540} availWidth={bodyW} />
+        <RewardLine data={data} fontSize={26} marginTop={12} />
+        <Rule marginTop={18} weight={2.5} />
+        <View style={{ marginTop: 24 }}>
+          <PhotoBlock
+            data={data}
+            maxHeight={(data.reward ? 380 : 420) + (data.map ? 0 : 130)}
+            availWidth={bodyW}
+          />
         </View>
-        <View style={{ marginTop: 26 }}>
-          <NameRow data={data} width={bodyW} base={68} />
+        <View style={{ marginTop: 22 }}>
+          <NameRow data={data} width={bodyW} base={60} />
         </View>
-        <Text style={{ color: T.slate, fontSize: 15, lineHeight: 1.45, marginTop: 12 }}>{data.plea}</Text>
-        <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: T.hair, paddingTop: 12 }}>
+        <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: T.hair, paddingTop: 12 }}>
           {data.markings ? (
-            <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>
+            <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
               <Text style={{ fontWeight: 900 }}>LOOK FOR:{'  '}</Text>
               {data.markings}
             </Text>
           ) : null}
-          <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 16 }}>
+          <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 15 }}>
             <Text style={{ fontWeight: 900 }}>LAST SEEN:{'  '}</Text>
             {[data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join('  ·  ')}
           </Text>
         </View>
+        {data.map ? (
+          <View style={{ marginTop: 14 }}>
+            <MapBlock data={data} width={bodyW} height={190} />
+          </View>
+        ) : null}
         <View style={{ flexGrow: 1 }} />
-        <ContactBlock data={data} width={bodyW} phoneBase={64} qrSize={130} />
+        <ContactBlock data={data} width={bodyW} phoneBase={56} qrSize={118} />
       </View>
     </Page>
   );

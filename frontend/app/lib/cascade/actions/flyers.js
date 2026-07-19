@@ -5,10 +5,20 @@
  */
 
 import { generateFlyerPdf, FLYER_VARIANTS } from '../render/flyers/index.js';
+import { buildFlyerMapSpec, zoomForSpecies } from '../render/staticMap.js';
 import { uploadBufferToCdn } from '@/app/lib/cdnUpload';
 
 export async function runFlyers(ctx) {
   const shared = await ctx.getShared();
+
+  // Last-seen map with a pinned location: one spec at the largest size any
+  // variant needs; smaller variants crop it centered. Best-effort only.
+  const map = await buildFlyerMapSpec(ctx.case.lastSeenLatitude, ctx.case.lastSeenLongitude, {
+    width: 680,
+    height: 220,
+    zoom: zoomForSpecies(ctx.case.petSpecies),
+  }).catch(() => null);
+
   const flyerShared = {
     qrDataUrl: shared.qrDataUrl,
     photoDataUrls: shared.photoDataUrls,
@@ -16,6 +26,7 @@ export async function runFlyers(ctx) {
     headline: ctx.results.ai_copy?.headline,
     plea: ctx.results.ai_copy?.plea,
     description: ctx.results.ai_copy?.description,
+    map,
   };
 
   let ready = 0;

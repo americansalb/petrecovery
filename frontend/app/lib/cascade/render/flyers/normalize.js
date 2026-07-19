@@ -171,6 +171,7 @@ export function normalizeFlyerData(caseData, shared = {}) {
     contactSecondary: cap(contactSecondary, 48),
     caseNumber: caseData.caseNumber,
     caseUrlLabel,
+    map: shared.map || null, // stitched last-seen map spec (see render/staticMap.js)
     photoAspect,
     photos: photos.slice(0, 3),
     photoDataUrl: photos[0] || null, // back-compat for social card
