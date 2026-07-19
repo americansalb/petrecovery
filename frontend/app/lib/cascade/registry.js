@@ -24,6 +24,7 @@ export const CASCADE_ACTIONS = [
   { key: 'flyers', tier: 1, deps: ['qr'], label: 'Printable flyers', logAction: 'create', enabled: true },
   { key: 'social', tier: 1, deps: ['qr'], label: 'Social share images', logAction: 'create', enabled: true },
   { key: 'search_plan', tier: 1, deps: [], label: 'Search plan', logAction: 'create', enabled: true },
+  { key: 'share_targets', tier: 1, deps: [], label: 'Local places to post', logAction: 'read', enabled: true },
   // `checklist` is intentionally folded into search_plan's "Do this first"
   // section (same petAdvice source) rather than shipped as a redundant step.
   { key: 'checklist', tier: 1, deps: [], label: 'First-24h checklist', logAction: 'create', enabled: false },

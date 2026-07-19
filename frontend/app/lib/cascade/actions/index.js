@@ -9,6 +9,7 @@ import { runFlyers } from './flyers.js';
 import { runSocial } from './social.js';
 import { runAiCopy } from './aiCopy.js';
 import { runSearchPlan } from './searchPlan.js';
+import { runShareTargets } from './shareTargets.js';
 import { runReverseMatch } from './reverseMatch.js';
 import { runShelters } from './shelters.js';
 import { runNeighborAlert } from './neighborAlert.js';
@@ -26,6 +27,7 @@ export const ACTION_RUNNERS = {
   flyers: runFlyers,
   social: runSocial,
   search_plan: runSearchPlan,
+  share_targets: runShareTargets,
   recovery_email: runRecoveryEmail,
   followups: runFollowups,
 };
