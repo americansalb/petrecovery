@@ -21,14 +21,22 @@ export function zoomForSpecies(species) {
   return 16;
 }
 
-const TILE_SOURCES = [
-  (z, x, y) => `https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}@2x.png`,
-  (z, x, y) => `https://a.basemaps.cartocdn.com/light_all/${z}/${x}/${y}@2x.png`,
-  (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
-];
+const TILE_STYLES = {
+  light: [
+    (z, x, y) => `https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}@2x.png`,
+    (z, x, y) => `https://a.basemaps.cartocdn.com/light_all/${z}/${x}/${y}@2x.png`,
+    (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+  ],
+  // Warm-toned basemap the poster design system uses (Leaflet voyager).
+  voyager: [
+    (z, x, y) => `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`,
+    (z, x, y) => `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`,
+    (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+  ],
+};
 
-async function fetchTileDataUrl(z, x, y) {
-  for (const makeUrl of TILE_SOURCES) {
+async function fetchTileDataUrl(z, x, y, style = 'light') {
+  for (const makeUrl of TILE_STYLES[style] || TILE_STYLES.light) {
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -54,7 +62,7 @@ async function fetchTileDataUrl(z, x, y) {
  * @param {{width?:number, height?:number, zoom?:number}} opts box in pt
  * @returns {Promise<null | {width,height,tiles:[{src,left,top}],pin:{x,y},ring:{r,label}|null,attribution:string}>}
  */
-export async function buildFlyerMapSpec(lat, lng, { width = 680, height = 210, zoom = 16 } = {}) {
+export async function buildFlyerMapSpec(lat, lng, { width = 680, height = 210, zoom = 16, style = 'light' } = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 85) return null;
 
   const worldPt = 2 ** zoom * TILE_PT;
@@ -84,7 +92,7 @@ export async function buildFlyerMapSpec(lat, lng, { width = 680, height = 210, z
   await Promise.all(
     jobs.map(async (j) => {
       const xWrapped = ((j.tx % maxTile) + maxTile) % maxTile;
-      const src = await fetchTileDataUrl(zoom, xWrapped, j.ty);
+      const src = await fetchTileDataUrl(zoom, xWrapped, j.ty, style);
       if (src) tiles.push({ src, left: j.leftPt, top: j.topPt });
       else failed += 1;
     })
@@ -106,12 +114,17 @@ export async function buildFlyerMapSpec(lat, lng, { width = 680, height = 210, z
     }
   }
 
+  // 180m halo circle (the poster design's Leaflet treatment: soft accent
+  // fill + a white-stroked center dot rather than a teardrop pin).
+  const haloR = 180 / metersPerPt;
+
   return {
     width,
     height,
     tiles,
     pin: { x: width / 2, y: height / 2 },
     ring,
+    halo: { r: haloR },
     attribution: '© OpenStreetMap contributors · © CARTO',
   };
 }

@@ -12,11 +12,13 @@ export async function runFlyers(ctx) {
   const shared = await ctx.getShared();
 
   // Last-seen map with a pinned location: one spec at the largest size any
-  // variant needs; smaller variants crop it centered. Best-effort only.
+  // variant needs; smaller variants crop it centered. Voyager tiles + z15
+  // match the poster design system. Best-effort only.
   const map = await buildFlyerMapSpec(ctx.case.lastSeenLatitude, ctx.case.lastSeenLongitude, {
     width: 680,
     height: 220,
-    zoom: zoomForSpecies(ctx.case.petSpecies),
+    zoom: 15,
+    style: 'voyager',
   }).catch(() => null);
 
   const flyerShared = {
