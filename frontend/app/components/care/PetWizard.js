@@ -637,6 +637,14 @@ export default function PetWizard() {
           <p className="text-sm text-red-600 mt-4" role="alert">{error}</p>
         )}
 
+        {/* When Continue is disabled, say why instead of leaving a grey mystery */}
+        {!lastStep && !canNext && (
+          <p className="text-[13px] text-neutral-500 mt-4 text-right">
+            {stepKey === 'who' && (!draft.name.trim() ? 'Enter a name to continue.' : 'Pick a species to continue.')}
+            {stepKey === 'looks' && (!draft.coatColors.length ? 'Pick at least one color to continue.' : 'Pick a size to continue.')}
+          </p>
+        )}
+
         {/* nav row */}
         <div className="flex items-center justify-between mt-8">
           {step > 0 ? (
@@ -651,11 +659,18 @@ export default function PetWizard() {
           {!lastStep && (
             <button
               type="button"
-              onClick={() => canNext && setStep((s) => s + 1)}
+              onClick={() => {
+                if (!canNext) return;
+                // A typed medication must never be silently lost: if the name
+                // field still holds text when the user advances, commit it
+                // exactly as the separate "Add medication" button would.
+                if (stepKey === 'meds' && medName.trim() && medTimes.length > 0) addMed();
+                setStep((s) => s + 1);
+              }}
               disabled={!canNext}
               className={primaryBtn}
             >
-              {(stepKey === 'meds' && draft.meds.length === 0) || (stepKey === 'photo' && images.length === 0)
+              {(stepKey === 'meds' && draft.meds.length === 0 && !medName.trim()) || (stepKey === 'photo' && images.length === 0)
                 ? 'Skip for now'
                 : 'Continue'}
             </button>

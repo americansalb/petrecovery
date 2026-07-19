@@ -166,9 +166,9 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
 
           {mode === 'signup' && (
             <form onSubmit={handleSignup} className="space-y-3">
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Your first name" autoComplete="given-name" className={inputClass} />
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" autoComplete="email" className={inputClass} />
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Choose a password (8+ characters)" autoComplete="new-password" className={inputClass} />
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Your first name" aria-label="Your first name" autoComplete="given-name" className={inputClass} />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" aria-label="Email" autoComplete="email" className={inputClass} />
+              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Choose a password (8+ characters)" aria-label="Choose a password, at least 8 characters" autoComplete="new-password" className={inputClass} />
               <button
                 type="submit"
                 disabled={busy || !firstName.trim() || !email.trim() || password.length < 8}
@@ -191,8 +191,8 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
               <p className="text-sm text-neutral-600">
                 You already have an account. Sign in to send the request.
               </p>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" autoComplete="email" className={inputClass} />
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" autoComplete="current-password" className={inputClass} />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" aria-label="Email" autoComplete="email" className={inputClass} />
+              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" aria-label="Password" autoComplete="current-password" className={inputClass} />
               <button
                 type="submit"
                 disabled={busy || !email.trim() || !password}

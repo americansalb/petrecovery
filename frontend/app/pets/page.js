@@ -15,13 +15,13 @@ import { Plus, X, ChevronRight } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 
-function missingBadge(pet) {
-  const status = pet.cases?.[0]?.status;
-  if (!status || ['RESOLVED', 'CLOSED_OTHER', 'REUNITED'].includes(status)) return null;
-  return 'Missing';
+function activeCaseOf(pet) {
+  const c = pet.cases?.[0];
+  if (!c || ['RESOLVED', 'CLOSED_OTHER', 'REUNITED'].includes(c.status)) return null;
+  return c;
 }
 
-function PetRow({ pet, href, basics, badge, note }) {
+function PetRow({ pet, href, basics, note, activeCase, onOpenCase }) {
   return (
     <Link href={href} className="flex items-center gap-3 py-3 group">
       {pet.primaryPhotoUrl ? (
@@ -34,8 +34,17 @@ function PetRow({ pet, href, basics, badge, note }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-[15px] font-medium text-neutral-900 truncate">{pet.name}</p>
-          {badge && (
-            <span className="text-[12px] font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0">{badge}</span>
+          {activeCase && (
+            /* In a panic, the badge is what gets tapped: it opens the CASE,
+               while the rest of the row still opens the pet's care pages. */
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenCase(activeCase); }}
+              className="text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0 hover:bg-red-100 transition-colors"
+              aria-label={`${pet.name} is missing. Open the case.`}
+            >
+              Missing · view case
+            </button>
           )}
         </div>
         {(basics || note) && <p className="text-[13px] text-neutral-500 truncate">{note || basics}</p>}
@@ -219,7 +228,8 @@ export default function MyPetsPage() {
                 pet={pet}
                 href={`/pets/${pet.id}/today`}
                 basics={basicsFor(pet)}
-                badge={missingBadge(pet)}
+                activeCase={activeCaseOf(pet)}
+                onOpenCase={(c) => router.push(`/mission-control?mission=${c.caseNumber}`)}
               />
             ))}
           </div>
@@ -234,7 +244,8 @@ export default function MyPetsPage() {
                   key={shareId}
                   pet={pet}
                   href={`/pets/${pet.id}/today`}
-                  badge={missingBadge(pet)}
+                  activeCase={activeCaseOf(pet)}
+                  onOpenCase={(c) => router.push(`/mission-control?mission=${c.caseNumber}`)}
                   note={`${ownerName}'s pet, you help as ${role === 'CAREGIVER' ? 'a caregiver' : 'a viewer'}`}
                 />
               ))}
