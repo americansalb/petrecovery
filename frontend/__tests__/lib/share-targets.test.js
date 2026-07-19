@@ -238,15 +238,18 @@ describe('sweepArea (manual admin search)', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('searches, persists, and returns the kept groups', async () => {
+  test('searches, persists, and returns kept groups with their categories', async () => {
     process.env.ANTHROPIC_API_KEY = 'k';
     global.fetch.mockResolvedValue(
       anthropicResponse(
         [
           { title: 'Lost Pets of Elgin | Facebook', url: 'https://www.facebook.com/groups/lostpetselgin' },
-          { title: 'Elgin Garage Sale | Facebook', url: 'https://www.facebook.com/groups/elgingaragesale' },
+          { title: 'Elgin Community Board | Facebook', url: 'https://www.facebook.com/groups/elgincommunity' },
         ],
-        [{ name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin' }]
+        [
+          { name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin', category: 'lost_pet' },
+          { name: 'Elgin Community Board', url: 'https://www.facebook.com/groups/elgincommunity', category: 'community' },
+        ]
       )
     );
 
@@ -255,10 +258,15 @@ describe('sweepArea (manual admin search)', () => {
     expect(sweep.ok).toBe(true);
     expect(sweep.candidates).toBe(2);
     expect(sweep.groups).toEqual([
-      expect.objectContaining({ name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin' }),
+      expect.objectContaining({ url: 'https://www.facebook.com/groups/lostpetselgin', category: 'LOST_PET' }),
+      expect.objectContaining({ url: 'https://www.facebook.com/groups/elgincommunity', category: 'COMMUNITY' }),
     ]);
+    // persisted with category and the honest source label
     expect(prisma.communityGroup.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { slug: 'lostpetselgin' } })
+      expect.objectContaining({
+        where: { slug: 'elgincommunity' },
+        create: expect.objectContaining({ category: 'COMMUNITY', source: 'CLAUDE_WEB_SEARCH' }),
+      })
     );
     // the request went to the Anthropic API with the web_search tool declared
     const [url, init] = global.fetch.mock.calls[0];
