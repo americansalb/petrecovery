@@ -75,8 +75,14 @@ describe('cityStateFromAddress', () => {
     });
   });
 
-  test('city-first address', () => {
-    expect(cityStateFromAddress('Elgin, Illinois, 60110')).toEqual({ city: 'Elgin', state: 'Illinois' });
+  test('city-first address normalizes the state name to its USPS code', () => {
+    expect(cityStateFromAddress('Elgin, Illinois, 60110')).toEqual({ city: 'Elgin', state: 'IL' });
+  });
+
+  test('"Illinois" and "IL" addresses key the same directory area', () => {
+    expect(cityStateFromAddress('Elgin, Illinois, 60110')).toEqual(
+      cityStateFromAddress('12 Main St, Elgin, IL 60120')
+    );
   });
 
   test('empty input', () => {

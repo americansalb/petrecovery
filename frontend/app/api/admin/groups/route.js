@@ -71,6 +71,7 @@ export async function GET(request) {
       total,
       page,
       limit,
+      searchConfigured: Boolean(process.env.BRAVE_SEARCH_API_KEY),
       stats: {
         total: totalAll,
         active,

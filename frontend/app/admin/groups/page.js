@@ -9,10 +9,11 @@
  * hard-delete junk rows. Listing a group is not an endorsement.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/components/ui/Toast';
+import { US_STATES, normalizeState } from '@/app/lib/usStates';
 import {
   Users,
   Search,
@@ -66,6 +67,7 @@ export default function AdminGroupsPage() {
   const [sweep, setSweep] = useState({ city: '', state: '' });
   const [sweeping, setSweeping] = useState(false);
   const [sweepResult, setSweepResult] = useState(null);
+  const [searchConfigured, setSearchConfigured] = useState(true);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -90,6 +92,7 @@ export default function AdminGroupsPage() {
 
       setGroups(data.groups || []);
       setStats(data.stats || null);
+      setSearchConfigured(data.searchConfigured !== false);
       setTotalPages(Math.max(1, Math.ceil((data.total || 0) / limit)));
     } catch (err) {
       setError(err.message);
@@ -217,24 +220,38 @@ export default function AdminGroupsPage() {
             and saves the results, so the area is ready before anyone reports there. Also refreshes an area
             without waiting out the 30-day window.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <input
-              type="text"
-              placeholder="City (required)"
+          {!searchConfigured && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">
+                Web search is off: set <code className="font-mono">BRAVE_SEARCH_API_KEY</code> on the server and
+                redeploy to enable this panel. Everything else on this page still works.
+              </p>
+            </div>
+          )}
+          <div className="flex flex-wrap items-start gap-3">
+            <CityAutocomplete
               value={sweep.city}
-              onChange={(e) => setSweep((s) => ({ ...s, city: e.target.value }))}
-              className="flex-1 min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={!searchConfigured}
+              onChange={(city) => setSweep((s) => ({ ...s, city }))}
+              onPick={(o) => setSweep({ city: o.city, state: o.state })}
             />
-            <input
-              type="text"
-              placeholder="State"
+            <select
               value={sweep.state}
+              disabled={!searchConfigured}
               onChange={(e) => setSweep((s) => ({ ...s, state: e.target.value }))}
-              className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+            >
+              <option value="">State</option>
+              {US_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
             <button
               type="submit"
-              disabled={!sweep.city.trim() || sweeping}
+              disabled={!searchConfigured || !sweep.city.trim() || sweeping}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40"
             >
               {sweeping ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -427,6 +444,92 @@ export default function AdminGroupsPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** City picker backed by the same Nominatim proxy the report flow's location
+ *  search uses: type a few letters, pick a real "City, ST", and the state
+ *  dropdown fills itself. Free text still works for tiny places the geocoder
+ *  misses. */
+function CityAutocomplete({ value, onChange, onPick, disabled }) {
+  const [options, setOptions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef(null);
+
+  const handleInput = (q) => {
+    onChange(q);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (q.trim().length < 2) {
+      setOptions([]);
+      setOpen(false);
+      return;
+    }
+    timerRef.current = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          q: q.trim(),
+          limit: '6',
+          addressdetails: '1',
+          countrycodes: 'us',
+        });
+        const res = await fetch(`/api/geocode?${params}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const seen = new Set();
+        const opts = (Array.isArray(data) ? data : [])
+          .map((r) => {
+            const a = r.address || {};
+            const city = a.city || a.town || a.village || a.municipality || '';
+            const state = normalizeState(a.state || '');
+            return city ? { city, state } : null;
+          })
+          .filter(Boolean)
+          .filter((o) => {
+            const k = `${o.city}|${o.state}`;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+        setOptions(opts);
+        setOpen(opts.length > 0);
+      } catch {
+        // Geocoder hiccup: the field still works as free text.
+      }
+    }, 250);
+  };
+
+  return (
+    <div className="relative flex-1 min-w-[220px]">
+      <input
+        type="text"
+        placeholder="City (required)"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => handleInput(e.target.value)}
+        onFocus={() => setOpen(options.length > 0)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
+      />
+      {open && (
+        <ul className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          {options.map((o) => (
+            <li key={`${o.city}|${o.state}`}>
+              <button
+                type="button"
+                onMouseDown={() => {
+                  onPick(o);
+                  setOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50"
+              >
+                {o.city}
+                {o.state ? `, ${o.state}` : ''}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
