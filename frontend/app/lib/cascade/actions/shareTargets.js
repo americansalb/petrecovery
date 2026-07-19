@@ -1,7 +1,15 @@
 /**
  * share_targets action (tier 1) — find the LOCAL places to post this case.
  *
- * Two layers, best available wins:
+ * Groups are a directory, not a per-case lookup: the first case in an area
+ * pays for one web search (+ optional Haiku rank), and the results live in
+ * the CommunityGroup table like shelters do. Every later case in that
+ * city/state serves straight from the DB at zero search/token cost until the
+ * rows age past REFRESH_AFTER_DAYS, when the next case triggers a re-sweep.
+ * Groups that a fresh sweep no longer finds are marked STALE and never
+ * served again (kept for audit).
+ *
+ * Discovery layers, best available wins:
  *  1. Web search (BRAVE_SEARCH_API_KEY): search engines index public Facebook
  *     group pages, so `site:facebook.com/groups {city} lost found pets` finds
  *     real local groups without touching Facebook itself. Candidates are
@@ -13,15 +21,17 @@
  *
  * The owner sees these under "Share the case link everywhere local" with
  * their pre-written caption one tap away. Never SCRAPES Facebook; only
- *  search-engine results and public URLs.
+ * search-engine results and public URLs.
  */
 
+import prisma from '@/app/lib/prisma';
 import { checkGlobalLimitAsync } from '@/app/lib/rateLimit';
 
 const SPECIES_WORD = { DOG: 'dog', CAT: 'cat', BIRD: 'bird', RABBIT: 'rabbit', OTHER: 'pet' };
 const SEARCH_TIMEOUT_MS = 6000;
 const AI_TIMEOUT_MS = 8000;
 const MAX_GROUPS = 5;
+export const REFRESH_AFTER_DAYS = 30;
 
 /** City + state tokens from a stored address ("1847 W Addison St, Chicago,
  *  IL 60613, United States" -> { city: "Chicago", state: "IL" }). */
@@ -65,6 +75,60 @@ async function braveSearch(query, key) {
 
 function isGroupUrl(url) {
   return /facebook\.com\/groups\/[^/?#]+/i.test(url) && !/facebook\.com\/groups\/search/i.test(url);
+}
+
+export function groupSlugFromUrl(url) {
+  return String(url).match(/facebook\.com\/groups\/([^/?#]+)/i)?.[1]?.toLowerCase() || null;
+}
+
+/** Fresh enough to serve without a re-sweep? */
+export function isFreshFetch(fetchedAt, now = new Date()) {
+  const age = now.getTime() - new Date(fetchedAt).getTime();
+  return age < REFRESH_AFTER_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** Serveable groups for an area, newest sweep first. Null if the table is
+ *  unreachable (schema not pushed yet, DB down) so callers fall through to a
+ *  live search instead of failing the step. */
+async function readGroupDirectory(city, state) {
+  try {
+    return await prisma.communityGroup.findMany({
+      where: { city, state, status: 'ACTIVE' },
+      orderBy: [{ rank: 'asc' }, { fetchedAt: 'desc' }],
+      take: MAX_GROUPS,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Persist a completed sweep: upsert kept groups (rank = serve order) and
+ *  mark the area's previously ACTIVE rows that dropped out of a NON-EMPTY
+ *  fresh sweep as STALE. Best-effort; discovery still returns its results
+ *  when the DB write fails. */
+async function writeGroupDirectory(city, state, kept) {
+  const now = new Date();
+  try {
+    const slugs = [];
+    for (let i = 0; i < kept.length; i++) {
+      const slug = groupSlugFromUrl(kept[i].url);
+      if (!slug) continue;
+      slugs.push(slug);
+      await prisma.communityGroup.upsert({
+        where: { slug },
+        update: { name: kept[i].name, url: kept[i].url, city, state, rank: i, fetchedAt: now, status: 'ACTIVE', staleAt: null },
+        create: { slug, name: kept[i].name, url: kept[i].url, city, state, rank: i },
+      });
+    }
+    if (slugs.length > 0) {
+      await prisma.communityGroup.updateMany({
+        where: { city, state, status: 'ACTIVE', slug: { notIn: slugs } },
+        data: { status: 'STALE', staleAt: now },
+      });
+    }
+  } catch (err) {
+    console.error('[share_targets] directory write failed:', err.message);
+  }
 }
 
 /** Deterministic relevance filter: lost/found language + pet language. */
@@ -161,10 +225,24 @@ export async function runShareTargets(ctx) {
 
   const targets = [];
   let searched = false;
+  let cached = false;
 
-  // Layer 1: real groups via web search, when a key is configured.
+  // Layer 1a: the group directory. Fresh rows for this area mean a previous
+  // case already paid for discovery; serve them and spend nothing.
+  const directory = city ? await readGroupDirectory(city, state) : null;
+  const directoryFresh = directory?.length > 0 && directory.every((g) => isFreshFetch(g.fetchedAt));
+  if (directoryFresh) {
+    cached = true;
+    for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+    prisma.communityGroup
+      .updateMany({ where: { id: { in: directory.map((g) => g.id) } }, data: { timesServed: { increment: 1 } } })
+      .catch(() => {});
+  }
+
+  // Layer 1b: live web search when the directory has nothing fresh and a key
+  // is configured. Results are written back so the next case here is free.
   const key = process.env.BRAVE_SEARCH_API_KEY;
-  if (key && city) {
+  if (!cached && key && city) {
     searched = true;
     const queries = [
       `site:facebook.com/groups ${city} ${state} lost found pets`,
@@ -174,21 +252,32 @@ export async function runShareTargets(ctx) {
     const seen = new Set();
     const groupCandidates = results.filter((r) => {
       if (!isGroupUrl(r.url)) return false;
-      const slug = r.url.match(/facebook\.com\/groups\/([^/?#]+)/i)?.[1]?.toLowerCase();
+      const slug = groupSlugFromUrl(r.url);
       if (!slug || seen.has(slug)) return false;
       seen.add(slug);
       return true;
     });
 
-    const ranked =
+    const ranked = (
       (await rankWithHaiku(city, state, groupCandidates)) ||
       keywordFilter(groupCandidates)
         .slice(0, MAX_GROUPS)
-        .map((r) => ({ name: r.title.replace(/\s*[|·-]\s*Facebook\s*$/i, ''), url: r.url }));
+        .map((r) => ({ name: r.title.replace(/\s*[|·-]\s*Facebook\s*$/i, ''), url: r.url }))
+    ).slice(0, MAX_GROUPS);
 
-    for (const g of ranked.slice(0, MAX_GROUPS)) {
-      targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+    if (ranked.length > 0) {
+      await writeGroupDirectory(city, state, ranked);
+      for (const g of ranked) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
+    } else if (directory?.length > 0) {
+      // Sweep came back empty (API hiccup or thin results): aged rows beat
+      // nothing, and we don't stale anything on an empty sweep.
+      cached = true;
+      for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
     }
+  } else if (!cached && directory?.length > 0) {
+    // No search key: serve whatever the directory has, regardless of age.
+    cached = true;
+    for (const g of directory) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
   }
 
   // Layer 2: deep links that always work, no keys, no scraping.
@@ -211,6 +300,6 @@ export async function runShareTargets(ctx) {
   const groupCount = targets.filter((t) => t.kind === 'facebook_group').length;
   return {
     count: groupCount || targets.length,
-    result: { targets, searched, groups: groupCount },
+    result: { targets, searched, cached, groups: groupCount },
   };
 }

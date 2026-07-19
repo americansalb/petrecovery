@@ -1906,6 +1906,37 @@ model ShelterIntake {
   @@index([intakeDate])
 }
 
+// Local community groups (Facebook lost-pet groups etc.) discovered by the
+// share_targets cascade action. Works like the Shelter directory: discovered
+// once per area, then served from here so repeat cases in the same city cost
+// zero search queries and zero AI tokens. Rows go STALE (never served, kept
+// for audit) when a fresh sweep of their area no longer finds them.
+model CommunityGroup {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kind String @default("FACEBOOK_GROUP")
+  slug String @unique // facebook.com/groups/<slug>, the dedupe key
+  url  String
+  name String
+
+  // The area whose sweep found this group. A group found by two nearby
+  // cities' sweeps lives under whichever searched it most recently.
+  city  String
+  state String
+
+  source      String    @default("BRAVE_SEARCH")
+  rank        Int       @default(0) // serve order within its area (0 = best)
+  fetchedAt   DateTime  @default(now()) // last confirmed by a fresh sweep
+  status      String    @default("ACTIVE") // ACTIVE, STALE
+  staleAt     DateTime?
+  timesServed Int       @default(0)
+
+  @@index([city, state, status])
+  @@index([fetchedAt])
+}
+
 // ============================================================================
 // PHASE 10: ANALYTICS
 // ============================================================================
