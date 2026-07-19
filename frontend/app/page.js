@@ -53,10 +53,6 @@ function Hero({ metrics }) {
     <section className="relative bg-midnight-950 overflow-hidden">
       <style>{`
         @keyframes trail-march { to { stroke-dashoffset: -26; } }
-        @keyframes glint {
-          0% { transform: translateX(-160%) skewX(-20deg); }
-          55%, 100% { transform: translateX(320%) skewX(-20deg); }
-        }
       `}</style>
 
       {/* flashlight glow + stars, pure CSS so it can never render as a void */}
@@ -141,35 +137,24 @@ function Hero({ metrics }) {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-6">
-              {/* Polished gold: still the brand's yellow family, but top-lit
-                  with a bright edge and a periodic glint sweep so the crisis
-                  button literally catches the eye */}
+              {/* Yellow-on-navy is THE brand move (navbar CTA, footer CTA, the
+                  posters' LOST DOG band) — the crisis button speaks it loudest */}
               <Link
                 href="/report/new"
-                className="relative overflow-hidden inline-flex items-center gap-2.5 bg-gradient-to-b from-[#FFE066] via-[#F2D21B] to-[#D9AE0B] text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.65),inset_0_-2px_3px_rgba(120,85,0,0.25),0_10px_28px_rgba(242,210,27,0.35)] transition-all hover:scale-[1.02] hover:brightness-105 w-full sm:w-auto justify-center"
+                className="inline-flex items-center gap-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-flash-400/25 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
               >
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/70 to-transparent"
-                  style={{ animation: 'glint 3.6s ease-in-out infinite' }}
-                />
-                <Bell className="relative w-5 h-5" />
-                <span className="relative">My pet is lost</span>
-                <ArrowRight className="relative w-5 h-5" />
+                <Bell className="w-5 h-5" />
+                My pet is lost
+                <ArrowRight className="w-5 h-5" />
               </Link>
-              {/* Brushed silver peer: same metal language, glints on hover so
-                  gold keeps the lead */}
+              {/* Solid cream, navy text: substantial like the primary but the
+                  yellow still leads at a glance */}
               <Link
                 href="/report/found"
-                className="group relative overflow-hidden inline-flex items-center gap-2.5 bg-gradient-to-b from-white via-[#E9EBEF] to-[#C5CBD4] text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-2px_3px_rgba(60,70,90,0.2),0_10px_24px_rgba(0,0,0,0.3)] transition-all hover:scale-[1.02] hover:brightness-105 w-full sm:w-auto justify-center"
+                className="inline-flex items-center gap-2.5 bg-[#FFF9EE] hover:bg-white text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-black/20 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
               >
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ animation: 'glint 2.4s ease-in-out infinite' }}
-                />
-                <Heart className="relative w-5 h-5" />
-                <span className="relative">I found a pet</span>
+                <Heart className="w-5 h-5" />
+                I found a pet
               </Link>
             </div>
 
