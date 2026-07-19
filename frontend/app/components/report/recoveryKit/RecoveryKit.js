@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Check, Loader2, Sparkles, FileText, Image as ImageIcon, MapPin, Users, Search,
-  Megaphone, QrCode, Copy, Download, Heart, ChevronDown, ChevronUp, Mail, Bell,
+  Megaphone, QrCode, Copy, Download, Heart, ChevronDown, ChevronUp, Mail, Bell, ExternalLink,
 } from 'lucide-react';
 import { MatchCard } from '@/components/case/MatchCard';
 import useRecoveryKitStream from './useRecoveryKitStream';
@@ -29,10 +29,14 @@ const STEP_META = {
   flyers: { icon: FileText, doneLabel: (n) => `${n || 3} printable flyers ready` },
   social: { icon: ImageIcon, doneLabel: (n) => `${n || 3} share images ready` },
   search_plan: { icon: Search, doneLabel: () => 'Your search plan is ready' },
+  share_targets: {
+    icon: ExternalLink,
+    doneLabel: (n) => (n > 0 ? `${n} local places to post` : 'Local posting links ready'),
+  },
   recovery_email: { icon: Mail, doneLabel: () => 'Recovery kit emailed to you' },
   followups: { icon: Bell, doneLabel: () => 'We’ll check in with you along the way' },
 };
-const STEP_ORDER = ['reverse_match', 'flyers', 'social', 'search_plan', 'shelters', 'neighbor_alert', 'rescue_force', 'recovery_email', 'followups', 'ai_copy', 'qr'];
+const STEP_ORDER = ['reverse_match', 'flyers', 'social', 'share_targets', 'search_plan', 'shelters', 'neighbor_alert', 'rescue_force', 'recovery_email', 'followups', 'ai_copy', 'qr'];
 
 function isTerminal(status) {
   return ['COMPLETE', 'PARTIAL', 'FAILED'].includes(status);
@@ -272,6 +276,37 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                       </a>
                     </div>
                   ) : null}
+                  {kit?.shareTargets?.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-[#8A8377] mb-1.5">
+                        Local places we found for you
+                      </p>
+                      <div className="space-y-1.5">
+                        {kit.shareTargets.slice(0, 8).map((t) => (
+                          <a
+                            key={t.url}
+                            href={t.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 p-2 rounded-xl bg-[#F3EFE7] hover:bg-[#EDE8DC] transition-colors"
+                          >
+                            <ExternalLink size={13} className="text-[#0B1133] shrink-0" />
+                            <span className="text-xs font-semibold text-[#0A0D26] truncate">{t.name}</span>
+                            {t.kind === 'facebook_group' && (
+                              <span className="ml-auto shrink-0 text-[0.6rem] font-bold uppercase tracking-wide text-[#8A8377]">
+                                Group
+                              </span>
+                            )}
+                          </a>
+                        ))}
+                      </div>
+                      {kit.copy?.captions?.facebook && (
+                        <div className="mt-2">
+                          <CopyButton text={kit.copy.captions.facebook} label="Copy your post" />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </li>
               <li className="flex items-start gap-3">

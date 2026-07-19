@@ -58,6 +58,7 @@ export async function GET(_request, { params }) {
   const reverseMatch = stepByKey.reverse_match?.result || null;
   const sheltersStep = stepByKey.shelters?.result || null;
   const rescueStep = stepByKey.rescue_force?.result || null;
+  const shareTargetsStep = stepByKey.share_targets?.result || null;
 
   const body = {
     exists: true,
@@ -90,6 +91,7 @@ export async function GET(_request, { params }) {
     shelters: sheltersStep?.shelters || [],
     sheltersGuidance: sheltersStep?.guidance || null,
     forces: rescueStep?.forces || [],
+    shareTargets: shareTargetsStep?.targets || [],
   };
 
   logEvent({

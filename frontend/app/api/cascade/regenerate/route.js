@@ -19,6 +19,7 @@ import { upsertStep, upsertAsset } from '@/app/lib/cascade/store';
 import { generateAiCopy } from '@/app/lib/cascade/aiCopy';
 import { runFlyers } from '@/app/lib/cascade/actions/flyers';
 import { runSocial } from '@/app/lib/cascade/actions/social';
+import { runShareTargets } from '@/app/lib/cascade/actions/shareTargets';
 import { logEvent } from '@/lib/logging';
 
 export const runtime = 'nodejs';
@@ -86,6 +87,14 @@ export async function POST(request) {
     outcome.social = `${r.count} ready`;
   } catch (err) {
     outcome.social = `failed: ${String(err?.message || err).slice(0, 120)}`;
+  }
+
+  try {
+    const r = await runShareTargets(ctx);
+    await upsertStep(activation, 'share_targets', { status: 'SUCCESS', count: r.count, result: r.result, finishedAt: new Date() });
+    outcome.shareTargets = `${r.count} targets`;
+  } catch (err) {
+    outcome.shareTargets = `failed: ${String(err?.message || err).slice(0, 120)}`;
   }
 
   logEvent({
