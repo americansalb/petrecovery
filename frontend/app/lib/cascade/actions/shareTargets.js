@@ -230,13 +230,15 @@ export async function sweepArea(city, rawState) {
         ],
         system:
           'You find public Facebook groups where an owner can post a lost-pet case for a given area. ' +
-          'A lost pet travels, so cover the town AND the communities around it within roughly a ' +
-          '15 mile radius: neighboring towns, the county, the region. Search the web with queries ' +
-          'like "site:facebook.com/groups <city> lost found pets" and ' +
-          '"site:facebook.com/groups <city or neighboring town> community" (try the city alone and ' +
-          'with its state). Keep two kinds of groups: lost_pet (lost-and-found or pet groups serving ' +
-          'the area or its county/region) and community (broad local groups such as town chatter, ' +
-          'community boards, or neighborhood groups where a lost pet post would reach locals). ' +
+          'Search the web with queries like "site:facebook.com/groups <city> lost found pets" and ' +
+          '"site:facebook.com/groups <city> community" (try the city alone and with its state). ' +
+          'Keep two kinds of groups, with DIFFERENT geographic bars: ' +
+          'lost_pet groups (lost-and-found or pet groups) may serve the town, its immediate ' +
+          'neighbors, or its county/region, since dedicated lost-pet groups are usually county-wide ' +
+          'and their members live everywhere in it. ' +
+          'community groups (town chatter, community boards, neighborhood groups) must be for the ' +
+          'town itself or a directly adjacent community only; a general group for a town even a few ' +
+          'miles away is noise, so when in doubt leave it out. ' +
           'Drop groups for unrelated areas and generic national groups. Clean each kept name ' +
           '(no "| Facebook" suffixes). Order lost_pet groups first, then community, most local ' +
           `first, maximum ${MAX_GROUPS}. Only include URLs that appeared in your search results. ` +
