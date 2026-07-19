@@ -3,11 +3,14 @@ import { Document, Page, View, Text, Image, Svg, Path, Circle } from '@react-pdf
 import { FLYER_THEME as T, PAGE } from './theme';
 
 /**
- * Lost-pet flyers in a bold, editorial poster language: full-bleed color
- * bands, one huge instant read ("LOST DOG"), the photo treated with respect
- * (large, no text over it), a quiet spec table, and a high-contrast contact
- * band with an auto-fitting phone/email so nothing ever overflows. Three
- * layouts, one normalized `data`:
+ * Lost-pet flyers in a restrained "ink" poster language: white ground, two
+ * inks (near-black + signal red), edge-to-edge display type, the full photo
+ * at its true aspect, and a giant phone number. Red appears exactly twice
+ * (LOST DOG, the reward); everything else is black and gray, so the flyer
+ * reads at distance, looks designed rather than templated, and prints
+ * perfectly on a home black-and-white printer.
+ *
+ * Three layouts, one normalized `data`:
  *  - classic : full Letter poster
  *  - tabs    : Letter with real, cuttable tear-off tabs
  *  - poster  : 11x17 pole/yard poster, readable from across a street
@@ -35,8 +38,17 @@ function fitSize(text, maxWidth, base, min = 9) {
   return Math.max(min, Math.min(base, maxWidth / em));
 }
 
+/** Frame size that shows the WHOLE photo: the photo's own aspect, bounded by
+ *  maxHeight and availWidth. Falls back to a full-width frame when unknown. */
+function photoDims(data, maxHeight, availWidth) {
+  const a = data.photoAspect;
+  if (!a) return { w: availWidth, h: maxHeight };
+  const h = Math.min(maxHeight, availWidth * a);
+  return { w: Math.min(availWidth, h / a), h };
+}
+
 /** Simple paw mark (used only where there is no photo). */
-function Paw({ size = 64, color = '#ffffff' }) {
+function Paw({ size = 64, color = T.midnight }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Circle cx="5.3" cy="8.6" r="2.1" fill={color} />
@@ -51,55 +63,53 @@ function Paw({ size = 64, color = '#ffffff' }) {
   );
 }
 
-/** Full-bleed banner: the one thing readable from across the street. */
-function HeaderBand({ data, height, pad }) {
+/** LOST DOG set edge-to-edge in the accent ink — the 30-foot read. */
+function Headline({ data, width, base }) {
   const label = `${data.stamp} ${data.speciesLabel}`;
-  const size = fitSize(label, PAGE_W(data) - pad * 2 - label.length * 4, height * 0.62, 24);
   return (
-    <View style={{ backgroundColor: data.accentBg, height, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: size, letterSpacing: 4 }}>{label}</Text>
-    </View>
+    <Text
+      style={{
+        color: data.accent,
+        fontWeight: 900,
+        fontSize: fitSize(label, width, base, 24),
+        letterSpacing: -1,
+        lineHeight: 1,
+      }}
+    >
+      {label}
+    </Text>
   );
 }
 
-/** Slim full-bleed reward strip under the banner (classic missing-poster move). */
-function RewardStrip({ data, height, fontSize }) {
+/** "$500 REWARD" directly under the headline — the second and last red. */
+function RewardLine({ data, fontSize, marginTop = 6 }) {
   if (!data.reward) return null;
   const label = data.reward === 'REWARD' ? 'REWARD OFFERED' : `${data.reward} REWARD`;
   return (
-    <View style={{ backgroundColor: T.flash, height, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: T.midnight, fontWeight: 900, fontSize, letterSpacing: 2.5 }}>{label}</Text>
-    </View>
+    <Text style={{ color: data.accent, fontWeight: 900, fontSize, letterSpacing: 2, marginTop }}>{label}</Text>
   );
 }
 
-/** Frame size that shows the WHOLE photo: the photo's own aspect, bounded by
- *  maxHeight and availWidth. Falls back to a full-width frame when unknown. */
-function photoDims(data, maxHeight, availWidth) {
-  const a = data.photoAspect;
-  if (!a) return { w: availWidth, h: maxHeight };
-  const h = Math.min(maxHeight, availWidth * a);
-  return { w: Math.min(availWidth, h / a), h };
+function Rule({ marginTop = 0, weight = 1.5, color = T.midnight }) {
+  return <View style={{ height: weight, backgroundColor: color, marginTop }} />;
 }
 
-/** The pet, given the room it deserves: the frame takes the PHOTO's shape
- *  (up to maxHeight), centered, so the whole animal is always visible.
- *  Only when the intrinsic size is unreadable do we fall back to a crop. */
-function PhotoBlock({ data, maxHeight, availWidth, radius = 10 }) {
+/** The pet, whole, at the photo's true aspect. Thin keyline, no effects. */
+function PhotoBlock({ data, maxHeight, availWidth }) {
   const src = data.photos[0];
   if (!src) {
     return (
       <View
         style={{
           height: maxHeight,
-          borderRadius: radius,
-          backgroundColor: T.midnight,
+          borderWidth: 1,
+          borderColor: T.hair,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Paw size={Math.max(56, maxHeight * 0.24)} />
-        <Text style={{ color: '#94a3b8', fontWeight: 600, fontSize: Math.max(9, maxHeight * 0.038), marginTop: 10 }}>
+        <Paw size={Math.max(52, maxHeight * 0.2)} color={T.faint} />
+        <Text style={{ color: T.mute, fontWeight: 600, fontSize: Math.max(9, maxHeight * 0.036), marginTop: 10 }}>
           No photo yet. Please go by the description.
         </Text>
       </View>
@@ -109,46 +119,56 @@ function PhotoBlock({ data, maxHeight, availWidth, radius = 10 }) {
     const { w, h } = photoDims(data, maxHeight, availWidth);
     return (
       <View style={{ alignItems: 'center' }}>
-        <View style={{ width: w, height: h, borderRadius: radius, overflow: 'hidden' }}>
-          <Image src={src} style={{ width: w, height: h }} />
+        <View style={{ width: w, height: h, borderWidth: 1, borderColor: T.hair }}>
+          <Image src={src} style={{ width: w - 2, height: h - 2 }} />
         </View>
       </View>
     );
   }
   return (
-    <View style={{ height: maxHeight, borderRadius: radius, overflow: 'hidden' }}>
-      <Image src={src} style={{ width: '100%', height: maxHeight, objectFit: 'cover', objectPositionY: '25%' }} />
+    <View style={{ height: maxHeight, borderWidth: 1, borderColor: T.hair }}>
+      <Image
+        src={src}
+        style={{ width: '100%', height: maxHeight - 2, objectFit: 'cover', objectPositionY: '25%' }}
+      />
     </View>
   );
 }
 
-/** Name + identity chips. */
-function NameRow({ data, width, base = 44, center = false }) {
+/** Name + identity chips, poster-tight. */
+function NameRow({ data, width, base = 46, center = false }) {
   const name = data.petName.toUpperCase();
   const chips = data.chips.join('  ·  ') + (data.microchipped ? `${data.chips.length ? '  ·  ' : ''}Microchipped` : '');
   return (
     <View style={{ alignItems: center ? 'center' : 'flex-start' }}>
-      <Text style={{ color: T.midnight, fontWeight: 900, fontSize: fitSize(name, width, base, 18), letterSpacing: -0.5 }}>
+      <Text
+        style={{
+          color: T.midnight,
+          fontWeight: 900,
+          fontSize: fitSize(name, width, base, 18),
+          letterSpacing: -0.5,
+          lineHeight: 1,
+        }}
+      >
         {name}
       </Text>
       {chips ? (
-        <Text style={{ color: T.mute, fontWeight: 600, fontSize: Math.max(10, base * 0.26), marginTop: 3 }}>{chips}</Text>
+        <Text style={{ color: T.mute, fontWeight: 600, fontSize: Math.max(10, base * 0.24), marginTop: 5 }}>
+          {chips}
+        </Text>
       ) : null}
     </View>
   );
 }
 
-/** Quiet spec table: LOOK FOR / IF YOU SEE / LAST SEEN. Hairline rules, no boxes. */
+/** Quiet spec table: LOOK FOR / IF YOU SEE / LAST SEEN. Hairline rules only. */
 function SpecTable({ data, compact = false }) {
   const rows = [
     data.markings ? { label: 'LOOK FOR', value: data.markings } : null,
     { label: `IF YOU SEE ${data.petName.toUpperCase()}`, value: data.approachLine },
-    {
-      label: 'LAST SEEN',
-      value: [data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join('  ·  '),
-    },
+    { label: 'LAST SEEN', value: [data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join('  ·  ') },
   ].filter(Boolean);
-  const labelW = compact ? 92 : 104;
+  const labelW = compact ? 96 : 110;
   const fs = compact ? 8.5 : 10;
   return (
     <View style={{ marginTop: compact ? 8 : 12, borderTopWidth: 1, borderTopColor: T.hair }}>
@@ -166,7 +186,7 @@ function SpecTable({ data, compact = false }) {
             style={{
               width: labelW,
               fontSize: fs - 2,
-              color: data.accent,
+              color: T.midnight,
               fontWeight: 900,
               letterSpacing: 0.8,
               marginTop: 1,
@@ -174,52 +194,64 @@ function SpecTable({ data, compact = false }) {
           >
             {r.label}
           </Text>
-          <Text style={{ flex: 1, fontSize: fs, color: T.midnight, fontWeight: 600, lineHeight: 1.4 }}>{r.value}</Text>
+          <Text style={{ flex: 1, fontSize: fs, color: T.slate, fontWeight: 600, lineHeight: 1.4 }}>{r.value}</Text>
         </View>
       ))}
     </View>
   );
 }
 
-/** High-contrast contact band: huge auto-fit phone/email + QR on a white tile. */
-function ContactBand({ data, pad, phoneBase, qrSize, showUrl = true }) {
-  const qrTile = data.qrDataUrl ? qrSize + 14 : 0;
-  const textW = PAGE_W(data) - pad * 2 - (qrTile ? qrTile + 18 : 0);
-  // Emails and URLs read better (and calmer) smaller than a phone number.
+/** Bottom contact block on the white ground: rule, giant black phone, QR. */
+function ContactBlock({ data, width, phoneBase, qrSize }) {
+  const qrBox = data.qrDataUrl ? qrSize + 2 : 0;
+  const textW = width - (qrBox ? qrBox + 22 : 0);
   const isPhone = /^[\d\s()+\-.]+$/.test(data.contactValue || '');
-  const valueBase = isPhone ? phoneBase : phoneBase * 0.68;
+  const valueBase = isPhone ? phoneBase : phoneBase * 0.66;
   return (
-    <View style={{ backgroundColor: T.midnight, paddingHorizontal: pad, paddingVertical: pad * 0.55 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+    <View>
+      <Rule weight={2} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: phoneBase * 0.32 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: T.flash, fontWeight: 700, fontSize: phoneBase * 0.26, letterSpacing: 2 }}>
+          <Text style={{ color: T.mute, fontWeight: 700, fontSize: Math.max(8.5, phoneBase * 0.22), letterSpacing: 2.5 }}>
             {data.contactVerb}
           </Text>
           <Text
             style={{
-              color: '#ffffff',
+              color: T.midnight,
               fontWeight: 900,
               fontSize: fitSize(data.contactValue, textW, valueBase, 11),
-              marginTop: 2,
+              letterSpacing: -0.5,
+              marginTop: 3,
             }}
           >
             {data.contactValue}
           </Text>
           {data.contactSecondary ? (
-            <Text style={{ color: '#94a3b8', fontSize: phoneBase * 0.24, marginTop: 3 }}>{data.contactSecondary}</Text>
+            <Text style={{ color: T.mute, fontSize: Math.max(8.5, phoneBase * 0.2), marginTop: 3 }}>
+              {data.contactSecondary}
+            </Text>
           ) : null}
-          {showUrl && data.contactValue !== data.caseUrlLabel ? (
-            <Text style={{ color: '#64748b', fontSize: Math.max(7.5, phoneBase * 0.17), marginTop: 5 }}>
+          {data.contactValue !== data.caseUrlLabel ? (
+            <Text style={{ color: T.faint, fontSize: Math.max(7.5, phoneBase * 0.16), marginTop: 6 }}>
               {data.caseUrlLabel}
             </Text>
           ) : null}
         </View>
         {data.qrDataUrl ? (
-          <View style={{ alignItems: 'center', marginLeft: 18 }}>
-            <View style={{ backgroundColor: '#ffffff', borderRadius: 8, padding: 7 }}>
+          <View style={{ alignItems: 'center', marginLeft: 22 }}>
+            <View style={{ borderWidth: 1, borderColor: T.hair, padding: 1 }}>
               <Image src={data.qrDataUrl} style={{ width: qrSize, height: qrSize }} />
             </View>
-            <Text style={{ color: '#94a3b8', fontSize: 7.5, fontWeight: 600, marginTop: 4, maxWidth: qrSize + 14, textAlign: 'center' }}>
+            <Text
+              style={{
+                color: T.mute,
+                fontSize: 7.5,
+                fontWeight: 600,
+                marginTop: 4,
+                maxWidth: qrSize + 6,
+                textAlign: 'center',
+              }}
+            >
               {data.scanCta}
             </Text>
           </View>
@@ -230,7 +262,7 @@ function ContactBand({ data, pad, phoneBase, qrSize, showUrl = true }) {
 }
 
 /** Real tear-off tabs: rotated so the number runs up the tab, dashed cut lines. */
-function TearTabs({ data, count = 10, height = 128 }) {
+function TearTabs({ data, count = 10, height = 124 }) {
   const tabW = PAGE.LETTER.width / count;
   const inner = { w: height - 14, h: tabW - 8 };
   const tabText = data.contactValue;
@@ -280,79 +312,79 @@ function TearTabs({ data, count = 10, height = 128 }) {
   );
 }
 
-// Page width by variant — normalize carries no page info, so stash it on data
-// at render time (set in FlyerDocument below).
-function PAGE_W(data) {
-  return data._pageW || PAGE.LETTER.width;
-}
-
-const M = 34; // letter margin
-const MP = 48; // poster margin
+const M = 40; // letter margin
+const MP = 56; // poster margin
 
 function ClassicLetter({ data }) {
   const bodyW = PAGE.LETTER.width - M * 2;
   // Portrait photos get a side-by-side hero (tall photo, name beside it) so
   // showing the WHOLE pet doesn't shrink the photo to a stamp.
   const isPortrait = Boolean(data.photos[0]) && data.photoAspect > 1.05;
-  const heroH = data.reward ? 336 : 356;
+  const heroH = data.reward ? 316 : 336;
   const pw = isPortrait ? photoDims(data, heroH, bodyW * 0.46).w : 0;
   return (
     <Page size="LETTER" style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
-      <HeaderBand data={data} height={data.reward ? 88 : 96} pad={M} />
-      <RewardStrip data={data} height={32} fontSize={15} />
-      <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 18, paddingBottom: 16 }}>
-        {isPortrait ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <PhotoBlock data={data} maxHeight={heroH} availWidth={bodyW * 0.46} />
-            <View style={{ flex: 1, paddingLeft: 20 }}>
-              <NameRow data={data} width={bodyW - pw - 20} base={40} />
+      <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 34, paddingBottom: 30 }}>
+        <Headline data={data} width={bodyW} base={94} />
+        <RewardLine data={data} fontSize={17} marginTop={8} />
+        <Rule marginTop={14} />
+        <View style={{ marginTop: 18 }}>
+          {isPortrait ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <PhotoBlock data={data} maxHeight={heroH} availWidth={bodyW * 0.46} />
+              <View style={{ flex: 1, paddingLeft: 22 }}>
+                <NameRow data={data} width={bodyW - pw - 22} base={44} />
+                <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 9 }}>{data.plea}</Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <PhotoBlock data={data} maxHeight={data.reward ? 236 : 250} availWidth={bodyW} />
+              <View style={{ marginTop: 16 }}>
+                <NameRow data={data} width={bodyW} base={44} />
+              </View>
               <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>{data.plea}</Text>
-            </View>
-          </View>
-        ) : (
-          <>
-            <PhotoBlock data={data} maxHeight={data.reward ? 250 : 262} availWidth={bodyW} />
-            <View style={{ marginTop: 15 }}>
-              <NameRow data={data} width={bodyW} base={40} />
-            </View>
-            <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 7 }}>{data.plea}</Text>
-          </>
-        )}
+            </>
+          )}
+        </View>
         <SpecTable data={data} />
         <View style={{ flexGrow: 1 }} />
+        <ContactBlock data={data} width={bodyW} phoneBase={46} qrSize={86} />
       </View>
-      <ContactBand data={data} pad={M} phoneBase={40} qrSize={88} />
     </Page>
   );
 }
 
 function TearTabFlyer({ data }) {
-  const photoSide = data.reward ? 244 : 268;
+  const bodyW = PAGE.LETTER.width - M * 2;
+  // Tall bound for portraits, wide bound for landscapes: either way the whole
+  // photo shows at real size beside the name column.
+  const heroH = data.reward ? 284 : 300;
+  const photoW = Math.max(photoDims(data, heroH, bodyW * 0.5).w, data.photos[0] ? 0 : bodyW * 0.5);
   return (
     <Page size="LETTER" style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
-      <HeaderBand data={data} height={64} pad={M} />
-      <RewardStrip data={data} height={26} fontSize={12.5} />
-      <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 16, paddingBottom: 14 }}>
+      <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 28, paddingBottom: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <Headline data={data} width={data.reward ? bodyW * 0.62 : bodyW} base={data.reward ? 44 : 52} />
+          <RewardLine data={data} fontSize={15} marginTop={0} />
+        </View>
+        <Rule marginTop={10} />
         <View style={{ flexGrow: 1 }} />
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ width: photoSide }}>
-            {data.photos[0] ? (
-              <PhotoBlock data={data} maxHeight={photoSide} availWidth={photoSide} />
-            ) : (
-              <View style={{ height: photoSide, borderRadius: 10, backgroundColor: T.midnight, alignItems: 'center', justifyContent: 'center' }}>
-                <Paw size={56} />
-              </View>
-            )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+          <View style={{ width: photoW }}>
+            <PhotoBlock data={data} maxHeight={heroH} availWidth={bodyW * 0.5} />
           </View>
           <View style={{ flex: 1, paddingLeft: 18, justifyContent: 'center' }}>
-            <NameRow data={data} width={PAGE.LETTER.width - M * 2 - photoSide - 18} base={34} />
+            <NameRow data={data} width={bodyW - photoW - 18} base={34} />
             <Text style={{ color: T.slate, fontSize: 10.5, lineHeight: 1.5, marginTop: 8 }}>{data.plea}</Text>
           </View>
         </View>
         <View style={{ flexGrow: 1 }} />
         <SpecTable data={data} compact />
+        <View style={{ marginTop: 12 }}>
+          <ContactBlock data={data} width={bodyW} phoneBase={32} qrSize={60} />
+        </View>
       </View>
-      <ContactBand data={data} pad={M} phoneBase={30} qrSize={62} showUrl={false} />
       <TearTabs data={data} />
     </Page>
   );
@@ -360,31 +392,35 @@ function TearTabFlyer({ data }) {
 
 function YardPoster({ data }) {
   const W = PAGE.TABLOID.width;
+  const bodyW = W - MP * 2;
   return (
     <Page size={[W, PAGE.TABLOID.height]} style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
-      <HeaderBand data={data} height={data.reward ? 150 : 164} pad={MP} />
-      <RewardStrip data={data} height={52} fontSize={26} />
-      <View style={{ flexGrow: 1, paddingHorizontal: MP, paddingTop: 26, paddingBottom: 22 }}>
-        <PhotoBlock data={data} maxHeight={data.reward ? 480 : 528} availWidth={W - MP * 2} radius={14} />
-        <View style={{ marginTop: 22, alignItems: 'center' }}>
-          <NameRow data={data} width={W - MP * 2} base={64} center />
+      <View style={{ flexGrow: 1, paddingHorizontal: MP, paddingTop: 48, paddingBottom: 40 }}>
+        <Headline data={data} width={bodyW} base={150} />
+        <RewardLine data={data} fontSize={30} marginTop={12} />
+        <Rule marginTop={20} weight={2.5} />
+        <View style={{ marginTop: 26 }}>
+          <PhotoBlock data={data} maxHeight={data.reward ? 490 : 540} availWidth={bodyW} />
         </View>
-        <Text style={{ color: T.slate, fontSize: 15, lineHeight: 1.45, marginTop: 12, textAlign: 'center' }}>
-          {data.plea}
-        </Text>
-        {data.markings ? (
-          <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 16, marginTop: 12, textAlign: 'center' }}>
-            <Text style={{ color: data.accent, fontWeight: 900 }}>LOOK FOR:  </Text>
-            {data.markings}
+        <View style={{ marginTop: 26 }}>
+          <NameRow data={data} width={bodyW} base={68} />
+        </View>
+        <Text style={{ color: T.slate, fontSize: 15, lineHeight: 1.45, marginTop: 12 }}>{data.plea}</Text>
+        <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: T.hair, paddingTop: 12 }}>
+          {data.markings ? (
+            <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 16, marginBottom: 8 }}>
+              <Text style={{ fontWeight: 900 }}>LOOK FOR:{'  '}</Text>
+              {data.markings}
+            </Text>
+          ) : null}
+          <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 16 }}>
+            <Text style={{ fontWeight: 900 }}>LAST SEEN:{'  '}</Text>
+            {[data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join('  ·  ')}
           </Text>
-        ) : null}
-        <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 16, marginTop: 8, textAlign: 'center' }}>
-          <Text style={{ color: data.accent, fontWeight: 900 }}>LAST SEEN:  </Text>
-          {[data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join('  ·  ')}
-        </Text>
+        </View>
         <View style={{ flexGrow: 1 }} />
+        <ContactBlock data={data} width={bodyW} phoneBase={64} qrSize={130} />
       </View>
-      <ContactBand data={data} pad={MP} phoneBase={58} qrSize={132} />
     </Page>
   );
 }
@@ -393,10 +429,9 @@ const VARIANTS = { classic: ClassicLetter, tabs: TearTabFlyer, poster: YardPoste
 
 export function FlyerDocument({ data, variant = 'classic' }) {
   const Variant = VARIANTS[variant] || ClassicLetter;
-  const pageW = variant === 'poster' ? PAGE.TABLOID.width : PAGE.LETTER.width;
   return (
     <Document title={`${data.stamp} ${data.petName} (${data.caseNumber})`} author="ReunitePets">
-      <Variant data={{ ...data, _pageW: pageW }} />
+      <Variant data={data} />
     </Document>
   );
 }
