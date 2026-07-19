@@ -297,6 +297,28 @@ describe('sweepArea (manual admin search)', () => {
     expect(JSON.parse(init.body).tools[0].type).toBe('web_search_20250305');
   });
 
+  test('no caller coordinates: the city is geocoded so the map can place the area', async () => {
+    process.env.ANTHROPIC_API_KEY = 'k';
+    global.fetch
+      .mockResolvedValueOnce(
+        anthropicResponse(
+          [{ title: 'Lost Pets of Elgin | Facebook', url: 'https://www.facebook.com/groups/lostpetselgin' }],
+          [{ name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin', category: 'lost_pet' }]
+        )
+      )
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ lat: '42.1', lon: '-88.3' }] });
+
+    const sweep = await sweepArea('Elgin', 'IL');
+
+    expect(sweep.ok).toBe(true);
+    expect(global.fetch.mock.calls[1][0]).toContain('nominatim.openstreetmap.org');
+    expect(prisma.communityGroup.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ areaLat: 42.1, areaLng: -88.3 }),
+      })
+    );
+  });
+
   test('model answers with URLs not in the search results are dropped, keyword fallback applies', async () => {
     process.env.ANTHROPIC_API_KEY = 'k';
     global.fetch.mockResolvedValue(

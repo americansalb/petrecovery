@@ -176,6 +176,34 @@ function candidatesFromSearchResults(content) {
   return out;
 }
 
+/** Best-effort city coordinates for the coverage map when the caller has
+ *  none (free-typed admin searches, pre-coordinate rows being re-swept). */
+async function geocodeCity(city, state) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const params = new URLSearchParams({
+      q: [city, state].filter(Boolean).join(', '),
+      format: 'json',
+      limit: '1',
+      countrycodes: 'us',
+    });
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'ReunitePets/1.0 (area geocoder)' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const lat = parseFloat(data?.[0]?.lat);
+    const lng = parseFloat(data?.[0]?.lon);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** The model's final answer, tolerant of prose around the JSON. */
 function parseKeepList(content) {
   const text = (content || []).filter((b) => b.type === 'text' && b.text).map((b) => b.text).join('\n');
@@ -302,7 +330,12 @@ export async function sweepArea(city, rawState, geo = null) {
 
   if (ranked.length === 0) return { ok: true, groups: [], candidates: groupCandidates.length };
 
-  const blocked = await writeGroupDirectory(city, state, ranked, geo);
+  // No coordinates from the caller: geocode the city so the coverage map can
+  // always place this area (also heals pre-coordinate rows on re-sweep).
+  const resolvedGeo =
+    Number.isFinite(geo?.lat) && Number.isFinite(geo?.lng) ? geo : await geocodeCity(city, state);
+
+  const blocked = await writeGroupDirectory(city, state, ranked, resolvedGeo);
   const groups = ranked.filter((g) => {
     const slug = groupSlugFromUrl(g.url);
     return !(slug && blocked.has(slug));
