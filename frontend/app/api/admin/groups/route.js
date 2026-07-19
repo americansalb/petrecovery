@@ -44,6 +44,8 @@ export async function GET(request) {
         { name: { contains: search, mode: 'insensitive' } },
         { slug: { contains: search, mode: 'insensitive' } },
         { city: { contains: search, mode: 'insensitive' } },
+        { coverage: { contains: search, mode: 'insensitive' } },
+        { cities: { contains: search, mode: 'insensitive' } },
       ];
     }
     if (state) where.state = { equals: state, mode: 'insensitive' };

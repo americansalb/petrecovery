@@ -60,8 +60,17 @@ test('runs the sweep and returns the saved groups', async () => {
 
   const res = await post({ city: '  Elgin ', state: 'IL' });
   expect(res.status).toBe(200);
-  expect(sweepArea).toHaveBeenCalledWith('Elgin', 'IL');
+  expect(sweepArea).toHaveBeenCalledWith('Elgin', 'IL', null);
   const data = await res.json();
   expect(data.groups).toHaveLength(1);
   expect(data.candidates).toBe(7);
+});
+
+test('passes picked-city coordinates through to the sweep', async () => {
+  getServerSession.mockResolvedValue({ user: { role: 'ADMIN' } });
+  sweepArea.mockResolvedValue({ ok: true, candidates: 3, groups: [] });
+
+  const res = await post({ city: 'Elgin', state: 'IL', lat: 42.04, lng: -88.28 });
+  expect(res.status).toBe(200);
+  expect(sweepArea).toHaveBeenCalledWith('Elgin', 'IL', { lat: 42.04, lng: -88.28 });
 });

@@ -155,6 +155,12 @@ export default function AdminDashboard() {
             icon="📣"
           />
           <AdminCard
+            title="Coverage Map"
+            description="See where groups and shelters exist, and the unfilled regions"
+            href="/admin/coverage"
+            icon="🗺️"
+          />
+          <AdminCard
             title="Notifications"
             description="Send announcements and manage notification templates"
             href="/admin/notifications"

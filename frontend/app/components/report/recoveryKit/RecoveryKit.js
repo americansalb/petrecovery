@@ -291,7 +291,12 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                             className="flex items-center gap-2 p-2 rounded-xl bg-[#F3EFE7] hover:bg-[#EDE8DC] transition-colors"
                           >
                             <ExternalLink size={13} className="text-[#0B1133] shrink-0" />
-                            <span className="text-xs font-semibold text-[#0A0D26] truncate">{t.name}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-xs font-semibold text-[#0A0D26] truncate">{t.name}</span>
+                              {t.coverage ? (
+                                <span className="block text-[0.6rem] text-[#8A8377] truncate">Covers {t.coverage}</span>
+                              ) : null}
+                            </span>
                             {t.kind === 'facebook_group' && (
                               <span className="ml-auto shrink-0 text-[0.6rem] font-bold uppercase tracking-wide text-[#8A8377]">
                                 {t.category === 'COMMUNITY' ? 'Community' : 'Lost pets'}
