@@ -76,7 +76,6 @@ const T = {
   urgent: 'URGENT · PLEASE HELP',
   reward: 'REWARD',
   lastSeen: 'Last seen',
-  where: 'Area last seen',
   color: 'Color & markings',
   size: 'Size & breed',
   chip: 'Microchip',
@@ -350,36 +349,21 @@ function BigPhotoSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true 
       <View style={{ flex: 1, marginTop: 15 * k, marginHorizontal: padH, minHeight: 120 * k }}>
         <PhotoFrame src={data.photos[0]} borderW={2.25 * k} style={{ width: '100%', height: '100%' }} placeFs={8.5 * k} />
       </View>
-      {/* HAVE YOU SEEN + name / last seen */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          paddingHorizontal: padH,
-          paddingTop: 10.5 * k,
-        }}
-      >
-        <View style={{ flexShrink: 1, minWidth: 0, paddingRight: 10 * k }}>
-          <Text style={{ fontWeight: 800, fontSize: 9.75 * k, letterSpacing: 1.4 * k, color: C.navy }}>
-            {T.seen(data.petName.toUpperCase())}
-          </Text>
-          <Text
-            style={{
-              fontFamily: 'Archivo Black',
-              fontSize: fitSize(data.petName.toUpperCase(), cw * 0.55, 40.5 * k, 16),
-              lineHeight: 1,
-              marginTop: 1.5 * k,
-            }}
-          >
-            {data.petName.toUpperCase()}
-          </Text>
-        </View>
-        <View style={{ maxWidth: 225 * k, alignItems: 'flex-end' }}>
-          <Text style={LABEL(7.5 * k)}>{T.lastSeen}</Text>
-          <Text style={{ fontWeight: 700, fontSize: 11.25 * k, lineHeight: 1.3, textAlign: 'right' }}>{data.lastSeenArea}</Text>
-          <Text style={{ fontWeight: 600, fontSize: 9.4 * k, color: C.mute, textAlign: 'right' }}>{data.lastSeenWhen}</Text>
-        </View>
+      {/* HAVE YOU SEEN + name */}
+      <View style={{ paddingHorizontal: padH, paddingTop: 10.5 * k }}>
+        <Text style={{ fontWeight: 800, fontSize: 9.75 * k, letterSpacing: 1.4 * k, color: C.navy }}>
+          {T.seen(data.petName.toUpperCase())}
+        </Text>
+        <Text
+          style={{
+            fontFamily: 'Archivo Black',
+            fontSize: fitSize(data.petName.toUpperCase(), cw, 40.5 * k, 16),
+            lineHeight: 1,
+            marginTop: 1.5 * k,
+          }}
+        >
+          {data.petName.toUpperCase()}
+        </Text>
       </View>
       {/* Info grid */}
       <View style={{ flexDirection: 'row', marginTop: 10.5 * k, marginHorizontal: padH }}>
@@ -402,11 +386,15 @@ function BigPhotoSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true 
         <Text style={LABEL(7.5 * k, C.navy)}>{T.notes}</Text>
         <Text style={{ fontWeight: 600, fontSize: 10 * k, lineHeight: 1.4, marginTop: 1 }}>{recastApproach(data)}</Text>
       </View>
-      {/* Map + QR + contact */}
+      {/* Map (with last-seen line) + QR + contact */}
       <View style={{ flexDirection: 'row', marginTop: 10.5 * k, marginHorizontal: padH, height: featureH, alignItems: 'flex-end' }}>
         <View style={{ flex: 1, height: featureH, minWidth: 0 }}>
-          <Text style={{ ...LABEL(7.5 * k), marginBottom: 3 * k }}>{T.where}</Text>
-          <MapBox data={data} w={cw - (112.5 + 165) * k - 21 * k} h={featureH - 12 * k} borderW={2.25 * k} />
+          <Text style={LABEL(7.5 * k)}>{T.lastSeen}</Text>
+          <Text maxLines={1} style={{ fontWeight: 700, fontSize: 10.5 * k, lineHeight: 1.25, marginTop: 1 * k, marginBottom: 4.5 * k }}>
+            {data.lastSeenArea}
+            <Text style={{ color: C.mute, fontWeight: 600 }}>{'  ·  '}{data.lastSeenWhen}</Text>
+          </Text>
+          <MapBox data={data} w={cw - (112.5 + 165) * k - 21 * k} h={featureH - 26 * k} borderW={2.25 * k} />
         </View>
         <View style={{ marginLeft: 10.5 * k }}>
           <QrBox data={data} w={112.5 * k} h={126 * k} qrSize={84 * k} borderW={2.25 * k} capFs={7 * k} />
@@ -477,8 +465,12 @@ function SplitSheet({ data }) {
           <PhotoFrame src={data.photos[0]} style={{ flex: extra ? 2.4 : 3.4, minHeight: 0 }} />
           {extra ? <PhotoFrame src={extra} style={{ flex: 1, minHeight: 0, marginTop: 9 }} /> : null}
           <View style={{ marginTop: 9 }}>
-            <Text style={{ ...LABEL(7.5), marginBottom: 3 }}>{T.where}</Text>
-            <MapBox data={data} w={colW} h={127.5} />
+            <Text style={LABEL(7.5)}>{T.lastSeen}</Text>
+            <Text maxLines={1} style={{ fontWeight: 700, fontSize: 10.5, lineHeight: 1.25, marginTop: 1, marginBottom: 4.5 }}>
+              {data.lastSeenArea}
+              <Text style={{ color: C.mute, fontWeight: 600 }}>{'  ·  '}{data.lastSeenWhen}</Text>
+            </Text>
+            <MapBox data={data} w={colW} h={111} />
           </View>
         </View>
         {/* Details column */}
@@ -496,11 +488,6 @@ function SplitSheet({ data }) {
           >
             {data.petName.toUpperCase()}
           </Text>
-          <View style={{ borderBottomWidth: 1.5, borderBottomColor: C.rule, paddingVertical: 8.25 }}>
-            <Text style={LABEL(7.5)}>{T.lastSeen}</Text>
-            <Text style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.3 }}>{data.lastSeenArea}</Text>
-            <Text style={{ fontWeight: 600, fontSize: 9.75, color: C.mute }}>{data.lastSeenWhen}</Text>
-          </View>
           <View style={{ borderBottomWidth: 1.5, borderBottomColor: C.rule, paddingVertical: 8.25 }}>
             <Text style={LABEL(7.5)}>{T.color}</Text>
             <Text style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3 }}>{colorMarkings(data)}</Text>
