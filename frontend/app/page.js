@@ -91,93 +91,133 @@ function Hero({ metrics }) {
           <animateMotion dur="18s" repeatCount="indefinite" path={SEARCH_PATH_D} />
         </circle>
       </svg>
-      <div className="absolute right-[13%] top-[30%] hidden lg:block pointer-events-none" aria-hidden="true">
+      <div className="absolute right-[5%] top-[10%] hidden lg:block pointer-events-none" aria-hidden="true">
         <span className="absolute -inset-3 rounded-full bg-flash-400/30 animate-ping" />
         <span className="absolute -inset-7 rounded-full bg-flash-400/10 animate-ping" style={{ animationDelay: '0.7s' }} />
         <MapPin className="relative w-7 h-7 text-flash-400 drop-shadow-[0_0_12px_rgba(250,204,21,0.7)]" />
       </div>
 
-      <div className="relative max-w-5xl mx-auto px-4 pt-10 pb-24 md:pt-14 md:pb-32 text-center">
-        {/* Sarama presides, but the headline leads: guide-sized, not hero-sized */}
-        <div className="relative w-fit mx-auto mb-5">
-          <img
-            src={SARAMA_AVATAR_PNG}
-            alt={`${SARAMA_NAME}, ${SARAMA_TAGLINE}`}
-            className="relative h-24 md:h-32 w-auto mx-auto drop-shadow-[0_12px_32px_rgba(250,204,21,0.25)]"
-            onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
-          />
-          <p className="relative text-flash-300/90 text-[11px] font-semibold uppercase tracking-[0.25em] mt-2 text-center">
-            {SARAMA_NAME} · {SARAMA_TAGLINE}
-          </p>
-        </div>
+      <div className="relative max-w-6xl mx-auto px-4 pt-10 pb-20 md:pt-14 md:pb-24">
+        <div className="lg:grid lg:grid-cols-[1fr_minmax(0,44%)] lg:gap-12 lg:items-center">
+          <div className="text-center lg:text-left">
+            {/* Sarama as a compact brand row: present, not presiding */}
+            <div className="flex items-center justify-center lg:justify-start gap-3 mb-6">
+              <img
+                src={SARAMA_AVATAR_PNG}
+                alt={`${SARAMA_NAME}, ${SARAMA_TAGLINE}`}
+                className="h-14 w-auto drop-shadow-[0_8px_20px_rgba(250,204,21,0.25)]"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <p className="text-flash-300/90 text-[11px] font-semibold uppercase tracking-[0.25em]">
+                {SARAMA_NAME} · {SARAMA_TAGLINE}
+              </p>
+            </div>
 
-        {metrics?.open_cases > 0 && (
-          <div className="flex w-fit mx-auto items-center gap-2 bg-red-500/15 border border-red-400/30 text-red-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-6">
-            <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse-soft" />
-            {metrics.open_cases} pet{metrics.open_cases !== 1 ? 's' : ''} waiting to come home right now
-          </div>
-        )}
+            {metrics?.open_cases > 0 && (
+              <Link
+                href="/lost-and-found"
+                className="inline-flex items-center gap-2 bg-red-500/15 border border-red-400/30 hover:border-red-400/60 hover:bg-red-500/25 text-red-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-6 transition-colors"
+              >
+                <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse-soft" />
+                {metrics.open_cases} pet{metrics.open_cases !== 1 ? 's' : ''} waiting to come home right now
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
 
-        <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-tight mb-5">
-          Every lost pet deserves{' '}
-          <span className="inline-block text-transparent bg-clip-text bg-gradient-to-r from-flash-300 to-flash-500">
-            a search party
-          </span>
-        </h1>
-        <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto mb-8">
-          Your city has a Rescue Force: neighbors organized like a volunteer
-          fire department for lost pets. Report once, and they search with you
-          until your pet is home.
-        </p>
+            <h1 className="text-4xl md:text-5xl xl:text-6xl font-extrabold text-white leading-tight mb-5">
+              Every lost pet deserves{' '}
+              <span className="inline-block text-transparent bg-clip-text bg-gradient-to-r from-flash-300 to-flash-500">
+                a search party
+              </span>
+            </h1>
+            <p className="text-midnight-200 text-lg md:text-xl max-w-2xl mx-auto lg:mx-0 mb-8">
+              Your city has a Rescue Force: neighbors organized like a volunteer
+              fire department for lost pets. Report once, and they search with you
+              until your pet is home.
+            </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-7">
-          <Link
-            href="/report/new"
-            className="inline-flex items-center gap-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-rose-900/40 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
-          >
-            <Bell className="w-5 h-5" />
-            My pet is lost
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-          {/* Outline, not fill: the crisis button must be the loudest thing here */}
-          <Link
-            href="/report/found"
-            className="inline-flex items-center gap-2.5 border-2 border-flash-400/70 text-flash-300 hover:bg-flash-400/10 hover:border-flash-400 font-bold text-lg px-8 py-[14px] rounded-2xl transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
-          >
-            <Heart className="w-5 h-5" />
-            I found a pet
-          </Link>
-        </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-6">
+              <Link
+                href="/report/new"
+                className="inline-flex items-center gap-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-rose-900/40 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
+              >
+                <Bell className="w-5 h-5" />
+                My pet is lost
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              {/* Outline, not fill: the crisis button must be the loudest thing here */}
+              <Link
+                href="/report/found"
+                className="inline-flex items-center gap-2.5 border-2 border-flash-400/70 text-flash-300 hover:bg-flash-400/10 hover:border-flash-400 font-bold text-lg px-8 py-[14px] rounded-2xl transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
+              >
+                <Heart className="w-5 h-5" />
+                I found a pet
+              </Link>
+            </div>
 
-        {/* The everyday door, on the main page from the first second:
-            the rescue product is the headline, this is the quiet peer */}
-        <Link
-          href="/care/start"
-          className="group inline-flex items-center gap-2 mb-7 text-midnight-200 hover:text-white font-semibold text-sm transition-colors"
-        >
-          <ShieldIcon size={16} className="text-flash-400" />
-          Pet safe at home? Start their free Health Book
-          <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-        </Link>
+            {/* The everyday door, on the main page from the first second:
+                the rescue product is the headline, this is the quiet peer */}
+            <Link
+              href="/care/start"
+              className="group inline-flex items-center gap-2 mb-6 text-midnight-200 hover:text-white font-semibold text-sm transition-colors"
+            >
+              <ShieldIcon size={16} className="text-flash-400" />
+              Pet safe at home? Start their free Health Book
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
 
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-midnight-300 text-sm">
-          {['Always free', 'Takes about a minute', 'Powered by neighbors near you'].map((t) => (
-            <span key={t} className="inline-flex items-center gap-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" /> {t}
-            </span>
-          ))}
-        </div>
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 text-midnight-300 text-sm">
+              {['Always free', 'Takes about a minute', 'Powered by neighbors near you'].map((t) => (
+                <span key={t} className="inline-flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" /> {t}
+                </span>
+              ))}
+            </div>
 
-        {stats.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-8 mt-10">
-            {stats.map(({ value, one, many }) => (
-              <div key={many} className="text-center">
-                <p className="text-3xl font-extrabold text-white">{Number(value).toLocaleString()}</p>
-                <p className="text-midnight-300 text-sm">{Number(value) === 1 ? one : many}</p>
+            {/* Proof as quiet chips, not a billboard: one lonely giant number
+                reads as an empty room, chips read as momentum */}
+            {stats.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 mt-7">
+                {stats.map(({ value, one, many }) => (
+                  <span
+                    key={many}
+                    className="inline-flex items-baseline gap-1.5 bg-white/5 border border-white/10 rounded-full px-4 py-1.5"
+                  >
+                    <span className="text-white font-extrabold">{Number(value).toLocaleString()}</span>
+                    <span className="text-midnight-300 text-xs font-semibold">
+                      {Number(value) === 1 ? one : many}
+                    </span>
+                  </span>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
+
+          {/* The product, above the fold: a real Mission Control, framed live */}
+          <div className="mt-12 lg:mt-0">
+            <div className="rounded-3xl overflow-hidden border border-midnight-700/80 shadow-2xl shadow-black/40 bg-midnight-950 lg:rotate-1 lg:hover:rotate-0 transition-transform duration-300">
+              <div className="flex items-center gap-1.5 px-4 py-3 bg-midnight-900 border-b border-midnight-800">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-400/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-flash-400/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
+                <span className="ml-3 text-midnight-300 text-xs font-semibold tracking-wide">
+                  Mission Control · AUS-2026-0001
+                </span>
+                <span className="ml-auto inline-flex items-center gap-1.5 text-emerald-300 text-[11px] font-bold uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-soft" /> Live
+                </span>
+              </div>
+              <img
+                src="/landing/mission-control.jpg"
+                alt="Mission Control: a live satellite map with the search zone, sighting reports, one-tap flyers, and the team's mission log"
+                className="w-full h-auto"
+              />
+            </div>
+            <p className="text-center text-midnight-400 text-xs mt-3">
+              Mission Control: the live map your Rescue Force searches from.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -355,32 +395,11 @@ function HowItWorks() {
         ))}
       </div>
 
-      {/* Step 3, shown instead of described: the real Mission Control */}
-      <div className="mt-10 md:mt-12">
-        <div className="rounded-3xl overflow-hidden border border-midnight-200 shadow-2xl bg-midnight-950">
-          <div className="flex items-center gap-1.5 px-4 py-3 bg-midnight-900 border-b border-midnight-800">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-400/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-flash-400/80" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
-            <span className="ml-3 text-midnight-300 text-xs font-semibold tracking-wide">
-              Mission Control · AUS-2026-0001
-            </span>
-            <span className="ml-auto inline-flex items-center gap-1.5 text-emerald-300 text-[11px] font-bold uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-soft" /> Live
-            </span>
-          </div>
-          <img
-            src="/landing/mission-control.jpg"
-            alt="Mission Control: a live satellite map with the search zone, sighting reports, one-tap flyers, and the team's mission log"
-            className="w-full h-auto"
-            loading="lazy"
-          />
-        </div>
-        <p className="text-center text-midnight-500 text-sm mt-4 max-w-2xl mx-auto">
-          This is Mission Control, where your force marks the search zone,
-          tracks sightings, prints flyers, and logs every move until the reunion.
-        </p>
-      </div>
+      <p className="text-center text-midnight-500 text-sm mt-8 max-w-2xl mx-auto">
+        Step 3 is the Mission Control you saw up top: the search zone on a live
+        map, sighting reports, one-tap flyers, and the team&apos;s log, until the
+        reunion.
+      </p>
     </section>
   );
 }
