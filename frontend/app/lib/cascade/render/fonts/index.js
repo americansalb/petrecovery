@@ -25,18 +25,30 @@ export const INTER_SEMIBOLD = load('Inter-SemiBold.ttf');
 export const INTER_BOLD = load('Inter-Bold.ttf');
 export const INTER_BLACK = load('Inter-Black.ttf');
 
+// The poster design system's faces (OFL, see LICENSE.txt)
+export const ARCHIVO_400 = load('Archivo-400.ttf');
+export const ARCHIVO_600 = load('Archivo-600.ttf');
+export const ARCHIVO_700 = load('Archivo-700.ttf');
+export const ARCHIVO_800 = load('Archivo-800.ttf');
+export const ARCHIVO_BLACK = load('ArchivoBlack.ttf');
+
 // satori wants an array of { name, data, weight, style }
 export const SATORI_FONTS = [
   { name: 'Inter', data: INTER_REGULAR, weight: 400, style: 'normal' },
   { name: 'Inter', data: INTER_SEMIBOLD, weight: 600, style: 'normal' },
   { name: 'Inter', data: INTER_BOLD, weight: 700, style: 'normal' },
   { name: 'Inter', data: INTER_BLACK, weight: 900, style: 'normal' },
+  { name: 'Archivo', data: ARCHIVO_400, weight: 400, style: 'normal' },
+  { name: 'Archivo', data: ARCHIVO_600, weight: 600, style: 'normal' },
+  { name: 'Archivo', data: ARCHIVO_700, weight: 700, style: 'normal' },
+  { name: 'Archivo', data: ARCHIVO_800, weight: 800, style: 'normal' },
+  { name: 'Archivo Black', data: ARCHIVO_BLACK, weight: 400, style: 'normal' },
 ];
 
 // resvg wants raw font buffers + a default family, and must not touch the system
 export const RESVG_FONT = {
-  fontBuffers: [INTER_REGULAR, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK],
-  defaultFontFamily: 'Inter',
+  fontBuffers: [INTER_REGULAR, INTER_SEMIBOLD, INTER_BOLD, INTER_BLACK, ARCHIVO_400, ARCHIVO_600, ARCHIVO_700, ARCHIVO_800, ARCHIVO_BLACK],
+  defaultFontFamily: 'Archivo',
   loadSystemFonts: false,
 };
 

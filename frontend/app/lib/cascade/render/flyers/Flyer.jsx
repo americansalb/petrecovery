@@ -131,10 +131,9 @@ function PhotoFrame({ src, borderW = 2.25, style = {}, placeFs = 8.5 }) {
     <View style={{ borderWidth: borderW, borderColor: C.ink, backgroundColor: C.cell, overflow: 'hidden', ...style }}>
       <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }}>
         {src ? (
-          <Image
-            src={src}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPositionY: '35%' }}
-          />
+          // Contain, never crop: the whole pet always shows, matted on the
+          // warm cell ground inside the ink frame.
+          <Image src={src} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
         ) : (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
             <Text style={{ fontFamily: 'Archivo', fontWeight: 700, fontSize: placeFs, color: C.mute, textAlign: 'center' }}>

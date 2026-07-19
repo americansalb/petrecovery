@@ -16,6 +16,7 @@ import { ACTION_RUNNERS } from './actions/index.js';
 import { upsertStep, upsertAsset, rollupSummary } from './store';
 import { caseUrl, qrDataUrl } from './render/qr.js';
 import { loadPetImageDataUrl } from './render/photo.js';
+import { buildFlyerMapSpec } from './render/staticMap.js';
 import { broadcastActivation } from '../sse/cascadeStream';
 import { piggybackDrain } from './followups';
 
@@ -51,8 +52,9 @@ export async function seedActivation(caseData, correlationId) {
   return activation;
 }
 
-/** Build the memoized shared render inputs (QR + pet photos) fetched once. */
-function makeGetShared(caseData) {
+/** Build the memoized shared render inputs (QR + pet photos + last-seen map
+ *  spec) fetched once and reused by the flyers AND social actions. */
+export function makeGetShared(caseData) {
   let promise = null;
   return () => {
     if (promise) return promise;
@@ -66,11 +68,20 @@ function makeGetShared(caseData) {
       }
       const urls = [...new Set([caseData.petPhotoUrl, ...petPhotos].filter(Boolean))].slice(0, 3);
       const dataUrls = (await Promise.all(urls.map((u) => loadPetImageDataUrl(u)))).filter(Boolean);
+      // Voyager tiles + z15 match the poster design system. Best-effort: null
+      // on any failure and the layouts render mapless.
+      const map = await buildFlyerMapSpec(caseData.lastSeenLatitude, caseData.lastSeenLongitude, {
+        width: 680,
+        height: 220,
+        zoom: 15,
+        style: 'voyager',
+      }).catch(() => null);
       return {
         caseUrl: url,
         qrDataUrl: await qrDataUrl(url),
         photoDataUrls: dataUrls,
         photoDataUrl: dataUrls[0] || null,
+        map,
       };
     })();
     return promise;

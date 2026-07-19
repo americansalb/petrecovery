@@ -13,7 +13,47 @@ import { useState, useRef } from 'react';
 import { Camera, Loader2, X, Check, Sparkles, ImagePlus } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
+// Post-compression backstop only. Nobody gets told their photo is "too big":
+// oversized photos are downscaled and re-encoded in the browser first.
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const TARGET_BYTES = 2.5 * 1024 * 1024;
+const MAX_EDGE = 2000; // px — plenty for flyers, cards, and AI analysis
+
+/**
+ * Shrink an oversized photo in the browser: decode, cap the long edge, and
+ * re-encode as JPEG, stepping quality down until it fits the target. Returns
+ * the original file untouched when it is already small, or when the browser
+ * cannot decode it (the server backstop still applies).
+ */
+async function compressImage(file) {
+  const isPng = /png$/i.test(file.type);
+  if (file.size <= TARGET_BYTES && !isPng) return file;
+  if (isPng && file.size <= 1024 * 1024) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+    if (bitmap.close) bitmap.close();
+    let best = null;
+    for (const quality of [0.85, 0.75, 0.65]) {
+      // eslint-disable-next-line no-await-in-loop
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (!blob) break;
+      best = blob;
+      if (blob.size <= TARGET_BYTES) break;
+    }
+    if (!best) return file;
+    const name = file.name.replace(/\.[a-z0-9]+$/i, '') + '.jpg';
+    return new File([best], name, { type: 'image/jpeg' });
+  } catch {
+    return file; // undecodable in this browser — let the server decide
+  }
+}
 
 export default function PhotoStep({
   photos = [], // array of CDN URLs
@@ -66,13 +106,15 @@ export default function PhotoStep({
     setUploading(true);
 
     const uploaded = [];
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) {
-        setError(`${file.name} isn't an image.`);
+    for (const rawFile of files) {
+      if (!rawFile.type.startsWith('image/')) {
+        setError(`${rawFile.name} isn't an image.`);
         continue;
       }
+      // eslint-disable-next-line no-await-in-loop
+      const file = await compressImage(rawFile);
       if (file.size > MAX_FILE_BYTES) {
-        setError('Each photo must be under 10MB.');
+        setError(`Couldn't shrink ${rawFile.name} enough to upload. Try a screenshot of it.`);
         continue;
       }
       try {
@@ -154,7 +196,9 @@ export default function PhotoStep({
                 <p className="font-bold text-midnight-900 text-lg">
                   Tap to add {petName ? `a photo of ${petName}` : 'a photo'}
                 </p>
-                <p className="text-sm text-midnight-400 mt-1">or drag &amp; drop · JPEG, PNG · up to 10MB</p>
+                <p className="text-sm text-midnight-400 mt-1">
+                  or drag &amp; drop · any size, we optimize it for you
+                </p>
               </>
             )}
           </div>

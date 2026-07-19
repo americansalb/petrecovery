@@ -14,6 +14,7 @@ export async function runSocial(ctx) {
     photoDataUrl: shared.photoDataUrl,
     headline: ctx.results.ai_copy?.headline,
     plea: ctx.results.ai_copy?.plea,
+    map: shared.map,
   };
 
   let ready = 0;
