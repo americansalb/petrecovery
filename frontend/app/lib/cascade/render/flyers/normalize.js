@@ -99,6 +99,10 @@ export function normalizeFlyerData(caseData, shared = {}) {
     sizeWord ? sizeWord.charAt(0).toUpperCase() + sizeWord.slice(1) : null,
   ].filter(Boolean);
 
+  // The human behind the number: "CALL OR TEXT SARAH" reads like a family,
+  // not a call center.
+  const ownerFirstName = (caseData.ownerName || '').trim().split(/\s+/)[0] || '';
+
   const hasPhone = caseData.ownerPhone && caseData.ownerPhone !== 'Not provided';
   const hasEmail =
     caseData.ownerEmail && !isPlaceholderEmail(caseData.ownerEmail) && caseData.ownerEmail !== 'Not provided';
@@ -168,6 +172,7 @@ export function normalizeFlyerData(caseData, shared = {}) {
     reward, // e.g. "$500" or "REWARD" or null
     contactVerb,
     contactValue,
+    ownerFirstName,
     contactSecondary: cap(contactSecondary, 48),
     caseNumber: caseData.caseNumber,
     caseUrlLabel,
