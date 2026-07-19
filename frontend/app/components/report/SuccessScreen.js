@@ -49,9 +49,9 @@ export default function SuccessScreen({
   const nextSteps =
     variant === 'lost'
       ? [
-          'Volunteers near the last-seen spot are being notified now',
-          "You'll hear the moment someone reports a sighting",
-          'Your case page is the hub for your search party',
+          'Print your flyers and post them near the last-seen spot',
+          'Share your case link to Facebook, Nextdoor, and group chats',
+          'Call nearby shelters today and file a lost report with each',
         ]
       : [
           'Strong matches alert the owner automatically',
@@ -64,8 +64,8 @@ export default function SuccessScreen({
       <div className="w-full max-w-xl mx-auto px-5 sm:px-8 py-8 lg:py-12 text-center">
         {/* Hero */}
         <div className="relative inline-block mb-5">
-          <span className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg ${theme.accentBg}`}>
-            <Check size={40} className="text-white" strokeWidth={3} />
+          <span className="w-20 h-20 rounded-full flex items-center justify-center shadow-lg bg-[#0B1133]">
+            <Check size={40} className="text-[#F2D21B]" strokeWidth={3} />
           </span>
           <Sparkles size={20} className="absolute -top-1 -right-2 text-flash-400" />
           <Sparkles size={15} className="absolute -bottom-1 -left-2 text-flash-400" />
@@ -159,12 +159,12 @@ export default function SuccessScreen({
 
         {/* Phone-only guests: the SMS is their only way back to the case */}
         {!contactEmail && contactPhone && (
-          <div className="mt-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3 text-left">
-            <MessageSquare size={19} className="text-blue-500 shrink-0 mt-0.5" />
+          <div className="mt-4 p-4 rounded-2xl bg-[#F3EFE7] border border-[#E5E0D4] flex items-start gap-3 text-left">
+            <MessageSquare size={19} className="text-[#0B1133] shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-bold text-blue-900">We texted you the link</p>
-              <p className="text-blue-700 mt-0.5">
-                Check <strong>{contactPhone}</strong> for your case link — save it, it&apos;s how you
+              <p className="font-bold text-[#0A0D26]">We texted you the link</p>
+              <p className="text-[#6B6459] mt-0.5">
+                Check <strong>{contactPhone}</strong> for your case link. Save it, it&apos;s how you
                 manage this report.
               </p>
             </div>
@@ -173,11 +173,11 @@ export default function SuccessScreen({
 
         {/* Account created note for guests */}
         {accountCreated && contactEmail && (
-          <div className="mt-4 p-4 rounded-2xl bg-blue-50 border border-blue-200 flex items-start gap-3 text-left">
-            <Mail size={19} className="text-blue-500 shrink-0 mt-0.5" />
+          <div className="mt-4 p-4 rounded-2xl bg-[#F3EFE7] border border-[#E5E0D4] flex items-start gap-3 text-left">
+            <Mail size={19} className="text-[#0B1133] shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-bold text-blue-900">Check your inbox</p>
-              <p className="text-blue-700 mt-0.5">
+              <p className="font-bold text-[#0A0D26]">Check your inbox</p>
+              <p className="text-[#6B6459] mt-0.5">
                 We sent a link to <strong>{contactEmail}</strong> so you can manage this report and get updates.
               </p>
             </div>
@@ -186,11 +186,11 @@ export default function SuccessScreen({
 
         {/* Squad joined (lost) */}
         {variant === 'lost' && assignedSquad && (
-          <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-start gap-3 text-left">
-            <Heart size={19} className="text-emerald-500 shrink-0 mt-0.5" />
+          <div className="mt-4 p-4 rounded-2xl bg-[#F3EFE7] border border-[#E5E0D4] flex items-start gap-3 text-left">
+            <Heart size={19} className="text-[#0B1133] shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-bold text-emerald-900">You&apos;ve joined {assignedSquad.name}</p>
-              <p className="text-emerald-700 mt-0.5">Your neighbors are ready to help search.</p>
+              <p className="font-bold text-[#0A0D26]">You&apos;ve joined {assignedSquad.name}</p>
+              <p className="text-[#6B6459] mt-0.5">Your neighbors are ready to help search.</p>
             </div>
           </div>
         )}
@@ -220,7 +220,14 @@ export default function SuccessScreen({
           if (variant === 'lost' && caseNumber && activation) {
             return (
               <div className="mt-6">
-                <RecoveryKit caseNumber={caseNumber} initialStatus={activation.status} fallback={whatHappensNext} />
+                <RecoveryKit
+                  caseNumber={caseNumber}
+                  initialStatus={activation.status}
+                  fallback={whatHappensNext}
+                  petName={petName}
+                  shareUrl={shareUrl}
+                  onShare={share}
+                />
               </div>
             );
           }
@@ -232,7 +239,7 @@ export default function SuccessScreen({
           {caseNumber && (
             <Link
               href={caseUrl}
-              className={`block w-full py-4 rounded-2xl font-bold text-lg transition-all ${theme.postCta}`}
+              className="block w-full py-4 rounded-2xl font-extrabold text-lg transition-all bg-[#0B1133] text-[#F2D21B] hover:opacity-95 shadow-lg"
             >
               View {variant === 'lost' ? 'your' : 'the'} case page
             </Link>
@@ -264,7 +271,7 @@ export default function SuccessScreen({
                 href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1877f2] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0B1133] text-[#FFF9EE] text-sm font-semibold hover:opacity-90 transition-opacity"
               >
                 <Facebook size={15} />
                 Facebook
