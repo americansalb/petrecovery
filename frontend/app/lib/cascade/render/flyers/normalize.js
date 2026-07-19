@@ -35,6 +35,50 @@ function cap(str, n) {
 }
 
 /**
+ * Read intrinsic pixel dimensions from a PNG/JPEG data URL so the flyer can
+ * size the photo frame to the photo's real shape and show the WHOLE pet,
+ * never a letterboxed crop. Returns {w,h} or null (unknown format).
+ */
+export function imageDimsFromDataUrl(dataUrl) {
+  try {
+    const m = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)/i.exec(dataUrl || '');
+    if (!m) return null;
+    // Decode only a header window; SOF/IHDR live near the front.
+    const buf = Buffer.from(m[2].slice(0, 262144), 'base64');
+    if (m[1].toLowerCase() === 'png') {
+      if (buf.length < 24 || buf.readUInt32BE(12) !== 0x49484452) return null; // "IHDR"
+      return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+    }
+    // JPEG: walk markers to the first SOFn frame header.
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) {
+        i += 1;
+        continue;
+      }
+      const marker = buf[i + 1];
+      if (marker === 0xff) {
+        i += 1;
+        continue;
+      }
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd9)) {
+        i += 2;
+        continue;
+      }
+      const len = buf.readUInt16BE(i + 2);
+      if (len < 2) return null;
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+      }
+      i += 2 + len;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * @param {object} caseData a Case row (may include petPhotos:string[] and overrides)
  * @param {object} shared render inputs
  * @param {string} [shared.photoDataUrl] primary photo data url
@@ -48,25 +92,34 @@ export function normalizeFlyerData(caseData, shared = {}) {
   const speciesLabel = SPECIES_LABEL[caseData.petSpecies] || 'PET';
   const name = caseData.petName || 'Unknown';
 
+  const sizeWord = caseData.petSize ? String(caseData.petSize).toLowerCase() : '';
   const chips = [
     caseData.petBreed && caseData.petBreed !== 'Unknown' ? caseData.petBreed : null,
     caseData.petColor,
-    caseData.petSize ? String(caseData.petSize).toLowerCase() : null,
+    sizeWord ? sizeWord.charAt(0).toUpperCase() + sizeWord.slice(1) : null,
   ].filter(Boolean);
+
+  // The human behind the number: "CALL OR TEXT SARAH" reads like a family,
+  // not a call center.
+  const ownerFirstName = (caseData.ownerName || '').trim().split(/\s+/)[0] || '';
 
   const hasPhone = caseData.ownerPhone && caseData.ownerPhone !== 'Not provided';
   const hasEmail =
     caseData.ownerEmail && !isPlaceholderEmail(caseData.ownerEmail) && caseData.ownerEmail !== 'Not provided';
 
-  let contactVerb = 'CONTACT US';
-  let contactValue = '';
+  // Display URL for the microfooter + the no-contact fallback (the QR encodes
+  // the real absolute URL; this is the human-readable line).
+  const caseUrlLabel = `reunitepets.org/cases/${caseData.caseNumber}`;
+
+  let contactVerb = 'REPORT A SIGHTING AT';
+  let contactValue = caseUrlLabel;
   let contactSecondary = '';
   if (hasPhone) {
-    contactVerb = 'CALL OR TEXT 24/7';
+    contactVerb = 'CALL OR TEXT';
     contactValue = formatPhone(caseData.ownerPhone);
     if (hasEmail) contactSecondary = caseData.ownerEmail;
   } else if (hasEmail) {
-    contactVerb = 'EMAIL US';
+    contactVerb = 'EMAIL';
     contactValue = caseData.ownerEmail;
   }
 
@@ -86,6 +139,10 @@ export function normalizeFlyerData(caseData, shared = {}) {
   const photos = (shared.photoDataUrls && shared.photoDataUrls.filter(Boolean)) || [];
   if (!photos.length && shared.photoDataUrl) photos.push(shared.photoDataUrl);
 
+  // aspect (h/w) of the primary photo so layouts can frame the full image.
+  const dims = photos.length ? imageDimsFromDataUrl(photos[0]) : null;
+  const photoAspect = dims && dims.w > 0 && dims.h > 0 ? dims.h / dims.w : null;
+
   const markings = cap(caseData.distinctiveMarks || '', 120);
   const microchipped = Boolean(caseData.microchipId);
 
@@ -99,11 +156,10 @@ export function normalizeFlyerData(caseData, shared = {}) {
     accentBg: theme.stampBg,
     speciesLabel,
     // emotional copy — the "cannot say no" heart of the flyer
-    headline: copy.headline, // "{name} hasn't come home."
-    plea: copy.plea, // first-person pet voice (full)
+    headline: copy.headline, // "Have you seen {name}?"
+    plea: copy.plea, // one species-true supporting sentence
     pleaShort: copy.pleaShort, // shorter, for social cards
-    familyLine: copy.familyLine, // the family, quietly waiting
-    approachLine: copy.approachLine, // gentle scenario-aware guidance
+    approachLine: copy.approachLine, // scenario-aware "if you see them" guidance
     shareNudge: copy.shareNudge,
     scanCta: copy.scanCta,
     petName: name,
@@ -116,8 +172,12 @@ export function normalizeFlyerData(caseData, shared = {}) {
     reward, // e.g. "$500" or "REWARD" or null
     contactVerb,
     contactValue,
+    ownerFirstName,
     contactSecondary: cap(contactSecondary, 48),
     caseNumber: caseData.caseNumber,
+    caseUrlLabel,
+    map: shared.map || null, // stitched last-seen map spec (see render/staticMap.js)
+    photoAspect,
     photos: photos.slice(0, 3),
     photoDataUrl: photos[0] || null, // back-compat for social card
     qrDataUrl: shared.qrDataUrl || null,

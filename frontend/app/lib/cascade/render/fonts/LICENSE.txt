@@ -3,3 +3,8 @@ Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
 Vendored (Regular/SemiBold/Bold/Black weights) so server-side flyer/social
 rendering (@react-pdf/renderer, satori, @resvg/resvg-js) has deterministic
 fonts without any runtime network fetch. Full license: https://openfontlicense.org
+
+---
+
+Archivo-400/600/700/800.ttf and ArchivoBlack.ttf (Omnibus-Type) are also
+licensed under the SIL Open Font License 1.1, downloaded from Google Fonts.
