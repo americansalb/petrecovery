@@ -413,40 +413,54 @@ function BigPhotoSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true 
   );
 }
 
-/** 1b — Letter split: photo column + details column + tear-offs. */
-function SplitSheet({ data }) {
-  const W = 612;
-  const H = 792;
-  const padH = 24;
+/** 1b — split sheet: photo column + details column (+ tear-offs on Letter).
+ *  Scales to the poster via k/pageW/pageH; the flexible photo column absorbs
+ *  the taller page. Landscape photos hug their true height in the column
+ *  instead of being matted into a tall slot. */
+function SplitSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true }) {
+  const W = pageW;
+  const padH = 24 * k;
   const cw = W - padH * 2;
   const headline = headlineFor(data);
-  const colW = 247.5;
+  const colW = 247.5 * k;
   const extra = data.photos[1] || null;
+  const a = data.photoAspect;
+  const landscapeHug = Boolean(data.photos[0]) && a && a < 1.05;
+  // On the tall poster page even portrait photos hug their true height —
+  // otherwise the flex frame mats them top and bottom.
+  const posterHug = pageH > 1000 && Boolean(data.photos[0]) && a && a >= 1.05;
+  const mainPhotoStyle = landscapeHug
+    ? { height: Math.min(colW * a, pageH * 0.34) }
+    : posterHug
+      ? { height: Math.min(colW * a, pageH * 0.5) }
+      : { flex: extra ? 2.4 : 3.4, minHeight: 0 };
+  // Hugged photos free up column height; the map absorbs it instead of a void.
+  const mapH = ((landscapeHug || posterHug) && !extra ? 268 : 111) * k;
   return (
-    <Page size={[W, H]} style={{ backgroundColor: C.paper, fontFamily: 'Archivo', color: C.ink }}>
-      <YellowStrip />
+    <Page size={[W, pageH]} style={{ backgroundColor: C.paper, fontFamily: 'Archivo', color: C.ink }}>
+      <YellowStrip h={7.5 * k} />
       {/* Header with reward on the right: yellow display on navy. */}
       <View
         style={{
           backgroundColor: C.navy,
           paddingHorizontal: padH,
-          paddingTop: 9.75,
-          paddingBottom: 11.25,
+          paddingTop: 9.75 * k,
+          paddingBottom: 11.25 * k,
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
         <View style={{ minWidth: 0, flexShrink: 1 }}>
-          <Text style={{ fontWeight: 800, fontSize: 8.25, letterSpacing: 1.65, color: C.cream }}>
+          <Text style={{ fontWeight: 800, fontSize: 8.25 * k, letterSpacing: 1.65 * k, color: C.cream }}>
             {T.urgent} · REUNITEPETS.ORG
           </Text>
           <Text
             style={{
               fontFamily: 'Archivo Black',
-              fontSize: fitSize(headline, cw - (data.reward ? 150 : 0), headline.length > 10 ? 30 : 42, 20),
+              fontSize: fitSize(headline, cw - (data.reward ? 150 * k : 0), (headline.length > 10 ? 30 : 42) * k, 20),
               lineHeight: 1,
-              marginTop: 2.25,
+              marginTop: 2.25 * k,
               color: C.yellow,
             }}
           >
@@ -458,83 +472,84 @@ function SplitSheet({ data }) {
             <Text style={{ fontWeight: 800, fontSize: 8.25, letterSpacing: 1.65, color: 'rgba(255,249,238,0.6)' }}>
               {T.reward}
             </Text>
-            <Text style={{ fontFamily: 'Archivo Black', fontSize: 28.5, lineHeight: 1, color: C.yellow }}>
+            <Text style={{ fontFamily: 'Archivo Black', fontSize: 28.5 * k, lineHeight: 1, color: C.yellow }}>
               {data.reward === 'REWARD' ? 'OFFERED' : data.reward}
             </Text>
           </View>
         ) : null}
       </View>
       {/* Body */}
-      <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: padH, paddingVertical: 15, minHeight: 0 }}>
+      <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: padH, paddingVertical: 15 * k, minHeight: 0 }}>
         {/* Photo column */}
-        <View style={{ width: colW, marginRight: 16.5 }}>
-          <PhotoFrame src={data.photos[0]} style={{ flex: extra ? 2.4 : 3.4, minHeight: 0 }} />
-          {extra ? <PhotoFrame src={extra} style={{ flex: 1, minHeight: 0, marginTop: 9 }} /> : null}
-          <View style={{ marginTop: 9 }}>
-            <Text style={LABEL(7.5)}>{T.lastSeen}</Text>
-            <Text maxLines={1} style={{ fontWeight: 700, fontSize: 10.5, lineHeight: 1.25, marginTop: 1, marginBottom: 4.5 }}>
+        <View style={{ width: colW, marginRight: 16.5 * k }}>
+          <PhotoFrame src={data.photos[0]} style={mainPhotoStyle} borderW={2.25 * k} />
+          {extra ? <PhotoFrame src={extra} style={{ flex: 1, minHeight: 0, marginTop: 9 * k }} borderW={2.25 * k} /> : null}
+          {landscapeHug || posterHug ? <View style={{ flexGrow: 1 }} /> : null}
+          <View style={{ marginTop: 9 * k }}>
+            <Text style={LABEL(7.5 * k)}>{T.lastSeen}</Text>
+            <Text maxLines={1} style={{ fontWeight: 700, fontSize: 10.5 * k, lineHeight: 1.25, marginTop: 1 * k, marginBottom: 4.5 * k }}>
               {data.lastSeenArea}
               <Text style={{ color: C.mute, fontWeight: 600 }}>{'  ·  '}{data.lastSeenWhen}</Text>
             </Text>
-            <MapBox data={data} w={colW} h={111} />
+            <MapBox data={data} w={colW} h={mapH} borderW={2.25 * k} />
           </View>
         </View>
         {/* Details column */}
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontWeight: 800, fontSize: 9.75, letterSpacing: 1.4, color: C.navy }}>
+          <Text style={{ fontWeight: 800, fontSize: 9.75 * k, letterSpacing: 1.4 * k, color: C.navy }}>
             {T.seen(data.petName.toUpperCase())}
           </Text>
           <Text
             style={{
               fontFamily: 'Archivo Black',
-              fontSize: fitSize(data.petName.toUpperCase(), cw - colW - 16.5, 43.5, 18),
+              fontSize: fitSize(data.petName.toUpperCase(), cw - colW - 16.5 * k, 43.5 * k, 18),
               lineHeight: 1,
-              marginTop: 1.5,
+              marginTop: 1.5 * k,
             }}
           >
             {data.petName.toUpperCase()}
           </Text>
-          <View style={{ borderBottomWidth: 1.5, borderBottomColor: C.rule, paddingVertical: 8.25 }}>
-            <Text style={LABEL(7.5)}>{T.color}</Text>
-            <Text style={{ fontWeight: 600, fontSize: 12, lineHeight: 1.3 }}>{colorMarkings(data)}</Text>
+          <View style={{ borderBottomWidth: 1.5 * k, borderBottomColor: C.rule, paddingVertical: 8.25 * k }}>
+            <Text style={LABEL(7.5 * k)}>{T.color}</Text>
+            <Text style={{ fontWeight: 600, fontSize: 12 * k, lineHeight: 1.3 }}>{colorMarkings(data)}</Text>
           </View>
           <View style={{ flexDirection: 'row', borderBottomWidth: 1.5, borderBottomColor: C.rule, paddingVertical: 8.25 }}>
             <View style={{ flex: 1 }}>
-              <Text style={LABEL(7.5)}>{T.size}</Text>
-              <Text style={{ fontWeight: 600, fontSize: 12 }}>{sizeBreed(data)}</Text>
+              <Text style={LABEL(7.5 * k)}>{T.size}</Text>
+              <Text style={{ fontWeight: 600, fontSize: 12 * k }}>{sizeBreed(data)}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={LABEL(7.5)}>{T.chip}</Text>
-              <Text style={{ fontWeight: 600, fontSize: 12 }}>{data.microchipped ? 'Yes' : 'No'}</Text>
+              <Text style={LABEL(7.5 * k)}>{T.chip}</Text>
+              <Text style={{ fontWeight: 600, fontSize: 12 * k }}>{data.microchipped ? 'Yes' : 'No'}</Text>
             </View>
           </View>
-          <View style={{ backgroundColor: C.cell, paddingVertical: 7.5, paddingHorizontal: 9, marginTop: 9 }}>
-            <Text style={LABEL(7.5, C.navy)}>{T.notes}</Text>
-            <Text style={{ fontWeight: 600, fontSize: 10, lineHeight: 1.45, marginTop: 1 }}>{recastApproach(data)}</Text>
+          <View style={{ backgroundColor: C.cell, paddingVertical: 7.5 * k, paddingHorizontal: 9 * k, marginTop: 9 * k }}>
+            <Text style={LABEL(7.5 * k, C.navy)}>{T.notes}</Text>
+            <Text style={{ fontWeight: 600, fontSize: 10 * k, lineHeight: 1.45, marginTop: 1 * k }}>{recastApproach(data)}</Text>
           </View>
           {/* Contact panel with QR inline */}
-          <View style={{ marginTop: 'auto', backgroundColor: C.navy, padding: 12, flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ marginTop: 'auto', backgroundColor: C.navy, padding: 12 * k, flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={{ fontWeight: 800, fontSize: 7.5, letterSpacing: 1.5, color: 'rgba(255,255,255,0.75)' }}>
+              <Text style={{ fontWeight: 800, fontSize: 7.5 * k, letterSpacing: 1.5 * k, color: 'rgba(255,255,255,0.75)' }}>
                 {contactVerbLine(data)}
               </Text>
               <Text
                 style={{
                   fontFamily: 'Archivo Black',
-                  fontSize: fitSize(data.contactValue, cw - colW - 16.5 - 24 - 88, 18, 8),
+                  fontSize: fitSize(data.contactValue, cw - colW - 16.5 * k - 24 * k - 88 * k, 18 * k, 8),
                   color: C.cream,
-                  marginTop: 2.5,
+                  marginTop: 2.5 * k,
                 }}
               >
                 {data.contactValue}
               </Text>
               {data.contactSecondary ? (
-                <Text style={{ fontWeight: 600, fontSize: 9.75, color: 'rgba(255,255,255,0.9)', marginTop: 2.5 }}>
+                <Text style={{ fontWeight: 600, fontSize: 9.75 * k, color: 'rgba(255,255,255,0.9)', marginTop: 2.5 * k }}>
                   {data.contactSecondary}
                 </Text>
               ) : null}
               {data.ownerFirstName ? (
-                <Text style={{ fontWeight: 600, fontSize: 8.25, color: 'rgba(255,255,255,0.75)', marginTop: 3 }}>
+                <Text style={{ fontWeight: 600, fontSize: 8.25 * k, color: 'rgba(255,255,255,0.75)', marginTop: 3 * k }}>
                   {data.ownerFirstName} · any time, day or night
                 </Text>
               ) : null}
@@ -542,16 +557,16 @@ function SplitSheet({ data }) {
             {data.qrDataUrl ? (
               <View
                 style={{
-                  width: 78,
-                  height: 78,
+                  width: 78 * k,
+                  height: 78 * k,
                   backgroundColor: '#ffffff',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginLeft: 10.5,
+                  marginLeft: 10.5 * k,
                 }}
               >
-                <Image src={data.qrDataUrl} style={{ width: 62, height: 62 }} />
-                <Text style={{ fontFamily: 'Archivo', fontWeight: 700, fontSize: 5.6, letterSpacing: 0.4, color: C.mute, marginTop: 1 }}>
+                <Image src={data.qrDataUrl} style={{ width: 62 * k, height: 62 * k }} />
+                <Text style={{ fontFamily: 'Archivo', fontWeight: 700, fontSize: 6 * k, letterSpacing: 0.4, color: C.mute, marginTop: 1 }}>
                   {T.scanShort.toUpperCase()}
                 </Text>
               </View>
@@ -559,16 +574,33 @@ function SplitSheet({ data }) {
           </View>
         </View>
       </View>
-      <FooterRow data={data} padH={padH} />
-      <TearTabs data={data} width={W} />
+      <FooterRow data={data} padH={padH} fs={7.1 * k} />
+      {withTabs ? <TearTabs data={data} width={W} /> : <View style={{ height: 6 * k }} />}
     </Page>
   );
 }
 
+/** The flyer reorients itself around the photo: portrait photos get the
+ *  split layout (tall photo column), landscape photos and the no-photo cover
+ *  get the big horizontal slot. */
+function isPortraitPhoto(data) {
+  return Boolean(data.photos[0]) && (data.photoAspect || 0) > 1.05;
+}
+
 const VARIANTS = {
-  classic: (data) => <BigPhotoSheet data={data} k={1} pageW={612} pageH={792} withTabs />,
-  tabs: (data) => <SplitSheet data={data} />,
-  poster: (data) => <BigPhotoSheet data={data} k={792 / 612} pageW={792} pageH={1224} withTabs={false} />,
+  classic: (data) =>
+    isPortraitPhoto(data) ? (
+      <SplitSheet data={data} k={1} withTabs />
+    ) : (
+      <BigPhotoSheet data={data} k={1} pageW={612} pageH={792} withTabs />
+    ),
+  tabs: (data) => <SplitSheet data={data} k={1} withTabs />,
+  poster: (data) =>
+    isPortraitPhoto(data) ? (
+      <SplitSheet data={data} k={792 / 612} pageW={792} pageH={1224} withTabs={false} />
+    ) : (
+      <BigPhotoSheet data={data} k={792 / 612} pageW={792} pageH={1224} withTabs={false} />
+    ),
 };
 
 export function FlyerDocument({ data, variant = 'classic' }) {

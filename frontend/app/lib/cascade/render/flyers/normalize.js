@@ -15,10 +15,18 @@ import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 
 function areaFromAddress(address) {
   if (!address) return 'this neighborhood';
-  const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
-  if (parts.length >= 3) return parts.slice(-3, -1).join(', ');
-  if (parts.length === 2) return parts.join(', ');
-  return parts[0] || address;
+  let parts = address.split(',').map((p) => p.trim()).filter(Boolean);
+  // Drop a trailing country and a bare trailing ZIP: "Carpentersville,
+  // Illinois, 60110, United States" must read "Carpentersville, Illinois",
+  // never "Illinois, 60110".
+  if (parts.length > 1 && /^(united states( of america)?|usa|u\.s\.a?\.?|canada|m[eé]xico)$/i.test(parts[parts.length - 1])) {
+    parts = parts.slice(0, -1);
+  }
+  if (parts.length > 2 && /^\d{5}(-\d{4})?$/.test(parts[parts.length - 1])) {
+    parts = parts.slice(0, -1);
+  }
+  // Keep the MOST specific two segments (street + city, or city + state).
+  return parts.slice(0, 2).join(', ') || address;
 }
 
 function formatPhone(phone) {
