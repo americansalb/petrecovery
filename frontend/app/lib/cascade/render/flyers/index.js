@@ -12,8 +12,8 @@ import { normalizeFlyerData } from './normalize';
 export { normalizeFlyerData } from './normalize';
 
 export const FLYER_VARIANTS = {
-  FLYER_LETTER: { variant: 'classic', label: 'Classic poster (Letter)' },
-  FLYER_HALF: { variant: 'tabs', label: 'Tear-off tabs (Letter)' },
+  FLYER_LETTER: { variant: 'classic', label: 'Big photo (Letter)' },
+  FLYER_HALF: { variant: 'tabs', label: 'Photo + details (Letter)' },
   FLYER_POSTER: { variant: 'poster', label: 'Yard poster (11×17)' },
 };
 
