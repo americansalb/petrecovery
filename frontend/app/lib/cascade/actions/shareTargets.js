@@ -228,6 +228,46 @@ async function rankWithHaiku(city, state, candidates) {
   }
 }
 
+/** One full discovery sweep for an area: search, rank, persist. Shared by
+ *  the cascade (on a cache miss) and the admin's manual "run a search" button.
+ *  Returns the serveable groups (admin-REMOVED ones already dropped) plus how
+ *  many raw candidates the search surfaced. */
+export async function sweepArea(city, state) {
+  const key = process.env.BRAVE_SEARCH_API_KEY;
+  if (!key) return { ok: false, reason: 'BRAVE_SEARCH_API_KEY is not configured', groups: [], candidates: 0 };
+  if (!city) return { ok: false, reason: 'City is required', groups: [], candidates: 0 };
+
+  const queries = [
+    `site:facebook.com/groups ${city} ${state} lost found pets`,
+    `site:facebook.com/groups ${city} lost pets`,
+  ];
+  const results = (await Promise.all(queries.map((q) => braveSearch(q, key)))).flat();
+  const seen = new Set();
+  const groupCandidates = results.filter((r) => {
+    if (!isGroupUrl(r.url)) return false;
+    const slug = groupSlugFromUrl(r.url);
+    if (!slug || seen.has(slug)) return false;
+    seen.add(slug);
+    return true;
+  });
+
+  const ranked = (
+    (await rankWithHaiku(city, state, groupCandidates)) ||
+    keywordFilter(groupCandidates)
+      .slice(0, MAX_GROUPS)
+      .map((r) => ({ name: r.title.replace(/\s*[|·-]\s*Facebook\s*$/i, ''), url: r.url }))
+  ).slice(0, MAX_GROUPS);
+
+  if (ranked.length === 0) return { ok: true, groups: [], candidates: groupCandidates.length };
+
+  const blocked = await writeGroupDirectory(city, state, ranked);
+  const groups = ranked.filter((g) => {
+    const slug = groupSlugFromUrl(g.url);
+    return !(slug && blocked.has(slug));
+  });
+  return { ok: true, groups, candidates: groupCandidates.length };
+}
+
 export async function runShareTargets(ctx) {
   const c = ctx.case;
   const { city, state } = cityStateFromAddress(c.lastSeenAddress);
@@ -255,34 +295,9 @@ export async function runShareTargets(ctx) {
   const key = process.env.BRAVE_SEARCH_API_KEY;
   if (!cached && key && city) {
     searched = true;
-    const queries = [
-      `site:facebook.com/groups ${city} ${state} lost found pets`,
-      `site:facebook.com/groups ${city} lost pets`,
-    ];
-    const results = (await Promise.all(queries.map((q) => braveSearch(q, key)))).flat();
-    const seen = new Set();
-    const groupCandidates = results.filter((r) => {
-      if (!isGroupUrl(r.url)) return false;
-      const slug = groupSlugFromUrl(r.url);
-      if (!slug || seen.has(slug)) return false;
-      seen.add(slug);
-      return true;
-    });
-
-    const ranked = (
-      (await rankWithHaiku(city, state, groupCandidates)) ||
-      keywordFilter(groupCandidates)
-        .slice(0, MAX_GROUPS)
-        .map((r) => ({ name: r.title.replace(/\s*[|·-]\s*Facebook\s*$/i, ''), url: r.url }))
-    ).slice(0, MAX_GROUPS);
-
-    if (ranked.length > 0) {
-      const blocked = await writeGroupDirectory(city, state, ranked);
-      for (const g of ranked) {
-        const slug = groupSlugFromUrl(g.url);
-        if (slug && blocked.has(slug)) continue;
-        targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
-      }
+    const sweep = await sweepArea(city, state);
+    if (sweep.groups.length > 0) {
+      for (const g of sweep.groups) targets.push({ kind: 'facebook_group', name: g.name, url: g.url });
     } else if (directory?.length > 0) {
       // Sweep came back empty (API hiccup or thin results): aged rows beat
       // nothing, and we don't stale anything on an empty sweep.

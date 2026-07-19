@@ -63,6 +63,10 @@ export default function AdminGroupsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const limit = 25;
 
+  const [sweep, setSweep] = useState({ city: '', state: '' });
+  const [sweeping, setSweeping] = useState(false);
+  const [sweepResult, setSweepResult] = useState(null);
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login?callbackUrl=/admin/groups');
@@ -114,6 +118,35 @@ export default function AdminGroupsPage() {
       toast.error(err.message);
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const runSweep = async (e) => {
+    e.preventDefault();
+    if (!sweep.city.trim() || sweeping) return;
+    setSweeping(true);
+    setSweepResult(null);
+    try {
+      const response = await fetch('/api/admin/groups/sweep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city: sweep.city.trim(), state: sweep.state.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Sweep failed');
+      setSweepResult(data);
+      // Jump the table to the area we just swept so the new rows are visible.
+      setPage(1);
+      setFilters({ search: sweep.city.trim(), state: '', status: '' });
+      toast.success(
+        data.groups.length > 0
+          ? `Found ${data.groups.length} group${data.groups.length === 1 ? '' : 's'} for ${data.city}`
+          : `No matching groups found for ${data.city} (${data.candidates} candidates checked)`
+      );
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSweeping(false);
     }
   };
 
@@ -176,6 +209,46 @@ export default function AdminGroupsPage() {
             <StatCard label="Times served" value={stats.timesServed} />
           </div>
         )}
+
+        <form onSubmit={runSweep} className="bg-white rounded-lg shadow p-4 mb-6">
+          <p className="text-sm font-semibold text-gray-900 mb-1">Run a search for a city</p>
+          <p className="text-xs text-gray-500 mb-3">
+            Runs the same discovery the cascade uses (web search for public Facebook groups, then AI ranking)
+            and saves the results, so the area is ready before anyone reports there. Also refreshes an area
+            without waiting out the 30-day window.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <input
+              type="text"
+              placeholder="City (required)"
+              value={sweep.city}
+              onChange={(e) => setSweep((s) => ({ ...s, city: e.target.value }))}
+              className="flex-1 min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="text"
+              placeholder="State"
+              value={sweep.state}
+              onChange={(e) => setSweep((s) => ({ ...s, state: e.target.value }))}
+              className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={!sweep.city.trim() || sweeping}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-40"
+            >
+              {sweeping ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {sweeping ? 'Searching' : 'Search now'}
+            </button>
+          </div>
+          {sweepResult && (
+            <p className="text-xs text-gray-500 mt-2">
+              {sweepResult.groups.length > 0
+                ? `Saved ${sweepResult.groups.length} group${sweepResult.groups.length === 1 ? '' : 's'} for ${sweepResult.city}${sweepResult.state ? `, ${sweepResult.state}` : ''} (from ${sweepResult.candidates} candidates). The table below is filtered to show them.`
+                : `Nothing worth keeping for ${sweepResult.city}: ${sweepResult.candidates} candidates checked, none passed the lost-pet relevance filter.`}
+            </p>
+          )}
+        </form>
 
         <div className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-3">
           <div className="relative flex-1 min-w-[200px]">
