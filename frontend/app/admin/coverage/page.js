@@ -16,6 +16,8 @@ import { Map as MapIcon, RefreshCw } from 'lucide-react';
 
 const GROUP_COLOR = '#0B1133';
 const SHELTER_COLOR = '#15803d';
+const FORCE_COLOR = '#7c3aed';
+const METERS_PER_MILE = 1609.34;
 
 export default function AdminCoveragePage() {
   const { data: session, status } = useSession();
@@ -25,11 +27,13 @@ export default function AdminCoveragePage() {
   const [error, setError] = useState('');
   const [showGroups, setShowGroups] = useState(true);
   const [showShelters, setShowShelters] = useState(true);
+  const [showForces, setShowForces] = useState(true);
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const groupLayerRef = useRef(null);
   const shelterLayerRef = useRef(null);
+  const forceLayerRef = useRef(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -76,6 +80,7 @@ export default function AdminCoveragePage() {
 
     if (groupLayerRef.current) groupLayerRef.current.remove();
     if (shelterLayerRef.current) shelterLayerRef.current.remove();
+    if (forceLayerRef.current) forceLayerRef.current.remove();
 
     const shelterLayer = L.layerGroup();
     for (const s of data.shelters || []) {
@@ -109,6 +114,36 @@ export default function AdminCoveragePage() {
     }
     groupLayerRef.current = groupLayer;
 
+    // Rescue forces: the exact custom polygon when one is defined, else the
+    // true coverage circle from center + radius.
+    const forceLayer = L.layerGroup();
+    const forceStyle = { color: FORCE_COLOR, fillColor: FORCE_COLOR, fillOpacity: 0.12, weight: 2 };
+    for (const f of data.forces || []) {
+      const popup =
+        `<strong>${escapeHtml(f.name)}</strong><br/>` +
+        `${escapeHtml(f.city || '')}${f.state ? `, ${escapeHtml(f.state)}` : ''}<br/>Rescue force`;
+      let drawn = false;
+      if (f.boundary) {
+        try {
+          const geo = JSON.parse(f.boundary);
+          L.geoJSON(geo, { style: forceStyle }).bindPopup(popup).addTo(forceLayer);
+          drawn = true;
+        } catch {
+          // fall through to the circle
+        }
+      }
+      if (!drawn && Number.isFinite(f.lat) && Number.isFinite(f.lng)) {
+        L.circle([f.lat, f.lng], {
+          ...forceStyle,
+          radius: Math.max(1, f.radiusMiles || 5) * METERS_PER_MILE,
+        })
+          .bindPopup(popup)
+          .addTo(forceLayer);
+      }
+    }
+    forceLayerRef.current = forceLayer;
+
+    if (showForces) forceLayer.addTo(map);
     if (showShelters) shelterLayer.addTo(map);
     if (showGroups) groupLayer.addTo(map);
 
@@ -116,9 +151,14 @@ export default function AdminCoveragePage() {
     const points = [
       ...(showGroups ? (data.areas || []).map((a) => [a.lat, a.lng]) : []),
       ...(showShelters ? (data.shelters || []).map((s) => [s.latitude, s.longitude]) : []),
+      ...(showForces
+        ? (data.forces || [])
+            .filter((f) => Number.isFinite(f.lat) && Number.isFinite(f.lng))
+            .map((f) => [f.lat, f.lng])
+        : []),
     ];
     if (points.length > 0) map.fitBounds(L.latLngBounds(points).pad(0.25), { maxZoom: 9 });
-  }, [data, showGroups, showShelters]);
+  }, [data, showGroups, showShelters, showForces]);
 
   useEffect(() => {
     buildMap();
@@ -164,6 +204,11 @@ export default function AdminCoveragePage() {
             <input type="checkbox" checked={showShelters} onChange={(e) => setShowShelters(e.target.checked)} />
             <span className="inline-block w-3 h-3 rounded-full" style={{ background: SHELTER_COLOR }} />
             Shelters {data ? `(${(data.shelters || []).length})` : ''}
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={showForces} onChange={(e) => setShowForces(e.target.checked)} />
+            <span className="inline-block w-3 h-3 rounded-full" style={{ background: FORCE_COLOR }} />
+            Rescue forces {data ? `(${(data.forces || []).length})` : ''}
           </label>
           {data?.unmappedGroups > 0 && (
             <span className="text-xs text-gray-500">

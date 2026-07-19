@@ -23,7 +23,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const [groupRows, shelters] = await Promise.all([
+    const [groupRows, shelters, forces] = await Promise.all([
       prisma.communityGroup.findMany({
         where: { status: 'ACTIVE' },
         select: { city: true, state: true, areaLat: true, areaLng: true, category: true, name: true },
@@ -32,6 +32,21 @@ export async function GET() {
         where: { isActive: true, latitude: { not: null }, longitude: { not: null } },
         select: { id: true, name: true, city: true, state: true, latitude: true, longitude: true, type: true },
         take: 3000,
+      }),
+      prisma.rescueForce.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          state: true,
+          coverageType: true,
+          centerLatitude: true,
+          centerLongitude: true,
+          radiusMiles: true,
+          customBoundary: true,
+        },
+        take: 1000,
       }),
     ]);
 
@@ -62,11 +77,31 @@ export async function GET() {
       areaByKey.set(key, area);
     }
 
+    // A force is drawable with either its exact custom polygon or a
+    // center + radius circle; anything with neither is skipped.
+    const drawableForces = forces
+      .filter(
+        (f) =>
+          Boolean(f.customBoundary) ||
+          (Number.isFinite(f.centerLatitude) && Number.isFinite(f.centerLongitude))
+      )
+      .map((f) => ({
+        id: f.id,
+        name: f.name,
+        city: f.city,
+        state: f.state,
+        lat: f.centerLatitude,
+        lng: f.centerLongitude,
+        radiusMiles: f.radiusMiles,
+        boundary: f.customBoundary || null,
+      }));
+
     return NextResponse.json(
       {
         areas: [...areaByKey.values()],
         unmappedGroups,
         shelters,
+        forces: drawableForces,
       },
       { headers: { 'Cache-Control': 'no-store' } }
     );
