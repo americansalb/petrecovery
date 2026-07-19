@@ -1,23 +1,35 @@
 import React from 'react';
-import { Document, Page, View, Text, Image, Svg, Path, Circle } from '@react-pdf/renderer';
-import { FLYER_THEME as T, PAGE } from './theme';
+import { Document, Font, Page, View, Text, Image, Svg, Path, Circle } from '@react-pdf/renderer';
+
+// Break lines at spaces only — never hyphenate mid-word (no "·-" artifacts).
+Font.registerHyphenationCallback((word) => [word]);
 
 /**
- * Lost-pet flyers in a restrained "ink" poster language: white ground, two
- * inks (near-black + signal red), edge-to-edge display type, the full photo
- * at its true aspect, and a giant phone number. Red appears exactly twice
- * (LOST DOG, the reward); everything else is black and gray, so the flyer
- * reads at distance, looks designed rather than templated, and prints
- * perfectly on a home black-and-white printer.
- *
- * Three layouts, one normalized `data`:
- *  - classic : full Letter poster
- *  - tabs    : Letter with real, cuttable tear-off tabs
- *  - poster  : 11x17 pole/yard poster, readable from across a street
+ * "The photo IS the poster." Film-poster system:
+ *  - The photograph runs edge to edge and owns the sheet. Portrait photos
+ *    bleed a full column; landscape photos bleed the top of the page.
+ *  - Every fact lives in ONE near-black panel. LOST {SPECIES} is set solid
+ *    on that panel, never over the pet.
+ *  - Reward is a red corner flag kissing the photo edge. Red appears only
+ *    there and on the map pin; everything else is ink + paper, so the sheet
+ *    prints beautifully in black and white.
+ *  - No photo: a typographic cover (giant stacked LOST / DOG), not an apology.
  */
 
-/** Estimate a string's width in ems for Inter Black — per-character classes
- *  (an 'm' or '@' is ~3x an 'i'), padded 6% so we never clip or wrap. */
+const C = {
+  night: '#0f172a', // panel ink
+  paper: '#ffffff',
+  ice: '#e2e8f0', // primary secondary text on night
+  mist: '#94a3b8', // labels on night
+  dim: '#64748b',
+  slate: '#334155',
+  hair: '#e2e8f0',
+  panelLine: '#33415a',
+};
+
+/* ---------------------------------------------------------------- helpers */
+
+/** Estimate a string's width in ems for Inter Black — per-character classes. */
 function estWidthEm(text) {
   let em = 0;
   for (const ch of String(text || '')) {
@@ -32,150 +44,165 @@ function estWidthEm(text) {
   return em * 1.06;
 }
 
-/** Largest font size (≤ base) at which `text` fits one line in maxWidth pt. */
+/** Largest font size (<= base) at which `text` fits one line in maxWidth pt. */
 function fitSize(text, maxWidth, base, min = 9) {
   const em = estWidthEm(text) || 1;
   return Math.max(min, Math.min(base, maxWidth / em));
 }
 
-/** Frame size that shows the WHOLE photo: the photo's own aspect, bounded by
- *  maxHeight and availWidth. Falls back to a full-width frame when unknown. */
-function photoDims(data, maxHeight, availWidth) {
-  const a = data.photoAspect;
-  if (!a) return { w: availWidth, h: maxHeight };
-  const h = Math.min(maxHeight, availWidth * a);
-  return { w: Math.min(availWidth, h / a), h };
+/** Reader-directed sighting guidance: the approach line recast so "get in
+ *  touch" becomes the actual action ("call or text Sarah"), and any homing
+ *  speculation is dropped. */
+function recastApproach(data) {
+  let s = String(data.approachLine || '').trim();
+  const who = (data.ownerFirstName || '').trim();
+  // Fallback verbs must not contain "right away": the source line may append
+  // it, and "call right away right away" is exactly the kind of sloppiness
+  // a stranger notices.
+  let verb = 'report it with the QR code below';
+  if (/CALL/i.test(data.contactVerb || '')) verb = who ? `call or text ${who}` : 'call or text';
+  else if (/EMAIL/i.test(data.contactVerb || '')) verb = who ? `email ${who}` : 'email';
+  s = s.replace(/,?\s*and trying to get home/i, '');
+  s = s.replace(/get in touch right away\.?/i, `${verb} right away.`);
+  s = s.replace(/get in touch\.?/i, `${verb}.`);
+  s = s.replaceAll('—', ' ').replace(/\s+/g, ' ').trim();
+  return s;
 }
 
-/** Simple paw mark (used only where there is no photo). */
-function Paw({ size = 64, color = T.midnight }) {
+/** Family-voice contact eyebrow: "PLEASE CALL OR TEXT SARAH · ANY TIME,
+ *  DAY OR NIGHT" on wide layouts, shortened for narrow columns. */
+function verbLine(data, { full = false } = {}) {
+  const who = (data.ownerFirstName || '').trim();
+  if (!who || /\sAT$/.test(data.contactVerb || '')) return data.contactVerb;
+  const base = `PLEASE ${data.contactVerb} ${who.toUpperCase()}`;
+  return full ? `${base} · ANY TIME, DAY OR NIGHT` : base;
+}
+
+/** "$500 REWARD" echo for the info panel so the reward survives grayscale
+ *  and busy photos (the corner flag rides on photo texture). */
+function rewardEcho(data) {
+  if (!data.reward) return null;
+  return data.reward === 'REWARD' ? 'REWARD OFFERED' : `${data.reward} REWARD`;
+}
+
+/** Bind the last two words with a non-breaking space so a lone word never
+ *  widows on its own line. */
+function noWidow(s) {
+  return String(s || '').replace(/ (\S+)$/, '\u00a0$1');
+}
+
+function chipsLine(data) {
+  const parts = [...(data.chips || [])];
+  if (data.microchipped) parts.push('Microchipped');
+  return parts.join(' · ');
+}
+
+/* ------------------------------------------------------------- components */
+
+/** Full-bleed photo slab. Crops toward the face: vertical crops bias to the
+ *  top quarter, horizontal crops stay centered. */
+function Bleed({ src, aspect, x = 0, y = 0, w, h }) {
+  const slotA = h / w;
+  const style = { width: w, height: h, objectFit: 'cover' };
+  if (!aspect) style.objectPositionY = '25%';
+  else if (aspect > slotA) style.objectPositionY = '20%';
+  else style.objectPositionX = '50%';
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Circle cx="5.3" cy="8.6" r="2.1" fill={color} />
-      <Circle cx="9.4" cy="5.4" r="2.3" fill={color} />
-      <Circle cx="14.6" cy="5.4" r="2.3" fill={color} />
-      <Circle cx="18.7" cy="8.6" r="2.1" fill={color} />
-      <Path
-        d="M12 9.2c-2.9 0-5.6 2.5-5.6 5.2 0 1.9 1.4 3 3.1 3 .9 0 1.6-.3 2.5-.3s1.6.3 2.5.3c1.7 0 3.1-1.1 3.1-3 0-2.7-2.7-5.2-5.6-5.2z"
-        fill={color}
-      />
-    </Svg>
+    <View
+      style={{ position: 'absolute', left: x, top: y, width: w, height: h, overflow: 'hidden', backgroundColor: '#e5e7eb' }}
+    >
+      <Image src={src} style={style} />
+    </View>
   );
 }
 
-/** LOST DOG set edge-to-edge in the accent ink — the 30-foot read. */
-function Headline({ data, width, base }) {
-  const label = `${data.stamp} ${data.speciesLabel}`;
+/** Red corner flag, flush to the sheet edge, bottom edge kissing `y`. */
+function RewardFlag({ data, y, big = false }) {
+  if (!data.reward) return null;
+  const h = big ? 66 : 46;
+  const flat = data.reward === 'REWARD';
   return (
-    <Text
+    <View
       style={{
-        color: data.accent,
-        fontWeight: 900,
-        fontSize: fitSize(label, width, base, 24),
-        letterSpacing: -1,
-        lineHeight: 1,
+        position: 'absolute',
+        left: 0,
+        top: y - h,
+        height: h,
+        backgroundColor: data.accent,
+        paddingHorizontal: big ? 20 : 14,
+        justifyContent: 'center',
       }}
     >
-      {label}
-    </Text>
-  );
-}
-
-/** "$500 REWARD" directly under the headline — the second and last red. */
-function RewardLine({ data, fontSize, marginTop = 6 }) {
-  if (!data.reward) return null;
-  const label = data.reward === 'REWARD' ? 'REWARD OFFERED' : `${data.reward} REWARD`;
-  return (
-    <Text style={{ color: data.accent, fontWeight: 900, fontSize, letterSpacing: 2, marginTop }}>{label}</Text>
-  );
-}
-
-function Rule({ marginTop = 0, weight = 1.5, color = T.midnight }) {
-  return <View style={{ height: weight, backgroundColor: color, marginTop }} />;
-}
-
-/** The pet, whole, at the photo's true aspect. Thin keyline, no effects. */
-function PhotoBlock({ data, maxHeight, availWidth }) {
-  const src = data.photos[0];
-  if (!src) {
-    return (
-      <View
-        style={{
-          height: maxHeight,
-          borderWidth: 1,
-          borderColor: T.hair,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Paw size={Math.max(52, maxHeight * 0.2)} color={T.faint} />
-        <Text style={{ color: T.mute, fontWeight: 600, fontSize: Math.max(9, maxHeight * 0.036), marginTop: 10 }}>
-          No photo yet. Please go by the description.
+      {flat ? (
+        <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: big ? 16 : 12, letterSpacing: 1.5 }}>
+          REWARD OFFERED
         </Text>
-      </View>
-    );
-  }
-  if (data.photoAspect) {
-    const { w, h } = photoDims(data, maxHeight, availWidth);
-    return (
-      <View style={{ alignItems: 'center' }}>
-        <View style={{ width: w, height: h, borderWidth: 1, borderColor: T.hair }}>
-          <Image src={src} style={{ width: w - 2, height: h - 2 }} />
-        </View>
-      </View>
-    );
-  }
-  return (
-    <View style={{ height: maxHeight, borderWidth: 1, borderColor: T.hair }}>
-      <Image
-        src={src}
-        style={{ width: '100%', height: maxHeight - 2, objectFit: 'cover', objectPositionY: '25%' }}
-      />
+      ) : (
+        <>
+          <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: big ? 30 : 22, letterSpacing: -0.5 }}>
+            {data.reward}
+          </Text>
+          <Text style={{ color: '#ffffff', fontWeight: 700, fontSize: big ? 10 : 8, letterSpacing: 2.6, marginTop: 1 }}>
+            REWARD
+          </Text>
+        </>
+      )}
     </View>
   );
 }
 
-/** Name + identity chips, poster-tight. */
-function NameRow({ data, width, base = 46, center = false }) {
-  const name = data.petName.toUpperCase();
-  const chips = data.chips.join('  ·  ') + (data.microchipped ? `${data.chips.length ? '  ·  ' : ''}Microchipped` : '');
+/** LOST / DOG stacked, each line fitted to the column width. */
+function StackedLost({ data, w, maxH, color }) {
+  let s1 = fitSize(data.stamp, w, 400, 12);
+  let s2 = fitSize(data.speciesLabel, w, 400, 12);
+  const total = (s1 + s2) * 0.92;
+  if (maxH && total > maxH) {
+    const k = maxH / total;
+    s1 *= k;
+    s2 *= k;
+  }
   return (
-    <View style={{ alignItems: center ? 'center' : 'flex-start' }}>
-      <Text
-        style={{
-          color: T.midnight,
-          fontWeight: 900,
-          fontSize: fitSize(name, width, base, 18),
-          letterSpacing: -0.5,
-          lineHeight: 1,
-        }}
-      >
-        {name}
+    <View style={{ marginTop: -s1 * 0.14 }}>
+      <Text style={{ color, fontWeight: 900, fontSize: s1, lineHeight: 1, letterSpacing: -1 }}>{data.stamp}</Text>
+      <Text style={{ color, fontWeight: 900, fontSize: s2, lineHeight: 1, letterSpacing: -1, marginTop: -s2 * 0.2 }}>
+        {data.speciesLabel}
       </Text>
-      {chips ? (
-        <Text style={{ color: T.mute, fontWeight: 600, fontSize: Math.max(10, base * 0.24), marginTop: 5 }}>
-          {chips}
-        </Text>
-      ) : null}
     </View>
   );
 }
 
-/**
- * The last-seen map: stitched basemap tiles with a red pin on the exact spot
- * and a dashed distance ring for scale, so a reader knows how far they are
- * from where the pet went missing. Renders a centered crop of the shared
- * spec; silently absent when tiles couldn't be fetched.
- */
-function MapBlock({ data, width, height }) {
+/** LOOK FOR / LAST SEEN / IF YOU SEE {NAME} — label over value, no boxes. */
+function DetailRows({ data, dark = false, fs = 9.5, labelFs = 7, gap = 10 }) {
+  const rows = [];
+  if (data.markings) rows.push(['LOOK FOR', noWidow(data.markings)]);
+  rows.push(['LAST SEEN', [data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join(' · ')]);
+  rows.push([`IF YOU SEE ${data.petName.toUpperCase()}`, noWidow(recastApproach(data))]);
+  const labelColor = dark ? C.mist : C.dim;
+  const valueColor = dark ? C.ice : C.night;
+  return (
+    <View>
+      {rows.map(([label, value], i) => (
+        <View key={i} style={{ marginTop: i ? gap : 0 }}>
+          <Text style={{ color: labelColor, fontWeight: 700, fontSize: labelFs, letterSpacing: 1.2 }}>{label}</Text>
+          <Text style={{ color: valueColor, fontWeight: 600, fontSize: fs, lineHeight: 1.4, marginTop: 2.5 }}>
+            {value}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Docked last-seen map: centered crop of the stitched tile spec + red pin. */
+function MapDock({ data, w, h, dark = false }) {
   const m = data.map;
   if (!m) return null;
-  const ox = (width - m.width) / 2;
-  const oy = (height - m.height) / 2;
-  const pinX = ox + m.pin.x;
-  const pinY = oy + m.pin.y;
+  const ox = (w - m.width) / 2;
+  const oy = (h - m.height) / 2;
+  const px = ox + m.pin.x;
+  const py = oy + m.pin.y;
   return (
-    <View style={{ width, height, overflow: 'hidden', borderWidth: 1, borderColor: T.hair }}>
+    <View style={{ width: w, height: h, overflow: 'hidden', borderWidth: 1, borderColor: dark ? '#3b4a63' : '#cbd5e1' }}>
       <View style={{ position: 'absolute', left: ox, top: oy, width: m.width, height: m.height }}>
         {m.tiles.map((t, i) => (
           <Image
@@ -185,10 +212,10 @@ function MapBlock({ data, width, height }) {
           />
         ))}
       </View>
-      {m.ring ? (
+      {m.ring && m.ring.r <= Math.min(w, h) * 0.48 ? (
         <>
           <Svg
-            style={{ position: 'absolute', left: pinX - m.ring.r, top: pinY - m.ring.r }}
+            style={{ position: 'absolute', left: px - m.ring.r, top: py - m.ring.r }}
             width={m.ring.r * 2}
             height={m.ring.r * 2}
             viewBox={`0 0 ${m.ring.r * 2} ${m.ring.r * 2}`}
@@ -196,36 +223,31 @@ function MapBlock({ data, width, height }) {
             <Circle
               cx={m.ring.r}
               cy={m.ring.r}
-              r={m.ring.r - 1.5}
+              r={m.ring.r - 1.2}
               fill="none"
               stroke="#dc2626"
-              strokeWidth={1.4}
-              strokeDasharray="5,4"
+              strokeWidth={1.2}
+              strokeDasharray="4,3"
             />
           </Svg>
           <Text
             style={{
               position: 'absolute',
-              left: pinX - 30,
-              top: Math.min(height - 11, pinY + m.ring.r - 11),
-              width: 60,
+              left: px - 26,
+              top: Math.min(h - 10, py + m.ring.r - 10),
+              width: 52,
               textAlign: 'center',
-              fontSize: 6.5,
+              fontSize: 6,
               fontWeight: 900,
               color: '#dc2626',
-              letterSpacing: 0.8,
+              letterSpacing: 0.7,
             }}
           >
             {m.ring.label}
           </Text>
         </>
       ) : null}
-      <Svg
-        style={{ position: 'absolute', left: pinX - 11, top: pinY - 27 }}
-        width={22}
-        height={28}
-        viewBox="0 0 22 28"
-      >
+      <Svg style={{ position: 'absolute', left: px - 9, top: py - 23 }} width={18} height={23} viewBox="0 0 22 28">
         <Path
           d="M11 0C5 0 0.5 4.6 0.5 10.4 0.5 18 11 28 11 28s10.5-10 10.5-17.6C21.5 4.6 17 0 11 0z"
           fill="#dc2626"
@@ -235,110 +257,68 @@ function MapBlock({ data, width, height }) {
       <View
         style={{
           position: 'absolute',
-          left: 6,
-          top: 6,
+          left: 5,
+          top: 5,
           backgroundColor: '#ffffff',
-          borderWidth: 1,
-          borderColor: T.hair,
-          paddingVertical: 3,
-          paddingHorizontal: 7,
+          paddingVertical: 2.5,
+          paddingHorizontal: 6,
         }}
       >
-        <Text style={{ fontSize: 7, fontWeight: 900, color: T.midnight, letterSpacing: 1 }}>LAST SEEN HERE</Text>
+        <Text style={{ fontSize: 6, fontWeight: 900, color: C.night, letterSpacing: 0.8 }}>LAST SEEN HERE</Text>
       </View>
-      <Text style={{ position: 'absolute', right: 4, bottom: 3, fontSize: 5, color: T.mute }}>{m.attribution}</Text>
+      <Text style={{ position: 'absolute', right: 3, bottom: 2, fontSize: 4.5, color: '#475569' }}>{m.attribution}</Text>
     </View>
   );
 }
 
-/** Quiet spec table: LOOK FOR / IF YOU SEE / LAST SEEN. Hairline rules only. */
-function SpecTable({ data, compact = false }) {
-  const rows = [
-    data.markings ? { label: 'LOOK FOR', value: data.markings } : null,
-    { label: `IF YOU SEE ${data.petName.toUpperCase()}`, value: data.approachLine },
-    { label: 'LAST SEEN', value: [data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join('  ·  ') },
-  ].filter(Boolean);
-  const labelW = compact ? 96 : 110;
-  const fs = compact ? 8.5 : 10;
-  return (
-    <View style={{ marginTop: compact ? 8 : 12, borderTopWidth: 1, borderTopColor: T.hair }}>
-      {rows.map((r, i) => (
-        <View
-          key={i}
-          style={{
-            flexDirection: 'row',
-            paddingVertical: compact ? 4.5 : 6.5,
-            borderBottomWidth: 1,
-            borderBottomColor: T.hair,
-          }}
-        >
-          <Text
-            style={{
-              width: labelW,
-              fontSize: fs - 2,
-              color: T.midnight,
-              fontWeight: 900,
-              letterSpacing: 0.8,
-              marginTop: 1,
-            }}
-          >
-            {r.label}
-          </Text>
-          <Text style={{ flex: 1, fontSize: fs, color: T.slate, fontWeight: 600, lineHeight: 1.4 }}>{r.value}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-/** Bottom contact block on the white ground: rule, giant black phone, QR. */
-function ContactBlock({ data, width, phoneBase, qrSize }) {
-  const qrBox = data.qrDataUrl ? qrSize + 2 : 0;
-  const textW = width - (qrBox ? qrBox + 22 : 0);
-  const isPhone = /^[\d\s()+\-.]+$/.test(data.contactValue || '');
-  const valueBase = isPhone ? phoneBase : phoneBase * 0.66;
+/** Wide contact block: rule, CALL OR TEXT SARAH, giant value, QR at right. */
+function ContactWide({ data, w, dark = false, base = 44, qr = 66 }) {
+  const qrBox = data.qrDataUrl ? qr + 8 : 0;
+  const textW = w - (qrBox ? qrBox + 16 : 0);
+  const size = fitSize(data.contactValue, textW, base, 12);
+  const main = dark ? '#ffffff' : C.night;
+  const sub = dark ? C.mist : C.dim;
   return (
     <View>
-      <Rule weight={2} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: phoneBase * 0.32 }}>
+      {rewardEcho(data) ? (
+        <Text
+          style={{ color: main, fontWeight: 900, fontSize: Math.max(9, base * 0.24), letterSpacing: 1.8, marginBottom: 7 }}
+        >
+          {rewardEcho(data)}
+        </Text>
+      ) : null}
+      <View style={{ height: 2, backgroundColor: main }} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: base * 0.24 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ color: T.mute, fontWeight: 700, fontSize: Math.max(8.5, phoneBase * 0.22), letterSpacing: 2.5 }}>
-            {data.contactVerb}
+          <Text style={{ color: sub, fontWeight: 700, fontSize: Math.max(8, base * 0.2), letterSpacing: 1.6 }}>
+            {verbLine(data, { full: true })}
           </Text>
-          <Text
-            style={{
-              color: T.midnight,
-              fontWeight: 900,
-              fontSize: fitSize(data.contactValue, textW, valueBase, 11),
-              letterSpacing: -0.5,
-              marginTop: 3,
-            }}
-          >
+          <Text style={{ color: main, fontWeight: 900, fontSize: size, letterSpacing: -0.5, marginTop: 4 }}>
             {data.contactValue}
           </Text>
           {data.contactSecondary ? (
-            <Text style={{ color: T.mute, fontSize: Math.max(8.5, phoneBase * 0.2), marginTop: 3 }}>
-              {data.contactSecondary}
+            <Text style={{ color: sub, fontWeight: 600, fontSize: Math.max(8, base * 0.18), marginTop: 4 }}>
+              or {data.contactSecondary}
             </Text>
           ) : null}
           {data.contactValue !== data.caseUrlLabel ? (
-            <Text style={{ color: T.faint, fontSize: Math.max(7.5, phoneBase * 0.16), marginTop: 6 }}>
+            <Text style={{ color: dark ? C.dim : C.mist, fontSize: Math.max(7, base * 0.15), marginTop: 6 }}>
               {data.caseUrlLabel}
             </Text>
           ) : null}
         </View>
         {data.qrDataUrl ? (
-          <View style={{ alignItems: 'center', marginLeft: 22 }}>
-            <View style={{ borderWidth: 1, borderColor: T.hair, padding: 1 }}>
-              <Image src={data.qrDataUrl} style={{ width: qrSize, height: qrSize }} />
+          <View style={{ alignItems: 'center', marginLeft: 16 }}>
+            <View style={{ backgroundColor: '#ffffff', padding: 4, borderWidth: dark ? 0 : 1, borderColor: C.hair }}>
+              <Image src={data.qrDataUrl} style={{ width: qr, height: qr }} />
             </View>
             <Text
               style={{
-                color: T.mute,
-                fontSize: 7.5,
+                color: sub,
+                fontSize: 8,
                 fontWeight: 600,
-                marginTop: 4,
-                maxWidth: qrSize + 6,
+                marginTop: 3,
+                maxWidth: qr + 30,
                 textAlign: 'center',
               }}
             >
@@ -351,18 +331,90 @@ function ContactBlock({ data, width, phoneBase, qrSize }) {
   );
 }
 
-/** Real tear-off tabs: rotated so the number runs up the tab, dashed cut lines. */
-function TearTabs({ data, count = 10, height = 124 }) {
-  const tabW = PAGE.LETTER.width / count;
-  const inner = { w: height - 14, h: tabW - 8 };
-  const tabText = data.contactValue;
+/** Narrow-column contact: full-width value, QR docked beneath. */
+function ContactColumn({ data, w, base = 30, qr = 54 }) {
+  const size = fitSize(data.contactValue, w, base, 11);
+  return (
+    <View>
+      {rewardEcho(data) ? (
+        <Text
+          style={{ color: '#ffffff', fontWeight: 900, fontSize: Math.max(9, base * 0.3), letterSpacing: 1.6, marginBottom: 8 }}
+        >
+          {rewardEcho(data)}
+        </Text>
+      ) : null}
+      <View style={{ height: 2, backgroundColor: '#ffffff' }} />
+      <Text style={{ color: C.mist, fontWeight: 700, fontSize: Math.max(8, base * 0.26), letterSpacing: 1.6, marginTop: 10 }}>
+        {verbLine(data)}
+      </Text>
+      <Text style={{ color: '#ffffff', fontWeight: 900, fontSize: size, letterSpacing: -0.5, marginTop: 4 }}>
+        {data.contactValue}
+      </Text>
+      {data.contactSecondary ? (
+        <Text style={{ color: C.mist, fontWeight: 600, fontSize: Math.max(7.5, base * 0.24), marginTop: 3 }}>
+          or {data.contactSecondary}
+        </Text>
+      ) : null}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+        {data.qrDataUrl ? (
+          <View style={{ backgroundColor: '#ffffff', padding: 3.5 }}>
+            <Image src={data.qrDataUrl} style={{ width: qr, height: qr }} />
+          </View>
+        ) : null}
+        <View style={{ marginLeft: data.qrDataUrl ? 10 : 0, flex: 1 }}>
+          <Text style={{ color: C.ice, fontSize: 8, fontWeight: 600, lineHeight: 1.35 }}>{data.scanCta}</Text>
+          <Text style={{ color: C.dim, fontSize: 7.5, marginTop: 3 }}>{data.caseUrlLabel}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** Typographic cover for the no-photo case: giant stacked LOST / DOG on paper. */
+function CoverType({ data, w, h, pad, descFs }) {
   return (
     <View
       style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: w,
+        height: h,
+        backgroundColor: C.paper,
+        paddingHorizontal: pad,
+        paddingTop: pad,
+        paddingBottom: pad * 0.8,
+        justifyContent: 'space-between',
+      }}
+    >
+      <StackedLost data={data} w={w - pad * 2} maxH={h - pad * 2 - descFs * 4.2} color={C.night} />
+      <View>
+        <Text style={{ color: C.dim, fontWeight: 700, fontSize: descFs * 0.68, letterSpacing: 1.6 }}>
+          GO BY THE DESCRIPTION
+        </Text>
+        <Text style={{ color: C.night, fontWeight: 700, fontSize: descFs, lineHeight: 1.35, marginTop: 3 }}>
+          {noWidow(data.description || chipsLine(data))}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** Real tear-off tabs: rotated text, dashed cut lines. */
+function TearTabs({ data, width, top, count = 9, height = 116 }) {
+  const tabW = width / count;
+  const inner = { w: height - 14, h: tabW - 8 };
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: 0,
+        top,
+        width,
         flexDirection: 'row',
         height,
         borderTopWidth: 1.2,
-        borderTopColor: T.faint,
+        borderTopColor: C.mist,
         borderTopStyle: 'dashed',
       }}
     >
@@ -373,7 +425,7 @@ function TearTabs({ data, count = 10, height = 124 }) {
             width: tabW,
             height,
             borderRightWidth: i < count - 1 ? 1.2 : 0,
-            borderRightColor: T.faint,
+            borderRightColor: C.mist,
             borderRightStyle: 'dashed',
           }}
         >
@@ -389,10 +441,10 @@ function TearTabs({ data, count = 10, height = 124 }) {
               justifyContent: 'center',
             }}
           >
-            <Text style={{ color: T.midnight, fontWeight: 900, fontSize: fitSize(tabText, inner.w, 11.5, 6) }}>
-              {tabText}
+            <Text style={{ color: C.night, fontWeight: 900, fontSize: fitSize(data.contactValue, inner.w, 11.5, 6) }}>
+              {data.contactValue}
             </Text>
-            <Text style={{ color: T.mute, fontWeight: 600, fontSize: 6.5, marginTop: 2, letterSpacing: 0.5 }}>
+            <Text style={{ color: C.dim, fontWeight: 600, fontSize: 7, marginTop: 2, letterSpacing: 0.5 }}>
               {data.stamp} {data.speciesLabel} · {data.petName.toUpperCase()}
             </Text>
           </View>
@@ -402,153 +454,350 @@ function TearTabs({ data, count = 10, height = 124 }) {
   );
 }
 
-const M = 40; // letter margin
-const MP = 56; // poster margin
+/* ---------------------------------------------------------------- layouts */
 
-function ClassicLetter({ data }) {
-  const bodyW = PAGE.LETTER.width - M * 2;
-  const hasMap = Boolean(data.map);
-  // Portrait photos get a side-by-side hero (tall photo, name beside it) so
-  // showing the WHOLE pet doesn't shrink the photo to a stamp.
-  const isPortrait = Boolean(data.photos[0]) && data.photoAspect > 1.05;
-  const heroH = (data.reward ? 316 : 336) - (hasMap ? 34 : 0);
-  const flatH = (data.reward ? 236 : 250) - (hasMap ? 38 : 0);
-  const pw = isPortrait ? photoDims(data, heroH, bodyW * 0.46).w : 0;
-  const mapW = 206;
+/** Portrait photo: the photo bleeds a full column; one night panel beside it. */
+function ColumnSheet({ data, P }) {
+  const colW = Math.round(P.W * 0.58);
+  const panW = P.W - colW;
+  const cw = panW - P.pad * 2;
   return (
-    <Page size="LETTER" style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
-      <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 34, paddingBottom: 30 }}>
-        <Headline data={data} width={bodyW} base={94} />
-        <RewardLine data={data} fontSize={17} marginTop={8} />
-        <Rule marginTop={14} />
-        <View style={{ marginTop: 18 }}>
-          {isPortrait ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <PhotoBlock data={data} maxHeight={heroH} availWidth={bodyW * 0.46} />
-              <View style={{ flex: 1, paddingLeft: 22 }}>
-                <NameRow data={data} width={bodyW - pw - 22} base={44} />
-                <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 9 }}>{data.plea}</Text>
-              </View>
-            </View>
-          ) : (
-            <>
-              <PhotoBlock data={data} maxHeight={flatH} availWidth={bodyW} />
-              <View style={{ marginTop: 16 }}>
-                <NameRow data={data} width={bodyW} base={44} />
-              </View>
-              <Text style={{ color: T.slate, fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>{data.plea}</Text>
-            </>
-          )}
-        </View>
-        {hasMap ? (
-          <View style={{ flexDirection: 'row' }}>
-            <View style={{ flex: 1 }}>
-              <SpecTable data={data} />
-            </View>
-            <View style={{ width: mapW, marginLeft: 14, marginTop: 12 }}>
-              <MapBlock data={data} width={mapW} height={132} />
-            </View>
-          </View>
-        ) : (
-          <SpecTable data={data} />
-        )}
-        <View style={{ flexGrow: 1 }} />
-        <ContactBlock data={data} width={bodyW} phoneBase={46} qrSize={86} />
-      </View>
-    </Page>
-  );
-}
-
-function TearTabFlyer({ data }) {
-  const bodyW = PAGE.LETTER.width - M * 2;
-  // Tall bound for portraits, wide bound for landscapes: either way the whole
-  // photo shows at real size beside the name column.
-  const heroH = (data.reward ? 284 : 300) - (data.map ? 26 : 0);
-  const photoW = Math.max(photoDims(data, heroH, bodyW * 0.5).w, data.photos[0] ? 0 : bodyW * 0.5);
-  return (
-    <Page size="LETTER" style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
-      <View style={{ flexGrow: 1, paddingHorizontal: M, paddingTop: 28, paddingBottom: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <Headline data={data} width={data.reward ? bodyW * 0.62 : bodyW} base={data.reward ? 44 : 52} />
-          <RewardLine data={data} fontSize={15} marginTop={0} />
-        </View>
-        <Rule marginTop={10} />
-        <View style={{ flexGrow: 1 }} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
-          <View style={{ width: photoW }}>
-            <PhotoBlock data={data} maxHeight={heroH} availWidth={bodyW * 0.5} />
-          </View>
-          <View style={{ flex: 1, paddingLeft: 18, justifyContent: 'center' }}>
-            <NameRow data={data} width={bodyW - photoW - 18} base={34} />
-            <Text style={{ color: T.slate, fontSize: 10.5, lineHeight: 1.5, marginTop: 8 }}>{data.plea}</Text>
-          </View>
-        </View>
-        <View style={{ flexGrow: 1 }} />
-        {data.map ? (
-          <View style={{ marginTop: 12 }}>
-            <MapBlock data={data} width={bodyW} height={82} />
-          </View>
+    <Page size={[P.W, P.H]} style={{ fontFamily: 'Inter' }}>
+      <Bleed src={data.photos[0]} aspect={data.photoAspect} w={colW} h={P.H} />
+      <View
+        style={{
+          position: 'absolute',
+          left: colW,
+          top: 0,
+          width: panW,
+          height: P.H,
+          backgroundColor: C.night,
+          paddingHorizontal: P.pad,
+          paddingTop: P.padTop,
+          paddingBottom: P.padBot,
+        }}
+      >
+        <StackedLost data={data} w={cw} maxH={P.lostMaxH} color="#ffffff" />
+        {data.lastSeenWhen ? (
+          <Text style={{ color: C.mist, fontWeight: 700, fontSize: P.labelFs + 1, letterSpacing: 1.8, marginTop: 8 }}>
+            MISSING SINCE {data.lastSeenWhen.toUpperCase()}
+          </Text>
         ) : null}
-        <SpecTable data={data} compact />
-        <View style={{ marginTop: 12 }}>
-          <ContactBlock data={data} width={bodyW} phoneBase={32} qrSize={60} />
+        <View style={{ height: 1.5, backgroundColor: C.panelLine, marginTop: 12 }} />
+        <Text
+          style={{
+            color: '#ffffff',
+            fontWeight: 900,
+            fontSize: fitSize(data.petName.toUpperCase(), cw, P.nameBase, 16),
+            letterSpacing: -0.5,
+            lineHeight: 1,
+            marginTop: 16,
+          }}
+        >
+          {data.petName.toUpperCase()}
+        </Text>
+        <Text style={{ color: C.mist, fontWeight: 600, fontSize: P.chipFs, lineHeight: 1.5, marginTop: 5 }}>
+          {chipsLine(data)}
+        </Text>
+        <View style={{ marginTop: P.gap + 2 }}>
+          <DetailRows data={data} dark fs={P.fs} labelFs={P.labelFs} gap={P.gap} />
         </View>
+        <View style={{ height: P.gap + 4 }} />
+        <MapDock data={data} w={cw} h={P.mapH} dark />
+        <View style={{ flexGrow: 1, minHeight: P.gap }} />
+        <ContactColumn data={data} w={cw} base={P.contactBase} qr={P.qr} />
       </View>
-      <TearTabs data={data} />
+      <RewardFlag data={data} y={P.H} big={P.big} />
     </Page>
   );
 }
 
-function YardPoster({ data }) {
-  const W = PAGE.TABLOID.width;
-  const bodyW = W - MP * 2;
+/** Landscape photo (or typographic cover): bleed on top, night panel below. */
+function StackSheet({ data, P }) {
+  const hasPhoto = Boolean(data.photos[0]);
+  const photoH = Math.round(P.H * P.photoFrac);
+  const panH = P.H - photoH;
+  const cw = P.W - P.pad * 2;
+  const label = `${data.stamp} ${data.speciesLabel}`;
   return (
-    <Page size={[W, PAGE.TABLOID.height]} style={{ fontFamily: 'Inter', backgroundColor: T.paper }}>
-      <View style={{ flexGrow: 1, paddingHorizontal: MP, paddingTop: 48, paddingBottom: 40 }}>
-        <Headline data={data} width={bodyW} base={150} />
-        <RewardLine data={data} fontSize={26} marginTop={12} />
-        <Rule marginTop={18} weight={2.5} />
-        <View style={{ marginTop: 24 }}>
-          <PhotoBlock
-            data={data}
-            maxHeight={(data.reward ? 380 : 420) + (data.map ? 0 : 130)}
-            availWidth={bodyW}
-          />
-        </View>
-        <View style={{ marginTop: 22 }}>
-          <NameRow data={data} width={bodyW} base={60} />
-        </View>
-        <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: T.hair, paddingTop: 12 }}>
-          {data.markings ? (
-            <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
-              <Text style={{ fontWeight: 900 }}>LOOK FOR:{'  '}</Text>
-              {data.markings}
+    <Page size={[P.W, P.H]} style={{ fontFamily: 'Inter' }}>
+      {hasPhoto ? (
+        <Bleed src={data.photos[0]} aspect={data.photoAspect} w={P.W} h={photoH} />
+      ) : (
+        <CoverType data={data} w={P.W} h={photoH} pad={P.coverPad} descFs={P.coverFs} />
+      )}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: photoH,
+          width: P.W,
+          height: panH,
+          backgroundColor: C.night,
+          paddingHorizontal: P.pad,
+          paddingTop: P.padTop,
+          paddingBottom: P.padBot,
+        }}
+      >
+        {hasPhoto ? (
+          <>
+            <Text
+              style={{
+                color: '#ffffff',
+                fontWeight: 900,
+                fontSize: fitSize(label, cw, P.lostBase, 24),
+                letterSpacing: -1,
+                lineHeight: 1,
+              }}
+            >
+              {label}
             </Text>
-          ) : null}
-          <Text style={{ color: T.midnight, fontWeight: 700, fontSize: 15 }}>
-            <Text style={{ fontWeight: 900 }}>LAST SEEN:{'  '}</Text>
-            {[data.lastSeenArea, data.lastSeenWhen].filter(Boolean).join('  ·  ')}
+            {data.lastSeenWhen ? (
+              <Text style={{ color: C.mist, fontWeight: 700, fontSize: P.labelFs + 1, letterSpacing: 1.8, marginTop: 9 }}>
+                MISSING SINCE {data.lastSeenWhen.toUpperCase()}
+              </Text>
+            ) : null}
+          </>
+        ) : (
+          <Text
+            style={{
+              color: '#ffffff',
+              fontWeight: 900,
+              fontSize: fitSize(data.petName.toUpperCase(), cw, P.lostBase * 0.72, 24),
+              letterSpacing: -1,
+              lineHeight: 1,
+            }}
+          >
+            {data.petName.toUpperCase()}
+          </Text>
+        )}
+        <View style={{ flexDirection: 'row', marginTop: P.gap + 4 }}>
+          <View style={{ flex: 1, paddingRight: 18 }}>
+            {hasPhoto ? (
+              <>
+                <Text
+                  style={{
+                    color: '#ffffff',
+                    fontWeight: 900,
+                    fontSize: fitSize(data.petName.toUpperCase(), cw - P.mapW - 18, P.nameBase, 14),
+                    letterSpacing: -0.5,
+                    lineHeight: 1,
+                  }}
+                >
+                  {data.petName.toUpperCase()}
+                </Text>
+                <Text style={{ color: C.mist, fontWeight: 600, fontSize: P.chipFs, lineHeight: 1.5, marginTop: 4 }}>
+                  {chipsLine(data)}
+                </Text>
+                <View style={{ marginTop: P.gap }}>
+                  <DetailRows data={data} dark fs={P.fs} labelFs={P.labelFs} gap={P.gap - 2} />
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={{ color: C.mist, fontWeight: 600, fontSize: P.chipFs, lineHeight: 1.5 }}>
+                  {chipsLine(data)}
+                </Text>
+                <View style={{ marginTop: P.gap }}>
+                  <DetailRows data={data} dark fs={P.fs} labelFs={P.labelFs} gap={P.gap - 2} />
+                </View>
+              </>
+            )}
+          </View>
+          <View style={{ alignSelf: 'center' }}>
+            <MapDock data={data} w={P.mapW} h={P.mapH} dark />
+          </View>
+        </View>
+        <View style={{ flexGrow: 1, minHeight: 10 }} />
+        <ContactWide data={data} w={cw} dark base={P.contactBase} qr={P.qr} />
+      </View>
+      <RewardFlag data={data} y={photoH} big={P.big} />
+    </Page>
+  );
+}
+
+const P_LETTER = {
+  W: 612,
+  H: 792,
+  photoFrac: 0.5,
+  pad: 28,
+  padTop: 20,
+  padBot: 18,
+  lostBase: 80,
+  lostMaxH: 170,
+  nameBase: 38,
+  chipFs: 9,
+  fs: 9.5,
+  labelFs: 7,
+  gap: 11,
+  mapW: 196,
+  mapH: 142,
+  contactBase: 42,
+  qr: 62,
+  big: false,
+  coverPad: 30,
+  coverFs: 12,
+};
+
+const P_LETTER_COL = {
+  ...P_LETTER,
+  pad: 20,
+  padTop: 30,
+  padBot: 20,
+  nameBase: 44,
+  mapH: 196,
+  contactBase: 30,
+  qr: 52,
+  gap: 12,
+  fs: 10,
+};
+
+const P_POSTER = {
+  W: 792,
+  H: 1224,
+  photoFrac: 0.54,
+  pad: 36,
+  padTop: 28,
+  padBot: 32,
+  lostBase: 118,
+  lostMaxH: 240,
+  nameBase: 54,
+  chipFs: 11.5,
+  fs: 12.5,
+  labelFs: 9,
+  gap: 15,
+  mapW: 280,
+  mapH: 216,
+  contactBase: 60,
+  qr: 102,
+  big: true,
+  coverPad: 40,
+  coverFs: 18,
+};
+
+const P_POSTER_COL = {
+  ...P_POSTER,
+  pad: 26,
+  padTop: 42,
+  padBot: 30,
+  nameBase: 64,
+  mapH: 316,
+  contactBase: 44,
+  qr: 96,
+  gap: 18,
+  fs: 13,
+  labelFs: 9.5,
+  chipFs: 12,
+};
+
+function ClassicSheet({ data, P, PCOL }) {
+  const isPortrait = Boolean(data.photos[0]) && data.photoAspect > 1.05;
+  return isPortrait ? <ColumnSheet data={data} P={PCOL} /> : <StackSheet data={data} P={P} />;
+}
+
+/** Letter with tear-off tabs: photo bleed, LOST band, compact info, tabs. */
+function TabsSheet({ data }) {
+  const W = 612;
+  const H = 792;
+  const tabsH = 116;
+  const hasPhoto = Boolean(data.photos[0]);
+  const photoH = hasPhoto ? 352 : 412;
+  const bandH = hasPhoto ? 60 : 0;
+  const infoTop = photoH + bandH;
+  const infoH = H - tabsH - infoTop;
+  const padH = 26;
+  const cw = W - padH * 2;
+  const mapW = 150;
+  const label = `${data.stamp} ${data.speciesLabel}`;
+  return (
+    <Page size={[W, H]} style={{ fontFamily: 'Inter' }}>
+      {hasPhoto ? (
+        <Bleed src={data.photos[0]} aspect={data.photoAspect} w={W} h={photoH} />
+      ) : (
+        <CoverType data={data} w={W} h={photoH} pad={28} descFs={10.5} />
+      )}
+      {hasPhoto ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: photoH,
+            width: W,
+            height: bandH,
+            backgroundColor: C.night,
+            justifyContent: 'center',
+            paddingHorizontal: padH,
+          }}
+        >
+          <Text
+            style={{
+              color: '#ffffff',
+              fontWeight: 900,
+              fontSize: fitSize(label, cw, 46, 20),
+              letterSpacing: -0.5,
+              lineHeight: 1,
+            }}
+          >
+            {label}
           </Text>
         </View>
-        {data.map ? (
-          <View style={{ marginTop: 14 }}>
-            <MapBlock data={data} width={bodyW} height={190} />
+      ) : null}
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: infoTop,
+          width: W,
+          height: infoH,
+          paddingHorizontal: padH,
+          paddingTop: 13,
+          paddingBottom: 12,
+          borderTopWidth: hasPhoto ? 0 : 2,
+          borderTopColor: C.night,
+        }}
+      >
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1, paddingRight: 14 }}>
+            <Text
+              style={{
+                color: C.night,
+                fontWeight: 900,
+                fontSize: fitSize(data.petName.toUpperCase(), cw - mapW - 14, 25, 13),
+                letterSpacing: -0.5,
+                lineHeight: 1,
+              }}
+            >
+              {data.petName.toUpperCase()}
+            </Text>
+            <Text style={{ color: C.dim, fontWeight: 600, fontSize: 8.5, lineHeight: 1.45, marginTop: 3 }}>
+              {chipsLine(data)}
+            </Text>
+            <View style={{ marginTop: 7 }}>
+              <DetailRows data={data} fs={8.5} labelFs={7} gap={6.5} />
+            </View>
           </View>
-        ) : null}
-        <View style={{ flexGrow: 1 }} />
-        <ContactBlock data={data} width={bodyW} phoneBase={56} qrSize={118} />
+          <MapDock data={data} w={mapW} h={112} />
+        </View>
+        <View style={{ flexGrow: 1, minHeight: 7 }} />
+        <ContactWide data={data} w={cw} base={30} qr={48} />
       </View>
+      <RewardFlag data={data} y={photoH} />
+      <TearTabs data={data} width={W} top={H - tabsH} height={tabsH} />
     </Page>
   );
 }
 
-const VARIANTS = { classic: ClassicLetter, tabs: TearTabFlyer, poster: YardPoster };
+const VARIANTS = {
+  classic: (data) => <ClassicSheet data={data} P={P_LETTER} PCOL={P_LETTER_COL} />,
+  tabs: (data) => <TabsSheet data={data} />,
+  poster: (data) => <ClassicSheet data={data} P={P_POSTER} PCOL={P_POSTER_COL} />,
+};
 
 export function FlyerDocument({ data, variant = 'classic' }) {
-  const Variant = VARIANTS[variant] || ClassicLetter;
+  const render = VARIANTS[variant] || VARIANTS.classic;
   return (
     <Document title={`${data.stamp} ${data.petName} (${data.caseNumber})`} author="ReunitePets">
-      <Variant data={data} />
+      {render(data)}
     </Document>
   );
 }
