@@ -26,6 +26,7 @@ import {
   groupSlugFromUrl,
   isFreshFetch,
   runShareTargets,
+  sweepArea,
   REFRESH_AFTER_DAYS,
 } from '@/app/lib/cascade/actions/shareTargets';
 
@@ -216,5 +217,49 @@ describe('runShareTargets directory behavior', () => {
 
     expect(prisma.communityGroup.upsert).not.toHaveBeenCalled();
     expect(result.targets.filter((t) => t.kind === 'facebook_group')).toHaveLength(0);
+  });
+});
+
+describe('sweepArea (manual admin search)', () => {
+  test('reports not-ok without a search key', async () => {
+    const sweep = await sweepArea('Elgin', 'IL');
+    expect(sweep.ok).toBe(false);
+    expect(sweep.reason).toMatch(/BRAVE_SEARCH_API_KEY/);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('searches, persists, and returns the kept groups', async () => {
+    process.env.BRAVE_SEARCH_API_KEY = 'k';
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        web: {
+          results: [
+            {
+              title: 'Lost Pets of Elgin | Facebook',
+              url: 'https://www.facebook.com/groups/lostpetselgin',
+              description: 'Lost and found pets in Elgin IL',
+            },
+            {
+              title: 'Elgin Garage Sale | Facebook',
+              url: 'https://www.facebook.com/groups/elgingaragesale',
+              description: 'Buy and sell in Elgin',
+            },
+          ],
+        },
+      }),
+    });
+
+    const sweep = await sweepArea('Elgin', 'IL');
+
+    expect(sweep.ok).toBe(true);
+    expect(sweep.candidates).toBe(2);
+    // keyword fallback keeps only the lost-pet group, and it gets persisted
+    expect(sweep.groups).toEqual([
+      expect.objectContaining({ name: 'Lost Pets of Elgin', url: 'https://www.facebook.com/groups/lostpetselgin' }),
+    ]);
+    expect(prisma.communityGroup.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { slug: 'lostpetselgin' } })
+    );
   });
 });
