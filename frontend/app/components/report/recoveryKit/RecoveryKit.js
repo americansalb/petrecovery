@@ -52,7 +52,7 @@ function ChecklistItem({ stepKey, step }) {
     <div className="flex items-center gap-3 py-2">
       <span
         className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-          done ? 'bg-emerald-500' : 'bg-midnight-100'
+          done ? 'bg-[#0B1133]' : 'bg-[#F3EFE7]'
         }`}
       >
         {done ? (
@@ -124,7 +124,7 @@ function Panel({ title, icon: Icon, children, defaultOpen = true }) {
   );
 }
 
-export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fallback = null, mode = 'full', petName }) {
+export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fallback = null, mode = 'full', petName, shareUrl, onShare }) {
   // 'full'  = live success-screen dashboard (checklist + matches + assets + plan)
   // 'share' = public case-page toolkit (scannable QR + printable flyers + share
   //           images/captions only; no internal checklist or owner-facing matches)
@@ -210,16 +210,98 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
           : 'The moment you posted, we went to work. Here’s everything we did to help bring them home.'}
       </p>
 
-      {/* Live checklist (success screen only) */}
+      {/* THE OWNER'S NEXT MOVES — the three actions that find most pets. */}
       {!shareMode && (
-        <div className="rounded-2xl border border-midnight-100 bg-white px-4 py-2 mb-4">
-          {anyStep ? (
-            STEP_ORDER.filter((k) => steps[k]).map((k) => <ChecklistItem key={k} stepKey={k} step={steps[k]} />)
-          ) : (
-            <div className="flex items-center gap-3 py-3 text-sm text-midnight-400">
-              <Loader2 size={15} className="animate-spin" /> Starting…
-            </div>
-          )}
+        <div className="rounded-2xl border-2 border-[#0A0D26] bg-white overflow-hidden mb-4">
+          <div className="h-1.5 bg-[#F2D21B]" />
+          <div className="px-4 py-4">
+            <h3 className="font-extrabold text-[#0A0D26]">Do these 3 things now</h3>
+            <p className="text-sm text-[#8A8377] mt-0.5 mb-4">
+              Most pets are found in the first 48 hours by someone nearby. These three moves reach them.
+            </p>
+            <ol className="space-y-4">
+              <li className="flex items-start gap-3">
+                <span className="w-7 h-7 rounded-full bg-[#F2D21B] text-[#0A0D26] flex items-center justify-center text-sm font-extrabold shrink-0">
+                  1
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[#0A0D26] text-sm">Print flyers and post them near the last-seen spot</p>
+                  <p className="text-xs text-[#8A8377] mt-0.5 mb-2">
+                    Corners, mailboxes, store windows — eye level. Each has a map and a QR code back to your case.
+                  </p>
+                  {kit?.assets?.flyers?.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {kit.assets.flyers.map((f) => (
+                        <AssetChip key={f.kind} href={f.url} label={f.label} icon={Download} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="flex items-center gap-2 text-xs text-[#8A8377]">
+                      <Loader2 size={13} className="animate-spin" /> Building your flyers… they&apos;ll appear here in a moment.
+                    </p>
+                  )}
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="w-7 h-7 rounded-full bg-[#F2D21B] text-[#0A0D26] flex items-center justify-center text-sm font-extrabold shrink-0">
+                  2
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[#0A0D26] text-sm">Share the case link everywhere local</p>
+                  <p className="text-xs text-[#8A8377] mt-0.5 mb-2">
+                    Facebook, Nextdoor, neighborhood group chats. One share often reaches the person who spots {petName || 'your pet'}.
+                  </p>
+                  {shareUrl ? (
+                    <div className="flex flex-wrap gap-2">
+                      {onShare && (
+                        <button
+                          type="button"
+                          onClick={onShare}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0B1133] text-[#FFF9EE] text-sm font-semibold hover:opacity-90 transition-opacity"
+                        >
+                          <Copy size={14} /> Share the link
+                        </button>
+                      )}
+                      <a
+                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0B1133] text-[#FFF9EE] text-sm font-semibold hover:opacity-90 transition-opacity"
+                      >
+                        Facebook
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="w-7 h-7 rounded-full bg-[#F2D21B] text-[#0A0D26] flex items-center justify-center text-sm font-extrabold shrink-0">
+                  3
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-[#0A0D26] text-sm">Call the shelters on your list today</p>
+                  <p className="text-xs text-[#8A8377] mt-0.5">
+                    File a lost report with each one — the call list is just below, with tap-to-call numbers.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {/* Everything the system already did — demoted below the owner's moves. */}
+      {!shareMode && (
+        <div className="mb-4">
+          <Panel title="Everything we already did for you" icon={Sparkles} defaultOpen={false}>
+            {anyStep ? (
+              STEP_ORDER.filter((k) => steps[k]).map((k) => <ChecklistItem key={k} stepKey={k} step={steps[k]} />)
+            ) : (
+              <div className="flex items-center gap-3 py-3 text-sm text-[#8A8377]">
+                <Loader2 size={15} className="animate-spin" /> Starting…
+              </div>
+            )}
+          </Panel>
         </div>
       )}
 
@@ -356,7 +438,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
       {/* Shelters to call (success screen only) */}
       {!shareMode && (kit?.shelters?.length > 0 || kit?.sheltersGuidance) && (
         <div className="mb-3">
-          <Panel title="Shelters to call today" icon={MapPin} defaultOpen={false}>
+          <Panel title="Shelters to call today" icon={MapPin} defaultOpen={true}>
             {kit.shelters?.length > 0 ? (
               <div className="space-y-2">
                 {kit.shelters.map((s, i) => (
