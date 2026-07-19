@@ -147,10 +147,11 @@ function Hero({ metrics }) {
                 My pet is lost
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              {/* Quiet cream outline: clearly a peer action, never competing */}
+              {/* Solid cream, navy text: substantial like the primary but the
+                  yellow still leads at a glance */}
               <Link
                 href="/report/found"
-                className="inline-flex items-center gap-2.5 border-2 border-white/35 text-white hover:bg-white/10 hover:border-white/60 font-bold text-lg px-8 py-[14px] rounded-2xl transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
+                className="inline-flex items-center gap-2.5 bg-[#FFF9EE] hover:bg-white text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-black/20 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
               >
                 <Heart className="w-5 h-5" />
                 I found a pet
