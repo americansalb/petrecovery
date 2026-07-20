@@ -172,7 +172,7 @@ export default async function PublicShelterPage({ params }) {
                     </div>
                   )}
                   <div className="p-3">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
                       <p className="font-bold text-midnight-900 truncate">{a.name}</p>
                       {a.shelterStatus === 'ADOPTION_PENDING' && (
                         <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 shrink-0">

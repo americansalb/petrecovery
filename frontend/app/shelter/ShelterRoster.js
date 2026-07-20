@@ -195,7 +195,10 @@ export default function ShelterRoster({ pets }) {
               <PawPrint className="w-6 h-6 text-midnight-300" />
             </div>
           )}
-          <div className="min-w-0 flex-1">
+          {/* basis keeps the info block readable; the transfer control
+              wraps to its own full-width line on phones instead of
+              crushing the name and status chip */}
+          <div className="min-w-0 flex-1 basis-48">
             <div className="flex items-center gap-2 flex-wrap">
               <Link href={`/pets/${pet.id}/today`} className="font-bold text-midnight-900 hover:underline inline-flex items-center gap-1">
                 {pet.name} <ArrowRight className="w-3.5 h-3.5 text-midnight-400" />
@@ -209,7 +212,9 @@ export default function ShelterRoster({ pets }) {
               <p className="text-xs text-midnight-400 truncate">{intakeSummary(pet)}</p>
             )}
           </div>
-          <TransferControl pet={pet} onChanged={refresh} />
+          <div className="w-full sm:w-auto">
+            <TransferControl pet={pet} onChanged={refresh} />
+          </div>
         </li>
       ))}
     </ul>
