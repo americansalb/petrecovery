@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import QRCode from 'qrcode';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 
@@ -110,14 +111,31 @@ export async function POST(
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    // Build case URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://petrecovery.com';
-    const caseUrl = `${baseUrl}/case/${missionId}`;
+    // Build case URL from the public case number (the real, shareable route
+    // is /cases/[caseNumber]; the old /case/[id] link 404'd). Prefer the
+    // request's own origin so scanned QR codes point at the same host the
+    // flyer was generated from.
+    const requestOrigin = (() => {
+      try { return new URL(request.url).origin; } catch { return ''; }
+    })();
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || 'https://www.reunitepets.org';
+    const caseUrl = `${baseUrl}/cases/${(missionRecord as any).caseNumber || missionId}`;
 
-    // Generate QR code URL (using a free QR code API)
-    const qrCodeUrl = includeQrCode
-      ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(caseUrl)}`
-      : '';
+    // Embed a real, scannable QR as a data URL (no external service — works
+    // offline and survives the print CSP; the old placeholder never scanned).
+    let qrCodeUrl = '';
+    if (includeQrCode) {
+      try {
+        qrCodeUrl = await QRCode.toDataURL(caseUrl, {
+          width: 240,
+          margin: 1,
+          errorCorrectionLevel: 'M',
+          color: { dark: '#111827', light: '#ffffff' },
+        });
+      } catch {
+        qrCodeUrl = '';
+      }
+    }
 
     // Format last seen date
     const lastSeenDate = missionRecord.lastSeenAt
@@ -128,20 +146,24 @@ export async function POST(
         })
       : 'Unknown';
 
-    // Build flyer data
+    // Build flyer data. Cases carry denormalized pet/owner fields directly,
+    // so use those first (always present) and fall back to the linked Pet /
+    // reporter records — the old code only read the Pet relation, which is
+    // null for report-created cases, so every such flyer printed "Unknown".
+    const m = missionRecord as any;
     const flyerData: FlyerData = {
-      petName: missionRecord.pet?.name || 'Unknown',
-      petType: missionRecord.pet?.species || 'Pet',
-      breed: missionRecord.pet?.breed || '',
-      color: missionRecord.pet?.color || '',
-      description: missionRecord.pet?.distinctiveMarks || '',
-      photoUrl: missionRecord.pet?.primaryPhotoUrl || null,
-      lastSeenLocation: missionRecord.lastSeenAddress || 'Unknown location',
+      petName: m.petName || m.pet?.name || 'Unknown',
+      petType: m.petSpecies || m.pet?.species || 'Pet',
+      breed: m.petBreed || m.pet?.breed || '',
+      color: m.petColor || m.pet?.color || '',
+      description: m.petDescription || m.pet?.distinctiveMarks || '',
+      photoUrl: m.petPhotoUrl || m.pet?.primaryPhotoUrl || null,
+      lastSeenLocation: m.lastSeenAddress || 'Unknown location',
       lastSeenDate,
-      contactPhone: missionRecord.reporter?.phone || null,
-      contactEmail: missionRecord.reporter?.email || null,
-      rewardOffered: missionRecord.hasReward || false,
-      rewardAmount: missionRecord.rewardAmount || null,
+      contactPhone: m.ownerPhone || m.reporter?.phone || null,
+      contactEmail: m.ownerEmail || m.reporter?.email || null,
+      rewardOffered: m.hasReward || false,
+      rewardAmount: m.rewardAmount || null,
       caseUrl,
       qrCodeUrl,
     };
@@ -210,8 +232,22 @@ function generateFlyerHtml(
 
     body {
       font-family: Arial, Helvetica, sans-serif;
-      background: white;
+      background: #e5e7eb;
     }
+
+    .mc-toolbar {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; gap: 10px; justify-content: center;
+      padding: 12px; background: #111827;
+    }
+    .mc-toolbar button {
+      font: 600 14px Arial, sans-serif; padding: 9px 20px;
+      border: 0; border-radius: 8px; cursor: pointer;
+    }
+    .mc-toolbar .print { background: #dc2626; color: #fff; }
+    .mc-toolbar .close { background: #374151; color: #fff; }
+    .mc-stage { display: flex; justify-content: center; padding: 20px; }
+    .mc-stage .print-container { box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 
     .flyer {
       width: ${width};
@@ -342,14 +378,19 @@ function generateFlyerHtml(
     }
 
     @media print {
-      body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
+      body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .mc-toolbar { display: none; }
+      .mc-stage { padding: 0; }
+      .mc-stage .print-container { box-shadow: none; }
     }
   </style>
 </head>
 <body>
+  <div class="mc-toolbar">
+    <button class="print" onclick="window.print()">Print this flyer</button>
+    <button class="close" onclick="window.close()">Close</button>
+  </div>
+  <div class="mc-stage">
   <div class="print-container">
     <div class="flyer">
       <div class="header">
@@ -390,6 +431,7 @@ function generateFlyerHtml(
 
       ${customMessage ? `<div class="custom-message">"${customMessage}"</div>` : ''}
     </div>
+  </div>
   </div>
 </body>
 </html>

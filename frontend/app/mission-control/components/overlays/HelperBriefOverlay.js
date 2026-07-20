@@ -14,8 +14,11 @@ export default function HelperBriefOverlay({ mission, now, onStart }) {
   if (!mission) return null;
 
   return (
-    <div className="fixed inset-0 z-[800] bg-midnight-950/97 backdrop-blur-sm flex items-center justify-center p-6">
-      <div className="w-full max-w-sm text-center">
+    <div
+      className="fixed inset-0 z-[800] bg-midnight-950/97 backdrop-blur-sm flex items-center justify-center p-6"
+      onClick={onStart}
+    >
+      <div className="w-full max-w-sm text-center" onClick={(e) => e.stopPropagation()}>
         {mission.petPhotoUrl ? (
           <img
             src={mission.petPhotoUrl}
@@ -62,8 +65,11 @@ export default function HelperBriefOverlay({ mission, now, onStart }) {
           onClick={onStart}
           className="mt-6 w-full py-4 rounded-2xl bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold text-lg transition active:scale-[0.98] shadow-lg shadow-flash-400/25"
         >
-          Start helping
+          Got it — show me the map
         </button>
+        <p className="mt-3 text-[11px] text-slate-500">
+          The map shows where to look and the panel shows how to help.
+        </p>
       </div>
     </div>
   );

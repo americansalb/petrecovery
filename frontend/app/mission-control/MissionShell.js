@@ -1,19 +1,23 @@
 'use client';
 
 /**
- * MissionShell - Mission Control, rebuilt from first principles
+ * MissionShell - Mission Control, rebuilt around three questions
+ *
+ * Every state of this screen answers, in order: What's happening?
+ * (situation line + state chip) — What should I do right now? (the
+ * ActionDock's ONE primary + the ranked HelpChecklist) — Where? (the
+ * map, edge-to-edge under everything, dark cartography).
  *
  * One mission, three instruments:
- *   command (desktop)  - coordinate, document, strategize. No GPS.
+ *   command (desktop)  - mission panel + operations rail. No GPS.
  *   field (native app) - GPS legs, one-tap actions, big thumbs.
  *   bridge (mobile web)- orient, report, share, join.
  *
- * One continuous map canvas, never hidden behind tabs. State, not
- * navigation: the screen derives JUST_REPORTED / SEARCH_LIVE /
- * SIGHTING_HOT / REUNITED from live data and adapts the header chip,
- * the primary CTA, and the map. Roles adapt content: owners can close
- * the loop, first-time helpers get the 10-second brief, visitors get
- * a way in.
+ * State, not navigation: JUST_REPORTED / SEARCH_LIVE / SIGHTING_HOT /
+ * REUNITED are derived live (useMissionState) and re-skin the header
+ * chip, the banner, the dock, and the map. Roles adapt content:
+ * owners can close the loop, first-timers get the 10-second brief,
+ * visitors get a way in.
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
@@ -28,13 +32,15 @@ import useMissionChat from './hooks/useMissionChat';
 import useSearchCoverage from './hooks/useSearchCoverage';
 import usePOIs from './hooks/usePOIs';
 import useCaseOutcome from './hooks/useCaseOutcome';
-import useMissionState, { ROLES } from './hooks/useMissionState';
+import useMissionState, { ROLES, timeAgoShort } from './hooks/useMissionState';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { calculateProbabilityZones } from '@/app/lib/searchProbability';
-import { printFlyer } from '@/app/lib/flyerGenerator';
 
 import MissionHeader from './components/MissionHeader';
+import HotSightingBanner from './components/HotSightingBanner';
 import MapCanvas from './components/MapCanvas';
+import { getPrimaryActionId } from './components/ActionDock';
+import { markLocalAction } from './components/HelpChecklist';
 import BottomSheet, { DETENTS } from './components/sheet/BottomSheet';
 import SheetPeek from './components/sheet/SheetPeek';
 import SheetBrief from './components/sheet/SheetBrief';
@@ -83,7 +89,6 @@ function MissionShellContent() {
     showWaiverModal,
     handleJoinMission,
     isJoining,
-    timeMissing,
   } = mission;
 
   // ----- Geometry and zones (ported intact) -----
@@ -153,15 +158,15 @@ function MissionShellContent() {
 
   // ----- Local UI state -----
   const [detent, setDetent] = useState(DETENTS.PEEK);
+  const [railTab, setRailTab] = useState('activity');
   const [focusPoint, setFocusPoint] = useState(null);
-  const [rallyHighlight, setRallyHighlight] = useState(false);
+  const [checklistHighlight, setChecklistHighlight] = useState(false);
   const [showMarkReunited, setShowMarkReunited] = useState(false);
   const [savingReunited, setSavingReunited] = useState(false);
   const [reunitedError, setReunitedError] = useState(null);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
 
   const isCommand = instrument === INSTRUMENTS.COMMAND;
-  const isField = instrument === INSTRUMENTS.FIELD;
 
   // ----- Celebration: once automatically, replayable forever -----
   const celebratedKey = activeMission?.id ? `mc_celebrated_${activeMission.id}` : null;
@@ -199,43 +204,65 @@ function MissionShellContent() {
     const payload = reunited
       ? { title: `${name} is home!`, text: `Great news: ${name} has been reunited with their family. Thank you to everyone who searched!`, url }
       : { title: `Help find ${name}!`, text: `${name} is missing near ${activeMission?.lastSeenAddress || 'your area'}. Every share is a searcher.`, url };
+    const mark = () => markLocalAction(activeMission?.id, 'share');
     if (navigator.share) {
-      navigator.share(payload).catch(() => {});
+      navigator.share(payload).then(mark).catch(() => {});
     } else {
       navigator.clipboard.writeText(payload.url);
+      mark();
       showNotification('success', 'Link copied. Paste it everywhere.');
     }
   }, [activeMission, showNotification]);
 
-  const handleFlyer = useCallback(() => {
+  const handleFlyer = useCallback(async () => {
     if (!activeMission) return;
+    // Open the tab synchronously (inside the click gesture) so pop-up
+    // blockers don't eat it, show a placeholder, then swap in the finished
+    // flyer from the server generator once it's ready.
+    const win = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    if (win) {
+      win.document.write(
+        '<!doctype html><meta charset="utf-8"><title>Preparing flyer…</title>' +
+        '<body style="font-family:Arial,sans-serif;display:flex;height:100vh;margin:0;align-items:center;justify-content:center;color:#374151">Preparing flyer…</body>'
+      );
+    }
     try {
-      printFlyer({
-        petName: activeMission.petName,
-        petSpecies: activeMission.petSpecies,
-        petBreed: activeMission.petBreed,
-        petColor: activeMission.petColor,
-        petSize: activeMission.petSize,
-        petDescription: activeMission.petDescription,
-        petPhotoUrl: activeMission.petPhotoUrl,
-        lastSeenAt: activeMission.lastSeenAt,
-        lastSeenAddress: activeMission.lastSeenAddress,
-        hasReward: activeMission.hasReward,
-        rewardAmount: activeMission.rewardAmount,
-        ownerPhone: activeMission.ownerPhone,
-        ownerEmail: activeMission.ownerEmail,
-        missionNumber: activeMission.missionNumber || activeMission.caseNumber,
-        id: activeMission.id,
+      const res = await fetch(`/api/mission/${activeMission.id}/flyers/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ size: 'full', template: 'classic', includeQrCode: true }),
       });
-      showNotification('success', 'Flyer opened for printing');
+      if (!res.ok) throw new Error('generate_failed');
+      const data = await res.json();
+      if (!data?.html) throw new Error('generate_failed');
+      if (win) {
+        win.document.open();
+        win.document.write(data.html);
+        win.document.close();
+        win.focus();
+      }
+      markLocalAction(activeMission.id, 'flyer');
+      showNotification('success', 'Flyer opened in a new tab.');
     } catch (err) {
-      showNotification('error', 'Could not generate the flyer');
+      if (win) win.close();
+      showNotification(
+        'error',
+        !win ? 'Allow pop-ups for this site to open the flyer.' : 'Could not generate the flyer.'
+      );
     }
   }, [activeMission, showNotification]);
 
   const handleBoost = useCallback(() => {
     if (activeMission?.caseNumber) router.push(`/cases/${activeMission.caseNumber}`);
   }, [activeMission, router]);
+
+  const handleCallShelters = useCallback(() => {
+    if (isCommand) {
+      setRailTab('shelters');
+    } else {
+      setDetent(DETENTS.FULL);
+    }
+  }, [isCommand]);
 
   const handleStartLeg = useCallback(async () => {
     const result = await leg.startLeg();
@@ -333,8 +360,8 @@ function MissionShellContent() {
     if (action === 'sighting') setShowSightingForm(true);
     if (tab === 'flyer' || tab === 'boost') {
       setDetent(DETENTS.HALF);
-      setRallyHighlight(true);
-      setTimeout(() => setRallyHighlight(false), 3500);
+      setChecklistHighlight(true);
+      setTimeout(() => setChecklistHighlight(false), 3500);
       if (tab === 'flyer') setTimeout(() => handleFlyer(), 600);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -347,47 +374,64 @@ function MissionShellContent() {
   );
 
   const searchersActive = Math.max(coverageData.activeSearchersCount || 0, activeParticipants.length, leg.isSearching ? 1 : 0);
+  const isArchived = ms.stateId === 'REUNITED' || ms.stateId === 'CLOSED';
+
+  const daysSearched = useMemo(() => {
+    if (!activeMission?.lastSeenAt) return null;
+    const end = activeMission.resolvedAt ? new Date(activeMission.resolvedAt) : new Date();
+    const days = Math.max(1, Math.round((end - new Date(activeMission.lastSeenAt)) / 86400000));
+    return `${days}d`;
+  }, [activeMission?.lastSeenAt, activeMission?.resolvedAt]);
 
   const vitalsProps = {
     missingFor: ms.missingFor,
     sightingsCount: sightings?.length || 0,
     searchersActive,
-    updatedAgo: 'just now',
+    live: !isArchived,
+    archived: isArchived,
+    searchedFor: daysSearched,
   };
 
-  const ctaProps = {
+  const dockProps = {
     stateId: ms.stateId,
     role: ms.role,
     instrument,
     resolving: instrumentResolving,
     petName: activeMission?.petName,
+    searchersActive,
+    hotWhen: ms.hotSighting ? timeAgoShort(ms.hotSighting.sightedAt || ms.hotSighting.createdAt, ms.now) : null,
     isStarting: leg.isStarting,
     isJoining,
     onStartLeg: handleStartLeg,
     onReportSighting: () => setShowSightingForm(true),
-    onShare: () => handleShare(false),
+    onShare: () => handleShare(isArchived),
     onHeadingThere: handleHeadingThere,
     onJoin: handleJoinMission,
     onSeeCelebration: () => setCelebrationOpen(true),
   };
 
-  const isArchived = ms.stateId === 'REUNITED' || ms.stateId === 'CLOSED';
+  const checklistProps = {
+    missionId: activeMission?.id,
+    petName: activeMission?.petName,
+    sheltersTotal: pois?.length || 0,
+    showBoost: ms.isOwner && !!activeMission?.adFundEnabled,
+    excludeAction: getPrimaryActionId(ms.stateId, ms.role, instrument),
+    highlight: checklistHighlight,
+    onShare: () => handleShare(false),
+    onReportSighting: () => setShowSightingForm(true),
+    onFlyer: handleFlyer,
+    onCallShelters: handleCallShelters,
+    onBoost: handleBoost,
+  };
+
   const briefProps = {
     mission: activeMission,
     now: ms.now,
-    hotSighting: ms.hotSighting,
-    onFocusSighting: handleFocusSighting,
+    checklist: checklistProps,
+    activityItems,
     isOwner: ms.isOwner,
     onMarkReunited: () => setShowMarkReunited(true),
     readOnly: isArchived,
-    rally: {
-      onShare: () => handleShare(isArchived),
-      onFlyer: handleFlyer,
-      onBoost: handleBoost,
-      showBoost: ms.isOwner && !!activeMission?.adFundEnabled,
-      highlight: rallyHighlight,
-    },
-    activityItems,
   };
 
   const chatProps = {
@@ -415,9 +459,9 @@ function MissionShellContent() {
     onEnd: handleEndLeg,
   };
 
-  // Peek grows for two-button states and the live HUD
-  const twoButtonPeek = ms.stateId === 'JUST_REPORTED' || ms.role === ROLES.VISITOR;
-  const peekHeight = leg.isSearching ? 264 : twoButtonPeek && !isArchived ? 252 : 178;
+  // Peek grows for the visitor's two-button dock and the live HUD
+  const visitorPeek = ms.role === ROLES.VISITOR && !isArchived;
+  const peekHeight = leg.isSearching ? 264 : visitorPeek ? 272 : 208;
 
   const celebrationStats = useMemo(() => {
     const m = activeMission;
@@ -441,7 +485,7 @@ function MissionShellContent() {
       <div className="h-[100dvh] flex items-center justify-center bg-slate-950">
         <div className="text-center">
           <Loader2 size={40} className="animate-spin text-flash-400 mx-auto mb-4" />
-          <p className="text-slate-400">Loading mission...</p>
+          <p className="text-slate-400">Opening mission control...</p>
         </div>
       </div>
     );
@@ -486,25 +530,37 @@ function MissionShellContent() {
       <div className="h-[100dvh] flex items-center justify-center bg-slate-950 px-4">
         <div className="text-center max-w-md">
           <MapPin size={48} className="text-slate-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">No Case Selected</h2>
-          <p className="text-slate-400 mb-4">Select a case from your dashboard to open mission control.</p>
-          <a
-            href="/dashboard"
-            className="inline-block px-6 py-2 bg-flash-400 text-midnight-950 rounded-xl font-semibold hover:bg-flash-300 transition"
-          >
-            Go to Dashboard
-          </a>
+          <h2 className="text-xl font-bold text-white mb-2">No Mission Selected</h2>
+          <p className="text-slate-400 mb-4">Open a mission from your dashboard, or browse active searches near you.</p>
+          <div className="flex gap-2 justify-center">
+            <a
+              href="/dashboard"
+              className="inline-block px-5 py-2 bg-flash-400 text-midnight-950 rounded-xl font-semibold hover:bg-flash-300 transition"
+            >
+              My dashboard
+            </a>
+            <a
+              href="/lost-and-found"
+              className="inline-block px-5 py-2 bg-slate-800 border border-slate-700 text-white rounded-xl font-semibold hover:bg-slate-700 transition"
+            >
+              Lost &amp; Found
+            </a>
+          </div>
         </div>
       </div>
     );
   }
 
   // ----- The screen -----
+  const hotBanner = ms.stateId === 'SIGHTING_HOT' && ms.hotSighting;
+
   return (
     <div className="h-[100dvh] bg-slate-950 flex flex-col overflow-hidden">
       <MissionHeader mission={activeMission} state={ms.state} chipLabel={ms.chipLabel} />
 
-      <div className="relative flex-1">
+      {hotBanner && <HotSightingBanner sighting={ms.hotSighting} now={ms.now} onFocus={handleFocusSighting} />}
+
+      <div className="relative flex-1 min-h-0">
         <MapCanvas
           mission={activeMission}
           lastSeenLocation={lastSeenLocation}
@@ -512,23 +568,31 @@ function MissionShellContent() {
           searchPath={leg.path}
           coverageData={coverageData}
           pois={pois}
-          showPOIs={isCommand || detent === DETENTS.FULL}
+          defaultShowPOIs={isCommand}
           probabilityZones={probabilityZones}
-          originalZoneSettings={originalZoneSettings}
           zoneMultiplier={zoneMultiplier}
           onZoneMultiplierChange={setZoneMultiplier}
           hoursElapsed={hoursElapsed}
           focusPoint={focusPoint}
           isSearching={leg.isSearching}
-          bottomInset={isCommand ? 24 : peekHeight + 18}
-          leftOffset={isCommand ? 420 : 12}
-          controlsOffset={isCommand ? { top: 16, right: 388 } : null}
-          legendOffset={isCommand ? { top: 16, left: 410 } : null}
+          keyOffset={isCommand ? { bottom: 24, left: 440 } : { bottom: peekHeight + 16, left: 16 }}
+          controlsOffset={isCommand ? { top: 16, right: 380 } : null}
+          archived={isArchived}
         />
 
         {isCommand ? (
           <>
-            <CommandPanel vitals={vitalsProps} cta={ctaProps} brief={briefProps} />
+            <CommandPanel
+              mission={activeMission}
+              now={ms.now}
+              vitals={vitalsProps}
+              dock={dockProps}
+              checklist={checklistProps}
+              activityItems={activityItems}
+              isOwner={ms.isOwner}
+              onMarkReunited={() => setShowMarkReunited(true)}
+              readOnly={isArchived}
+            />
             <OperationsRail
               missionId={activeMission.id}
               sightings={sightings}
@@ -537,6 +601,9 @@ function MissionShellContent() {
               chat={chatProps}
               pois={pois}
               poisLoading={poisLoading}
+              activeTab={railTab}
+              onTabChange={setRailTab}
+              readOnly={isArchived}
             />
           </>
         ) : (
@@ -545,7 +612,7 @@ function MissionShellContent() {
               isSearching={leg.isSearching}
               hud={hudProps}
               vitals={vitalsProps}
-              cta={ctaProps}
+              dock={dockProps}
             />
             <div className="mt-4">
               <SheetBrief {...briefProps} />
@@ -569,13 +636,13 @@ function MissionShellContent() {
       {/* Toast */}
       {notification && (
         <div className={`
-          fixed top-20 left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[900]
-          p-4 rounded-xl border shadow-xl backdrop-blur-sm
+          fixed top-[68px] left-4 right-4 lg:left-auto lg:right-6 lg:w-96 z-[900]
+          px-4 py-3 rounded-xl border shadow-xl backdrop-blur-sm
           ${notification.type === 'success'
-            ? 'bg-slate-900/95 border-emerald-500/50 text-emerald-400'
+            ? 'bg-slate-950/95 border-emerald-500/50 text-emerald-300'
             : notification.type === 'error'
-              ? 'bg-slate-900/95 border-red-500/50 text-red-400'
-              : 'bg-slate-900/95 border-slate-700 text-slate-300'
+              ? 'bg-slate-950/95 border-red-500/50 text-red-300'
+              : 'bg-slate-950/95 border-white/10 text-slate-300'
           }
         `}>
           <p className="font-medium text-sm">{notification.message}</p>

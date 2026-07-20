@@ -3,22 +3,40 @@
 /**
  * MapCanvas - the map IS the mission
  *
- * Always mounted, full-bleed under the header, never hidden behind a
- * tab. Owns the probability-zone controls so they sit clear of
- * whatever instrument panel is on screen (bottomInset).
+ * Fills its container edge-to-edge (the shell puts that container
+ * directly under the header, so there is no dead band), defaults to
+ * dark cartography so mission layers are the brightest thing on
+ * screen, and owns the only two pieces of map furniture: the control
+ * stack (inside SARMapView) and the MapKey.
  */
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
-import ProbabilityZoneToggle from './simple/ProbabilityZoneToggle';
-import ProbabilityZoneSlider from '@/app/components/mission/ProbabilityZoneSlider';
+import MapKey from './MapKey';
+
+// The flashlight beam: warm amber-to-ember, brightest where the pet
+// most likely is — and a COMPACT glow, not a viewport-wide wash. The
+// outer rings get little or no fill (the dashed beam edge marks the
+// boundary) so the map itself stays dark.
+const FLASHLIGHT_ZONE_COLORS = {
+  HIGH: '#facc15',
+  MEDIUM: '#f59e0b',
+  LOW: '#f97316',
+  EXTENDED: '#b91c1c',
+};
+const FLASHLIGHT_ZONE_FILLS = {
+  HIGH: 0.16,
+  MEDIUM: 0.08,
+  LOW: 0.03,
+  EXTENDED: 0,
+};
 
 const SARMapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-slate-900">
-      <Loader2 size={32} className="animate-spin text-slate-400" />
+    <div className="w-full h-full flex items-center justify-center bg-slate-950">
+      <Loader2 size={32} className="animate-spin text-slate-500" />
     </div>
   ),
 });
@@ -30,23 +48,24 @@ export default function MapCanvas({
   searchPath,
   coverageData,
   pois,
-  showPOIs,
+  defaultShowPOIs = false,
   probabilityZones,
-  originalZoneSettings,
   zoneMultiplier,
   onZoneMultiplierChange,
   hoursElapsed,
   focusPoint,
   isSearching,
-  bottomInset = 170,
-  leftOffset = 12,
+  keyOffset = { bottom: 24, left: 16 },
   controlsOffset = null,
-  legendOffset = null,
+  archived = false,
 }) {
-  const [showZones, setShowZones] = useState(true);
+  // A finished mission's map rests: the flashlight beam starts off
+  // (still available from the Map key for anyone curious)
+  const [showZones, setShowZones] = useState(!archived);
+  const [showPOIs, setShowPOIs] = useState(defaultShowPOIs && !archived);
 
   return (
-    <div className="absolute inset-x-0 top-14 bottom-0">
+    <div className="absolute inset-0">
       <SARMapView
         center={lastSeenLocation ? [lastSeenLocation.lat, lastSeenLocation.lng] : [41.8781, -87.6298]}
         lastSeen={lastSeenLocation}
@@ -58,32 +77,31 @@ export default function MapCanvas({
         activeSearchersCount={coverageData?.activeSearchersCount || 0}
         pois={pois}
         showPOIs={showPOIs}
-        showLegend={!isSearching}
+        showLegend={false}
         interactive
+        defaultLayer="street"
+        zoneColors={FLASHLIGHT_ZONE_COLORS}
+        zoneFills={FLASHLIGHT_ZONE_FILLS}
         showProbabilityZones={showZones}
         probabilityZones={probabilityZones}
         focusPoint={focusPoint}
         controlsOffset={controlsOffset}
-        legendOffset={legendOffset}
       />
 
-      {/* Zone controls, kept clear of the sheet or panels */}
+      {/* The one piece of floating furniture; hidden while a leg records */}
       {!isSearching && lastSeenLocation && (
-        <div
-          className="absolute z-[500] flex flex-col gap-2 max-w-[240px]"
-          style={{ bottom: bottomInset, left: leftOffset }}
-        >
-          <ProbabilityZoneToggle show={showZones} onToggle={() => setShowZones(!showZones)} />
-          {showZones && (
-            <ProbabilityZoneSlider
-              originalSettings={originalZoneSettings}
-              currentMultiplier={zoneMultiplier}
-              onMultiplierChange={onZoneMultiplierChange}
-              onReset={() => onZoneMultiplierChange(1)}
-              petSpecies={mission?.petSpecies}
-            />
-          )}
-        </div>
+        <MapKey
+          style={{ bottom: keyOffset.bottom, left: keyOffset.left }}
+          showZones={showZones}
+          onToggleZones={() => setShowZones((v) => !v)}
+          zoneMultiplier={zoneMultiplier}
+          onZoneMultiplierChange={onZoneMultiplierChange}
+          showPOIs={showPOIs}
+          onTogglePOIs={() => setShowPOIs((v) => !v)}
+          hasSightings={(sightings?.length || 0) > 0}
+          hasTrails={(coverageData?.trails?.length || 0) > 0 || (searchPath?.length || 0) > 0}
+          hasPOIs={(pois?.length || 0) > 0}
+        />
       )}
     </div>
   );
