@@ -12,6 +12,7 @@ import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { isIntakeType } from '@/app/lib/shelterStatuses';
 import { enqueueStrayIntakeMatch } from '@/app/lib/shelterMatching';
+import { userManagesShelter } from '@/app/lib/shelterAuth';
 
 // GET /api/pets - List user's pets
 export async function GET(request) {
@@ -164,25 +165,22 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid sex' }, { status: 400 });
     }
 
-    // Shelter accounts: a claimed shelter may tag the record onto its
-    // roster. Only the user who claimed that shelter may do so — anyone
-    // else gets a 403, so rosters can't be polluted by strangers.
+    // Shelter accounts: whoever manages the shelter (claimer or ACTIVE
+    // staff member) may tag the record onto its roster; anyone else gets
+    // a 403, so rosters can't be polluted by strangers.
     let managedByShelterId = null;
     // Intake details ride along only on shelter creates; personal pets
     // never carry them (fields silently ignored without shelterId).
     let intake = {};
     if (shelterId) {
-      const claim = await prisma.shelterProfile.findFirst({
-        where: { shelterId, claimedById: user.id },
-        select: { shelterId: true },
-      });
-      if (!claim) {
+      const manages = await userManagesShelter(user.id, session.user.email, shelterId);
+      if (!manages) {
         return NextResponse.json(
           { error: 'You don\'t manage that shelter' },
           { status: 403 }
         );
       }
-      managedByShelterId = claim.shelterId;
+      managedByShelterId = shelterId;
 
       if (intakeType && !isIntakeType(intakeType)) {
         return NextResponse.json({ error: 'Invalid intake type' }, { status: 400 });

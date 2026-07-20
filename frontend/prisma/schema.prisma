@@ -546,6 +546,28 @@ model PetTransfer {
   @@index([toEmail])
 }
 
+// Shelter staff seats. Invites are keyed by email (the PetShare pattern)
+// so a seat can exist before the invitee has an account; userId links on
+// accept. The claiming user (ShelterProfile.claimedById) is the implicit
+// owner seat and never stored as a row. Statuses are strings so prod's
+// plain `prisma db push` boot stays painless.
+model ShelterMember {
+  id          String   @id @default(cuid())
+  shelterId   String
+  email       String   // normalized lowercase
+  userId      String?
+  role        String   @default("STAFF") // MANAGER | STAFF
+  status      String   @default("PENDING") // PENDING | ACTIVE | REVOKED
+  invitedById String
+  createdAt   DateTime @default(now())
+  respondedAt DateTime?
+
+  @@unique([shelterId, email])
+  @@index([userId])
+  @@index([email])
+  @@index([shelterId, status])
+}
+
 // Roster-stray vs lost-case match candidates, written by the intake matcher
 // (new STRAY on a shelter roster) and the lost-report cascade action, read
 // by the shelter dashboard. The shelter confirms BEFORE any owner is

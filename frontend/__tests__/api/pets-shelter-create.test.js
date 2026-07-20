@@ -1,8 +1,8 @@
 /**
  * Shelter accounts: POST /api/pets accepts an optional shelterId that tags
- * the record onto a shelter's roster, but ONLY when the caller is the
- * user who claimed that shelter (ShelterProfile.claimedById). Anyone else
- * gets a 403 and no pet is created, so rosters can't be polluted.
+ * the record onto a shelter's roster, but ONLY when the caller manages
+ * that shelter (the claimer, or an ACTIVE ShelterMember seat). Anyone
+ * else gets a 403 and no pet is created, so rosters can't be polluted.
  */
 
 jest.mock('next-auth', () => ({ getServerSession: jest.fn() }));
@@ -14,6 +14,7 @@ jest.mock('@/app/lib/prisma', () => ({
     user: { findUnique: jest.fn() },
     pet: { create: jest.fn() },
     shelterProfile: { findFirst: jest.fn() },
+    shelterMember: { findFirst: jest.fn() },
   },
 }));
 
@@ -40,6 +41,7 @@ beforeEach(() => {
     id: 'pet-1',
     ...data,
   }));
+  prisma.shelterMember.findFirst.mockResolvedValue(null);
 });
 
 describe('POST /api/pets with shelterId', () => {
@@ -61,12 +63,31 @@ describe('POST /api/pets with shelterId', () => {
     );
   });
 
-  test('a non-claimer gets 403 and no pet is created', async () => {
+  test('a stranger (no claim, no seat) gets 403 and no pet is created', async () => {
     prisma.shelterProfile.findFirst.mockResolvedValue(null);
+    prisma.shelterMember.findFirst.mockResolvedValue(null);
 
     const res = await POST(makeRequest({ ...VALID_BODY, shelterId: 'shelter-1' }));
     expect(res.status).toBe(403);
     expect(prisma.pet.create).not.toHaveBeenCalled();
+  });
+
+  test('an ACTIVE staff seat tags the roster too', async () => {
+    prisma.shelterProfile.findFirst.mockResolvedValue(null);
+    prisma.shelterMember.findFirst.mockResolvedValue({ id: 'seat-1' });
+
+    const res = await POST(makeRequest({ ...VALID_BODY, shelterId: 'shelter-1' }));
+    expect(res.status).toBe(201);
+    expect(prisma.shelterMember.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ shelterId: 'shelter-1', status: 'ACTIVE' }),
+      })
+    );
+    expect(prisma.pet.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ managedByShelterId: 'shelter-1' }),
+      })
+    );
   });
 
   test('without shelterId the pet stays personal (managedByShelterId null)', async () => {

@@ -13,6 +13,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { coarseArea } from '@/app/lib/cascade/reverseMatch';
+import { getShelterForUser } from '@/app/lib/shelterAuth';
 
 export async function GET() {
   try {
@@ -21,16 +22,13 @@ export async function GET() {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const profile = await prisma.shelterProfile.findFirst({
-      where: { claimedById: session.user.id },
-      select: { shelterId: true },
-    });
-    if (!profile) {
+    const membership = await getShelterForUser(session.user.id, session.user.email);
+    if (!membership) {
       return NextResponse.json({ error: 'You don\'t manage a shelter' }, { status: 403 });
     }
 
     const rows = await prisma.shelterStrayMatch.findMany({
-      where: { shelterId: profile.shelterId, status: 'PENDING' },
+      where: { shelterId: membership.shelterId, status: 'PENDING' },
       orderBy: [{ pTrueMatch: 'desc' }, { createdAt: 'desc' }],
       take: 50,
       include: {

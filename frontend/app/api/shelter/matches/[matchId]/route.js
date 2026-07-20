@@ -17,6 +17,7 @@ import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { sendPushToUser } from '@/app/lib/push';
+import { getShelterForUser } from '@/app/lib/shelterAuth';
 import { logEvent } from '@/lib/logging';
 
 export async function POST(request, { params }) {
@@ -26,13 +27,11 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const profile = await prisma.shelterProfile.findFirst({
-      where: { claimedById: session.user.id },
-      select: { shelterId: true },
-    });
-    if (!profile) {
+    const membership = await getShelterForUser(session.user.id, session.user.email);
+    if (!membership) {
       return NextResponse.json({ error: 'You don\'t manage a shelter' }, { status: 403 });
     }
+    const profile = { shelterId: membership.shelterId };
 
     const { matchId } = await params;
     const body = await request.json().catch(() => ({}));

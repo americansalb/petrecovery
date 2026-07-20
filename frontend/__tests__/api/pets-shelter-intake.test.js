@@ -17,6 +17,7 @@ jest.mock('@/app/lib/prisma', () => ({
     pet: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     petShare: { findFirst: jest.fn() },
     shelterProfile: { findFirst: jest.fn() },
+    shelterMember: { findFirst: jest.fn() },
   },
 }));
 
@@ -47,8 +48,9 @@ function makeRequest(body) {
 beforeEach(() => {
   jest.clearAllMocks();
   getServerSession.mockResolvedValue({ user: { email: 'staff@shelter.org' } });
-  prisma.user.findUnique.mockResolvedValue({ id: 'user-1' });
+  prisma.user.findUnique.mockResolvedValue({ id: 'user-1', email: 'staff@shelter.org' });
   prisma.shelterProfile.findFirst.mockResolvedValue({ shelterId: 'shelter-1' });
+  prisma.shelterMember.findFirst.mockResolvedValue(null);
   prisma.pet.create.mockImplementation(async ({ data }) => ({
     id: 'pet-1',
     photos: '[]',

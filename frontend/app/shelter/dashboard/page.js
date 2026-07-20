@@ -7,6 +7,9 @@ import Link from 'next/link';
 import { Building2, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle, Plus, HeartHandshake } from 'lucide-react';
 import ShelterRoster from '../ShelterRoster';
 import StrayMatches from '../StrayMatches';
+import ShelterTeam from '../ShelterTeam';
+import InviteBanner from '../InviteBanner';
+import { getShelterForUser } from '@/app/lib/shelterAuth';
 
 // Session-dependent — never statically rendered.
 export const dynamic = 'force-dynamic';
@@ -22,28 +25,27 @@ export default async function ShelterDashboardPage() {
     redirect('/login?callbackUrl=/shelter/dashboard');
   }
 
-  // AUTHZ: only ever load the requester's OWN claimed shelter (by claimedById).
-  // We never query or expose any other shelter, so no shelter's existence/status
-  // can leak to a non-owner. A claimant sees their shelter; an admin sees a
-  // generic panel; anyone else sees an honest "you don't manage a shelter".
-  const profile = await prisma.shelterProfile.findFirst({
-    where: { claimedById: session.user.id },
-    select: { shelterId: true },
-  });
+  // AUTHZ: only ever load the requester's OWN shelter, resolved through
+  // shelterAuth (the claimer, or an ACTIVE ShelterMember seat). We never
+  // query or expose any other shelter, so no shelter's existence/status
+  // can leak. An admin sees a generic panel; anyone else sees an honest
+  // "you don't manage a shelter" (plus an accept banner if invited).
+  const membership = await getShelterForUser(session.user.id, session.user.email);
 
   let shelter = null;
   let roster = [];
   let sentHome = 0;
-  if (profile) {
+  let pendingInvite = null;
+  if (membership) {
     shelter = await prisma.shelter.findUnique({
-      where: { id: profile.shelterId },
+      where: { id: membership.shelterId },
       select: { id: true, name: true, city: true, state: true, isActive: true, isVerified: true },
     });
 
     // The shelter's animals are full Health Book records tagged to its roster.
     const [pets, adopted] = await Promise.all([
       prisma.pet.findMany({
-        where: { managedByShelterId: profile.shelterId, isDeleted: false },
+        where: { managedByShelterId: membership.shelterId, isDeleted: false },
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -80,9 +82,25 @@ export default async function ShelterDashboardPage() {
       pendingTransferEmail: p.transfers[0]?.toEmail || null,
     }));
     sentHome = adopted;
+  } else if (session.user.email) {
+    // Not on a team yet: surface any waiting seat invite.
+    const invite = await prisma.shelterMember.findFirst({
+      where: {
+        status: 'PENDING',
+        OR: [{ email: session.user.email.toLowerCase() }, { userId: session.user.id }],
+      },
+      select: { shelterId: true },
+    });
+    if (invite) {
+      const invitingShelter = await prisma.shelter.findUnique({
+        where: { id: invite.shelterId },
+        select: { name: true },
+      });
+      pendingInvite = { shelterName: invitingShelter?.name || 'a shelter' };
+    }
   }
 
-  const admin = profile ? false : await isAdmin(session.user.id);
+  const admin = membership ? false : await isAdmin(session.user.id);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -159,6 +177,9 @@ export default async function ShelterDashboardPage() {
                 history attached. Shelter accounts are free. Forever.
               </p>
             </div>
+
+            {/* Staff seats */}
+            <ShelterTeam />
           </div>
         ) : admin ? (
           <div className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-6">
@@ -168,6 +189,8 @@ export default async function ShelterDashboardPage() {
               <Link href="/admin" className="font-semibold underline hover:text-flash-700">admin panel</Link>.
             </p>
           </div>
+        ) : pendingInvite ? (
+          <InviteBanner shelterName={pendingInvite.shelterName} />
         ) : (
           <div className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-6 text-center">
             <Building2 className="w-10 h-10 text-midnight-300 mx-auto mb-3" />
