@@ -36,7 +36,6 @@ import {
   Settings,
   Building2,
   Database,
-  MessageCircle,
   Sparkles,
   LogIn,
   UserPlus,
@@ -271,10 +270,8 @@ export default function Navigation() {
                           <PawPrint className="w-4 h-4" />
                           <span className="font-medium">My Pets</span>
                         </Link>
-                        <Link href="/messages" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
-                          <MessageCircle className="w-4 h-4" />
-                          <span className="font-medium">Messages</span>
-                        </Link>
+                        {/* Messages hidden pre-launch: no conversation is created yet,
+                            so the inbox would be a guaranteed-empty dead-end. */}
                         <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                           <User className="w-4 h-4" />
                           <span className="font-medium">My Profile</span>
@@ -434,7 +431,7 @@ export default function Navigation() {
               </div>
               <MobileNavLink href="/dashboard" icon={Home} label="Dashboard" active={pathname === '/dashboard'} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/notifications')} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavLink href="/messages" icon={MessageCircle} label="Messages" active={pathname.startsWith('/messages')} onClick={() => setMobileMenuOpen(false)} />
+              {/* Messages hidden pre-launch (guaranteed-empty until conversations are wired). */}
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/settings" icon={Settings} label="Settings" active={pathname.startsWith('/settings')} onClick={() => setMobileMenuOpen(false)} />
 
