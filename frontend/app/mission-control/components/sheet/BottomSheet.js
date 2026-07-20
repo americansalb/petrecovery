@@ -91,7 +91,7 @@ export default function BottomSheet({
       dragMomentum={false}
       onDragEnd={snap}
       style={{ y, height: fullHeight }}
-      className="fixed inset-x-0 bottom-0 z-[600] flex flex-col rounded-t-3xl border-2 border-b-0 border-slate-700/80 bg-slate-900/95 backdrop-blur-xl shadow-[0_-12px_40px_rgba(0,0,0,0.5)]"
+      className="fixed inset-x-0 bottom-0 z-[600] flex flex-col rounded-t-3xl border border-b-0 border-white/10 bg-slate-950/90 backdrop-blur-xl shadow-[0_-12px_40px_rgba(0,0,0,0.5)]"
     >
       {/* Grab handle: the only drag surface */}
       <div

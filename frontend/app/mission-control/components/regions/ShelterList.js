@@ -35,6 +35,8 @@ export default function ShelterList({ pois = [], missionId, isLoading = false })
       const next = { ...prev, [id]: !prev[id] };
       try {
         if (calledKey) localStorage.setItem(calledKey, JSON.stringify(next));
+        // Let the HelpChecklist's "X of Y called" progress update live
+        window.dispatchEvent(new CustomEvent('mc:actions'));
       } catch (e) {}
       return next;
     });

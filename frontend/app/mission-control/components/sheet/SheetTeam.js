@@ -27,16 +27,16 @@ export default function SheetTeam({
       {showGpsHint && <WebGpsHint missionId={missionId} onTrackAnyway={onTrackAnyway} />}
 
       <div>
-        <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">The team</h3>
+        <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Search party</h3>
         <PresenceStrip team={team} activeParticipants={activeParticipants} />
       </div>
 
-      <div className="h-[320px] flex flex-col rounded-2xl border-2 border-slate-800 bg-slate-900 p-3">
+      <div className="h-[320px] flex flex-col rounded-2xl border border-white/10 bg-white/[0.03] p-3">
         <ChatModule {...chat} />
       </div>
 
-      <div>
-        <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Call the shelters</h3>
+      <div id="sheet-shelters">
+        <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Call the shelters</h3>
         <ShelterList pois={pois} missionId={missionId} isLoading={poisLoading} />
       </div>
     </div>

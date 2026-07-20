@@ -54,6 +54,10 @@ export default function SARMapView({
   interactive = true,
   // Controlled POI visibility (undefined keeps the internal toggle)
   showPOIs: showPOIsProp = undefined,
+  // Base layer on mount: 'satellite' | 'street' (street = dark cartography)
+  defaultLayer = 'satellite',
+  // Optional per-zone color override, e.g. { HIGH: '#facc15', ... }
+  zoneColors = null,
   // Fly the camera somewhere on demand: { lat, lng, zoom?, key }
   // (key changes are what trigger the flight, so the same spot can refocus)
   focusPoint = null,
@@ -71,7 +75,7 @@ export default function SARMapView({
   const userMarkerRef = useRef(null);
   const [showPOIsState, setShowPOIs] = useState(false);
   const showPOIs = showPOIsProp ?? showPOIsState;
-  const [mapLayer, setMapLayer] = useState('satellite');
+  const [mapLayer, setMapLayer] = useState(defaultLayer === 'street' ? 'street' : 'satellite');
   const baseLayersRef = useRef({});
   const [showCoverage, setShowCoverage] = useState(true);
   const renderGenRef = useRef(0);
@@ -280,16 +284,16 @@ export default function SARMapView({
 
     if (!searchPath || searchPath.length === 0) return;
 
-    // Draw coverage corridor
+    // Draw coverage corridor — your beam: the ground your flashlight covered
     if (searchPath.length >= 2) {
       const corridorCoords = generateCorridorPolygon(searchPath, CORRIDOR_WIDTH_METERS);
       if (corridorCoords) {
         const corridor = L.polygon(corridorCoords, {
-          color: '#a855f7',
-          fillColor: '#a855f7',
-          fillOpacity: 0.2,
+          color: '#facc15',
+          fillColor: '#facc15',
+          fillOpacity: 0.14,
           weight: 1,
-          opacity: 0.5,
+          opacity: 0.4,
         });
         corridor.addTo(mapInstance.current);
         corridor.bringToBack();
@@ -299,7 +303,7 @@ export default function SARMapView({
       // Draw connecting line
       const lineCoords = searchPath.map(p => [p.lat, p.lng]);
       const pathLine = L.polyline(lineCoords, {
-        color: '#a855f7',
+        color: '#facc15',
         weight: 4,
         opacity: 0.9,
         lineCap: 'round',
@@ -315,7 +319,7 @@ export default function SARMapView({
       const isLast = index === searchPath.length - 1;
       const isOutOfZone = point.inZone === false;
 
-      let markerColor = '#a855f7';
+      let markerColor = '#eab308';
       let markerSize = 22;
       let content = `${index + 1}`;
 
@@ -390,18 +394,23 @@ export default function SARMapView({
 
     cleanupLayers();
 
-    // Last seen marker
+    // Last seen marker: a pulsing beacon, the visual anchor of the mission
     if (lastSeen) {
       const isLatestSighting = lastSeen.isLatestSighting;
       const markerColor = isLatestSighting ? '#f59e0b' : '#ef4444';
-      const emoji = isLatestSighting ? '👁' : '📍';
       const labelText = isLatestSighting ? 'Latest Sighting' : 'Last Seen';
 
       const lastSeenIcon = L.divIcon({
         className: 'last-seen-marker',
-        html: `<div style="width: 32px; height: 32px; background: ${markerColor}; border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px ${markerColor}80; font-size: 16px;">${emoji}</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        html: `
+          <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; width: 36px; height: 36px; background: ${markerColor}40; border-radius: 50%; animation: beaconPulse 2s ease-out infinite;"></div>
+            <div style="position: relative; width: 18px; height: 18px; background: ${markerColor}; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 12px ${markerColor}b3;"></div>
+          </div>
+          <style>@keyframes beaconPulse { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(2.1); opacity: 0; } }</style>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
       });
 
       const lastSeenMarker = L.marker([lastSeen.lat, lastSeen.lng], { icon: lastSeenIcon })
@@ -474,21 +483,41 @@ export default function SARMapView({
         sortedZones.forEach((zone, zoneIndex) => {
           const outerRadius = milesToMeters(zone.radius);
           const innerRadius = zoneIndex === 0 ? 0 : milesToMeters(sortedZones[zoneIndex - 1].radius);
+          const zoneColor = (zoneColors && zoneColors[zone.name]) || zone.color;
+          // Honor the research lib's per-zone opacity (a glow, not a paint spill)
+          const zoneFill = typeof zone.fillOpacity === 'number' ? zone.fillOpacity : 0.2;
 
           octants.forEach((octant) => {
             const sliceCoords = generateArcCoords(zoneCenter, innerRadius, outerRadius, octant.startAngle, octant.endAngle);
             const polygon = L.polygon(sliceCoords, {
-              color: zone.color,
-              fillColor: zone.color,
-              fillOpacity: 0.35,
+              color: zoneColor,
+              fillColor: zoneColor,
+              fillOpacity: zoneFill,
               weight: 0,
             });
-            polygon.bindPopup(`<div style="text-align:center;"><b style="color:${zone.color}">${zone.name}</b><br>${octant.name} - ${zone.probabilityPercent || zone.cumulativePercent}%</div>`);
+            polygon.bindPopup(`<div style="text-align:center;"><b style="color:${zoneColor}">${zone.name === 'HIGH' ? 'Most likely area' : zone.name === 'EXTENDED' ? 'Outer edge' : `${zone.name.charAt(0)}${zone.name.slice(1).toLowerCase()} likelihood`}</b><br>${octant.name} · ${zone.probabilityPercent || zone.cumulativePercent}% of cases</div>`);
             polygon.addTo(mapInstance.current);
             polygon.bringToBack();
             circlesRef.current.push(polygon);
           });
         });
+
+        // The beam edge: one dashed ring marking the outer search boundary
+        const maxRadius = sortedZones.length ? milesToMeters(sortedZones[sortedZones.length - 1].radius) : 0;
+        if (maxRadius > 0) {
+          const edgeColor = (zoneColors && zoneColors.HIGH) || '#facc15';
+          const beamEdge = L.circle(zoneCenter, {
+            radius: maxRadius,
+            color: edgeColor,
+            weight: 1.5,
+            opacity: 0.45,
+            dashArray: '6, 10',
+            fill: false,
+          });
+          beamEdge.addTo(mapInstance.current);
+          beamEdge.bringToBack();
+          circlesRef.current.push(beamEdge);
+        }
       }
     }
 
@@ -499,7 +528,8 @@ export default function SARMapView({
       const sightingTime = sighting.sightedAt || sighting.createdAt || new Date().toISOString();
       const hoursSinceSighting = (Date.now() - new Date(sightingTime).getTime()) / 3600000;
       const isConfirmed = sighting.verified === true || sighting.isConfirmed === true;
-      const zoneColor = isConfirmed ? '#22c55e' : '#3b82f6';
+      // Confirmed = emerald (good news); unconfirmed = amber (a warm lead)
+      const zoneColor = isConfirmed ? '#34d399' : '#fbbf24';
 
       const radiusMiles = Math.min(0.1 + (Math.max(0, hoursSinceSighting) * 0.25), 3);
       const radiusMeters = radiusMiles * 1609.34;
@@ -508,9 +538,9 @@ export default function SARMapView({
         radius: radiusMeters,
         color: zoneColor,
         fillColor: zoneColor,
-        fillOpacity: 0.12,
-        weight: 2,
-        opacity: 0.7,
+        fillOpacity: 0.08,
+        weight: 1.5,
+        opacity: 0.55,
         dashArray: isConfirmed ? '' : '6, 4',
       });
 
@@ -518,20 +548,23 @@ export default function SARMapView({
         hoursSinceSighting < 24 ? `${Math.floor(hoursSinceSighting)}h ago` :
         `${Math.floor(hoursSinceSighting / 24)}d ago`;
 
-      sightingZone.bindPopup(`<div style="text-align:center;"><b style="color:${zoneColor}">👁 ${isConfirmed ? 'CONFIRMED' : 'UNCONFIRMED'}</b><br>${timeAgoText}</div>`);
+      const popupHtml = `<div style="text-align:center;"><b style="color:${zoneColor}">${isConfirmed ? 'Confirmed sighting' : 'Reported sighting'}</b><br>${timeAgoText}${sighting.description ? `<br><small>${String(sighting.description).slice(0, 120)}</small>` : ''}</div>`;
+
+      sightingZone.bindPopup(popupHtml);
       sightingZone.addTo(mapInstance.current);
       sightingZone.bringToBack();
       circlesRef.current.push(sightingZone);
 
+      const eyeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
       const sightingIcon = L.divIcon({
         className: 'sighting-marker',
-        html: `<div style="width: 32px; height: 32px; background: ${zoneColor}; border: 3px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px ${zoneColor}80; font-size: 16px;">👁</div>`,
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
+        html: `<div style="width: 28px; height: 28px; background: ${zoneColor}; border: 2.5px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px ${zoneColor}80;">${eyeSvg}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
       });
 
       const marker = L.marker([sighting.latitude, sighting.longitude], { icon: sightingIcon, zIndexOffset: 500 })
-        .bindPopup(`<div style="text-align:center;"><b style="color:${zoneColor}">👁 ${isConfirmed ? 'CONFIRMED' : 'UNCONFIRMED'}</b><br>${timeAgoText}</div>`)
+        .bindPopup(popupHtml)
         .addTo(mapInstance.current);
       markersRef.current.push(marker);
     });
@@ -539,7 +572,7 @@ export default function SARMapView({
     return () => {
       if (currentGen === renderGenRef.current) cleanupLayers();
     };
-  }, [lastSeen, sightings, petSpecies, hoursElapsed, showProbabilityZones, probabilityZones]);
+  }, [lastSeen, sightings, petSpecies, hoursElapsed, showProbabilityZones, probabilityZones, zoneColors]);
 
   // Render historical coverage trails
   useEffect(() => {
@@ -624,27 +657,48 @@ export default function SARMapView({
         </div>
       )}
 
-      {/* Map Controls */}
+      {/* Map Controls — one consistent stack */}
       {interactive && (
         <div
           className="absolute top-4 right-4 z-[400] flex flex-col gap-2"
           style={controlsOffset ? { top: controlsOffset.top, right: controlsOffset.right } : undefined}
         >
+          <div className="flex flex-col rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 shadow-xl overflow-hidden">
+            <button
+              onClick={() => mapInstance.current?.zoomIn()}
+              className="w-11 h-11 flex items-center justify-center text-slate-100 hover:bg-white/10 active:scale-95 transition-all border-b border-white/10 text-xl font-semibold leading-none"
+              title="Zoom in"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <button
+              onClick={() => mapInstance.current?.zoomOut()}
+              className="w-11 h-11 flex items-center justify-center text-slate-100 hover:bg-white/10 active:scale-95 transition-all text-xl font-semibold leading-none"
+              title="Zoom out"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+          </div>
+
           <button
             onClick={() => setMapLayer(mapLayer === 'satellite' ? 'street' : 'satellite')}
-            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-slate-900/60 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-slate-900/90 active:scale-95 transition-all"
-            title="Switch Map View"
+            className="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-slate-100 shadow-xl hover:bg-white/10 active:scale-95 transition-all"
+            title={mapLayer === 'satellite' ? 'Switch to map view' : 'Switch to satellite view'}
+            aria-label={mapLayer === 'satellite' ? 'Switch to map view' : 'Switch to satellite view'}
           >
-            {mapLayer === 'satellite' ? <MapIcon size={20} /> : <Satellite size={20} />}
+            {mapLayer === 'satellite' ? <MapIcon size={19} /> : <Satellite size={19} />}
           </button>
 
           <button
             onClick={centerOnUser}
             disabled={gpsLoading}
-            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-blue-600/80 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-blue-500/90 active:scale-95 transition-all disabled:opacity-50"
-            title="My Location"
+            className="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-sky-300 shadow-xl hover:bg-white/10 active:scale-95 transition-all disabled:opacity-50"
+            title="My location"
+            aria-label="Center on my location"
           >
-            <Locate size={20} className={gpsLoading ? 'animate-pulse' : ''} />
+            <Locate size={19} className={gpsLoading ? 'animate-pulse' : ''} />
           </button>
 
           <button
@@ -656,10 +710,11 @@ export default function SARMapView({
                 mapInstance.current.fitBounds(bounds, { padding: [50, 50] });
               }
             }}
-            className="group w-12 h-12 flex items-center justify-center rounded-xl bg-slate-900/60 backdrop-blur-md border border-white/10 text-white shadow-xl hover:bg-slate-900/90 active:scale-95 transition-all"
-            title="Fit All"
+            className="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-slate-100 shadow-xl hover:bg-white/10 active:scale-95 transition-all"
+            title="Fit the whole search"
+            aria-label="Fit the whole search area"
           >
-            <Maximize size={20} />
+            <Maximize size={19} />
           </button>
         </div>
       )}
