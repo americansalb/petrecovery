@@ -484,6 +484,16 @@ function ShelterCard({ shelter, onViewDetails }) {
           )}
         </div>
 
+        {/* Claimed shelters have their own page on ReunitePets */}
+        {shelter.hasPage && (
+          <a
+            href={`/shelters/${shelter.id}`}
+            className="w-full mt-3 py-2 px-4 bg-midnight-900 text-white font-medium rounded-lg hover:bg-midnight-800 transition-colors flex items-center justify-center gap-2"
+          >
+            View shelter page
+          </a>
+        )}
+
         {/* View Details Button - Shows Apple PlaceDetail with hours */}
         {shelter.appleMapKitId && onViewDetails && (
           <button

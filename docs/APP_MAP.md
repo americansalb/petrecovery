@@ -197,8 +197,9 @@ Static segment card in `app/hub/layout.js`.
 
 | route | purpose | client/server | auth | dynamic params & source |
 |---|---|---|---|---|
-| `/shelter/dashboard` | Claimed-shelter dashboard: free pet-management roster (Health Book records tagged `Pet.managedByShelterId`), add-animal via `/care/start?shelter=<id>`, adoption handoff (PetTransfer invites) | **server** (`getServerSession` + `redirect`, `force-dynamic`) | logged-in (server redirect); roster only for the claiming user | — |
+| `/shelter/dashboard` | Shelter account home: roster with intake/status (Health Book records tagged `Pet.managedByShelterId`), stray-vs-lost match review (shelter confirms before owner contact), team seats (`ShelterMember`), public-page editor, adoption handoff (PetTransfer) | **server** (`getServerSession` + `redirect`, `force-dynamic`) | logged-in (server redirect); resolved via `shelterAuth` (claimer or ACTIVE member) | — |
 | `/shelter/request` | Shelter/rescue account request form | client | logged-in (redirect, nonstandard `?redirect=`) | — |
+| `/shelters/[id]` | Public shelter page: about/mission/images/socials (`ShelterProfile`), contact block, adoptable roster animals; only active + claimed shelters; indexed with `generateMetadata` | **server** | public | `id` → `Shelter.id` |
 | `/pets/transfer/[token]` | Adoption-handoff accept page (emailed token; accept keyed to invited email) | server shell + client accept | logged-in (401 → in-page login prompt with callback) | `token` → `PetTransfer.token` |
 
 ### Admin

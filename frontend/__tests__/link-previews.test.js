@@ -33,6 +33,7 @@ const ENTITY_PAGES = [
   'hub/c/[slug]/page.js',
   'hub/u/[id]/page.js',
   'lost-pet/[location]/page.js',
+  'shelters/[id]/page.js',
 ];
 
 /** Public segments that carry a static card via layout.js. */

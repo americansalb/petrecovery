@@ -8,6 +8,7 @@ import { Building2, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle, Plus, Hea
 import ShelterRoster from '../ShelterRoster';
 import StrayMatches from '../StrayMatches';
 import ShelterTeam from '../ShelterTeam';
+import ShelterProfileEditor from '../ShelterProfileEditor';
 import InviteBanner from '../InviteBanner';
 import { getShelterForUser } from '@/app/lib/shelterAuth';
 
@@ -177,6 +178,9 @@ export default async function ShelterDashboardPage() {
                 history attached. Shelter accounts are free. Forever.
               </p>
             </div>
+
+            {/* Public page editor */}
+            <ShelterProfileEditor shelterId={shelter.id} />
 
             {/* Staff seats */}
             <ShelterTeam />
