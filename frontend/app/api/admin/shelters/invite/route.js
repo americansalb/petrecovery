@@ -1,14 +1,19 @@
 /**
  * Admin Shelter Invite API
  *
- * POST /api/admin/shelters/invite - Invite a shelter to join
+ * POST /api/admin/shelters/invite - invite a shelter to claim its free
+ * account. Creates an inactive Shelter + a one-time claim token stored
+ * on ShelterProfile (proper columns, 7-day expiry) and emails a branded
+ * link to /shelter/claim. Accepting activates the shelter immediately
+ * (admin outreach IS the review).
  */
 
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-import { sendEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { getEmailBaseUrl } from '@/app/lib/config';
 import crypto from 'crypto';
 
 export async function POST(request) {
@@ -45,60 +50,73 @@ export async function POST(request) {
 
     // Generate invite token
     const inviteToken = crypto.randomBytes(32).toString('hex');
-    const inviteExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    // Create shelter record (inactive until claimed)
-    const shelter = await prisma.shelter.create({
-      data: {
-        name: shelterName,
-        email: shelterEmail,
-        city,
-        state,
-        address: '',
-        zipCode: '',
-        type: 'SHELTER',
-        source: 'ADMIN_INVITE',
-        isActive: false,
-        isVerified: false,
-      }
+    // Reuse an existing unclaimed directory entry when we have one, so
+    // outreach doesn't duplicate shelters we already know about.
+    let shelter = await prisma.shelter.findFirst({
+      where: {
+        name: { equals: shelterName, mode: 'insensitive' },
+        city: { equals: city, mode: 'insensitive' },
+        state: { equals: state, mode: 'insensitive' },
+      },
     });
+    if (shelter) {
+      const existingProfile = await prisma.shelterProfile.findUnique({
+        where: { shelterId: shelter.id },
+        select: { claimedById: true },
+      });
+      if (existingProfile?.claimedById) {
+        return NextResponse.json(
+          { error: 'That shelter is already managed' },
+          { status: 409 }
+        );
+      }
+    } else {
+      shelter = await prisma.shelter.create({
+        data: {
+          name: shelterName,
+          email: shelterEmail,
+          city,
+          state,
+          address: '',
+          zipCode: '',
+          type: 'SHELTER',
+          source: 'ADMIN_INVITE',
+          isActive: false,
+          isVerified: false,
+        }
+      });
+    }
 
-    // Store invite token in shelter profile
-    await prisma.shelterProfile.create({
-      data: {
+    await prisma.shelterProfile.upsert({
+      where: { shelterId: shelter.id },
+      create: {
         shelterId: shelter.id,
-        // Store invite data temporarily
-        about: JSON.stringify({
-          inviteToken,
-          inviteExpiry: inviteExpiry.toISOString(),
-          invitedBy: admin.id,
-          invitedAt: new Date().toISOString(),
-        }),
-      }
+        inviteToken,
+        inviteEmail: shelterEmail.toLowerCase(),
+        inviteExpiresAt,
+      },
+      update: {
+        inviteToken,
+        inviteEmail: shelterEmail.toLowerCase(),
+        inviteExpiresAt,
+      },
     });
 
-    // Send invite email
-    const inviteUrl = `${process.env.NEXTAUTH_URL}/shelter/claim?token=${inviteToken}&id=${shelter.id}`;
+    const claimUrl = `${getEmailBaseUrl()}/shelter/claim?token=${inviteToken}`;
 
     await sendEmail({
       to: shelterEmail,
-      subject: `You're invited to join ReunitePets.org - ${shelterName}`,
-      html: `
-        <h2>Welcome to ReunitePets!</h2>
-        <p>Hi ${contactName || 'there'},</p>
-        <p>You've been invited to create a shelter account for <strong>${shelterName}</strong> on ReunitePets.org.</p>
-        ${message ? `<p><em>"${message}"</em></p>` : ''}
-        <p>With your free shelter account, you can:</p>
-        <ul>
-          <li>List animals available for adoption</li>
-          <li>Get automatically matched with lost pet reports</li>
-          <li>Accept donations (no platform fees)</li>
-          <li>Connect with the rescue community</li>
-        </ul>
-        <p><a href="${inviteUrl}" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 8px;">Accept Invitation</a></p>
-        <p style="color: #666; font-size: 14px;">This invitation expires in 7 days.</p>
-        <p>Questions? Just reply to this email.</p>
-      `,
+      subject: `Your free shelter account for ${shelterName} is ready to claim`,
+      html: renderBrandedEmail({
+        preheader: `Claim ${shelterName}'s free account on ReunitePets: animal management, lost-pet matching, and your own page.`,
+        heading: `${shelterName}, your free account is waiting`,
+        bodyHtml: `<p>Hi ${contactName || 'there'},</p><p>ReunitePets gives shelters free pet-management accounts: a health record for every animal in your care, automatic matching of strays against local lost-pet reports, adoption handoffs that send the full medical history home with the adopter, staff seats for your team, and a public page for your adoptable animals.</p>${message ? `<p><em>"${message}"</em></p>` : ''}<p>Claiming takes about a minute. Free forever, no card, no catch.</p>`,
+        ctaLabel: 'Claim your shelter account',
+        ctaUrl: claimUrl,
+        footnote: `This invite was sent to ${shelterEmail} and expires in 7 days. Questions? Just reply to this email.`,
+      }),
     });
 
     return NextResponse.json({

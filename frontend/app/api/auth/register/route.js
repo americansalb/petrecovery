@@ -62,6 +62,103 @@ function validatePetDraft(pet) {
   };
 }
 
+const SHELTER_TYPES = ['SHELTER', 'RESCUE', 'FOSTER_NETWORK'];
+const SHELTER_ROLES = ['DIRECTOR', 'MANAGER', 'STAFF', 'VOLUNTEER', 'BOARD', 'OTHER'];
+
+/**
+ * The shelter onboarding wizard (/shelter/start) sends the application
+ * the visitor already built so registration and "apply for a shelter
+ * account" are one atomic step, exactly like the pet ride-along above.
+ * Returns { data } or { error }.
+ */
+function validateShelterRequest(sr) {
+  if (typeof sr !== 'object' || sr === null) return { error: 'Invalid shelter payload' };
+  const name = (sr.shelterName || '').trim();
+  if (!name || name.length > 120) return { error: 'Shelter name is required' };
+  const city = (sr.city || '').trim();
+  const state = (sr.state || '').trim().toUpperCase();
+  if (!city || city.length > 80) return { error: 'City is required' };
+  if (!/^[A-Z]{2}$/.test(state)) return { error: 'State is required' };
+  const type = SHELTER_TYPES.includes(sr.shelterType) ? sr.shelterType : 'SHELTER';
+  const role = SHELTER_ROLES.includes(sr.role) ? sr.role : 'OTHER';
+  const lat = parseFloat(sr.latitude);
+  const lng = parseFloat(sr.longitude);
+  const existingShelterId =
+    typeof sr.existingShelterId === 'string' && sr.existingShelterId.trim()
+      ? sr.existingShelterId.trim()
+      : null;
+  return {
+    data: {
+      shelterName: name,
+      city,
+      state,
+      shelterType: type,
+      role,
+      latitude: Number.isFinite(lat) ? lat : null,
+      longitude: Number.isFinite(lng) ? lng : null,
+      existingShelterId,
+    },
+  };
+}
+
+/**
+ * Find-or-create the shelter and file the PENDING claim inside the
+ * signup transaction. Shared shape with POST /api/shelter/request.
+ */
+async function createShelterClaimInTx(tx, userId, sr) {
+  let shelter = null;
+  if (sr.existingShelterId) {
+    shelter = await tx.shelter.findUnique({ where: { id: sr.existingShelterId } });
+    if (!shelter) throw Object.assign(new Error('That shelter no longer exists'), { status: 400 });
+    const profile = await tx.shelterProfile.findUnique({ where: { shelterId: shelter.id } });
+    if (profile?.claimedById) {
+      throw Object.assign(
+        new Error('That shelter is already managed on ReunitePets. Contact support@reunitepets.org if that seems wrong.'),
+        { status: 409 }
+      );
+    }
+  } else {
+    shelter = await tx.shelter.findFirst({
+      where: {
+        name: { equals: sr.shelterName, mode: 'insensitive' },
+        city: { equals: sr.city, mode: 'insensitive' },
+        state: { equals: sr.state, mode: 'insensitive' },
+      },
+    });
+  }
+  if (!shelter) {
+    shelter = await tx.shelter.create({
+      data: {
+        name: sr.shelterName,
+        type: sr.shelterType,
+        address: '',
+        city: sr.city,
+        state: sr.state,
+        zipCode: '',
+        latitude: sr.latitude,
+        longitude: sr.longitude,
+        source: 'SHELTER_REQUEST',
+        isActive: false, // activated on approval
+        isVerified: false,
+      },
+    });
+  }
+  await tx.shelterClaim.create({
+    data: {
+      shelterId: shelter.id,
+      claimantId: userId,
+      verificationMethod: 'ADMIN_REVIEW',
+      verificationData: JSON.stringify({
+        role: sr.role,
+        via: 'shelter_start_wizard',
+        requestedAt: new Date().toISOString(),
+      }),
+      status: 'PENDING',
+    },
+  });
+  return shelter;
+}
+
 export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
@@ -83,7 +180,7 @@ export async function POST(request) {
   }
 
   try {
-    const { email, password, firstName, phone, acceptedTerms, pet } = await request.json();
+    const { email, password, firstName, phone, acceptedTerms, pet, shelterRequest } = await request.json();
 
     // Validate any pet draft BEFORE creating the user, so a bad draft
     // can't produce an account with a half-saved Health Book.
@@ -94,6 +191,16 @@ export async function POST(request) {
         return NextResponse.json({ error }, { status: 400 });
       }
       petDraft = data;
+    }
+
+    // Same rule for a shelter application riding along from /shelter/start.
+    let shelterDraft = null;
+    if (shelterRequest !== undefined && shelterRequest !== null) {
+      const { data, error } = validateShelterRequest(shelterRequest);
+      if (error) {
+        return NextResponse.json({ error }, { status: 400 });
+      }
+      shelterDraft = data;
     }
 
     // Validate required fields
@@ -216,6 +323,10 @@ export async function POST(request) {
         }
       }
 
+      if (shelterDraft) {
+        await createShelterClaimInTx(tx, created.id, shelterDraft);
+      }
+
       return created;
     });
 
@@ -259,6 +370,13 @@ export async function POST(request) {
       error_code: 'INTERNAL_ERROR',
       error_message: error.message || 'Unknown error'
     }).catch(() => {});
+
+    // Shelter ride-along rejections (e.g. already-managed shelter) carry
+    // their own status and safe message; the whole transaction rolled
+    // back, so no half-created account exists.
+    if (error?.status) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
 
     return NextResponse.json(
       { error: 'Unable to create account. Please try again.' },

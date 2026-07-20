@@ -4,7 +4,7 @@ import prisma from '@/app/lib/prisma';
 import { isAdmin } from '@/app/lib/authz';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle, Plus, HeartHandshake } from 'lucide-react';
+import { Building2, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle, Plus, HeartHandshake, Clock } from 'lucide-react';
 import ShelterRoster from '../ShelterRoster';
 import StrayMatches from '../StrayMatches';
 import ShelterTeam from '../ShelterTeam';
@@ -37,6 +37,7 @@ export default async function ShelterDashboardPage() {
   let roster = [];
   let sentHome = 0;
   let pendingInvite = null;
+  let pendingClaim = null;
   if (membership) {
     shelter = await prisma.shelter.findUnique({
       where: { id: membership.shelterId },
@@ -98,6 +99,26 @@ export default async function ShelterDashboardPage() {
         select: { name: true },
       });
       pendingInvite = { shelterName: invitingShelter?.name || 'a shelter' };
+    } else {
+      // ...or an application still in the review queue.
+      const claim = await prisma.shelterClaim.findFirst({
+        where: {
+          claimantId: session.user.id,
+          status: { in: ['PENDING', 'VERIFICATION_SENT', 'UNDER_REVIEW'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { shelterId: true, createdAt: true },
+      });
+      if (claim) {
+        const claimShelter = await prisma.shelter.findUnique({
+          where: { id: claim.shelterId },
+          select: { name: true },
+        });
+        pendingClaim = {
+          shelterName: claimShelter?.name || 'Your shelter',
+          submittedAt: claim.createdAt,
+        };
+      }
     }
   }
 
@@ -195,16 +216,29 @@ export default async function ShelterDashboardPage() {
           </div>
         ) : pendingInvite ? (
           <InviteBanner shelterName={pendingInvite.shelterName} />
+        ) : pendingClaim ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-6 text-center">
+            <Clock className="w-10 h-10 text-amber-500 mx-auto mb-3" />
+            <h2 className="text-xl font-bold text-midnight-900 mb-2">
+              {pendingClaim.shelterName} is under review
+            </h2>
+            <p className="text-midnight-700">
+              Submitted {pendingClaim.submittedAt.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}.
+              A human reviews every shelter, usually within a day or two. We&rsquo;ll email
+              you the moment it&rsquo;s approved and this dashboard unlocks.
+            </p>
+          </div>
         ) : (
           <div className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-6 text-center">
             <Building2 className="w-10 h-10 text-midnight-300 mx-auto mb-3" />
             <h2 className="text-xl font-bold text-midnight-900 mb-2">You don’t manage a shelter yet</h2>
             <p className="text-midnight-700 mb-5">
-              If you run a shelter or rescue, you can claim or request to add it.
-              Shelter accounts include free pet management for every animal in your care.
+              If you run a shelter or rescue, your free account takes about a minute to
+              set up: animal management, health records, lost-pet matching, and your own
+              public page.
             </p>
-            <Link href="/shelter/request" className="inline-flex items-center gap-2 bg-midnight-900 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-midnight-800 transition">
-              Add your shelter
+            <Link href="/shelter/start" className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-5 py-2.5 rounded-xl transition">
+              Get your free shelter account
             </Link>
           </div>
         )}

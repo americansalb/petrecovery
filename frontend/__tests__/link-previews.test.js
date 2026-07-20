@@ -49,6 +49,7 @@ const STATIC_SEGMENTS = [
   'register',
   'login',
   'report',
+  'for-shelters',
 ];
 
 /**

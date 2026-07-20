@@ -4951,11 +4951,19 @@ model ShelterProfile {
   claimedById     String?
   claimedAt       DateTime?
 
+  // Admin outreach: a one-time claim token emailed to a shelter we
+  // invited (see /api/admin/shelters/invite and /shelter/claim).
+  // Cleared on accept. Nullable strings keep `prisma db push` painless.
+  inviteToken     String?
+  inviteEmail     String?
+  inviteExpiresAt DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([claimedById])
   @@index([donationsEnabled])
+  @@index([inviteToken])
 }
 
 model ShelterDonation {

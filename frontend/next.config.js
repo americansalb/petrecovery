@@ -168,6 +168,13 @@ const nextConfig = {
         destination: '/care/start',
         permanent: true,
       },
+      // One shelter onboarding flow: the guest-first wizard at
+      // /shelter/start absorbed the old members-only request form.
+      {
+        source: '/shelter/request',
+        destination: '/shelter/start',
+        permanent: false,
+      },
       // /terms duplicated /legal/terms; one canonical page
       {
         source: '/terms',
