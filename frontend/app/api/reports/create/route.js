@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { sendEmail, sendVerificationEmail } from '../../../lib/email';
+import { sendEmail, sendVerificationEmail, renderBrandedEmail } from '../../../lib/email';
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
 import { sendSms } from '@/app/lib/sms';
 import { seedActivation, enqueueCascade } from '@/app/lib/cascade/runCascade';
@@ -660,21 +660,28 @@ export async function POST(request) {
     // Send guest report email if account was not explicitly created
     // (skipped for phone-only reporters — their address is a placeholder)
     if (!accountCreated && !session?.user && !phoneOnly) {
-      // Guest report: user exists in DB but didn't opt in for account
-      // Send "claim your report" email (will be fully implemented in Phase 3.3)
+      // Guest report: the user row exists but has no usable password, so give
+      // them (1) a direct link back to their live case and (2) a way to set a
+      // password so they can log in and manage it (mark reunited, coordinate).
+      const baseUrl = getEmailBaseUrl();
+      const caseUrl = `${baseUrl}/cases/${report.caseNumber}`;
+      const setPasswordUrl = `${baseUrl}/forgot-password?email=${encodeURIComponent(email)}`;
       sendEmail({
         to: email,
-        subject: 'Lost Pet Report Submitted - Track Your Case',
-        html: `
-          <h2>Lost Pet Report Submitted</h2>
-          <p>Hi ${firstName},</p>
-          <p>Your lost pet report for <strong>${petName}</strong> has been submitted.</p>
-          <p><strong>Case Number:</strong> ${report.caseNumber}</p>
-          <p>We'll notify you by email if anyone spots your pet.</p>
-          <p><strong>Want to track progress and coordinate with volunteers?</strong></p>
-          <p>Create an account to access your case dashboard and work with your rescue force.</p>
-          <p>[Claim Report button will be added in Phase 3.3]</p>
-        `
+        subject: `${petName}'s lost-pet report is live — here's your link`,
+        html: renderBrandedEmail({
+          preheader: `Track sightings and manage ${petName}'s case.`,
+          heading: `${petName}'s report is live`,
+          bodyHtml: `
+            <p>Hi ${firstName},</p>
+            <p>Your lost-pet report for <strong>${petName}</strong> is now live, and your neighborhood rescue force can see it. We'll email you the moment anyone reports a sighting.</p>
+            <p style="margin:20px 0 8px;"><strong>Your case:</strong> ${report.caseNumber}</p>
+            <p style="color:#64748b; font-size:14px;">Open your case page any time to see sightings, share it, and print flyers. To mark ${petName} found or coordinate with volunteers, set a password below and log in with ${email}.</p>
+          `,
+          ctaLabel: `Open ${petName}'s case`,
+          ctaUrl: caseUrl,
+          footnote: `Manage your case: set a password at <a href="${setPasswordUrl}" style="color:#0f172a;">${setPasswordUrl}</a>`,
+        }),
       }).catch(err => {
         logEvent({
           event_type: 'email.send_failed',
