@@ -19,7 +19,7 @@ import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import dynamic from 'next/dynamic';
 import {
   Bell, Heart, MapPin, Search, Shield, Users, Target, ArrowRight,
-  CheckCircle2, Pill, MessagesSquare, PawPrint, Megaphone, Clock,
+  CheckCircle2, Pill, MessagesSquare, PawPrint, Megaphone, Clock, Building2,
 } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { SARAMA_AVATAR_PNG, SARAMA_NAME, SARAMA_TAGLINE } from '@/lib/brandAssets';
@@ -537,6 +537,64 @@ function HealthBookLane() {
   );
 }
 
+/* ------------------------- Shelters lane (dark band) ----------------------- */
+
+const SHELTER_POINTS = [
+  'A full health record for every animal in your care',
+  'Strays checked against local lost-pet reports automatically',
+  'Adoptions leave with their complete medical history',
+  'Staff seats, plus a public page you never have to maintain',
+];
+
+function ShelterLane() {
+  return (
+    <section className="max-w-5xl mx-auto px-4 mb-16 md:mb-24">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#0a1526] via-midnight-900 to-[#0c1a30] rounded-3xl p-8 md:p-10 md:flex items-center gap-10">
+        <div className="absolute -top-24 -right-24 w-[380px] h-[380px] bg-flash-400/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="flex-1 min-w-0 mb-8 md:mb-0 relative">
+          <p className="text-xs font-extrabold uppercase tracking-widest text-flash-400 mb-2">
+            <Building2 className="inline w-3.5 h-3.5 -mt-0.5 mr-1.5" />
+            For shelters and rescues
+          </p>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white leading-tight">
+            Run a shelter? All of this is yours too. Free.
+          </h2>
+          <p className="text-midnight-300 mt-3">
+            Shelter software costs money everywhere else. Here, every animal you
+            manage helps a lost pet get found, so we give shelters the whole
+            platform for nothing. Forever.
+          </p>
+          <div className="flex flex-wrap items-center gap-3 mt-5">
+            <Link
+              href="/shelter/start"
+              className="inline-flex items-center gap-2 px-5 py-3 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold rounded-2xl transition"
+            >
+              Get your free shelter account
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/for-shelters"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-midnight-200 hover:text-white transition-colors"
+            >
+              See everything included <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+        <div className="md:w-[42%] shrink-0 relative">
+          <ul className="space-y-3">
+            {SHELTER_POINTS.map((line) => (
+              <li key={line} className="flex items-start gap-2.5 text-midnight-100">
+                <CheckCircle2 className="w-5 h-5 text-flash-400 shrink-0 mt-0.5" />
+                <span className="text-sm leading-relaxed">{line}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ----------------------------- Free forever band -------------------------- */
 
 const PILLARS = [
@@ -681,6 +739,7 @@ export default function HomePage() {
       <HowItWorks />
       <ActiveMissions missions={missions} loading={missionsLoading} />
       <HealthBookLane />
+      <ShelterLane />
       <FreeForever />
       <FooterCta />
     </main>
