@@ -49,6 +49,7 @@ import CommandPanel from './components/desktop/CommandPanel';
 import OperationsRail from './components/desktop/OperationsRail';
 import { buildActivityItems } from './components/regions/ActivityLog';
 import SightingFormModal from './components/modals/SightingFormModal';
+import FlyerPickerModal from './components/FlyerPickerModal';
 import HelperBriefOverlay from './components/overlays/HelperBriefOverlay';
 import MarkReunitedModal from './components/overlays/MarkReunitedModal';
 import ReunitedCelebration from './components/overlays/ReunitedCelebration';
@@ -165,6 +166,7 @@ function MissionShellContent() {
   const [savingReunited, setSavingReunited] = useState(false);
   const [reunitedError, setReunitedError] = useState(null);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
+  const [showFlyerPicker, setShowFlyerPicker] = useState(false);
 
   const isCommand = instrument === INSTRUMENTS.COMMAND;
 
@@ -214,7 +216,17 @@ function MissionShellContent() {
     }
   }, [activeMission, showNotification]);
 
-  const handleFlyer = useCallback(async () => {
+  // Primary flyer action: open the picker, which surfaces the on-brand
+  // flyers the recovery cascade already generated for this case.
+  const handleFlyer = useCallback(() => {
+    if (!activeMission) return;
+    setShowFlyerPicker(true);
+    markLocalAction(activeMission.id, 'flyer');
+  }, [activeMission]);
+
+  // Fallback used only when a case has no cascade-generated flyers: a simple
+  // server-rendered printable flyer opened in a new tab.
+  const handleQuickFlyer = useCallback(async () => {
     if (!activeMission) return;
     // Open the tab synchronously (inside the click gesture) so pop-up
     // blockers don't eat it, show a placeholder, then swap in the finished
@@ -655,6 +667,15 @@ function MissionShellContent() {
           missionId={activeMission.id}
           onClose={() => setShowSightingForm(false)}
           onSuccess={handleSightingSuccess}
+        />
+      )}
+
+      {showFlyerPicker && (
+        <FlyerPickerModal
+          caseNumber={activeMission.caseNumber || activeMission.missionNumber}
+          petName={activeMission.petName}
+          onClose={() => setShowFlyerPicker(false)}
+          onQuickFlyer={handleQuickFlyer}
         />
       )}
 
