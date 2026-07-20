@@ -7,7 +7,8 @@
  * and rescue organizations near a location.
  */
 
-import { Building2, Heart, Phone, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import { Building2, Heart, Phone, MapPin, ArrowRight } from 'lucide-react';
 import ShelterSearch from '@/app/components/ShelterSearch';
 
 export default function SheltersPage() {
@@ -75,6 +76,22 @@ export default function SheltersPage() {
 
         {/* Shelter Search Component */}
         <ShelterSearch />
+
+        {/* Run a shelter? */}
+        <div className="mt-10 rounded-2xl bg-midnight-900 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-white mb-1">Run a shelter or rescue?</h2>
+            <p className="text-midnight-300">
+              Free pet management, lost-pet matching, and your own page. Forever free.
+            </p>
+          </div>
+          <Link
+            href="/for-shelters"
+            className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-6 py-3 rounded-xl transition shrink-0"
+          >
+            Learn more <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
       </div>
     </div>
   );

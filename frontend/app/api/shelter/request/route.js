@@ -41,14 +41,18 @@ export async function POST(request) {
       email,
       website,
       about,
-      role, // Their role at the shelter: OWNER, MANAGER, STAFF, VOLUNTEER
+      role, // Their role at the shelter
       howHeard, // How they heard about us
+      existingShelterId, // wizard picked an unclaimed directory shelter
+      latitude,
+      longitude,
     } = body;
 
-    // Validate required fields
-    if (!shelterName || !city || !state || !email) {
+    // Validate required fields (contact email is optional; the wizard
+    // collects it later on the public-page editor)
+    if (!existingShelterId && (!shelterName || !city || !state)) {
       return NextResponse.json(
-        { error: 'Shelter name, city, state, and email are required' },
+        { error: 'Shelter name, city, and state are required' },
         { status: 400 }
       );
     }
@@ -80,16 +84,37 @@ export async function POST(request) {
       );
     }
 
-    // Create or find the shelter
-    let shelter = await prisma.shelter.findFirst({
-      where: {
-        name: { equals: shelterName, mode: 'insensitive' },
-        city: { equals: city, mode: 'insensitive' },
-        state: { equals: state, mode: 'insensitive' },
+    // Resolve the shelter: an explicit unclaimed directory pick, an
+    // exact name+city+state match, or a brand new record.
+    let shelter = null;
+    if (existingShelterId) {
+      shelter = await prisma.shelter.findUnique({ where: { id: existingShelterId } });
+      if (!shelter) {
+        return NextResponse.json({ error: 'That shelter no longer exists' }, { status: 400 });
       }
-    });
+      const profile = await prisma.shelterProfile.findUnique({
+        where: { shelterId: shelter.id },
+        select: { claimedById: true },
+      });
+      if (profile?.claimedById) {
+        return NextResponse.json(
+          { error: 'That shelter is already managed on ReunitePets. Contact support@reunitepets.org if that seems wrong.' },
+          { status: 409 }
+        );
+      }
+    } else {
+      shelter = await prisma.shelter.findFirst({
+        where: {
+          name: { equals: shelterName, mode: 'insensitive' },
+          city: { equals: city, mode: 'insensitive' },
+          state: { equals: state, mode: 'insensitive' },
+        }
+      });
+    }
 
     if (!shelter) {
+      const lat = parseFloat(latitude);
+      const lng = parseFloat(longitude);
       // Create new shelter record
       shelter = await prisma.shelter.create({
         data: {
@@ -102,6 +127,8 @@ export async function POST(request) {
           phone,
           email,
           website,
+          latitude: Number.isFinite(lat) ? lat : null,
+          longitude: Number.isFinite(lng) ? lng : null,
           source: 'SHELTER_REQUEST',
           isActive: false, // Will be activated on approval
           isVerified: false,

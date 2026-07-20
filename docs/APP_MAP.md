@@ -198,7 +198,10 @@ Static segment card in `app/hub/layout.js`.
 | route | purpose | client/server | auth | dynamic params & source |
 |---|---|---|---|---|
 | `/shelter/dashboard` | Shelter account home: roster with intake/status (Health Book records tagged `Pet.managedByShelterId`), stray-vs-lost match review (shelter confirms before owner contact), team seats (`ShelterMember`), public-page editor, adoption handoff (PetTransfer) | **server** (`getServerSession` + `redirect`, `force-dynamic`) | logged-in (server redirect); resolved via `shelterAuth` (claimer or ACTIVE member) | — |
-| `/shelter/request` | Shelter/rescue account request form | client | logged-in (redirect, nonstandard `?redirect=`) | — |
+| `/for-shelters` | Public pitch page for free shelter accounts (features, how it works, why free) | server | public | — |
+| `/shelter/start` | Shelter onboarding wizard, one decision per step (name, city autocomplete, dedupe pick, kind, role, inline account creation for guests via register `shelterRequest` ride-along); short-circuits to status screens for approved/pending users | server shell + client wizard | public (guests apply without a login wall) | — |
+| `/shelter/claim` | Admin-invite accept page (`?token=`, one-time, 7-day expiry; accepting claims + activates the shelter) | server shell + client | logged-in (in-page login prompt with callback) | — |
+| `/shelter/request` | REDIRECTS to `/shelter/start` (next.config); the old form is gone. The API `POST/GET /api/shelter/request` remains (wizard backend) | — | — | — |
 | `/shelters/[id]` | Public shelter page: about/mission/images/socials (`ShelterProfile`), contact block, adoptable roster animals; only active + claimed shelters; indexed with `generateMetadata` | **server** | public | `id` → `Shelter.id` |
 | `/pets/transfer/[token]` | Adoption-handoff accept page (emailed token; accept keyed to invited email) | server shell + client accept | logged-in (401 → in-page login prompt with callback) | `token` → `PetTransfer.token` |
 

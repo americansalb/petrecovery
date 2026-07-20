@@ -635,6 +635,7 @@ function FooterCta() {
             <ul className="space-y-2 text-midnight-400">
               <li><Link href="/lost-and-found" className="hover:text-flash-300 transition-colors">Active missions</Link></li>
               <li><Link href="/shelters" className="hover:text-flash-300 transition-colors">Shelters</Link></li>
+              <li><Link href="/for-shelters" className="hover:text-flash-300 transition-colors">For shelters &amp; rescues</Link></li>
               <li><Link href="/hub" className="hover:text-flash-300 transition-colors">Rescue Hub</Link></li>
               <li><Link href="/about" className="hover:text-flash-300 transition-colors">About</Link></li>
             </ul>
