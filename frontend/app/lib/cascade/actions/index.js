@@ -11,6 +11,7 @@ import { runAiCopy } from './aiCopy.js';
 import { runSearchPlan } from './searchPlan.js';
 import { runShareTargets } from './shareTargets.js';
 import { runReverseMatch } from './reverseMatch.js';
+import { runShelterStrays } from './shelterStrays.js';
 import { runShelters } from './shelters.js';
 import { runNeighborAlert } from './neighborAlert.js';
 import { runRescueForce } from './rescueForce.js';
@@ -21,6 +22,7 @@ export const ACTION_RUNNERS = {
   qr: runQr,
   ai_copy: runAiCopy,
   reverse_match: runReverseMatch,
+  shelter_strays: runShelterStrays,
   shelters: runShelters,
   neighbor_alert: runNeighborAlert,
   rescue_force: runRescueForce,

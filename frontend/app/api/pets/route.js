@@ -11,6 +11,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { isIntakeType } from '@/app/lib/shelterStatuses';
+import { enqueueStrayIntakeMatch } from '@/app/lib/shelterMatching';
 
 // GET /api/pets - List user's pets
 export async function GET(request) {
@@ -223,6 +224,12 @@ export async function POST(request) {
         primaryPhotoUrl: primaryPhotoUrl || (photos?.[0] || ''),
       }
     });
+
+    // A new stray on a shelter roster kicks off matching against open
+    // lost reports, post-response; the create never waits on it.
+    if (pet.managedByShelterId && pet.intakeType === 'STRAY') {
+      enqueueStrayIntakeMatch(pet.id);
+    }
 
     // Fire-and-forget: logging must never fail the request.
     logEvent({

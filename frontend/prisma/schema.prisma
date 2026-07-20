@@ -377,6 +377,7 @@ model Pet {
   vaccinations    PetVaccination[]
   weightEntries   PetWeightEntry[]
   transfers       PetTransfer[]
+  strayMatches    ShelterStrayMatch[]
 
   @@index([ownerId])
   @@index([isDeleted])
@@ -543,6 +544,44 @@ model PetTransfer {
   @@index([petId, status])
   @@index([token])
   @@index([toEmail])
+}
+
+// Roster-stray vs lost-case match candidates, written by the intake matcher
+// (new STRAY on a shelter roster) and the lost-report cascade action, read
+// by the shelter dashboard. The shelter confirms BEFORE any owner is
+// notified: while status is PENDING the owner must never be contacted.
+// pTrueMatch stays the calibrated attribute value; the vision verdict is
+// advisory display only. Statuses are strings (not enums) so prod's plain
+// `prisma db push` boot stays painless.
+model ShelterStrayMatch {
+  id        String @id @default(cuid())
+  petId     String
+  pet       Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+  shelterId String
+  caseId    String
+  case      Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  score       Float
+  pTrueMatch  Float
+  band        String // actionable | feed
+  matchSource String @default("attribute") // attribute | microchip
+  detailsJson String? // JSON: matching.js details blob
+  direction   String // STRAY_INTAKE | LOST_REPORT (which flow created it)
+
+  visualVerdict    String? // SAME | DIFFERENT | UNSURE (null = vision not run)
+  visualConfidence Float?
+
+  status          String    @default("PENDING") // PENDING | CONFIRMED | DISMISSED
+  confirmedById   String?
+  confirmedAt     DateTime?
+  ownerNotifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([petId, caseId])
+  @@index([shelterId, status])
+  @@index([caseId])
 }
 
 // HEALTH BOOK (docs/HEALTH_BOOK_DESIGN.md): owner-held medical record.
@@ -717,6 +756,9 @@ model Case {
   // Report-time action cascade (see app/lib/cascade/*)
   activation        CaseActivation?
   followUps         CaseFollowUp[]
+
+  // Shelter accounts: stray-vs-lost match candidates (app/lib/shelterMatching.js)
+  strayMatches      ShelterStrayMatch[]
 
   @@index([status])
   @@index([caseNumber])
