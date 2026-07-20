@@ -65,6 +65,7 @@ const KNOWN_PRIVATE = [
   'pets/[id]/today/page.js', // the daily checklist
   'pets/[id]/meds/page.js', // owner/caregiver medication management
   'pets/[id]/profile/page.js', // owner/caregiver pet profile + finder info
+  'pets/transfer/[token]/page.js', // emailed adoption-handoff invite; must not unfurl the pet
   'messages/[id]/page.js', // private conversation
   'admin/missions/[missionId]/page.js', // admin-only
   'admin/users/[id]/page.js', // admin-only user detail

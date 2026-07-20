@@ -125,6 +125,7 @@ export async function POST(request) {
       medicalConditions,
       photos,
       primaryPhotoUrl,
+      shelterId,
     } = body;
 
     // Validation
@@ -156,10 +157,29 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid sex' }, { status: 400 });
     }
 
+    // Shelter accounts: a claimed shelter may tag the record onto its
+    // roster. Only the user who claimed that shelter may do so — anyone
+    // else gets a 403, so rosters can't be polluted by strangers.
+    let managedByShelterId = null;
+    if (shelterId) {
+      const claim = await prisma.shelterProfile.findFirst({
+        where: { shelterId, claimedById: user.id },
+        select: { shelterId: true },
+      });
+      if (!claim) {
+        return NextResponse.json(
+          { error: 'You don\'t manage that shelter' },
+          { status: 403 }
+        );
+      }
+      managedByShelterId = claim.shelterId;
+    }
+
     // Create pet
     const pet = await prisma.pet.create({
       data: {
         ownerId: user.id,
+        managedByShelterId,
         name: name.trim(),
         species,
         breed: breed?.trim() || null,

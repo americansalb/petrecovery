@@ -197,8 +197,9 @@ Static segment card in `app/hub/layout.js`.
 
 | route | purpose | client/server | auth | dynamic params & source |
 |---|---|---|---|---|
-| `/shelter/dashboard` | Claimed-shelter dashboard (loads only requester's own `ShelterProfile.claimedById`) | **server** (`getServerSession` + `redirect`, `force-dynamic`) | logged-in (server redirect) | — |
+| `/shelter/dashboard` | Claimed-shelter dashboard: free pet-management roster (Health Book records tagged `Pet.managedByShelterId`), add-animal via `/care/start?shelter=<id>`, adoption handoff (PetTransfer invites) | **server** (`getServerSession` + `redirect`, `force-dynamic`) | logged-in (server redirect); roster only for the claiming user | — |
 | `/shelter/request` | Shelter/rescue account request form | client | logged-in (redirect, nonstandard `?redirect=`) | — |
+| `/pets/transfer/[token]` | Adoption-handoff accept page (emailed token; accept keyed to invited email) | server shell + client accept | logged-in (401 → in-page login prompt with callback) | `token` → `PetTransfer.token` |
 
 ### Admin
 

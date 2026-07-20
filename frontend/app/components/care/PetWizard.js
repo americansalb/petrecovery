@@ -147,6 +147,11 @@ export default function PetWizard() {
   // photos (members only)
   const [images, setImages] = useState([]);
   const [breedQuery, setBreedQuery] = useState('');
+  // Shelter accounts arrive via /care/start?shelter=<id> from their
+  // dashboard; the id rides along on save so the animal lands on the
+  // shelter's roster. Read from window (not useSearchParams) to keep the
+  // page out of a Suspense boundary. The API verifies the claim.
+  const [shelterId, setShelterId] = useState(null);
   const hydrated = useRef(false);
 
   const STEPS = useMemo(() => {
@@ -167,6 +172,10 @@ export default function PetWizard() {
       setDraft(existing);
       setResumed(true);
     }
+    try {
+      const sid = new URLSearchParams(window.location.search).get('shelter');
+      if (sid) setShelterId(sid);
+    } catch {}
     hydrated.current = true;
   }, []);
 
@@ -241,6 +250,7 @@ export default function PetWizard() {
           ...pet,
           photos: photoUrls,
           primaryPhotoUrl: photoUrls[0] || '',
+          ...(shelterId ? { shelterId } : {}),
         }),
       });
       const data = await res.json();
@@ -259,7 +269,8 @@ export default function PetWizard() {
         });
       }
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
-      router.push(`/pets/${petId}/today`);
+      // Shelter adds go back to the roster; personal adds go to the pet.
+      router.push(shelterId ? '/shelter/dashboard' : `/pets/${petId}/today`);
     } catch (e) {
       setError(e.message);
       setSaving(false);
