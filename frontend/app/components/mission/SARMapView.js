@@ -58,6 +58,10 @@ export default function SARMapView({
   defaultLayer = 'satellite',
   // Optional per-zone color override, e.g. { HIGH: '#facc15', ... }
   zoneColors = null,
+  // Optional per-zone fill-opacity override, e.g. { HIGH: 0.16, EXTENDED: 0 }.
+  // A 0 skips the fill polygons entirely (the dashed beam edge still marks
+  // the boundary) so outer rings never tint the whole viewport.
+  zoneFills = null,
   // Fly the camera somewhere on demand: { lat, lng, zoom?, key }
   // (key changes are what trigger the flight, so the same spot can refocus)
   focusPoint = null,
@@ -484,8 +488,12 @@ export default function SARMapView({
           const outerRadius = milesToMeters(zone.radius);
           const innerRadius = zoneIndex === 0 ? 0 : milesToMeters(sortedZones[zoneIndex - 1].radius);
           const zoneColor = (zoneColors && zoneColors[zone.name]) || zone.color;
-          // Honor the research lib's per-zone opacity (a glow, not a paint spill)
-          const zoneFill = typeof zone.fillOpacity === 'number' ? zone.fillOpacity : 0.2;
+          // Fill priority: explicit override, then the research lib's own
+          // per-zone opacity. A 0 skips the ring so the map stays dark.
+          const zoneFill = zoneFills && typeof zoneFills[zone.name] === 'number'
+            ? zoneFills[zone.name]
+            : typeof zone.fillOpacity === 'number' ? zone.fillOpacity : 0.2;
+          if (zoneFill <= 0) return;
 
           octants.forEach((octant) => {
             const sliceCoords = generateArcCoords(zoneCenter, innerRadius, outerRadius, octant.startAngle, octant.endAngle);
@@ -510,7 +518,7 @@ export default function SARMapView({
             radius: maxRadius,
             color: edgeColor,
             weight: 1.5,
-            opacity: 0.45,
+            opacity: 0.35,
             dashArray: '6, 10',
             fill: false,
           });
@@ -531,29 +539,36 @@ export default function SARMapView({
       // Confirmed = emerald (good news); unconfirmed = amber (a warm lead)
       const zoneColor = isConfirmed ? '#34d399' : '#fbbf24';
 
-      const radiusMiles = Math.min(0.1 + (Math.max(0, hoursSinceSighting) * 0.25), 3);
-      const radiusMeters = radiusMiles * 1609.34;
-
-      const sightingZone = L.circle([sighting.latitude, sighting.longitude], {
-        radius: radiusMeters,
-        color: zoneColor,
-        fillColor: zoneColor,
-        fillOpacity: 0.08,
-        weight: 1.5,
-        opacity: 0.55,
-        dashArray: isConfirmed ? '' : '6, 4',
-      });
-
       const timeAgoText = hoursSinceSighting < 1 ? 'Just now' :
         hoursSinceSighting < 24 ? `${Math.floor(hoursSinceSighting)}h ago` :
         `${Math.floor(hoursSinceSighting / 24)}d ago`;
 
       const popupHtml = `<div style="text-align:center;"><b style="color:${zoneColor}">${isConfirmed ? 'Confirmed sighting' : 'Reported sighting'}</b><br>${timeAgoText}${sighting.description ? `<br><small>${String(sighting.description).slice(0, 120)}</small>` : ''}</div>`;
 
-      sightingZone.bindPopup(popupHtml);
-      sightingZone.addTo(mapInstance.current);
-      sightingZone.bringToBack();
-      circlesRef.current.push(sightingZone);
+      // The uncertainty circle grows with age but FADES as it grows —
+      // a fresh sighting glows, a stale one keeps only its pin. This is
+      // what keeps the map dark instead of washed in overlay color.
+      if (hoursSinceSighting < 24) {
+        const radiusMiles = Math.min(0.1 + (Math.max(0, hoursSinceSighting) * 0.25), 3);
+        const radiusMeters = radiusMiles * 1609.34;
+        const fillOpacity = hoursSinceSighting <= 1 ? 0.12 : hoursSinceSighting <= 6 ? 0.05 : 0;
+        const lineOpacity = hoursSinceSighting <= 1 ? 0.6 : hoursSinceSighting <= 6 ? 0.4 : 0.25;
+
+        const sightingZone = L.circle([sighting.latitude, sighting.longitude], {
+          radius: radiusMeters,
+          color: zoneColor,
+          fillColor: zoneColor,
+          fillOpacity,
+          weight: 1.5,
+          opacity: lineOpacity,
+          dashArray: isConfirmed ? '' : '6, 4',
+        });
+
+        sightingZone.bindPopup(popupHtml);
+        sightingZone.addTo(mapInstance.current);
+        sightingZone.bringToBack();
+        circlesRef.current.push(sightingZone);
+      }
 
       const eyeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
       const sightingIcon = L.divIcon({
@@ -572,7 +587,7 @@ export default function SARMapView({
     return () => {
       if (currentGen === renderGenRef.current) cleanupLayers();
     };
-  }, [lastSeen, sightings, petSpecies, hoursElapsed, showProbabilityZones, probabilityZones, zoneColors]);
+  }, [lastSeen, sightings, petSpecies, hoursElapsed, showProbabilityZones, probabilityZones, zoneColors, zoneFills]);
 
   // Render historical coverage trails
   useEffect(() => {

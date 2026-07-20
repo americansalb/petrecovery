@@ -16,12 +16,20 @@ import { Loader2 } from 'lucide-react';
 import MapKey from './MapKey';
 
 // The flashlight beam: warm amber-to-ember, brightest where the pet
-// most likely is. Opacities come from searchProbability per zone.
+// most likely is — and a COMPACT glow, not a viewport-wide wash. The
+// outer rings get little or no fill (the dashed beam edge marks the
+// boundary) so the map itself stays dark.
 const FLASHLIGHT_ZONE_COLORS = {
   HIGH: '#facc15',
   MEDIUM: '#f59e0b',
-  LOW: '#ea580c',
+  LOW: '#f97316',
   EXTENDED: '#b91c1c',
+};
+const FLASHLIGHT_ZONE_FILLS = {
+  HIGH: 0.16,
+  MEDIUM: 0.08,
+  LOW: 0.03,
+  EXTENDED: 0,
 };
 
 const SARMapView = dynamic(() => import('@/app/components/mission/SARMapView'), {
@@ -73,6 +81,7 @@ export default function MapCanvas({
         interactive
         defaultLayer="street"
         zoneColors={FLASHLIGHT_ZONE_COLORS}
+        zoneFills={FLASHLIGHT_ZONE_FILLS}
         showProbabilityZones={showZones}
         probabilityZones={probabilityZones}
         focusPoint={focusPoint}
