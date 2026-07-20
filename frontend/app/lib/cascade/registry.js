@@ -17,6 +17,7 @@ export const CASCADE_ACTIONS = [
   { key: 'qr', tier: 0, deps: [], label: 'QR code', logAction: 'create', enabled: true },
   { key: 'ai_copy', tier: 0, deps: [], label: 'Flyer copy & captions', logAction: 'create', enabled: true },
   { key: 'reverse_match', tier: 0, deps: [], label: 'Match against found pets', logAction: 'read', enabled: true },
+  { key: 'shelter_strays', tier: 0, deps: [], label: 'Check shelter strays', logAction: 'read', enabled: true },
   { key: 'shelters', tier: 0, deps: [], label: 'Nearby shelters', logAction: 'read', enabled: true },
   { key: 'neighbor_alert', tier: 0, deps: [], label: 'Alert neighbors', logAction: 'update', enabled: true },
   { key: 'rescue_force', tier: 0, deps: [], label: 'Rescue force', logAction: 'read', enabled: true },

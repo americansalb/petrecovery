@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withRateLimitAsync, checkGlobalLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
+import { validateImageUrl, fetchImageAsBase64 } from '@/app/lib/ai/imageFetch';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,17 +19,8 @@ export const dynamic = 'force-dynamic';
  *  - Model output is normalized/clamped to our Prisma enums before returning.
  */
 
-// Anthropic accepts only these image media types.
-const ALLOWED_MEDIA_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-]);
-
-// Anthropic caps images at ~5MB; keep our own ceiling at 8MB before that.
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const IMAGE_FETCH_TIMEOUT_MS = 8000;
+// Image guards (SSRF allowlist, size/type caps, timeouts) live in the
+// shared lib app/lib/ai/imageFetch.js, also used by comparePetPhotos.
 const ANTHROPIC_TIMEOUT_MS = 20000;
 
 // Hard global ceiling on paid Anthropic calls per minute, across ALL callers.
@@ -39,57 +31,6 @@ const GLOBAL_MAX_PER_MIN = parseInt(process.env.AI_ANALYZE_GLOBAL_MAX_PER_MIN ||
 // Prisma enums (frontend/prisma/schema.prisma).
 const SPECIES_ENUM = new Set(['DOG', 'CAT', 'BIRD', 'RABBIT', 'OTHER']);
 const SIZE_ENUM = new Set(['TINY', 'SMALL', 'MEDIUM', 'LARGE', 'GIANT']);
-
-/**
- * Build the allowlist of hosts we will fetch images from.
- * Primary source is BUNNY_CDN_URL (where /api/upload stores photos). An optional
- * comma-separated AI_IMAGE_HOST_ALLOWLIST env can add hosts (e.g. local dev storage).
- * Fail closed: if nothing is configured we reject all URLs rather than allow SSRF.
- */
-function getAllowedImageHosts() {
-  const hosts = new Set();
-
-  const cdn = process.env.BUNNY_CDN_URL;
-  if (cdn) {
-    try {
-      const normalized = cdn.startsWith('http') ? cdn : `https://${cdn}`;
-      hosts.add(new URL(normalized).host.toLowerCase());
-    } catch {
-      /* ignore malformed env */
-    }
-  }
-
-  const extra = process.env.AI_IMAGE_HOST_ALLOWLIST;
-  if (extra) {
-    for (const h of extra.split(',')) {
-      const trimmed = h.trim().toLowerCase();
-      if (trimmed) hosts.add(trimmed);
-    }
-  }
-
-  return hosts;
-}
-
-/**
- * Validate that imageUrl is an https URL on an allowlisted host.
- * Returns the parsed URL on success, or null if it must be rejected.
- */
-function validateImageUrl(imageUrl) {
-  let parsed;
-  try {
-    parsed = new URL(imageUrl);
-  } catch {
-    return null;
-  }
-
-  if (parsed.protocol !== 'https:') return null;
-
-  const allowed = getAllowedImageHosts();
-  if (allowed.size === 0) return null; // fail closed — not configured
-  if (!allowed.has(parsed.host.toLowerCase())) return null;
-
-  return parsed;
-}
 
 function normalizeSpecies(value) {
   if (typeof value !== 'string') return 'OTHER';
@@ -154,68 +95,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'AI analysis unavailable' }, { status: 503 });
     }
 
-    // Fetch the image (timeout + size + media-type guards). The timer stays armed
-    // through the streaming body read so a slow/stalled stream also aborts.
-    const imageController = new AbortController();
-    const imageTimer = setTimeout(() => imageController.abort(), IMAGE_FETCH_TIMEOUT_MS);
-
-    let base64Image;
-    let imageMediaType;
-    try {
-      let imageResponse;
-      try {
-        // redirect: 'error' prevents a redirect on the allowlisted CDN host from
-        // bouncing the fetch to an internal/arbitrary URL (SSRF-via-open-redirect).
-        imageResponse = await fetch(validatedUrl, {
-          signal: imageController.signal,
-          redirect: 'error',
-        });
-      } catch {
-        return NextResponse.json({ error: 'Failed to fetch image' }, { status: 400 });
-      }
-
-      if (!imageResponse.ok) {
-        return NextResponse.json({ error: 'Failed to fetch image' }, { status: 400 });
-      }
-
-      imageMediaType = (imageResponse.headers.get('content-type') || '')
-        .split(';')[0]
-        .trim()
-        .toLowerCase();
-      if (!ALLOWED_MEDIA_TYPES.has(imageMediaType)) {
-        return NextResponse.json({ error: 'Unsupported image type' }, { status: 400 });
-      }
-
-      // Reject oversized images up front via Content-Length when present.
-      const declaredLength = parseInt(imageResponse.headers.get('content-length') || '', 10);
-      if (Number.isFinite(declaredLength) && declaredLength > MAX_IMAGE_BYTES) {
-        return NextResponse.json({ error: 'Image too large' }, { status: 413 });
-      }
-
-      // Stream the body with a hard running byte ceiling, so an absent or lying
-      // Content-Length (e.g. chunked transfer) can't force unbounded buffering.
-      const reader = imageResponse.body?.getReader();
-      if (!reader) {
-        return NextResponse.json({ error: 'Failed to fetch image' }, { status: 400 });
-      }
-      const chunks = [];
-      let received = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        received += value.byteLength;
-        if (received > MAX_IMAGE_BYTES) {
-          await reader.cancel().catch(() => {});
-          return NextResponse.json({ error: 'Image too large' }, { status: 413 });
-        }
-        chunks.push(Buffer.from(value));
-      }
-      base64Image = Buffer.concat(chunks).toString('base64');
-    } catch {
-      return NextResponse.json({ error: 'Failed to fetch image' }, { status: 400 });
-    } finally {
-      clearTimeout(imageTimer);
+    // Fetch the image through the shared guards (timeout + size + media type).
+    const fetched = await fetchImageAsBase64(validatedUrl);
+    if (fetched.error === 'type') {
+      return NextResponse.json({ error: 'Unsupported image type' }, { status: 400 });
     }
+    if (fetched.error === 'size') {
+      return NextResponse.json({ error: 'Image too large' }, { status: 413 });
+    }
+    if (fetched.error) {
+      return NextResponse.json({ error: 'Failed to fetch image' }, { status: 400 });
+    }
+    const base64Image = fetched.base64;
+    const imageMediaType = fetched.mediaType;
 
     // Hard global ceiling on paid Anthropic calls — defends total spend even if
     // the per-IP limit is evaded via IP rotation / spoofed x-forwarded-for.

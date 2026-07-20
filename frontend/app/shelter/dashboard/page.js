@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle, Plus, HeartHandshake } from 'lucide-react';
 import ShelterRoster from '../ShelterRoster';
+import StrayMatches from '../StrayMatches';
 
 // Session-dependent — never statically rendered.
 export const dynamic = 'force-dynamic';
@@ -135,6 +136,9 @@ export default async function ShelterDashboardPage() {
                 )}
               </div>
             </div>
+
+            {/* Stray-vs-lost matches awaiting a human yes (client-fetched) */}
+            <StrayMatches />
 
             {/* Animal roster: the free pet-management account */}
             <div>

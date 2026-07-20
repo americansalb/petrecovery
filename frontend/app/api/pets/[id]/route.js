@@ -13,6 +13,7 @@ import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { requirePetAccess } from '@/app/lib/petOwnership';
 import { isShelterStatus, isIntakeType } from '@/app/lib/shelterStatuses';
+import { enqueueStrayIntakeMatch } from '@/app/lib/shelterMatching';
 
 // GET /api/pets/[id] - Get pet details
 // Read access follows the standard tiers (VIEWER < CAREGIVER < OWNER), so a
@@ -226,6 +227,12 @@ export async function PATCH(request, { params }) {
       where: { id },
       data: updateData
     });
+
+    // An edit that turns a roster animal into a STRAY intake kicks off
+    // matching against open lost reports, post-response.
+    if (pet.managedByShelterId && updateData.intakeType === 'STRAY' && existingPet.intakeType !== 'STRAY') {
+      enqueueStrayIntakeMatch(pet.id);
+    }
 
     // Fire-and-forget: logging must never fail the request.
     logEvent({
