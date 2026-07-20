@@ -90,10 +90,11 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Message content required' }, { status: 400 });
     }
 
-    // Verify mission exists
+    // Verify mission exists (Case has no direct squad field — the case↔force
+    // link is the CaseAssignment join table, so we only check existence here)
     const mission = await prisma.case.findUnique({
       where: { id: missionId },
-      select: { id: true, rescueSquadId: true },
+      select: { id: true },
     });
 
     if (!mission) {
@@ -106,21 +107,35 @@ export async function POST(request, { params }) {
       select: { firstName: true, lastName: true },
     });
 
-    // If no rescue force, create one for this mission
-    let rescueSquadId = mission.rescueSquadId;
+    // Chat is stored as SquadActivity, which requires a RescueForce. If a
+    // force is already assigned to this case, use it; otherwise attach the
+    // messages to a hidden per-mission workspace force. The workspace is
+    // keyed on a unique, mission-specific name via upsert so two near-
+    // simultaneous first messages can't collide on the unique-name
+    // constraint. (The old code selected a nonexistent Case.rescueSquadId
+    // field and created a force with an invalid `caseId` + constant name,
+    // so chat 500'd on every case — most visibly freshly reported ones.)
+    // NB: CaseAssignment's field is `missionId` (mapped to the legacy
+    // `caseId` column) — the Case→Mission rename renamed the field here even
+    // though SquadActivity kept `caseId`. Using the wrong one is a validation
+    // error, so this must stay `missionId`.
+    const assignment = await prisma.caseAssignment.findFirst({
+      where: { missionId: missionId },
+      select: { rescueSquadId: true },
+      orderBy: { id: 'asc' },
+    });
+    let rescueSquadId = assignment?.rescueSquadId;
     if (!rescueSquadId) {
-      const squad = await prisma.rescueForce.create({
-        data: {
-          name: `Mission Rescue Force`,
-          caseId: missionId,
+      const workspace = await prisma.rescueForce.upsert({
+        where: { name: `Mission Workspace ${missionId}` },
+        update: {},
+        create: {
+          name: `Mission Workspace ${missionId}`,
+          isActive: false,
+          isAcceptingCases: false,
         },
       });
-      rescueSquadId = squad.id;
-      // Update mission with squad
-      await prisma.case.update({
-        where: { id: missionId },
-        data: { rescueSquadId: squad.id },
-      });
+      rescueSquadId = workspace.id;
     }
 
     // Create chat message as SquadActivity

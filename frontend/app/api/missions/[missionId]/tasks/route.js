@@ -15,13 +15,13 @@ export const dynamic = 'force-dynamic';
 // GET all tasks for this case
 export async function GET(request, { params }) {
   try {
-    const { id } = params;
-
-    // Support both UUID and case number
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    // The dynamic segment is [missionId]; older code read params.id (undefined),
+    // which silently matched an arbitrary case. Accept either the cuid id or the
+    // case number — the old UUID regex never matched our cuid ids anyway.
+    const id = params.missionId || params.id;
 
     const missionData = await prisma.case.findFirst({
-      where: isUuid ? { id } : { caseNumber: id },
+      where: { OR: [{ id }, { caseNumber: id }] },
       include: {
         assignments: {
           take: 1,
@@ -94,7 +94,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = params;
+    const id = params.missionId || params.id;
     const body = await request.json();
     const {
       title,
@@ -113,11 +113,9 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    // Get the case and its assignment
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
+    // Get the case and its assignment (id or case number; see GET note)
     const missionData = await prisma.case.findFirst({
-      where: isUuid ? { id } : { caseNumber: id },
+      where: { OR: [{ id }, { caseNumber: id }] },
       include: {
         assignments: {
           take: 1,

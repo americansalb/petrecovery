@@ -35,7 +35,6 @@ import useCaseOutcome from './hooks/useCaseOutcome';
 import useMissionState, { ROLES, timeAgoShort } from './hooks/useMissionState';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { calculateProbabilityZones } from '@/app/lib/searchProbability';
-import { printFlyer } from '@/app/lib/flyerGenerator';
 
 import MissionHeader from './components/MissionHeader';
 import HotSightingBanner from './components/HotSightingBanner';
@@ -215,30 +214,41 @@ function MissionShellContent() {
     }
   }, [activeMission, showNotification]);
 
-  const handleFlyer = useCallback(() => {
+  const handleFlyer = useCallback(async () => {
     if (!activeMission) return;
+    // Open the tab synchronously (inside the click gesture) so pop-up
+    // blockers don't eat it, show a placeholder, then swap in the finished
+    // flyer from the server generator once it's ready.
+    const win = typeof window !== 'undefined' ? window.open('', '_blank') : null;
+    if (win) {
+      win.document.write(
+        '<!doctype html><meta charset="utf-8"><title>Preparing flyer…</title>' +
+        '<body style="font-family:Arial,sans-serif;display:flex;height:100vh;margin:0;align-items:center;justify-content:center;color:#374151">Preparing flyer…</body>'
+      );
+    }
     try {
-      printFlyer({
-        petName: activeMission.petName,
-        petSpecies: activeMission.petSpecies,
-        petBreed: activeMission.petBreed,
-        petColor: activeMission.petColor,
-        petSize: activeMission.petSize,
-        petDescription: activeMission.petDescription,
-        petPhotoUrl: activeMission.petPhotoUrl,
-        lastSeenAt: activeMission.lastSeenAt,
-        lastSeenAddress: activeMission.lastSeenAddress,
-        hasReward: activeMission.hasReward,
-        rewardAmount: activeMission.rewardAmount,
-        ownerPhone: activeMission.ownerPhone,
-        ownerEmail: activeMission.ownerEmail,
-        missionNumber: activeMission.missionNumber || activeMission.caseNumber,
-        id: activeMission.id,
+      const res = await fetch(`/api/mission/${activeMission.id}/flyers/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ size: 'full', template: 'classic', includeQrCode: true }),
       });
+      if (!res.ok) throw new Error('generate_failed');
+      const data = await res.json();
+      if (!data?.html) throw new Error('generate_failed');
+      if (win) {
+        win.document.open();
+        win.document.write(data.html);
+        win.document.close();
+        win.focus();
+      }
       markLocalAction(activeMission.id, 'flyer');
-      showNotification('success', 'Flyer opened for printing');
+      showNotification('success', 'Flyer opened in a new tab.');
     } catch (err) {
-      showNotification('error', 'Could not generate the flyer');
+      if (win) win.close();
+      showNotification(
+        'error',
+        !win ? 'Allow pop-ups for this site to open the flyer.' : 'Could not generate the flyer.'
+      );
     }
   }, [activeMission, showNotification]);
 
