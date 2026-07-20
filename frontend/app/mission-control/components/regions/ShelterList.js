@@ -54,6 +54,14 @@ export default function ShelterList({ pois = [], missionId, isLoading = false })
       {pois.map((poi) => {
         const done = !!called[poi.id || poi.name];
         const key = poi.id || poi.name;
+        // Open the actual place in Google Maps by name + address (so it
+        // resolves the real listing — page, hours, directions) rather than
+        // dropping a pin at bare lat/lng. Coordinates are only the fallback.
+        const mapsQuery = [poi.name, poi.address].filter(Boolean).join(', ')
+          || (poi.latitude && poi.longitude ? `${poi.latitude},${poi.longitude}` : '');
+        const mapsUrl = mapsQuery
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`
+          : null;
         return (
           <li
             key={key}
@@ -89,12 +97,13 @@ export default function ShelterList({ pois = [], missionId, isLoading = false })
                     <Phone size={16} />
                   </a>
                 )}
-                {poi.latitude && poi.longitude && (
+                {mapsUrl && (
                   <a
-                    href={`https://maps.google.com/?q=${poi.latitude},${poi.longitude}`}
+                    href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={`Open ${poi.name} in maps`}
+                    aria-label={`Open ${poi.name || 'this shelter'} in Google Maps`}
+                    title="Open in Google Maps"
                     className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 flex items-center justify-center hover:text-white transition"
                   >
                     <ExternalLink size={15} />
