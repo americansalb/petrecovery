@@ -360,6 +360,16 @@ model Pet {
   managedByShelterId String?
   managedByShelter   Shelter? @relation("ShelterManagedPets", fields: [managedByShelterId], references: [id])
 
+  // Shelter intake details, only meaningful while managedByShelterId is
+  // set. Strings, not enums, so prod's plain `prisma db push` boot stays
+  // painless. Canonical values live in app/lib/shelterStatuses.js.
+  shelterStatus        String?   // AVAILABLE, ADOPTION_PENDING, ADOPTED, RECLAIMED
+  intakeDate           DateTime?
+  intakeType           String?   // STRAY, SURRENDER, TRANSFER
+  intakeFoundAddress   String?   // where the animal was found (STRAY intakes)
+  intakeFoundLatitude  Float?
+  intakeFoundLongitude Float?
+
   // Relations
   cases           Case[]
   medications     PetMedication[]
@@ -372,6 +382,7 @@ model Pet {
   @@index([isDeleted])
   @@index([publicViewToken])
   @@index([managedByShelterId])
+  @@index([managedByShelterId, shelterStatus])
 }
 
 enum PetSpecies {

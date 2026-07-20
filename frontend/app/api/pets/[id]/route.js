@@ -12,6 +12,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { requirePetAccess } from '@/app/lib/petOwnership';
+import { isShelterStatus, isIntakeType } from '@/app/lib/shelterStatuses';
 
 // GET /api/pets/[id] - Get pet details
 // Read access follows the standard tiers (VIEWER < CAREGIVER < OWNER), so a
@@ -117,10 +118,54 @@ export async function PATCH(request, { params }) {
       vetName,
       vetClinic,
       vetPhone,
+      shelterStatus,
+      intakeDate,
+      intakeType,
+      intakeFoundAddress,
+      intakeFoundLatitude,
+      intakeFoundLongitude,
     } = body;
 
     // Build update data (only include provided fields)
     const updateData = {};
+
+    // Shelter intake fields: only meaningful on roster animals. Status on a
+    // non-managed pet is a caller bug (400); the rest are silently ignored.
+    if (shelterStatus !== undefined) {
+      if (!existingPet.managedByShelterId) {
+        return NextResponse.json(
+          { error: 'Only shelter roster animals have a shelter status' },
+          { status: 400 }
+        );
+      }
+      if (!isShelterStatus(shelterStatus)) {
+        return NextResponse.json({ error: 'Invalid shelter status' }, { status: 400 });
+      }
+      updateData.shelterStatus = shelterStatus;
+    }
+    if (existingPet.managedByShelterId) {
+      if (intakeType !== undefined) {
+        if (intakeType && !isIntakeType(intakeType)) {
+          return NextResponse.json({ error: 'Invalid intake type' }, { status: 400 });
+        }
+        updateData.intakeType = intakeType || null;
+      }
+      if (intakeDate !== undefined) {
+        const parsed = intakeDate ? new Date(intakeDate) : null;
+        updateData.intakeDate = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
+      }
+      if (intakeFoundAddress !== undefined) {
+        updateData.intakeFoundAddress = intakeFoundAddress?.trim() || null;
+      }
+      if (intakeFoundLatitude !== undefined) {
+        const lat = parseFloat(intakeFoundLatitude);
+        updateData.intakeFoundLatitude = Number.isFinite(lat) ? lat : null;
+      }
+      if (intakeFoundLongitude !== undefined) {
+        const lng = parseFloat(intakeFoundLongitude);
+        updateData.intakeFoundLongitude = Number.isFinite(lng) ? lng : null;
+      }
+    }
 
     // Health Book vet card: free-text contact fields, length-capped
     if (vetName !== undefined) updateData.vetName = (vetName || '').trim().slice(0, 80) || null;

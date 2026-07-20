@@ -22,7 +22,9 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/components/ui';
 import ImageUpload from '@/app/components/ImageUpload';
+import LocationPicker from '@/app/components/report/LocationPicker';
 import { getBreedsForSpecies } from '@/app/lib/breeds';
+import { INTAKE_TYPES, INTAKE_TYPE_LABELS } from '@/app/lib/shelterStatuses';
 import {
   COAT_COLORS, COAT_PATTERNS, MAX_COAT_COLORS, composeColor, parseColor,
 } from '@/lib/petAppearance';
@@ -152,6 +154,9 @@ export default function PetWizard() {
   // shelter's roster. Read from window (not useSearchParams) to keep the
   // page out of a Suspense boundary. The API verifies the claim.
   const [shelterId, setShelterId] = useState(null);
+  // Intake details (shelter adds only). Kept out of the localStorage
+  // draft on purpose: personal drafts must never grow shelter fields.
+  const [intake, setIntake] = useState({ date: '', type: '', location: null });
   const hydrated = useRef(false);
 
   const STEPS = useMemo(() => {
@@ -160,10 +165,12 @@ export default function PetWizard() {
       { key: 'looks', label: 'Looks' },
       { key: 'meds', label: 'Meds' },
     ];
+    // Shelter adds record how the animal arrived, right after "who".
+    if (shelterId) base.splice(1, 0, { key: 'intake', label: 'Intake' });
     if (isMember) base.push({ key: 'photo', label: 'Photo' });
     base.push({ key: 'save', label: 'Save' });
     return base;
-  }, [isMember]);
+  }, [isMember, shelterId]);
   const stepKey = STEPS[Math.min(step, STEPS.length - 1)].key;
 
   useEffect(() => {
@@ -174,7 +181,12 @@ export default function PetWizard() {
     }
     try {
       const sid = new URLSearchParams(window.location.search).get('shelter');
-      if (sid) setShelterId(sid);
+      if (sid) {
+        setShelterId(sid);
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        setIntake((i) => ({ ...i, date: today }));
+      }
     } catch {}
     hydrated.current = true;
   }, []);
@@ -188,6 +200,7 @@ export default function PetWizard() {
 
   const canNext =
     stepKey === 'who' ? Boolean(draft.name.trim() && draft.species) :
+    stepKey === 'intake' ? Boolean(intake.type) :
     stepKey === 'looks' ? Boolean(draft.coatColors.length && draft.size) :
     true;
 
@@ -250,7 +263,14 @@ export default function PetWizard() {
           ...pet,
           photos: photoUrls,
           primaryPhotoUrl: photoUrls[0] || '',
-          ...(shelterId ? { shelterId } : {}),
+          ...(shelterId ? {
+            shelterId,
+            intakeDate: intake.date || undefined,
+            intakeType: intake.type || undefined,
+            intakeFoundAddress: intake.location?.address || undefined,
+            intakeFoundLatitude: intake.location?.lat,
+            intakeFoundLongitude: intake.location?.lng,
+          } : {}),
         }),
       });
       const data = await res.json();
@@ -333,6 +353,7 @@ export default function PetWizard() {
 
   const TITLES = {
     who: 'Add your pet',
+    intake: `How did ${petName} arrive?`,
     looks: `What does ${petName} look like?`,
     meds: 'Any medications?',
     photo: 'Add photos',
@@ -370,6 +391,42 @@ export default function PetWizard() {
                 </Chip>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* STEP: intake (shelter adds only) */}
+        {stepKey === 'intake' && (
+          <div>
+            <p className={labelClass}>Intake type</p>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {INTAKE_TYPES.map((t) => (
+                <Chip key={t} active={intake.type === t} onClick={() => setIntake((i) => ({ ...i, type: t }))}>
+                  {INTAKE_TYPE_LABELS[t]}
+                </Chip>
+              ))}
+            </div>
+
+            <label className={labelClass} htmlFor="hb-intake-date">Intake date</label>
+            <input
+              id="hb-intake-date"
+              type="date"
+              value={intake.date}
+              onChange={(e) => setIntake((i) => ({ ...i, date: e.target.value }))}
+              className={cn(inputClass, 'mb-5 w-48')}
+            />
+
+            {intake.type === 'STRAY' && (
+              <div>
+                <p className={labelClass}>Where was this animal found?</p>
+                <p className="text-[13px] text-neutral-500 mb-3">
+                  The found location lets us check nearby lost-pet reports for a worried owner.
+                </p>
+                <LocationPicker
+                  value={intake.location}
+                  onChange={(loc) => setIntake((i) => ({ ...i, location: loc }))}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -652,6 +709,7 @@ export default function PetWizard() {
         {!lastStep && !canNext && (
           <p className="text-[13px] text-neutral-500 mt-4 text-right">
             {stepKey === 'who' && (!draft.name.trim() ? 'Enter a name to continue.' : 'Pick a species to continue.')}
+            {stepKey === 'intake' && 'Pick an intake type to continue.'}
             {stepKey === 'looks' && (!draft.coatColors.length ? 'Pick at least one color to continue.' : 'Pick a size to continue.')}
           </p>
         )}

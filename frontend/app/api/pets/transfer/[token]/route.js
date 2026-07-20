@@ -41,6 +41,7 @@ async function loadContext(token) {
           breed: true,
           primaryPhotoUrl: true,
           isDeleted: true,
+          managedByShelterId: true,
           managedByShelter: { select: { name: true } },
         },
       },
@@ -102,6 +103,9 @@ export async function POST(request, { params }) {
           ownerId: user.id,
           managedByShelterId: null, // leaves the shelter roster
           publicViewToken: null, // old shared links stop working
+          // An accepted handoff from a shelter roster is an adoption;
+          // the status self-documents on the record it left behind.
+          ...(transfer.pet.managedByShelterId ? { shelterStatus: 'ADOPTED' } : {}),
         },
       }),
       // Old care team (shelter staff etc.) loses access; the new owner

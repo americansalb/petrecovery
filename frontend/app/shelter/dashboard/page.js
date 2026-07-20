@@ -50,6 +50,10 @@ export default async function ShelterDashboardPage() {
           species: true,
           breed: true,
           primaryPhotoUrl: true,
+          shelterStatus: true,
+          intakeType: true,
+          intakeDate: true,
+          intakeFoundAddress: true,
           transfers: {
             where: { status: 'PENDING' },
             select: { toEmail: true },
@@ -68,6 +72,10 @@ export default async function ShelterDashboardPage() {
       species: p.species,
       breed: p.breed,
       primaryPhotoUrl: p.primaryPhotoUrl,
+      shelterStatus: p.shelterStatus,
+      intakeType: p.intakeType,
+      intakeDate: p.intakeDate ? p.intakeDate.toISOString() : null,
+      intakeFoundAddress: p.intakeFoundAddress,
       pendingTransferEmail: p.transfers[0]?.toEmail || null,
     }));
     sentHome = adopted;
