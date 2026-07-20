@@ -4,7 +4,8 @@ import prisma from '@/app/lib/prisma';
 import { isAdmin } from '@/app/lib/authz';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Building2, Clock, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Building2, ArrowLeft, CheckCircle2, ShieldCheck, AlertCircle, Plus, HeartHandshake } from 'lucide-react';
+import ShelterRoster from '../ShelterRoster';
 
 // Session-dependent — never statically rendered.
 export const dynamic = 'force-dynamic';
@@ -30,11 +31,46 @@ export default async function ShelterDashboardPage() {
   });
 
   let shelter = null;
+  let roster = [];
+  let sentHome = 0;
   if (profile) {
     shelter = await prisma.shelter.findUnique({
       where: { id: profile.shelterId },
-      select: { name: true, city: true, state: true, isActive: true, isVerified: true },
+      select: { id: true, name: true, city: true, state: true, isActive: true, isVerified: true },
     });
+
+    // The shelter's animals are full Health Book records tagged to its roster.
+    const [pets, adopted] = await Promise.all([
+      prisma.pet.findMany({
+        where: { managedByShelterId: profile.shelterId, isDeleted: false },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          species: true,
+          breed: true,
+          primaryPhotoUrl: true,
+          transfers: {
+            where: { status: 'PENDING' },
+            select: { toEmail: true },
+            take: 1,
+          },
+        },
+      }),
+      // Records that left this roster via an accepted handoff.
+      prisma.petTransfer.count({
+        where: { status: 'ACCEPTED', invitedById: session.user.id },
+      }),
+    ]);
+    roster = pets.map((p) => ({
+      id: p.id,
+      name: p.name,
+      species: p.species,
+      breed: p.breed,
+      primaryPhotoUrl: p.primaryPhotoUrl,
+      pendingTransferEmail: p.transfers[0]?.toEmail || null,
+    }));
+    sentHome = adopted;
   }
 
   const admin = profile ? false : await isAdmin(session.user.id);
@@ -81,29 +117,42 @@ export default async function ShelterDashboardPage() {
                   <ShieldCheck className="w-4 h-4" />
                   {shelter.isVerified ? 'Verified' : 'Verification pending'}
                 </span>
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-flash-50 text-midnight-800 border border-flash-200">
+                  {roster.length} in your care
+                </span>
+                {sentHome > 0 && (
+                  <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <HeartHandshake className="w-4 h-4" /> {sentHome} sent home
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Coming soon */}
-            <div className="rounded-2xl border border-flash-200 bg-flash-50/60 p-6">
-              <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-flash-600 mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="font-bold text-midnight-900 mb-1">Full dashboard coming soon</h3>
-                  <p className="text-midnight-700">
-                    Managing animals, your public profile, and donations will live here shortly.
-                    Your shelter is set up and listed in the meantime. Questions? Email{' '}
-                    <a href="mailto:support@petrecovery.org" className="font-semibold underline hover:text-flash-700">support@petrecovery.org</a>.
-                  </p>
-                </div>
+            {/* Animal roster: the free pet-management account */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-midnight-900">Animals in your care</h2>
+                <Link
+                  href={`/care/start?shelter=${shelter.id}`}
+                  className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-4 py-2 rounded-xl transition"
+                >
+                  <Plus className="w-4 h-4" /> Add animal
+                </Link>
               </div>
+              <ShelterRoster pets={roster} />
+              <p className="text-sm text-midnight-500 mt-4">
+                Every animal gets a full Health Book: medications, vaccinations, weight
+                tracking, and shareable care pages. When an animal is adopted, send the
+                record home with the adopter; it arrives with the complete medical
+                history attached. Shelter accounts are free. Forever.
+              </p>
             </div>
           </div>
         ) : admin ? (
           <div className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-6">
             <h2 className="text-xl font-bold text-midnight-900 mb-2">Administrator</h2>
             <p className="text-midnight-700">
-              Full shelter management tools are coming soon. To manage shelters today, use the{' '}
+              To manage shelters, use the{' '}
               <Link href="/admin" className="font-semibold underline hover:text-flash-700">admin panel</Link>.
             </p>
           </div>
@@ -113,6 +162,7 @@ export default async function ShelterDashboardPage() {
             <h2 className="text-xl font-bold text-midnight-900 mb-2">You don’t manage a shelter yet</h2>
             <p className="text-midnight-700 mb-5">
               If you run a shelter or rescue, you can claim or request to add it.
+              Shelter accounts include free pet management for every animal in your care.
             </p>
             <Link href="/shelter/request" className="inline-flex items-center gap-2 bg-midnight-900 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-midnight-800 transition">
               Add your shelter

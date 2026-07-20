@@ -55,6 +55,7 @@ model User {
   pets            Pet[]
   petSharesReceived PetShare[] @relation("PetSharesReceived")
   petSharesSent     PetShare[] @relation("PetSharesSent")
+  petTransfersSent  PetTransfer[] @relation("PetTransfersSent")
   cases           Case[]        @relation("CaseReporter")
   foundCases      Case[]        @relation("CaseFoundBy")
   alerts          Alert[]
@@ -352,16 +353,25 @@ model Pet {
   vetClinic       String?
   vetPhone        String?
 
+  // Shelter accounts: set when this record belongs to a shelter's roster
+  // (shelter accounts are free, that's the point of Health Book for
+  // shelters). Cleared on adoption transfer so the record follows the
+  // pet home. The record's ownerId stays the claiming shelter user.
+  managedByShelterId String?
+  managedByShelter   Shelter? @relation("ShelterManagedPets", fields: [managedByShelterId], references: [id])
+
   // Relations
   cases           Case[]
   medications     PetMedication[]
   shares          PetShare[]
   vaccinations    PetVaccination[]
   weightEntries   PetWeightEntry[]
+  transfers       PetTransfer[]
 
   @@index([ownerId])
   @@index([isDeleted])
   @@index([publicViewToken])
+  @@index([managedByShelterId])
 }
 
 enum PetSpecies {
@@ -495,6 +505,33 @@ enum PetShareStatus {
   PENDING    // invited by the owner, not yet accepted
   ACTIVE     // accepted / approved
   REQUESTED  // asked to help via the public view link, awaiting owner approval
+}
+
+// Adoption handoff: the owner (typically a shelter account) hands the whole
+// Health Book record to the adopter by email. Accepting flips Pet.ownerId,
+// clears managedByShelterId, deactivates old shares, and rotates the public
+// view token so the record starts clean in its new home. Statuses are
+// strings (not enums) so prod's plain `prisma db push` boot stays painless.
+model PetTransfer {
+  id          String   @id @default(cuid())
+  petId       String
+  pet         Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  toEmail     String   // invitee email, normalized lowercase
+  // Random URL token for the accept link. Indexed, not unique: prod boots
+  // with plain `prisma db push`; 32 random bytes never collide in practice.
+  token       String
+  status      String   @default("PENDING") // PENDING, ACCEPTED, CANCELED
+
+  invitedById String
+  invitedBy   User     @relation("PetTransfersSent", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  respondedAt DateTime?
+
+  @@index([petId, status])
+  @@index([token])
+  @@index([toEmail])
 }
 
 // HEALTH BOOK (docs/HEALTH_BOOK_DESIGN.md): owner-held medical record.
@@ -1855,6 +1892,7 @@ model Shelter {
   // Relations
   intakes     ShelterIntake[]
   tasks       SquadTask[]
+  managedPets Pet[]      @relation("ShelterManagedPets")
   cityCache   CityCache? @relation("CityShelters", fields: [cityCacheId], references: [id])
   cityCacheId String?
 

@@ -637,6 +637,41 @@ async function main() {
     }
   }
 
+  // ---- Shelter account demo: admin claims a shelter with a roster pet ----
+  // Makes /shelter/dashboard show the free pet-management account populated.
+  const claimedShelter = await prisma.shelter.findFirst({ where: { name: 'Austin Animal Center' } });
+  if (claimedShelter) {
+    const existingProfile = await prisma.shelterProfile.findUnique({
+      where: { shelterId: claimedShelter.id },
+    });
+    if (!existingProfile) {
+      await prisma.shelterProfile.create({
+        data: { shelterId: claimedShelter.id, claimedById: admin.id, claimedAt: new Date() },
+      });
+    }
+    const rosterPet = await prisma.pet.findFirst({
+      where: { managedByShelterId: claimedShelter.id },
+    });
+    if (!rosterPet) {
+      await prisma.pet.create({
+        data: {
+          ownerId: admin.id,
+          managedByShelterId: claimedShelter.id,
+          name: 'Clover',
+          species: 'CAT',
+          breed: 'Domestic Shorthair',
+          age: 2,
+          sex: 'FEMALE',
+          color: 'Gray tabby',
+          size: 'SMALL',
+          personality: JSON.stringify(['Gentle', 'Curious']),
+          photos: '[]',
+          primaryPhotoUrl: '',
+        },
+      });
+    }
+  }
+
   // ---- Alerts & notifications for admin ----
   if (!(await prisma.alert.findFirst({ where: { userId: admin.id } }))) {
     await prisma.alert.create({
