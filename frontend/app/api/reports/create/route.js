@@ -10,6 +10,7 @@ import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 
 // Allow large body for base64 image uploads and longer timeout
 export const maxDuration = 30;
@@ -17,6 +18,22 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
   const correlationId = crypto.randomUUID();
+
+  // This route mints accounts and fans out verification email + SMS + the
+  // whole cascade, so it must be throttled — otherwise it's an account-flood
+  // and Twilio/email cost-DoS vector. Per-IP moderate public-write limit.
+  const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'reports:create');
+  if (!rl.success) {
+    logEvent({
+      event_type: 'report.create.rate_limited',
+      correlation_id: correlationId,
+      resource_type: 'case',
+      action: 'create',
+      result: 'blocked',
+      error_code: 'RATE_LIMITED',
+    }).catch(() => {});
+    return rateLimitResponse(rl);
+  }
 
   try {
     const session = await getServerSession(authOptions);

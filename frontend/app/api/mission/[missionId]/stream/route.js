@@ -11,6 +11,8 @@
  */
 
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { connections } from '@/app/lib/sse/missionStream';
 
@@ -19,6 +21,14 @@ const CLEANUP_INTERVAL = 30000; // 30 seconds
 const CONNECTION_TIMEOUT = 60000; // 1 minute
 
 export async function GET(request, { params }) {
+  // Require auth: this stream broadcasts live volunteer GPS, sightings, and
+  // command activity, so it must not be readable by anonymous callers. Matches
+  // the auth bar of the paired mission-state route (any authenticated user).
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const { missionId } = params;
 
   // Verify mission exists
