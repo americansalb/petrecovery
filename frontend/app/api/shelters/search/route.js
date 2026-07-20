@@ -145,6 +145,22 @@ export async function GET(request) {
       console.log('[Shelter Search] Found', dbShelters.length, 'shelters from database');
     }
 
+    // Flag shelters that have a claimed public page (/shelters/[id]) so
+    // result cards can link to it.
+    if (results.shelters.length > 0) {
+      try {
+        const ids = results.shelters.map((s) => s.id).filter(Boolean);
+        const claimed = await prisma.shelterProfile.findMany({
+          where: { shelterId: { in: ids }, claimedById: { not: null } },
+          select: { shelterId: true },
+        });
+        const claimedIds = new Set(claimed.map((c) => c.shelterId));
+        results.shelters = results.shelters.map((s) => ({ ...s, hasPage: claimedIds.has(s.id) }));
+      } catch (pageError) {
+        console.error('[Shelter Search] hasPage lookup failed:', pageError.message);
+      }
+    }
+
     return NextResponse.json(results);
   } catch (error) {
     console.error('Shelter search error:', error);

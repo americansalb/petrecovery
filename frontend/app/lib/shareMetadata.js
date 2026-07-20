@@ -86,6 +86,33 @@ export function genericShareMetadata(
 }
 
 // ---------------------------------------------------------------------------
+// Shelters — public shelter pages (/shelters/[id])
+// ---------------------------------------------------------------------------
+
+/**
+ * Shelter share card. These pages should rank (index: true): a shelter's
+ * ReunitePets page is often the only website it has.
+ */
+export function shelterShareMetadata(shelter, profile, { canonicalPath } = {}) {
+  const place = [shelter.city, shelter.state].filter(Boolean).join(', ');
+  const title = `${shelter.name} | Animal Shelter in ${place}`;
+  const source = profile?.mission || profile?.about || '';
+  const description = source
+    ? `${source.substring(0, 150)}${source.length > 150 ? '...' : ''}`
+    : `${shelter.name} in ${place}: adoptable animals, contact info, and hours on ${SITE_NAME}.`;
+
+  return buildShareMetadata({
+    title,
+    description,
+    image: shareImage(profile?.logoUrl || profile?.coverPhotoUrl),
+    imageAlt: shelter.name,
+    canonical: canonicalPath,
+    index: true,
+    keywords: ['animal shelter', 'pet adoption', shelter.name, shelter.city, shelter.state, 'adoptable pets'].filter(Boolean),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Missions (Case records) — shared by /cases, /missions, /reports, /alerts, /join
 // ---------------------------------------------------------------------------
 
