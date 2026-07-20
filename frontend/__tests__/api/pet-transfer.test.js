@@ -150,6 +150,7 @@ describe('/api/pets/transfer/[token] (adopter side)', () => {
       breed: 'Beagle',
       primaryPhotoUrl: 'https://cdn.example/b.jpg',
       isDeleted: false,
+      managedByShelterId: 'shelter-1',
       managedByShelter: { name: 'Happy Tails Shelter' },
     },
     invitedBy: { firstName: 'Sam', lastName: 'Staff' },
@@ -195,6 +196,8 @@ describe('/api/pets/transfer/[token] (adopter side)', () => {
           ownerId: 'adopter-1',
           managedByShelterId: null,
           publicViewToken: null,
+          // Leaving a shelter roster via an accepted handoff is an adoption
+          shelterStatus: 'ADOPTED',
         },
       })
     );
@@ -205,6 +208,18 @@ describe('/api/pets/transfer/[token] (adopter side)', () => {
         data: expect.objectContaining({ status: 'ACCEPTED' }),
       })
     );
+  });
+
+  test('accepting a personal (non-shelter) handoff sets no shelter status', async () => {
+    loginAs({ id: 'adopter-1', email: 'adopter@x.com' });
+    prisma.petTransfer.findFirst.mockResolvedValue({
+      ...PENDING,
+      pet: { ...PENDING.pet, managedByShelterId: null, managedByShelter: null },
+    });
+    const res = await acceptInvite({}, tokenParams);
+    expect(res.status).toBe(200);
+    const data = prisma.pet.update.mock.calls[0][0].data;
+    expect(data.shelterStatus).toBeUndefined();
   });
 
   test('an expired/canceled token reads as 404', async () => {

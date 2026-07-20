@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
+import { isIntakeType } from '@/app/lib/shelterStatuses';
 
 // GET /api/pets - List user's pets
 export async function GET(request) {
@@ -126,6 +127,11 @@ export async function POST(request) {
       photos,
       primaryPhotoUrl,
       shelterId,
+      intakeDate,
+      intakeType,
+      intakeFoundAddress,
+      intakeFoundLatitude,
+      intakeFoundLongitude,
     } = body;
 
     // Validation
@@ -161,6 +167,9 @@ export async function POST(request) {
     // roster. Only the user who claimed that shelter may do so — anyone
     // else gets a 403, so rosters can't be polluted by strangers.
     let managedByShelterId = null;
+    // Intake details ride along only on shelter creates; personal pets
+    // never carry them (fields silently ignored without shelterId).
+    let intake = {};
     if (shelterId) {
       const claim = await prisma.shelterProfile.findFirst({
         where: { shelterId, claimedById: user.id },
@@ -173,6 +182,21 @@ export async function POST(request) {
         );
       }
       managedByShelterId = claim.shelterId;
+
+      if (intakeType && !isIntakeType(intakeType)) {
+        return NextResponse.json({ error: 'Invalid intake type' }, { status: 400 });
+      }
+      const parsedIntakeDate = intakeDate ? new Date(intakeDate) : new Date();
+      const lat = parseFloat(intakeFoundLatitude);
+      const lng = parseFloat(intakeFoundLongitude);
+      intake = {
+        shelterStatus: 'AVAILABLE',
+        intakeDate: Number.isNaN(parsedIntakeDate.getTime()) ? new Date() : parsedIntakeDate,
+        intakeType: intakeType || null,
+        intakeFoundAddress: intakeFoundAddress?.trim() || null,
+        intakeFoundLatitude: Number.isFinite(lat) ? lat : null,
+        intakeFoundLongitude: Number.isFinite(lng) ? lng : null,
+      };
     }
 
     // Create pet
@@ -180,6 +204,7 @@ export async function POST(request) {
       data: {
         ownerId: user.id,
         managedByShelterId,
+        ...intake,
         name: name.trim(),
         species,
         breed: breed?.trim() || null,

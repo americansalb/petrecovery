@@ -11,10 +11,77 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PawPrint, Send, X, Loader2, ArrowRight } from 'lucide-react';
+import {
+  SHELTER_STATUSES, SHELTER_STATUS_LABELS, INTAKE_TYPE_LABELS,
+} from '@/app/lib/shelterStatuses';
 
 const SPECIES_LABEL = {
   DOG: 'Dog', CAT: 'Cat', BIRD: 'Bird', RABBIT: 'Rabbit', OTHER: 'Pet',
 };
+
+const STATUS_STYLES = {
+  AVAILABLE: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  ADOPTION_PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+  ADOPTED: 'bg-blue-50 text-blue-700 border-blue-200',
+  RECLAIMED: 'bg-violet-50 text-violet-700 border-violet-200',
+};
+
+function intakeSummary(pet) {
+  const parts = [];
+  if (pet.intakeType) parts.push(INTAKE_TYPE_LABELS[pet.intakeType] || pet.intakeType);
+  if (pet.intakeDate) {
+    const d = new Date(pet.intakeDate);
+    if (!Number.isNaN(d.getTime())) {
+      parts.push(`taken in ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+    }
+  }
+  if (pet.intakeFoundAddress) {
+    const short = pet.intakeFoundAddress.split(',').slice(0, 2).join(',');
+    parts.push(`found near ${short}`);
+  }
+  return parts.join(', ');
+}
+
+function StatusControl({ pet, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  if (!pet.shelterStatus) return null;
+
+  const change = async (e) => {
+    const shelterStatus = e.target.value;
+    if (shelterStatus === pet.shelterStatus) return;
+    setBusy(true);
+    try {
+      await fetch(`/api/pets/${pet.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shelterStatus }),
+      });
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <label className={`relative inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full border text-xs font-semibold cursor-pointer ${STATUS_STYLES[pet.shelterStatus] || 'bg-midnight-50 text-midnight-600 border-midnight-200'} ${busy ? 'opacity-50' : ''}`}>
+      {SHELTER_STATUS_LABELS[pet.shelterStatus] || pet.shelterStatus}
+      <select
+        aria-label={`Status for ${pet.name}`}
+        value={pet.shelterStatus}
+        onChange={change}
+        disabled={busy}
+        className="absolute inset-0 opacity-0 cursor-pointer"
+      >
+        {SHELTER_STATUSES.map((s) => (
+          <option key={s} value={s}>{SHELTER_STATUS_LABELS[s]}</option>
+        ))}
+      </select>
+      <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </label>
+  );
+}
 
 function TransferControl({ pet, onChanged }) {
   const [open, setOpen] = useState(false);
@@ -129,12 +196,18 @@ export default function ShelterRoster({ pets }) {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <Link href={`/pets/${pet.id}/today`} className="font-bold text-midnight-900 hover:underline inline-flex items-center gap-1">
-              {pet.name} <ArrowRight className="w-3.5 h-3.5 text-midnight-400" />
-            </Link>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Link href={`/pets/${pet.id}/today`} className="font-bold text-midnight-900 hover:underline inline-flex items-center gap-1">
+                {pet.name} <ArrowRight className="w-3.5 h-3.5 text-midnight-400" />
+              </Link>
+              <StatusControl pet={pet} onChanged={refresh} />
+            </div>
             <p className="text-sm text-midnight-500 truncate">
               {[SPECIES_LABEL[pet.species] || 'Pet', pet.breed].filter(Boolean).join(' · ')}
             </p>
+            {intakeSummary(pet) && (
+              <p className="text-xs text-midnight-400 truncate">{intakeSummary(pet)}</p>
+            )}
           </div>
           <TransferControl pet={pet} onChanged={refresh} />
         </li>
