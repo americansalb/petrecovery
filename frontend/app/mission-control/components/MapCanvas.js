@@ -5,9 +5,9 @@
  *
  * Fills its container edge-to-edge (the shell puts that container
  * directly under the header, so there is no dead band), defaults to
- * dark cartography so mission layers are the brightest thing on
- * screen, and owns the only two pieces of map furniture: the control
- * stack (inside SARMapView) and the MapKey.
+ * satellite imagery (the layer control toggles to dark street), and
+ * owns the only two pieces of map furniture: the control stack (inside
+ * SARMapView) and the MapKey.
  */
 
 import { useState } from 'react';
@@ -79,7 +79,7 @@ export default function MapCanvas({
         showPOIs={showPOIs}
         showLegend={false}
         interactive
-        defaultLayer="street"
+        defaultLayer="satellite"
         zoneColors={FLASHLIGHT_ZONE_COLORS}
         zoneFills={FLASHLIGHT_ZONE_FILLS}
         showProbabilityZones={showZones}
