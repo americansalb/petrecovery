@@ -5,7 +5,7 @@
  * Uses: Midnight Blue + Flashlight Yellow color palette
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Mail, ArrowLeft, CheckCircle, Send } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
@@ -15,6 +15,13 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('idle'); // idle, loading, success, error
   const [message, setMessage] = useState('');
+
+  // Prefill from ?email= so the "set a password" link in the guest report
+  // email lands ready to submit. Read from window to avoid a Suspense boundary.
+  useEffect(() => {
+    const qs = new URLSearchParams(window.location.search).get('email');
+    if (qs) setEmail(qs);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
