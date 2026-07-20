@@ -637,8 +637,9 @@ async function main() {
     }
   }
 
-  // ---- Shelter account demo: admin claims a shelter with a roster pet ----
-  // Makes /shelter/dashboard show the free pet-management account populated.
+  // ---- Shelter account demo: admin claims a shelter with a full roster ----
+  // Makes /shelter/dashboard and /shelters/[id] demo every feature:
+  // intake/status chips, a pending stray match, a team seat, public page.
   const claimedShelter = await prisma.shelter.findFirst({ where: { name: 'Austin Animal Center' } });
   if (claimedShelter) {
     const existingProfile = await prisma.shelterProfile.findUnique({
@@ -646,14 +647,22 @@ async function main() {
     });
     if (!existingProfile) {
       await prisma.shelterProfile.create({
-        data: { shelterId: claimedShelter.id, claimedById: admin.id, claimedAt: new Date() },
+        data: {
+          shelterId: claimedShelter.id,
+          claimedById: admin.id,
+          claimedAt: new Date(),
+          mission: 'Every animal deserves a warm bed and a second chance.',
+          about:
+            'Austin Animal Center takes in strays and surrenders from all of Travis County. ' +
+            'Come meet our adoptable animals, or check here first if your pet has gone missing.',
+        },
       });
     }
     const rosterPet = await prisma.pet.findFirst({
       where: { managedByShelterId: claimedShelter.id },
     });
     if (!rosterPet) {
-      await prisma.pet.create({
+      const clover = await prisma.pet.create({
         data: {
           ownerId: admin.id,
           managedByShelterId: claimedShelter.id,
@@ -667,8 +676,63 @@ async function main() {
           personality: JSON.stringify(['Gentle', 'Curious']),
           photos: '[]',
           primaryPhotoUrl: '',
+          shelterStatus: 'AVAILABLE',
+          intakeType: 'STRAY',
+          intakeDate: new Date(Date.now() - 3 * 86400e3),
+          intakeFoundAddress: 'Barton Springs Rd, Austin, TX',
+          intakeFoundLatitude: 30.264,
+          intakeFoundLongitude: -97.771,
         },
       });
+      await prisma.pet.create({
+        data: {
+          ownerId: admin.id,
+          managedByShelterId: claimedShelter.id,
+          name: 'Rufus',
+          species: 'DOG',
+          breed: 'Boxer Mix',
+          age: 4,
+          sex: 'MALE',
+          color: 'Brown and white',
+          size: 'LARGE',
+          personality: JSON.stringify(['Playful', 'Loyal']),
+          photos: '[]',
+          primaryPhotoUrl: '',
+          shelterStatus: 'ADOPTION_PENDING',
+          intakeType: 'SURRENDER',
+          intakeDate: new Date(Date.now() - 12 * 86400e3),
+        },
+      });
+      // A stray-vs-lost match waiting for shelter review (the confirm-first flow)
+      const lostForMatch = cases['AUS-2026-0002'];
+      if (lostForMatch) {
+        await prisma.shelterStrayMatch.create({
+          data: {
+            petId: clover.id,
+            shelterId: claimedShelter.id,
+            caseId: lostForMatch.id,
+            score: 68,
+            pTrueMatch: 0.74,
+            band: 'actionable',
+            matchSource: 'attribute',
+            direction: 'STRAY_INTAKE',
+            visualVerdict: 'SAME',
+            visualConfidence: 0.82,
+          },
+        }).catch(() => {});
+      }
+      // One ACTIVE staff seat so the team card demos populated
+      await prisma.shelterMember.create({
+        data: {
+          shelterId: claimedShelter.id,
+          email: 'sarah@localdev.test',
+          userId: sarah.id,
+          role: 'STAFF',
+          status: 'ACTIVE',
+          invitedById: admin.id,
+          respondedAt: new Date(),
+        },
+      }).catch(() => {});
     }
   }
 
