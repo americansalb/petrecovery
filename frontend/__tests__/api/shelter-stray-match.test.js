@@ -30,6 +30,7 @@ jest.mock('@/app/lib/prisma', () => ({
     pet: { findUnique: jest.fn(), findMany: jest.fn(), create: jest.fn() },
     case: { findMany: jest.fn() },
     shelterProfile: { findFirst: jest.fn() },
+    shelterMember: { findFirst: jest.fn(), findMany: jest.fn() },
     shelter: { findUnique: jest.fn() },
     shelterStrayMatch: {
       findUnique: jest.fn(),
@@ -87,8 +88,10 @@ const LOST_CASE = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  getServerSession.mockResolvedValue({ user: { id: 'claimer-1' } });
+  getServerSession.mockResolvedValue({ user: { id: 'claimer-1', email: 'claimer@shelter.org' } });
   prisma.shelterProfile.findFirst.mockResolvedValue({ shelterId: 'shelter-1', claimedById: 'claimer-1' });
+  prisma.shelterMember.findFirst.mockResolvedValue(null);
+  prisma.shelterMember.findMany.mockResolvedValue([]);
 });
 
 describe('the matcher (intake direction) contacts only the shelter', () => {

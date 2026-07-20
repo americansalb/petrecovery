@@ -14,6 +14,7 @@ import { logEvent } from '@/lib/logging';
 import { requirePetAccess } from '@/app/lib/petOwnership';
 import { isShelterStatus, isIntakeType } from '@/app/lib/shelterStatuses';
 import { enqueueStrayIntakeMatch } from '@/app/lib/shelterMatching';
+import { userManagesShelter } from '@/app/lib/shelterAuth';
 
 // GET /api/pets/[id] - Get pet details
 // Read access follows the standard tiers (VIEWER < CAREGIVER < OWNER), so a
@@ -77,7 +78,7 @@ export async function PATCH(request, { params }) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true }
+      select: { id: true, email: true }
     });
 
     if (!user) {
@@ -94,7 +95,12 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Pet not found' }, { status: 404 });
     }
 
-    if (existingPet.ownerId !== user.id) {
+    // Owner, or shelter staff for roster animals (claimer + ACTIVE members)
+    const canEdit =
+      existingPet.ownerId === user.id ||
+      (existingPet.managedByShelterId &&
+        (await userManagesShelter(user.id, user.email, existingPet.managedByShelterId)));
+    if (!canEdit) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -276,7 +282,7 @@ export async function DELETE(request, { params }) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, role: true }
+      select: { id: true, email: true, role: true }
     });
 
     if (!user) {
@@ -301,8 +307,14 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Pet not found' }, { status: 404 });
     }
 
-    // Check ownership (admins can delete any pet)
-    if (existingPet.ownerId !== user.id && !isAdmin) {
+    // Check ownership (admins can delete any pet; shelter staff can
+    // delete roster animals)
+    const canDelete =
+      existingPet.ownerId === user.id ||
+      isAdmin ||
+      (existingPet.managedByShelterId &&
+        (await userManagesShelter(user.id, user.email, existingPet.managedByShelterId)));
+    if (!canDelete) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

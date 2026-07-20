@@ -5,11 +5,18 @@
  *  - OWNER:     the Pet.ownerId user — everything, incl. sharing + pet edit
  *  - CAREGIVER: shared user — view pet, manage + log medications
  *  - VIEWER:    shared user — read-only
+ *
+ * Shelter accounts: when a pet sits on a shelter roster
+ * (managedByShelterId), anyone who manages that shelter (claimer or
+ * ACTIVE ShelterMember) gets OWNER access. Pet.ownerId stays whoever
+ * created the record; authority flows through the shelter. Adoption
+ * transfer clears the roster tag, which severs staff access at once.
  */
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { userManagesShelter } from '@/app/lib/shelterAuth';
 
 const LEVELS = { VIEWER: 1, CAREGIVER: 2, OWNER: 3 };
 
@@ -34,7 +41,7 @@ export async function requirePetAccess(petId, minAccess = 'VIEWER') {
 
   const pet = await prisma.pet.findUnique({
     where: { id: petId, isDeleted: false },
-    select: { id: true, ownerId: true, name: true, species: true, primaryPhotoUrl: true },
+    select: { id: true, ownerId: true, name: true, species: true, primaryPhotoUrl: true, managedByShelterId: true },
   });
   if (!pet) {
     return { error: 'Pet not found', status: 404 };
@@ -42,6 +49,12 @@ export async function requirePetAccess(petId, minAccess = 'VIEWER') {
 
   let access = null;
   if (pet.ownerId === user.id) {
+    access = 'OWNER';
+  } else if (
+    pet.managedByShelterId &&
+    (await userManagesShelter(user.id, user.email, pet.managedByShelterId))
+  ) {
+    // Shelter staff get full authority over roster animals
     access = 'OWNER';
   } else {
     // Match by linked userId or by email (covers invites accepted pre-link)

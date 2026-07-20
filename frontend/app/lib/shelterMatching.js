@@ -23,6 +23,7 @@ import { calculateMatchScore, calculateDistance } from '@/app/lib/matching';
 import { comparePetPhotos } from '@/app/lib/ai/comparePetPhotos';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { sendPushToUser } from '@/app/lib/push';
+import { getShelterStaffUserIds } from '@/app/lib/shelterAuth';
 import { logEvent } from '@/lib/logging';
 
 const MIN_SCORE = 35;
@@ -156,33 +157,32 @@ async function persistMatches(pet, shelterId, scored, direction) {
 /** Notify the shelter's people that matches await review. Never the owner. */
 async function notifyShelter(shelterId, count) {
   if (!count) return 0;
-  const profile = await prisma.shelterProfile.findFirst({
-    where: { shelterId },
-    select: { claimedById: true },
-  });
-  const userId = profile?.claimedById;
-  if (!userId) return 0;
-  try {
-    await createInAppNotification({
-      userId,
-      type: 'SHELTER_STRAY_MATCH',
-      title: 'Possible owner match',
-      message: count === 1
-        ? 'An animal in your care may match a lost-pet report. Review the photos to confirm.'
-        : `${count} animals in your care may match lost-pet reports. Review the photos to confirm.`,
-      actionUrl: '/shelter/dashboard',
-    });
-    await sendPushToUser(prisma, userId, {
-      title: 'Possible owner match',
-      body: 'Review the photos on your shelter dashboard to confirm.',
-      url: '/shelter/dashboard',
-      type: 'SHELTER_STRAY_MATCH',
-    });
-    return 1;
-  } catch (err) {
-    console.error('[shelter-match] shelter notify failed:', err.message);
-    return 0;
+  const userIds = await getShelterStaffUserIds(shelterId);
+  let reached = 0;
+  for (const userId of userIds) {
+    try {
+      await createInAppNotification({
+        userId,
+        type: 'SHELTER_STRAY_MATCH',
+        title: 'Possible owner match',
+        message: count === 1
+          ? 'An animal in your care may match a lost-pet report. Review the photos to confirm.'
+          : `${count} animals in your care may match lost-pet reports. Review the photos to confirm.`,
+        actionUrl: '/shelter/dashboard',
+      });
+      await sendPushToUser(prisma, userId, {
+        title: 'Possible owner match',
+        body: 'Review the photos on your shelter dashboard to confirm.',
+        url: '/shelter/dashboard',
+        type: 'SHELTER_STRAY_MATCH',
+      });
+      reached += 1;
+    } catch (err) {
+      // one person failing must not sink the rest
+      console.error('[shelter-match] shelter notify failed:', err.message);
+    }
   }
+  return reached > 0 ? 1 : 0;
 }
 
 /**
