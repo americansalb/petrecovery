@@ -91,6 +91,42 @@ offers one-click "evidence bundle" for any donation: formatted for
 Stripe's dispute-response form. Turns a chargeback defense from support
 tickets into ninety seconds. Costs us nothing; the data already exists.
 
+## The rate roadmap (how orgs' effective rates keep dropping)
+
+Founder direction: keep exploring "a lower rate through ours." The
+honest ladder, in order of when each rung makes sense:
+
+1. **NOW: steer donors to bank payments.** Stripe ACH is 0.8% capped at
+   $5, versus ~2.2-2.9% + 30c on cards. The widget actively nudges
+   ("pay from your bank and ~2% more goes to the animals"), especially
+   for monthly gifts. This out-saves the nonprofit-rate discussion
+   entirely and needs no negotiation. Part of the v1 widget build.
+2. **AT TRACTION: ecosystem pricing negotiated with Stripe.** Platforms
+   with volume negotiate custom pricing for their connected accounts.
+   Once shelters process a few $M/yr through the widget, negotiate a
+   below-2.2% blended rate for our verified-charity sub-merchants and
+   pass it through AT COST (0% platform fee stays true). Shelters keep
+   their own accounts; we stay out of the money.
+3. **RESEARCH: a 0% rail via an existing regranting charity.** Every.org
+   (a 501(c)(3) with an API, tip-funded like us) offers 0% processing by
+   legally receiving and regranting donations. Offer it as an optional
+   second rail beside the org's own Stripe: tradeoffs are payout delay,
+   donor data living with the partner, and their tip jar competing with
+   ours. Also serves not-yet-501(c)(3) rescues that can't get charity
+   rates at all. Needs a real evaluation before commitment.
+4. **AT SCALE: become the regranting charity (the Giving Fund model).**
+   ReunitePets receives donations at its own charity rates, issues
+   receipts, regrants to shelters. Legally real, operationally heavy:
+   ~40-state charitable solicitation registration, disbursement ops,
+   chargebacks ours, compliance staffing. Earns its keep somewhere
+   north of ~$10M/yr in flow. The destination, not the start.
+
+Context that shaped this: Stripe's nonprofit rate is per-account and
+requires 80%+ freely-given-donation volume (services-heavy orgs like
+the founder's AALB don't qualify on their main account; a dedicated
+donations-only account can). Shelter accounts fed by this widget are
+near-100% donations, the cleanest possible qualifiers.
+
 ## Eligibility and guardrails
 
 - Donation processing is offered to claimed, verified orgs (the existing
