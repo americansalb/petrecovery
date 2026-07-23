@@ -1,12 +1,14 @@
 /**
- * Animals: the roster. Every animal is a full Health Book record;
- * statuses edit inline; the adoption handoff lives on each row.
+ * Animals: the roster as a working table. Every animal is a full Health
+ * Book record; statuses edit inline; the adoption handoff lives on each
+ * row. The digest under the title is the census a director would ask for.
  */
 
 import Link from 'next/link';
 import prisma from '@/app/lib/prisma';
 import { requirePortal } from '../lib';
 import ShelterRoster from '@/app/shelter/ShelterRoster';
+import { SHELTER_STATUSES, SHELTER_STATUS_LABELS } from '@/app/lib/shelterStatuses';
 import { Plus } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -44,15 +46,22 @@ export default async function PortalAnimals() {
     pendingTransferEmail: p.transfers[0]?.toEmail || null,
   }));
 
+  const counts = roster.reduce((acc, p) => {
+    if (p.shelterStatus) acc[p.shelterStatus] = (acc[p.shelterStatus] || 0) + 1;
+    return acc;
+  }, {});
+  const digest = [`${roster.length} ${roster.length === 1 ? 'animal' : 'animals'} in care`];
+  for (const s of SHELTER_STATUSES) {
+    if (counts[s]) digest.push(`${counts[s]} ${SHELTER_STATUS_LABELS[s].toLowerCase()}`);
+  }
+
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-black text-midnight-900">Animals</h1>
-          <p className="text-midnight-500">
-            {roster.length === 0
-              ? 'Your roster is empty.'
-              : `${roster.length} in your care, each with a full Health Book.`}
+          <h1 className="text-[26px] leading-tight font-black text-midnight-900">Animals</h1>
+          <p className="text-[15px] text-midnight-500 mt-1">
+            {roster.length === 0 ? 'Your roster is empty.' : digest.join(' · ')}
           </p>
         </div>
         <Link
@@ -65,10 +74,9 @@ export default async function PortalAnimals() {
 
       <ShelterRoster pets={roster} />
 
-      <p className="text-sm text-midnight-500">
-        Tap an animal for its Health Book: medications, vaccinations, weight tracking,
-        and shareable care pages. When one is adopted, send the record home with the
-        adopter; the complete medical history goes with it.
+      <p className="text-[12px] leading-relaxed text-midnight-400">
+        Every animal here carries a full Health Book: medications, vaccinations,
+        weight history. Send it home with the adopter and the record goes with it.
       </p>
     </div>
   );
