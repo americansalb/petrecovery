@@ -93,8 +93,10 @@ tickets into ninety seconds. Costs us nothing; the data already exists.
 
 ## The rate roadmap (how orgs' effective rates keep dropping)
 
-Founder direction: keep exploring "a lower rate through ours." The
-honest ladder, in order of when each rung makes sense:
+Founder ruling: rungs 1-2 only. Rung 1 is near-zero work (a payment
+method toggle + copy in the v1 widget); rung 2 is a single phone call
+if volume ever justifies it; rungs 3-4 are parked as too much work for
+the savings.
 
 1. **NOW: steer donors to bank payments.** Stripe ACH is 0.8% capped at
    $5, versus ~2.2-2.9% + 30c on cards. The widget actively nudges
@@ -107,14 +109,14 @@ honest ladder, in order of when each rung makes sense:
    below-2.2% blended rate for our verified-charity sub-merchants and
    pass it through AT COST (0% platform fee stays true). Shelters keep
    their own accounts; we stay out of the money.
-3. **RESEARCH: a 0% rail via an existing regranting charity.** Every.org
+3. **PARKED (founder call: not worth the work): a 0% rail via an existing regranting charity.** Every.org
    (a 501(c)(3) with an API, tip-funded like us) offers 0% processing by
    legally receiving and regranting donations. Offer it as an optional
    second rail beside the org's own Stripe: tradeoffs are payout delay,
    donor data living with the partner, and their tip jar competing with
    ours. Also serves not-yet-501(c)(3) rescues that can't get charity
    rates at all. Needs a real evaluation before commitment.
-4. **AT SCALE: become the regranting charity (the Giving Fund model).**
+4. **PARKED (founder call: not worth the work): the Giving Fund model.**
    ReunitePets receives donations at its own charity rates, issues
    receipts, regrants to shelters. Legally real, operationally heavy:
    ~40-state charitable solicitation registration, disbursement ops,
