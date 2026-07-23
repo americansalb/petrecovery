@@ -655,7 +655,13 @@ async function main() {
           about:
             'Austin Animal Center takes in strays and surrenders from all of Travis County. ' +
             'Come meet our adoptable animals, or check here first if your pet has gone missing.',
+          strayHoldDays: 5,
         },
+      });
+    } else if (existingProfile.strayHoldDays == null) {
+      await prisma.shelterProfile.update({
+        where: { shelterId: claimedShelter.id },
+        data: { strayHoldDays: 5 },
       });
     }
     const rosterPet = await prisma.pet.findFirst({
@@ -757,6 +763,36 @@ async function main() {
       await prisma.petVaccination.createMany({
         data: [
           { petId: rosterClover.id, name: 'FVRCP', administeredAt: new Date(Date.now() - 350 * 86400e3), expiresAt: new Date(Date.now() + 12 * 86400e3) },
+        ],
+      });
+    }
+
+    // Adoption inquiries so the portal inbox demos worked and unworked rows
+    if (!(await prisma.shelterInquiry.findFirst({ where: { shelterId: claimedShelter.id } }))) {
+      await prisma.shelterInquiry.createMany({
+        data: [
+          {
+            shelterId: claimedShelter.id,
+            petId: rosterRufus?.id || null,
+            name: 'Jamie Rivera',
+            email: 'jamie.rivera@example.com',
+            phone: '512-555-0147',
+            message:
+              'We met Rufus at the adoption event on Saturday and have not stopped thinking about him. ' +
+              'We have a fenced yard and an easygoing older lab. What are the next steps?',
+            status: 'NEW',
+            createdAt: new Date(Date.now() - 1 * 86400e3),
+          },
+          {
+            shelterId: claimedShelter.id,
+            petId: null,
+            name: 'Priya Natarajan',
+            email: 'priya.n@example.com',
+            message:
+              'Do you have any small dogs that do well in apartments? I work from home and can do daily walks.',
+            status: 'REPLIED',
+            createdAt: new Date(Date.now() - 4 * 86400e3),
+          },
         ],
       });
     }

@@ -378,6 +378,7 @@ model Pet {
   weightEntries   PetWeightEntry[]
   transfers       PetTransfer[]
   strayMatches    ShelterStrayMatch[]
+  shelterInquiries ShelterInquiry[]
 
   @@index([ownerId])
   @@index([isDeleted])
@@ -604,6 +605,29 @@ model ShelterStrayMatch {
   @@unique([petId, caseId])
   @@index([shelterId, status])
   @@index([caseId])
+}
+
+// Structured adoption interest from the public shelter page, replacing
+// the old mailto CTA so inquiries land in the portal inbox instead of
+// getting lost in email. Written by the public form (rate limited),
+// read and worked by shelter staff. Statuses are strings so prod's
+// plain `prisma db push` boot stays painless.
+model ShelterInquiry {
+  id        String  @id @default(cuid())
+  shelterId String
+  petId     String?
+  pet       Pet?    @relation(fields: [petId], references: [id], onDelete: SetNull)
+
+  name    String
+  email   String
+  phone   String?
+  message String  @db.Text
+
+  status    String   @default("NEW") // NEW | REPLIED | CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shelterId, status, createdAt])
 }
 
 // HEALTH BOOK (docs/HEALTH_BOOK_DESIGN.md): owner-held medical record.
@@ -4950,6 +4974,11 @@ model ShelterProfile {
   // Owner
   claimedById     String?
   claimedAt       DateTime?
+
+  // Operations: how many days this shelter must hold a stray before it
+  // can be adopted out (jurisdiction-specific, set by the shelter).
+  // Null = not configured; hold chips and queue items stay quiet.
+  strayHoldDays   Int?
 
   // Admin outreach: a one-time claim token emailed to a shelter we
   // invited (see /api/admin/shelters/invite and /shelter/claim).

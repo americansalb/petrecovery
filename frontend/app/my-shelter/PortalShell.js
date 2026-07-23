@@ -11,7 +11,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, PawPrint, Radar, Users, Globe2, ArrowLeft,
+  LayoutDashboard, PawPrint, Radar, Inbox, Users, Globe2, ArrowLeft,
   Building2, ShieldCheck,
 } from 'lucide-react';
 
@@ -19,6 +19,7 @@ const NAV = [
   { href: '/my-shelter', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/my-shelter/animals', label: 'Animals', icon: PawPrint },
   { href: '/my-shelter/matches', label: 'Matches', icon: Radar, badge: 'matches' },
+  { href: '/my-shelter/inquiries', label: 'Inquiries', icon: Inbox, badge: 'inquiries' },
   { href: '/my-shelter/team', label: 'Team', icon: Users },
   { href: '/my-shelter/site', label: 'Your page', icon: Globe2 },
 ];
@@ -29,13 +30,14 @@ function isActive(pathname, item) {
   return item.exact ? pathname === item.href : pathname.startsWith(item.href);
 }
 
-export default function PortalShell({ shelter, role, pendingMatches, userName, children }) {
+export default function PortalShell({ shelter, role, pendingMatches, newInquiries = 0, userName, children }) {
   const pathname = usePathname();
 
+  const badgeCounts = { matches: pendingMatches, inquiries: newInquiries };
   const items = NAV.map((item) => ({
     ...item,
     active: isActive(pathname, item),
-    badgeCount: item.badge === 'matches' ? pendingMatches : 0,
+    badgeCount: badgeCounts[item.badge] || 0,
   }));
 
   return (
