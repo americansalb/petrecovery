@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PawPrint, Send, X, Loader2 } from 'lucide-react';
 import {
-  SHELTER_STATUSES, SHELTER_STATUS_LABELS, INTAKE_TYPE_LABELS,
+  SHELTER_STATUSES, SHELTER_STATUS_LABELS, INTAKE_TYPE_LABELS, strayHoldEndsAt,
 } from '@/app/lib/shelterStatuses';
 
 const SPECIES_LABEL = {
@@ -90,7 +90,7 @@ function StatusControl({ pet, onChanged }) {
   );
 }
 
-function Row({ pet, onChanged }) {
+function Row({ pet, holdDays, onChanged }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -129,6 +129,8 @@ function Row({ pet, onChanged }) {
   };
 
   const days = daysIn(pet.intakeDate);
+  const holdEnd = strayHoldEndsAt(pet, holdDays);
+  const holdActive = holdEnd && holdEnd.getTime() > Date.now();
 
   return (
     <li className="px-4 py-3">
@@ -149,6 +151,14 @@ function Row({ pet, onChanged }) {
               {pet.name}
             </Link>
             <p className="text-[13px] text-midnight-400 truncate">
+              {holdActive && (
+                <span
+                  className="text-amber-600 font-medium"
+                  title="Legal stray hold: this animal can be reclaimed by its owner but not adopted out yet"
+                >
+                  hold ends {holdEnd.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} ·{' '}
+                </span>
+              )}
               {!pet.primaryPhotoUrl && <span className="text-amber-600 font-medium">no photo · </span>}
               {subLine(pet)}
             </p>
@@ -222,7 +232,7 @@ function Row({ pet, onChanged }) {
   );
 }
 
-export default function ShelterRoster({ pets }) {
+export default function ShelterRoster({ pets, holdDays = null }) {
   const router = useRouter();
   const refresh = () => router.refresh();
 
@@ -248,7 +258,7 @@ export default function ShelterRoster({ pets }) {
       </div>
       <ul className="divide-y divide-midnight-100">
         {pets.map((pet) => (
-          <Row key={pet.id} pet={pet} onChanged={refresh} />
+          <Row key={pet.id} pet={pet} holdDays={holdDays} onChanged={refresh} />
         ))}
       </ul>
     </div>

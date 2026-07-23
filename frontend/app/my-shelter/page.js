@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import prisma from '@/app/lib/prisma';
 import { requirePortal } from './lib';
-import { SHELTER_STATUS_LABELS } from '@/app/lib/shelterStatuses';
+import { SHELTER_STATUS_LABELS, strayHoldEndsAt } from '@/app/lib/shelterStatuses';
 import { PawPrint, Plus, ArrowRight, ArrowUpRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -30,13 +30,13 @@ export default async function PortalOverview() {
   const { session, shelter } = await requirePortal();
 
   const soon = new Date(Date.now() + 30 * 86400e3);
-  const [animals, pendingMatches, sentHome, team, pendingSeats, expiringVaccinations] = await Promise.all([
+  const [animals, pendingMatches, sentHome, team, pendingSeats, expiringVaccinations, profile, newInquiries] = await Promise.all([
     prisma.pet.findMany({
       where: { managedByShelterId: shelter.id, isDeleted: false },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, name: true, species: true, breed: true, primaryPhotoUrl: true,
-        shelterStatus: true, intakeDate: true, createdAt: true,
+        shelterStatus: true, intakeType: true, intakeDate: true, createdAt: true,
         transfers: { where: { status: 'PENDING' }, select: { toEmail: true, createdAt: true }, take: 1 },
       },
     }),
@@ -56,6 +56,11 @@ export default async function PortalOverview() {
       orderBy: { expiresAt: 'asc' },
       select: { petId: true, name: true, expiresAt: true },
     }),
+    prisma.shelterProfile.findUnique({
+      where: { shelterId: shelter.id },
+      select: { strayHoldDays: true },
+    }),
+    prisma.shelterInquiry.count({ where: { shelterId: shelter.id, status: 'NEW' } }),
   ]);
 
   const available = animals.filter((a) => a.shelterStatus === 'AVAILABLE').length;
@@ -76,6 +81,15 @@ export default async function PortalOverview() {
   const attention = [];
   const photoFlagged = new Set();
 
+  if (newInquiries > 0) {
+    attention.push({
+      tone: 'amber',
+      text: newInquiries === 1
+        ? 'A new adoption inquiry is waiting for a reply.'
+        : `${newInquiries} new adoption inquiries are waiting for replies.`,
+      action: 'Inbox', href: '/my-shelter/inquiries',
+    });
+  }
   for (const a of animals) {
     if (a.shelterStatus === 'ADOPTED' && !a.transfers[0]) {
       attention.push({
@@ -92,6 +106,21 @@ export default async function PortalOverview() {
         tone: 'amber',
         text: `The adoption invite for ${a.name} (${invite.toEmail}) has been waiting ${ageDays(invite.createdAt)} days.`,
         action: 'Follow up', href: '/my-shelter/animals',
+      });
+    }
+  }
+  for (const a of animals) {
+    const holdEnd = strayHoldEndsAt(a, profile?.strayHoldDays);
+    if (
+      holdEnd &&
+      holdEnd.getTime() < Date.now() &&
+      ageDays(holdEnd) <= 7 &&
+      a.shelterStatus === 'AVAILABLE'
+    ) {
+      attention.push({
+        tone: 'emerald',
+        text: `${a.name}'s stray hold ended ${shortDate(holdEnd)}. Adoption can go ahead.`,
+        action: 'Roster', href: '/my-shelter/animals',
       });
     }
   }
@@ -206,7 +235,7 @@ export default async function PortalOverview() {
               <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
                 {attention.slice(0, 5).map((item, i) => (
                   <div key={i} className="flex items-center gap-3 px-4 py-3">
-                    <i className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.tone === 'red' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                    <i className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.tone === 'red' ? 'bg-red-500' : item.tone === 'emerald' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                     <p className="flex-1 min-w-0 text-sm text-midnight-700">{item.text}</p>
                     <Link href={item.href} className="inline-flex items-center text-[13px] font-bold text-midnight-900 hover:text-flash-600 transition shrink-0">
                       {item.action}

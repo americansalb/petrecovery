@@ -28,3 +28,19 @@ export function isShelterStatus(value) {
 export function isIntakeType(value) {
   return INTAKE_TYPES.includes(value);
 }
+
+/**
+ * Legal stray-hold window. Shelters must hold strays a jurisdiction-set
+ * number of days before adopting out; the shelter configures its own
+ * length (ShelterProfile.strayHoldDays). Everything renders from this
+ * one function so chips and queue items can never disagree.
+ * Returns the Date the hold ends, or null when it doesn't apply.
+ */
+export const STRAY_HOLD_MAX_DAYS = 30;
+
+export function strayHoldEndsAt(pet, holdDays) {
+  if (!holdDays || pet?.intakeType !== 'STRAY' || !pet?.intakeDate) return null;
+  const start = new Date(pet.intakeDate).getTime();
+  if (Number.isNaN(start)) return null;
+  return new Date(start + holdDays * 86400e3);
+}

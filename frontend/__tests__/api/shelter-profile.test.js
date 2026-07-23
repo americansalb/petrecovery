@@ -73,6 +73,22 @@ describe('PATCH /api/shelter/profile', () => {
     expect(update.facebookUrl).toBeNull();
   });
 
+  test('stray hold days: valid persists, out-of-range 400, null clears', async () => {
+    const ok = await PATCH(req({ strayHoldDays: 5 }));
+    expect(ok.status).toBe(200);
+    expect(prisma.shelterProfile.upsert.mock.calls[0][0].update.strayHoldDays).toBe(5);
+
+    expect((await PATCH(req({ strayHoldDays: 0 }))).status).toBe(400);
+    expect((await PATCH(req({ strayHoldDays: 45 }))).status).toBe(400);
+    expect((await PATCH(req({ strayHoldDays: 'abc' }))).status).toBe(400);
+    expect((await PATCH(req({ strayHoldDays: 2.5 }))).status).toBe(400);
+
+    const cleared = await PATCH(req({ strayHoldDays: null }));
+    expect(cleared.status).toBe(200);
+    const last = prisma.shelterProfile.upsert.mock.calls.at(-1)[0];
+    expect(last.update.strayHoldDays).toBeNull();
+  });
+
   test('an empty body is a 400', async () => {
     expect((await PATCH(req({}))).status).toBe(400);
   });

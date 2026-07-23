@@ -8,6 +8,7 @@ import Link from 'next/link';
 import prisma from '@/app/lib/prisma';
 import { requirePortal } from '../lib';
 import ShelterRoster from '@/app/shelter/ShelterRoster';
+import StrayHoldControl from '@/app/shelter/StrayHoldControl';
 import { SHELTER_STATUSES, SHELTER_STATUS_LABELS } from '@/app/lib/shelterStatuses';
 import { Plus } from 'lucide-react';
 
@@ -15,6 +16,11 @@ export const dynamic = 'force-dynamic';
 
 export default async function PortalAnimals() {
   const { shelter } = await requirePortal();
+
+  const profile = await prisma.shelterProfile.findUnique({
+    where: { shelterId: shelter.id },
+    select: { strayHoldDays: true },
+  });
 
   const pets = await prisma.pet.findMany({
     where: { managedByShelterId: shelter.id, isDeleted: false },
@@ -63,6 +69,9 @@ export default async function PortalAnimals() {
           <p className="text-[15px] text-midnight-500 mt-1">
             {roster.length === 0 ? 'Your roster is empty.' : digest.join(' · ')}
           </p>
+          <div className="mt-1.5">
+            <StrayHoldControl holdDays={profile?.strayHoldDays || null} />
+          </div>
         </div>
         <Link
           href={`/care/start?shelter=${shelter.id}`}
@@ -72,7 +81,7 @@ export default async function PortalAnimals() {
         </Link>
       </div>
 
-      <ShelterRoster pets={roster} />
+      <ShelterRoster pets={roster} holdDays={profile?.strayHoldDays || null} />
 
       <p className="text-[12px] leading-relaxed text-midnight-400">
         Every animal here carries a full Health Book: medications, vaccinations,

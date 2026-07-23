@@ -16,6 +16,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getShelterForUser } from '@/app/lib/shelterAuth';
 import { validateImageUrl } from '@/app/lib/ai/imageFetch';
+import { STRAY_HOLD_MAX_DAYS } from '@/app/lib/shelterStatuses';
 import { logEvent } from '@/lib/logging';
 
 const ABOUT_MAX = 4000;
@@ -55,6 +56,7 @@ export async function GET() {
       select: {
         about: true, mission: true, logoUrl: true, coverPhotoUrl: true,
         facebookUrl: true, instagramUrl: true, twitterUrl: true,
+        strayHoldDays: true,
       },
     });
     return NextResponse.json({ shelterId: ctx.membership.shelterId, profile: profile || {} });
@@ -103,6 +105,21 @@ export async function PATCH(request) {
         } else {
           return NextResponse.json({ error: `Invalid ${field.replace('Url', '')} link` }, { status: 400 });
         }
+      }
+    }
+
+    if (body.strayHoldDays !== undefined) {
+      if (body.strayHoldDays === null || body.strayHoldDays === '') {
+        data.strayHoldDays = null;
+      } else {
+        const days = Number(body.strayHoldDays);
+        if (!Number.isInteger(days) || days < 1 || days > STRAY_HOLD_MAX_DAYS) {
+          return NextResponse.json(
+            { error: `Stray hold must be between 1 and ${STRAY_HOLD_MAX_DAYS} days` },
+            { status: 400 }
+          );
+        }
+        data.strayHoldDays = days;
       }
     }
 

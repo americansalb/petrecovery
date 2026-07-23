@@ -33,15 +33,21 @@ export default async function MyShelterLayout({ children }) {
     redirect('/shelter/dashboard');
   }
 
-  const pendingMatches = await prisma.shelterStrayMatch.count({
-    where: { shelterId: ctx.shelter.id, status: 'PENDING' },
-  });
+  const [pendingMatches, newInquiries] = await Promise.all([
+    prisma.shelterStrayMatch.count({
+      where: { shelterId: ctx.shelter.id, status: 'PENDING' },
+    }),
+    prisma.shelterInquiry.count({
+      where: { shelterId: ctx.shelter.id, status: 'NEW' },
+    }),
+  ]);
 
   return (
     <PortalShell
       shelter={ctx.shelter}
       role={ctx.membership.role}
       pendingMatches={pendingMatches}
+      newInquiries={newInquiries}
       userName={session.user.firstName || session.user.name || ''}
     >
       {children}

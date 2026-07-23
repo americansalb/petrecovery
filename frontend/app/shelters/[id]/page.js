@@ -1,9 +1,9 @@
 /**
  * Public shelter page: the shelter's own corner of the site, editable
- * from its dashboard. Server-rendered, zero client JS, zero external
- * dependencies, so it can't break for shelters that have no way to run
- * a website. Only active, CLAIMED shelters get a page (unclaimed
- * directory entries 404, non-probeable).
+ * from its dashboard. Server-rendered with ONE client island (the
+ * inquiry form), zero external dependencies, so it can't break for
+ * shelters that have no way to run a website. Only active, CLAIMED
+ * shelters get a page (unclaimed directory entries 404, non-probeable).
  */
 
 import { notFound } from 'next/navigation';
@@ -14,6 +14,7 @@ import {
 import { getPublicShelter } from '@/app/lib/shelterPublic';
 import { shelterShareMetadata, genericShareMetadata } from '@/app/lib/shareMetadata';
 import { SHELTER_STATUS_LABELS } from '@/app/lib/shelterStatuses';
+import InquirySection from './InquirySection';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,12 +42,6 @@ export default async function PublicShelterPage({ params }) {
   const data = await getPublicShelter(params.id);
   if (!data) notFound();
   const { shelter, profile, animals } = data;
-
-  const askContact = shelter.email
-    ? (name) => `mailto:${shelter.email}?subject=${encodeURIComponent(`Interested in adopting ${name}`)}`
-    : shelter.phone
-    ? () => `tel:${shelter.phone}`
-    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -181,20 +176,25 @@ export default async function PublicShelterPage({ params }) {
                       )}
                     </div>
                     <p className="text-xs text-midnight-500 truncate">{animalSubtitle(a)}</p>
-                    {askContact && (
-                      <a
-                        href={askContact(a.name)}
-                        className="mt-2 inline-flex items-center justify-center w-full bg-midnight-900 hover:bg-midnight-800 text-white text-xs font-bold rounded-lg px-2.5 py-1.5 transition"
-                      >
-                        Ask about {a.name}
-                      </a>
-                    )}
+                    <a
+                      href="#ask"
+                      className="mt-2 inline-flex items-center justify-center w-full bg-midnight-900 hover:bg-midnight-800 text-white text-xs font-bold rounded-lg px-2.5 py-1.5 transition"
+                    >
+                      Ask about {a.name}
+                    </a>
                   </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
+
+        {/* Structured inquiries land in the shelter's portal inbox */}
+        <InquirySection
+          shelterId={shelter.id}
+          shelterName={shelter.name}
+          animals={animals.map((a) => ({ id: a.id, name: a.name }))}
+        />
 
         <p className="text-xs text-midnight-400 text-center">
           This page is provided free by ReunitePets. Shelters manage their animals and
