@@ -148,7 +148,10 @@ function Row({ pet, onChanged }) {
             <Link href={`/pets/${pet.id}/today`} className="font-bold text-midnight-900 text-[15px] leading-tight hover:underline">
               {pet.name}
             </Link>
-            <p className="text-[13px] text-midnight-400 truncate">{subLine(pet)}</p>
+            <p className="text-[13px] text-midnight-400 truncate">
+              {!pet.primaryPhotoUrl && <span className="text-amber-600 font-medium">no photo · </span>}
+              {subLine(pet)}
+            </p>
           </div>
         </div>
 
@@ -157,7 +160,7 @@ function Row({ pet, onChanged }) {
         </div>
 
         <span
-          className="hidden md:block text-[13px] text-midnight-400 tabular-nums text-right"
+          className={`hidden md:block text-[13px] tabular-nums text-right ${days !== null && days >= 30 && pet.shelterStatus === 'AVAILABLE' ? 'text-amber-600 font-medium' : 'text-midnight-400'}`}
           title={pet.intakeDate ? `Intake ${new Date(pet.intakeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` : undefined}
         >
           {days === null ? '' : days === 0 ? 'today' : `${days}d`}

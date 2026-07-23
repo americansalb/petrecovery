@@ -29,24 +29,123 @@ function daysIn(date) {
 export default async function PortalOverview() {
   const { session, shelter } = await requirePortal();
 
-  const [animals, pendingMatches, sentHome, team] = await Promise.all([
+  const soon = new Date(Date.now() + 30 * 86400e3);
+  const [animals, pendingMatches, sentHome, team, pendingSeats, expiringVaccinations] = await Promise.all([
     prisma.pet.findMany({
       where: { managedByShelterId: shelter.id, isDeleted: false },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true, name: true, species: true, breed: true, primaryPhotoUrl: true,
         shelterStatus: true, intakeDate: true, createdAt: true,
+        transfers: { where: { status: 'PENDING' }, select: { toEmail: true, createdAt: true }, take: 1 },
       },
     }),
     prisma.shelterStrayMatch.count({ where: { shelterId: shelter.id, status: 'PENDING' } }),
     prisma.petTransfer.count({ where: { status: 'ACCEPTED', invitedById: session.user.id } }),
     prisma.shelterMember.count({ where: { shelterId: shelter.id, status: 'ACTIVE' } }),
+    prisma.shelterMember.findMany({
+      where: { shelterId: shelter.id, status: 'PENDING' },
+      select: { email: true, createdAt: true },
+    }),
+    prisma.petVaccination.findMany({
+      where: {
+        deletedAt: null,
+        expiresAt: { not: null, lte: soon },
+        pet: { managedByShelterId: shelter.id, isDeleted: false },
+      },
+      orderBy: { expiresAt: 'asc' },
+      select: { petId: true, name: true, expiresAt: true },
+    }),
   ]);
 
   const available = animals.filter((a) => a.shelterStatus === 'AVAILABLE').length;
   const showingOnPage = animals.filter((a) =>
     ['AVAILABLE', 'ADOPTION_PENDING'].includes(a.shelterStatus)
   ).length;
+
+  /**
+   * The morning queue: concrete failure states a shelter would otherwise
+   * discover too late, each with the one action that clears it. Derived
+   * entirely from data already in the building; nothing here is a metric
+   * for its own sake.
+   */
+  const gone = (a) => ['ADOPTED', 'RECLAIMED'].includes(a.shelterStatus);
+  const byId = new Map(animals.map((a) => [a.id, a]));
+  const shortDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const ageDays = (d) => Math.floor((Date.now() - new Date(d).getTime()) / 86400e3);
+  const attention = [];
+  const photoFlagged = new Set();
+
+  for (const a of animals) {
+    if (a.shelterStatus === 'ADOPTED' && !a.transfers[0]) {
+      attention.push({
+        tone: 'red',
+        text: `${a.name} is marked adopted, but the health record was never sent home with the adopter.`,
+        action: 'Send home', href: '/my-shelter/animals',
+      });
+    }
+  }
+  for (const a of animals) {
+    const invite = a.transfers[0];
+    if (invite && ageDays(invite.createdAt) >= 7) {
+      attention.push({
+        tone: 'amber',
+        text: `The adoption invite for ${a.name} (${invite.toEmail}) has been waiting ${ageDays(invite.createdAt)} days.`,
+        action: 'Follow up', href: '/my-shelter/animals',
+      });
+    }
+  }
+  for (const v of expiringVaccinations) {
+    const a = byId.get(v.petId);
+    if (!a || gone(a)) continue;
+    const expired = new Date(v.expiresAt).getTime() < Date.now();
+    attention.push({
+      tone: expired ? 'red' : 'amber',
+      text: expired
+        ? `${a.name}'s ${v.name} vaccination expired ${shortDate(v.expiresAt)}.`
+        : `${a.name}'s ${v.name} vaccination expires ${shortDate(v.expiresAt)}.`,
+      action: 'Health Book', href: `/pets/${v.petId}/today`,
+    });
+  }
+  const noPhoto = animals.filter((a) => !a.primaryPhotoUrl && !gone(a));
+  noPhoto.forEach((a) => photoFlagged.add(a.id));
+  if (noPhoto.length === 1) {
+    attention.push({
+      tone: 'amber',
+      text: `${noPhoto[0].name} has no photo yet. Adopters scroll past empty squares, and photo matching can't run.`,
+      action: 'Add photo', href: `/pets/${noPhoto[0].id}`,
+    });
+  } else if (noPhoto.length > 1) {
+    const names = noPhoto.slice(0, 3).map((a) => a.name);
+    const label =
+      noPhoto.length > 3 ? `${names.join(', ')}, and ${noPhoto.length - 3} more`
+        : names.length === 2 ? `${names[0]} and ${names[1]}`
+          : `${names[0]}, ${names[1]}, and ${names[2]}`;
+    attention.push({
+      tone: 'amber',
+      text: `${label} have no photos yet. Adopters scroll past empty squares, and photo matching can't run.`,
+      action: 'Roster', href: '/my-shelter/animals',
+    });
+  }
+  for (const seat of pendingSeats) {
+    if (ageDays(seat.createdAt) >= 7) {
+      attention.push({
+        tone: 'amber',
+        text: `${seat.email} hasn't accepted the team invite (${ageDays(seat.createdAt)} days).`,
+        action: 'Team', href: '/my-shelter/team',
+      });
+    }
+  }
+  for (const a of animals) {
+    const waited = daysIn(a.intakeDate || a.createdAt);
+    if (a.shelterStatus === 'AVAILABLE' && waited >= 30 && !photoFlagged.has(a.id)) {
+      attention.push({
+        tone: 'amber',
+        text: `${a.name} has been waiting ${waited} days. Fresh photos and a share move long-stayers.`,
+        action: 'View', href: `/pets/${a.id}`,
+      });
+    }
+  }
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -99,8 +198,32 @@ export default async function PortalOverview() {
       )}
 
       <div className="mt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-8 space-y-8 lg:space-y-0">
-        {/* ---------------- In your care ---------------- */}
-        <section>
+        {/* ---------------- The working column ---------------- */}
+        <div className="space-y-8">
+          {attention.length > 0 && (
+            <section>
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-midnight-400 mb-3">Needs attention</h2>
+              <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
+                {attention.slice(0, 5).map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-3">
+                    <i className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.tone === 'red' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                    <p className="flex-1 min-w-0 text-sm text-midnight-700">{item.text}</p>
+                    <Link href={item.href} className="inline-flex items-center text-[13px] font-bold text-midnight-900 hover:text-flash-600 transition shrink-0">
+                      {item.action}
+                    </Link>
+                  </div>
+                ))}
+                {attention.length > 5 && (
+                  <p className="px-4 py-2.5 text-[13px] text-midnight-400">
+                    {attention.length - 5} more like these on the roster.
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* ---------------- In your care ---------------- */}
+          <section>
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-midnight-400">In your care</h2>
             <Link href="/my-shelter/animals" className="text-sm font-semibold text-midnight-600 hover:text-midnight-900 transition">
@@ -154,7 +277,8 @@ export default async function PortalOverview() {
               })}
             </div>
           )}
-        </section>
+          </section>
+        </div>
 
         {/* ---------------- Right rail ---------------- */}
         <aside className="space-y-6">
