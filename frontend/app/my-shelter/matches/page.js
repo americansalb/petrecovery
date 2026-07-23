@@ -28,8 +28,8 @@ export default async function PortalMatches() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-black text-midnight-900">Matches</h1>
-        <p className="text-midnight-500">
+        <h1 className="text-[26px] leading-tight font-black text-midnight-900">Matches</h1>
+        <p className="text-[15px] text-midnight-500 mt-1">
           Strays you log are checked against local lost-pet reports, photos included.
           Nothing reaches an owner until you confirm.
         </p>

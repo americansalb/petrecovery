@@ -33,13 +33,47 @@ export async function GET() {
       return NextResponse.json({ error: 'You don\'t manage a shelter' }, { status: 403 });
     }
 
-    const members = await prisma.shelterMember.findMany({
-      where: { shelterId: membership.shelterId, status: { not: 'REVOKED' } },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, email: true, role: true, status: true, createdAt: true },
-    });
+    const [members, profile] = await Promise.all([
+      prisma.shelterMember.findMany({
+        where: { shelterId: membership.shelterId, status: { not: 'REVOKED' } },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true, email: true, role: true, status: true,
+          userId: true, createdAt: true, respondedAt: true,
+        },
+      }),
+      prisma.shelterProfile.findUnique({
+        where: { shelterId: membership.shelterId },
+        select: { claimedById: true, claimedAt: true },
+      }),
+    ]);
 
-    return NextResponse.json({ members, myRole: membership.role });
+    // Names live on linked accounts; ShelterMember only stores the email.
+    const ids = [...new Set(
+      [profile?.claimedById, ...members.map((m) => m.userId)].filter(Boolean)
+    )];
+    const users = ids.length
+      ? await prisma.user.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        })
+      : [];
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const displayName = (u) => (u ? [u.firstName, u.lastName].filter(Boolean).join(' ') : '') || null;
+
+    const claimer = profile?.claimedById ? byId.get(profile.claimedById) : null;
+    const owner = claimer
+      ? { name: displayName(claimer), email: claimer.email, claimedAt: profile.claimedAt }
+      : null;
+
+    return NextResponse.json({
+      owner,
+      members: members.map(({ userId, ...m }) => ({
+        ...m,
+        name: userId ? displayName(byId.get(userId)) : null,
+      })),
+      myRole: membership.role,
+    });
   } catch (error) {
     console.error('[SHELTER-MEMBERS] GET failed:', error);
     return NextResponse.json({ error: 'Failed to load team' }, { status: 500 });

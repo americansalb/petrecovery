@@ -13,13 +13,13 @@ export default async function PortalTeam() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-black text-midnight-900">Team</h1>
-        <p className="text-midnight-500">
+        <h1 className="text-[26px] leading-tight font-black text-midnight-900">Team</h1>
+        <p className="text-[15px] text-midnight-500 mt-1">
           Invite staff and volunteers by email. Managers can invite; only the account
           owner can change a manager&rsquo;s seat.
         </p>
       </div>
-      <ShelterTeam hideHeading />
+      <ShelterTeam />
     </div>
   );
 }

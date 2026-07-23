@@ -25,9 +25,9 @@ jest.mock('@/app/lib/rateLimit', () => ({
 jest.mock('@/app/lib/prisma', () => ({
   __esModule: true,
   default: {
-    user: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), findMany: jest.fn() },
     shelter: { findUnique: jest.fn() },
-    shelterProfile: { findFirst: jest.fn() },
+    shelterProfile: { findFirst: jest.fn(), findUnique: jest.fn() },
     shelterMember: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -75,6 +75,42 @@ beforeEach(() => {
   prisma.shelterMember.update.mockImplementation(async ({ data }) => ({ id: 'seat-1', ...data }));
   prisma.user.findUnique.mockResolvedValue(null);
   prisma.shelter.findUnique.mockResolvedValue({ name: 'Austin Animal Center' });
+});
+
+describe('GET /api/shelter/members', () => {
+  test('returns the owner seat plus members with linked names, without userIds', async () => {
+    asOwner();
+    prisma.shelterMember.findMany.mockResolvedValue([
+      {
+        id: 'seat-1', email: 'sarah@x.com', role: 'STAFF', status: 'ACTIVE',
+        userId: 'u-sarah', createdAt: new Date('2026-06-01'), respondedAt: new Date('2026-06-02'),
+      },
+      {
+        id: 'seat-2', email: 'new@x.com', role: 'STAFF', status: 'PENDING',
+        userId: null, createdAt: new Date('2026-07-20'), respondedAt: null,
+      },
+    ]);
+    prisma.shelterProfile.findUnique.mockResolvedValue({
+      claimedById: 'claimer-1', claimedAt: new Date('2026-01-05'),
+    });
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'claimer-1', firstName: 'Avery', lastName: 'Admin', email: 'owner@shelter.org' },
+      { id: 'u-sarah', firstName: 'Sarah', lastName: 'Chen', email: 'sarah@x.com' },
+    ]);
+
+    const res = await listMembers();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.owner).toEqual(
+      expect.objectContaining({ name: 'Avery Admin', email: 'owner@shelter.org' })
+    );
+    expect(body.members).toHaveLength(2);
+    expect(body.members[0]).toEqual(expect.objectContaining({ name: 'Sarah Chen', status: 'ACTIVE' }));
+    expect(body.members[0].userId).toBeUndefined();
+    expect(body.members[1].name).toBeNull();
+    expect(body.myRole).toBe('OWNER');
+  });
 });
 
 describe('POST /api/shelter/members (invite)', () => {
