@@ -272,6 +272,12 @@ export default function Navigation() {
                         </Link>
                         {/* Messages hidden pre-launch: no conversation is created yet,
                             so the inbox would be a guaranteed-empty dead-end. */}
+                        {/* Static for every user: the target sorts it out
+                            (portal for hat-holders, status/pitch otherwise) */}
+                        <Link href="/shelter/dashboard" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
+                          <Building2 className="w-4 h-4" />
+                          <span className="font-medium">Shelter Portal</span>
+                        </Link>
                         <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                           <User className="w-4 h-4" />
                           <span className="font-medium">My Profile</span>
@@ -433,6 +439,7 @@ export default function Navigation() {
               <MobileNavLink href="/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/notifications')} onClick={() => setMobileMenuOpen(false)} />
               {/* Messages hidden pre-launch (guaranteed-empty until conversations are wired). */}
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
+              <MobileNavLink href="/shelter/dashboard" icon={Building2} label="Shelter Portal" active={pathname.startsWith('/shelter')} onClick={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/settings" icon={Settings} label="Settings" active={pathname.startsWith('/settings')} onClick={() => setMobileMenuOpen(false)} />
 
               {userSquads.length > 0 && (

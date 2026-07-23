@@ -15,7 +15,7 @@ import ImageUpload from '@/app/components/ImageUpload';
 const inputClass =
   'w-full border border-midnight-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-flash-400';
 
-export default function ShelterProfileEditor({ shelterId }) {
+export default function ShelterProfileEditor({ shelterId, hideHeading = false }) {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     mission: '', about: '', facebookUrl: '', instagramUrl: '', twitterUrl: '',
@@ -77,9 +77,11 @@ export default function ShelterProfileEditor({ shelterId }) {
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-        <h2 className="text-lg font-bold text-midnight-900 inline-flex items-center gap-2">
-          <Globe2 className="w-5 h-5" /> Your public page
-        </h2>
+        {!hideHeading ? (
+          <h2 className="text-lg font-bold text-midnight-900 inline-flex items-center gap-2">
+            <Globe2 className="w-5 h-5" /> Your public page
+          </h2>
+        ) : <span />}
         <Link
           href={`/shelters/${shelterId}`}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-700 hover:text-midnight-900 underline"
@@ -87,9 +89,11 @@ export default function ShelterProfileEditor({ shelterId }) {
           View public page <ExternalLink className="w-3.5 h-3.5" />
         </Link>
       </div>
-      <p className="text-sm text-midnight-600 mb-4">
-        Your free page shows your adoptable animals and contact info. No website needed.
-      </p>
+      {!hideHeading && (
+        <p className="text-sm text-midnight-600 mb-4">
+          Your free page shows your adoptable animals and contact info. No website needed.
+        </p>
+      )}
 
       <form onSubmit={save} className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-5 space-y-4">
         <div>

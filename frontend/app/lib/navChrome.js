@@ -14,8 +14,12 @@
  * `h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)]`.
  */
 
-/** Full-screen takeovers that ship their own chrome (MissionHeader etc.). */
-export const IMMERSIVE_ROUTES = ['/mission-control'];
+/**
+ * Full-screen takeovers that ship their own chrome (MissionHeader, the
+ * shelter portal's sidebar shell). /my-shelter is the hat-gated shelter
+ * workspace: same account system, its own world (docs/PERMISSIONS.md).
+ */
+export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter'];
 
 /** True inside an immersive takeover: no global chrome at all. */
 export function isImmersiveRoute(pathname) {

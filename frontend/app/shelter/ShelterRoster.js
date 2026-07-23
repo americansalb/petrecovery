@@ -146,23 +146,25 @@ function TransferControl({ pet, onChanged }) {
   }
 
   return (
-    <form onSubmit={invite} className="flex flex-wrap items-center gap-2">
+    /* globals.css forces email inputs to width:100%; grid tracks shape
+       the row instead of input width utilities */
+    <form onSubmit={invite} className="grid gap-2 sm:grid-cols-[minmax(0,15rem)_auto_auto] sm:items-center">
       <input
         type="email"
         required
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="adopter@email.com"
-        className="border border-midnight-200 rounded-lg px-3 py-1.5 text-sm w-52 focus:outline-none focus:ring-2 focus:ring-flash-400"
+        className="border border-midnight-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-flash-400"
         autoFocus
       />
-      <button type="submit" disabled={busy} className="inline-flex items-center gap-1.5 bg-midnight-900 hover:bg-midnight-800 text-white text-sm font-semibold rounded-lg px-3 py-1.5 disabled:opacity-50 transition">
+      <button type="submit" disabled={busy} className="inline-flex items-center justify-center gap-1.5 bg-midnight-900 hover:bg-midnight-800 text-white text-sm font-semibold rounded-lg px-3 py-1.5 disabled:opacity-50 transition">
         {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Invite
       </button>
-      <button type="button" onClick={() => { setOpen(false); setError(''); }} className="text-midnight-400 hover:text-midnight-700 p-1">
+      <button type="button" onClick={() => { setOpen(false); setError(''); }} className="justify-self-start text-midnight-400 hover:text-midnight-700 p-1">
         <X className="w-4 h-4" />
       </button>
-      {error && <p className="w-full text-sm text-red-600">{error}</p>}
+      {error && <p className="sm:col-span-3 text-sm text-red-600">{error}</p>}
     </form>
   );
 }
