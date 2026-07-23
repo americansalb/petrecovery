@@ -11,7 +11,7 @@ import { Users, Send, Loader2, X } from 'lucide-react';
 
 const ROLE_LABELS = { OWNER: 'Owner', MANAGER: 'Manager', STAFF: 'Staff' };
 
-export default function ShelterTeam() {
+export default function ShelterTeam({ hideHeading = false }) {
   const [state, setState] = useState({ loading: true, members: [], myRole: null });
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('STAFF');
@@ -69,12 +69,16 @@ export default function ShelterTeam() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-midnight-900 mb-1 inline-flex items-center gap-2">
-        <Users className="w-5 h-5" /> Your team
-      </h2>
-      <p className="text-sm text-midnight-600 mb-4">
-        Everyone on the team can manage animals, health records, adoptions, and matches.
-      </p>
+      {!hideHeading && (
+        <>
+          <h2 className="text-lg font-bold text-midnight-900 mb-1 inline-flex items-center gap-2">
+            <Users className="w-5 h-5" /> Your team
+          </h2>
+          <p className="text-sm text-midnight-600 mb-4">
+            Everyone on the team can manage animals, health records, adoptions, and matches.
+          </p>
+        </>
+      )}
 
       {state.members.length > 0 && (
         <ul className="space-y-2 mb-4">
@@ -101,14 +105,16 @@ export default function ShelterTeam() {
       )}
 
       {canManage && (
-        <form onSubmit={invite} className="flex flex-wrap items-center gap-2">
+        /* globals.css forces email inputs + selects to width:100%, so the
+           layout is shaped by grid tracks, not input width utilities */
+        <form onSubmit={invite} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-center">
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="teammate@shelter.org"
-            className="border border-midnight-200 rounded-lg px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-flash-400"
+            className="border border-midnight-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-flash-400"
           />
           <select
             value={role}
@@ -122,11 +128,11 @@ export default function ShelterTeam() {
           <button
             type="submit"
             disabled={busy}
-            className="inline-flex items-center gap-1.5 bg-midnight-900 hover:bg-midnight-800 text-white text-sm font-semibold rounded-lg px-3.5 py-2 disabled:opacity-50 transition"
+            className="inline-flex items-center justify-center gap-1.5 bg-midnight-900 hover:bg-midnight-800 text-white text-sm font-semibold rounded-lg px-3.5 py-2 disabled:opacity-50 transition"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Invite
           </button>
-          {error && <p className="w-full text-sm text-red-600">{error}</p>}
+          {error && <p className="sm:col-span-3 text-sm text-red-600">{error}</p>}
         </form>
       )}
     </div>

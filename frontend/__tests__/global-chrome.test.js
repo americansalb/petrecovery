@@ -37,7 +37,7 @@ const KNOWN_EXCEPTIONS = [
 ];
 
 /** Segments that ARE the immersive experiences — they own their chrome. */
-const IMMERSIVE_DIRS = ['mission-control'];
+const IMMERSIVE_DIRS = ['mission-control', 'my-shelter'];
 
 function walkChromeFiles(dir, rel = '') {
   const out = [];
@@ -56,9 +56,19 @@ function walkChromeFiles(dir, rel = '') {
 }
 
 describe('route-chrome policy (app/lib/navChrome.js)', () => {
-  test('mission control is the immersive takeover', () => {
+  test('mission control is an immersive takeover', () => {
     expect(isImmersiveRoute('/mission-control')).toBe(true);
     expect(isImmersiveRoute('/mission-control/anything')).toBe(true);
+  });
+
+  test('the shelter portal is an immersive takeover; its onboarding is not', () => {
+    expect(isImmersiveRoute('/my-shelter')).toBe(true);
+    expect(isImmersiveRoute('/my-shelter/animals')).toBe(true);
+    // pre-hat shelter surfaces keep the universal chrome
+    expect(isImmersiveRoute('/shelter/start')).toBe(false);
+    expect(isImmersiveRoute('/shelter/dashboard')).toBe(false);
+    expect(isImmersiveRoute('/shelter/claim')).toBe(false);
+    expect(isImmersiveRoute('/shelters')).toBe(false);
   });
 
   test('regular routes always get the top bar — auth pages included', () => {
@@ -148,6 +158,6 @@ describe('nav components defer to the shared policy', () => {
   test('the immersive list stays deliberate — additions need a docs update', () => {
     // If this fails you added a takeover: update docs/APP_MAP.md §8.2 and
     // the IMMERSIVE_DIRS list above, then extend this expectation.
-    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control']);
+    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter']);
   });
 });

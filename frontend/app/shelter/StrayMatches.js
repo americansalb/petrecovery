@@ -127,7 +127,7 @@ function MatchCard({ match, onResolved }) {
   );
 }
 
-export default function StrayMatches() {
+export default function StrayMatches({ emptyState = null, hideHeading = false }) {
   const router = useRouter();
   const [matches, setMatches] = useState(null);
 
@@ -140,7 +140,8 @@ export default function StrayMatches() {
     return () => { alive = false; };
   }, []);
 
-  if (!matches || matches.length === 0) return null;
+  if (!matches) return null;
+  if (matches.length === 0) return emptyState;
 
   const resolved = (id) => {
     setMatches((ms) => ms.filter((m) => m.id !== id));
@@ -149,11 +150,15 @@ export default function StrayMatches() {
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-midnight-900 mb-1">Possible owner matches</h2>
-      <p className="text-sm text-midnight-600 mb-4">
-        These lost-pet reports look like animals in your care. Compare the photos; the
-        owner is only notified after you confirm.
-      </p>
+      {!hideHeading && (
+        <>
+          <h2 className="text-lg font-bold text-midnight-900 mb-1">Possible owner matches</h2>
+          <p className="text-sm text-midnight-600 mb-4">
+            These lost-pet reports look like animals in your care. Compare the photos; the
+            owner is only notified after you confirm.
+          </p>
+        </>
+      )}
       <ul className="space-y-4">
         {matches.map((m) => (
           <MatchCard key={m.id} match={m} onResolved={resolved} />
