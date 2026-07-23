@@ -734,6 +734,32 @@ async function main() {
         },
       }).catch(() => {});
     }
+
+    // Health Book stamps for the roster animals: one expired, one
+    // expiring soon, so the portal's needs-attention queue demos both
+    // tones. Guarded so reseeds don't duplicate.
+    const rosterRufus = await prisma.pet.findFirst({
+      where: { managedByShelterId: claimedShelter.id, name: 'Rufus' },
+    });
+    const rosterClover = await prisma.pet.findFirst({
+      where: { managedByShelterId: claimedShelter.id, name: 'Clover' },
+    });
+    if (rosterRufus && !(await prisma.petVaccination.findFirst({ where: { petId: rosterRufus.id } }))) {
+      const yr = 365 * 86400e3;
+      await prisma.petVaccination.createMany({
+        data: [
+          { petId: rosterRufus.id, name: 'Rabies', administeredAt: new Date(Date.now() - 1.05 * yr), expiresAt: new Date(Date.now() - 20 * 86400e3), vetName: 'Travis County Mobile Vet' },
+          { petId: rosterRufus.id, name: 'DHPP', administeredAt: new Date(Date.now() - 0.2 * yr), expiresAt: new Date(Date.now() + 0.8 * yr), vetName: 'Travis County Mobile Vet' },
+        ],
+      });
+    }
+    if (rosterClover && !(await prisma.petVaccination.findFirst({ where: { petId: rosterClover.id } }))) {
+      await prisma.petVaccination.createMany({
+        data: [
+          { petId: rosterClover.id, name: 'FVRCP', administeredAt: new Date(Date.now() - 350 * 86400e3), expiresAt: new Date(Date.now() + 12 * 86400e3) },
+        ],
+      });
+    }
   }
 
   // ---- Alerts & notifications for admin ----
