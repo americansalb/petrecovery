@@ -4,38 +4,23 @@
  * Shelter animal roster: one table-like surface, not a stack of cards.
  * Columns: the animal (photo, name, origin), status (dot + text edited
  * through an invisible select), days in care, and the adoption handoff.
- * Every row links into the animal's full Health Book.
+ * Every row opens the animal's page inside the portal, never the
+ * consumer pet pages.
  */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PawPrint, Send, X, Loader2 } from 'lucide-react';
-import {
-  SHELTER_STATUSES, SHELTER_STATUS_LABELS, INTAKE_TYPE_LABELS, strayHoldEndsAt,
-} from '@/app/lib/shelterStatuses';
+import { INTAKE_TYPE_LABELS, strayHoldEndsAt, daysInCare } from '@/app/lib/shelterStatuses';
+import { StatusControl } from '@/app/shelter/AnimalControls';
 
 const SPECIES_LABEL = {
   DOG: 'Dog', CAT: 'Cat', BIRD: 'Bird', RABBIT: 'Rabbit', OTHER: 'Pet',
 };
 
-const STATUS_DOT = {
-  AVAILABLE: 'bg-emerald-500',
-  ADOPTION_PENDING: 'bg-amber-500',
-  ADOPTED: 'bg-blue-500',
-  RECLAIMED: 'bg-violet-500',
-};
-
 /* One template shared by the header strip and every row */
 const COLS = 'md:grid-cols-[minmax(0,1fr)_10rem_5rem_13rem]';
-
-function daysIn(value) {
-  if (!value) return null;
-  const t = new Date(value).getTime();
-  if (Number.isNaN(t)) return null;
-  const d = Math.floor((Date.now() - t) / 86400e3);
-  return d < 0 ? 0 : d;
-}
 
 function subLine(pet) {
   const parts = [SPECIES_LABEL[pet.species] || 'Pet'];
@@ -46,48 +31,6 @@ function subLine(pet) {
     parts.push((INTAKE_TYPE_LABELS[pet.intakeType] || pet.intakeType).toLowerCase());
   }
   return parts.join(' · ');
-}
-
-function StatusControl({ pet, onChanged }) {
-  const [busy, setBusy] = useState(false);
-  if (!pet.shelterStatus) return null;
-
-  const change = async (e) => {
-    const shelterStatus = e.target.value;
-    if (shelterStatus === pet.shelterStatus) return;
-    setBusy(true);
-    try {
-      await fetch(`/api/pets/${pet.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shelterStatus }),
-      });
-      onChanged();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <label className={`relative inline-flex w-fit items-center gap-1.5 text-[13px] font-medium text-midnight-700 hover:text-midnight-900 cursor-pointer transition ${busy ? 'opacity-50' : ''}`}>
-      <i className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[pet.shelterStatus] || 'bg-midnight-300'}`} />
-      {SHELTER_STATUS_LABELS[pet.shelterStatus] || pet.shelterStatus}
-      <svg className="w-3 h-3 text-midnight-400" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-        <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <select
-        aria-label={`Status for ${pet.name}`}
-        value={pet.shelterStatus}
-        onChange={change}
-        disabled={busy}
-        className="absolute inset-0 opacity-0 cursor-pointer"
-      >
-        {SHELTER_STATUSES.map((s) => (
-          <option key={s} value={s}>{SHELTER_STATUS_LABELS[s]}</option>
-        ))}
-      </select>
-    </label>
-  );
 }
 
 function Row({ pet, holdDays, onChanged }) {
@@ -128,7 +71,7 @@ function Row({ pet, holdDays, onChanged }) {
     }
   };
 
-  const days = daysIn(pet.intakeDate);
+  const days = daysInCare(pet);
   const holdEnd = strayHoldEndsAt(pet, holdDays);
   const holdActive = holdEnd && holdEnd.getTime() > Date.now();
 
@@ -147,7 +90,7 @@ function Row({ pet, holdDays, onChanged }) {
             </span>
           )}
           <div className="min-w-0">
-            <Link href={`/pets/${pet.id}/today`} className="font-bold text-midnight-900 text-[15px] leading-tight hover:underline">
+            <Link href={`/my-shelter/animals/${pet.id}`} className="font-bold text-midnight-900 text-[15px] leading-tight hover:underline">
               {pet.name}
             </Link>
             <p className="text-[13px] text-midnight-400 truncate">

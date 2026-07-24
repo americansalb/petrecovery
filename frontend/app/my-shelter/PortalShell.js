@@ -112,7 +112,9 @@ export default function PortalShell({ shelter, role, pendingMatches, newInquirie
             <Link
               key={href}
               href={href}
-              className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
+              /* shrink-0 keeps six tabs from compressing into each other;
+                 the strip scrolls instead */
+              className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-[13px] font-semibold transition-colors ${
                 active ? 'bg-flash-400 text-midnight-900' : 'text-midnight-200 hover:bg-white/10'
               }`}
             >

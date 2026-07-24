@@ -98,7 +98,7 @@ export default async function PortalInquiries() {
                     {q.pet && (
                       <span className="font-medium text-midnight-500">
                         {' '}about{' '}
-                        <Link href={`/pets/${q.pet.id}/today`} className="underline underline-offset-2 hover:text-midnight-900">
+                        <Link href={`/my-shelter/animals/${q.pet.id}`} className="underline underline-offset-2 hover:text-midnight-900">
                           {q.pet.name}
                         </Link>
                       </span>
