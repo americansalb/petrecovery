@@ -23,6 +23,20 @@ function shortDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * Inquiry contact details are attacker-supplied. Percent-encode each side of
+ * the address so a stored '?cc=...' cannot append headers to the mailto: the
+ * staffer clicks; keep '@' literal so every mail client still resolves it.
+ */
+function mailtoHref(email, subject) {
+  const addr = String(email).split('@').map(encodeURIComponent).join('@');
+  return `mailto:${addr}?subject=${subject}`;
+}
+
+function telHref(phone) {
+  return `tel:${String(phone).replace(/[^0-9+]/g, '')}`;
+}
+
 export default async function PortalInquiries() {
   const { shelter } = await requirePortal();
 
@@ -101,13 +115,13 @@ export default async function PortalInquiries() {
                 <p className="text-sm text-midnight-700 mt-1.5 whitespace-pre-line">{q.message}</p>
                 <div className="flex items-center gap-4 mt-2 flex-wrap">
                   <a
-                    href={`mailto:${q.email}?subject=${subject}`}
+                    href={mailtoHref(q.email, subject)}
                     className="text-[13px] font-bold text-midnight-900 hover:text-flash-600 transition"
                   >
                     Reply to {q.email}
                   </a>
                   {q.phone && (
-                    <a href={`tel:${q.phone}`} className="text-[13px] font-semibold text-midnight-600 hover:text-midnight-900 transition">
+                    <a href={telHref(q.phone)} className="text-[13px] font-semibold text-midnight-600 hover:text-midnight-900 transition">
                       {q.phone}
                     </a>
                   )}

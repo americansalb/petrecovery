@@ -17,7 +17,16 @@ import { sendPushToUser } from '@/app/lib/push';
 import { getShelterStaffUserIds } from '@/app/lib/shelterAuth';
 import { logEvent } from '@/lib/logging';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * Strict on purpose. The permissive /^[^\s@]+@[^\s@]+\.[^\s@]+$/ shape used
+ * elsewhere backtracks quadratically on a long failing input (a 156KB body
+ * stalled the whole single-threaded process for ~25s), and it admits '?' and
+ * '&', which smuggle cc/bcc parameters into the mailto: link staff click in
+ * the portal. Character classes here exclude both, and EMAIL_MAX bounds the
+ * input before the regex ever runs.
+ */
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
+const EMAIL_MAX = 254; // RFC 5321 addr-spec ceiling
 const NAME_MAX = 100;
 const PHONE_MAX = 30;
 const MESSAGE_MIN = 10;
@@ -40,7 +49,8 @@ export async function POST(request, { params }) {
 
     const body = await request.json().catch(() => ({}));
     const name = String(body?.name || '').trim().slice(0, NAME_MAX);
-    const email = String(body?.email || '').trim().toLowerCase();
+    // Bound BEFORE the regex: an uncapped value is a CPU-DoS vector here.
+    const email = String(body?.email || '').trim().slice(0, EMAIL_MAX).toLowerCase();
     const phone = String(body?.phone || '').trim().slice(0, PHONE_MAX) || null;
     const message = String(body?.message || '').trim();
 

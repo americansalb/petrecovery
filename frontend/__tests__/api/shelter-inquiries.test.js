@@ -104,6 +104,38 @@ describe('POST /api/shelters/[id]/inquiries (public)', () => {
     expect(prisma.shelterInquiry.create).not.toHaveBeenCalled();
   });
 
+  test('a pathological email cannot burn CPU: bounded before the regex', async () => {
+    claimedActiveShelter();
+    // This shape backtracks quadratically against a permissive email regex.
+    // Uncapped it stalled the whole single-threaded server for ~25 seconds.
+    const evil = 'a@' + 'b.'.repeat(80000) + '\tx';
+    const started = Date.now();
+    const res = await publicPost(req({ ...validBody, email: evil }), shelterParams);
+    const elapsed = Date.now() - started;
+
+    expect(res.status).toBe(400);
+    expect(elapsed).toBeLessThan(250);
+    expect(prisma.shelterInquiry.create).not.toHaveBeenCalled();
+  });
+
+  test('emails that would inject mailto headers are rejected', async () => {
+    claimedActiveShelter();
+    // '?cc=' / '&bcc=' would otherwise ride into the reply link staff click
+    const injections = [
+      'adopter@shelter.org?cc=harvest%40evil.com',
+      'adopter@shelter.org&bcc=harvest%40evil.com',
+      'adopter@shelter.org?subject=Re:%20your%20application',
+    ];
+    for (const email of injections) {
+      expect((await publicPost(req({ ...validBody, email }), shelterParams)).status).toBe(400);
+    }
+    expect(prisma.shelterInquiry.create).not.toHaveBeenCalled();
+
+    // ordinary addresses still pass
+    const ok = await publicPost(req({ ...validBody, email: 'first.last+tag@sub.shelter-org.co.uk' }), shelterParams);
+    expect(ok.status).toBe(201);
+  });
+
   test('a petId from another shelter becomes a general inquiry, not an error', async () => {
     claimedActiveShelter();
     prisma.pet.findFirst.mockResolvedValue(null);
