@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import prisma from '@/app/lib/prisma';
 import { requirePortal } from './lib';
-import { SHELTER_STATUS_LABELS, strayHoldEndsAt } from '@/app/lib/shelterStatuses';
+import { SHELTER_STATUS_LABELS, strayHoldEndsAt, daysInCare } from '@/app/lib/shelterStatuses';
 import { PawPrint, Plus, ArrowRight, ArrowUpRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -19,12 +19,6 @@ const STATUS_DOT = {
   ADOPTED: 'bg-blue-500',
   RECLAIMED: 'bg-violet-500',
 };
-
-function daysIn(date) {
-  if (!date) return null;
-  const d = Math.floor((Date.now() - new Date(date).getTime()) / 86400e3);
-  return d < 0 ? 0 : d;
-}
 
 export default async function PortalOverview() {
   const { session, shelter } = await requirePortal();
@@ -133,7 +127,7 @@ export default async function PortalOverview() {
       text: expired
         ? `${a.name}'s ${v.name} vaccination expired ${shortDate(v.expiresAt)}.`
         : `${a.name}'s ${v.name} vaccination expires ${shortDate(v.expiresAt)}.`,
-      action: 'Health Book', href: `/pets/${v.petId}/today`,
+      action: 'Health', href: `/my-shelter/animals/${v.petId}`,
     });
   }
   const noPhoto = animals.filter((a) => !a.primaryPhotoUrl && !gone(a));
@@ -142,7 +136,7 @@ export default async function PortalOverview() {
     attention.push({
       tone: 'amber',
       text: `${noPhoto[0].name} has no photo yet. Adopters scroll past empty squares, and photo matching can't run.`,
-      action: 'Add photo', href: `/pets/${noPhoto[0].id}`,
+      action: 'Add photo', href: `/my-shelter/animals/${noPhoto[0].id}`,
     });
   } else if (noPhoto.length > 1) {
     const names = noPhoto.slice(0, 3).map((a) => a.name);
@@ -166,12 +160,12 @@ export default async function PortalOverview() {
     }
   }
   for (const a of animals) {
-    const waited = daysIn(a.intakeDate || a.createdAt);
+    const waited = daysInCare(a);
     if (a.shelterStatus === 'AVAILABLE' && waited >= 30 && !photoFlagged.has(a.id)) {
       attention.push({
         tone: 'amber',
         text: `${a.name} has been waiting ${waited} days. Fresh photos and a share move long-stayers.`,
-        action: 'View', href: `/pets/${a.id}`,
+        action: 'View', href: `/my-shelter/animals/${a.id}`,
       });
     }
   }
@@ -271,11 +265,11 @@ export default async function PortalOverview() {
           ) : (
             <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
               {animals.slice(0, 6).map((a) => {
-                const days = daysIn(a.intakeDate || a.createdAt);
+                const days = daysInCare(a);
                 return (
                   <Link
                     key={a.id}
-                    href={`/pets/${a.id}/today`}
+                    href={`/my-shelter/animals/${a.id}`}
                     className="flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition"
                   >
                     {a.primaryPhotoUrl ? (

@@ -290,7 +290,7 @@ export default function PetWizard() {
       }
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
       // Shelter adds go back to the roster; personal adds go to the pet.
-      router.push(shelterId ? '/shelter/dashboard' : `/pets/${petId}/today`);
+      router.push(shelterId ? `/my-shelter/animals/${petId}` : `/pets/${petId}/today`);
     } catch (e) {
       setError(e.message);
       setSaving(false);

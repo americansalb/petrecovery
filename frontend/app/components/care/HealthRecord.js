@@ -231,8 +231,11 @@ export function WeightCard({ weights, canManage, weightInput, onWeightInput, wei
         {weights.length >= 2 && <WeightChart weights={weights} />}
         {canManage && (
           <div className="mt-4">
-            <div className="flex items-center gap-2">
-              <input value={weightInput} onChange={(e) => onWeightInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onLog()} placeholder="Weight (lb)" inputMode="decimal" aria-label="Weight in pounds" className="flex-1 rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal" />
+            {/* Date inputs carry a wide intrinsic minimum and globals.css
+                forces typed inputs to width:100%, so without wrap + min-w-0
+                the Log button is pushed off a narrow screen entirely. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <input value={weightInput} onChange={(e) => onWeightInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onLog()} placeholder="Weight (lb)" inputMode="decimal" aria-label="Weight in pounds" className="min-w-0 flex-1 basis-32 rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal" />
               {onWeightDate && (
                 <input
                   type="date"
@@ -241,10 +244,10 @@ export function WeightCard({ weights, canManage, weightInput, onWeightInput, wei
                   onChange={(e) => onWeightDate(e.target.value === today ? '' : e.target.value)}
                   aria-label="Date weighed (leave empty for today)"
                   title="Date weighed. Leave empty for today, e.g. to enter a vet-visit weigh-in."
-                  className="rounded-xl border border-care-line px-3 py-2.5 text-[14px] text-care-sub focus:outline-none focus:border-care-teal"
+                  className="min-w-0 shrink rounded-xl border border-care-line px-3 py-2.5 text-[14px] text-care-sub focus:outline-none focus:border-care-teal"
                 />
               )}
-              <button onClick={onLog} disabled={saving || !weightInput} className="rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2.5 hover:bg-care-tealDark disabled:opacity-40 transition-colors">{saving ? <Loader2 size={15} className="animate-spin" /> : 'Log'}</button>
+              <button onClick={onLog} disabled={saving || !weightInput} className="shrink-0 rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2.5 hover:bg-care-tealDark disabled:opacity-40 transition-colors">{saving ? <Loader2 size={15} className="animate-spin" /> : 'Log'}</button>
             </div>
             <p className="text-[12px] text-care-faint mt-2">Pick a date to enter a past weigh-in, like a vet visit. Empty means today.</p>
           </div>
