@@ -1,13 +1,19 @@
 'use client';
 
 /**
- * Dashboard Page - Balanced Community Design
+ * Home for a signed-in person.
  *
- * Priority order:
- * 1. My Missions (your pets) - always visible at top
- * 2. My Rescue Forces (your community)
- * 3. Help Nearby (other missions you can help with)
- * 4. Quick Actions
+ * The old page was a launcher: five equally-weighted sections with a
+ * coloured icon each, a grid of action tiles duplicating the top nav, and
+ * a welcome card. It answered no question. Worse, it listed lost REPORTS
+ * rather than pets, so someone whose animals were all safely at home saw
+ * an empty page, and an owner mid-search saw "no active missions".
+ *
+ * This asks the only two questions that matter when you open it:
+ * is everyone home, and does anything need me? A missing pet outranks
+ * everything else on the page and says so. Otherwise your animals lead,
+ * each with something true about it, and the community sits in a rail
+ * beside them rather than competing for the same weight.
  */
 
 import { useEffect, useState } from 'react';
@@ -15,382 +21,394 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Users, MapPin, Search, Clock, Bell, ChevronRight,
-  AlertCircle, PawPrint, Heart, Eye, Plus,
-  Siren, UserPlus
+  PawPrint, Plus, ArrowRight, ArrowUpRight, Users, Search, Eye, Loader2,
 } from 'lucide-react';
+
+const SPECIES_LABEL = { DOG: 'Dog', CAT: 'Cat', BIRD: 'Bird', RABBIT: 'Rabbit', OTHER: 'Pet' };
+
+function elapsed(hours) {
+  if (hours < 1) return 'just now';
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
+}
+
+function shortDate(value) {
+  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function Label({ children, action }) {
+  return (
+    <div className="flex items-baseline justify-between mb-3">
+      <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-midnight-500">{children}</h2>
+      {action}
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
+  const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
+    if (status === 'unauthenticated') router.push('/login');
   }, [status, router]);
 
   useEffect(() => {
-    async function fetchData() {
-      if (!session?.user) return;
+    async function load() {
       try {
         const res = await fetch('/api/dashboard');
         if (!res.ok) {
-          if (res.status === 401) {
-            router.push('/login');
-            return;
-          }
+          if (res.status === 401) { router.push('/login'); return; }
           const body = await res.json().catch(() => ({}));
-          throw new Error(body.details || body.error || 'Server error');
+          throw new Error(body.details || body.error || 'Could not load your dashboard');
         }
-        const data = await res.json();
-        setUserData(data);
+        setData(await res.json());
       } catch (err) {
-        setError(err.message || 'Failed to load dashboard');
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     }
-    if (status === 'authenticated') fetchData();
-  }, [session, status]);
+    if (status === 'authenticated') load();
+  }, [status, router]);
 
-  // Loading
-  if (status === 'loading' || loading) {
+  if (loading || status === 'loading') {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-600 rounded-full animate-spin" />
+        <Loader2 className="w-5 h-5 animate-spin text-midnight-300" />
       </div>
     );
   }
 
-  // Error
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Something went wrong</h2>
-          <p className="text-slate-500 mb-6">{error}</p>
+      <div className="min-h-screen bg-slate-50 px-4 py-16">
+        <div className="max-w-md mx-auto text-center">
+          <p className="font-bold text-midnight-900">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-slate-900 text-white rounded-xl font-semibold hover:bg-slate-800"
+            className="mt-3 inline-flex items-center gap-2 bg-midnight-900 hover:bg-midnight-800 text-white font-semibold px-4 py-2 rounded-xl transition"
           >
-            Try Again
+            Try again
           </button>
         </div>
       </div>
     );
   }
 
-  if (!session || !userData) return null;
+  if (!session || !data) return null;
 
-  const { user, squads = [], missions = [], activeSearches = [], nearbyAlerts = [] } = userData;
+  const {
+    user, pets = [], squads = [], missions = [], nearbyAlerts = [], activeSearches = [],
+  } = data;
   const firstName = user?.firstName || session.user?.name?.split(' ')[0] || 'there';
-  const hasSquads = squads.length > 0;
 
-  // Separate user's own missions from missions they're helping with
-  const myMissions = missions.filter(m => m.isOwner);
-  const helpingMissions = missions.filter(m => !m.isOwner);
+  /* The search's live state belongs on the alert, not two clicks away */
+  const missionById = new Map(missions.map((m) => [m.id, m]));
+  const missingPets = pets
+    .filter((p) => p.missing)
+    .map((p) => ({ ...p, mission: missionById.get(p.missing.caseId) || null }));
+  const helping = missions.filter((m) => !m.isOwner);
+  const urgentNearby = nearbyAlerts.filter((a) => (parseInt(a.hoursMissing, 10) || 999) < 48);
 
-  // Urgent nearby missions (first 48 hours are critical)
-  const urgentNearby = nearbyAlerts.filter(a => {
-    const hours = parseInt(a.hoursMissing) || 999;
-    return hours < 48;
-  });
+  /**
+   * What needs this person today. A missing animal silences everything
+   * else about that animal: nobody wants to be told their lost dog's
+   * booster is due while they are out looking for him.
+   */
+  const attention = [];
+  for (const p of pets) {
+    if (p.missing) continue;
+    if (p.vaccinationDue) {
+      attention.push({
+        tone: p.vaccinationDue.expired ? 'red' : 'amber',
+        text: p.vaccinationDue.expired
+          ? `${p.name}'s ${p.vaccinationDue.name} vaccination expired ${shortDate(p.vaccinationDue.expiresAt)}.`
+          : `${p.name}'s ${p.vaccinationDue.name} vaccination expires ${shortDate(p.vaccinationDue.expiresAt)}.`,
+        action: 'Health Book',
+        href: `/pets/${p.id}/health`,
+      });
+    }
+  }
+  for (const p of pets) {
+    if (!p.hasPhoto && !p.missing) {
+      attention.push({
+        tone: 'amber',
+        text: `${p.name} has no photo. A photo is what lets anyone recognise them if they go missing.`,
+        action: 'Add one',
+        href: `/pets/${p.id}`,
+      });
+    }
+  }
+
+  /* Truly nothing yet. Someone who has joined a rescue force but owns no
+     animals is NOT a newcomer; hiding their force behind a welcome card
+     would delete the one thing they have here. */
+  const isNewcomer = pets.length === 0 && missions.length === 0 && squads.length === 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Active Search Banner */}
+    /* pb clears the fixed mobile tab bar, as /pets does */
+    <div className="min-h-screen bg-slate-50 pb-24 lg:pb-12">
       {activeSearches.length > 0 && (
-        <Link
-          href={`/mission-control?mission=${activeSearches[0].missionId}`}
-          className="block bg-red-500 hover:bg-red-600 transition-colors"
-        >
-          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between text-white">
-            <div className="flex items-center gap-3">
-              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-              <span className="font-bold">GPS Search Active</span>
-              <span className="opacity-80">
-                {activeSearches[0].petName} • {activeSearches[0].durationMinutes}m
-              </span>
-            </div>
-            <span className="text-sm opacity-80">View →</span>
+        <Link href={`/mission-control?mission=${activeSearches[0].missionId}`} className="block bg-red-600 hover:bg-red-700 transition-colors">
+          <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3 text-white text-sm">
+            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse shrink-0" />
+            <span className="font-bold">Search underway</span>
+            <span className="opacity-80 truncate">
+              {activeSearches[0].petName} · {activeSearches[0].durationMinutes}m
+            </span>
+            <span className="ml-auto font-semibold shrink-0">Open</span>
           </div>
         </Link>
       )}
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        {/* Welcome */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">
-            Hi, {firstName}
-          </h1>
+      <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-10">
+        <div className="flex items-end justify-between gap-4 flex-wrap mb-8">
+          <div>
+            <h1 className="text-[26px] leading-tight font-black text-midnight-900">Hi, {firstName}</h1>
+            <p className="text-[15px] text-midnight-500 mt-1">
+              {missingPets.length > 0
+                ? `${missingPets.length === 1 ? missingPets[0].name : `${missingPets.length} of your animals`} still isn't home.`
+                : pets.length > 0
+                  ? `Everyone's home. ${pets.length} ${pets.length === 1 ? 'animal' : 'animals'} in your care.`
+                  : 'Add your animals so they are ready if they ever go missing.'}
+            </p>
+          </div>
+          {/* No page-level CTA. The navbar already carries Report Pet, and
+              when an animal is missing the alert below IS the action. Two
+              competing primaries at the top is how a page loses its point. */}
         </div>
 
-        {/* ============================================ */}
-        {/* SECTION 1: MY MISSIONS (Your Pets)          */}
-        {/* ============================================ */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <PawPrint className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-bold text-slate-900">My Pets</h2>
+        {/* A missing animal outranks the whole page */}
+        {missingPets.map((p) => (
+          <Link
+            key={p.id}
+            href={`/mission-control?mission=${p.missing.caseId}`}
+            /* On a phone the headline needs the full width, so the action
+               drops to its own full-width row instead of squeezing the
+               sentence into three lines beside it. */
+            className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border-2 border-red-200 bg-red-50/60 px-5 py-4 hover:bg-red-50 transition group"
+          >
+            <div className="flex items-center gap-4 min-w-0 basis-full sm:basis-auto sm:flex-1">
+              {p.primaryPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.primaryPhotoUrl} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0 ring-2 ring-red-200" />
+              ) : (
+                <span className="w-14 h-14 rounded-xl bg-white flex items-center justify-center shrink-0 ring-2 ring-red-200">
+                  <PawPrint className="w-6 h-6 text-red-400" />
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="font-black text-midnight-900 text-[17px] leading-tight">
+                  {p.name} has been missing {elapsed(p.missing.hoursMissing)}
+                </p>
+                <p className="text-sm text-midnight-600 mt-0.5">
+                  {[
+                    `Mission ${p.missing.caseNumber}`,
+                    p.mission?.sightings > 0
+                      ? `${p.mission.sightings} sighting${p.mission.sightings === 1 ? '' : 's'}`
+                      : 'no sightings yet',
+                    p.mission?.totalVolunteers > 0
+                      ? `${p.mission.totalVolunteers} helping`
+                      : null,
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              </div>
             </div>
+            <span className="w-full sm:w-auto justify-center text-sm font-bold text-white bg-red-600 group-hover:bg-red-700 px-4 py-2.5 rounded-xl inline-flex items-center gap-1.5 shrink-0 transition">
+              Open search <ArrowRight className="w-4 h-4" />
+            </span>
+          </Link>
+        ))}
+
+        {isNewcomer ? (
+          <section className="rounded-xl border border-midnight-100 bg-white px-6 py-10 text-center">
+            <PawPrint className="w-8 h-8 text-midnight-300 mx-auto mb-2" />
+            <p className="font-bold text-midnight-900">Start with your animals</p>
+            <p className="text-sm text-midnight-500 mt-1 max-w-md mx-auto">
+              Adding a pet builds their health record and gives us the photo and
+              details that make a match possible if they ever go missing.
+            </p>
             <Link
-              href="/report/new"
-              className="flex items-center gap-1 text-sm text-amber-600 font-medium hover:text-amber-700"
+              href="/care/start"
+              className="mt-4 inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-4 py-2.5 rounded-xl transition"
             >
-              <Plus className="w-4 h-4" />
-              Report Lost Pet
+              <Plus className="w-4 h-4" /> Add your first pet
             </Link>
-          </div>
-          <p className="text-xs text-slate-500 mb-3 ml-7">Lost pets you reported</p>
-
-          {myMissions.length > 0 ? (
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-              {myMissions.map((mission, i) => (
-                <Link
-                  key={mission.id}
-                  href={`/mission-control?mission=${mission.id}`}
-                  className={`flex items-center justify-between p-4 hover:bg-slate-50 transition-colors ${
-                    i > 0 ? 'border-t border-slate-100' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {mission.petPhotoUrl ? (
-                      <img src={mission.petPhotoUrl} alt={mission.petName} className="w-12 h-12 rounded-xl object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-                        <PawPrint className="w-6 h-6 text-amber-600" />
+            <p className="text-[13px] text-midnight-400 mt-4">
+              Found someone else&rsquo;s pet?{' '}
+              <Link href="/report/found" className="font-semibold text-midnight-600 hover:text-midnight-900 underline underline-offset-2">
+                Report it here
+              </Link>
+              .
+            </p>
+          </section>
+        ) : (
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-8 space-y-8 lg:space-y-0">
+            <div className="space-y-8">
+              {attention.length > 0 && (
+                <section>
+                  <Label>Needs you</Label>
+                  <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
+                    {attention.slice(0, 4).map((item, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3">
+                        <i className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.tone === 'red' ? 'bg-red-500' : 'bg-amber-500'}`} />
+                        <p className="flex-1 min-w-0 text-sm text-midnight-700">{item.text}</p>
+                        <Link href={item.href} className="inline-flex items-center text-[13px] font-bold text-midnight-900 hover:text-flash-600 transition shrink-0">
+                          {item.action}
+                        </Link>
                       </div>
-                    )}
-                    <div>
-                      <div className="font-semibold text-slate-900">{mission.petName}</div>
-                      <div className="text-sm text-slate-500">
-                        {mission.status === 'ACTIVE' ? (
-                          <span className="text-amber-600 font-medium">
-                            Missing {mission.hoursMissing < 24 ? `${mission.hoursMissing}h` : `${Math.floor(mission.hoursMissing / 24)}d`}
-                          </span>
-                        ) : mission.status === 'RESOLVED' ? (
-                          <span className="text-green-600 font-medium">Reunited!</span>
-                        ) : (
-                          <span className="text-slate-500">Safe at home</span>
-                        )}
-                        {mission.totalVolunteers > 0 && (
-                          <span className="text-slate-400"> • {mission.totalVolunteers} helping</span>
-                        )}
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-300" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-slate-100 rounded-xl p-6 text-center">
-              <PawPrint className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500 text-sm">No active missions</p>
-              <p className="text-slate-400 text-xs mt-1">Your lost pet reports will appear here</p>
-            </div>
-          )}
-        </div>
+                </section>
+              )}
 
-        {/* ============================================ */}
-        {/* SECTION 2: MY SQUADS                        */}
-        {/* ============================================ */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-500" />
-              <h2 className="text-lg font-bold text-slate-900">My Rescue Forces</h2>
-            </div>
-            <Link
-              href="/rescue-forces/search"
-              className="flex items-center gap-1 text-sm text-blue-600 font-medium hover:text-blue-700"
-            >
-              <Plus className="w-4 h-4" />
-              Find Rescue Forces
-            </Link>
-          </div>
-
-          {hasSquads ? (
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-              {squads.slice(0, 3).map((squad, i) => (
-                <Link
-                  key={squad.id}
-                  href={`/rescue-forces/${squad.id}`}
-                  className={`flex items-center justify-between p-4 hover:bg-slate-50 transition-colors ${
-                    i > 0 ? 'border-t border-slate-100' : ''
-                  }`}
+              <section>
+                <Label
+                  action={
+                    <Link href="/pets" className="inline-flex items-center text-sm font-semibold text-midnight-600 hover:text-midnight-900 transition">
+                      All pets
+                    </Link>
+                  }
                 >
-                  <div className="flex items-center gap-3">
-                    {squad.logoUrl || squad.photoUrl ? (
-                      <img
-                        src={squad.logoUrl || squad.photoUrl}
-                        alt={squad.name}
-                        className="w-12 h-12 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                        <Users className="w-6 h-6 text-blue-600" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-semibold text-slate-900">{squad.name}</div>
-                      <div className="text-sm text-slate-500">
-                        {squad.memberCount} members
-                        {squad.activeMissions > 0 && (
-                          <span className="text-amber-600 font-medium"> • {squad.activeMissions} active</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-300" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-5">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Users className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-slate-900 mb-1">Join a Rescue Force</h3>
-                  <p className="text-sm text-slate-600 mb-3">
-                    Connect with volunteers in your area to help find lost pets together.
+                  Your animals
+                </Label>
+                {pets.length === 0 && (
+                  <p className="text-sm text-midnight-500 mb-3">
+                    You haven&rsquo;t added an animal yet. Their record is what makes
+                    a match possible if they ever go missing.
                   </p>
-                  <Link href="/rescue-forces/search">
-                    <button className="px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-lg hover:bg-blue-600 transition-colors">
-                      Find Rescue Forces Near Me
-                    </button>
+                )}
+                <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
+                  {pets.map((p) => (
+                    <Link key={p.id} href={`/pets/${p.id}/today`} className="flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition">
+                      {p.primaryPhotoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.primaryPhotoUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      ) : (
+                        <span className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                          <PawPrint className="w-[18px] h-[18px] text-midnight-300" />
+                        </span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-midnight-900 text-[15px] leading-tight truncate">{p.name}</p>
+                        <p className="text-[13px] text-midnight-400 truncate">
+                          {p.breed || SPECIES_LABEL[p.species] || 'Pet'}
+                        </p>
+                      </div>
+                      <span className="text-[13px] font-medium shrink-0 inline-flex items-center gap-1.5">
+                        {p.missing ? (
+                          <>
+                            <i className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                            <span className="text-red-600">Missing {elapsed(p.missing.hoursMissing)}</span>
+                          </>
+                        ) : (
+                          <>
+                            <i className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-midnight-600">Home</span>
+                          </>
+                        )}
+                      </span>
+                    </Link>
+                  ))}
+                  <Link href="/care/start" className="flex items-center gap-3.5 px-4 py-3 text-midnight-500 hover:bg-slate-50 hover:text-midnight-900 transition">
+                    <span className="w-10 h-10 rounded-lg border border-dashed border-midnight-200 flex items-center justify-center shrink-0">
+                      <Plus className="w-4 h-4" />
+                    </span>
+                    <span className="text-sm font-semibold">Add a pet</span>
                   </Link>
                 </div>
-              </div>
-            </div>
-          )}
-        </div>
+              </section>
 
-        {/* ============================================ */}
-        {/* SECTION 3: HELP NEARBY                      */}
-        {/* ============================================ */}
-        {urgentNearby.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-1">
-              <div className="flex items-center gap-2">
-                <Siren className="w-5 h-5 text-red-500" />
-                <h2 className="text-lg font-bold text-slate-900">Urgent Nearby</h2>
-              </div>
-              <Link
-                href="/database?filter=nearby"
-                className="text-sm text-red-600 font-medium hover:text-red-700"
-              >
-                View All →
-              </Link>
-            </div>
-            <p className="text-xs text-slate-500 mb-3 ml-7">Pets near you that need help now</p>
-            <div className="bg-white border-2 border-red-200 rounded-xl overflow-hidden">
-              {urgentNearby.slice(0, 3).map((alert, i) => (
-                <Link
-                  key={alert.id}
-                  href={`/mission-control?mission=${alert.id}`}
-                  className={`flex items-center justify-between p-4 hover:bg-red-50 transition-colors ${
-                    i > 0 ? 'border-t border-red-100' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {alert.petPhotoUrl ? (
-                      <img src={alert.petPhotoUrl} alt="" className="w-12 h-12 rounded-xl object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-                        <PawPrint className="w-6 h-6 text-red-600" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-semibold text-slate-900">{alert.petName}</div>
-                      <div className="text-sm text-red-600 font-medium">
-                        {alert.distance} • {alert.hoursMissing < 24 ? `${alert.hoursMissing}h` : `${Math.floor(alert.hoursMissing / 24)}d`} missing
-                      </div>
-                    </div>
+              {helping.length > 0 && (
+                <section>
+                  <Label>Searches you joined</Label>
+                  <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
+                    {helping.slice(0, 4).map((m) => (
+                      <Link key={m.id} href={`/mission-control?mission=${m.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
+                        <p className="flex-1 min-w-0 text-sm text-midnight-700 truncate">
+                          <span className="font-bold text-midnight-900">{m.petName}</span>
+                          {m.mySquad ? ` · with ${m.mySquad}` : ''}
+                        </p>
+                        <span className="text-[13px] text-midnight-400 tabular-nums shrink-0">
+                          missing {elapsed(m.hoursMissing)}
+                        </span>
+                      </Link>
+                    ))}
                   </div>
-                  <span className="px-3 py-1.5 bg-red-500 text-white text-sm font-bold rounded-lg">
-                    Help
-                  </span>
-                </Link>
-              ))}
+                </section>
+              )}
             </div>
-          </div>
-        )}
 
-        {/* ============================================ */}
-        {/* SECTION 4: QUICK ACTIONS                    */}
-        {/* ============================================ */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <Link href="/report/found" className="group">
-            <div className="bg-white border border-slate-200 hover:border-emerald-300 rounded-xl p-4 transition-all group-hover:shadow-md text-center">
-              <Eye className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-              <div className="font-semibold text-slate-900 text-sm">Found a Pet?</div>
-            </div>
-          </Link>
-          <Link href="/database" className="group">
-            <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 transition-all group-hover:shadow-md text-center">
-              <Search className="w-6 h-6 text-slate-600 mx-auto mb-2" />
-              <div className="font-semibold text-slate-900 text-sm">Search Database</div>
-            </div>
-          </Link>
-        </div>
-
-        {/* Missions I'm Helping */}
-        {helpingMissions.length > 0 && (
-          <div className="border-t border-slate-200 pt-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Heart className="w-5 h-5 text-pink-500" />
-              <h2 className="text-lg font-bold text-slate-900">Helping Find</h2>
-            </div>
-            <p className="text-xs text-slate-500 mb-3 ml-7">Other people&apos;s pets you&apos;re searching for</p>
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-              {helpingMissions.slice(0, 3).map((mission, i) => (
-                <Link
-                  key={mission.id}
-                  href={`/mission-control?mission=${mission.id}`}
-                  className={`flex items-center justify-between p-3 hover:bg-slate-50 transition-colors ${
-                    i > 0 ? 'border-t border-slate-100' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    {mission.petPhotoUrl ? (
-                      <img src={mission.petPhotoUrl} alt={mission.petName} className="w-10 h-10 rounded-lg object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
-                        <PawPrint className="w-5 h-5 text-pink-600" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-medium text-slate-900">{mission.petName}</div>
-                      <div className="text-xs text-slate-500">
-                        {mission.hoursMissing < 24 ? `${mission.hoursMissing}h` : `${Math.floor(mission.hoursMissing / 24)}d`} missing
-                      </div>
-                    </div>
+            <aside className="space-y-6">
+              {urgentNearby.length > 0 && (
+                <section>
+                  <Label>Near you</Label>
+                  <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
+                    {urgentNearby.slice(0, 3).map((a) => (
+                      <Link key={a.id} href={`/mission-control?mission=${a.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-midnight-900 truncate">{a.petName}</p>
+                          <p className="text-[13px] text-midnight-400">{a.distance} · missing {elapsed(a.hoursMissing)}</p>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-midnight-300 shrink-0" />
+                      </Link>
+                    ))}
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300" />
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
+                  <p className="text-[12px] text-midnight-400 mt-2">
+                    The first hours matter most. Even a look down your own street helps.
+                  </p>
+                </section>
+              )}
 
-        {/* Empty State - New User */}
-        {!hasSquads && urgentNearby.length === 0 && myMissions.length === 0 && helpingMissions.length === 0 && (
-          <div className="bg-slate-100 rounded-xl p-8 text-center">
-            <Heart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <h3 className="font-bold text-slate-900 mb-2">Welcome!</h3>
-            <p className="text-slate-500 text-sm max-w-md mx-auto">
-              Join a rescue force to connect with volunteers in your area and help find lost pets together.
-            </p>
+              <section>
+                <Label>Rescue forces</Label>
+                <div className="rounded-xl border border-midnight-100 bg-white p-4">
+                  {squads.length > 0 ? (
+                    <>
+                      {squads.slice(0, 3).map((s) => (
+                        <Link key={s.id} href={`/rescue-forces/${s.id}`} className="block group">
+                          <p className="text-sm font-bold text-midnight-900 group-hover:text-flash-600 transition truncate">{s.name}</p>
+                          <p className="text-[13px] text-midnight-400 mb-2">
+                            {s.memberCount} members{s.activeMissions > 0 ? ` · ${s.activeMissions} searching` : ''}
+                          </p>
+                        </Link>
+                      ))}
+                      <Link href="/rescue-forces/search" className="inline-flex items-center gap-1 text-[13px] font-semibold text-midnight-500 hover:text-midnight-900 transition">
+                        Find more <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-midnight-600">
+                        Volunteers near you who turn out when a pet goes missing, including yours.
+                      </p>
+                      <Link href="/rescue-forces/search" className="inline-flex items-center gap-1 text-sm font-bold text-midnight-900 hover:text-flash-600 transition mt-2">
+                        Find one near you <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <Label>Help someone</Label>
+                <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
+                  <Link href="/report/found" className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
+                    <Eye className="w-4 h-4 text-midnight-400 shrink-0" />
+                    <span className="text-sm font-semibold text-midnight-900">I found a pet</span>
+                  </Link>
+                  <Link href="/database" className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
+                    <Search className="w-4 h-4 text-midnight-400 shrink-0" />
+                    <span className="text-sm font-semibold text-midnight-900">Search lost and found</span>
+                  </Link>
+                </div>
+              </section>
+            </aside>
           </div>
         )}
       </div>
