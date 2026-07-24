@@ -18,7 +18,12 @@ export async function GET(request) {
         patrolProfile: true,
         cases: {
           where: {
-            status: 'ACTIVE',
+            // Every status that still means "my pet is not home". Filtering
+            // on ACTIVE alone dropped a case the moment it gained traction
+            // (IN_PROGRESS, SIGHTING_REPORTED), so an owner mid-search was
+            // told "no active missions" and found their own dog listed under
+            // other people's pets. Same vocabulary as app/pets/page.js.
+            status: { notIn: ['REUNITED', 'CLOSED_OTHER'] },
             reportType: 'LOST' // Only fetch LOST reports for Owner View
           },
           select: {
@@ -253,6 +258,63 @@ export async function GET(request) {
         mySquad: participation.assignment.rescueSquad?.name,
       });
     }
+
+    /**
+     * The person's actual animals. The dashboard used to show only lost
+     * REPORTS, so someone whose pets were all safely at home opened it to an
+     * empty page. Shelter roster animals are excluded here for the same
+     * reason they are excluded from /api/pets: they belong to the shelter
+     * portal, not to this person's own pets.
+     *
+     * `vaccinations` carries only what expires soon, so the page can say
+     * something true about each animal without a second round trip.
+     */
+    const soon = new Date(Date.now() + 30 * 86400e3);
+    const ownedPets = await prisma.pet.findMany({
+      where: { ownerId: user.id, isDeleted: false, managedByShelterId: null },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true, name: true, species: true, breed: true, primaryPhotoUrl: true,
+        cases: {
+          where: { status: { notIn: ['REUNITED', 'CLOSED_OTHER'] }, reportType: 'LOST' },
+          select: { id: true, caseNumber: true, status: true, lastSeenAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        vaccinations: {
+          where: { deletedAt: null, expiresAt: { not: null, lte: soon } },
+          select: { name: true, expiresAt: true },
+          orderBy: { expiresAt: 'asc' },
+          take: 1,
+        },
+      },
+    });
+
+    const pets = ownedPets.map((pet) => {
+      const activeCase = pet.cases[0] || null;
+      const vax = pet.vaccinations[0] || null;
+      return {
+        id: pet.id,
+        name: pet.name,
+        species: pet.species,
+        breed: pet.breed,
+        primaryPhotoUrl: pet.primaryPhotoUrl,
+        hasPhoto: Boolean(pet.primaryPhotoUrl),
+        missing: activeCase
+          ? {
+              caseId: activeCase.id,
+              caseNumber: activeCase.caseNumber,
+              status: activeCase.status,
+              hoursMissing: activeCase.lastSeenAt
+                ? Math.floor((Date.now() - new Date(activeCase.lastSeenAt).getTime()) / 3600000)
+                : 0,
+            }
+          : null,
+        vaccinationDue: vax
+          ? { name: vax.name, expiresAt: vax.expiresAt, expired: new Date(vax.expiresAt) < new Date() }
+          : null,
+      };
+    });
 
     // Legacy format for backwards compatibility
     const reports = user.cases.map(caseItem => {
@@ -509,6 +571,7 @@ export async function GET(request) {
         hasReports: reports.length > 0,
       },
       hasPatrolProfile: !!user.patrolProfile,
+      pets, // The animals this person actually owns (not shelter roster)
       reports, // LOST pets I reported - Will be [] if no reports
       nearbyAlerts, // Nearby LOST pets from others - Will be [] if none
       foundByMe, // FOUND pets I reported - Will be [] if none
