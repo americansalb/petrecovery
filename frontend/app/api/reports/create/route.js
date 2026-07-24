@@ -150,12 +150,18 @@ export async function POST(request) {
       // Use existing pet if selectedPetId provided, otherwise create new
       let pet;
       if (selectedPetId) {
-        // Verify the pet belongs to this user
+        // Verify the pet belongs to this user PERSONALLY. Roster animals are
+        // excluded on purpose: the picker no longer offers them, and the
+        // update below would overwrite shelter intake data (name, microchip,
+        // primary photo) with whatever the report form carried. A shelter
+        // animal that goes missing is a shelter workflow, not a personal
+        // lost-pet report.
         pet = await tx.pet.findFirst({
           where: {
             id: selectedPetId,
             ownerId: user.id,
             isDeleted: false,
+            managedByShelterId: null,
           }
         });
 
