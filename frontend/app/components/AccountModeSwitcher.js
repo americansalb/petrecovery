@@ -54,8 +54,28 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   const modes = useAccountModes();
   const [open, setOpen] = useState(false);
 
-  // Nothing to switch between: one hat, no menu.
-  if (!modes || modes.length < 2) return null;
+  if (!modes) return null; // still loading
+
+  /**
+   * One hat means there is nothing to switch between, but the door to the
+   * other worlds must stay visible: this entry is how someone who runs a
+   * shelter finds out they can have an account. /shelter/dashboard sorts
+   * out what they see (application pitch, pending status, or seat invite).
+   * Inside the portal there is nothing to advertise, so it stays quiet.
+   */
+  if (modes.length < 2) {
+    if (variant === 'sidebar') return null;
+    return (
+      <Link
+        href="/shelter/dashboard"
+        onClick={() => { if (onNavigate) onNavigate(); }}
+        className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition"
+      >
+        <Building2 className="w-4 h-4 shrink-0" />
+        <span className="font-medium">Shelter Portal</span>
+      </Link>
+    );
+  }
 
   const active = modes.find((m) => m.id === current) || modes[0];
 
