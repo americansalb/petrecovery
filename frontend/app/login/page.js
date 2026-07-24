@@ -32,6 +32,15 @@ export default function LoginPage() {
     const callback = searchParams.get('callbackUrl');
     if (callback) {
       setCallbackUrl(callback);
+    } else {
+      // No explicit destination: land in the world this person last chose
+      // with the account switcher. Purely a convenience; the destination
+      // re-checks authority itself and redirects out if the hat is gone.
+      const mode = document.cookie
+        .split('; ')
+        .find((c) => c.startsWith('rp_mode='))
+        ?.split('=')[1];
+      if (mode === 'shelter') setCallbackUrl('/my-shelter');
     }
     // Invite emails link here with the address prefilled
     const emailParam = searchParams.get('email');

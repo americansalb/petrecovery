@@ -14,6 +14,7 @@ import {
   LayoutDashboard, PawPrint, Radar, Inbox, Users, Globe2, ArrowLeft,
   Building2, ShieldCheck,
 } from 'lucide-react';
+import AccountModeSwitcher from '@/app/components/AccountModeSwitcher';
 
 const NAV = [
   { href: '/my-shelter', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -81,12 +82,14 @@ export default function PortalShell({ shelter, role, pendingMatches, newInquirie
           ))}
         </nav>
 
-        <div className="px-5 py-4 border-t border-white/10">
+        <div className="px-5 py-4 border-t border-white/10 space-y-2">
           {userName && (
-            <p className="text-xs text-midnight-300 mb-2 truncate">
+            <p className="text-xs text-midnight-300 truncate">
               {userName} · {ROLE_LABELS[role] || role}
             </p>
           )}
+          {/* Only appears for people who wear more than this one hat */}
+          <AccountModeSwitcher current="shelter" variant="sidebar" />
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-sm font-semibold text-midnight-200 hover:text-white transition-colors"
