@@ -45,10 +45,17 @@ export async function GET(request) {
       }
     };
 
-    // Own pets + pets shared with me + invites awaiting my response, in one trip
+    // Own pets + pets shared with me + invites awaiting my response, in one trip.
+    //
+    // `managedByShelterId: null` is what keeps the hats apart. A shelter's
+    // roster animals carry the claimer's user id in ownerId (they created the
+    // record), but they are the SHELTER's animals and live in the shelter
+    // portal, not in this person's pet list. Adoption clears the field (see
+    // api/pets/transfer/[token]), so an adopted animal correctly reappears
+    // here as the adopter's own pet.
     const [pets, myShares] = await Promise.all([
       prisma.pet.findMany({
-        where: { ownerId: user.id, isDeleted: false },
+        where: { ownerId: user.id, isDeleted: false, managedByShelterId: null },
         orderBy: { createdAt: 'desc' },
         include: caseInclude,
       }),
