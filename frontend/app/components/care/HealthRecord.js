@@ -74,33 +74,49 @@ function weightTrend(weights) {
   return { latest: latest.weightLbs, delta };
 }
 
-/* Three figures as D stat tiles. */
-export function VitalsTrio({ vaccinations, weights, meds }) {
-  const p = protectionSummary(vaccinations);
+/**
+ * The record in one line.
+ *
+ * This used to be three stat tiles. On a new animal they read "0 / none /
+ * 0" — a wall of zeros telling you nothing — and on a full record they
+ * simply repeated the three sections printed directly beneath them. A
+ * summary that duplicates its own detail is decoration.
+ *
+ * Now it states what is true, in words, and says nothing at all when
+ * there is nothing to say. The sections below carry the detail.
+ */
+export function VitalsTrio({ vaccinations, weights, meds, showVaccinations = true }) {
+  const p = showVaccinations ? protectionSummary(vaccinations) : { total: 0 };
   const wt = weightTrend(weights);
   const activeMeds = (meds || []).filter((m) => m.isActive);
-  const protSub = p.expired ? `${p.expired} expired` : p.dueSoon ? `${p.dueSoon} due soon` : p.withExpiry ? 'all current' : 'on file';
-  const protTone = p.expired ? 'text-red-600' : p.dueSoon ? 'text-care-amber' : 'text-care-teal';
-  const cell = 'flex-1 min-w-[110px] bg-care-surface rounded-[18px] shadow-care p-4';
-  const big = 'text-[27px] font-semibold tracking-tight text-care-ink tabular-nums leading-none mt-2.5';
+
+  if (!p.total && !wt && !activeMeds.length) return null;
+
+  const vaxTone = p.expired ? 'text-red-600' : p.dueSoon ? 'text-care-amber' : 'text-care-teal';
+  const vaxText = !p.total
+    ? null
+    : p.expired
+      ? `${p.expired} vaccination${p.expired === 1 ? '' : 's'} expired`
+      : p.dueSoon
+        ? `${p.dueSoon} vaccination${p.dueSoon === 1 ? '' : 's'} due soon`
+        : p.withExpiry
+          ? `vaccinations current${p.protectedCount !== p.withExpiry ? ` (${p.protectedCount}/${p.withExpiry})` : ''}`
+          : `${p.total} vaccination${p.total === 1 ? '' : 's'} on file`;
+
+  const parts = [];
+  if (wt) {
+    parts.push(`${wt.latest} lb${wt.delta === 0 ? ', steady' : `, ${wt.delta > 0 ? 'up' : 'down'} ${Math.abs(wt.delta)} lb`}`);
+  }
+  if (activeMeds.length) {
+    parts.push(`${activeMeds.length} medication${activeMeds.length === 1 ? '' : 's'}`);
+  }
+
   return (
-    <div className="flex flex-wrap gap-4">
-      <div className={cell}>
-        <Overline>Protected</Overline>
-        <p className={big}>{p.withExpiry ? `${p.protectedCount}/${p.withExpiry}` : (p.total || '0')}</p>
-        <p className={cn('text-[12px] mt-2 font-medium', protTone)}>{protSub}</p>
-      </div>
-      <div className={cell}>
-        <Overline>Weight</Overline>
-        <p className={big}>{wt ? <>{wt.latest}<span className="text-[13px] text-care-sub font-medium ml-1">lb</span></> : <span className="text-[15px] text-care-faint">none</span>}</p>
-        <p className="text-[12px] text-care-sub mt-2">{!wt ? 'no entries' : wt.delta === 0 ? 'steady' : `${wt.delta > 0 ? '+' : ''}${wt.delta} lb overall`}</p>
-      </div>
-      <div className={cell}>
-        <Overline>Medications</Overline>
-        <p className={big}>{activeMeds.length}</p>
-        <p className="text-[12px] text-care-sub mt-2">{activeMeds.length ? 'active' : 'none active'}</p>
-      </div>
-    </div>
+    <p className="text-[14px] text-care-sub">
+      {vaxText && <span className={cn('font-medium', vaxTone)}>{vaxText}</span>}
+      {vaxText && parts.length > 0 && ' · '}
+      {parts.join(' · ')}
+    </p>
   );
 }
 
@@ -172,7 +188,18 @@ export function VaccinePassport({ vaccinations, canManage, managing, onToggleMan
         )}
       />
       {vaccinations.length === 0 ? (
-        <Card className="px-5 py-6 text-center"><p className="text-[14px] text-care-sub">No vaccines on file.</p></Card>
+        /* One quiet line, not a tall empty box. An empty record should
+           invite the first entry, not stage a void around a sentence. */
+        <Card className="px-5 py-3.5">
+          <p className="text-[14px] text-care-sub">
+            Nothing recorded yet.{' '}
+            {canManage && (
+              <button onClick={onAdd} className="font-semibold text-care-teal hover:underline">
+                Add the first vaccination
+              </button>
+            )}
+          </p>
+        </Card>
       ) : (
         <Card className="overflow-hidden">
           {vaccinations.map((vax, i) => {
@@ -224,13 +251,15 @@ export function WeightCard({ weights, canManage, weightInput, onWeightInput, wei
   return (
     <section>
       <SectionHeader title="Weight" action={latest && <span className="text-[12.5px] text-care-sub">last {new Date(latest.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>} />
-      <Card className="p-5">
-        {latest ? (
+      {/* Tighter when empty: the log row IS the empty state, so a new
+          record shows one place to type instead of a headline over a void. */}
+      <Card className={latest ? 'p-5' : 'px-5 py-4'}>
+        {latest && (
           <p className="text-[28px] font-semibold tracking-tight text-care-ink tabular-nums">{latest.weightLbs}<span className="text-[15px] text-care-sub ml-1">lb</span></p>
-        ) : <p className="text-[14px] text-care-sub">No weight logged yet.</p>}
+        )}
         {weights.length >= 2 && <WeightChart weights={weights} />}
         {canManage && (
-          <div className="mt-4">
+          <div className={latest ? 'mt-4' : ''}>
             {/* Date inputs carry a wide intrinsic minimum and globals.css
                 forces typed inputs to width:100%, so without wrap + min-w-0
                 the Log button is pushed off a narrow screen entirely. */}

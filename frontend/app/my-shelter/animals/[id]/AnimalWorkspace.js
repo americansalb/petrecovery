@@ -20,7 +20,7 @@ import { Loader2, Send, X } from 'lucide-react';
 import { DayChecklist } from '@/app/components/care/DoseChecklist';
 import GoodStuff from '@/app/components/care/GoodStuff';
 import {
-  VaccinePassport, AddVaccineModal, WeightCard, VitalsTrio,
+  VaccinePassport, AddVaccineModal, WeightCard,
 } from '@/app/components/care/HealthRecord';
 import { StatusControl } from '@/app/shelter/AnimalControls';
 import { startOfDay, sameDay } from '@/lib/medications';
@@ -203,31 +203,32 @@ export default function AnimalWorkspace({
         </div>
       </section>
 
-      <section>
-        <Label>Today</Label>
-        <DayChecklist
-          meds={meds}
-          day={today}
-          busyKeys={busyKeys}
-          readOnly={false}
-          onMark={markDose}
-          onUndo={undoDose}
-          onLogPrnNow={(med) => logPrn(med, new Date())}
-          onUndoPrnLast={undoPrnLast}
-          onLogPrnFor={(med, day) => logPrn(med, day)}
-        />
-        {meds.filter((m) => m.isActive).length === 0 && (
-          <p className="text-sm text-midnight-500">
-            No medications or care routines yet for {petName}. Add them below and they
-            travel with the record when {petName} goes home.
-          </p>
-        )}
-      </section>
+      {/* Today appears only when there is something to do today. A heading
+          over an apology is worse than no heading: the section below
+          already invites the first routine. */}
+      {meds.some((m) => m.isActive) && (
+        <section>
+          <Label>Today</Label>
+          <DayChecklist
+            meds={meds}
+            day={today}
+            busyKeys={busyKeys}
+            readOnly={false}
+            onMark={markDose}
+            onUndo={undoDose}
+            onLogPrnNow={(med) => logPrn(med, new Date())}
+            onUndoPrnLast={undoPrnLast}
+            onLogPrnFor={(med, day) => logPrn(med, day)}
+          />
+        </section>
+      )}
 
+      {/* No outer heading and no summary line: Vaccines and Weight label
+          themselves and their detail is right here, so a summary would
+          only restate what is already on screen. The summary belongs on
+          the consumer Health tab, where those live behind subtabs. */}
       <section>
-        <Label>Health record</Label>
         <div className="space-y-4">
-          <VitalsTrio vaccinations={vaccinations} weights={weights} meds={meds} />
           <VaccinePassport
             vaccinations={vaccinations}
             canManage

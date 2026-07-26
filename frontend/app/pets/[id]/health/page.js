@@ -136,7 +136,10 @@ function HealthInner() {
             <AlertRibbon text={pet?.medicalConditions} href={isOwner ? `/pets/${petId}/profile?tab=id` : undefined} />
             <HealthStatusBand name={name} status={bookStatus} />
           </div>
-          <VitalsTrio vaccinations={vaccinations} weights={weights} meds={meds} />
+          {/* The status band above already states the vaccination position
+              by name and date, so the summary carries only what it does
+              not: weight and medications. */}
+          <VitalsTrio vaccinations={vaccinations} weights={weights} meds={meds} showVaccinations={false} />
           {(vaccinations.length > 0 || weights.length > 0) && (
             <div><SectionHeader title="Recent" /><MonthHistory vaccinations={vaccinations} weights={weights} meds={meds} /></div>
           )}
