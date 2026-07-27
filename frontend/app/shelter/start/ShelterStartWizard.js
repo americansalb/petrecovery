@@ -282,7 +282,7 @@ export default function ShelterStartWizard() {
             <strong>Then:</strong> a human reviews every shelter, usually within a day or
             two. You&rsquo;ll get an email the moment you&rsquo;re approved, and your
             dashboard unlocks: animals, health records, lost-pet matching, staff seats,
-            and your own public page. Free forever.
+            and your own public page. No cost, no card.
           </p>
         </div>
         <div className="text-center mt-8">
@@ -314,7 +314,7 @@ export default function ShelterStartWizard() {
             className={inputClass}
           />
           <p className="text-sm text-midnight-500 mt-3">
-            Free forever: animal management, health records, lost-pet matching, and your own page.
+            Free, no card: animal management, health records, lost-pet matching, and your own page.
           </p>
         </div>
       )}

@@ -351,7 +351,7 @@ export default async function PortalOverview() {
           </section>
 
           <p className="text-[12px] leading-relaxed text-midnight-400">
-            Free forever. Every stray you log is checked against local lost-pet reports
+            Every stray you log is checked against local lost-pet reports
             automatically.
           </p>
         </aside>
