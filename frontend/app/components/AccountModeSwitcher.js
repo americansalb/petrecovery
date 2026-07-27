@@ -23,7 +23,6 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { PawPrint, Building2, Shield, Check, ChevronDown } from 'lucide-react';
-import { useHat } from '@/app/contexts/HatContext';
 
 const ICONS = { owner: PawPrint, shelter: Building2, searcher: Shield };
 
@@ -102,9 +101,6 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   const router = useRouter();
   const modes = useAccountModes();
   const [open, setOpen] = useState(false);
-  // Owner/searcher also re-aim the global chrome (HatContext); shelter is
-  // a place (the portal owns its chrome), so it only navigates.
-  const { setHat } = useHat();
 
   if (!modes) return null; // still loading
 
@@ -134,7 +130,6 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   if (variant === 'sidebar') {
     const go = (mode) => {
       rememberMode(mode.id);
-      if (mode.id === 'owner' || mode.id === 'searcher') setHat(mode.id);
       setOpen(false);
       if (onNavigate) onNavigate();
       router.push(mode.href);
@@ -197,7 +192,6 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
             href={m.href}
             onClick={() => {
               rememberMode(m.id);
-              if (m.id === 'owner' || m.id === 'searcher') setHat(m.id);
               if (onNavigate) onNavigate();
             }}
             className="flex items-center gap-3 px-4 py-2.5 text-midnight-700 hover:bg-midnight-50 transition"

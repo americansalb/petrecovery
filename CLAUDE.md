@@ -26,12 +26,21 @@ new dynamic route that lacks metadata and isn't explicitly listed as private.
 
 ### The universal navbar never changes between pages
 
-The global chrome (top bar + mobile tab bar) is identical on every route —
-same height, same links, same CTA — and hides only inside intentional
-immersive takeovers. That list lives in ONE place:
-`frontend/app/lib/navChrome.js`. Pages never hide chrome ad hoc and never
-ship their own `sticky top-0` bar (page sub-headers anchor below it with
-`sticky top-16`). Full policy: `docs/APP_MAP.md` §8.2.
+The global chrome (top bar + mobile tab bar) is identical for EVERY
+PERSON on EVERY ROUTE: same height, same CTA, same links, rendered from
+the frozen `CENTER_LINKS` array. It never varies by route, by sign-in
+state, by shelter membership, or by anything else; the only
+session-dependent slot is Sign in/Join vs the account menu, and
+anything person-specific belongs in that menu. A bar that rearranges
+itself as the user moves around reads as broken (founder rule,
+2026-07-27: the Owner/Searcher "hat" chrome was deleted for exactly
+this reason - do not reintroduce it in any form).
+
+Two permitted variations: pages may add SUBTABS below the bar
+(`sticky top-16`, never their own `sticky top-0` bar), and the whole
+bar may be removed inside an immersive takeover - but every immersive
+route must ship a visible way back out. That list lives in ONE place:
+`frontend/app/lib/navChrome.js`. Full policy: `docs/APP_MAP.md` §8.2.
 Enforced by `frontend/__tests__/global-chrome.test.js`.
 
 Related trap: `overflow-x` on `html`/`body` must stay `clip` — `hidden`

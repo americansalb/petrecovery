@@ -1,14 +1,19 @@
 /**
  * Universal navbar consistency - the rule lives in docs/APP_MAP.md §8.2.
  *
- * The global chrome (top bar + mobile tab bar) must be IDENTICAL on every
- * route - same height, same CTA, same links *per hat*: the center link
- * set may vary by the session's hat (owner/searcher, app/contexts/
- * HatContext.js - see docs/PRODUCT_IA_PLAN.md "Three doors"), never by
- * the route. Chrome steps aside only inside intentional immersive
- * experiences, and that list lives in ONE place: app/lib/navChrome.js.
- * No page gets to ship its own competing top bar, and the nav components
- * themselves must not grow ad-hoc per-route conditionals.
+ * The global chrome (top bar + mobile tab bar) must be IDENTICAL for
+ * every person on every route - same height, same CTA, same links. It
+ * does not vary by route, by sign-in state, by whether you help run a
+ * shelter, or by anything else; the only session-dependent slot is Sign
+ * in/Join vs the account menu. Anything person-specific goes in the
+ * account menu.
+ *
+ * Two permitted exceptions, both deliberate:
+ *   1. SUBTABS: a page may add secondary navigation BELOW the bar
+ *      (`sticky top-16`), never its own top bar.
+ *   2. Whole-bar removal inside the immersive routes listed in ONE
+ *      place, app/lib/navChrome.js, each shipping its own visible way
+ *      back out.
  *
  * Like link-previews.test.js this is a static source check: fast, no DOM,
  * runs in CI. Adding a full-screen takeover? Register it in navChrome.js.
@@ -130,11 +135,31 @@ describe('nav components defer to the shared policy', () => {
   const navigation = read('components/Navigation.js');
   const bottomNav = read('components/GlobalBottomNav.js');
 
-  test('chrome varies by hat, never by route', () => {
-    // Both chrome components draw their variation from HatContext -
-    // session-state emphasis, not per-route special cases.
-    expect(navigation).toMatch(/useHat\(\)/);
-    expect(bottomNav).toMatch(/useHat\(\)/);
+  test('the link set is a constant, not a conditional', () => {
+    // The bar is UNIVERSAL: one link set for every person on every
+    // route. A bar that rearranges itself as you move around reads as
+    // broken, so anything person-specific belongs in the account menu.
+    // The old hat system (owner/searcher chrome) is deleted; do not
+    // reintroduce it or any equivalent.
+    expect(navigation).not.toMatch(/useHat/);
+    expect(bottomNav).not.toMatch(/useHat/);
+    expect(fs.existsSync(path.join(APP_DIR, 'contexts', 'HatContext.js'))).toBe(false);
+
+    // Center links come from one frozen array, rendered by map().
+    expect(navigation).toMatch(/const CENTER_LINKS = \[/);
+    expect(navigation).toMatch(/CENTER_LINKS\.map\(/);
+  });
+
+  test('no center link is gated on session or membership', () => {
+    // Grab the desktop link block and assert it holds no conditionals.
+    const block = navigation.match(
+      /hidden lg:flex items-center gap-1 flex-1 justify-center[\s\S]*?\n            <\/div>/
+    );
+    expect(block).not.toBeNull();
+    expect(block[0]).not.toMatch(/session &&/);
+    expect(block[0]).not.toMatch(/!session/);
+    expect(block[0]).not.toMatch(/shelterHome/);
+    expect(block[0]).not.toMatch(/\?\s*\(/); // no ternary-rendered links
   });
 
   test('Navigation.js hides only via isImmersiveRoute', () => {

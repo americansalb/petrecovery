@@ -2,55 +2,32 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Search, Shield, PawPrint, Plus, Building2, Sparkles, MapPin } from 'lucide-react';
+import { Home, Search, PawPrint, Plus, MapPin } from 'lucide-react';
 import { hidesBottomNav } from '@/app/lib/navChrome';
-import { useHat } from '@/app/contexts/HatContext';
-import { useAccountModes } from './AccountModeSwitcher';
 
 /**
- * Tab slots are hat-scoped (docs/PRODUCT_IA_PLAN.md, "Three doors"):
- * the owner hat spends its precious slots on daily life, the searcher
- * hat on the rescue network. Geometry and the Report action are
- * hat-invariant, and Home + Lost & Found ride in both.
+ * Four tabs and the Report button, identical for every person on every
+ * route. Nothing here is conditional: a tab bar that reshuffles as you
+ * move around reads as broken. Person-specific destinations live in the
+ * drawer's "your places" rows, not in these slots.
+ *
+ * /care sends signed-in people straight to /pets (app/care/CareGate.js),
+ * so one Pet Care tab serves guests and members alike.
  */
-const TABS = {
-  owner: {
-    left: [
-      { href: '/dashboard', icon: Home, label: 'Home', exact: true },
-      { href: '/pets', icon: PawPrint, label: 'My Pets' },
-    ],
-    right: [
-      { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
-      { href: '/shelters', icon: MapPin, label: 'Shelters', alsoActive: ['/for-shelters', '/shelter'] },
-    ],
-  },
-  searcher: {
-    left: [
-      { href: '/dashboard', icon: Home, label: 'Home', exact: true },
-      { href: '/rescue-forces/search', icon: Shield, label: 'Forces', alsoActive: ['/rescue-forces'] },
-    ],
-    right: [
-      { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
-      { href: '/hub', icon: Sparkles, label: 'Hub' },
-    ],
-  },
-};
+const LEFT_TABS = [
+  { href: '/dashboard', icon: Home, label: 'Home', exact: true },
+  { href: '/care', icon: PawPrint, label: 'Pet Care', alsoActive: ['/pets'] },
+];
 
-/**
- * Four slots is all a thumb gets, so ON THE TAB BAR ONLY the portal
- * takes the shelter slot for staff (their daily door beats the rare
- * browse). The directory is never lost to them: the drawer carries BOTH
- * rows, and the desktop bar shows both links side by side.
- */
-const MY_SHELTER_TAB = { href: '/my-shelter', icon: Building2, label: 'My Shelter', alsoActive: ['/shelter/'] };
+const RIGHT_TABS = [
+  { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
+  { href: '/shelters', icon: MapPin, label: 'Shelters', alsoActive: ['/for-shelters', '/shelter', '/my-shelter'] },
+];
 
 export default function GlobalBottomNav() {
   const pathname = usePathname();
-  const { hat } = useHat();
-  const modes = useAccountModes();
-  const hasShelterHat = !!modes?.some((m) => m.id === 'shelter');
-  const { left: leftItems, right } = TABS[hat] || TABS.owner;
-  const rightItems = hat === 'owner' && hasShelterHat ? [right[0], MY_SHELTER_TAB] : right;
+  const leftItems = LEFT_TABS;
+  const rightItems = RIGHT_TABS;
 
   // Shared chrome policy (app/lib/navChrome.js): hidden only inside
   // immersive takeovers and focused flows whose own fixed bars would
