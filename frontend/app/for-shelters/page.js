@@ -201,9 +201,11 @@ export default function ForSheltersPage() {
 
       {/* 4. The price and the reason it is that price, in one band.
           The number needs a companion or the band is a navy void; the
-          reason needs the number or it reads as a boast. The claim is
-          scoped to SHELTERS and to today: it must stay true on the day
-          a paid tier ships elsewhere (MONETIZATION.md). */}
+          reason needs the number or it reads as a boast.
+          STATE FACTS, NEVER CONSTRAINTS. Say what a shelter pays today;
+          do not volunteer what the business will never do (no ads, no
+          data selling, no paid tier, free forever). Those bind the
+          company from a marketing page and nobody asked for them. */}
       <section className="bg-midnight-900">
         <div className="mx-auto grid max-w-5xl gap-10 px-4 py-16 md:grid-cols-[auto_1fr] md:gap-16 md:py-20">
           <div className="md:border-r md:border-white/10 md:pr-16">
@@ -220,27 +222,11 @@ export default function ForSheltersPage() {
             <h2 className="mb-4 text-2xl font-black tracking-tight text-white md:text-3xl">
               Why is it free?
             </h2>
-            <p className="mb-5 leading-relaxed text-midnight-300">
+            <p className="leading-relaxed text-midnight-300">
               ReunitePets is a nonprofit that exists to get lost pets home, and lost
-              pets end up in shelters. Charging shelters would work against the
-              reason we built it.
-            </p>
-            <ul className="mb-5 space-y-2.5">
-              {[
-                'No ads on your shelter’s page.',
-                'We do not sell your data.',
-                'A person reviews every shelter, so the directory stays real.',
-              ].map((line) => (
-                <li key={line} className="flex items-start gap-3 text-midnight-200">
-                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-flash-400" />
-                  {line}
-                </li>
-              ))}
-            </ul>
-            {/* A commitment we can keep, in place of a promise about
-                eternity that we cannot. */}
-            <p className="text-sm text-midnight-400">
-              If any of that ever changes, you will hear it from us first.
+              pets end up in shelters. Every shelter working here means more strays
+              checked against lost-pet reports the day they arrive. Charging
+              shelters would work against the reason we built it.
             </p>
           </div>
         </div>

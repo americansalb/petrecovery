@@ -170,7 +170,7 @@ function Hero({ metrics }) {
             </Link>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 text-midnight-300 text-sm">
-              {['Always free', 'Takes about a minute', 'Powered by neighbors near you'].map((t) => (
+              {['Free to use', 'Takes about a minute', 'Powered by neighbors near you'].map((t) => (
                 <span key={t} className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" /> {t}
                 </span>
@@ -628,8 +628,8 @@ function GiftBand() {
         Built as a gift, run like one
       </h2>
       <p className="text-center text-midnight-500 max-w-2xl mx-auto mb-10">
-        Everything that helps a pet get home is free for everyone. Anything we
-        charge for is optional and adds reach on top, and that keeps the lights on.
+        Report a lost pet, join a search, keep your pet&rsquo;s records: all of it is
+        free to use, and a nonprofit keeps it running.
       </p>
       <div className="grid md:grid-cols-3 gap-5">
         {PILLARS.map(({ icon: Icon, title, body, href, label }) => (

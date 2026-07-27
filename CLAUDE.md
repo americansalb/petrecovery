@@ -48,14 +48,20 @@ claim we can't back ("it ranks on Google"). No em dashes in frontend
 source. When in doubt, write it the way a shelter director would say it
 to a coworker.
 
-Pricing claims are present tense, site-wide. Never "forever" or
-"permanently" (founder rule, 2026-07-27): `MONETIZATION.md` keeps a paid
-CRM tier open, usage costs and edge cases are unknowable, and an
-eternity promise is either disbelieved or held against us later. Say
-what is true today ("free, no card", "nothing behind a paywall") plus a
-commitment we can keep ("if that changes, you hear it from us first").
-This binds the Terms of Service too, where the promise would actually
-be enforceable.
+Copy states facts, never constraints on the business. Say what the
+product does and what it costs today. NEVER volunteer what the company
+will never do: no "always/forever free", no "no ads", no "we don't sell
+your data", no "there is no paid tier", no promise about what future
+charges may look like. Those bind the founder from a marketing page,
+and he has not asked for a single one of them (rule hardened
+2026-07-27, after invented no-ads and free-forever promises shipped
+live and were then cited back as policy in `MONETIZATION.md`).
+Pricing claims are present tense: "free, no card", "what shelters pay:
+$0". This binds the Terms of Service too, where such a promise would
+actually be enforceable, and it binds `MONETIZATION.md`: record what
+the founder decided, never a guardrail invented while writing.
+Commitments the company genuinely makes live in `/privacy` and
+`/legal/terms`, deliberately, not scattered through marketing copy.
 
 The same law governs form and volume: nobody reads feature prose. Show
 the actual product (a real screen, not icons), keep lists scannable (a
