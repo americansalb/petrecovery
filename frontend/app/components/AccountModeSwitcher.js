@@ -20,6 +20,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { PawPrint, Building2, Shield, Check, ChevronDown } from 'lucide-react';
 import { useHat } from '@/app/contexts/HatContext';
@@ -43,16 +44,38 @@ const GUEST_MODES = [
   { id: 'searcher', label: 'Help find lost pets', detail: 'Join searchers near you', href: '/rescue-forces/search' },
 ];
 
-function useAccountModes() {
+/**
+ * Shared by every chrome consumer (top bar, tab bar, both switcher
+ * surfaces): one fetch per sign-in, cached at module level and keyed by
+ * the session's user so sign-in/out invalidates it. Guests skip the
+ * network entirely - their doors are static.
+ */
+let modesCache = { key: null, promise: null };
+
+export function useAccountModes() {
+  const { data: session, status } = useSession();
   const [modes, setModes] = useState(null);
+  const userId = session?.user?.id || null;
+
   useEffect(() => {
+    if (status === 'loading') return undefined;
+    const key = userId || 'guest';
+    if (modesCache.key !== key) {
+      modesCache = {
+        key,
+        promise: userId
+          ? fetch('/api/account/modes')
+              .then((r) => (r.ok ? r.json() : null))
+              .then((d) => (d?.modes?.length ? d.modes : GUEST_MODES))
+              .catch(() => GUEST_MODES)
+          : Promise.resolve(GUEST_MODES),
+      };
+    }
     let alive = true;
-    fetch('/api/account/modes')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive) setModes(d?.modes?.length ? d.modes : GUEST_MODES); })
-      .catch(() => { if (alive) setModes(GUEST_MODES); });
+    modesCache.promise.then((m) => { if (alive) setModes(m); });
     return () => { alive = false; };
-  }, []);
+  }, [status, userId]);
+
   return modes;
 }
 
