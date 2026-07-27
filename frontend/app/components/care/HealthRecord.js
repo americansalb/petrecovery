@@ -155,7 +155,11 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   return (
     <Modal onClose={onClose} title="Add a vaccine">
       <div className="flex flex-wrap gap-2 mb-4">
-        {presets.map((p) => <button key={p.name} onClick={() => { setPicked(p); if (duration === null) setDuration(p.years); }} className={chip(picked?.name === p.name)}>{p.name}</button>)}
+        {/* Duration follows the chosen vaccine. The old `duration === null`
+            guard only set it on the FIRST pick, so switching Rabies (3 yr)
+            to DHPP (1 yr) kept 3 years highlighted and silently recorded a
+            two-year-too-long expiry. */}
+        {presets.map((p) => <button key={p.name} onClick={() => { setPicked(p); setDuration(p.years); }} className={chip(picked?.name === p.name)}>{p.name}</button>)}
         <button onClick={() => setPicked({ custom: true })} className={chip(picked?.custom)}>Other</button>
       </div>
       {picked?.custom && <input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Vaccine name" className={input} />}

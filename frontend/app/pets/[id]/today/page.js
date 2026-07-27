@@ -412,6 +412,7 @@ export default function TodayPage() {
                         <div key={`${med.id}-${slot.time}`} className="flex items-center gap-2.5 py-2 text-[12.5px] border-b border-care-lineSoft last:border-0">
                           <Check size={15} className={slot.status === 'GIVEN' ? 'text-care-teal' : 'text-care-faint'} />
                           <span className="flex-1 min-w-0 truncate font-semibold text-care-ink">{med.name}<span className="font-normal text-care-faint ml-1.5">{med.strength}</span></span>
+                          {slot.orphaned && <span className="text-[11px] text-care-faint whitespace-nowrap">off schedule</span>}
                           <span className="text-care-sub tabular-nums">{slot.status === 'SKIPPED' ? 'Skipped' : (slot.dose?.givenAt ? new Date(slot.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Given')}</span>
                           {canManage && <button onClick={() => undoDose(med, slot)} className="text-[12px] font-medium text-care-faint hover:text-care-ink">Undo</button>}
                         </div>

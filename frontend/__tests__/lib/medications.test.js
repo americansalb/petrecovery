@@ -158,6 +158,61 @@ describe('schedule integrity: fail-safe, never silently hide a med', () => {
   });
 });
 
+describe('a time edit never loses or duplicates a logged dose (finding #1)', () => {
+  const givenAt = (d, hhmm, extra = {}) => ({
+    id: `dose-${hhmm}`,
+    scheduledFor: slotDate(d, hhmm).toISOString(),
+    slotKey: slotKeyFor(d, hhmm),
+    status: 'GIVEN',
+    ...extra,
+  });
+
+  test('a dose logged at the old time survives after the schedule time changes', () => {
+    const d = day(0);
+    const doses = [givenAt(d, '08:00')];          // logged when the med fired at 8
+    const med = baseMed({ timesOfDay: ['09:00'] }); // owner has since moved it to 9
+    const slots = slotsWithStatus(med, doses, d);
+    expect(slots.find((s) => s.time === '09:00').status).toBeNull(); // new slot is pending
+    const recovered = slots.find((s) => s.time === '08:00');
+    expect(recovered.status).toBe('GIVEN');   // the old dose is not lost
+    expect(recovered.orphaned).toBe(true);    // and is flagged off-schedule
+    expect(recovered.dose.id).toBe('dose-08:00');
+  });
+
+  test('the recovered dose counts as given, not as a new due slot', () => {
+    const d = day(0);
+    const med = baseMed({ timesOfDay: ['09:00'] });
+    // due = 1 (only the current 9:00 slot); given = 1 (the recovered dose).
+    // A fully dosed day must never read as a missed one after an edit.
+    expect(adherenceForDay(med, [givenAt(d, '08:00')], d)).toEqual({ due: 1, given: 1, skipped: 0 });
+  });
+
+  test('only real logged actions are recovered; a bare null-status row is not', () => {
+    const d = day(0);
+    const doses = [givenAt(d, '08:00', { status: null })];
+    const med = baseMed({ timesOfDay: ['09:00'] });
+    const slots = slotsWithStatus(med, doses, d);
+    expect(slots).toHaveLength(1);                       // just the current 9:00 slot
+    expect(slots.some((s) => s.orphaned)).toBe(false);
+  });
+
+  test('an orphan stays on its own day and does not leak into another', () => {
+    const doses = [givenAt(day(-1), '08:00')];          // given yesterday at the old time
+    const med = baseMed({ timesOfDay: ['09:00'] });
+    const slots = slotsWithStatus(med, doses, day(0));  // render a different day
+    expect(slots.every((s) => !s.orphaned)).toBe(true);
+  });
+
+  test('when the time is unchanged the dose matches its slot with no duplicate row', () => {
+    const d = day(0);
+    const med = baseMed({ timesOfDay: ['08:00', '20:00'] });
+    const slots = slotsWithStatus(med, [givenAt(d, '08:00')], d);
+    expect(slots).toHaveLength(2);                       // no phantom orphan row
+    expect(slots.find((s) => s.time === '08:00').status).toBe('GIVEN');
+    expect(slots.some((s) => s.orphaned)).toBe(false);
+  });
+});
+
 describe('display helpers', () => {
   test('formatTime renders 12h clock', () => {
     expect(formatTime('08:00')).toBe('8:00 AM');

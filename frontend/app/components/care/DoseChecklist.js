@@ -51,6 +51,9 @@ export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo, day }) {
             {overdue ? 'Overdue' : med.instructions}
           </p>
         )}
+        {slot.orphaned && handled && (
+          <p className="text-[13px] text-neutral-400 truncate">Logged off schedule</p>
+        )}
       </div>
 
       {busy ? (
