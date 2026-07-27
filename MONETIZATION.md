@@ -1,21 +1,38 @@
-# Monetization Model v2 (decided 2026-07-21)
+# Monetization Model v3 (decided 2026-07-27)
 
-The goal is permanence, not profit: enough revenue that the platform is
-forever operational for the benefit of the world, with enough left over
-to hire the humans (support, moderation, community) who keep it healthy.
+The goal is unchanged: permanence, not profit — enough revenue that the
+platform is forever operational for the benefit of the world, with
+enough left over to hire the humans (support, moderation, community)
+who keep it healthy.
+
+v3 records the founder's 2026-07-27 direction. What changed from v2:
+advertising to users is now a planned revenue stream (v2 ruled it out),
+a paid shelter CRM tier is planned ON TOP of the free portal, and
+boosted reach grew into a fuller AI-assistance product with an explicit
+free-when-relevant rule for notification boosts. What did not change:
+shelters get everything the platform can do for free, and nobody is
+ever charged for the thing that finds their pet.
 
 ## Principles
 
-1. **Operations are free, forever, at any honest size.** Recovery,
-   matching, the Health Book, and shelter management never cost money.
-   No caps on pets, animals, or records. "No free tier, just free" is
-   marketing copy AND policy; it is never walked back.
-2. **Price identity, reach, and convenience. Never operation.** The only
-   things that cost money are things that amplify or brand, and their
-   absence never makes the free product worse.
-3. **No advertising platform.** No third-party ads, no sponsorships on
-   platform surfaces, no affiliate placements, no pay-for-placement in
-   any directory or search result. Attention is not for sale.
+1. **Shelters get everything the platform can do, free.** The whole
+   portal — roster, Health Book per animal, stray-vs-lost matching,
+   stray-hold tracking, adoption handoffs with full history, the
+   adoption-inquiry inbox, team seats, the public page — free forever,
+   with no caps an honest shelter could hit. This is the mission AND
+   the acquisition strategy: every shelter attracted is a roster being
+   matched against lost-pet reports, which makes the product better
+   for everyone. The free portal never gets worse to sell a paid tier.
+2. **Never price desperation.** It is wrong to make people pay when
+   they are desperate — and we actually want the pet found. Everything
+   that finds a pet (recovery, matching, alerts, community search) is
+   free. Money only ever buys *extra* reach on top of a free product
+   that is genuinely trying its best.
+3. **Relevant boosts are free; extra amplification is paid.** When the
+   platform has real signal — a pet was spotted near your home base, a
+   likely shelter-intake match, a sighting cluster — the notification
+   boost is free, because the point is the reunion. Paid boosts exist
+   only for "even more" reach beyond what the signal justifies.
 4. **Abuse limits are not pricing.** Fair-use ceilings (pet-creation
    rate limits, per-shelter roster ceilings, photo caps) exist to stop
    scripts, set high enough that no honest user ever meets them, and
@@ -23,35 +40,36 @@ to hire the humans (support, moderation, community) who keep it healthy.
 5. **No hostage-taking.** Data export is free for everyone always. The
    easier it is to leave, the safer it is to stay.
 
-## Revenue streams (all software, one Stripe integration)
+## Revenue streams
 
-1. **Shelter Pro: $15/month, paid annually.** The shelter's own
-   subdomain (yourname.reunitepets.org), white-labeled public page with
-   ReunitePets branding removed, custom look. Free pages keep the
-   ReunitePets branding and stay exactly as functional. Later top tier:
-   bring-your-own custom domain.
-2. **Donation infrastructure with voluntary tips (the Givebutter
-   model).** Shelters, rescues, and vets get free donation processing
-   via Stripe Connect: a donate button on their ReunitePets page AND an
-   embeddable donation funnel widget they can drop into their own
-   websites with one script tag. Platform fee: 0%. Donors see an
-   optional "add a tip to keep ReunitePets free" at checkout. Every
-   embedded widget carries a small "Powered by ReunitePets" line, which
-   is also the organic growth loop.
-3. **Donations to the nonprofit** directly.
-4. **Grants.** Animal-welfare funders (Petco Love, Maddie's Fund,
-   PetSmart Charities) fund exactly this: free software for shelters
-   plus automated lost-pet reunification. The free-for-shelters promise
-   is the grant story; charging shelters would compete with it.
-5. **Boosted reach for a lost pet alert** (status: planned for the final
-   build phase; founder holds the final go/no-go). Not on-platform
-   advertising: the owner pays to push their own alert out to
-   Facebook/Instagram, built automatically from the pet's profile.
-   Pricing: flat $5 service fee + ad spend passed through at cost,
-   auto-paused the moment the pet is marked found. Requires Meta
-   Business verification; deferred to last on purpose.
+1. **Advertising to users.** New in v3 — supersedes v2's blanket "no
+   advertising platform" principle. User-facing surfaces may carry
+   clearly-labeled ads. Standing guardrails that survive from v2: no
+   ads on shelter pages (that promise is live on /for-shelters and is
+   kept), no selling user data, no pay-for-placement in any directory,
+   search result, or match. Format and partners TBD.
+2. **Shelter CRM, paid tier.** Today's portal is the free product,
+   whole, forever. A future advanced CRM — deeper workflows, plus v2's
+   "Shelter Pro" identity layer (own subdomain, white-label page,
+   later bring-your-own domain) — is the paid layer, sold to shelters
+   that already love the free one.
+3. **AI-boosted lost-pet assistance.** Paid: AI builds the owner's
+   outreach from the pet's profile — social posts and ads for
+   Facebook/Instagram and beyond — wider reach than PawBoost and far
+   more customizable, auto-paused the moment the pet is marked found.
+   Pricing thought carried from v2: flat $5 service fee + ad spend
+   passed through at cost. Founder holds the final go/no-go.
+4. **Paid notification boosts.** Extra push/alert reach beyond the
+   free relevance boosts of principle 3. Free when we have signal;
+   paid only for even more.
+5. **Carried from v2 (not revisited):** free donation processing for
+   shelters/rescues/vets via Stripe Connect at 0% platform fee with a
+   voluntary donor tip at checkout (the Givebutter model; embeddable
+   widget with a "Powered by ReunitePets" line as the growth loop);
+   direct donations to the nonprofit; grants (Petco Love, Maddie's
+   Fund, PetSmart Charities) — free-for-shelters IS the grant story.
 
-## Explicitly rejected (do not revisit casually)
+## Explicitly rejected (unchanged from v2, do not revisit casually)
 
 - **Per-pet or per-animal pricing caps** for shelters. Taxes the exact
   behavior (logging every animal) that powers stray-vs-lost matching,
@@ -60,16 +78,18 @@ to hire the humans (support, moderation, community) who keep it healthy.
   and a pet-theft incentive, for pennies.
 - **Physical products** (QR tags, printed flyers). Inventory, shipping,
   and returns are operational weight a software nonprofit does not want.
-- **Sponsorships, insurance referrals, any third-party commercial
-  presence on platform pages.** See principle 3.
+- **Ads on shelter pages, selling user data, pay-for-placement.** The
+  parts of v2's no-ads principle that v3 keeps.
 
 ## Build sequencing
 
-Everything above needs exactly one payments build (Stripe: Connect for
-donations, subscriptions for Pro, checkout for boost if kept), scheduled
-LAST, after the free core has launched. The subdomain plumbing and the
-fair-use guardrails can land earlier with a hand-grantable flag, so
-early shelters can be comped Pro as a launch gift.
+Unchanged: everything above needs exactly one payments build (Stripe:
+Connect for donations, subscriptions for the CRM tier, checkout for
+boosts), scheduled LAST, after the free core has launched. Nothing paid
+is built or gated today — the legacy donate endpoint is intentionally
+disabled (410) and no shelter feature checks a plan. The subdomain
+plumbing and fair-use guardrails can land earlier with a hand-grantable
+flag, so early shelters can be comped the paid tier as a launch gift.
 
 ## Naming note
 
