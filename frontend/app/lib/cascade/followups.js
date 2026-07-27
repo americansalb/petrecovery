@@ -11,7 +11,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { sendSms } from '@/app/lib/sms';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 import { getEmailBaseUrl } from '@/app/lib/config';
@@ -37,13 +37,16 @@ export function followUpChannel(c) {
 /** Day-specific, encouraging copy. Never clinical — this is a hard week. */
 export function followUpMessage(day, c) {
   const name = c?.petName || 'your pet';
+  // subject/heading/preheader/smsText are plain text (heading is escaped in
+  // renderBrandedEmail); bodyHtml is raw HTML, so it uses the escaped name.
+  const nameHtml = escapeHtml(name);
   if (day <= 1) {
     return {
       subject: `Day one of the search for ${name}`,
       preheader: `Most pets are found close to home in the first 48 hours.`,
       heading: `Keep going. ${name} is likely still close`,
       bodyHtml: `<p style="margin:0 0 14px;">The first two days matter most, and most pets are found within a few blocks of where they went missing. Walk the immediate area again at dawn and dusk, when it's quiet. Bring their favorite treats and a familiar-smelling blanket.</p>
-        <p style="margin:0 0 14px;">Your flyers and share images are ready on your case page. Print a few, post them at eye level on corners and mailboxes, and share the link one more time. The person who spots ${name} is often just one share away.</p>`,
+        <p style="margin:0 0 14px;">Your flyers and share images are ready on your case page. Print a few, post them at eye level on corners and mailboxes, and share the link one more time. The person who spots ${nameHtml} is often just one share away.</p>`,
       smsText: `Day 1 searching for ${name}: most pets are found close to home in the first 48h. Walk the area at dawn/dusk & re-share your case page:`,
     };
   }
@@ -52,7 +55,7 @@ export function followUpMessage(day, c) {
       subject: `Still searching for ${name}? Widen the net`,
       preheader: `A few days in. Time to widen the search and re-post.`,
       heading: `Three days in: widen the circle`,
-      bodyHtml: `<p style="margin:0 0 14px;">If ${name} hasn't turned up nearby, it's time to widen the search radius and refresh your flyers so they don't blend into the background. Call every shelter and vet within ~20 miles and file a lost report in person if you can. Staff see dozens of animals a day.</p>
+      bodyHtml: `<p style="margin:0 0 14px;">If ${nameHtml} hasn't turned up nearby, it's time to widen the search radius and refresh your flyers so they don't blend into the background. Call every shelter and vet within ~20 miles and file a lost report in person if you can. Staff see dozens of animals a day.</p>
         <p style="margin:0 0 14px;">Re-posting on local groups now (not just the first day) reaches people who missed it. Your ready-to-post images and captions are still on your case page.</p>`,
       smsText: `Day 3 for ${name}: widen your radius, call shelters/vets within ~20mi & re-post your flyer. Everything's on your case page:`,
     };
@@ -62,7 +65,7 @@ export function followUpMessage(day, c) {
     preheader: `Pets are reunited weeks and even months later. Keep searching.`,
     heading: `One week in: keep the search alive`,
     bodyHtml: `<p style="margin:0 0 14px;">A week is hard, but pets are reunited with their families weeks and even months after going missing. Keep your flyers up and refresh the ones that have faded or come down. Visit the shelters again in person. Animals get transferred, and a photo on file isn't the same as your eyes on the kennels.</p>
-      <p style="margin:0 0 14px;">Leave something with ${name}'s scent outside your door overnight. Keep sharing your case page. The community is still looking with you.</p>`,
+      <p style="margin:0 0 14px;">Leave something with ${nameHtml}'s scent outside your door overnight. Keep sharing your case page. The community is still looking with you.</p>`,
     smsText: `Day 7 for ${name}: pets are found weeks later too. Refresh flyers, revisit shelters in person & keep sharing your case page:`,
   };
 }

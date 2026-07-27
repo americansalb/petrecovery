@@ -16,7 +16,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/app/lib/prisma';
 import { requirePetOwner } from '@/app/lib/petOwnership';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
@@ -72,6 +72,10 @@ export async function POST(request, { params }) {
     });
 
     const acceptUrl = `${getEmailBaseUrl()}/pets/transfer/${token}`;
+    // bodyHtml is raw HTML, so escape the user-controlled pet name before it
+    // goes to an arbitrary address. heading/preheader/footnote are escaped
+    // inside renderBrandedEmail.
+    const petNameSafe = escapeHtml(auth.pet.name);
     // Email failure must not fail the request; the owner can re-send or
     // share the accept link directly from the dashboard.
     try {
@@ -81,7 +85,7 @@ export async function POST(request, { params }) {
         html: renderBrandedEmail({
           preheader: `Accept ${auth.pet.name}'s full health record on ReunitePets.`,
           heading: `${auth.pet.name} is coming home with you`,
-          bodyHtml: `<p>The current caretaker of <strong>${auth.pet.name}</strong> wants to hand you the pet's complete health record: medications, vaccinations, weight history, and photos, all in one place.</p><p>Accepting is free and takes a minute. The record becomes yours and the previous caretaker loses access.</p>`,
+          bodyHtml: `<p>The current caretaker of <strong>${petNameSafe}</strong> wants to hand you the pet's complete health record: medications, vaccinations, weight history, and photos, all in one place.</p><p>Accepting is free and takes a minute. The record becomes yours and the previous caretaker loses access.</p>`,
           ctaLabel: 'Accept the health record',
           ctaUrl: acceptUrl,
           footnote: `This invite was sent to ${toEmail}. If you weren't expecting it, you can ignore this email.`,

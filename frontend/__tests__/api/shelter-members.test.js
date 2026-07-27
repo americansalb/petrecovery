@@ -10,6 +10,7 @@ jest.mock('@/lib/logging', () => ({ logEvent: jest.fn().mockResolvedValue(undefi
 jest.mock('@/app/lib/email', () => ({
   sendEmail: jest.fn().mockResolvedValue({ success: true }),
   renderBrandedEmail: jest.fn(() => '<html>mail</html>'),
+  escapeHtml: (s) => String(s ?? ''),
 }));
 jest.mock('@/app/lib/config', () => ({ getEmailBaseUrl: () => 'https://reunitepets.org' }));
 jest.mock('@/app/lib/notifications-inapp', () => ({

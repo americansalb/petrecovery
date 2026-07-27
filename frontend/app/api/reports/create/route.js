@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { sendEmail, sendVerificationEmail, renderBrandedEmail } from '../../../lib/email';
+import { sendEmail, sendVerificationEmail, renderBrandedEmail, escapeHtml } from '../../../lib/email';
 import { placeholderEmailForPhone } from '@/app/lib/placeholderEmail';
 import { sendSms } from '@/app/lib/sms';
 import { seedActivation, enqueueCascade } from '@/app/lib/cascade/runCascade';
@@ -689,6 +689,13 @@ export async function POST(request) {
       const baseUrl = getEmailBaseUrl();
       const caseUrl = `${baseUrl}/cases/${report.caseNumber}`;
       const setPasswordUrl = `${baseUrl}/forgot-password?email=${encodeURIComponent(email)}`;
+      // These values are user-supplied (the reporter's own name, pet name,
+      // email). bodyHtml is raw HTML, so escape them; the set-password link
+      // lives here in the body because footnote is escaped as plain text.
+      const firstNameSafe = escapeHtml(firstName);
+      const petNameSafe = escapeHtml(petName);
+      const emailSafe = escapeHtml(email);
+      const caseNumberSafe = escapeHtml(report.caseNumber);
       sendEmail({
         to: email,
         subject: `${petName}'s lost-pet report is live — here's your link`,
@@ -696,14 +703,15 @@ export async function POST(request) {
           preheader: `Track sightings and manage ${petName}'s case.`,
           heading: `${petName}'s report is live`,
           bodyHtml: `
-            <p>Hi ${firstName},</p>
-            <p>Your lost-pet report for <strong>${petName}</strong> is now live, and your neighborhood rescue force can see it. We'll email you the moment anyone reports a sighting.</p>
-            <p style="margin:20px 0 8px;"><strong>Your case:</strong> ${report.caseNumber}</p>
-            <p style="color:#64748b; font-size:14px;">Open your case page any time to see sightings, share it, and print flyers. To mark ${petName} found or coordinate with volunteers, set a password below and log in with ${email}.</p>
+            <p>Hi ${firstNameSafe},</p>
+            <p>Your lost-pet report for <strong>${petNameSafe}</strong> is now live, and your neighborhood rescue force can see it. We'll email you the moment anyone reports a sighting.</p>
+            <p style="margin:20px 0 8px;"><strong>Your case:</strong> ${caseNumberSafe}</p>
+            <p style="color:#64748b; font-size:14px;">Open your case page any time to see sightings, share it, and print flyers. To mark ${petNameSafe} found or coordinate with volunteers, set a password and log in with ${emailSafe}.</p>
+            <p style="margin:16px 0 0; font-size:14px;"><a href="${setPasswordUrl}" style="color:#0f172a; font-weight:600;">Set your password</a></p>
           `,
           ctaLabel: `Open ${petName}'s case`,
           ctaUrl: caseUrl,
-          footnote: `Manage your case: set a password at <a href="${setPasswordUrl}" style="color:#0f172a;">${setPasswordUrl}</a>`,
+          footnote: "You're receiving this because you reported a lost pet on ReunitePets.",
         }),
       }).catch(err => {
         logEvent({

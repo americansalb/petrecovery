@@ -17,6 +17,7 @@ jest.mock('@/app/lib/email', () => ({
   sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
   sendEmail: jest.fn().mockResolvedValue({ success: true }),
   renderBrandedEmail: jest.fn(() => '<html>mail</html>'),
+  escapeHtml: (s) => String(s ?? ''),
 }));
 jest.mock('@/app/lib/config', () => ({ getEmailBaseUrl: () => 'https://reunitepets.org' }));
 const mockWithRateLimitAsync = jest.fn();

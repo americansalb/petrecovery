@@ -17,7 +17,7 @@ import { getServerSession } from 'next-auth';
 import bcrypt from 'bcryptjs';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
@@ -148,14 +148,22 @@ export async function POST(request, { params }) {
 
       if (pet.owner?.email) {
         const base = getEmailBaseUrl();
+        // bodyHtml is raw HTML and every name/email in it is user-controlled
+        // (the requester picked their own firstName and email at signup, and
+        // EMAIL_REGEX admits < > "), so escape before it reaches the owner's
+        // inbox. heading/preheader/footnote are escaped in renderBrandedEmail.
+        const requesterNameSafe = escapeHtml(requesterName);
+        const requesterEmailSafe = escapeHtml(requester.email);
+        const petNameSafe = escapeHtml(pet.name);
+        const ownerFirstSafe = escapeHtml(pet.owner.firstName || 'there');
         sendEmail({
           to: pet.owner.email,
           subject: `${requesterName} wants to help care for ${pet.name}`,
           html: renderBrandedEmail({
             preheader: `${requesterName} asked to become a caretaker for ${pet.name}.`,
             heading: 'A caretaker request',
-            bodyHtml: `<p>Hi ${pet.owner.firstName || 'there'},</p>
-              <p><strong>${requesterName}</strong> (${requester.email}) saw ${pet.name}'s care page and asked to help as a caretaker. Caretakers can log doses and keep the record up to date.</p>
+            bodyHtml: `<p>Hi ${ownerFirstSafe},</p>
+              <p><strong>${requesterNameSafe}</strong> (${requesterEmailSafe}) saw ${petNameSafe}'s care page and asked to help as a caretaker. Caretakers can log doses and keep the record up to date.</p>
               <p>Nothing changes until you approve.</p>`,
             ctaLabel: 'Review the request',
             ctaUrl: `${base}/pets/${pet.id}/share`,

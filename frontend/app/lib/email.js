@@ -16,6 +16,23 @@ import { Resend } from 'resend';
 
 const FROM_FALLBACK = 'ReunitePets <onboarding@resend.dev>'; // Resend's shared test sender
 
+/**
+ * Escape HTML for safe interpolation into a branded email. User-controlled
+ * strings (a pet's name, an inviter's name) reach renderBrandedEmail and get
+ * sent to arbitrary addresses; without escaping, a pet named
+ * `</p><a href="evil">click</a>` turns a domain-authenticated ReunitePets
+ * email into a phishing relay. Call sites escape values before placing them
+ * in bodyHtml; the plain-text fields below are escaped here.
+ */
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let resendClient = null;
 function getResend() {
   if (!process.env.RESEND_API_KEY) return null;
@@ -106,10 +123,18 @@ export async function sendEmail({ to, subject, html, attachments }) {
  * email so the brand is consistent from the first touch.
  */
 export function renderBrandedEmail({ preheader = '', heading, bodyHtml, ctaLabel, ctaUrl, footnote = '' }) {
+  // These fields are always plain text, so escape them centrally: this alone
+  // neutralizes the common injection vector (a user-controlled name in the
+  // heading). bodyHtml is intentional HTML, so its call sites escape any user
+  // values they interpolate.
+  const h = escapeHtml(heading);
+  const pre = escapeHtml(preheader);
+  const cta = ctaLabel != null ? escapeHtml(ctaLabel) : ctaLabel;
+  const foot = footnote ? escapeHtml(footnote) : footnote;
   return `<!DOCTYPE html>
 <html>
   <body style="margin:0; padding:0; background-color:#f1f5f9;">
-    <span style="display:none; max-height:0; overflow:hidden; color:#f1f5f9;">${preheader}</span>
+    <span style="display:none; max-height:0; overflow:hidden; color:#f1f5f9;">${pre}</span>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9; padding:32px 16px;">
       <tr>
         <td align="center">
@@ -121,13 +146,13 @@ export function renderBrandedEmail({ preheader = '', heading, bodyHtml, ctaLabel
             </tr>
             <tr>
               <td style="background-color:#ffffff; border-radius:0 0 16px 16px; padding:36px 32px; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; color:#334155; font-size:16px; line-height:1.6;">
-                <h1 style="margin:0 0 16px; font-size:24px; line-height:1.3; color:#0f172a;">${heading}</h1>
+                <h1 style="margin:0 0 16px; font-size:24px; line-height:1.3; color:#0f172a;">${h}</h1>
                 ${bodyHtml}
-                ${ctaLabel && ctaUrl ? `
+                ${cta && ctaUrl ? `
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px auto 8px;">
                   <tr>
                     <td style="border-radius:12px; background-color:#facc15;">
-                      <a href="${ctaUrl}" style="display:inline-block; padding:14px 36px; font-size:16px; font-weight:700; color:#0f172a; text-decoration:none; border-radius:12px;">${ctaLabel}</a>
+                      <a href="${ctaUrl}" style="display:inline-block; padding:14px 36px; font-size:16px; font-weight:700; color:#0f172a; text-decoration:none; border-radius:12px;">${cta}</a>
                     </td>
                   </tr>
                 </table>
@@ -139,7 +164,7 @@ export function renderBrandedEmail({ preheader = '', heading, bodyHtml, ctaLabel
             <tr>
               <td style="padding:20px 32px; font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:1.6; color:#94a3b8; text-align:center;">
                 <strong style="color:#64748b;">ReunitePets</strong> &middot; Reuniting lost pets with their families
-                ${footnote ? `<br>${footnote}` : ''}
+                ${foot ? `<br>${foot}` : ''}
               </td>
             </tr>
           </table>

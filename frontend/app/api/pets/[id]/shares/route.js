@@ -8,8 +8,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { requirePetOwner } from '@/app/lib/petOwnership';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,6 +53,11 @@ export async function POST(request, { params }) {
     const auth = await requirePetOwner(id);
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+    // Each invite sends a domain-authenticated email to an attacker-chosen
+    // address, so throttle even though the caller is an authenticated owner.
+    const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'pet:share-invite');
+    if (!rl.success) return rateLimitResponse(rl);
+
     const body = await request.json().catch(() => ({}));
     const email = (body.email || '').toLowerCase().trim();
     const role = body.role === 'VIEWER' ? 'VIEWER' : 'CAREGIVER';
@@ -63,7 +69,10 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "That's you — you already have full access" }, { status: 400 });
     }
 
-    const count = await prisma.petShare.count({ where: { petId: id } });
+    // Only owner-initiated shares count against the cap. Inbound join REQUESTED
+    // rows are not shares the owner chose to grant, so counting them would let a
+    // stranger spamming join requests lock the owner out of inviting anyone.
+    const count = await prisma.petShare.count({ where: { petId: id, status: { not: 'REQUESTED' } } });
     if (count >= MAX_SHARES_PER_PET) {
       return NextResponse.json({ error: `A pet can be shared with up to ${MAX_SHARES_PER_PET} people` }, { status: 400 });
     }
@@ -103,9 +112,17 @@ export async function POST(request, { params }) {
     });
     const baseUrl = getEmailBaseUrl();
     const inviterName = inviter?.firstName || 'A pet owner';
+    // Escape every user-controlled value that lands in bodyHtml. The pet name,
+    // the inviter's name, and even the invitee email (EMAIL_REGEX admits < > "
+    // since they are neither whitespace nor @) are attacker-influenced and go
+    // to an arbitrary address, so an unescaped one turns this into a phishing
+    // relay. heading/preheader/footnote are escaped inside renderBrandedEmail.
+    const petNameSafe = escapeHtml(auth.pet.name);
+    const inviterNameSafe = escapeHtml(inviterName);
+    const emailSafe = escapeHtml(email);
     const roleLine = role === 'CAREGIVER'
-      ? `You'll be able to see ${auth.pet.name}'s profile, track their medications, and check off doses.`
-      : `You'll be able to see ${auth.pet.name}'s profile and medication schedule.`;
+      ? `You'll be able to see ${petNameSafe}'s profile, track their medications, and check off doses.`
+      : `You'll be able to see ${petNameSafe}'s profile and medication schedule.`;
 
     // Smart routing: existing accounts go to sign-in, new people go to the
     // signup wizard, both with the email prefilled and landing on My Pets.
@@ -121,7 +138,7 @@ export async function POST(request, { params }) {
         preheader: `${inviterName} invited you to help care for ${auth.pet.name}.`,
         heading: `${inviterName} shared ${auth.pet.name} with you`,
         bodyHtml: `
-          <p style="margin:0 0 16px;">${inviterName} invited you to join <strong>${auth.pet.name}</strong>'s care team as a <strong>${role === 'CAREGIVER' ? 'caregiver' : 'viewer'}</strong>.</p>
+          <p style="margin:0 0 16px;">${inviterNameSafe} invited you to join <strong>${petNameSafe}</strong>'s care team as a <strong>${role === 'CAREGIVER' ? 'caregiver' : 'viewer'}</strong>.</p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px;">
             <tr>
               <td style="background-color:#fefce8; border:1px solid #fde047; border-radius:12px; padding:16px 20px; font-size:15px; color:#334155;">
@@ -129,7 +146,7 @@ export async function POST(request, { params }) {
               </td>
             </tr>
           </table>
-          ${invitee ? '' : `<p style="margin:16px 0 0; font-size:14px; color:#64748b;">Sign up with this email address (<strong>${email}</strong>) and the invite will be waiting for you.</p>`}
+          ${invitee ? '' : `<p style="margin:16px 0 0; font-size:14px; color:#64748b;">Sign up with this email address (<strong>${emailSafe}</strong>) and the invite will be waiting for you.</p>`}
         `,
         ctaLabel,
         ctaUrl,
