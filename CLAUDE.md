@@ -37,6 +37,17 @@ Enforced by `frontend/__tests__/global-chrome.test.js`.
 Related trap: `overflow-x` on `html`/`body` must stay `clip` — `hidden`
 silently breaks `position: sticky` site-wide, including the navbar.
 
+### Site copy is written plain, never "AI slop"
+
+Founder rule. Headlines name the thing ("Medical records"); bodies say
+concretely what it does, in ordinary sentences. Banned: comma-quip titles
+("Stray holds, tracked"), metaphors that need decoding ("a desk that
+catches things"), anthropomorphized product ("the portal tells you"),
+adverb varnish ("quietly", "seamlessly"), fragment-chain rhythm, and any
+claim we can't back ("it ranks on Google"). No em dashes in frontend
+source. When in doubt, write it the way a shelter director would say it
+to a coworker.
+
 ### Other conventions
 
 - Tests: `cd frontend && npm test` (Jest, node env). CI runs on `pet_main`.
