@@ -77,7 +77,7 @@ How the renames were physically executed (see §6 Data Model): the LostReport→
 | `/care` | Daily-care marketing door pitching the Health Book (signed-in members are redirected to `/pets`, the one dashboard) | server (static) + client gate | none | — |
 | `/care/start` | THE add-a-pet wizard (guest-first + members; coat swatches, optional meds, member photo step); `/pets/new` 301s here | client | none | — |
 | `/contact` | Contact/support page with quick-action cards | client | none | — |
-| `/shelters` | Map-first shelter directory (DB shelters on first paint; filter + wider search via `/api/shelters/search`; near-me sort; claim lane) | server + client island | none | shelter-hat holders see "My Shelter" → `/my-shelter` in the bar's shelter slot instead |
+| `/shelters` | Map-first shelter directory (DB shelters on first paint; filter + wider search via `/api/shelters/search`; near-me sort; claim lane) | server + client island | none | shelter-hat holders get an ADDITIONAL "My Shelter" → `/my-shelter` bar link (Building2) beside the directory link (MapPin); the two doors never merge. Tab bar only: portal takes the 4-slot shelter tab for staff, drawer keeps both rows |
 | `/lost-and-found` | The "corkboard": browse lost/found/reunited cases, list or map | client | none | optional query: tab/species/search sync to URL |
 | `/lost-pet/[location]` | SEO city landing page (cases + squads for a city) | server wrapper + client | none | `location` = `city-st` slug, e.g. `austin-tx`; parsed by `formatLocationSlug`, not DB-validated (cities from `app/lib/uscities.full.json`/`CityCache`) |
 | `/offline` | PWA offline fallback screen | client | none | — |

@@ -183,35 +183,38 @@ export default function Navigation() {
                 </NavLink>
               )}
 
+              {/* Two shelter ideas, two doors, nothing morphs: "My
+                  Shelter" is the staff door to THEIR portal and exists
+                  only for accounts that hold the hat; "Shelters" below is
+                  the public directory and keeps its meaning for everyone.
+                  Mine-first order, alongside My Pets. */}
+              {hat === 'owner' && shelterHome && (
+                <NavLink href="/my-shelter" active={pathname.startsWith('/shelter/')}>
+                  <Building2 className="w-4 h-4" />
+                  My Shelter
+                </NavLink>
+              )}
+
               <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
                 <Search className="w-4 h-4" />
                 Lost &amp; Found
               </NavLink>
 
               {hat === 'owner' ? (
-                shelterHome ? (
-                  /* Shelter staff never hunt for their own door: the slot
-                     that shows everyone else the directory takes them
-                     straight into their portal, one click from anywhere. */
-                  <NavLink href="/my-shelter" active={pathname.startsWith('/shelter/')}>
-                    <Building2 className="w-4 h-4" />
-                    My Shelter
-                  </NavLink>
-                ) : (
-                  /* The shelter world's front door - directory for owners,
-                     with the free-tools pitch and portal one hop inside */
-                  <NavLink
-                    href="/shelters"
-                    active={
-                      pathname.startsWith('/shelters') ||
-                      pathname.startsWith('/for-shelters') ||
-                      pathname.startsWith('/shelter/')
-                    }
-                  >
-                    <Building2 className="w-4 h-4" />
-                    Shelters
-                  </NavLink>
-                )
+                /* The public directory - one meaning, for everyone,
+                   forever. Staff get their portal as a SEPARATE link
+                   above; this door never changes what it means. */
+                <NavLink
+                  href="/shelters"
+                  active={
+                    pathname.startsWith('/shelters') ||
+                    pathname.startsWith('/for-shelters') ||
+                    (!shelterHome && pathname.startsWith('/shelter/'))
+                  }
+                >
+                  <MapPin className="w-4 h-4" />
+                  Shelters
+                </NavLink>
               ) : (
               /* Always the same trigger - the user's squads only change what's
                   INSIDE the dropdown, never the size or shape of the bar */
@@ -488,12 +491,11 @@ export default function Navigation() {
             <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
           )}
           <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
+          {/* Staff's own door already leads this drawer - the switcher
+              above shows their shelter BY NAME - so Browse carries only
+              the public directory. One door per idea, no lookalikes. */}
           {hat === 'owner' ? (
-            shelterHome ? (
-              <MobileNavLink href="/my-shelter" icon={Building2} label="My Shelter" active={pathname.startsWith('/shelter/')} onClick={() => setMobileMenuOpen(false)} />
-            ) : (
-              <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
-            )
+            <MobileNavLink href="/shelters" icon={MapPin} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
           ) : (
             <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
           )}
