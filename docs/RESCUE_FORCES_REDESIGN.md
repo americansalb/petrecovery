@@ -48,6 +48,54 @@ with zero explanatory copy**. Elegant, clean, simple, on-brand (midnight/flash).
    form with dead whitespace. Dozens of seeded city forces exist; a visitor sees none
    of them, no map, no proof of network.
 
+## 1.5 The site around these pages — registers and funnels (full-gallery review)
+
+Reviewed against the complete 2026-07-04 gallery, not just the force captures.
+Two facts reframe the project:
+
+**The design north star already exists.** The homepage and the public case portal
+are the house voice at its best: light civic register, midnight hero, one flash
+CTA, labeled social-proof stats, urgency at the top — and the homepage already
+speaks the exact metaphors this plan builds on: *"neighbors organized like a
+volunteer fire department"*, *"Just be reachable when a pet near you needs more
+eyes"*, a dashed flashlight-beam motif in the hero, and live mission cards with
+pet photos. The force pages aren't missing a design language; they're violating
+one the site already has. (The Lantern Map is the homepage's flashlight motif,
+promoted to a system.)
+
+**Three visual registers are fighting.** Midnight/flash (homepage, nav, case
+portal, shelters), the scoped care worlds (paper/teal — fine, deliberate), and a
+rogue **purple register on `/lost-pet/[city]` SEO landings** (purple gradient
+hero, purple CTAs) that also self-contradicts: its stat cards claim "29 Active
+Missions · 44 Active Searchers" while sections below say "No active cases in
+this area" and "No rescue forces in this area yet" — with Austin Rescue Force
+and a live mission in the same database. That page is where search engines send
+desperate owners.
+
+**The funnels into these pages** (every arrival the redesign must catch):
+
+| Entry | Arrives with | Redesign must |
+|---|---|---|
+| Homepage "Find your Rescue Force" card, "Browse all forces", footer + final CTA | Civic curiosity ("be the neighbor") | Land on the §5.1 network map, never an empty form; hero join copy inherits homepage language ("Be reachable…") |
+| Case portal "Join Search Party — N searching now" | Crisis-adjacent urgency about one specific pet | MISSING NOW at the top of the force page; that pet visible in one scroll |
+| `/join/[missionId]` share links (redirects to force page `?joined=true` after join) | A friend's share, zero context | Absorb into JoinSheet; page currently captures as a dark Connection Error — the funnel's most fragile link |
+| `/lost-pet/[city]` SEO landings ("Rescue Forces in TX" cards, "Start a Rescue Force") | Google, mid-panic | Consume the same `ForceCard` + data source as §5.1; restyle purple → house register; one source of truth ends the self-contradiction |
+| Dashboard "My Rescue Forces" + "Helping Find" | Returning member | Same `MissionLiveCard` DNA as homepage "Active missions" and dashboard "Helping Find" — one component, three surfaces, the funnels visually rhyme |
+| Nav dropdown (find / start a force) | Deliberate intent | Straight to network map / create wizard |
+
+Exits: mission cards → Mission Control (the one light→dark threshold); authored
+discussion → the Hub; owners → the report wizard.
+
+Two audiences follow from the funnels, and the force page serves both without
+splitting: the **crisis-adjacent** arrival (came from a case; wants Max found)
+is served by MISSING NOW dominating the page; the **civic-curious** arrival
+(came from the homepage; wants to matter) is served by the hero join + the
+watchtower state. Additional register notes: the vocabulary drift extends beyond
+these pages (the dashboard's "My Pets" empty state says "No active missions" —
+the lockdown table travels with the shared components), and the ambient push
+popup interrupts browse surfaces site-wide — its one home is the JoinSheet done
+state (§5.4).
+
 ## 2. The design thesis (three sentences)
 
 1. **The map is the org chart.** A force is a place; divisions are sub-places; a
@@ -313,6 +361,8 @@ network page will show — you finish by admiring the thing you made.
 | "Back to Squad" and all Squad-copy leftovers | Force, everywhere |
 | Empty-form landing at `/rescue-forces/search` | Network map + force grid at `/rescue-forces` (search filters it) |
 | Ambient push-notification popup on browse pages | Post-join done-state prompt |
+| Purple register + contradictory data on `/lost-pet/[city]` | House register; force/mission sections consume `ForceCard`/`MissionLiveCard` and the §5.1 data source |
+| Fragile dark `/join/[missionId]` page | JoinSheet flow with the mission's pet as the hero |
 
 ## 7. Component inventory
 
