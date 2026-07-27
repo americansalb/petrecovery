@@ -7,9 +7,8 @@
  *   3. Order: an animal's path through the building (arrives, in your
  *      care, goes home) as a timeline. That is how shelter staff think,
  *      so it needs no explaining.
- *   4. Price: one number, because it is one number. An itemized table
- *      here only restated step 3 in the least readable form there is.
- *   5. Reason and the way in.
+ *   4. Price beside the reason for it: one number, one paragraph.
+ *   5. The way in.
  *
  * COLOR LAW: midnight + flash only. Flash marks exactly two things on
  * this page: the CTA and the timeline nodes. The one place other hues
@@ -200,56 +199,56 @@ export default function ForSheltersPage() {
         </ol>
       </section>
 
-      {/* 4. The price. It is one number, so it gets one number: an
-          itemized table here only restated the timeline above in the
-          least readable form available. */}
-      <section className="bg-midnight-900 py-24 md:py-32">
-        <div className="mx-auto max-w-2xl px-4 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-midnight-400">
-            What it costs
-          </p>
-          <p className="mt-3 flex items-start justify-center font-black leading-none text-flash-400">
-            <span className="mt-2 text-4xl md:mt-4 md:text-6xl">$</span>
-            <span className="text-[7rem] tracking-tight md:text-[11rem]">0</span>
-          </p>
-          <p className="mt-1 text-xl font-bold text-white md:text-2xl">
-            There is no pricing page. This is it.
-          </p>
-          {/* Present tense on purpose. We do not promise eternity we
-              cannot underwrite; we promise no surprises, which is the
-              thing a shelter director is actually afraid of. */}
-          <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed text-midnight-400">
-            No card on file, no trial clock, nothing behind a paywall. If that
-            ever changes, you will hear it from us first.
-          </p>
+      {/* 4. The price and the reason it is that price, in one band.
+          The number needs a companion or the band is a navy void; the
+          reason needs the number or it reads as a boast. The claim is
+          scoped to SHELTERS and to today: it must stay true on the day
+          a paid tier ships elsewhere (MONETIZATION.md). */}
+      <section className="bg-midnight-900">
+        <div className="mx-auto grid max-w-5xl gap-10 px-4 py-16 md:grid-cols-[auto_1fr] md:gap-16 md:py-20">
+          <div className="md:border-r md:border-white/10 md:pr-16">
+            <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-midnight-400">
+              What shelters pay
+            </p>
+            <p className="mt-1 flex items-start font-black leading-none text-flash-400">
+              <span className="mt-2 text-4xl md:mt-3 md:text-5xl">$</span>
+              <span className="text-[6.5rem] tracking-tight md:text-[9rem]">0</span>
+            </p>
+            <p className="mt-1 text-sm text-midnight-300">No card on file, no trial clock.</p>
+          </div>
+          <div>
+            <h2 className="mb-4 text-2xl font-black tracking-tight text-white md:text-3xl">
+              Why is it free?
+            </h2>
+            <p className="mb-5 leading-relaxed text-midnight-300">
+              ReunitePets is a nonprofit that exists to get lost pets home, and lost
+              pets end up in shelters. Charging shelters would work against the
+              reason we built it.
+            </p>
+            <ul className="mb-5 space-y-2.5">
+              {[
+                'No ads on your shelter’s page.',
+                'We do not sell your data.',
+                'A person reviews every shelter, so the directory stays real.',
+              ].map((line) => (
+                <li key={line} className="flex items-start gap-3 text-midnight-200">
+                  <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-flash-400" />
+                  {line}
+                </li>
+              ))}
+            </ul>
+            {/* A commitment we can keep, in place of a promise about
+                eternity that we cannot. */}
+            <p className="text-sm text-midnight-400">
+              If any of that ever changes, you will hear it from us first.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* 5. The reason and the way in */}
+      {/* 5. The way in */}
       <section className="mx-auto max-w-4xl px-4 py-20 md:py-24">
-        <div className="mx-auto max-w-2xl">
-          <h2 className="mb-4 text-3xl font-black tracking-tight text-midnight-900">Why is it free?</h2>
-          <p className="mb-6 leading-relaxed text-midnight-700">
-            ReunitePets is a nonprofit that exists to get lost pets home, and lost
-            pets end up in shelters. Every shelter working here means more strays
-            checked against lost-pet reports the day they arrive. Charging for that
-            would work against the reason we built it.
-          </p>
-          <ul className="space-y-2.5">
-            {[
-              'No ads on your shelter’s page.',
-              'We do not sell your data.',
-              'A person reviews every shelter, so the directory stays real.',
-            ].map((line) => (
-              <li key={line} className="flex items-start gap-3 text-midnight-700">
-                <span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-flash-400" />
-                {line}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="mt-16 border-t border-midnight-200 pt-12">
+        <div>
           <h2 className="mb-10 text-center text-2xl font-black tracking-tight text-midnight-900">
             Getting started
           </h2>
