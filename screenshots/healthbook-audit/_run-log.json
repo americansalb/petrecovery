@@ -1,0 +1,14 @@
+{
+  "notes": [
+    "URL after clicking Vaccines tab (deep-linked ?tab=weight): http://localhost:3000/pets/cms2lje8e000k8dp8m4a3jtnf/health?tab=weight",
+    "Modal focus: after open activeElement=BUTTON:Add ; after Tab=BUTTON:",
+    "320px overflow elements (weight tab): []",
+    "Logged-out /health landed on: http://localhost:3000/login?callbackUrl=/pets/cms2l9e370005addrlk2v1w4p/health"
+  ],
+  "failures": [
+    {
+      "name": "B pip modal other + short name",
+      "err": "TimeoutError: page.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\"Add vaccine\")')\u001b[22m\n\u001b[2m    - locator resolved to <button disabled class=\"w-full rounded-xl bg-care-teal text-white text-sm font-semibold py-2.5 hover:bg-care-tealDark transition-colors disab"
+    }
+  ]
+}
