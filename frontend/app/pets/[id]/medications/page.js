@@ -1,12 +1,13 @@
 /**
  * Old route, new home: this was the medications MANAGEMENT page, so it
- * lands on the Health Book's medications section (daily check-offs
- * live in /today). Muscle memory keeps working.
+ * lands on the Meds tab (manage the list, schedules, supply). Daily
+ * check-offs live on /today; the Health tab is vaccines/weight/vet, not
+ * medications. Muscle memory keeps working.
  */
 
 import { redirect } from 'next/navigation';
 
 export default async function MedicationsRedirect({ params }) {
   const { id } = await params;
-  redirect(`/pets/${id}/health`);
+  redirect(`/pets/${id}/meds`);
 }

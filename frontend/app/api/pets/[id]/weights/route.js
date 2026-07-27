@@ -40,7 +40,13 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Weight should be a number of pounds' }, { status: 400 });
     }
     const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
-    if (isNaN(recordedAt)) return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
+    if (isNaN(recordedAt.getTime())) return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
+    // The headline weight follows the newest entry, so a future-dated one would
+    // hijack it (and stretch the chart into the future) until real time catches
+    // up. Allow a day of clock skew, no more.
+    if (recordedAt.getTime() > Date.now() + 86400000) {
+      return NextResponse.json({ error: "A weight can't be logged for a future date" }, { status: 400 });
+    }
     const note = (body.note || '').trim().slice(0, 200) || null;
 
     const entry = await prisma.$transaction(async (tx) => {
