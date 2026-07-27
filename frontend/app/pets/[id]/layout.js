@@ -17,7 +17,7 @@
 
 import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Home, Pill, Activity, User, Users } from 'lucide-react';
+import { ArrowLeft, Home, Pill, Activity, User, Users, PawPrint } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { PetProvider, usePet } from '@/app/components/care/PetProvider';
@@ -68,11 +68,43 @@ function PetIdentity({ pet }) {
   );
 }
 
+/**
+ * The pet couldn't be loaded: a bad or stale link, a deleted pet, or one
+ * this account can't see. Every room reads the same pet from context, so a
+ * single guard here stops any of them from spinning forever (Profile) or
+ * presenting a phantom pet — an "empty" Health record inviting a first
+ * vaccine, a People page offering to share a pet that doesn't exist.
+ */
+function PetUnavailable() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center px-6 py-16">
+      <div className="max-w-sm text-center">
+        <span className="mx-auto mb-4 flex w-14 h-14 items-center justify-center rounded-full bg-care-bg ring-1 ring-care-line">
+          <PawPrint size={24} className="text-care-faint" strokeWidth={1.8} />
+        </span>
+        <h1 className="text-[19px] font-semibold text-care-ink">This pet isn't available</h1>
+        <p className="mt-2 text-[14px] text-care-sub">
+          It may have been removed, or you may not have access. Check the link, or head back to your pets.
+        </p>
+        <Link
+          href="/pets"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-care-teal px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-care-tealDark transition-colors"
+        >
+          <ArrowLeft size={16} /> Back to my pets
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function PetShell({ children }) {
   const params = useParams();
   const pathname = usePathname();
   const petId = params.id;
-  const { pet, allPets } = usePet();
+  const { pet, allPets, loading, error } = usePet();
+
+  // Once the fetch settles with no usable pet, never render a room around it.
+  if (!loading && (error || !pet)) return <PetUnavailable />;
 
   const segment = pathname.split('/')[3] || 'today';
   const focused = FOCUSED[segment];
