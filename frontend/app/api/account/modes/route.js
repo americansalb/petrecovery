@@ -63,14 +63,16 @@ export async function GET() {
       modes.push({
         id: 'searcher',
         label: rescue.rescueSquad.name,
-        detail: 'Searching · your rescue force',
+        detail: 'Your rescue force',
         href: `/rescue-forces/${rescue.rescueSquad.id}`,
       });
     } else {
+      // Plain invitation, not a persona noun - novices don't know what
+      // a "Searcher" is until they've become one.
       modes.push({
         id: 'searcher',
-        label: 'Searcher',
-        detail: 'Help find pets near you',
+        label: 'Help find lost pets',
+        detail: 'Join searchers near you',
         href: '/rescue-forces/search',
       });
     }
