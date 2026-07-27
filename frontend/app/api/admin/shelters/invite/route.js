@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import crypto from 'crypto';
 
@@ -112,7 +112,7 @@ export async function POST(request) {
       html: renderBrandedEmail({
         preheader: `Claim ${shelterName}'s free account on ReunitePets: animal management, lost-pet matching, and your own page.`,
         heading: `${shelterName}, your free account is waiting`,
-        bodyHtml: `<p>Hi ${contactName || 'there'},</p><p>ReunitePets gives shelters free pet-management accounts: a health record for every animal in your care, automatic matching of strays against local lost-pet reports, adoption handoffs that send the full medical history home with the adopter, staff seats for your team, and a public page for your adoptable animals.</p>${message ? `<p><em>"${message}"</em></p>` : ''}<p>Claiming takes about a minute. Free forever, no card, no catch.</p>`,
+        bodyHtml: `<p>Hi ${escapeHtml(contactName || 'there')},</p><p>ReunitePets gives shelters free pet-management accounts: a health record for every animal in your care, automatic matching of strays against local lost-pet reports, adoption handoffs that send the full medical history home with the adopter, staff seats for your team, and a public page for your adoptable animals.</p>${message ? `<p><em>"${escapeHtml(message)}"</em></p>` : ''}<p>Claiming takes about a minute. Free forever, no card, no catch.</p>`,
         ctaLabel: 'Claim your shelter account',
         ctaUrl: claimUrl,
         footnote: `This invite was sent to ${shelterEmail} and expires in 7 days. Questions? Just reply to this email.`,

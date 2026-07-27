@@ -9,7 +9,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { isPlaceholderEmail } from '@/app/lib/placeholderEmail';
 import { getEmailBaseUrl } from '@/app/lib/config';
 
@@ -68,9 +68,13 @@ export async function runRecoveryEmail(ctx) {
     'A shortlist of nearby shelters to call, and any possible matches we already found',
   ];
 
+  // bodyHtml is raw HTML; the reporter's name and the plea copy (AI or the
+  // petName-templated fallback) are user-influenced, so escape them.
+  const firstNameSafe = escapeHtml(firstName);
+  const openerSafe = escapeHtml(opener);
   const bodyHtml = `
-    <p style="margin:0 0 16px;">Hi${firstName ? ` ${firstName}` : ''},</p>
-    <p style="margin:0 0 16px;">${opener}</p>
+    <p style="margin:0 0 16px;">Hi${firstNameSafe ? ` ${firstNameSafe}` : ''},</p>
+    <p style="margin:0 0 16px;">${openerSafe}</p>
     <p style="margin:0 0 8px; font-weight:700; color:#0f172a;">Inside your recovery kit:</p>
     <ul style="margin:0 0 16px; padding-left:20px;">
       ${kitList.map((item) => `<li style="margin:0 0 8px;">${item}</li>`).join('')}

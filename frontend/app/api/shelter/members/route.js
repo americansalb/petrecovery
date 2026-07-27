@@ -13,7 +13,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getShelterForUser } from '@/app/lib/shelterAuth';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { logEvent } from '@/lib/logging';
@@ -156,7 +156,7 @@ export async function POST(request) {
         html: renderBrandedEmail({
           preheader: `You've been invited to help manage ${shelter?.name || 'a shelter'} on ReunitePets.`,
           heading: `Join the ${shelter?.name || 'shelter'} team`,
-          bodyHtml: `<p>You've been invited to help manage <strong>${shelter?.name || 'a shelter'}</strong> on ReunitePets: animals in care, health records, adoptions, and lost-pet matches. Shelter accounts are free.</p><p>${invitee ? 'Sign in and accept the invite from your shelter dashboard.' : 'Create your free account with this email address, then accept the invite from your shelter dashboard.'}</p>`,
+          bodyHtml: `<p>You've been invited to help manage <strong>${escapeHtml(shelter?.name || 'a shelter')}</strong> on ReunitePets: animals in care, health records, adoptions, and lost-pet matches. Shelter accounts are free.</p><p>${invitee ? 'Sign in and accept the invite from your shelter dashboard.' : 'Create your free account with this email address, then accept the invite from your shelter dashboard.'}</p>`,
           ctaLabel: invitee ? 'Sign in to accept' : 'Create your free account',
           ctaUrl,
           footnote: `This invite was sent to ${email}. If you weren't expecting it, you can ignore this email.`,

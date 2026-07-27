@@ -13,7 +13,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-import { sendEmail, renderBrandedEmail } from '@/app/lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { sendPushToUser } from '@/app/lib/push';
@@ -108,10 +108,21 @@ export async function POST(request, { params }) {
     }
 
     if (match.case.reporter?.email && shelter) {
+      // The shelter's own profile fields go into an email sent to the pet
+      // owner, so a hostile shelter name/address/phone would inject HTML into
+      // someone else's inbox. Escape every value that lands in bodyHtml; for
+      // the tel:/mailto: hrefs, escaping the quote also blocks attribute
+      // breakout. heading/preheader are escaped in renderBrandedEmail.
+      const nameSafe = escapeHtml(shelter.name);
+      const petNameSafe = escapeHtml(petName);
+      const addressBlock = [shelter.address, `${shelter.city}, ${shelter.state}`]
+        .filter(Boolean).map((s) => escapeHtml(s)).join('<br/>');
+      const phoneSafe = shelter.phone ? escapeHtml(shelter.phone) : '';
+      const emailSafe = shelter.email ? escapeHtml(shelter.email) : '';
       const contactLines = [
-        `<p><strong>${shelter.name}</strong><br/>${[shelter.address, `${shelter.city}, ${shelter.state}`].filter(Boolean).join('<br/>')}</p>`,
-        shelter.phone ? `<p>Phone: <a href="tel:${shelter.phone}">${shelter.phone}</a></p>` : '',
-        shelter.email ? `<p>Email: <a href="mailto:${shelter.email}">${shelter.email}</a></p>` : '',
+        `<p><strong>${nameSafe}</strong><br/>${addressBlock}</p>`,
+        phoneSafe ? `<p>Phone: <a href="tel:${phoneSafe}">${phoneSafe}</a></p>` : '',
+        emailSafe ? `<p>Email: <a href="mailto:${emailSafe}">${emailSafe}</a></p>` : '',
       ].join('');
       try {
         await sendEmail({
@@ -120,7 +131,7 @@ export async function POST(request, { params }) {
           html: renderBrandedEmail({
             preheader: `${shelter.name} reviewed your lost-pet report and thinks they may have ${petName}.`,
             heading: `${shelter.name} may have ${petName}`,
-            bodyHtml: `<p>The shelter compared your report with an animal in their care and believes it could be ${petName}. Please contact them as soon as you can; bring proof of ownership (photos, vet records, or your microchip registration).</p>${contactLines}`,
+            bodyHtml: `<p>The shelter compared your report with an animal in their care and believes it could be ${petNameSafe}. Please contact them as soon as you can; bring proof of ownership (photos, vet records, or your microchip registration).</p>${contactLines}`,
             ctaLabel: 'View your case',
             ctaUrl: caseUrl,
             footnote: 'ReunitePets never asks for payment to reunite you with your pet.',
