@@ -48,6 +48,12 @@ claim we can't back ("it ranks on Google"). No em dashes in frontend
 source. When in doubt, write it the way a shelter director would say it
 to a coworker.
 
+The same law governs form and volume: nobody reads feature prose. Show
+the actual product (a real screen, not icons), keep lists scannable (a
+few words per line), and spend full sentences only where trust demands
+them. Grids of interchangeable icon-badge cards are slop furniture; do
+not build them.
+
 ### Other conventions
 
 - Tests: `cd frontend && npm test` (Jest, node env). CI runs on `pet_main`.
