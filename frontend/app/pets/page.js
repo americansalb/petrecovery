@@ -41,9 +41,9 @@ function PetRow({ pet, href, basics, note, activeCase, onOpenCase }) {
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenCase(activeCase); }}
               className="text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0 hover:bg-red-100 transition-colors"
-              aria-label={`${pet.name} is missing. Open the case.`}
+              aria-label={`${pet.name} is missing. Open the live search.`}
             >
-              Missing · view case
+              Missing · open search
             </button>
           )}
         </div>
@@ -137,6 +137,16 @@ export default function MyPetsPage() {
     pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`,
   ].filter(Boolean).join(', ');
 
+  const missingPets = pets
+    .map((pet) => ({ pet, activeCase: activeCaseOf(pet) }))
+    .filter((x) => x.activeCase);
+  const missingNames = missingPets
+    .map((x) => x.pet.name)
+    .reduce((acc, name, i, arr) => {
+      if (i === 0) return name;
+      return i === arr.length - 1 ? `${acc} and ${name}` : `${acc}, ${name}`;
+    }, '');
+
   return (
     <div className="min-h-screen bg-white pb-24 lg:pb-12">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-8">
@@ -151,6 +161,31 @@ export default function MyPetsPage() {
             <Plus size={15} /> Add pet
           </Link>
         </div>
+
+        {/* A missing pet is the page's headline - everything else on
+            this screen can wait. One tap into the live search. */}
+        {missingPets.length > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 mb-6">
+            <p className="font-semibold text-red-700">
+              {missingNames} {missingPets.length === 1 ? 'is' : 'are'} missing.
+            </p>
+            <p className="text-[13px] text-red-600/90 mt-0.5 mb-2.5">
+              Every hour matters. The live search is running:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {missingPets.map(({ pet, activeCase }) => (
+                <button
+                  key={pet.id}
+                  type="button"
+                  onClick={() => router.push(`/mission-control?mission=${activeCase.caseNumber}`)}
+                  className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3.5 py-1.5 rounded-full transition-colors"
+                >
+                  Open {pet.name}&rsquo;s search →
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {successMessage && (
           <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 text-emerald-700 px-4 py-3 mb-4 text-sm">

@@ -39,8 +39,8 @@ export function rememberMode(id) {
  * gives each hat a sensible public landing.
  */
 const GUEST_MODES = [
-  { id: 'owner', label: 'Owner', detail: 'Care for your own pets', href: '/care' },
-  { id: 'searcher', label: 'Searcher', detail: 'Help find pets near you', href: '/rescue-forces/search' },
+  { id: 'owner', label: 'Pet Care', detail: 'A free Health Book for your pets', href: '/care' },
+  { id: 'searcher', label: 'Help find lost pets', detail: 'Join searchers near you', href: '/rescue-forces/search' },
 ];
 
 function useAccountModes() {
@@ -144,12 +144,14 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   // invite.) Holders get their shelter as a mode row instead.
   const hasShelterMode = modes.some((m) => m.id === 'shelter');
 
+  // Only the OTHER worlds: you are already where you are, and a switcher
+  // that lists your current location as a link is noise. No concept
+  // header either - the rows are plain destinations.
+  const others = modes.filter((m) => m.id !== current);
+
   return (
-    <div className="border-b border-midnight-100">
-      <p className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-midnight-400">
-        Switch view
-      </p>
-      {modes.map((m) => {
+    <div className="border-b border-midnight-100 py-1">
+      {others.map((m) => {
         const Icon = ICONS[m.id] || PawPrint;
         return (
           <Link
@@ -167,7 +169,6 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
               <span className="block font-medium truncate">{m.label}</span>
               <span className="block text-[12px] text-midnight-400">{m.detail}</span>
             </span>
-            {m.id === active.id && <Check className="w-4 h-4 text-flash-600 shrink-0" />}
           </Link>
         );
       })}
