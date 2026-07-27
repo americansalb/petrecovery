@@ -50,7 +50,7 @@ const GUEST_MODES = [
  * the session's user so sign-in/out invalidates it. Guests skip the
  * network entirely - their doors are static.
  */
-let modesCache = { key: null, promise: null };
+let modesCache = { key: null, promise: null, at: 0 };
 
 export function useAccountModes() {
   const { data: session, status } = useSession();
@@ -60,20 +60,35 @@ export function useAccountModes() {
   useEffect(() => {
     if (status === 'loading') return undefined;
     const key = userId || 'guest';
-    if (modesCache.key !== key) {
-      modesCache = {
-        key,
-        promise: userId
-          ? fetch('/api/account/modes')
-              .then((r) => (r.ok ? r.json() : null))
-              .then((d) => (d?.modes?.length ? d.modes : GUEST_MODES))
-              .catch(() => GUEST_MODES)
-          : Promise.resolve(GUEST_MODES),
-      };
-    }
     let alive = true;
-    modesCache.promise.then((m) => { if (alive) setModes(m); });
-    return () => { alive = false; };
+
+    const load = (force) => {
+      // The 5s window collapses the burst when several chrome consumers
+      // react to the same focus event: one fetch, shared by all.
+      const stale = force && Date.now() - modesCache.at > 5000;
+      if (modesCache.key !== key || stale) {
+        modesCache = {
+          key,
+          at: Date.now(),
+          promise: userId
+            ? fetch('/api/account/modes')
+                .then((r) => (r.ok ? r.json() : null))
+                .then((d) => (d?.modes?.length ? d.modes : GUEST_MODES))
+                .catch(() => GUEST_MODES)
+            : Promise.resolve(GUEST_MODES),
+        };
+      }
+      modesCache.promise.then((m) => { if (alive) setModes(m); });
+    };
+
+    load(false);
+
+    // Hats change mid-session (claiming a shelter, joining a force).
+    // Coming back to the tab re-checks, so the bar never shows a world
+    // the account no longer holds - or hides one it just gained.
+    const onFocus = () => { if (userId) load(true); };
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; window.removeEventListener('focus', onFocus); };
   }, [status, userId]);
 
   return modes;

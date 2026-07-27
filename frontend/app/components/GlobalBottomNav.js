@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Search, Shield, PawPrint, Plus, Building2, Sparkles } from 'lucide-react';
+import { Home, Search, Shield, PawPrint, Plus, Building2, Sparkles, MapPin } from 'lucide-react';
 import { hidesBottomNav } from '@/app/lib/navChrome';
 import { useHat } from '@/app/contexts/HatContext';
 import { useAccountModes } from './AccountModeSwitcher';
@@ -21,7 +21,7 @@ const TABS = {
     ],
     right: [
       { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
-      { href: '/shelters', icon: Building2, label: 'Shelters', alsoActive: ['/for-shelters', '/shelter'] },
+      { href: '/shelters', icon: MapPin, label: 'Shelters', alsoActive: ['/for-shelters', '/shelter'] },
     ],
   },
   searcher: {
@@ -37,8 +37,10 @@ const TABS = {
 };
 
 /**
- * Auth-state, not route-state: shelter staff get their portal in the
- * slot everyone else uses to find one - one tap from anywhere.
+ * Four slots is all a thumb gets, so ON THE TAB BAR ONLY the portal
+ * takes the shelter slot for staff (their daily door beats the rare
+ * browse). The directory is never lost to them: the drawer carries BOTH
+ * rows, and the desktop bar shows both links side by side.
  */
 const MY_SHELTER_TAB = { href: '/my-shelter', icon: Building2, label: 'My Shelter', alsoActive: ['/shelter/'] };
 
