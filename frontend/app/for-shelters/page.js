@@ -1,67 +1,50 @@
 /**
  * The pitch page for shelters and rescues: what the free account is,
  * why it exists, and one path in (/shelter/start). Server-rendered,
- * zero client JS. The tone matches the homepage: midnight hero, flash
- * CTAs, plain claims, no dark patterns, and the price is the point.
+ * zero client JS.
  *
- * Copy register: PLAIN. Headlines name the feature; bodies say what it
- * does, concretely. No comma-quip titles ("Stray holds, tracked"), no
- * metaphors to decode ("a desk that catches things"), no anthropomorphized
- * product, no adverb varnish ("quietly"), no claims we can't back.
+ * Nobody reads feature prose. The pitch is carried by a still of the
+ * actual portal and a list you can scan in seconds; sentences are spent
+ * only where trust demands them (matching confirms before any owner is
+ * contacted). Copy register: plain (CLAUDE.md "Site copy is written
+ * plain"). No comma-quip titles, no metaphors, no anthropomorphized
+ * product, no icon-badge card grids.
  */
 
 import Link from 'next/link';
-import {
-  Building2, HeartPulse, Radar, HeartHandshake, Users, Globe2,
-  ArrowRight, CheckCircle2, Sparkles, Inbox, CalendarClock, ListChecks,
-} from 'lucide-react';
+import { Building2, ArrowRight, CheckCircle2 } from 'lucide-react';
 
-const FEATURES = [
-  {
-    icon: HeartPulse,
-    title: 'Medical records',
-    body: 'Medications with dose schedules, vaccination records, weight history, and photos for every animal in your care.',
-  },
-  {
-    icon: Radar,
-    title: 'Lost-pet matching',
-    body: 'New strays are checked against local lost-pet reports, photos included. You review each match, and the owner is contacted only after you confirm.',
-  },
-  {
-    icon: CalendarClock,
-    title: 'Stray hold tracking',
-    body: 'Set your jurisdiction’s hold period once. Each stray shows its days remaining and the date it becomes adoptable.',
-  },
-  {
-    icon: HeartHandshake,
-    title: 'Adoption transfers',
-    body: 'When an animal is adopted, its complete record - vaccinations, medications, weight history - moves to the adopter’s account.',
-  },
-  {
-    icon: Inbox,
-    title: 'Adoption inquiries',
-    body: 'Questions from your public page arrive in the portal, attached to the animal they are about, with a status your team can update.',
-  },
-  {
-    icon: ListChecks,
-    title: 'A daily to-do list',
-    body: 'Every morning the portal lists what needs attention: vaccinations about to expire, animals without photos, records not yet transferred, and the animals in care the longest.',
-  },
-  {
-    icon: Users,
-    title: 'Staff and volunteer accounts',
-    body: 'Invite your team by email. Everyone works from the same records. Remove access anytime.',
-  },
-  {
-    icon: Globe2,
-    title: 'A public page',
-    body: 'Your adoptable animals, hours, and contact info on a page you edit from the dashboard. No website required.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Listed where owners look',
-    body: 'Lost-pet reports, volunteer search teams, and neighborhood alerts already run on ReunitePets. Your shelter appears in the same directory and map.',
-  },
+/* A hand-built still of the portal's morning screen, matching what
+   /my-shelter actually renders for the demo shelter. */
+const PORTAL_NAV = [
+  ['Overview', true, null],
+  ['Animals', false, null],
+  ['Matches', false, 1],
+  ['Inquiries', false, 1],
+  ['Team', false, null],
+  ['Your page', false, null],
+];
+
+const PORTAL_ATTENTION = [
+  ['bg-rose-500', 'Rufus’s rabies vaccination expired July 7.', 'Health'],
+  ['bg-flash-500', 'A lost-pet report may match a stray in your care.', 'Matches'],
+  ['bg-flash-500', 'A new adoption inquiry is waiting for a reply.', 'Inbox'],
+];
+
+const PORTAL_ROSTER = [
+  ['Rufus', 'Boxer mix', 'Adoption pending', 'bg-amber-400', '12d in care'],
+  ['Clover', 'Domestic shorthair', 'Available', 'bg-emerald-500', '3d in care'],
+];
+
+const INCLUDED = [
+  'Medical records for every animal',
+  'New strays checked against local lost-pet reports',
+  'Stray hold tracking',
+  'Records transfer to adopters',
+  'An adoption inquiry inbox',
+  'Staff and volunteer accounts',
+  'A public page (no website needed)',
+  'Listed in the shelter directory',
 ];
 
 const STEPS = [
@@ -73,23 +56,18 @@ const STEPS = [
 export default function ForSheltersPage() {
   return (
     <div className="bg-midnight-50 min-h-screen">
-      {/* Hero */}
+      {/* Hero: the claim, one sentence, and the product itself */}
       <section className="relative overflow-hidden bg-gradient-to-b from-[#0a1526] via-midnight-900 to-[#0c1a30]">
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[720px] h-[720px] bg-flash-400/15 rounded-full blur-[140px] pointer-events-none" />
-        <div className="relative max-w-4xl mx-auto px-4 py-20 md:py-28 text-center">
+        <div className="relative max-w-4xl mx-auto px-4 py-16 md:py-20 text-center">
           <span className="inline-flex items-center gap-2 bg-flash-400/10 text-flash-200 px-4 py-2 rounded-full border border-flash-400/25 text-sm font-medium mb-6">
             <Building2 className="w-4 h-4" /> For shelters and rescues
           </span>
           <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight mb-5">
-            Shelter software that costs{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-flash-300 via-flash-400 to-amber-300 drop-shadow-[0_0_24px_rgba(250,204,21,0.35)]">
-              nothing. Forever.
-            </span>
+            Shelter software that costs <span className="text-flash-400">nothing. Forever.</span>
           </h1>
           <p className="text-lg md:text-xl text-midnight-200 max-w-2xl mx-auto mb-9">
-            Manage every animal&rsquo;s health record, match strays against local
-            lost-pet reports, send adoptions home with their full history, and get a
-            public page your shelter never has to maintain.
+            Animal records, lost-pet matching, adoption tools, and a public page.
+            No credit card, no trial, no paid tier: ReunitePets is a nonprofit.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -105,31 +83,90 @@ export default function ForSheltersPage() {
               See shelter pages
             </Link>
           </div>
-          <p className="text-midnight-400 text-sm mt-6">
-            No credit card, no trial, no paid tier. ReunitePets is a nonprofit.
-          </p>
+
+          {/* The portal, as a shelter's morning starts */}
+          <div className="mt-14 max-w-3xl mx-auto" aria-hidden="true">
+            <div className="flex rounded-2xl overflow-hidden bg-white text-left shadow-2xl shadow-black/40 ring-1 ring-white/10">
+              <div className="hidden sm:flex w-44 shrink-0 flex-col gap-1 bg-midnight-950 p-3">
+                <div className="mb-1 flex items-center gap-2 px-2 py-1.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-flash-400">
+                    <Building2 className="h-4 w-4 text-midnight-900" />
+                  </span>
+                  <span className="text-[11px] font-bold leading-tight text-white">Austin Animal Center</span>
+                </div>
+                {PORTAL_NAV.map(([label, active, badge]) => (
+                  <span
+                    key={label}
+                    className={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ${
+                      active ? 'bg-flash-400 text-midnight-900' : 'text-midnight-300'
+                    }`}
+                  >
+                    {label}
+                    {badge ? (
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-flash-400 text-[9px] font-bold text-midnight-900">
+                        {badge}
+                      </span>
+                    ) : null}
+                  </span>
+                ))}
+              </div>
+              <div className="flex-1 bg-slate-50 p-4 sm:p-5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-midnight-400">Monday, July 27</p>
+                <p className="mb-3 text-sm font-black text-midnight-900">2 animals in care · 1 ready for adoption</p>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-midnight-400">Needs attention</p>
+                <div className="mb-3 divide-y divide-midnight-100 rounded-lg border border-midnight-100 bg-white">
+                  {PORTAL_ATTENTION.map(([dot, text, chip]) => (
+                    <div key={text} className="flex items-center gap-2.5 px-3 py-2">
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+                      <span className="flex-1 text-[11px] text-midnight-700">{text}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-midnight-400">{chip}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-midnight-400">In your care</p>
+                <div className="divide-y divide-midnight-100 rounded-lg border border-midnight-100 bg-white">
+                  {PORTAL_ROSTER.map(([name, breed, status, dot, days]) => (
+                    <div key={name} className="flex items-center gap-2.5 px-3 py-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-midnight-100 text-[10px] font-bold text-midnight-500">
+                        {name[0]}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[11px] font-bold text-midnight-900">{name}</span>
+                        <span className="block text-[10px] text-midnight-500">{breed}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5 text-[10px] font-semibold text-midnight-600">
+                        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                        {status}
+                      </span>
+                      <span className="text-[10px] text-midnight-400">{days}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="max-w-5xl mx-auto px-4 py-16 md:py-20">
-        <h2 className="text-3xl md:text-4xl font-black text-midnight-900 text-center mb-3">
-          What you get
+      {/* What's included: a list you can scan, not prose */}
+      <section className="mx-auto max-w-4xl px-4 py-16 md:py-20">
+        <h2 className="mb-3 text-center text-3xl font-black text-midnight-900 md:text-4xl">
+          Everything included
         </h2>
-        <p className="text-midnight-600 text-center max-w-2xl mx-auto mb-12">
+        <p className="mb-10 text-center text-midnight-600">
           Every account gets all of it. There is no paid tier.
         </p>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {FEATURES.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-6">
-              <span className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-flash-50 border border-flash-200 mb-4">
-                <Icon className="w-5 h-5 text-flash-600" />
-              </span>
-              <h3 className="font-bold text-midnight-900 mb-2">{title}</h3>
-              <p className="text-sm text-midnight-600 leading-relaxed">{body}</p>
-            </div>
+        <ul className="mx-auto grid max-w-2xl gap-x-10 gap-y-3 sm:grid-cols-2">
+          {INCLUDED.map((line) => (
+            <li key={line} className="flex items-start gap-2.5 text-midnight-800">
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-flash-500" />
+              <span className="font-medium">{line}</span>
+            </li>
           ))}
-        </div>
+        </ul>
+        <p className="mt-8 text-center text-sm text-midnight-500">
+          Matching never contacts an owner until your staff confirms the match.
+        </p>
       </section>
 
       {/* How it works */}
@@ -156,11 +193,9 @@ export default function ForSheltersPage() {
       <section className="max-w-3xl mx-auto px-4 py-16 md:py-20 text-center">
         <h2 className="text-3xl font-black text-midnight-900 mb-4">Why is it free?</h2>
         <p className="text-midnight-700 leading-relaxed mb-4">
-          ReunitePets is a nonprofit that exists to get lost pets home, and lost pets
-          end up in shelters. Every animal managed here gets checked against local
-          lost-pet reports when it arrives, and every adopter leaves with the
-          animal&rsquo;s full medical record. Shelters using this is the point, so
-          charging shelters would work against it.
+          ReunitePets exists to get lost pets home, and lost pets end up in
+          shelters. Every shelter working here means more strays checked against
+          lost-pet reports. That is why there is no paid version.
         </p>
         <ul className="inline-flex flex-col items-start gap-2 text-midnight-700 mb-9">
           {['No cost, ever, for shelters and rescues', 'No ads on your page, no selling your data', 'A human reviews every shelter, so the directory stays trustworthy'].map((line) => (
