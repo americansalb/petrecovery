@@ -23,6 +23,7 @@ import {
   VaccinePassport, AddVaccineModal, WeightCard,
 } from '@/app/components/care/HealthRecord';
 import { StatusControl } from '@/app/shelter/AnimalControls';
+import PetGlance from '@/app/components/care/PetGlance';
 import { startOfDay, sameDay } from '@/lib/medications';
 
 function Label({ children }) {
@@ -32,7 +33,7 @@ function Label({ children }) {
 }
 
 export default function AnimalWorkspace({
-  petId, petName, species, shelterStatus, pendingTransferEmail, holdActive,
+  petId, petName, species, shelterStatus, pendingTransferEmail, holdActive, petRecord,
 }) {
   const router = useRouter();
   const today = startOfDay(new Date());
@@ -186,7 +187,11 @@ export default function AnimalWorkspace({
   }
 
   return (
-    <div className="space-y-8">
+    /* Two columns, the shape the owner's Today page uses: what has to
+       happen on the left, the calm "is this animal OK" glance on the
+       right. Same instrument for whoever is doing the caring. */
+    <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8 space-y-8 lg:space-y-0">
+      <div className="space-y-8">
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
 
       <section>
@@ -223,10 +228,6 @@ export default function AnimalWorkspace({
         </section>
       )}
 
-      {/* No outer heading and no summary line: Vaccines and Weight label
-          themselves and their detail is right here, so a summary would
-          only restate what is already on screen. The summary belongs on
-          the consumer Health tab, where those live behind subtabs. */}
       <section>
         <div className="space-y-4">
           <VaccinePassport
@@ -255,16 +256,6 @@ export default function AnimalWorkspace({
         <GoodStuff petId={petId} meds={meds} setMeds={setMeds} canManage />
       </section>
 
-      <section>
-        <Label>Adoption</Label>
-        <AdoptionPanel
-          petId={petId}
-          petName={petName}
-          pendingTransferEmail={pendingTransferEmail}
-          holdActive={holdActive}
-        />
-      </section>
-
       {showAddVax && (
         <AddVaccineModal
           petId={petId}
@@ -276,6 +267,32 @@ export default function AnimalWorkspace({
           }}
         />
       )}
+      </div>
+
+      <div className="space-y-8">
+        {/* Only what the working column does not already show. Vaccines
+            and weight are edited in view on the left, so summarising them
+            here would just repeat them. */}
+        <PetGlance
+          pet={petRecord}
+          name={petName}
+          vaccinations={vaccinations}
+          weights={weights}
+          meds={meds}
+          show={['note', 'vet']}
+          heading="Care context"
+        />
+
+        <section>
+          <Label>Adoption</Label>
+          <AdoptionPanel
+            petId={petId}
+            petName={petName}
+            pendingTransferEmail={pendingTransferEmail}
+            holdActive={holdActive}
+          />
+        </section>
+      </div>
     </div>
   );
 }
