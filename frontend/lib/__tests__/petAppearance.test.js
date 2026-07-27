@@ -2,7 +2,7 @@
  * Coat color composition and parsing, including custom labels.
  *
  * The contract that matters: whatever an owner saves, parseColor must
- * give back — custom colors and patterns included. Dropping unknown
+ * give back - custom colors and patterns included. Dropping unknown
  * tokens silently erases pet data on the next edit.
  */
 

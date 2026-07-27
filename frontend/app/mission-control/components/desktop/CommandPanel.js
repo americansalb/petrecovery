@@ -6,7 +6,7 @@
  * The left hand answers the three questions top-to-bottom: the face
  * (who), the vitals band (how it's going), the ActionDock (what to do
  * right now), then the ranked ways to help and the freshest activity.
- * The owner's "mark as reunited" is a pinned footer — always one
+ * The owner's "mark as reunited" is a pinned footer - always one
  * glance away, never buried mid-scroll.
  */
 

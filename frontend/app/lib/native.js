@@ -6,7 +6,7 @@
  * The single place the web app asks "am I running inside the native shell?"
  * Detection uses the global `window.Capacitor` that the Capacitor shell
  * injects into the page, so the website bundle needs NO build-time dependency
- * to detect native — on an ordinary browser every function here returns
+ * to detect native - on an ordinary browser every function here returns
  * web/false and nothing native is touched.
  *
  * Native plugins (splash, status bar, GPS, push, …) are imported only inside

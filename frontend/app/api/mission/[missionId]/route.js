@@ -25,7 +25,7 @@ export async function GET(request, { params }) {
 
     const { missionId } = params;
 
-    // createIfMissing:false — GET must not write on read (no row materialization).
+    // createIfMissing:false - GET must not write on read (no row materialization).
     const state = await getMissionState(missionId);
 
     if (!state) {

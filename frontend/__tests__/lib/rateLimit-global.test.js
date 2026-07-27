@@ -1,10 +1,10 @@
 /**
  * Keystone regression for the GLOBAL spend ceiling (app/lib/rateLimit.js
- * checkGlobalLimitAsync) — AC-e from Delphi disc. 1.
+ * checkGlobalLimitAsync) - AC-e from Delphi disc. 1.
  *
  * The decisive assertion (evil-architect msg 350 / architect msg 360): a COST
  * ceiling must FAIL CLOSED. When a Redis op throws mid-window, the ceiling must
- * NOT wave the request through (success:true) — that would open the paid-API
+ * NOT wave the request through (success:true) - that would open the paid-API
  * money tap exactly when infra is stressed. This locks the fail-closed contract
  * so a future refactor can't silently reintroduce fail-open.
  *
@@ -31,7 +31,7 @@ import { checkGlobalLimitAsync } from '@/app/lib/rateLimit';
 
 const OPTS = { windowMs: 60000, maxRequests: 100, blockDurationMs: 60000 };
 
-describe('checkGlobalLimitAsync — global spend ceiling (AC-e)', () => {
+describe('checkGlobalLimitAsync - global spend ceiling (AC-e)', () => {
   beforeAll(() => {
     process.env.REDIS_URL = 'redis://localhost:6379';
   });
@@ -41,7 +41,7 @@ describe('checkGlobalLimitAsync — global spend ceiling (AC-e)', () => {
     mockTtl.mockResolvedValue(60);
   });
 
-  test('KEYSTONE: a Redis op error FAILS CLOSED — rejects, never allow-all', async () => {
+  test('KEYSTONE: a Redis op error FAILS CLOSED - rejects, never allow-all', async () => {
     mockIncr.mockRejectedValue(new Error('redis connection reset mid-op'));
     const res = await checkGlobalLimitAsync('ai:analyze-pet', OPTS);
     expect(res.success).toBe(false);

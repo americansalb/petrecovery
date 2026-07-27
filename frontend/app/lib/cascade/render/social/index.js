@@ -4,7 +4,7 @@
  * satori (JSX -> SVG) + @resvg/resvg-js (SVG -> PNG). Both are dynamic-imported
  * inside the fn so webpack never tries to bundle the resvg native `.node`
  * (which it can't parse). Node runtime only. Callers isolate a resvg load
- * failure and simply omit the social asset — the flyers (pure JS) still work.
+ * failure and simply omit the social asset - the flyers (pure JS) still work.
  */
 
 import { normalizeFlyerData } from '../flyers/normalize';

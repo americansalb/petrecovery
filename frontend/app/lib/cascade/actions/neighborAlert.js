@@ -1,7 +1,7 @@
 /**
- * neighbor_alert action (tier 0) — actually DELIVER the alert to nearby patrol
+ * neighbor_alert action (tier 0) - actually DELIVER the alert to nearby patrol
  * members (the create route already selected them and wrote Alert rows). We
- * deliver via in-app notification + web-push only — never unsolicited SMS to
+ * deliver via in-app notification + web-push only - never unsolicited SMS to
  * third parties (locked policy). Deduped against the existing Alert rows so a
  * member is never double-notified.
  */
@@ -14,7 +14,7 @@ export async function runNeighborAlert(ctx) {
   const lost = ctx.case;
 
   // The create route's radius selection already produced Alert rows for the
-  // nearby patrol members — reuse them as the recipient list (dedup by userId),
+  // nearby patrol members - reuse them as the recipient list (dedup by userId),
   // excluding the reporter themselves.
   const alerts = await prisma.alert.findMany({
     where: { caseId: lost.id },

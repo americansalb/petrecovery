@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * ReviewPosterCard — the "neighborhood board" poster preview.
+ * ReviewPosterCard - the "neighborhood board" poster preview.
  *
  * Shown on the review/fork screen (every row taps back to its step via
  * onEdit) and reused on the success screen as the share visual.
@@ -16,7 +16,7 @@ export default function ReviewPosterCard({
   species = 'other',
   petName,
   chips = [], // strings: colors, size, breed…
-  rows = [], // [{ id, icon: Icon, label, value }] — id is the step to edit
+  rows = [], // [{ id, icon: Icon, label, value }] - id is the step to edit
   onEdit, // (stepId) => void; omit for a read-only poster
 }) {
   const theme = WIZARD_THEMES[variant];
@@ -81,7 +81,7 @@ export default function ReviewPosterCard({
                     <p className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-midnight-400">
                       {row.label}
                     </p>
-                    <p className="text-sm font-medium text-midnight-800 truncate">{row.value || '—'}</p>
+                    <p className="text-sm font-medium text-midnight-800 truncate">{row.value || '-'}</p>
                   </div>
                   {onEdit && (
                     <Pencil

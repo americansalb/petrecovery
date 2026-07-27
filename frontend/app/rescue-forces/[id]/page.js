@@ -1,11 +1,11 @@
 /**
- * The Rescue Force page — Phase 1 of docs/RESCUE_FORCES_REDESIGN.md.
+ * The Rescue Force page - Phase 1 of docs/RESCUE_FORCES_REDESIGN.md.
  *
  * Server-rendered civic surface in the house register (light ground,
  * midnight hero, one flash CTA). Answers three questions in order:
  * WHERE (Lantern territory map), WHO (crew with on-duty glow), and
  * WHAT NOW (MISSING NOW missions, or the watchtower state). The only
- * dark element is the map card — a window into the night layer that
+ * dark element is the map card - a window into the night layer that
  * Mission Control owns.
  */
 
@@ -50,7 +50,7 @@ export async function generateMetadata({ params }) {
     if (!force) return genericShareMetadata();
 
     const place = [force.city, force.state].filter(Boolean).join(', ');
-    const title = `${force.name}${place ? ` — ${place}` : ''} | ${SITE_NAME}`;
+    const title = `${force.name}${place ? ` - ${place}` : ''} | ${SITE_NAME}`;
     const reunions = force.successfulReunions
       ? ` ${force.successfulReunions} successful reunion${force.successfulReunions === 1 ? '' : 's'} and counting.`
       : '';
@@ -261,7 +261,7 @@ export default async function ForcePage({ params }) {
                   </p>
                   <p className="text-[12px] text-midnight-300 mt-1.5">
                     {viewerMembership.availabilityStatus === 'AVAILABLE'
-                      ? 'On duty — you’ll be alerted when a pet needs eyes.'
+                      ? 'On duty. You’ll be alerted when a pet needs eyes.'
                       : 'Off duty right now.'}
                   </p>
                 </div>
@@ -311,7 +311,7 @@ export default async function ForcePage({ params }) {
       {/* ---------- Working grid ---------- */}
       <main className="max-w-6xl mx-auto px-4 py-8 md:py-10 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8 space-y-8 lg:space-y-0">
         <div className="space-y-8 min-w-0">
-          {/* MISSING NOW — urgency owns the top */}
+          {/* MISSING NOW - urgency owns the top */}
           <section>
             <SectionTitle>Missing now</SectionTitle>
             {liveMissions.length === 0 ? (
@@ -358,7 +358,7 @@ export default async function ForcePage({ params }) {
                         </h3>
                         <span className="inline-flex items-center gap-1.5 bg-flash-100 text-flash-800 border border-flash-200 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide">
                           <i className="w-1.5 h-1.5 rounded-full bg-flash-500 animate-pulse-soft" />
-                          Live · {elapsedLabel(mission.lastSeenAt) || '—'} missing
+                          Live · {elapsedLabel(mission.lastSeenAt) || '-'} missing
                         </span>
                       </div>
                       <p className="text-sm text-midnight-500 mt-0.5 truncate">
@@ -399,7 +399,7 @@ export default async function ForcePage({ params }) {
             )}
           </section>
 
-          {/* ACTIVITY — the pulse, auto-generated, never asks for content */}
+          {/* ACTIVITY - the pulse, auto-generated, never asks for content */}
           {force.activities.length > 0 && (
             <section>
               <SectionTitle>Activity</SectionTitle>

@@ -9,10 +9,10 @@ import prisma from '@/app/lib/prisma';
  * rows are raw search-engine discoveries. Admins can block anything that
  * should never be suggested to owners.
  *
- * GET    — list with filters (search/state/status/kind), pagination, stats.
- * PATCH  — set one row's status: ACTIVE | STALE | REMOVED. REMOVED is the
+ * GET    - list with filters (search/state/status/kind), pagination, stats.
+ * PATCH  - set one row's status: ACTIVE | STALE | REMOVED. REMOVED is the
  *          admin block: sweeps never resurrect it and it is never served.
- * DELETE — hard-delete rows by id (junk cleanup; a future sweep may re-add
+ * DELETE - hard-delete rows by id (junk cleanup; a future sweep may re-add
  *          the group, use REMOVED to block permanently).
  */
 

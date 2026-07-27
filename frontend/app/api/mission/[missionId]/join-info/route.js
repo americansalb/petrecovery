@@ -4,7 +4,7 @@
  * The full mission-state GET above requires auth because it exposes exact
  * last-seen coordinates and live volunteer GPS. The anonymous join page
  * must render without any of that, so this endpoint returns a fixed
- * whitelist — pet identity, coarse mode, public counters, and the
+ * whitelist - pet identity, coarse mode, public counters, and the
  * assigned force id for the post-join redirect. Add a field here only if
  * it is safe to show anyone holding the link.
  */

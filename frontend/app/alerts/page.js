@@ -116,7 +116,7 @@ export default function AlertsPage() {
 
   return (
     <div className="min-h-screen bg-midnight-50 font-sans">
-      {/* In-flow page header — the universal navbar owns the top of the
+      {/* In-flow page header - the universal navbar owns the top of the
           screen; this heading scrolls away with the page */}
       <div className="bg-white border-b border-midnight-100 p-4">
         <div className="max-w-3xl mx-auto flex justify-between items-center">
@@ -197,7 +197,7 @@ export default function AlertsPage() {
               iconColor="amber"
               title="No alerts found"
               description={filter !== 'all' ? 'Try selecting "All" to see more results' : 'No lost pets reported yet'}
-              tip="Check back regularly — alerts update as new reports come in."
+              tip="Check back regularly - alerts update as new reports come in."
               action={{ label: 'Report a Pet', href: '/report/new', icon: Plus }}
             />
           </Card>

@@ -151,7 +151,7 @@ body {
 
 /* Prevent horizontal scroll.
    Must be `clip`, not `hidden`: overflow-x:hidden forces overflow-y to
-   compute to `auto`, turning body into a scroll container — which silently
+   compute to `auto`, turning body into a scroll container - which silently
    breaks EVERY position:sticky descendant (the universal navbar scrolled
    away with the page instead of pinning). `clip` clips without creating a
    scroll container, so sticky keeps working. */
@@ -836,7 +836,7 @@ img {
 }
 
 
-/* Lantern Map (rescue-force territory) — flare + zone labels */
+/* Lantern Map (rescue-force territory) - flare + zone labels */
 .lantern-flare {
   display: block;
   width: 10px;

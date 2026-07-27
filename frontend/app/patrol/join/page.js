@@ -1053,10 +1053,10 @@ export default function JoinPatrol() {
                 fontWeight: '500',
               }}>
                 <li><strong>Do not approach</strong> animals that may attack humans or harbor disease</li>
-                <li><strong>Contact animal control or owners</strong> when appropriate—never take direct action with aggressive animals</li>
+                <li><strong>Contact animal control or owners</strong> when appropriate-never take direct action with aggressive animals</li>
                 <li><strong>Never enter private property</strong> without permission</li>
-                <li><strong>Report sightings only</strong>—you are not expected to capture or chase animals</li>
-                <li><strong>Your safety comes first</strong>—if you feel unsafe, do not engage</li>
+                <li><strong>Report sightings only</strong>-you are not expected to capture or chase animals</li>
+                <li><strong>Your safety comes first</strong>-if you feel unsafe, do not engage</li>
               </ul>
             </div>
 

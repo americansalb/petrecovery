@@ -42,7 +42,7 @@ import { matchIsActionable, bandLabel } from './matchGating';
 
 // The confidence floor lives in ONE place: the server (getConfidenceBand in
 // @/app/lib/matching). This card TRUSTS the server-computed `band`/`canConnect`
-// and never re-implements the threshold — so lowering the floor server-side can
+// and never re-implements the threshold - so lowering the floor server-side can
 // never leave the card hiding a CTA the server intended to show.
 
 const SPECIES_EMOJI = {
@@ -79,7 +79,7 @@ function MatchPhoto({ photo, name, species }) {
 
 /**
  * @param {object}   match       §4d payload: {matchId, petPhoto, petName, species, coarseArea, pTrueMatch, matchSource, canConnect}
- * @param {function} onEvent     (name, payload) instrumentation sink — match_shown / match_confirm_clicked / relay_opened / match_not_mine
+ * @param {function} onEvent     (name, payload) instrumentation sink - match_shown / match_confirm_clicked / relay_opened / match_not_mine
  * @param {function} openRelay   async (matchId) => {threadId, antiScamBanner, counterpartyHandle, coarseArea}. Defaults to the live endpoint.
  * @param {function} sendMessage async (threadId, body) => void. Defaults to the live endpoint.
  */
@@ -93,11 +93,11 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvail
     pTrueMatch = 0,
     matchSource = 'attribute',
     canConnect = false,
-    band, // 'actionable' | 'feed' | 'suppress' — server single source of truth (getConfidenceBand)
+    band, // 'actionable' | 'feed' | 'suppress' - server single source of truth (getConfidenceBand)
   } = match || {};
 
   const isVerifiedOwner = matchSource === 'microchip';
-  // Gating + label both come from the pure, unit-tested matchGating module — the
+  // Gating + label both come from the pure, unit-tested matchGating module - the
   // fail-closed CTA decision lives in exactly one place (see matchGating.js).
   const actionable = matchIsActionable(match);
   const label = isVerifiedOwner ? null : bandLabel(band);
@@ -179,14 +179,14 @@ export function MatchCard({ match, onEvent, openRelay, sendMessage, connectAvail
             ) : null}
           </div>
 
-          {/* Coarse area only — never exact coordinates (contract §4c). */}
+          {/* Coarse area only - never exact coordinates (contract §4c). */}
           {coarseArea && (
             <p className="text-sm text-midnight-500 mt-0.5 truncate">{coarseArea}</p>
           )}
 
           {isVerifiedOwner && (
             <p className="text-sm text-green-700 mt-0.5">
-              Microchip match — registered owner
+              Microchip match - registered owner
             </p>
           )}
         </div>
@@ -246,7 +246,7 @@ function OwnerAlerted() {
   );
 }
 
-/** State C — backs the "we're withholding sub-threshold alerts" contract. */
+/** State C - backs the "we're withholding sub-threshold alerts" contract. */
 function HonestStatus() {
   return (
     <div className="mt-3 flex items-start gap-2 text-sm text-midnight-600">
@@ -269,7 +269,7 @@ function BrokerError({ kind }) {
   );
 }
 
-/** The brokered relay thread — no raw PII, anti-scam banner from backend, report/block. */
+/** The brokered relay thread - no raw PII, anti-scam banner from backend, report/block. */
 function RelayThread({ thread, petName, sendMessage }) {
   const { threadId, antiScamBanner, counterpartyHandle } = thread || {};
   const [messages, setMessages] = useState([]);
@@ -295,7 +295,7 @@ function RelayThread({ thread, petName, sendMessage }) {
 
   return (
     <Card variant="default" padding="md" accent="blue" className="text-left">
-      {/* Anti-scam banner — rendered verbatim from backend (single source of truth). */}
+      {/* Anti-scam banner - rendered verbatim from backend (single source of truth). */}
       {antiScamBanner && (
         <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-3 mb-3">
           <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" aria-hidden="true" />
@@ -351,12 +351,12 @@ function RelayThread({ thread, petName, sendMessage }) {
   );
 }
 
-/** List-level empty state — reassuring, never a blank gap. */
+/** List-level empty state - reassuring, never a blank gap. */
 export function NoMatchesYet() {
   return (
     <Card variant="ghost" padding="lg" className="text-center">
       <div className="text-3xl mb-2" aria-hidden="true">🔦</div>
-      <p className="font-semibold text-midnight-900">No matches yet — but we&apos;re looking</p>
+      <p className="font-semibold text-midnight-900">No matches yet - but we&apos;re looking</p>
       <p className="text-sm text-midnight-500 mt-1">
         We&apos;ll alert nearby owners the moment a strong match appears. Keeping the pet safe and
         adding clear photos helps.

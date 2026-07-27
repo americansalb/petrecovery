@@ -45,7 +45,7 @@ describe('renderBrandedEmail escapes its plain-text fields', () => {
     // Exactly zero live copies of the injected tag anywhere in the document.
     expect(html.includes('<script>alert(1)</script>')).toBe(false);
     // ...and it survives as inert, escaped text (once per injected field:
-    // preheader, ctaLabel, footnote — heading is a static 'Hello' here).
+    // preheader, ctaLabel, footnote - heading is a static 'Hello' here).
     expect(html.split('&lt;script&gt;alert(1)&lt;/script&gt;').length - 1).toBe(3);
   });
 

@@ -90,7 +90,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Message content required' }, { status: 400 });
     }
 
-    // Verify mission exists (Case has no direct squad field — the case↔force
+    // Verify mission exists (Case has no direct squad field - the case↔force
     // link is the CaseAssignment join table, so we only check existence here)
     const mission = await prisma.case.findUnique({
       where: { id: missionId },
@@ -114,9 +114,9 @@ export async function POST(request, { params }) {
     // simultaneous first messages can't collide on the unique-name
     // constraint. (The old code selected a nonexistent Case.rescueSquadId
     // field and created a force with an invalid `caseId` + constant name,
-    // so chat 500'd on every case — most visibly freshly reported ones.)
+    // so chat 500'd on every case - most visibly freshly reported ones.)
     // NB: CaseAssignment's field is `missionId` (mapped to the legacy
-    // `caseId` column) — the Case→Mission rename renamed the field here even
+    // `caseId` column) - the Case→Mission rename renamed the field here even
     // though SquadActivity kept `caseId`. Using the wrong one is a validation
     // error, so this must stay `missionId`.
     const assignment = await prisma.caseAssignment.findFirst({

@@ -126,7 +126,7 @@ export async function POST(request) {
     });
 
     // Notify the pet owner about the sighting (in-app + email). Best-effort and
-    // isolated so it can't fail the sighting submission — but the response copy
+    // isolated so it can't fail the sighting submission - but the response copy
     // below only claims "notified" when we actually delivered (no false hope).
     let ownerNotified = false;
     try {
@@ -151,7 +151,7 @@ export async function POST(request) {
         if (sightedCase.reporter?.email) {
           await sendEmail({
             to: sightedCase.reporter.email,
-            subject: `New sighting reported for ${sightedCase.petName || 'your lost pet'} — ReunitePets.org`,
+            subject: `New sighting reported for ${sightedCase.petName || 'your lost pet'} - ReunitePets.org`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #10b981;">A new sighting was reported</h2>
@@ -170,7 +170,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       message: ownerNotified
-        ? 'Sighting reported — the owner has been notified.'
+        ? 'Sighting reported - the owner has been notified.'
         : 'Sighting reported successfully.',
       sighting: {
         id: sighting.id,

@@ -314,7 +314,7 @@ export async function POST(request, { params }) {
       case 'ping':
         return handlePing(body);
       // The live client (useSearchSession) sends 'mark' with a { point } object,
-      // not 'ping' with flat coords — without this adapter every breadcrumb fell
+      // not 'ping' with flat coords - without this adapter every breadcrumb fell
       // through to 400, so sessions recorded 0 pings → 0 distance → 0 points →
       // empty coverage map. Adapt the client's payload to handlePing.
       case 'mark': {

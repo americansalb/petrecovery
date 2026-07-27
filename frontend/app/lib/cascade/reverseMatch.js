@@ -1,9 +1,9 @@
 /**
- * Reverse matcher — cross-check a NEW lost report against existing FOUND
+ * Reverse matcher - cross-check a NEW lost report against existing FOUND
  * reports. The forward matcher (found -> lost) and findMatches both put the
  * TARGET in calculateMatchScore's first "found" argument, and timing points are
  * only awarded when foundDate >= lostDate. For the reverse direction the new
- * record is the LOST case and MUST sit in the SECOND "lost" argument — so we
+ * record is the LOST case and MUST sit in the SECOND "lost" argument - so we
  * call calculateMatchScore(foundCandidate, newLostCase) directly and never
  * route the new lost case through findMatches as the target, which would
  * silently zero the timing score.

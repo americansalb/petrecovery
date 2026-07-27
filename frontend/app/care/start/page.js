@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * /care/start — the one add-a-pet wizard, for guests and members alike
+ * /care/start - the one add-a-pet wizard, for guests and members alike
  * (/pets/new 301s here). Share metadata comes from app/care/layout.js.
  */
 

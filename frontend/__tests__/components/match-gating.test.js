@@ -1,14 +1,14 @@
 /**
- * MatchCard gating — security-critical fail-closed invariant.
+ * MatchCard gating - security-critical fail-closed invariant.
  *
  * A wrong-payload accidental Confirm-&-Connect CTA would connect an anonymous
  * finder to a distraught owner, so the CTA must NEVER fire on missing/garbage
  * input. This locks that invariant as a CI regression (per dev-challenger msg 506)
- * — testing the pure decision directly, no DOM needed.
+ * - testing the pure decision directly, no DOM needed.
  */
 import { matchIsActionable, bandLabel } from '../../components/case/matchGating';
 
-describe('matchIsActionable — fail-closed CTA gating', () => {
+describe('matchIsActionable - fail-closed CTA gating', () => {
   test('actionable ONLY when band==="actionable" AND canConnect===true', () => {
     expect(matchIsActionable({ band: 'actionable', canConnect: true })).toBe(true);
   });
@@ -17,7 +17,7 @@ describe('matchIsActionable — fail-closed CTA gating', () => {
     expect(matchIsActionable({ matchSource: 'microchip', band: 'suppress', canConnect: false })).toBe(true);
   });
 
-  // The fail-open cases dev-challenger flagged — each must DENY.
+  // The fail-open cases dev-challenger flagged - each must DENY.
   test('missing band → no CTA even if canConnect is true', () => {
     expect(matchIsActionable({ canConnect: true })).toBe(false);
     expect(matchIsActionable({ band: undefined, canConnect: true })).toBe(false);
@@ -41,7 +41,7 @@ describe('matchIsActionable — fail-closed CTA gating', () => {
   });
 });
 
-describe('bandLabel — label derived from the same band that gates the CTA', () => {
+describe('bandLabel - label derived from the same band that gates the CTA', () => {
   test('actionable → Strong match', () => {
     expect(bandLabel('actionable')).toEqual({ text: 'Strong match', tone: 'text-flash-700' });
   });

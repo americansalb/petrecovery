@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 /**
  * App-like entry. When the site is opened as an installed app (added to the
  * home screen → "standalone" display mode), the marketing homepage is the
- * wrong first screen — an app should open into your stuff. So in standalone
+ * wrong first screen - an app should open into your stuff. So in standalone
  * mode only, send "/" to the dashboard (which is also the bottom-nav "Home").
  *
  * In a normal browser tab this never fires, so the public website is

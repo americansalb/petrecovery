@@ -140,7 +140,7 @@ export default function AdvicePage() {
             fontSize: '1.1rem',
             color: theme.colors.gray[700],
           }}>
-            Proven recovery strategies tailored to your situation—no account needed
+            Proven recovery strategies tailored to your situation-no account needed
           </p>
         </div>
 

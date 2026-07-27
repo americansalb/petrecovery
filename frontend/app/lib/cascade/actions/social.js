@@ -1,5 +1,5 @@
 /**
- * Social action — renders the 3 PNG share cards and stores them on the CDN.
+ * Social action - renders the 3 PNG share cards and stores them on the CDN.
  * The SOCIAL_OG asset doubles as the case page's og:image. Each size is
  * isolated; step SUCCEEDS if at least one card stored.
  */

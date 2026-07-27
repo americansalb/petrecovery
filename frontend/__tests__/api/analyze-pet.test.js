@@ -4,7 +4,7 @@
  * This route is intentionally unauthenticated (it runs in the report-creation /
  * finder funnel), so it is safe-by-construction instead of safe-behind-a-login.
  * These tests pin the acceptance criteria the team ratified in Delphi discussion 1:
- *   (a) SSRF host allowlist — only our own image host(s), never arbitrary URLs
+ *   (a) SSRF host allowlist - only our own image host(s), never arbitrary URLs
  *   (b) request timeout + image size cap
  *   (c) anonymous rate limit
  *   (d) model output validated/normalized to Prisma enums
@@ -19,7 +19,7 @@ import { NextRequest } from 'next/server';
 
 // Rate limit: default to "allowed". Individual tests override.
 // Two limiters: per-IP (withRateLimitAsync) and the global spend ceiling
-// (checkGlobalLimitAsync — the AC-e fix that defends total Anthropic cost).
+// (checkGlobalLimitAsync - the AC-e fix that defends total Anthropic cost).
 const mockWithRateLimitAsync = jest.fn();
 const mockCheckGlobalLimitAsync = jest.fn();
 const mockRateLimitResponse = jest.fn(() =>
@@ -46,7 +46,7 @@ function req(body) {
 }
 
 // A real Response for the image fetch (realm-safe across jest workers, unlike a
-// plain object — the route reads .ok/.headers.get()/.arrayBuffer()).
+// plain object - the route reads .ok/.headers.get()/.arrayBuffer()).
 function imageResponse({ contentType = 'image/jpeg', contentLength = '2048', bytes = 2048, status = 200 } = {}) {
   const headers = {};
   if (contentType !== null) headers['content-type'] = contentType;
@@ -82,7 +82,7 @@ describe('POST /api/ai/analyze-pet', () => {
     delete process.env.BUNNY_CDN_URL;
   });
 
-  describe('(a) SSRF host allowlist — must reject non-allowlisted URLs WITHOUT fetching', () => {
+  describe('(a) SSRF host allowlist - must reject non-allowlisted URLs WITHOUT fetching', () => {
     const ssrfPayloads = [
       ['link-local metadata (http)', 'http://169.254.169.254/latest/meta-data/'],
       ['link-local metadata (https)', 'https://169.254.169.254/latest/meta-data/'],
@@ -110,7 +110,7 @@ describe('POST /api/ai/analyze-pet', () => {
     });
   });
 
-  describe('(b) image fetch guards — media type + size', () => {
+  describe('(b) image fetch guards - media type + size', () => {
     test('rejects unsupported media type (text/html passthrough) with 400', async () => {
       wireFetch({ image: () => imageResponse({ contentType: 'text/html' }) });
       const res = await POST(req({ imageUrl: ALLOWED_IMAGE_URL }));
@@ -125,7 +125,7 @@ describe('POST /api/ai/analyze-pet', () => {
 
     test('rejects oversize image when Content-Length is absent (streamed byte ceiling)', async () => {
       // G2 fix: body is streamed with a running byte ceiling, so an absent/lying
-      // Content-Length cannot force unbounded buffering — and oversize still 413s.
+      // Content-Length cannot force unbounded buffering - and oversize still 413s.
       wireFetch({ image: () => imageResponse({ contentLength: null, bytes: 20 * 1024 * 1024 }) });
       const res = await POST(req({ imageUrl: ALLOWED_IMAGE_URL }));
       expect(res.status).toBe(413);
@@ -205,10 +205,10 @@ describe('POST /api/ai/analyze-pet', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Residual gaps I reported (Tester msg 318) — now FIXED by the developer.
+  // Residual gaps I reported (Tester msg 318) - now FIXED by the developer.
   // These regression tests lock the fixes so they can't silently regress.
   // ---------------------------------------------------------------------------
-  describe('hardening regressions (G1/G3 fixes — keep them fixed)', () => {
+  describe('hardening regressions (G1/G3 fixes - keep them fixed)', () => {
     test('G1 [AC-a]: image fetch disables redirect-following so an allowlisted host cannot 302 to an internal IP', async () => {
       wireFetch();
       await POST(req({ imageUrl: ALLOWED_IMAGE_URL }));

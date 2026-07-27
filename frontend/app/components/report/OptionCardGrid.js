@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * OptionCardGrid — big-tap-target choice cards where the tap IS the decision.
+ * OptionCardGrid - big-tap-target choice cards where the tap IS the decision.
  *
  * onSelect fires synchronously; the parent advances the wizard in the same
  * tick. Never wrap selection in a timer.

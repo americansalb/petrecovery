@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * PhotoStep — branded photo uploader for the report wizards.
+ * PhotoStep - branded photo uploader for the report wizards.
  *
- * Posts to /api/upload (Bunny CDN URLs — never base64). The first successful
+ * Posts to /api/upload (Bunny CDN URLs - never base64). The first successful
  * upload fires /api/ai/analyze-pet best-effort and hands the result to
  * onAnalysis so the Colors step can open pre-filled; analysis never blocks
  * progression and fails silently.
@@ -17,7 +17,7 @@ import { WIZARD_THEMES } from './wizardTheme';
 // oversized photos are downscaled and re-encoded in the browser first.
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const TARGET_BYTES = 2.5 * 1024 * 1024;
-const MAX_EDGE = 2000; // px — plenty for flyers, cards, and AI analysis
+const MAX_EDGE = 2000; // px - plenty for flyers, cards, and AI analysis
 
 /**
  * Shrink an oversized photo in the browser: decode, cap the long edge, and
@@ -55,7 +55,7 @@ async function compressImage(file) {
     const name = file.name.replace(/\.[a-z0-9]+$/i, '') + '.jpg';
     return new File([best], name, { type: 'image/jpeg' });
   } catch {
-    return file; // undecodable in this browser — let the server decide
+    return file; // undecodable in this browser - let the server decide
   }
 }
 
@@ -64,7 +64,7 @@ export default function PhotoStep({
   displayIndex = 0,
   onPhotosChange,
   onDisplayChange,
-  onAnalysis, // ({ species, colors }) — best-effort AI prefill
+  onAnalysis, // ({ species, colors }) - best-effort AI prefill
   maxPhotos = 5,
   variant = 'lost',
   petName,
@@ -97,7 +97,7 @@ export default function PhotoStep({
         onAnalysis(analysis);
       }
     } catch {
-      /* best-effort only — never surface AI failures */
+      /* best-effort only - never surface AI failures */
     } finally {
       setAnalyzing(false);
     }
@@ -277,7 +277,7 @@ export default function PhotoStep({
       {analyzed && !analyzing && (
         <p className={`flex items-center gap-2 mt-4 text-sm font-medium ${theme.accentText}`}>
           <Sparkles size={15} />
-          Got it — we&apos;ll suggest colors on the next step.
+          Got it - we&apos;ll suggest colors on the next step.
         </p>
       )}
 

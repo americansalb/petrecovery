@@ -46,7 +46,7 @@ export default function CapacitorBootstrap() {
 
         removeListeners = () => { urlOpen.remove(); back.remove(); };
       } catch {
-        // Plugins unavailable — nothing to do.
+        // Plugins unavailable - nothing to do.
       }
     })();
 

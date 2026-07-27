@@ -1,5 +1,5 @@
 /**
- * EXECUTABLE CONTRACT — finder funnel & confirm-and-connect (Delphi disc. 1).
+ * EXECUTABLE CONTRACT - finder funnel & confirm-and-connect (Delphi disc. 1).
  *
  * The routes under test DO NOT EXIST YET (no-signup FOUND funnel + relay
  * Confirm-&-Connect). This file is the anti-cruelty / anti-leak spec the team
@@ -10,7 +10,7 @@
  * Thresholds are Evil Architect's proposed contract (msg 309), grounded in
  * lib/matching.js scoring (species 25 / location 25 / breed 20 / color 15 /
  * timing 15; bands Excellent>=80, Good>=60, Possible>=45, Weak>=35).
- * @architect owns final numbers — update CONTRACT here when ratified.
+ * @architect owns final numbers - update CONTRACT here when ratified.
  *
  * GOLDEN RULE for the PII tests: assert against the raw API JSON payload, not
  * the rendered UI. The cruelest leaks are fields the screen hides but the
@@ -18,7 +18,7 @@
  */
 
 const CONTRACT = {
-  // Owner-notify confidence floor — anti-cruelty tiers.
+  // Owner-notify confidence floor - anti-cruelty tiers.
   ownerNotify: {
     autoPushMinScore: 60, // >=60 (Good+): auto push "possible match found"
     feedOnlyMinScore: 45, // 45-59 (Possible): pull-only in owner feed, NO push

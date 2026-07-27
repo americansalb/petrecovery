@@ -4,7 +4,7 @@
  * Regenerate a case's cascade ASSETS (AI copy + flyers + social cards) with
  * the current renderers, overwriting the stored CDN assets. Cascade assets
  * are otherwise frozen at report time, so cases created before a design or
- * copy change keep old artwork forever — this endpoint refreshes them.
+ * copy change keep old artwork forever - this endpoint refreshes them.
  * It does NOT re-send notifications, emails, or alerts.
  *
  * Auth: same shared secret as /api/cascade/sweep (`x-sweep-secret` header or

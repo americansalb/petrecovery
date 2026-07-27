@@ -121,7 +121,7 @@ export async function POST(request, { params }) {
     if (confidenceLevel >= 7) {
       const assignment = await prisma.caseAssignment.findUnique({
         where: { id: assignmentId },
-        select: { missionId: true }, // CaseAssignment.missionId is @map("caseId") — this is the case id
+        select: { missionId: true }, // CaseAssignment.missionId is @map("caseId") - this is the case id
       });
 
       const updatedCase = await prisma.case.update({
@@ -151,7 +151,7 @@ export async function POST(request, { params }) {
           if (updatedCase.reporter?.email) {
             await sendEmail({
               to: updatedCase.reporter.email,
-              subject: `Confident sighting reported for ${petName} — ReunitePets.org`,
+              subject: `Confident sighting reported for ${petName} - ReunitePets.org`,
               html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #10b981;">A confident sighting was reported</h2>

@@ -120,10 +120,10 @@ export function calculateColorSimilarity(color1, color2) {
 
 /**
  * A coordinate of exactly 0 (equator / prime meridian) is valid, so coordinate
- * presence MUST be tested with Number.isFinite, never truthiness — otherwise a
+ * presence MUST be tested with Number.isFinite, never truthiness - otherwise a
  * real match on the 0-meridian silently loses all location points and can fall
  * below the notification floor. (Shared helper so this anti-pattern stops
- * recurring — dev-challenger msg 382, evil-architect CORR-1.)
+ * recurring - dev-challenger msg 382, evil-architect CORR-1.)
  */
 export function hasCoords(lat, lng) {
   return Number.isFinite(lat) && Number.isFinite(lng);
@@ -156,21 +156,21 @@ export function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Notification / CTA floor, defined in P(true-match) — NOT raw points.
+ * Notification / CTA floor, defined in P(true-match) - NOT raw points.
  * The human question is "how sure before we give a distraught owner hope?",
  * answered in probability. These survive re-tuning of the raw scorer: when
  * matching.js changes, only scoreToProbability() is re-fit, never these floors.
  */
 export const PUSH_FLOOR = 0.70; // auto-push to owner + actionable Confirm-&-Connect CTA
-export const FEED_FLOOR = 0.40; // owner feed only — no alert, no CTA
+export const FEED_FLOOR = 0.40; // owner feed only - no alert, no CTA
 
 /**
  * PROVISIONAL raw-score → P(true-match) mapping.
  *
- * ⚠️ PROVISIONAL — to be replaced by the calibrated curve from Probe A
+ * ⚠️ PROVISIONAL - to be replaced by the calibrated curve from Probe A
  * (vision.md §6). Every consumer (owner-push gate, card CTA, tester H5) binds to
  * pTrueMatch, never to the raw score, so when the calibration curve lands ONLY
- * this function changes — no caller changes. The seed for Probe A MUST span the
+ * this function changes - no caller changes. The seed for Probe A MUST span the
  * 0.40–0.70 decision band (true non-matches, near-misses, partials) or the curve
  * is miscalibrated exactly where the floor lives.
  *
@@ -255,7 +255,7 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
   // veto it: a chip registered to a cat but the found-pet logged as a dog is a
   // data-entry error to SURFACE, not a reason to silently discard a definitive
   // identity match. Only attribute/visual matches are gated on species here.
-  // (dev-challenger msg 412 — pairs with the pTrueMatch sort fix.)
+  // (dev-challenger msg 412 - pairs with the pTrueMatch sort fix.)
   if (foundSpecies !== lostSpecies && matchSource !== 'microchip') {
     return {
       score: 0,
@@ -272,7 +272,7 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
   scores.species = 25;
   details.speciesMatch = true;
 
-  // 2. Location (25 points) — pickCoord/hasCoords preserve a valid 0 coordinate
+  // 2. Location (25 points) - pickCoord/hasCoords preserve a valid 0 coordinate
   const foundLat = pickCoord(foundPet.latitude, foundPet.lastSeenLatitude);
   const foundLon = pickCoord(foundPet.longitude, foundPet.lastSeenLongitude);
   const lostLat = pickCoord(lostCase.latitude, lostCase.lastSeenLatitude);
@@ -355,7 +355,7 @@ export function calculateMatchScore(foundPet, lostCase, options = {}) {
     score: totalScore,
     maxScore: 100,
     percentage: totalScore,
-    pTrueMatch,            // calibrated probability — the contract for notification/CTA gating
+    pTrueMatch,            // calibrated probability - the contract for notification/CTA gating
     matchSource,
     band: getConfidenceBand(pTrueMatch), // 'actionable' | 'feed' | 'suppress'
     details: {
@@ -390,7 +390,7 @@ export function findMatches(targetCase, candidateCases, options = {}) {
       };
     })
     // Keep eligible matches AND any 'actionable'-band match (e.g. a microchip
-    // identity match, pTrueMatch=1.0) even if its RAW score is low — a
+    // identity match, pTrueMatch=1.0) even if its RAW score is low - a
     // deterministic match must never be filtered out by the fuzzy minScore.
     .filter(m => (m.eligible && m.score >= minScore) || m.band === 'actionable')
     // Rank by calibrated probability first (so microchip / high-confidence rises

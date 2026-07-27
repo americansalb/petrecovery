@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * RecoveryKitPanel — the permanent "share kit" surface on the public case page.
+ * RecoveryKitPanel - the permanent "share kit" surface on the public case page.
  *
  * Renders the durable Recovery Kit in share mode: the scannable QR, the
  * printable branded flyers, and the ready-to-post social images + captions the

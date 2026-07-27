@@ -3,7 +3,7 @@
 /**
  * The Lantern Map (client-only Leaflet). One meaning per channel:
  * zone fill luminance = watch level (resting / watched), flash = live
- * mission flares + selection. No per-division hues, no density ramps —
+ * mission flares + selection. No per-division hues, no density ramps -
  * see docs/RESCUE_FORCES_REDESIGN.md §5.2.1.
  */
 
@@ -52,7 +52,7 @@ export default function TerritoryMapInner({
       .addAttribution('&copy; OSM &copy; CARTO')
       .addTo(map);
 
-    // Force boundary — a faint flash dashed ring; the edge of the watch.
+    // Force boundary - a faint flash dashed ring; the edge of the watch.
     const boundary = L.circle(center, {
       radius: (radiusMiles || 5) * MILES_TO_METERS,
       color: 'rgba(250,204,21,0.35)',
@@ -62,7 +62,7 @@ export default function TerritoryMapInner({
     }).addTo(map);
     map.fitBounds(boundary.getBounds(), { padding: [10, 10] });
 
-    // Division zones — geometry is navigation.
+    // Division zones - geometry is navigation.
     zones.forEach((zone) => {
       let layer = null;
       if (zone.customBoundary) {
@@ -96,7 +96,7 @@ export default function TerritoryMapInner({
       }
     });
 
-    // Mission flares — the only flash on the map.
+    // Mission flares - the only flash on the map.
     flares.forEach((f) => {
       L.marker([f.lat, f.lng], {
         interactive: false,

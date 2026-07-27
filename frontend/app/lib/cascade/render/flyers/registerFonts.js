@@ -1,7 +1,7 @@
 /**
  * Register the vendored Inter weights with react-pdf, exactly once per process.
  * react-pdf resolves `src` most reliably from a filesystem path in Node, so we
- * register by path (not Buffer). Idempotent — safe to call before every render.
+ * register by path (not Buffer). Idempotent - safe to call before every render.
  */
 
 import { Font } from '@react-pdf/renderer';

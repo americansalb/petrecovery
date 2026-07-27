@@ -5,7 +5,7 @@
  *
  * Computes the best-in-class flyer content: emotional hook, reward, multi-photo,
  * "look for" markings, an approach/safety line, microchip trust badge, and a
- * prominent scan CTA — the elements that actually drive sightings.
+ * prominent scan CTA - the elements that actually drive sightings.
  */
 
 import { format } from 'date-fns';
@@ -163,7 +163,7 @@ export function normalizeFlyerData(caseData, shared = {}) {
     accent: theme.accent,
     accentBg: theme.stampBg,
     speciesLabel,
-    // emotional copy — the "cannot say no" heart of the flyer
+    // emotional copy - the "cannot say no" heart of the flyer
     headline: copy.headline, // "Have you seen {name}?"
     plea: copy.plea, // one species-true supporting sentence
     pleaShort: copy.pleaShort, // shorter, for social cards

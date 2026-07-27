@@ -7,15 +7,23 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Plus, Loader2, Phone, Check, AlertCircle } from 'lucide-react';
+import { Plus, Loader2, Phone, Check, AlertCircle, Heart } from 'lucide-react';
 import { Modal, cn } from '@/components/ui';
 import { Card, Overline } from '@/app/components/care/kit/Tile';
-import { vaccinationStatus, vaccinePresetsFor } from '@/lib/healthBook';
+import {
+  vaccinationStatus, vaccinePresetsFor, latestPerName, rankVaccinations, weightTrendSummary,
+} from '@/lib/healthBook';
 import { adherenceForDay, startOfDay } from '@/lib/medications';
 
 const VAX_DOT = { PROTECTED: 'text-care-teal', DUE_SOON: 'text-care-amber', EXPIRED: 'text-red-600', ON_FILE: 'text-care-faint' };
 const VAX_LABEL = { PROTECTED: 'Current', DUE_SOON: 'Due soon', EXPIRED: 'Expired', ON_FILE: 'On file' };
 function shortDate(d) { return new Date(d).toLocaleDateString([], { month: 'short', year: 'numeric' }); }
+function dayDate(d, now = new Date()) {
+  const date = new Date(d);
+  const opts = { month: 'short', day: 'numeric' };
+  if (date.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+  return date.toLocaleDateString([], opts);
+}
 
 export function SectionHeader({ eyebrow, title, action }) {
   return (
@@ -26,25 +34,50 @@ export function SectionHeader({ eyebrow, title, action }) {
   );
 }
 
-/* Medical conditions, stated plainly in red. */
+/**
+ * Medical conditions. A labelled note, not a bare red paragraph: unlabelled
+ * red text reads as an error string, and a long condition list must not
+ * own the first screen - clamp to two lines with an expander.
+ */
 export function AlertRibbon({ text, href }) {
+  const [expanded, setExpanded] = useState(false);
   const value = text?.trim();
   if (!value) return null;
-  const body = <span className="text-[14px] font-medium text-red-600">{value}</span>;
-  return <div className="mb-4">{href ? <a href={href} className="hover:underline">{body}</a> : body}</div>;
+  const long = value.length > 120;
+  return (
+    <div className="mb-4 flex items-start gap-2.5">
+      <span className="mt-0.5 w-6 h-6 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+        <Heart size={13} />
+      </span>
+      <div className="min-w-0">
+        <span className="flex items-center gap-2">
+          <Overline>Medical note</Overline>
+          {href && <a href={href} className="text-[11.5px] font-semibold text-care-teal hover:underline">Edit</a>}
+        </span>
+        <p className={cn('text-[14px] font-medium text-red-600 mt-0.5', !expanded && 'line-clamp-2')}>{value}</p>
+        {long && (
+          <button onClick={() => setExpanded((v) => !v)} className="text-[12.5px] font-medium text-care-sub hover:text-care-ink mt-0.5">
+            {expanded ? 'Less' : 'More'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
-const TONE_TEXT = { good: 'text-care-teal', warn: 'text-care-amber', bad: 'text-red-600', empty: 'text-care-faint' };
+const TONE_TEXT = { good: 'text-care-teal', warn: 'text-care-amber', bad: 'text-red-600', onfile: 'text-care-ink', empty: 'text-care-faint' };
 const TONE_HEAD = {
   good: (n) => `${n} is up to date.`,
-  warn: (n) => `${n} has one thing due.`,
+  // "has one thing due" was hardcoded and undercounted a six-vaccine lapse.
+  warn: (n, s) => (s?.dueCount > 1 ? `${n} has ${s.dueCount} things due.` : `${n} has one thing due.`),
   bad: (n) => `${n} needs attention.`,
+  onfile: (n) => `${n}'s records are on file.`,
   empty: (n) => `${n}'s record is empty.`,
 };
 
 export function HealthStatusBand({ name, status, action }) {
   const tone = TONE_TEXT[status.tone] || TONE_TEXT.empty;
-  const head = (TONE_HEAD[status.tone] || TONE_HEAD.empty)(name);
+  const head = (TONE_HEAD[status.tone] || TONE_HEAD.empty)(name, status);
   return (
     <div className="flex items-start justify-between gap-4 flex-wrap">
       <div className="min-w-0">
@@ -57,7 +90,7 @@ export function HealthStatusBand({ name, status, action }) {
 }
 
 function protectionSummary(vaccinations) {
-  const live = (vaccinations || []).filter((v) => !v.deletedAt);
+  const live = latestPerName(vaccinations);
   const withExpiry = live.filter((v) => v.expiresAt);
   return {
     total: live.length,
@@ -67,18 +100,12 @@ function protectionSummary(vaccinations) {
     expired: withExpiry.filter((v) => vaccinationStatus(v) === 'EXPIRED').length,
   };
 }
-function weightTrend(weights) {
-  if (!weights.length) return null;
-  const latest = weights[weights.length - 1];
-  const delta = +(latest.weightLbs - weights[0].weightLbs).toFixed(1);
-  return { latest: latest.weightLbs, delta };
-}
 
 /**
  * The record in one line.
  *
  * This used to be three stat tiles. On a new animal they read "0 / none /
- * 0" — a wall of zeros telling you nothing — and on a full record they
+ * 0" - a wall of zeros telling you nothing - and on a full record they
  * simply repeated the three sections printed directly beneath them. A
  * summary that duplicates its own detail is decoration.
  *
@@ -87,7 +114,7 @@ function weightTrend(weights) {
  */
 export function VitalsTrio({ vaccinations, weights, meds, showVaccinations = true }) {
   const p = showVaccinations ? protectionSummary(vaccinations) : { total: 0 };
-  const wt = weightTrend(weights);
+  const wt = weightTrendSummary(weights);
   const activeMeds = (meds || []).filter((m) => m.isActive);
 
   if (!p.total && !wt && !activeMeds.length) return null;
@@ -105,7 +132,11 @@ export function VitalsTrio({ vaccinations, weights, meds, showVaccinations = tru
 
   const parts = [];
   if (wt) {
-    parts.push(`${wt.latest} lb${wt.delta === 0 ? ', steady' : `, ${wt.delta > 0 ? 'up' : 'down'} ${Math.abs(wt.delta)} lb`}`);
+    // A delta needs its window ("down 1.4 lb · 60 days"); a lone entry is
+    // just a number, not a "steady" trend.
+    if (wt.delta == null) parts.push(`${wt.latest.weightLbs} lb`);
+    else if (wt.delta === 0) parts.push(`${wt.latest.weightLbs} lb, steady · ${wt.spanLabel}`);
+    else parts.push(`${wt.latest.weightLbs} lb, ${wt.delta > 0 ? 'up' : 'down'} ${Math.abs(wt.delta)} lb · ${wt.spanLabel}`);
   }
   if (activeMeds.length) {
     parts.push(`${activeMeds.length} medication${activeMeds.length === 1 ? '' : 's'}`);
@@ -123,23 +154,33 @@ export function VitalsTrio({ vaccinations, weights, meds, showVaccinations = tru
 /* ------------------------------ Add vaccine ------------------------------ */
 export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   const presets = vaccinePresetsFor(species);
+  const today = new Date().toISOString().slice(0, 10);
   const [picked, setPicked] = useState(null);
   const [customName, setCustomName] = useState('');
-  const [givenOn, setGivenOn] = useState(new Date().toISOString().slice(0, 10));
-  const [duration, setDuration] = useState(null);
+  const [givenOn, setGivenOn] = useState(today);
+  const [duration, setDuration] = useState(null); // 1 | 3 | 0 | 'custom'
+  const [customExpiry, setCustomExpiry] = useState('');
   const [vetName, setVetName] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const name = picked?.custom ? customName.trim() : picked?.name;
-  const ready = !!name && !!givenOn && duration !== null;
+  const name = picked?.custom ? customName.trim().replace(/\s+/g, ' ') : picked?.name;
+  const ready = !!name && !!givenOn && duration !== null && (duration !== 'custom' || !!customExpiry);
 
   const save = async () => {
     if (!ready || saving) return;
+    // Validate here so obvious mistakes don't need a server round-trip.
+    if (name.length < 2) { setError('Vaccine name needs at least 2 characters'); return; }
+    if (givenOn > today) { setError("The given-on date can't be in the future"); return; }
+    if (duration === 'custom' && customExpiry <= givenOn) { setError('Expiry must be after the given-on date'); return; }
     setSaving(true); setError(null);
     try {
       const administeredAt = new Date(givenOn + 'T12:00:00');
-      const expiresAt = duration > 0 ? new Date(new Date(administeredAt).setFullYear(administeredAt.getFullYear() + duration)) : null;
+      const expiresAt = duration === 'custom'
+        ? new Date(customExpiry + 'T12:00:00')
+        : duration > 0
+          ? new Date(new Date(administeredAt).setFullYear(administeredAt.getFullYear() + duration))
+          : null;
       const res = await fetch(`/api/pets/${petId}/vaccinations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, administeredAt, expiresAt, vetName: vetName.trim() || undefined }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not save');
@@ -153,7 +194,7 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   const label = 'text-[13px] font-medium text-care-ink mb-1.5';
 
   return (
-    <Modal onClose={onClose} title="Add a vaccine">
+    <Modal onClose={onClose} title="Add a vaccine" subtitle={picked ? undefined : 'Pick the vaccine to record'}>
       <div className="flex flex-wrap gap-2 mb-4">
         {/* Duration follows the chosen vaccine. The old `duration === null`
             guard only set it on the FIRST pick, so switching Rabies (3 yr)
@@ -162,13 +203,23 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
         {presets.map((p) => <button key={p.name} onClick={() => { setPicked(p); setDuration(p.years); }} className={chip(picked?.name === p.name)}>{p.name}</button>)}
         <button onClick={() => setPicked({ custom: true })} className={chip(picked?.custom)}>Other</button>
       </div>
-      {picked?.custom && <input value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="Vaccine name" className={input} />}
+      {picked?.custom && <input value={customName} maxLength={40} onChange={(e) => setCustomName(e.target.value)} placeholder="Vaccine name" className={input} />}
       {picked && (
         <>
           <p className={label}>Given on</p>
-          <input type="date" value={givenOn} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setGivenOn(e.target.value)} className={input} />
+          <input type="date" value={givenOn} max={today} onChange={(e) => setGivenOn(e.target.value)} className={input} />
           <p className={label}>Good for</p>
-          <div className="flex gap-2 mb-4">{[{ l: '1 year', v: 1 }, { l: '3 years', v: 3 }, { l: 'No expiry', v: 0 }].map(({ l, v }) => <button key={l} onClick={() => setDuration(v)} className={chip(duration === v)}>{l}</button>)}</div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[{ l: '1 year', v: 1 }, { l: '3 years', v: 3 }, { l: 'No expiry', v: 0 }, { l: 'Custom date', v: 'custom' }].map(({ l, v }) => (
+              <button key={l} onClick={() => setDuration(v)} className={chip(duration === v)}>{l}</button>
+            ))}
+          </div>
+          {duration === 'custom' && (
+            <>
+              <p className={label}>Expires on</p>
+              <input type="date" value={customExpiry} min={givenOn} onChange={(e) => setCustomExpiry(e.target.value)} className={input} />
+            </>
+          )}
           <input value={vetName} onChange={(e) => setVetName(e.target.value)} placeholder="Vet or clinic (optional)" className={input} />
         </>
       )}
@@ -178,20 +229,21 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   );
 }
 
-/* Vaccines as rows. */
+/* Vaccines as rows: one live stamp per vaccine, worst standing first. */
 export function VaccinePassport({ vaccinations, canManage, managing, onToggleManage, onAdd, onRemove }) {
+  const rows = rankVaccinations(latestPerName(vaccinations));
   return (
     <section>
       <SectionHeader
         title="Vaccines"
         action={(
           <span className="flex items-center gap-4">
-            {canManage && vaccinations.length > 0 && <button onClick={onToggleManage} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{managing ? 'Done' : 'Manage'}</button>}
+            {canManage && rows.length > 0 && <button onClick={onToggleManage} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{managing ? 'Done' : 'Manage'}</button>}
             {canManage && <button onClick={onAdd} className="inline-flex items-center gap-1 text-[13px] font-semibold text-care-teal">Add <Plus size={14} /></button>}
           </span>
         )}
       />
-      {vaccinations.length === 0 ? (
+      {rows.length === 0 ? (
         /* One quiet line, not a tall empty box. An empty record should
            invite the first entry, not stage a void around a sentence. */
         <Card className="px-5 py-3.5">
@@ -206,7 +258,7 @@ export function VaccinePassport({ vaccinations, canManage, managing, onToggleMan
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          {vaccinations.map((vax, i) => {
+          {rows.map((vax, i) => {
             const st = vaccinationStatus(vax);
             const soon = st === 'DUE_SOON' || st === 'EXPIRED';
             return (
@@ -230,39 +282,72 @@ export function VaccinePassport({ vaccinations, canManage, managing, onToggleMan
 /* --------------------------------- Weight --------------------------------- */
 export function WeightChart({ weights }) {
   if (weights.length < 2) return null;
-  const w = 600, h = 140, padX = 6, padTop = 14, padBot = 22;
+  const w = 600, h = 140, padX = 6, padTop = 16, padBot = 22;
   const vals = weights.map((e) => e.weightLbs);
   const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
   const x = (i) => padX + (i / (weights.length - 1)) * (w - 2 * padX);
   const y = (v) => padTop + (1 - (v - min) / span) * (h - padTop - padBot);
   const pts = weights.map((e, i) => `${x(i).toFixed(1)},${y(e.weightLbs).toFixed(1)}`);
   const last = weights[weights.length - 1];
-  const fmt = (d) => new Date(d).toLocaleDateString([], { month: 'short', year: '2-digit' });
+  // Full years: "Jul 23" for July 2023 reads as a day of this month.
+  const fmt = (d) => new Date(d).toLocaleDateString([], { month: 'short', year: 'numeric' });
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="mt-3" role="img" aria-label="Weight over time">
       <polyline points={pts.join(' ')} fill="none" stroke="#0f5750" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {weights.map((e, i) => <circle key={i} cx={x(i)} cy={y(e.weightLbs)} r="2.4" fill="#0f5750" />)}
       <circle cx={x(weights.length - 1)} cy={y(last.weightLbs)} r="4.5" fill="#0f5750" />
+      {/* The y-scale, stated: without min/max an outlier silently reshapes
+          the whole curve and nobody can tell. */}
+      {max !== min && <text x={padX} y="11" fill="#a0a5a9" fontSize="11">{max} lb</text>}
+      <text x={padX} y={h - padBot + 4} fill="#a0a5a9" fontSize="11">{min !== max ? `${min} lb` : ''}</text>
       <text x={padX} y={h - 4} fill="#a0a5a9" fontSize="12">{fmt(weights[0].recordedAt)}</text>
       <text x={w - padX} y={h - 4} textAnchor="end" fill="#a0a5a9" fontSize="12">{fmt(last.recordedAt)}</text>
     </svg>
   );
 }
 
-export function WeightCard({ weights, canManage, weightInput, onWeightInput, weightDate, onWeightDate, onLog, saving }) {
+export function WeightCard({
+  weights, canManage, weightInput, onWeightInput, weightDate, onWeightDate, onLog, saving,
+  managing, onToggleManage, onRemove,
+}) {
   const latest = weights[weights.length - 1];
   const today = new Date().toISOString().slice(0, 10);
   return (
     <section>
-      <SectionHeader title="Weight" action={latest && <span className="text-[12.5px] text-care-sub">last {new Date(latest.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>} />
+      <SectionHeader
+        title="Weight"
+        action={(
+          <span className="flex items-center gap-4">
+            {latest && <span className="text-[12.5px] text-care-sub">last {dayDate(latest.recordedAt)}</span>}
+            {/* A fat-fingered entry (14.2 for 142) permanently bends the
+                chart unless it can be removed right here. */}
+            {canManage && weights.length > 0 && onToggleManage && (
+              <button onClick={onToggleManage} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{managing ? 'Done' : 'Manage'}</button>
+            )}
+          </span>
+        )}
+      />
       {/* Tighter when empty: the log row IS the empty state, so a new
           record shows one place to type instead of a headline over a void. */}
       <Card className={latest ? 'p-5' : 'px-5 py-4'}>
         {latest && (
           <p className="text-[28px] font-semibold tracking-tight text-care-ink tabular-nums">{latest.weightLbs}<span className="text-[15px] text-care-sub ml-1">lb</span></p>
         )}
-        {weights.length >= 2 && <WeightChart weights={weights} />}
-        {canManage && (
+        {weights.length >= 2 && !managing && <WeightChart weights={weights} />}
+        {managing ? (
+          <div className="mt-3 -mx-5 max-h-80 overflow-y-auto">
+            {[...weights].reverse().map((e, i) => (
+              <div key={e.id} className={cn('flex items-center gap-3 px-5 py-2.5', i > 0 && 'border-t border-care-lineSoft')}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold text-care-ink tabular-nums">{e.weightLbs} lb</p>
+                  {e.note && <p className="text-[12px] text-care-sub truncate">{e.note}</p>}
+                </div>
+                <span className="text-[12.5px] text-care-sub shrink-0">{dayDate(e.recordedAt)}</span>
+                <button onClick={() => onRemove(e)} className="text-[12.5px] font-medium text-red-600 hover:text-red-700 shrink-0">Remove</button>
+              </div>
+            ))}
+          </div>
+        ) : canManage && (
           <div className={latest ? 'mt-4' : ''}>
             {/* Date inputs carry a wide intrinsic minimum and globals.css
                 forces typed inputs to width:100%, so without wrap + min-w-0
@@ -293,9 +378,13 @@ export function WeightCard({ weights, canManage, weightInput, onWeightInput, wei
 /* ----------------------------------- Vet ---------------------------------- */
 export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, saving }) {
   const input = 'w-full rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
+  // A phone number alone is still a vet on file - in an emergency it is
+  // the single most valuable field, so it must never render as "none".
+  const hasVet = pet?.vetName || pet?.vetClinic || pet?.vetPhone;
+  const vetTitle = [pet?.vetName, pet?.vetClinic].filter(Boolean).join(', ') || pet?.vetPhone;
   return (
     <section>
-      <SectionHeader title="Vet" action={isOwner && vetDraft === null && <button onClick={() => onDraft({ vetName: pet?.vetName || '', vetClinic: pet?.vetClinic || '', vetPhone: pet?.vetPhone || '' })} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{pet?.vetName || pet?.vetClinic ? 'Edit' : 'Add'}</button>} />
+      <SectionHeader title="Vet" action={isOwner && vetDraft === null && <button onClick={() => onDraft({ vetName: pet?.vetName || '', vetClinic: pet?.vetClinic || '', vetPhone: pet?.vetPhone || '' })} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{hasVet ? 'Edit' : 'Add'}</button>} />
       <Card className="p-5">
         {vetDraft ? (
           <div className="space-y-2.5">
@@ -310,12 +399,16 @@ export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, sav
               <button onClick={onCancel} className="rounded-xl border border-care-line text-sm font-medium text-care-ink px-4 py-2 hover:border-care-ink transition-colors">Cancel</button>
             </div>
           </div>
-        ) : pet?.vetName || pet?.vetClinic ? (
+        ) : hasVet ? (
           <div className="flex items-center gap-3.5">
-            <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">{(pet.vetName || pet.vetClinic || 'V').replace(/^Dr\.?\s*/i, '').charAt(0).toUpperCase()}</span>
+            <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">
+              {pet.vetName || pet.vetClinic
+                ? (pet.vetName || pet.vetClinic).replace(/^Dr\.?\s*/i, '').charAt(0).toUpperCase()
+                : <Phone size={17} />}
+            </span>
             <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-semibold text-care-ink truncate">{[pet.vetName, pet.vetClinic].filter(Boolean).join(', ')}</p>
-              {pet.vetPhone && <a href={`tel:${pet.vetPhone}`} className="text-[13px] text-care-sub hover:text-care-ink">{pet.vetPhone}</a>}
+              <p className="text-[15px] font-semibold text-care-ink truncate">{vetTitle}</p>
+              {pet.vetPhone && vetTitle !== pet.vetPhone && <a href={`tel:${pet.vetPhone}`} className="text-[13px] text-care-sub hover:text-care-ink">{pet.vetPhone}</a>}
             </div>
             {pet.vetPhone && <a href={`tel:${pet.vetPhone}`} aria-label="Call clinic" className="w-11 h-11 rounded-[13px] bg-care-teal text-white flex items-center justify-center shrink-0 hover:bg-care-tealDark transition-colors"><Phone size={18} /></a>}
           </div>
@@ -371,6 +464,7 @@ export function MonthHistory({ vaccinations, weights, meds }) {
                 <p className="text-[12.5px] text-care-sub" title="Scheduled doses marked given this month (last 35 days)">
                   {adherence.given} of {adherence.due} doses given{' '}
                   <span className={cn('font-semibold tabular-nums', adherence.pct >= 90 ? 'text-care-teal' : adherence.pct >= 60 ? 'text-care-amber' : 'text-red-600')}>({adherence.pct}%)</span>
+                  <span className="text-care-faint"> · last 35 days</span>
                 </p>
               )}
             </div>

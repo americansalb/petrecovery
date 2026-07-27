@@ -9,7 +9,7 @@
  * one tap each, with honest done-states so the next step is always
  * the first unchecked row.
  *
- * Done-states are device-local (localStorage) — encouragement, not
+ * Done-states are device-local (localStorage) - encouragement, not
  * bookkeeping. ShelterList shares its called-count via the same
  * 'mc:actions' event.
  */
@@ -108,7 +108,7 @@ export default function HelpChecklist({
       id: 'share',
       icon: Share2,
       label: 'Spread the word',
-      sub: sharedCount > 0 ? `Shared ${sharedCount}× — every share helps` : 'Every share is another searcher',
+      sub: sharedCount > 0 ? `Shared ${sharedCount}× - every share helps` : 'Every share is another searcher',
       done: sharedCount > 0,
       onClick: onShare,
     },
@@ -116,7 +116,7 @@ export default function HelpChecklist({
       id: 'sighting',
       icon: Eye,
       label: `I've seen ${petName}`,
-      sub: 'Report a sighting — even if unsure',
+      sub: 'Report a sighting - even if unsure',
       done: false,
       onClick: onReportSighting,
     },
@@ -124,7 +124,7 @@ export default function HelpChecklist({
       id: 'flyer',
       icon: Printer,
       label: 'Print flyers',
-      sub: flags.flyer ? 'Printed — post them high and low' : 'Poles, cafés, vet offices',
+      sub: flags.flyer ? 'Printed - post them high and low' : 'Poles, cafés, vet offices',
       done: !!flags.flyer,
       onClick: onFlyer,
     },

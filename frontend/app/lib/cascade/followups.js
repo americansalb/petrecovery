@@ -1,5 +1,5 @@
 /**
- * Follow-up engine — the gentle day-1/3/7 check-ins that keep a search alive.
+ * Follow-up engine - the gentle day-1/3/7 check-ins that keep a search alive.
  *
  * At report time the `followups` action persists three PENDING CaseFollowUp
  * rows (dueAt in the future). They are delivered by draining due rows: a
@@ -34,7 +34,7 @@ export function followUpChannel(c) {
   return isPlaceholderEmail(c?.ownerEmail) ? 'sms' : 'email';
 }
 
-/** Day-specific, encouraging copy. Never clinical — this is a hard week. */
+/** Day-specific, encouraging copy. Never clinical - this is a hard week. */
 export function followUpMessage(day, c) {
   const name = c?.petName || 'your pet';
   // subject/heading/preheader/smsText are plain text (heading is escaped in

@@ -1,13 +1,13 @@
 /**
  * POST /api/cases/[caseNumber]/recovery-kit/rerun
  *
- * Regenerate the recovery kit (or a subset of it) — e.g. after the owner adds
+ * Regenerate the recovery kit (or a subset of it) - e.g. after the owner adds
  * a photo and wants fresh flyers. Owner-only (session must match the case
  * reporter) and rate-limited. Resets the targeted steps to PENDING and fires
  * the cascade again; runCascade skips still-SUCCESS steps, so only the reset
  * ones actually re-run and their CaseAssets are overwritten in place.
  *
- * Body: { only?: string[] } — action keys to regenerate. Omit for a full rerun.
+ * Body: { only?: string[] } - action keys to regenerate. Omit for a full rerun.
  */
 
 import { NextResponse } from 'next/server';

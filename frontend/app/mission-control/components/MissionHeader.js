@@ -6,7 +6,7 @@
  * Back, the pet's face, a purposeful title ("Finding Max"), the case
  * number for the record, and one state chip that always tells the
  * truth about the mission right now. The map starts exactly at its
- * bottom edge — no dead band.
+ * bottom edge - no dead band.
  */
 
 import { useRouter } from 'next/navigation';

@@ -2,9 +2,9 @@
  * Shared auth guards for pet-scoped API routes.
  *
  * Access levels (low → high): VIEWER < CAREGIVER < OWNER.
- *  - OWNER:     the Pet.ownerId user — everything, incl. sharing + pet edit
- *  - CAREGIVER: shared user — view pet, manage + log medications
- *  - VIEWER:    shared user — read-only
+ *  - OWNER:     the Pet.ownerId user - everything, incl. sharing + pet edit
+ *  - CAREGIVER: shared user - view pet, manage + log medications
+ *  - VIEWER:    shared user - read-only
  *
  * Shelter accounts: when a pet sits on a shelter roster
  * (managedByShelterId), anyone who manages that shelter (claimer or

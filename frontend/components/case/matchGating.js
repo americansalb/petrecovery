@@ -1,12 +1,12 @@
-// Pure, React-free gating logic for MatchCard — extracted so the security-critical
+// Pure, React-free gating logic for MatchCard - extracted so the security-critical
 // fail-closed invariant can be unit-tested without a DOM/jsdom (per dev-challenger
 // msg 506). The card's CTA decision lives here and nowhere else.
 
 /**
  * Should the actionable Confirm-&-Connect CTA (+ owner-push state) show?
  *
- * FAIL-CLOSED: true ONLY on the positive condition — the server says
- * band==='actionable' AND canConnect===true — or it's a microchip (verified-owner)
+ * FAIL-CLOSED: true ONLY on the positive condition - the server says
+ * band==='actionable' AND canConnect===true - or it's a microchip (verified-owner)
  * match. A missing/unknown band or a falsy canConnect yields false. Absence of the
  * trusted field DENIES, never allows: a wrong-payload accidental CTA would connect
  * a stranger to a distraught owner, so it must never fire on garbage input.

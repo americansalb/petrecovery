@@ -12,7 +12,7 @@
 import prisma from '@/app/lib/prisma';
 import { getConfidenceBand } from '@/app/lib/matching';
 
-/** Backend-authored, single source of truth — rendered verbatim by the UI. */
+/** Backend-authored, single source of truth - rendered verbatim by the UI. */
 export const ANTI_SCAM_BANNER =
   'ReunitePets never asks for payment or a reward to reconnect you. Report anything that does.';
 
@@ -31,7 +31,7 @@ export function generateFinderHandle() {
  * Snap a last-seen location to a COARSE, PII-safe string (~1km).
  * NEVER returns raw lat/lng. Prefers a human label (neighborhood/city) when we
  * have one; falls back to a vague distance phrase. The client must never round
- * sensitive geo — snapping is the backend's responsibility (contract §4c).
+ * sensitive geo - snapping is the backend's responsibility (contract §4c).
  *
  * @param {object} lostCase - Case row (lastSeenAddress / city / state may be present)
  * @returns {string}
@@ -39,7 +39,7 @@ export function generateFinderHandle() {
 export function snapCoarseArea(lostCase) {
   if (!lostCase) return 'Near the last-seen area';
   // Derive a coarse human label without exposing a street address.
-  // lastSeenAddress is typically "123 Oak St, Eastside, Chicago, IL" — we take a
+  // lastSeenAddress is typically "123 Oak St, Eastside, Chicago, IL" - we take a
   // non-numeric, non-leading component (neighborhood/city), never the street line.
   const label =
     coarseLabelFromAddress(lostCase.lastSeenAddress) ||
@@ -69,7 +69,7 @@ function coarseLabelFromAddress(address) {
 export async function createMatchConnection({ lostCaseId, foundCaseId, matchScore, pTrueMatch, matchSource = 'attribute' }) {
   return prisma.matchConnection.upsert({
     where: { lostCaseId_foundCaseId: { lostCaseId, foundCaseId } },
-    update: {}, // idempotent — never clobber an in-progress thread
+    update: {}, // idempotent - never clobber an in-progress thread
     create: {
       lostCaseId,
       foundCaseId,
@@ -92,7 +92,7 @@ export async function createMatchConnection({ lostCaseId, foundCaseId, matchScor
 export function toMatchCardPayload(connection, lostCase) {
   const band = getConfidenceBand(connection.pTrueMatch);
   return {
-    matchId: connection.token, // opaque — never the case id
+    matchId: connection.token, // opaque - never the case id
     petName: lostCase?.petName ?? null,
     species: lostCase?.petSpecies ?? lostCase?.species ?? null,
     petPhoto: lostCase?.petPhotoUrl ?? lostCase?.photoUrl ?? null,

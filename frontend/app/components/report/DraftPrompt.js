@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * DraftPrompt — the "pick up where you left off?" screen shown when a
+ * DraftPrompt - the "pick up where you left off?" screen shown when a
  * wizard mounts with an unfinished draft in sessionStorage. Restoring is a
  * choice, not a silent prefill: a stressed reporter starting a NEW report
  * must never inherit stale answers without noticing.

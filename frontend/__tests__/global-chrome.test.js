@@ -1,10 +1,10 @@
 /**
- * Universal navbar consistency — the rule lives in docs/APP_MAP.md §8.2.
+ * Universal navbar consistency - the rule lives in docs/APP_MAP.md §8.2.
  *
  * The global chrome (top bar + mobile tab bar) must be IDENTICAL on every
- * route — same height, same CTA, same links *per hat*: the center link
+ * route - same height, same CTA, same links *per hat*: the center link
  * set may vary by the session's hat (owner/searcher, app/contexts/
- * HatContext.js — see docs/PRODUCT_IA_PLAN.md "Three doors"), never by
+ * HatContext.js - see docs/PRODUCT_IA_PLAN.md "Three doors"), never by
  * the route. Chrome steps aside only inside intentional immersive
  * experiences, and that list lives in ONE place: app/lib/navChrome.js.
  * No page gets to ship its own competing top bar, and the nav components
@@ -38,7 +38,7 @@ const KNOWN_EXCEPTIONS = [
   'messages/[id]/page.js', // sticky header inside the Compare Pets modal
 ];
 
-/** Segments that ARE the immersive experiences — they own their chrome. */
+/** Segments that ARE the immersive experiences - they own their chrome. */
 const IMMERSIVE_DIRS = ['mission-control', 'my-shelter'];
 
 function walkChromeFiles(dir, rel = '') {
@@ -73,7 +73,7 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     expect(isImmersiveRoute('/shelters')).toBe(false);
   });
 
-  test('regular routes always get the top bar — auth pages included', () => {
+  test('regular routes always get the top bar - auth pages included', () => {
     for (const route of [
       '/', '/login', '/register', '/forgot-password', '/reset-password',
       '/verify-email', '/lost-and-found', '/pets', '/hub', '/dashboard',
@@ -94,7 +94,7 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     expect(hidesBottomNav('/join/abc123')).toBe(true);
     expect(hidesBottomNav('/pets/ck123/edit')).toBe(true);
     expect(hidesBottomNav('/pets/ck123/medications/new')).toBe(true);
-    // ...and nowhere else — auth pages keep the tab bar too
+    // ...and nowhere else - auth pages keep the tab bar too
     for (const route of [
       '/', '/login', '/register', '/lost-and-found', '/pets', '/pets/ck123',
       '/hub', '/dashboard', '/alerts', '/messages', '/messages/abc',
@@ -131,7 +131,7 @@ describe('nav components defer to the shared policy', () => {
   const bottomNav = read('components/GlobalBottomNav.js');
 
   test('chrome varies by hat, never by route', () => {
-    // Both chrome components draw their variation from HatContext —
+    // Both chrome components draw their variation from HatContext -
     // session-state emphasis, not per-route special cases.
     expect(navigation).toMatch(/useHat\(\)/);
     expect(bottomNav).toMatch(/useHat\(\)/);
@@ -164,7 +164,7 @@ describe('nav components defer to the shared policy', () => {
     expect(layout).toMatch(/<GlobalBottomNav \/>/);
   });
 
-  test('the immersive list stays deliberate — additions need a docs update', () => {
+  test('the immersive list stays deliberate - additions need a docs update', () => {
     // If this fails you added a takeover: update docs/APP_MAP.md §8.2 and
     // the IMMERSIVE_DIRS list above, then extend this expectation.
     expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter']);

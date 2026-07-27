@@ -45,7 +45,7 @@ async function main() {
     console.log('✅ Admin user created successfully');
     console.log(`   Email: ${adminEmail}`);
     if (generatedPassword) {
-      console.log(`   Password (generated, shown once — store it now): ${adminPassword}`);
+      console.log(`   Password (generated, shown once - store it now): ${adminPassword}`);
     } else {
       console.log('   Password: (from SEED_ADMIN_PASSWORD env)');
     }

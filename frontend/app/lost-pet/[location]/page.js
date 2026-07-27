@@ -1,7 +1,7 @@
 /**
  * Location landing page - Server Component with share metadata
  *
- * SEO surface: /lost-pet/austin-tx. No DB needed — the card is built
+ * SEO surface: /lost-pet/austin-tx. No DB needed - the card is built
  * from the slug itself, and these pages SHOULD rank, so index: true.
  */
 

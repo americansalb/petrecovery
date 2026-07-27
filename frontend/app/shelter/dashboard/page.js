@@ -8,11 +8,11 @@ import { Building2, ArrowLeft, Clock } from 'lucide-react';
 import InviteBanner from '../InviteBanner';
 import { getShelterForUser } from '@/app/lib/shelterAuth';
 
-// Session-dependent — never statically rendered.
+// Session-dependent - never statically rendered.
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Shelter Dashboard — ReunitePets.org',
+  title: 'Shelter Dashboard - ReunitePets.org',
   description: 'Manage your shelter on ReunitePets.org.',
 };
 

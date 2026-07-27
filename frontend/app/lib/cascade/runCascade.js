@@ -132,7 +132,7 @@ async function runOne(action, ctx) {
     }).catch(() => {});
   } catch (err) {
     // An action can raise a soft "not applicable" signal (err.skip) to record
-    // SKIPPED instead of FAILED — e.g. no rescue force was assigned.
+    // SKIPPED instead of FAILED - e.g. no rescue force was assigned.
     const isSkip = Boolean(err?.skip);
     await upsertStep(ctx.activation, action.key, {
       status: isSkip ? 'SKIPPED' : 'FAILED',
@@ -196,7 +196,7 @@ export async function runCascade(activation, caseData, correlationId) {
   const rolled = await rollupSummary(fresh);
   broadcastActivation(activation.caseNumber, { type: 'done', status: rolled.status });
 
-  // Opportunistic, bounded drain of any due follow-ups from other cases — keeps
+  // Opportunistic, bounded drain of any due follow-ups from other cases - keeps
   // reminders punctual with no cron, and never delays this cascade.
   piggybackDrain(5);
 
@@ -206,7 +206,7 @@ export async function runCascade(activation, caseData, correlationId) {
 /**
  * Fire-and-forget entry from the create route. Loads the case (+ pet for
  * photos), ensures the activation is seeded, and runs the cascade. Swallows all
- * errors — this must never surface to the reporter.
+ * errors - this must never surface to the reporter.
  */
 export async function enqueueCascade(caseId, { correlationId } = {}) {
   Promise.resolve()

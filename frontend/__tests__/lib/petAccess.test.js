@@ -1,5 +1,5 @@
 /**
- * Access-control tests for requirePetAccess (app/lib/petOwnership.js) —
+ * Access-control tests for requirePetAccess (app/lib/petOwnership.js) -
  * the guard in front of every pet-scoped API route (medications, doses, shares).
  *
  * Matrix under test:

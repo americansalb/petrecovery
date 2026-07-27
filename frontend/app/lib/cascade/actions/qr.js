@@ -1,9 +1,9 @@
 /**
- * QR action — warms the shared render inputs (QR data URL + pet photo) that
+ * QR action - warms the shared render inputs (QR data URL + pet photo) that
  * flyers/social embed, and stores a standalone downloadable QR PNG.
  *
  * The critical output is the QR data URL in getShared (pure local generation,
- * can't fail). The standalone CaseAsset upload is best-effort — if it fails,
+ * can't fail). The standalone CaseAsset upload is best-effort - if it fails,
  * the step still SUCCEEDS so flyers/social (which only need the data URL) run.
  */
 

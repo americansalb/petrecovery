@@ -66,7 +66,7 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
     }
     if (email === auth.user.email) {
-      return NextResponse.json({ error: "That's you — you already have full access" }, { status: 400 });
+      return NextResponse.json({ error: "That's you - you already have full access" }, { status: 400 });
     }
 
     // Only owner-initiated shares count against the cap. Inbound join REQUESTED
@@ -88,7 +88,7 @@ export async function POST(request, { params }) {
     }
 
     // Link immediately if they already have an account (status stays PENDING
-    // until they accept — access is never granted silently).
+    // until they accept - access is never granted silently).
     const invitee = await prisma.user.findUnique({
       where: { email },
       select: { id: true, firstName: true },
@@ -105,7 +105,7 @@ export async function POST(request, { params }) {
       select: shareSelect,
     });
 
-    // Fire-and-forget notification — sharing works even with email unconfigured.
+    // Fire-and-forget notification - sharing works even with email unconfigured.
     const inviter = await prisma.user.findUnique({
       where: { id: auth.user.id },
       select: { firstName: true },

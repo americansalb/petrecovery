@@ -9,7 +9,7 @@ import React from 'react';
  * three sizes (og 1200x630, square 1080x1080, story 1080x1920).
  *
  * satori only understands inline styles and needs display:flex on every
- * element with >1 child — hence the verbosity.
+ * element with >1 child - hence the verbosity.
  */
 
 const INK = '#0A0D26';
@@ -258,7 +258,7 @@ function InfoBlock({ data, k, label, value }) {
 function colorMarkings(data) {
   const chips = String(data.chips || '').split('  •  ');
   const bits = [chips[1] || null, data.markings || null].filter(Boolean);
-  return bits.join(' · ') || data.chips || '—';
+  return bits.join(' · ') || data.chips || '-';
 }
 
 /** Right rail shared by square + og: name, reward, color, last seen + map + QR. */
@@ -352,7 +352,7 @@ export function SocialCard({ data, size }) {
   }
 
   if (size === 'square') {
-    // 1080x1080 — the design's 1c artboard.
+    // 1080x1080 - the design's 1c artboard.
     const k = 1;
     return (
       <Col style={{ width: '100%', height: '100%', backgroundColor: '#ffffff', fontFamily: 'Archivo' }}>

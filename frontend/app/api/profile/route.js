@@ -112,7 +112,7 @@ export async function PATCH(request) {
       );
     }
 
-    // Update user fields (validated — firstName is required in the schema and
+    // Update user fields (validated - firstName is required in the schema and
     // shown all over the app, so never let it become empty)
     const updateData = {};
     if (firstName !== undefined) {

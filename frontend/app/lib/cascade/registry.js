@@ -1,5 +1,5 @@
 /**
- * The cascade action registry — the ordered set of things that fire when a
+ * The cascade action registry - the ordered set of things that fire when a
  * lost report is created. Each entry is metadata only; the run() implementations
  * live in actions/*.js and are attached in runCascade.
  *
@@ -8,7 +8,7 @@
  *       in order.
  * deps: step keys that must SUCCEED first (a failed dep -> this step SKIPPED).
  * enabled: flip on as each PR lands. Only enabled actions get a seeded step and
- *          run — so the dashboard only ever shows real, working items.
+ *          run - so the dashboard only ever shows real, working items.
  * logAction: the EventLog action verb (create|update|read|transition).
  */
 

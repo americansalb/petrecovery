@@ -1,5 +1,5 @@
 /**
- * recovery_email action (tier 2) — the branded "everything you need to bring
+ * recovery_email action (tier 2) - the branded "everything you need to bring
  * them home" email, with the print-ready Letter flyer attached and links back
  * to the live recovery kit. This is the email that makes reporting here feel
  * unmistakably worth it.
@@ -38,7 +38,7 @@ export async function runRecoveryEmail(ctx) {
   const email = c.ownerEmail;
 
   if (!email || isPlaceholderEmail(email)) {
-    const skip = new Error('phone-only reporter — case link already sent via SMS at intake');
+    const skip = new Error('phone-only reporter - case link already sent via SMS at intake');
     skip.skip = true;
     throw skip;
   }
@@ -56,12 +56,12 @@ export async function runRecoveryEmail(ctx) {
   const ai = ctx.results.ai_copy || {};
   const opener =
     ai.plea ||
-    `We know how frightening this is. The moment you posted, we went to work so you don't have to do this alone — here's everything we built to bring ${petName} home.`;
+    `We know how frightening this is. The moment you posted, we went to work so you don't have to do this alone - here's everything we built to bring ${petName} home.`;
 
   const attachment = await loadLetterFlyer(c.id, petName);
 
   const kitList = [
-    'Print-ready flyers (a classic poster, tear-off tabs, and a big yard sign) — the Letter poster is attached to this email',
+    'Print-ready flyers (a classic poster, tear-off tabs, and a big yard sign) - the Letter poster is attached to this email',
     'Ready-to-post images and captions for Facebook, Nextdoor, and Instagram',
     'A scannable QR code that brings anyone straight to your case page',
     `A first-24-hours search plan tailored to a lost ${speciesWord}`,
@@ -79,7 +79,7 @@ export async function runRecoveryEmail(ctx) {
     <ul style="margin:0 0 16px; padding-left:20px;">
       ${kitList.map((item) => `<li style="margin:0 0 8px;">${item}</li>`).join('')}
     </ul>
-    <p style="margin:0 0 4px;">Everything stays on your case page — open it any time, add a photo, or download a fresh flyer.</p>
+    <p style="margin:0 0 4px;">Everything stays on your case page - open it any time, add a photo, or download a fresh flyer.</p>
     ${attachment ? '' : '<p style="margin:12px 0 0; font-size:14px; color:#94a3b8;">Your printable flyer is ready on the case page (the download button under “Share kit”).</p>'}
   `;
 

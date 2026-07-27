@@ -31,7 +31,7 @@ const FOUNDER_ADMIN_EMAILS = new Set([
 /**
  * @type {import('next-auth').AuthOptions}
  * Typed so `session.strategy: 'jwt'` is the literal SessionStrategy (not widened
- * to `string`) — otherwise the 12 .ts routes calling getServerSession(authOptions)
+ * to `string`) - otherwise the 12 .ts routes calling getServerSession(authOptions)
  * fail `next build`'s type check and block the merge.
  */
 export const authOptions = {
@@ -58,13 +58,13 @@ export const authOptions = {
         }
 
         // SEC-18 mitigation (defense-in-depth): the originally-seeded admin
-        // passwords are in git history. Block these accounts at the auth layer —
-        // regardless of password — until the live DB hashes are rotated. Covers
+        // passwords are in git history. Block these accounts at the auth layer -
+        // regardless of password - until the live DB hashes are rotated. Covers
         // BOTH seeded admins: contact@aalb.org (pw "winner") and
         // sarama@petrecovery.app (seeded ADMIN by the SEC-16 seed-welcome route).
         // Block-by-default (protects even with zero config); clear by setting
         // SEC18_ROTATED=true AFTER rotating the live passwords. Tradeoff: the legit
-        // admin stays locked until that env is set — the correct safe default
+        // admin stays locked until that env is set - the correct safe default
         // (briefly lock the owner out > leave a known backdoor open). Owner
         // DB-rotation remains the real fix. Note: credentials-path only; an OAuth
         // login for these emails is a separate low-risk path (needs account control).
@@ -90,7 +90,7 @@ export const authOptions = {
           return null;
         }
 
-        // Stamp activity (fire-and-forget — a stats write must never block or
+        // Stamp activity (fire-and-forget - a stats write must never block or
         // fail the login, even if the client throws synchronously).
         // lastActive/lastLoginAt were write-never before this, which made the
         // admin "Recently Active" sort and analytics cohorts meaningless.

@@ -1,11 +1,11 @@
 /**
- * cdnUpload — programmatic Bunny.net upload for server-generated binaries.
+ * cdnUpload - programmatic Bunny.net upload for server-generated binaries.
  *
  * The public /api/upload route is image-only (magic-byte + filename regex) and
  * can't carry a generated PDF or PNG. This helper extracts just the Bunny PUT
  * so the cascade can store flyers (application/pdf) and social cards (image/png)
  * under a deterministic key. Deterministic keys mean a re-run PUTs over the same
- * object — the CDN url is stable and idempotent, matching CaseAsset's
+ * object - the CDN url is stable and idempotent, matching CaseAsset's
  * @@unique([caseId, kind]) contract.
  *
  * Node runtime only (uses Buffer + fetch to the storage host). Never import

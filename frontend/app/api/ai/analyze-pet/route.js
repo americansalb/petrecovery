@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * POST /api/ai/analyze-pet
  * Analyzes a pet photo using Claude Haiku vision to detect species, colors, size, and breed.
  *
- * No login required — this runs during the report-creation flow (including the finder
+ * No login required - this runs during the report-creation flow (including the finder
  * funnel), so we keep it unauthenticated but make it safe by construction:
  *  - SSRF guard: imageUrl MUST be on our own image host allowlist. The client always
  *    passes a URL returned by /api/upload (Bunny CDN), so arbitrary URLs are rejected.
@@ -84,7 +84,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'imageUrl is required' }, { status: 400 });
     }
 
-    // SSRF guard — only fetch from our own image host(s).
+    // SSRF guard - only fetch from our own image host(s).
     const validatedUrl = validateImageUrl(imageUrl);
     if (!validatedUrl) {
       return NextResponse.json({ error: 'Invalid image URL' }, { status: 400 });
@@ -109,7 +109,7 @@ export async function POST(request) {
     const base64Image = fetched.base64;
     const imageMediaType = fetched.mediaType;
 
-    // Hard global ceiling on paid Anthropic calls — defends total spend even if
+    // Hard global ceiling on paid Anthropic calls - defends total spend even if
     // the per-IP limit is evaded via IP rotation / spoofed x-forwarded-for.
     const globalLimit = await checkGlobalLimitAsync('ai:analyze-pet', {
       windowMs: 60 * 1000,

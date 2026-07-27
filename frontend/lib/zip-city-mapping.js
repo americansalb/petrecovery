@@ -401,7 +401,7 @@ export function getZipCodeInfo(zipCode) {
     }
   }
 
-  // ZIP not in our mapping — return null so callers use their own fallback
+  // ZIP not in our mapping - return null so callers use their own fallback
   return null;
 }
 

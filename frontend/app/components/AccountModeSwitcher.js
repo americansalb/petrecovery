@@ -129,7 +129,7 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   }
 
   // The shelter door must stay discoverable even for people who don't
-  // hold that hat yet — it's how a shelter director learns the free
+  // hold that hat yet - it's how a shelter director learns the free
   // portal exists. (/shelter/dashboard sorts out pitch vs pending vs
   // invite.) Holders get their shelter as a mode row instead.
   const hasShelterMode = modes.some((m) => m.id === 'shelter');

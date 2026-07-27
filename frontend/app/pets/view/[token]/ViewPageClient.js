@@ -18,7 +18,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { vaccinationStatus } from '@/lib/healthBook';
+import { vaccinationStatus, latestPerName, rankVaccinations } from '@/lib/healthBook';
 import { Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
@@ -345,7 +345,13 @@ export default function PublicPetViewPage() {
                 <div className="flex items-baseline justify-between gap-4 py-3">
                   <dt className="text-[13px] text-neutral-500 shrink-0">Weight</dt>
                   <dd className="text-[15px] text-neutral-900 text-right tabular-nums">
-                    {data.latestWeight.weightLbs} lbs · {new Date(data.latestWeight.recordedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                    {/* A vet scanning this must see that a weigh-in is old:
+                        "May 28" with no year reads as recent forever. */}
+                    {data.latestWeight.weightLbs} lbs · {new Date(data.latestWeight.recordedAt).toLocaleDateString([], {
+                      month: 'short',
+                      day: 'numeric',
+                      ...(new Date(data.latestWeight.recordedAt).getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
+                    })}
                   </dd>
                 </div>
               )}
@@ -357,7 +363,9 @@ export default function PublicPetViewPage() {
                       shot must not read as current, and a no-expiry record
                       must not show its given date as if it were coverage. */}
                   <dd className="text-[15px] text-neutral-900 text-right">
-                    {data.vaccinations.map((v, i) => {
+                    {/* One entry per vaccine (newest), worst standing first,
+                        matching the owner-facing passport. */}
+                    {rankVaccinations(latestPerName(data.vaccinations)).map((v, i) => {
                       const st = vaccinationStatus(v);
                       const mmyyyy = (d) => new Date(d).toLocaleDateString([], { month: 'numeric', year: 'numeric' });
                       let label; let cls = 'text-neutral-500';
@@ -378,6 +386,13 @@ export default function PublicPetViewPage() {
             </dl>
           </section>
         )}
+
+        {/* The clinical face carries the same soft disclosure the owner
+            sees: this is family-kept data, not a clinic-verified record. */}
+        <p className="mt-8 text-[12px] text-neutral-400">
+          This Health Book is kept by {pet.name}&apos;s people and isn&apos;t verified by a clinic.
+          For anything official, ask for the paper certificate. In an emergency, call a vet first.
+        </p>
 
         {/* Join request */}
         <div className="mt-12 flex items-center justify-between gap-4">

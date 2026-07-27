@@ -316,18 +316,30 @@ export default function TodayPage() {
            the error banner above is the whole story until a retry works. */
         null
       ) : !hasAnything ? (
-        <Card className="text-center py-12 mt-2 px-6">
-          <p className="text-[17px] font-semibold text-care-ink">Nothing to track yet</p>
-          <p className="text-[14px] text-care-sub mt-1 mb-5">Add a medication and check off doses with a tap.</p>
-          {canManage && <Link href={`/pets/${petId}/medications/new`} className="inline-flex items-center gap-2 rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"><Plus size={16} /> Add a medication</Link>}
-        </Card>
+        /* No meds yet is not "nothing to show": the health glance must
+           still answer "Is this animal OK?" - hiding it here made a pet
+           with two expired vaccines look perfectly fine on Today. */
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
+          <Card className="text-center py-12 mt-2 px-6 self-start">
+            <p className="text-[17px] font-semibold text-care-ink">No medications to track yet</p>
+            <p className="text-[14px] text-care-sub mt-1 mb-5">Add a medication and check off doses with a tap.</p>
+            {canManage && <Link href={`/pets/${petId}/medications/new`} className="inline-flex items-center gap-2 rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"><Plus size={16} /> Add a medication</Link>}
+          </Card>
+          <PetGlance
+            pet={pet}
+            vaccinations={vaccinations}
+            weights={weights}
+            meds={meds}
+            healthHref={`/pets/${petId}/health`}
+          />
+        </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
           {/* CENTER */}
           <div className="min-w-0 flex flex-col gap-5">
             <div className="flex items-end justify-between">
               <div>
-                <Overline>{greeting}{pet?.name ? '' : ''}</Overline>
+                <Overline>{greeting}</Overline>
                 <h1 className="text-[24px] font-semibold tracking-tight text-care-ink leading-none mt-1.5">
                   Today <span className="text-care-faint font-medium">· {now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                 </h1>

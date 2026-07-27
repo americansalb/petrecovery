@@ -286,7 +286,7 @@ async function main() {
       data: {
         caseId: maxCase.id,
         authorId: admin.id,
-        content: 'Max is microchipped and very food motivated — try hot dogs! Please do not chase him.',
+        content: 'Max is microchipped and very food motivated - try hot dogs! Please do not chase him.',
         isUpdate: true,
         isPinned: true,
       },
@@ -460,7 +460,7 @@ async function main() {
       data: {
         rescueSquadId: force.id,
         authorId: sarah.id,
-        title: 'Greenbelt search recap — promising trail!',
+        title: 'Greenbelt search recap - promising trail!',
         content:
           'We covered the east loop today. Two independent sightings put Max near the spillway. Tomorrow we set up a feeding station with a camera.',
         upvotes: 12,
@@ -496,7 +496,7 @@ async function main() {
   if (!thread) {
     thread = await prisma.forumThread.create({
       data: {
-        title: 'Tips for shy cats hiding nearby — what worked for you?',
+        title: 'Tips for shy cats hiding nearby - what worked for you?',
         slug: 'tips-for-shy-cats-hiding-nearby',
         categoryId: forumCats['lost-pet-help'].id,
         authorId: sarah.id,
@@ -543,7 +543,7 @@ async function main() {
       update: {},
       create: {
         userId: u.id,
-        bio: `${u.firstName} — Austin Rescue Force volunteer`,
+        bio: `${u.firstName} - Austin Rescue Force volunteer`,
         location: 'Austin, TX',
         trustLevel: 2,
         reputation: 120,
@@ -573,7 +573,7 @@ async function main() {
       },
     });
     const msgs = [
-      [admin.id, 'OWNER', 'Hi! I think the dog you found might be my Max — golden retriever, blue collar, white chest patch?'],
+      [admin.id, 'OWNER', 'Hi! I think the dog you found might be my Max - golden retriever, blue collar, white chest patch?'],
       [mike.id, 'FINDER', 'Yes! Blue collar with a bone tag. He is safe at my place near Barton Springs. Very sweet boy.'],
       [admin.id, 'OWNER', 'That is him!! Can we meet this evening? I can bring his vet records and photos.'],
     ];
@@ -825,7 +825,7 @@ async function main() {
         userId: admin.id,
         type: 'SQUAD_MESSAGE',
         title: 'New post in Austin Rescue Force',
-        message: 'Sarah posted: Greenbelt search recap — promising trail!',
+        message: 'Sarah posted: Greenbelt search recap - promising trail!',
         actionUrl: `/rescue-forces/${force.id}`,
         read: true,
         readAt: new Date(),

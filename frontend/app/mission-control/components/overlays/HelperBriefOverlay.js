@@ -65,7 +65,7 @@ export default function HelperBriefOverlay({ mission, now, onStart }) {
           onClick={onStart}
           className="mt-6 w-full py-4 rounded-2xl bg-flash-400 hover:bg-flash-300 text-midnight-950 font-bold text-lg transition active:scale-[0.98] shadow-lg shadow-flash-400/25"
         >
-          Got it — show me the map
+          Got it - show me the map
         </button>
         <p className="mt-3 text-[11px] text-slate-500">
           The map shows where to look and the panel shows how to help.

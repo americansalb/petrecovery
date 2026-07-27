@@ -3,7 +3,7 @@
  * (/report/new and /report/found).
  *
  * Every Tailwind class lives here as a literal string so the JIT scanner
- * picks it up — never build class names dynamically from these values.
+ * picks it up - never build class names dynamically from these values.
  */
 
 import { Dog, Cat, Bird, Rabbit, PawPrint, Home, Trees } from 'lucide-react';
@@ -23,7 +23,7 @@ export const WIZARD_THEMES = {
     progressFill: 'bg-red-500',
     posterGrad: 'bg-gradient-to-br from-red-400 via-orange-400 to-amber-300',
     mapHex: '#ef4444',
-    // Focus is the flash brand accent on BOTH variants — a red focus border
+    // Focus is the flash brand accent on BOTH variants - a red focus border
     // on the lost flow reads as a validation error.
     focusRing: 'focus:border-flash-400 focus:ring-2 focus:ring-flash-100',
   },
@@ -83,7 +83,7 @@ export const CAT_LIVING_OPTIONS = [
 ];
 
 // Values are the exact enum both report APIs map through
-// calculateLastSeenTime / calculateFoundTime — do not rename.
+// calculateLastSeenTime / calculateFoundTime - do not rename.
 export const LOST_TIME_OPTIONS = [
   { value: 'less_than_hour', label: 'Within the last hour', sublabel: 'They may still be close', urgent: true },
   { value: '1_to_6_hours', label: 'A few hours ago', sublabel: '1–6 hours', urgent: true },

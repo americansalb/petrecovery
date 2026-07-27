@@ -142,7 +142,7 @@ export default function ActionCards({
           badge="Important"
         />
 
-        {/* 4. Print Flyers — jump to the ready-made flyers/social kit below */}
+        {/* 4. Print Flyers - jump to the ready-made flyers/social kit below */}
         <ActionCard
           href="#share-kit"
           title="Print Flyers"

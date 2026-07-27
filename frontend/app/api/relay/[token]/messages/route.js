@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 const MAX_MESSAGE_LEN = 2000;
 
 /**
- * POST /api/relay/{token}/messages  — send a message in the brokered thread.
+ * POST /api/relay/{token}/messages  - send a message in the brokered thread.
  *
  * Sender role is derived SERVER-SIDE (session vs the lost-case owner), never
  * trusted from the client. Messages are stored + rendered as plain text (no

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Report Found Pet — one-decision-at-a-time wizard.
+ * Report Found Pet - one-decision-at-a-time wizard.
  *
  * Built for a helper looking at the animal right now: observable facts first
  * (species → where → when → photo → colors), tag details optional, contact
@@ -9,7 +9,7 @@
  *
  * Photos upload to the CDN via /api/upload (no more base64), and the merged
  * Where step replaces the old text-geocode + separate-pinpoint screens.
- * Shares every primitive (and the exact look) of the lost wizard — only the
+ * Shares every primitive (and the exact look) of the lost wizard - only the
  * emerald FOUND semantics and copy differ.
  */
 
@@ -36,7 +36,7 @@ import {
 } from '../../components/report/wizardTheme';
 
 const VARIANT = 'found';
-const CONTACT_MODE = 'email-first'; // matches are emailed — email stays required
+const CONTACT_MODE = 'email-first'; // matches are emailed - email stays required
 const LOCATION_STORAGE_KEY = 'reportLocation';
 const DRAFT_KEY = 'reportDraft:found';
 
@@ -226,7 +226,7 @@ export default function ReportFoundPet() {
           radiusMiles: 10, // match radius, not user-facing
           timeElapsed,
           petType: species,
-          photos: orderedPhotos, // CDN URLs from /api/upload — never base64
+          photos: orderedPhotos, // CDN URLs from /api/upload - never base64
         }),
       });
       const data = await response.json();
@@ -256,14 +256,14 @@ export default function ReportFoundPet() {
         label: 'Where',
         sidebarIcon: MapPin,
         sidebarTitle: 'Location is the #1 signal',
-        sidebarCopy: 'Lost pets are matched by distance first — pin the spot where you found them.',
+        sidebarCopy: 'Lost pets are matched by distance first - pin the spot where you found them.',
       },
       {
         id: 'when',
         label: 'When',
         sidebarIcon: Clock,
         sidebarTitle: 'Fresh sightings match faster',
-        sidebarCopy: 'Owners search hardest in the first hours — timing helps us rank the matches.',
+        sidebarCopy: 'Owners search hardest in the first hours - timing helps us rank the matches.',
       },
       {
         id: 'photo',
@@ -438,7 +438,7 @@ export default function ReportFoundPet() {
           stepKey="photo"
           variant={VARIANT}
           question="Snap a photo if you can"
-          hint="An owner will recognize their pet instantly — photos triple match speed."
+          hint="An owner will recognize their pet instantly - photos triple match speed."
           primary={{ label: 'Continue', onClick: advance, disabled: photos.length === 0 }}
           skip={photos.length === 0 ? { label: "I can't take a photo right now", onClick: advance } : null}
         >
@@ -460,8 +460,8 @@ export default function ReportFoundPet() {
           question="What colors are they?"
           hint={
             aiSuggested
-              ? 'We spotted these in the photo — tap to adjust, then continue.'
-              : 'Pick every color that fits — matches are compared by color.'
+              ? 'We spotted these in the photo - tap to adjust, then continue.'
+              : 'Pick every color that fits - matches are compared by color.'
           }
           primary={{ label: 'Continue', onClick: advance, disabled: !color }}
         >
@@ -474,7 +474,7 @@ export default function ReportFoundPet() {
           stepKey="details"
           variant={VARIANT}
           question="Anything from a collar or tag?"
-          hint="All optional — a tag name or chip number can end the search instantly."
+          hint="All optional - a tag name or chip number can end the search instantly."
           primary={{ label: 'Continue', onClick: advance }}
           skip={{ label: 'Nothing to add', onClick: advance }}
         >
@@ -499,8 +499,8 @@ export default function ReportFoundPet() {
             mode={CONTACT_MODE}
             value={contact}
             onChange={setContact}
-            emailHint="Match alerts land here — that's why we need it."
-            phoneHint="Optional — for faster coordination on a strong match."
+            emailHint="Match alerts land here - that's why we need it."
+            phoneHint="Optional - for faster coordination on a strong match."
           />
         </StepScreen>
       )}

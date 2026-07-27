@@ -415,30 +415,30 @@ export default function CaseDetailPage({ params }) {
           <div>
             {/* Pet Information */}
             <Section title="Pet Information">
-              <Field label="Name" value={missionData.petName || '—'} />
+              <Field label="Name" value={missionData.petName || '-'} />
               <Field label="Species" value={missionData.petSpecies} />
-              <Field label="Breed" value={missionData.petBreed || '—'} />
-              <Field label="Color" value={missionData.petColor || '—'} />
-              <Field label="Description" value={missionData.petDescription || '—'} />
+              <Field label="Breed" value={missionData.petBreed || '-'} />
+              <Field label="Color" value={missionData.petColor || '-'} />
+              <Field label="Description" value={missionData.petDescription || '-'} />
             </Section>
 
             {/* Last Seen Location */}
             <Section title="Last Seen Location">
               <Field label="City" value={missionData.city} />
               <Field label="State" value={missionData.state} />
-              <Field label="ZIP Code" value={missionData.zipCode || '—'} />
-              <Field label="Landmark" value={missionData.lastSeenLandmark || '—'} />
+              <Field label="ZIP Code" value={missionData.zipCode || '-'} />
+              <Field label="Landmark" value={missionData.lastSeenLandmark || '-'} />
               <Field
                 label="Last Seen At"
-                value={missionData.lastSeenAt ? new Date(missionData.lastSeenAt).toLocaleString() : '—'}
+                value={missionData.lastSeenAt ? new Date(missionData.lastSeenAt).toLocaleString() : '-'}
               />
             </Section>
 
             {/* Contact Information */}
             <Section title="Contact Information">
-              <Field label="Name" value={missionData.contactName || '—'} />
-              <Field label="Phone" value={missionData.contactPhone || '—'} />
-              <Field label="Email" value={missionData.contactEmail || '—'} />
+              <Field label="Name" value={missionData.contactName || '-'} />
+              <Field label="Phone" value={missionData.contactPhone || '-'} />
+              <Field label="Email" value={missionData.contactEmail || '-'} />
             </Section>
 
             {/* Case Notes */}

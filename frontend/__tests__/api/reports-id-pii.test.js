@@ -3,12 +3,12 @@
  * unauthenticated viewer via potentialMatches.
  *
  * EA's audit found this live: a FOUND report's potentialMatches surfaced nearby
- * LOST owners' phone/name + exact last-seen location to an unauth GET — a PII
+ * LOST owners' phone/name + exact last-seen location to an unauth GET - a PII
  * harvest of distressed owners. The fix (developer 5f0d09a / §4d) projects only
  * pet fields + a coarse area + the calibrated confidence. This test is the gate
  * that flips SEC-3 to closed (developer msg 472), and locks it against regress.
  *
- * Golden rule (EA): assert on the raw API payload, not the rendered UI — the
+ * Golden rule (EA): assert on the raw API payload, not the rendered UI - the
  * cruelest leaks are fields the screen hides but the JSON still ships.
  *
  * Uses the REAL matching engine (pure, no DB) so a match actually surfaces.
@@ -59,7 +59,7 @@ const FOUND_REPORT = {
   assignments: [],
 };
 
-// A nearby, same-species LOST case that WILL match — carrying owner PII + exact
+// A nearby, same-species LOST case that WILL match - carrying owner PII + exact
 // location that must never reach an unauthenticated viewer.
 const LOST_WITH_PII = {
   id: 'lost-1',

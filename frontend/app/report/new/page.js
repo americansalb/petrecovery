@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Report Lost Pet — one-decision-at-a-time wizard.
+ * Report Lost Pet - one-decision-at-a-time wizard.
  *
  * Flow (guests): species → name → size → when → where → photo (skippable) →
  * colors → contact (passwordless) → post/review → success. Logged-in owners
@@ -38,7 +38,7 @@ import {
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
 const VARIANT = 'lost';
-// Contact capture mode. 'either' lets reporters choose email OR text —
+// Contact capture mode. 'either' lets reporters choose email OR text -
 // phone-only is supported server-side via a placeholder account email.
 const CONTACT_MODE = 'either';
 const LOCATION_STORAGE_KEY = 'reportLocation';
@@ -154,7 +154,7 @@ export default function ReportLostPet() {
       size: d.species === 'dog' ? !!d.petSize : d.species === 'cat' ? d.isIndoorCat != null : true,
       when: !!d.timeElapsed,
       where: !!d.location,
-      photo: true, // skippable — never blocks resume
+      photo: true, // skippable - never blocks resume
       colors: !!d.color,
       contact: isLoggedIn || contactIsValid(d.contact || {}, CONTACT_MODE),
     };
@@ -330,7 +330,7 @@ export default function ReportLostPet() {
         label: 'Your pet',
         sidebarIcon: Heart,
         sidebarTitle: 'Who went missing?',
-        sidebarCopy: 'A few quick taps — every answer sharpens what searchers look for.',
+        sidebarCopy: 'A few quick taps - every answer sharpens what searchers look for.',
       },
       {
         id: 'when',
@@ -344,7 +344,7 @@ export default function ReportLostPet() {
         label: 'Where',
         sidebarIcon: MapPin,
         sidebarTitle: 'Pin the spot',
-        sidebarCopy: `Volunteers search outward from this point — drag the pin to exactly where ${name} was last seen.`,
+        sidebarCopy: `Volunteers search outward from this point - drag the pin to exactly where ${name} was last seen.`,
       },
       {
         id: 'photo',
@@ -358,7 +358,7 @@ export default function ReportLostPet() {
         label: 'Colors',
         sidebarIcon: Palette,
         sidebarTitle: 'Colors people can match',
-        sidebarCopy: 'Sightings are matched by color first — accurate colors mean fewer false alarms.',
+        sidebarCopy: 'Sightings are matched by color first - accurate colors mean fewer false alarms.',
       },
       ...(!isLoggedIn
         ? [{
@@ -501,7 +501,7 @@ export default function ReportLostPet() {
           stepKey="name"
           variant={VARIANT}
           question="What's their name?"
-          hint="The name they answer to — it goes on the poster."
+          hint="The name they answer to - it goes on the poster."
           primary={{ label: 'Continue', onClick: advance, disabled: !petName.trim() }}
         >
           <input
@@ -620,7 +620,7 @@ export default function ReportLostPet() {
           question={`What colors is ${name}?`}
           hint={
             aiSuggested
-              ? 'We spotted these in the photo — tap to adjust, then continue.'
+              ? 'We spotted these in the photo - tap to adjust, then continue.'
               : 'Pick every color that fits.'
           }
           primary={{ label: 'Continue', onClick: advance, disabled: !color }}
@@ -713,7 +713,7 @@ export default function ReportLostPet() {
           stepKey="details"
           variant={VARIANT}
           question={`Anything that helps someone recognize ${name}?`}
-          hint="All optional — every detail makes the poster stronger."
+          hint="All optional - every detail makes the poster stronger."
           primary={{ label: 'Save details', onClick: advance }}
         >
           <DetailsStep

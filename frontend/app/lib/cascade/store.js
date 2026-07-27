@@ -6,7 +6,7 @@
 
 import prisma from '@/app/lib/prisma';
 
-/** Upsert a CascadeStep by (activationId, key) — idempotent across re-runs. */
+/** Upsert a CascadeStep by (activationId, key) - idempotent across re-runs. */
 export async function upsertStep(activation, key, patch = {}) {
   const base = {
     activationId: activation.id,
@@ -21,7 +21,7 @@ export async function upsertStep(activation, key, patch = {}) {
   });
 }
 
-/** Upsert a CaseAsset by (caseId, kind) — deterministic, re-run overwrites. */
+/** Upsert a CaseAsset by (caseId, kind) - deterministic, re-run overwrites. */
 export async function upsertAsset(activation, kind, patch = {}) {
   const base = {
     activationId: activation.id,

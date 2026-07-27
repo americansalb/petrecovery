@@ -4,7 +4,7 @@ import TransferAcceptClient from './TransferAcceptClient';
 // must not leak the pet to preview bots). Listed in KNOWN_PRIVATE in
 // __tests__/link-previews.test.js.
 export const metadata = {
-  title: 'Accept a pet health record — ReunitePets.org',
+  title: 'Accept a pet health record - ReunitePets.org',
   description: 'Accept a pet\'s complete health record on ReunitePets.org.',
   robots: { index: false, follow: false },
 };

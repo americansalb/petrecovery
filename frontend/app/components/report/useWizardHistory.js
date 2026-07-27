@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * useWizardHistory — make the browser back button navigate wizard steps
+ * useWizardHistory - make the browser back button navigate wizard steps
  * instead of unloading the page (and losing the report).
  *
  * The wizard's internal step stack stays the source of truth. Every forward
@@ -11,7 +11,7 @@
  * so it bounces straight back to the current entry. On the first step no
  * extra entries exist, so back leaves the page normally.
  *
- * Steps stay plain React state — no routes are added, so the
+ * Steps stay plain React state - no routes are added, so the
  * report/layout.js share-metadata contract is untouched.
  *
  * Returns { recordPush, browserBack, unwind }:
@@ -43,7 +43,7 @@ export default function useWizardHistory(goBack) {
         for (let i = 0; i < current - target; i++) goBackRef.current();
         depthRef.current = target;
       } else if (target > current) {
-        // Forward button: no redo stack — bounce back to where we were.
+        // Forward button: no redo stack - bounce back to where we were.
         window.history.go(current - target);
       }
     };

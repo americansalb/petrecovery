@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * SuccessScreen — shared post-submit screen for both wizards.
+ * SuccessScreen - shared post-submit screen for both wizards.
  *
  * Lost: case number, squad/patrol notification summary, share tools.
  * Found: potential matches (shared MatchCard, §4d no-PII payload) are the
@@ -39,7 +39,7 @@ export default function SuccessScreen({
     if (!shareUrl) return;
     if (navigator.share) {
       navigator
-        .share({ title: variant === 'lost' ? `Help find ${petName}!` : 'Found pet — help find the owner', url: shareUrl })
+        .share({ title: variant === 'lost' ? `Help find ${petName}!` : 'Found pet - help find the owner', url: shareUrl })
         .catch(() => {});
     } else {
       navigator.clipboard?.writeText(shareUrl);
@@ -55,7 +55,7 @@ export default function SuccessScreen({
         ]
       : [
           'Strong matches alert the owner automatically',
-          'A vet or shelter can scan for a microchip — free',
+          'A vet or shelter can scan for a microchip - free',
           'Keep them somewhere calm and safe if you can',
         ];
 
@@ -72,7 +72,7 @@ export default function SuccessScreen({
         </div>
 
         <h1 className="text-3xl font-extrabold tracking-tight text-midnight-900">
-          {variant === 'lost' ? 'Your alert is live' : 'Report posted — thank you'}
+          {variant === 'lost' ? 'Your alert is live' : 'Report posted - thank you'}
         </h1>
 
         {caseNumber && (
@@ -151,7 +151,7 @@ export default function SuccessScreen({
             <div className="text-sm">
               <p className="font-bold text-midnight-900">Got a photo later?</p>
               <p className="text-midnight-600 mt-0.5">
-                Reports with photos get far more sightings — add one anytime from your case page.
+                Reports with photos get far more sightings - add one anytime from your case page.
               </p>
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function SuccessScreen({
           </div>
         )}
 
-        {/* What happens next — the static fallback shown when there's no live cascade */}
+        {/* What happens next - the static fallback shown when there's no live cascade */}
         {(() => {
           const whatHappensNext = (
             <div className="mt-6 p-5 rounded-2xl bg-white border border-midnight-100 shadow-card text-left">
@@ -215,7 +215,7 @@ export default function SuccessScreen({
             </div>
           );
 
-          // Lost reports fire the cascade — show the live Recovery Kit, which
+          // Lost reports fire the cascade - show the live Recovery Kit, which
           // falls back to the static list if the activation never seeded.
           if (variant === 'lost' && caseNumber && activation) {
             return (

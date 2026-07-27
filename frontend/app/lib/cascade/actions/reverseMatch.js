@@ -1,8 +1,8 @@
 /**
- * reverse_match action (tier 0) — the instant "we may already have found your
+ * reverse_match action (tier 0) - the instant "we may already have found your
  * pet" moment. Cross-checks the new lost report against ACTIVE found reports
  * (attribute + microchip). Surfaces coarsened, PII-free matches on the success
- * screen, and — for actionable-band matches — alerts the FINDER (in-app + push
+ * screen, and - for actionable-band matches - alerts the FINDER (in-app + push
  * only; no unsolicited third-party SMS).
  */
 
@@ -51,7 +51,7 @@ export async function runReverseMatch(ctx) {
         });
         await sendPushToUser(prisma, finderId, {
           title: 'A possible owner came forward',
-          body: `Someone reported a lost ${species} matching the one you found — tap to review.`,
+          body: `Someone reported a lost ${species} matching the one you found - tap to review.`,
           url: `/cases/${m.case.caseNumber}`,
           type: 'MATCH_ALERT',
           data: { type: 'REVERSE_MATCH' },

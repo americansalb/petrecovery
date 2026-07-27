@@ -1,5 +1,5 @@
 /**
- * SEC-14 regression — the highest-stakes test in the app.
+ * SEC-14 regression - the highest-stakes test in the app.
  *
  * POST /api/admin/wipe-squads irreversibly deletes ALL squads/members/divisions/
  * assignments. EA's admin audit found it gated on session only (any logged-in

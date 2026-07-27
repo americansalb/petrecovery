@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * ContactFields — passwordless, minimal contact capture for guests.
+ * ContactFields - passwordless, minimal contact capture for guests.
  *
  * No confirm-field duplication, no password: the backend auto-creates an
  * account with a temp password and emails a manage link.
  *
  * modes:
  *  - 'either'      one reach method, user picks email or text (lost flow)
- *  - 'email-first' email required, phone optional (found flow — matches are
+ *  - 'email-first' email required, phone optional (found flow - matches are
  *                  emailed, the copy says exactly that)
  */
 
@@ -146,7 +146,7 @@ export default function ContactFields({
       )}
 
       <p className="text-sm text-midnight-400 leading-relaxed">
-        No password needed — we&apos;ll send you a link to manage your report.
+        No password needed - we&apos;ll send you a link to manage your report.
       </p>
     </div>
   );

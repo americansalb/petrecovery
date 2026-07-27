@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * WizardShell — the shared frame for both report wizards.
+ * WizardShell - the shared frame for both report wizards.
  *
  * Desktop (lg+): midnight sidebar with brand mark, vertical step checklist,
  * contextual copy for the active step, and a live "building your report"
  * summary. Mobile: compact top bar with back, stamp chip, progress segments
- * and close. Layout is pure CSS breakpoints — no window-width JS.
+ * and close. Layout is pure CSS breakpoints - no window-width JS.
  *
  * Lives inside app/report/layout.js's `fixed inset-0` overlay, so the shell
  * fills the viewport with h-full.
@@ -22,10 +22,10 @@ export default function WizardShell({
   variant = 'lost',
   steps = [], // [{ id, label, sidebarTitle, sidebarCopy, sidebarIcon }]
   activeStepId,
-  summary = [], // [{ icon: Icon, text }] — collected info, shown on desktop
+  summary = [], // [{ icon: Icon, text }] - collected info, shown on desktop
   onBack, // undefined/null hides the back button
   closeHref = '/',
-  dirty = false, // unsaved report data — closing asks for confirmation
+  dirty = false, // unsaved report data - closing asks for confirmation
   children,
 }) {
   const theme = WIZARD_THEMES[variant];
@@ -141,7 +141,7 @@ export default function WizardShell({
         </div>
 
         <p className="text-white/25 text-xs">
-          Every minute counts — let&apos;s bring them home.
+          Every minute counts - let&apos;s bring them home.
         </p>
       </aside>
 

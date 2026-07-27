@@ -6,7 +6,7 @@ Font.registerHyphenationCallback((word) => [word]);
 
 /**
  * Faithful PDF implementation of the owner's Claude Design system
- * ("Lost pet poster generator" — Lost Pet Posters.dc.html):
+ * ("Lost pet poster generator" - Lost Pet Posters.dc.html):
  *
  *  - Archivo / Archivo Black type, ink #0A0D26 on white, deep-navy #0B1133
  *    accents, #F2D21B yellow strip + reward band, #F3EFE7 info cells.
@@ -68,7 +68,7 @@ function recastApproach(data) {
   s = s.replace(/,?\s*and trying to get home/i, '');
   s = s.replace(/get in touch right away\.?/i, `${verb} right away.`);
   s = s.replace(/get in touch\.?/i, `${verb}.`);
-  s = s.replaceAll('—', ' ').replace(/\s+/g, ' ').trim();
+  s = s.replaceAll('-', ' ').replace(/\s+/g, ' ').trim();
   return s;
 }
 
@@ -93,13 +93,13 @@ function headlineFor(data) {
 
 function colorMarkings(data) {
   const bits = [data.chips?.[1] || null, data.markings || null].filter(Boolean);
-  return bits.join(' · ') || data.chips?.join(' · ') || '—';
+  return bits.join(' · ') || data.chips?.join(' · ') || '-';
 }
 
 function sizeBreed(data) {
   const size = data.chips?.[2] || data.chips?.[0] || '';
   const breed = data.chips?.[0] || '';
-  return [size, breed].filter(Boolean).join(' · ') || '—';
+  return [size, breed].filter(Boolean).join(' · ') || '-';
 }
 
 function contactVerbLine(data) {
@@ -306,7 +306,7 @@ function TearTabs({ data, width, h = 87 }) {
 
 /* ---------------------------------------------------------------- layouts */
 
-/** 1a — Letter (and, scaled, the 11x17 poster). k = scale factor. */
+/** 1a - Letter (and, scaled, the 11x17 poster). k = scale factor. */
 function BigPhotoSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true }) {
   const padH = 24 * k;
   const cw = pageW - padH * 2;
@@ -316,7 +316,7 @@ function BigPhotoSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true 
   return (
     <Page size={[pageW, pageH]} style={{ backgroundColor: C.paper, fontFamily: 'Archivo', color: C.ink }}>
       <YellowStrip h={7.5 * k} />
-      {/* Header: yellow display on navy — hazard-signage conspicuity, and it
+      {/* Header: yellow display on navy - hazard-signage conspicuity, and it
           stands out on a pole full of white paper. */}
       <View style={{ backgroundColor: C.navy, paddingHorizontal: padH, paddingTop: 12 * k, paddingBottom: 12 * k }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4.5 * k }}>
@@ -413,7 +413,7 @@ function BigPhotoSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true 
   );
 }
 
-/** 1b — split sheet: photo column + details column (+ tear-offs on Letter).
+/** 1b - split sheet: photo column + details column (+ tear-offs on Letter).
  *  Scales to the poster via k/pageW/pageH; the flexible photo column absorbs
  *  the taller page. Landscape photos hug their true height in the column
  *  instead of being matted into a tall slot. */
@@ -426,7 +426,7 @@ function SplitSheet({ data, k = 1, pageW = 612, pageH = 792, withTabs = true }) 
   const extra = data.photos[1] || null;
   const a = data.photoAspect;
   const landscapeHug = Boolean(data.photos[0]) && a && a < 1.05;
-  // On the tall poster page even portrait photos hug their true height —
+  // On the tall poster page even portrait photos hug their true height -
   // otherwise the flex frame mats them top and bottom.
   const posterHug = pageH > 1000 && Boolean(data.photos[0]) && a && a >= 1.05;
   const mainPhotoStyle = landscapeHug

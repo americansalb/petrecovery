@@ -8,7 +8,7 @@ import { buildShareMetadata } from '@/app/lib/shareMetadata';
 
 export const metadata = buildShareMetadata({
   title: "Rescue Forces | ReunitePets",
-  description: "Find your local Rescue Force \u2014 neighbors organized and ready to bring lost pets home.",
+  description: "Find your local Rescue Force - neighbors organized and ready to bring lost pets home.",
   index: true,
 });
 

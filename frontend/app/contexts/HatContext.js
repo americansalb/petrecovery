@@ -3,8 +3,8 @@
 /**
  * The hat system (docs/PRODUCT_IA_PLAN.md §"Three doors, one record").
  *
- * One account, three ways to wear it: `hat` is UI EMPHASIS ONLY —
- * 'owner' | 'searcher' — never an identity, a role, or a permission.
+ * One account, three ways to wear it: `hat` is UI EMPHASIS ONLY -
+ * 'owner' | 'searcher' - never an identity, a role, or a permission.
  * Shelter is the third door but lives as a *place*: the /my-shelter
  * portal owns its own chrome, so the top bar only ever renders the
  * owner or searcher set and "switching to Shelter" is navigation.
@@ -14,7 +14,7 @@
  * - deep links auto-switch: a searcher-world URL puts the searcher hat
  *   on, an owner-world URL the owner hat; shared surfaces (hub,
  *   lost-and-found, the shelters directory, report flows) never switch
- * - switching hides nothing and loses nothing — cross-hat pages stay
+ * - switching hides nothing and loses nothing - cross-hat pages stay
  *   reachable, and the Report CTA is global in every hat
  */
 
@@ -49,7 +49,7 @@ export function HatProvider({ children }) {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (HATS.includes(stored)) setHatState(stored);
     } catch {
-      /* private mode etc. — the default hat is fine */
+      /* private mode etc. - the default hat is fine */
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

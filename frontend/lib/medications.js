@@ -1,10 +1,10 @@
 /**
- * Medication tracking — shared logic (no React, no Prisma).
+ * Medication tracking - shared logic (no React, no Prisma).
  *
  * Design: all schedule math runs on the CLIENT in the owner's local timezone.
  * timesOfDay are "HH:MM" local strings; a dose slot's identity is the local
  * date + time turned into a Date and sent to the API as ISO. The server only
- * stores and uniques on (medicationId, scheduledFor) — it never does tz math.
+ * stores and uniques on (medicationId, scheduledFor) - it never does tz math.
  */
 
 // ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@ export function medColor(token) {
   return MED_COLORS[token] || MED_COLORS.amber;
 }
 
-// Icon tokens — mapped to lucide components in the UI layer.
+// Icon tokens - mapped to lucide components in the UI layer.
 export const MED_ICON_TOKENS = [
   'pill', 'capsule', 'syringe', 'droplets', 'bone', 'heart', 'paw', 'leaf', 'sparkle',
 ];
@@ -216,7 +216,7 @@ export function slotsWithStatus(med, doses, day) {
   // A dose logged BEFORE the med's times were edited keeps its old slotKey, so
   // it no longer matches any current slot. Left unsurfaced, that GIVEN record
   // silently disappears from the day: adherence under-counts, and the caregiver
-  // — seeing the new slot as un-given — re-logs it, a double dose and a double
+  // - seeing the new slot as un-given - re-logs it, a double dose and a double
   // supply decrement. Recover such logged doses as read-only rows on the day
   // they belong to so history stays intact and the caregiver sees the pet was
   // already dosed. `orphaned: true` marks a row that is off the current
@@ -307,7 +307,7 @@ export function isLowSupply(med) {
 }
 
 // ---------------------------------------------------------------------------
-// Heuristic free-text parser — the wizard's offline brain.
+// Heuristic free-text parser - the wizard's offline brain.
 // Handles things like "Apoquel 16mg twice a day with food" without any AI.
 // The AI endpoint uses the same output shape and falls back to this.
 // ---------------------------------------------------------------------------
@@ -333,7 +333,7 @@ const DEFAULT_TIMES = {
 const WORD_NUMBERS = { one: 1, two: 2, three: 3, four: 4 };
 
 /**
- * Parse free text into wizard fields. Pure heuristics — safe offline fallback.
+ * Parse free text into wizard fields. Pure heuristics - safe offline fallback.
  * Returns { name, strength, form, scheduleType, timesOfDay, intervalDays,
  *           daysOfWeek, instructions, purpose, confidence }
  */
@@ -434,7 +434,7 @@ export function parseMedicationText(raw) {
   if (/\b(empty stomach|before\s+meals?|before\s+food)\b/.test(lower)) instructions.push('Give on an empty stomach');
   if (instructions.length) { result.instructions = instructions.join('. '); matched++; }
 
-  // Purpose: "for allergies", "for his heart" — stop at frequency-ish words
+  // Purpose: "for allergies", "for his heart" - stop at frequency-ish words
   const purpose = lower.match(/\bfor\s+(?:his|her|their|the)?\s*([a-z][a-z\s-]{2,30}?)(?=$|[,.]|\s+(?:every|once|twice|daily|weekly|monthly|as\b|with\b|\d))/);
   if (purpose) {
     const cleaned = purpose[1].trim();

@@ -2,7 +2,7 @@
  * GET /api/cases/[caseNumber]/activation/stream
  *
  * Guest-accessible SSE that pushes cascade step/asset completions live to the
- * Recovery Kit success screen. Purely additive — the client also polls the
+ * Recovery Kit success screen. Purely additive - the client also polls the
  * durable /recovery-kit read, so losing this stream never loses data.
  */
 

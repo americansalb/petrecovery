@@ -5,7 +5,7 @@
  * (via the cascade's getShared cache) avoids re-downloading per asset.
  *
  * Neither renderer can decode WebP/GIF/HEIC, and neither honors EXIF
- * orientation — so when sharp is available every photo is normalized through
+ * orientation - so when sharp is available every photo is normalized through
  * it: auto-rotated, capped at 2000px, re-encoded as JPEG. Without sharp,
  * only JPEG/PNG pass through untouched; other formats return null (branded
  * placeholder) instead of silently rendering a blank photo box.
@@ -42,7 +42,7 @@ export async function loadPetImageDataUrl(url) {
     if (sharp) {
       try {
         buf = await sharp(buf)
-          .rotate() // apply EXIF orientation — the renderers ignore it
+          .rotate() // apply EXIF orientation - the renderers ignore it
           .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
           .jpeg({ quality: 88 })
           .toBuffer();

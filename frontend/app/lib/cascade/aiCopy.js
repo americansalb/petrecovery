@@ -1,5 +1,5 @@
 /**
- * AI copy for the cascade — one Haiku call produces the emotional flyer copy,
+ * AI copy for the cascade - one Haiku call produces the emotional flyer copy,
  * per-platform social captions, and a personalized first-24h search plan,
  * grounded in the curated petAdvice tree. Falls back to a full deterministic
  * copy system (never a stub) when ANTHROPIC_API_KEY is missing, the global
@@ -98,7 +98,7 @@ function cityToken(address) {
   return city.replace(/[^a-zA-Z]/g, '');
 }
 
-/** Full deterministic copy — the fallback AND the shape the AI must match. */
+/** Full deterministic copy - the fallback AND the shape the AI must match. */
 export function fallbackCopy(caseData) {
   const base = resolveFlyerCopy(caseData); // headline, plea, approachLine, shareNudge, scanCta
   const name = caseData.petName || 'this pet';
@@ -270,7 +270,7 @@ export async function generateAiCopy(caseData) {
   // No key, or phone-only reporter (keep it deterministic + free): fall back.
   if (!process.env.ANTHROPIC_API_KEY) return fb;
 
-  // Global paid-call ceiling — fail closed to the fallback.
+  // Global paid-call ceiling - fail closed to the fallback.
   try {
     const ceiling = await checkGlobalLimitAsync('cascade:ai-copy', {
       windowMs: 60000,

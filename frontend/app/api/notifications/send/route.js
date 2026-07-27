@@ -73,7 +73,7 @@ export async function POST(request) {
       // Send to specific users
       whereClause.userId = { in: targetUserIds };
     } else if (squadId) {
-      // Send to all active squad members. (Model is RescueSquadMember — the
+      // Send to all active squad members. (Model is RescueSquadMember - the
       // previous prisma.squadMembership doesn't exist and 500'd this path.)
       const members = await prisma.rescueForceMember.findMany({
         where: {

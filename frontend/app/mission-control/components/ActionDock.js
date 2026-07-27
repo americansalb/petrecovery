@@ -32,14 +32,14 @@ export function buildSituationLine({ stateId, role, petName = 'this pet', search
     case 'CLOSED':
       return 'This search has ended. Thank you for caring.';
     case 'SIGHTING_HOT':
-      return hotWhen ? `Fresh sighting ${hotWhen} — the trail is warm.` : 'Fresh sighting — the trail is warm.';
+      return hotWhen ? `Fresh sighting ${hotWhen} - the trail is warm.` : 'Fresh sighting - the trail is warm.';
     case 'SEARCH_LIVE':
       return searchersActive > 0
         ? `${searchersActive} ${searchersActive === 1 ? 'neighbor is' : 'neighbors are'} out searching right now.`
         : 'The search is live.';
     default:
       return role === ROLES.OWNER
-        ? 'The first hours matter most — rally your neighbors.'
+        ? 'The first hours matter most - rally your neighbors.'
         : `Nobody is out searching yet. ${petName} needs eyes.`;
   }
 }
@@ -93,7 +93,7 @@ export default function ActionDock({
   } else if (stateId === 'CLOSED') {
     button = null;
   } else if (role === ROLES.VISITOR) {
-    // A visitor may have arrived BECAUSE they saw the pet — that path
+    // A visitor may have arrived BECAUSE they saw the pet - that path
     // can never hide behind joining, so this is the one two-button dock.
     button = (
       <div className="space-y-2">

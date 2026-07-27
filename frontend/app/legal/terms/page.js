@@ -2,11 +2,11 @@ import Link from 'next/link';
 import { FileText, ArrowLeft } from 'lucide-react';
 
 export const metadata = {
-  title: 'Terms of Service — ReunitePets.org',
+  title: 'Terms of Service - ReunitePets.org',
   description: 'The terms that govern your use of ReunitePets.org.',
 };
 
-const LAST_UPDATED = 'June 12, 2026';
+const LAST_UPDATED = 'July 27, 2026';
 const SUPPORT_EMAIL = 'support@petrecovery.org';
 
 const SECTIONS = [
@@ -21,7 +21,7 @@ const SECTIONS = [
     title: 'What ReunitePets does',
     body: [
       'We provide a community-powered platform to report lost and found pets, surface potential matches, and coordinate with local rescue volunteers.',
-      'We are a coordination tool — we do not guarantee that any pet will be found or reunited, and we are not responsible for the conduct of other users.',
+      'We are a coordination tool - we do not guarantee that any pet will be found or reunited, and we are not responsible for the conduct of other users.',
     ],
   },
   {
@@ -29,7 +29,7 @@ const SECTIONS = [
     body: [
       'Provide accurate information in your reports, and keep your account secure.',
       'Only post content you have the right to share, and don’t upload anything unlawful, harmful, or that isn’t yours.',
-      'Use the platform to help reunite pets — not to harass others, scam, or collect people’s information for unrelated purposes.',
+      'Use the platform to help reunite pets - not to harass others, scam, or collect people’s information for unrelated purposes.',
       'Meet others safely. Use good judgment when arranging to recover or hand off a pet; ReunitePets is not a party to those interactions.',
     ],
   },
@@ -41,11 +41,14 @@ const SECTIONS = [
     ],
   },
   {
-    title: 'Pet care tools',
+    title: 'Pet care tools & the Health Book',
     body: [
-      'Your pet\u2019s profile includes free everyday-care tools \u2014 medication schedules, dose logging, care routines, and shareable care pages. They\u2019re yours forever, at no charge.',
-      'They\u2019re a helper for remembering, not veterinary advice. Always follow your vet\u2019s guidance and the medication label, and double-check anything that matters \u2014 you stay in charge of your pet\u2019s care.',
-      'Reminders depend on devices and networks, so please don\u2019t rely on them alone for critical care. ReunitePets isn\u2019t liable for outcomes related to missed, late, or incorrect doses.',
+      'Your pet\u2019s profile includes free everyday-care tools: medication schedules, dose logging, care routines, a Health Book (vaccine records, weight history, your vet\u2019s info), and shareable care pages. They\u2019re yours forever, at no charge.',
+      'They\u2019re a helper for remembering, not veterinary advice. The Health Book shows exactly what you enter. Nothing is verified by a clinic, and labels like \u201cdue soon\u201d or \u201cexpired\u201d are simple date math on the dates you typed. Always follow your vet\u2019s guidance and the medication label; you stay in charge of your pet\u2019s care.',
+      'It isn\u2019t proof of vaccination or an official record. For travel, boarding, grooming, or licensing, the paper certificate from your vet is the document that counts, and a good habit is to double-check entries against it.',
+      'If your pet ever seems sick or hurt, call your vet or an emergency clinic first. Never wait on an app, including this one.',
+      'Share links show your pet\u2019s care and health record to anyone who has the link. Share thoughtfully; you can change or revoke a link anytime.',
+      'Reminders depend on devices and networks, so please don\u2019t rely on them alone for critical care. ReunitePets isn\u2019t liable for outcomes related to missed, late, or incorrect doses, or for decisions made from records and statuses shown in the app.',
     ],
   },
   {

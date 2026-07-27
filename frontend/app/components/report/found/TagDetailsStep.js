@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * TagDetailsStep — the optional "anything from a collar or tag?" screen on
+ * TagDetailsStep - the optional "anything from a collar or tag?" screen on
  * the found flow. Name-if-visible, breed, size, distinguishing details, and
  * microchip number (if a vet/shelter already scanned).
  */
@@ -112,7 +112,7 @@ export default function TagDetailsStep({
           className={`w-full px-4 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors ${theme.focusRing}`}
         />
         <p className="text-xs text-midnight-400 mt-1.5">
-          Any vet or shelter can scan for free — a chip match reunites instantly.
+          Any vet or shelter can scan for free - a chip match reunites instantly.
         </p>
       </div>
     </div>

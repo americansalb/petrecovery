@@ -1,5 +1,5 @@
 /**
- * search_plan action (tier 1) — the personalized "where to look in the first
+ * search_plan action (tier 1) - the personalized "where to look in the first
  * 24 hours" plan surfaced on the success screen + case page. Uses the plan the
  * ai_copy step produced; if ai_copy was skipped/failed, builds a full plan from
  * the deterministic fallback so this never dead-ends.

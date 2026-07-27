@@ -55,7 +55,7 @@ export default function ShelterList({ pois = [], missionId, isLoading = false })
         const done = !!called[poi.id || poi.name];
         const key = poi.id || poi.name;
         // Open the actual place in Google Maps by name + address (so it
-        // resolves the real listing — page, hours, directions) rather than
+        // resolves the real listing - page, hours, directions) rather than
         // dropping a pin at bare lat/lng. Coordinates are only the fallback.
         const mapsQuery = [poi.name, poi.address].filter(Boolean).join(', ')
           || (poi.latitude && poi.longitude ? `${poi.latitude},${poi.longitude}` : '');

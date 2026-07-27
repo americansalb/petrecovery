@@ -1,5 +1,5 @@
 /**
- * Flyers action — renders the 3 print PDFs and stores them on the CDN.
+ * Flyers action - renders the 3 print PDFs and stores them on the CDN.
  * Each variant is isolated: one failed variant doesn't sink the others. The
  * step SUCCEEDS if at least one flyer stored, else FAILS.
  */

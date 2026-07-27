@@ -261,3 +261,40 @@ export async function POST(request) {
     }, { status: 500 });
   }
 }
+
+/**
+ * GET /api/legal/accept
+ * The signed-in user's standing vs the active documents, so surfaces
+ * like the Health Book can ask "has this person agreed to the current
+ * Terms?" and show a calm one-time agree card when they haven't.
+ */
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const [user, activeTos] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { tosAcceptedAt: true, tosVersionAccepted: true },
+      }),
+      prisma.legalDocument.findFirst({
+        where: { type: 'TERMS_OF_SERVICE', isActive: true },
+        select: { version: true, title: true },
+      }),
+    ]);
+
+    return NextResponse.json({
+      termsOfService: {
+        activeVersion: activeTos?.version || null,
+        acceptedVersion: user?.tosVersionAccepted || null,
+        current: !!activeTos && user?.tosVersionAccepted === activeTos.version,
+      },
+    });
+  } catch (error) {
+    console.error('[Legal Accept] status failed:', error);
+    return NextResponse.json({ error: 'Failed to load acceptance status' }, { status: 500 });
+  }
+}

@@ -3,7 +3,7 @@
  * belong to right now?
  *
  * Presentation only. It must never be the thing that decides what someone
- * may DO, and it must not invent hats the person does not hold — with one
+ * may DO, and it must not invent hats the person does not hold - with one
  * deliberate exception: the SEARCHER door is always offered (it is the
  * recruitment door, docs/PRODUCT_IA_PLAN.md "Three doors"). Members land
  * on their force; everyone else lands on the network to find one.
