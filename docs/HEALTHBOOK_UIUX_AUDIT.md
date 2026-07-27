@@ -274,7 +274,60 @@ the data can't support.
    patches with outsized care-moment value.
 4. M3/M4 vaccine list integrity; M7–M10 input & copy hardening; then L*.
 
-## 7. Screenshot index
+## 7. Resolution (2026-07-27, same branch)
+
+Every finding above was fixed in the follow-up commit on this branch and
+re-verified in the running app; before/after proof lives in
+[`screenshots/healthbook-audit/after/`](../screenshots/healthbook-audit/after/).
+
+- **H1** `load()` now fails loud: any fetch error renders a "Couldn't
+  load the Health Book" card with a working retry — never an empty book
+  [after-g01, after-g01b].
+- **H2** `Modal` moved to `z-[60]` (above `GlobalBottomNav`'s z-50) with
+  safe-area bottom padding; the sheet's CTA is fully tappable
+  [after-d08].
+- **H3** `healthBookStatus` now collapses to the newest stamp per
+  vaccine, sorts expired by longest-lapsed, counts the rest ("Rabies
+  expired May 15, 2025 — 1 more has lapsed too"), adds years to
+  non-current-year dates, and the warn headline counts ("Atlas has 4
+  things due") [after-a05, after-a08-overview].
+- **H4** chart labels are full years ("Jul 2023"), with min/max lb
+  y-labels [after-a08-weight-chart-year-labels].
+- **M1** the med-less Today keeps the health glance beside the meds
+  empty card [after-c01]. **M2** Weight gained a Manage mode with
+  per-entry remove + confirm (the 14.2 lb typo was removed with it on
+  the demo data) [after-a08-weight-manage-list, -typo-removed].
+- **M3/M4** the passport (and glance, public view, summaries) render
+  one row per vaccine, urgency-ranked, via shared `latestPerName` /
+  `rankVaccinations` helpers [after-a08-vaccines-collapsed-ranked].
+- **M5** deltas come from `weightTrendSummary` — 90-day window, real
+  span label ("down 2.5 lb · 3 mo"), no trend from n=1; PetGlance's
+  hardcoded "6 mo" is gone.
+- **M6** a phone-only vet renders with a call button everywhere
+  [after-b16]. **M7** future given-on dates are rejected server-side
+  (mirrors weights) and client-side. **M8** weight input validates the
+  raw string (no more "12abc"→12), states real bounds, and the server
+  error names them. **M9** the ribbon is a labelled, clamped "Medical
+  note" with More/Less and an Edit link [after-a07-…-clamped,
+  -expanded]. **M10** no-expiry records read "records are on file — no
+  expiry dates tracked yet" in neutral ink [after-a03].
+- **L1** tab clicks update the URL (`?tab=…`, replace, no scroll).
+  **L2** Modal traps and restores focus; SubTabs get arrow-key roving
+  tabindex. **L3** name validation allows Unicode/®, is mirrored
+  client-side with a 40-char cap [after-b03b: "Fièvre aphteuse"
+  accepted]. **L4** BIRD/RABBIT presets (Polyomavirus, RHDV2) + a
+  "pick the vaccine" subtitle [after-b01]. **L5** "Custom date" expiry
+  option. **L6** overview section renamed History. **L7** adherence
+  line states "· last 35 days" inline. **L8** public-view weight dates
+  carry a year when not current. **L9** the 320px section tab strip
+  wraps instead of clipping [after-d10]. **L10** remove-confirm copy no
+  longer promises an undo "elsewhere".
+
+`lib/__tests__/healthBook.test.js` grew from 8 to 18 tests covering the
+new math (worst-lapse pick, year display, due counts, per-name collapse,
+ranking, windowed trends). Full suite: 50/50 green.
+
+## 8. Screenshot index
 
 All captures: [`screenshots/healthbook-audit/`](../screenshots/healthbook-audit/).
 Naming: `<phase>-<viewport>-<pet>-<surface>-<state>.png` — phase a =

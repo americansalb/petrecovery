@@ -37,7 +37,9 @@ export async function POST(request, { params }) {
     const body = await request.json().catch(() => ({}));
     const weightLbs = parseFloat(body.weightLbs);
     if (isNaN(weightLbs) || weightLbs <= 0 || weightLbs > 500) {
-      return NextResponse.json({ error: 'Weight should be a number of pounds' }, { status: 400 });
+      // Say the actual rule: "should be a number of pounds" told someone
+      // who typed 501 nothing at all.
+      return NextResponse.json({ error: 'Weight must be a number between 0 and 500 pounds' }, { status: 400 });
     }
     const recordedAt = body.recordedAt ? new Date(body.recordedAt) : new Date();
     if (isNaN(recordedAt.getTime())) return NextResponse.json({ error: 'Invalid date' }, { status: 400 });

@@ -203,7 +203,9 @@ function PetShell({ children }) {
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Missing
             </Link>
           )}
-          <nav className="flex gap-5 mt-3 overflow-x-auto -mb-px" aria-label="Pet sections">
+          {/* Wrap instead of overflow: on a 320px screen "People" was clipped
+              off the right edge with no scroll affordance at all. */}
+          <nav className="flex flex-wrap gap-x-5 mt-3 -mb-px" aria-label="Pet sections">
             {TABS.map(({ id, label }) => {
               const on = segment === id;
               return (

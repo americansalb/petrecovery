@@ -12,13 +12,21 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { requirePetAccess } from '@/app/lib/petOwnership';
 
-const NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9\s\/+'().-]{1,39}$/;
+// Unicode letters and digits, so "Fièvre aphteuse" or "Nobivac®" are as
+// enterable as "Rabies"; still a short label so stamps stay parseable.
+const NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N}\s/+'().®™-]{1,39}$/u;
 
 function validate(body) {
   const name = (body.name || '').trim().replace(/\s+/g, ' ');
-  if (!NAME_RE.test(name)) return { error: 'Vaccine name should be 2 to 40 plain characters' };
+  if (!NAME_RE.test(name)) return { error: 'Vaccine name should be 2 to 40 characters (letters, numbers and simple punctuation)' };
   const administeredAt = new Date(body.administeredAt);
   if (isNaN(administeredAt)) return { error: 'A valid given-on date is required' };
+  // Mirror the weights API: a "given" date in the future would show as
+  // Current coverage for a shot that hasn't happened. A day of clock skew
+  // is allowed, no more.
+  if (administeredAt.getTime() > Date.now() + 86400000) {
+    return { error: "The given-on date can't be in the future" };
+  }
   let expiresAt = null;
   if (body.expiresAt) {
     expiresAt = new Date(body.expiresAt);

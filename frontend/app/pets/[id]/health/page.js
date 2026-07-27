@@ -12,14 +12,16 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { ConfirmModal } from '@/components/ui';
+import { Card } from '@/app/components/care/kit/Tile';
 import { usePet } from '@/app/components/care/PetProvider';
 import SubTabs from '@/app/components/care/kit/SubTabs';
-import { Overline } from '@/app/components/care/kit/Tile';
 import {
   AlertRibbon, HealthStatusBand, VitalsTrio, VaccinePassport, AddVaccineModal,
   WeightCard, VetCard, MonthHistory, SectionHeader,
 } from '@/app/components/care/HealthRecord';
 import { healthBookStatus } from '@/lib/healthBook';
+
+const TABS = ['overview', 'vaccines', 'weight', 'vet'];
 
 function HealthInner() {
   const { status } = useSession();
@@ -29,18 +31,22 @@ function HealthInner() {
   const petId = params.id;
   const { pet, access, setPet } = usePet();
 
-  const initialTab = ['vaccines', 'weight', 'vet'].includes(searchParams.get('tab')) ? searchParams.get('tab') : 'overview';
+  const initialTab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'overview';
   const [tab, setTab] = useState(initialTab);
   const [vaccinations, setVaccinations] = useState([]);
   const [weights, setWeights] = useState([]);
   const [meds, setMeds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [error, setError] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [managing, setManaging] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [weightDate, setWeightDate] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
+  const [managingWeights, setManagingWeights] = useState(false);
+  const [confirmWeightRemove, setConfirmWeightRemove] = useState(null);
+  const [removingWeight, setRemovingWeight] = useState(false);
   const [vetDraft, setVetDraft] = useState(null);
   const [savingVet, setSavingVet] = useState(false);
   const [confirmVaxRemove, setConfirmVaxRemove] = useState(null);
@@ -48,16 +54,29 @@ function HealthInner() {
 
   useEffect(() => { if (status === 'unauthenticated') router.push(`/login?callbackUrl=/pets/${petId}/health`); }, [status, router, petId]);
 
+  // Keep the URL honest: a copied link or a reload must land on the tab
+  // that is actually on screen, not the one from a stale ?tab.
+  const switchTab = useCallback((id) => {
+    setTab(id);
+    router.replace(`/pets/${petId}/health${id === 'overview' ? '' : `?tab=${id}`}`, { scroll: false });
+  }, [router, petId]);
+
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
+      // A failed fetch must never masquerade as an empty book: rendering
+      // "record is empty" over a 500 invites re-entering records that
+      // exist (and the renewal logic would then retire the hidden ones).
       const [v, w, m] = await Promise.all([
-        fetch(`/api/pets/${petId}/vaccinations`).then((r) => (r.ok ? r.json() : { vaccinations: [] })),
-        fetch(`/api/pets/${petId}/weights`).then((r) => (r.ok ? r.json() : { weights: [] })),
-        fetch(`/api/pets/${petId}/medications`).then((r) => (r.ok ? r.json() : { medications: [] })),
+        fetch(`/api/pets/${petId}/vaccinations`).then((r) => { if (!r.ok) throw new Error('vaccinations'); return r.json(); }),
+        fetch(`/api/pets/${petId}/weights`).then((r) => { if (!r.ok) throw new Error('weights'); return r.json(); }),
+        fetch(`/api/pets/${petId}/medications`).then((r) => { if (!r.ok) throw new Error('medications'); return r.json(); }),
       ]);
       setVaccinations(v.vaccinations || []);
       setWeights(w.weights || []);
       setMeds((m.medications || []).filter((x) => x.kind !== 'CARE'));
+    } catch {
+      setLoadError(true);
     } finally { setLoading(false); }
   }, [petId]);
 
@@ -67,8 +86,13 @@ function HealthInner() {
   const bookStatus = useMemo(() => healthBookStatus(vaccinations, name), [vaccinations, name]);
 
   const logWeight = async () => {
-    const val = parseFloat(weightInput);
-    if (isNaN(val) || val <= 0 || savingWeight) return;
+    if (savingWeight) return;
+    // Validate the raw string: parseFloat("12abc") is 12, and a silently
+    // mangled weight is worse than an error.
+    const raw = weightInput.trim();
+    if (!/^\d+(\.\d+)?$/.test(raw)) { setError('Enter the weight as a number, like 42.5'); return; }
+    const val = parseFloat(raw);
+    if (val <= 0 || val > 500) { setError('Weight must be between 0 and 500 pounds'); return; }
     setSavingWeight(true); setError(null);
     try {
       // Backdating uses noon so the entry lands on the chosen calendar day
@@ -84,6 +108,19 @@ function HealthInner() {
       setWeightInput('');
       setWeightDate('');
     } catch (err) { setError(err.message); } finally { setSavingWeight(false); }
+  };
+
+  const removeWeight = async (entry) => {
+    setRemovingWeight(true);
+    try {
+      const res = await fetch(`/api/pets/${petId}/weights?entryId=${entry.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to remove');
+      setWeights((prev) => prev.filter((w) => w.id !== entry.id));
+      // The profile's headline weight follows the newest remaining entry.
+      setPet((prev) => (prev ? { ...prev, weight: data.weight } : prev));
+      setConfirmWeightRemove(null);
+    } catch (err) { setError(err.message); } finally { setRemovingWeight(false); }
   };
 
   const removeVax = async (vax) => {
@@ -114,13 +151,31 @@ function HealthInner() {
   const canManage = access !== 'VIEWER';
   const isOwner = access === 'OWNER';
 
+  if (loadError) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-3xl">
+        <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-4">Health</h1>
+        <Card className="px-5 py-8 text-center">
+          <p className="text-[15px] font-semibold text-care-ink">Couldn&apos;t load {name}&apos;s Health Book</p>
+          <p className="text-[13.5px] text-care-sub mt-1 mb-4">The record is safe — this page just couldn&apos;t reach it. Check your connection and try again.</p>
+          <button
+            onClick={() => { setLoading(true); load(); }}
+            className="rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"
+          >
+            Try again
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-3xl">
       <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-4">Health</h1>
       <SubTabs
         tabs={[{ id: 'overview', label: 'Overview' }, { id: 'vaccines', label: 'Vaccines' }, { id: 'weight', label: 'Weight' }, { id: 'vet', label: 'Vet' }]}
         active={tab}
-        onChange={setTab}
+        onChange={switchTab}
         className="mb-5"
       />
 
@@ -142,7 +197,7 @@ function HealthInner() {
               status={bookStatus}
               action={canManage && (bookStatus.tone === 'empty' || bookStatus.tone === 'bad' || bookStatus.tone === 'warn') ? (
                 <button
-                  onClick={() => { setTab('vaccines'); if (bookStatus.tone === 'empty') setShowAdd(true); }}
+                  onClick={() => { switchTab('vaccines'); if (bookStatus.tone === 'empty') setShowAdd(true); }}
                   className="rounded-xl bg-care-teal text-white text-[13px] font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors"
                 >
                   {bookStatus.tone === 'empty' ? 'Add first vaccine' : 'Update vaccines'}
@@ -155,7 +210,7 @@ function HealthInner() {
               not: weight and medications. */}
           <VitalsTrio vaccinations={vaccinations} weights={weights} meds={meds} showVaccinations={false} />
           {(vaccinations.length > 0 || weights.length > 0) && (
-            <div><SectionHeader title="Recent" /><MonthHistory vaccinations={vaccinations} weights={weights} meds={meds} /></div>
+            <div><SectionHeader title="History" /><MonthHistory vaccinations={vaccinations} weights={weights} meds={meds} /></div>
           )}
         </div>
       )}
@@ -181,6 +236,9 @@ function HealthInner() {
           onWeightDate={setWeightDate}
           onLog={logWeight}
           saving={savingWeight}
+          managing={managingWeights}
+          onToggleManage={() => setManagingWeights((v) => !v)}
+          onRemove={setConfirmWeightRemove}
         />
       )}
 
@@ -202,10 +260,21 @@ function HealthInner() {
         <ConfirmModal
           onClose={() => setConfirmVaxRemove(null)}
           title={`Remove ${confirmVaxRemove.name}?`}
-          body="This removes the vaccination record from the book. It cannot be undone here."
+          body="This removes the vaccination record from the book. It can't be undone."
           confirmLabel="Remove"
           busy={removingVax}
           onConfirm={() => removeVax(confirmVaxRemove)}
+        />
+      )}
+
+      {confirmWeightRemove && (
+        <ConfirmModal
+          onClose={() => setConfirmWeightRemove(null)}
+          title={`Remove the ${confirmWeightRemove.weightLbs} lb entry?`}
+          body={`Logged ${new Date(confirmWeightRemove.recordedAt).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}. Removing it can't be undone.`}
+          confirmLabel="Remove"
+          busy={removingWeight}
+          onConfirm={() => removeWeight(confirmWeightRemove)}
         />
       )}
     </div>

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { Card, Overline } from '@/app/components/care/kit/Tile';
-import { vaccinationStatus } from '@/lib/healthBook';
+import { vaccinationStatus, latestPerName, rankVaccinations, weightTrendSummary } from '@/lib/healthBook';
 import { isLowSupply } from '@/lib/medications';
 
 const shortMonth = (d) => new Date(d).toLocaleDateString([], { month: 'short', year: 'numeric' });
@@ -44,26 +44,20 @@ export default function PetGlance({
   const medItems = meds.filter((m) => m.kind !== 'CARE');
   const activeMeds = medItems.filter((m) => m.isActive);
   const lowCount = activeMeds.filter(isLowSupply).length;
-  const liveVax = vaccinations.filter((v) => !v.deletedAt);
+  // One live stamp per vaccine (a backfilled older Rabies must not count
+  // beside the current one), attention first: ordering by recency can bury
+  // an expired shot below three current ones, so "Is X OK?" reads
+  // all-green while a vaccine has lapsed.
+  const liveVax = latestPerName(vaccinations);
   const withExpiry = liveVax.filter((v) => v.expiresAt);
   const vaxCurrent = withExpiry.filter((v) => vaccinationStatus(v) === 'PROTECTED').length;
-  // Show the vaccines that need attention first. Ordering by recency (the API
-  // default) can bury an expired or due-soon shot below three current ones,
-  // so "Is X OK?" reads all-green while a vaccine has lapsed.
-  const VAX_RANK = { EXPIRED: 0, DUE_SOON: 1, PROTECTED: 2, ON_FILE: 3 };
-  const rankedVax = [...liveVax].sort(
-    (a, b) =>
-      (VAX_RANK[vaccinationStatus(a)] - VAX_RANK[vaccinationStatus(b)]) ||
-      (new Date(b.administeredAt) - new Date(a.administeredAt))
-  );
+  const rankedVax = rankVaccinations(liveVax);
   const latestWeight = weights[weights.length - 1];
-  const weightDelta = weights.length > 1
-    ? +(latestWeight.weightLbs - weights[0].weightLbs).toFixed(1)
-    : null;
+  const weightTrend = weightTrendSummary(weights);
 
   const anything = (wants('vaccines') || wants('vitals'))
     || (wants('note') && pet?.medicalConditions)
-    || (wants('vet') && (pet?.vetName || pet?.vetClinic));
+    || (wants('vet') && (pet?.vetName || pet?.vetClinic || pet?.vetPhone));
   if (!anything) return null;
 
   return (
@@ -138,10 +132,13 @@ export default function PetGlance({
                 <span className="text-[27px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">{latestWeight.weightLbs}</span>
                 <span className="text-[12px] text-care-sub">lb</span>
               </div>
-              {weightDelta != null && weightDelta !== 0 && (
+              {/* Real window, not a hardcoded "6 mo": the delta is latest vs
+                  the oldest entry in the last 90 days, labelled with the
+                  actual span between them. */}
+              {weightTrend?.delta != null && weightTrend.delta !== 0 && (
                 <div className="flex items-center gap-1 mt-2 text-[11px] text-care-teal font-semibold">
-                  <TrendingDown size={12} className={weightDelta > 0 ? 'rotate-180' : ''} />
-                  {Math.abs(weightDelta)} lb · 6 mo
+                  <TrendingDown size={12} className={weightTrend.delta > 0 ? 'rotate-180' : ''} />
+                  {Math.abs(weightTrend.delta)} lb · {weightTrend.spanLabel}
                 </div>
               )}
             </>
@@ -168,13 +165,14 @@ export default function PetGlance({
         </Card>
       )}
 
-      {wants('vet') && (pet?.vetName || pet?.vetClinic) && (
+      {wants('vet') && (pet?.vetName || pet?.vetClinic || pet?.vetPhone) && (
         <Card className="flex items-center gap-3 p-4">
-          <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">{initialsOf(pet.vetName)}</span>
+          <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">{initialsOf(pet.vetName || pet.vetClinic)}</span>
           <div className="flex-1 min-w-0">
             <Overline>Primary vet</Overline>
-            <b className="block text-[14.5px] font-semibold text-care-ink mt-0.5 truncate">{pet.vetName || pet.vetClinic}</b>
-            <span className="text-[11.5px] text-care-sub truncate block">{[pet.vetClinic, pet.vetPhone].filter(Boolean).join(' · ')}</span>
+            {/* A phone number alone is still a reachable vet — never hide it. */}
+            <b className="block text-[14.5px] font-semibold text-care-ink mt-0.5 truncate">{pet.vetName || pet.vetClinic || pet.vetPhone}</b>
+            <span className="text-[11.5px] text-care-sub truncate block">{[pet.vetClinic, (pet.vetName || pet.vetClinic) ? pet.vetPhone : null].filter(Boolean).join(' · ')}</span>
           </div>
           {pet.vetPhone && (
             <a href={`tel:${pet.vetPhone}`} aria-label="Call clinic" className="w-11 h-11 rounded-[13px] bg-care-teal text-white flex items-center justify-center shrink-0 hover:bg-care-tealDark transition-colors">
