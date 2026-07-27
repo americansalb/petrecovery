@@ -45,7 +45,7 @@ export async function getMissionState(missionId, { createIfMissing = false } = {
   });
 
   if (!mission && !createIfMissing) {
-    // Read-only callers (e.g. GET) must not write on read — return null so the
+    // Read-only callers (e.g. GET) must not write on read - return null so the
     // caller can 404 instead of materializing a MissionControl row on demand.
     return null;
   }

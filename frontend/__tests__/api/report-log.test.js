@@ -8,7 +8,7 @@
  *  - NaN/negative query-param guard: ?offset=abc must not reach Prisma as skip:NaN
  *
  * Mock note: we mock '@/app/lib/auth' directly so auth.js never module-loads
- * (and never touches prisma during import) — that both keeps the test hermetic
+ * (and never touches prisma during import) - that both keeps the test hermetic
  * and avoids the "mockPrisma before initialization" TDZ that the legacy suites
  * trip on. The prisma mock is defined INSIDE the factory and read back via import.
  */

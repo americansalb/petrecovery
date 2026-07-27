@@ -5,7 +5,7 @@
  *
  * Elapsed time, sightings, searchers, and the live dot. Two shapes:
  * stacked stats for the command panel, a compact inline row for the
- * sheet peek. Data only — meaning lives in the ActionDock's
+ * sheet peek. Data only - meaning lives in the ActionDock's
  * situation line.
  */
 

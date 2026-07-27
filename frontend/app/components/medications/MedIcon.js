@@ -33,7 +33,7 @@ export function MedIcon({ icon, className }) {
   return <Icon className={className} />;
 }
 
-/** Colored rounded chip with the med's icon — the visual anchor for a med. */
+/** Colored rounded chip with the med's icon - the visual anchor for a med. */
 export function MedIconChip({ med, size = 'md', className }) {
   const colors = medColor(med.color);
   const sizes = {

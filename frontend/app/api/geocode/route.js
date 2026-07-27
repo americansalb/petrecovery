@@ -114,7 +114,7 @@ export async function GET(request) {
 
   } catch (error) {
     // The external geocoder being unreachable/timed-out is a dependency
-    // degradation, not a server bug — return 503 (retryable) instead of a
+    // degradation, not a server bug - return 503 (retryable) instead of a
     // cryptic 500 so the ZIP/address flows can fail gracefully.
     console.error('[GEOCODE] Error:', error?.name, error?.message);
     return NextResponse.json(

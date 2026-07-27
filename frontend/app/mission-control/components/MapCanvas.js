@@ -16,7 +16,7 @@ import { Loader2 } from 'lucide-react';
 import MapKey from './MapKey';
 
 // The flashlight beam: warm amber-to-ember, brightest where the pet
-// most likely is — and a COMPACT glow, not a viewport-wide wash. The
+// most likely is - and a COMPACT glow, not a viewport-wide wash. The
 // outer rings get little or no fill (the dashed beam edge marks the
 // boundary) so the map itself stays dark.
 const FLASHLIGHT_ZONE_COLORS = {

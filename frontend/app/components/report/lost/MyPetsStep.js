@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * MyPetsStep — logged-in owners pick which pet is missing.
+ * MyPetsStep - logged-in owners pick which pet is missing.
  *
  * Selecting a saved pet short-circuits the name/size/colors steps (data comes
  * from the Pet record); "A different pet" falls through to the species step.

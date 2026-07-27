@@ -7,7 +7,7 @@
  * "Adjust Zone" slider in three different corners. This is all of it:
  * a single collapsed chip that expands into the key, the "Likely area"
  * toggle + size slider, and the shelters & vets pin toggle. Map
- * furniture answers "what am I looking at" — actions live elsewhere.
+ * furniture answers "what am I looking at" - actions live elsewhere.
  */
 
 import { useState } from 'react';

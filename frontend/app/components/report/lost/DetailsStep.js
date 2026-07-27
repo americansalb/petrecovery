@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * DetailsStep — the optional "anything that helps searchers?" screen on the
+ * DetailsStep - the optional "anything that helps searchers?" screen on the
  * lost flow. Everything here is skippable: distinctive marks, breed, and how
  * the pet got out (escapeScenario).
  */
@@ -35,12 +35,12 @@ export default function DetailsStep({
           value={marks}
           onChange={(e) => onMarksChange(e.target.value)}
           rows={3}
-          placeholder="White chest patch, blue collar with a bell, limps a little, very shy — don't chase…"
+          placeholder="White chest patch, blue collar with a bell, limps a little, very shy - don't chase…"
           className={`w-full px-4 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors resize-none leading-relaxed ${theme.focusRing}`}
           autoFocus
         />
         <p className="text-xs text-midnight-400 mt-1.5">
-          Collars, markings, temperament — this goes on the poster.
+          Collars, markings, temperament - this goes on the poster.
         </p>
       </div>
 

@@ -33,7 +33,7 @@ export async function generateMetadata({ params }) {
     if (!force) return genericShareMetadata();
 
     const place = [force.city, force.state].filter(Boolean).join(', ');
-    const title = `${force.name}${place ? ` — ${place}` : ''} | ${SITE_NAME}`;
+    const title = `${force.name}${place ? ` - ${place}` : ''} | ${SITE_NAME}`;
     const reunions = force.successfulReunions
       ? ` ${force.successfulReunions} successful reunion${force.successfulReunions === 1 ? '' : 's'} and counting.`
       : '';

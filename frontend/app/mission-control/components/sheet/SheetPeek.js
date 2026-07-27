@@ -5,7 +5,7 @@
  *
  * While a GPS leg is live (field instrument) the peek becomes the
  * LiveSearchHUD. Otherwise: vitals row, then the ActionDock with its
- * situation line — a newcomer reads the peek top to bottom and knows
+ * situation line - a newcomer reads the peek top to bottom and knows
  * what is happening and what to do, without opening anything.
  */
 

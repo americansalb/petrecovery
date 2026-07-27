@@ -158,7 +158,7 @@ function HealthInner() {
         <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-4">Health</h1>
         <Card className="px-5 py-8 text-center">
           <p className="text-[15px] font-semibold text-care-ink">Couldn&apos;t load {name}&apos;s Health Book</p>
-          <p className="text-[13.5px] text-care-sub mt-1 mb-4">The record is safe — this page just couldn&apos;t reach it. Check your connection and try again.</p>
+          <p className="text-[13.5px] text-care-sub mt-1 mb-4">The record is safe - this page just couldn&apos;t reach it. Check your connection and try again.</p>
           <button
             onClick={() => { setLoading(true); load(); }}
             className="rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"
@@ -251,8 +251,8 @@ function HealthInner() {
 
       {/* The room's constant, soft disclaimer (docs/HEALTH_BOOK_DESIGN.md §7) */}
       <p className="mt-10 text-[12px] text-care-faint">
-        A record you keep, not medical advice — your vet&apos;s guidance comes first.
-        If {name} ever seems unwell, call your vet or an emergency clinic.
+        A record you keep, not medical advice. Your vet&apos;s guidance comes first, and
+        if {name} ever seems unwell, call your vet or an emergency clinic.
       </p>
 
       {showAdd && (

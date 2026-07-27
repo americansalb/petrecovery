@@ -103,7 +103,7 @@ export async function GET(_request, { params }) {
     metadata: { caseNumber, status: activation.status },
   }).catch(() => {});
 
-  // Opportunistically deliver a few due follow-ups on case-page traffic — keeps
+  // Opportunistically deliver a few due follow-ups on case-page traffic - keeps
   // reminders punctual without a cron, and never delays this read.
   piggybackDrain(3);
 

@@ -1,5 +1,5 @@
 /**
- * Real QR codes for flyers + social cards — replaces the fake `'QR'` text
+ * Real QR codes for flyers + social cards - replaces the fake `'QR'` text
  * placeholder in the legacy flyerGenerator. Node runtime.
  */
 

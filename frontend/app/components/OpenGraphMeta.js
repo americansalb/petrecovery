@@ -145,7 +145,7 @@ export function StructuredData({ data }) {
   // SECURITY: JSON.stringify escapes " and \ but NOT < > & or the JS line
   // separators, so user-controlled fields (petName, address) could inject a
   // literal </script> and break out of this inline script (stored XSS on the
-  // public case page). Escape the breakout chars to \uXXXX — still valid JSON,
+  // public case page). Escape the breakout chars to \uXXXX - still valid JSON,
   // no longer parseable as an HTML tag boundary.
   const safeJson = JSON.stringify(data)
     .replace(/</g, '\\u003c')

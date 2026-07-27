@@ -1,7 +1,7 @@
 /**
  * SEC-15 regression: GET /api/admin/cleanup-sessions is admin-only.
  *
- * EA's admin audit found it session-only gated — any logged-in user could force
+ * EA's admin audit found it session-only gated - any logged-in user could force
  * ALL active/ready search sessions to COMPLETED (kill everyone's in-progress
  * searches). Fixed with isAdmin(). Keystone: non-admin => 403 AND no updateMany.
  */

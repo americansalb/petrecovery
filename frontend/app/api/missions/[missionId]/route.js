@@ -140,7 +140,7 @@ export async function GET(request, { params }) {
       }, { status: 404 });
     }
 
-    // Check waiver acceptance — skip for case owners
+    // Check waiver acceptance - skip for case owners
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { waiverAcceptedAt: true }

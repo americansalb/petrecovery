@@ -45,7 +45,7 @@ export function vaccinationStatus(vax, now = new Date()) {
 /**
  * The book keeps one live stamp per vaccine: the newest. Backfilling an
  * older same-name record (server-side retirement only runs forward) must
- * not create a second "Rabies" row contradicting the current one — the
+ * not create a second "Rabies" row contradicting the current one - the
  * older record stays in the timeline, not in the standing.
  */
 export function latestPerName(vaccinations) {
@@ -71,7 +71,7 @@ export function rankVaccinations(vaccinations, now = new Date()) {
   );
 }
 
-/** "Jul 17", growing a year ("May 16, 2025") once it isn't this year —
+/** "Jul 17", growing a year ("May 16, 2025") once it isn't this year -
  *  a 14-month-old expiry must not read as two months old. */
 function shortDate(d, now = new Date()) {
   const date = new Date(d);
@@ -137,7 +137,7 @@ export function healthBookStatus(vaccinations, petName, now = new Date()) {
   const due = byStatus('DUE_SOON').sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
 
   if (expired.length) {
-    const more = expired.length > 1 ? ` — ${expired.length - 1} more ${expired.length === 2 ? 'has' : 'have'} lapsed too` : '';
+    const more = expired.length > 1 ? `, and ${expired.length - 1} more ${expired.length === 2 ? 'has' : 'have'} lapsed too` : '';
     return {
       tone: 'bad',
       sentence: `${expired[0].name} expired ${shortDate(expired[0].expiresAt, now)}${more}. One tap to update.`,
@@ -146,7 +146,7 @@ export function healthBookStatus(vaccinations, petName, now = new Date()) {
     };
   }
   if (due.length) {
-    const more = due.length > 1 ? ` — ${due.length - 1} more due soon` : '';
+    const more = due.length > 1 ? `, and ${due.length - 1} more due soon` : '';
     return {
       tone: 'warn',
       sentence: `${due[0].name} due by ${shortDate(due[0].expiresAt, now)}${more}.`,
@@ -164,7 +164,7 @@ export function healthBookStatus(vaccinations, petName, now = new Date()) {
   // "up to date" here would overclaim what the data can support.
   return {
     tone: 'onfile',
-    sentence: `${live.length} record${live.length === 1 ? '' : 's'} on file — no expiry dates tracked yet.`,
+    sentence: `${live.length} record${live.length === 1 ? '' : 's'} on file. No expiry dates tracked yet.`,
     expiredCount: 0,
     dueCount: 0,
   };

@@ -55,7 +55,7 @@ test('render surfaces (pages, layouts, components) have no undefined identifiers
 
   if (failures.length) {
     throw new Error(
-      `Undefined identifier(s) on render surfaces — these crash the page at runtime:\n  ${failures.join('\n  ')}`
+      `Undefined identifier(s) on render surfaces - these crash the page at runtime:\n  ${failures.join('\n  ')}`
     );
   }
 }, 120000);

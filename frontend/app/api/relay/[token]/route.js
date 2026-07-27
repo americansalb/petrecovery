@@ -11,13 +11,13 @@ export const dynamic = 'force-dynamic';
 /**
  * Relay thread for a brokered match connection.
  *
- * POST /api/relay/{token}  — idempotently open the thread (finder clicks "Confirm & connect")
- * GET  /api/relay/{token}  — fetch the thread + messages (poll for owner replies)
+ * POST /api/relay/{token}  - idempotently open the thread (finder clicks "Confirm & connect")
+ * GET  /api/relay/{token}  - fetch the thread + messages (poll for owner replies)
  *
  * Hard contract (relay-connect-spec §6): NO response below MUTUAL_OPTIN status
  * contains owner OR finder phone/email/raw contact/exact coords. The owner is
  * referenced only by pet name; the finder only by an anonymous handle. The
- * lostCase is loaded with userId ONLY to derive sender role server-side — it is
+ * lostCase is loaded with userId ONLY to derive sender role server-side - it is
  * never returned to the client.
  */
 
@@ -29,7 +29,7 @@ async function loadConnection(token) {
       lostCase: {
         select: {
           id: true,
-          reporterId: true, // role derivation only — NOT returned
+          reporterId: true, // role derivation only - NOT returned
           petName: true,
           petSpecies: true,
           petPhotoUrl: true,

@@ -1,5 +1,5 @@
 /**
- * ai_copy action (tier 0) — generates the emotional flyer copy, per-platform
+ * ai_copy action (tier 0) - generates the emotional flyer copy, per-platform
  * social captions, and the personalized search plan. Always succeeds: the
  * generator returns a full deterministic pack when AI is unavailable, so
  * downstream flyers/social/share_kit/search_plan always have copy to use.

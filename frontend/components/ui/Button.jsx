@@ -94,7 +94,7 @@ export function Button({
     </>
   );
 
-  // A plain <button href> doesn't navigate — render links as real <Link>s so
+  // A plain <button href> doesn't navigate - render links as real <Link>s so
   // pages can write <Button href="..."> and get working navigation + a11y.
   if (href && !isDisabled) {
     return (

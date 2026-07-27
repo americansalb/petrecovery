@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Shield, ArrowLeft } from 'lucide-react';
 
 export const metadata = {
-  title: 'Privacy Policy — ReunitePets.org',
+  title: 'Privacy Policy - ReunitePets.org',
   description: 'How ReunitePets.org collects, uses, and protects your information.',
 };
 
@@ -13,8 +13,8 @@ const SECTIONS = [
   {
     title: 'Information we collect',
     body: [
-      'Account details you provide — name, email, and (optionally) a phone number — when you register or file a report.',
-      'Pet report details — photos, descriptions, and the last-seen or found location you choose to share.',
+      'Account details you provide - name, email, and (optionally) a phone number - when you register or file a report.',
+      'Pet report details - photos, descriptions, and the last-seen or found location you choose to share.',
       'Approximate location data, used to match reports and connect you with nearby rescue forces. We snap shared locations to a coarse area rather than publishing exact coordinates.',
       'Basic technical data (device/browser type, and rate-limiting signals) needed to operate and secure the service.',
     ],
@@ -24,16 +24,16 @@ const SECTIONS = [
     body: [
       'To create and display lost and found pet reports and match them to one another.',
       'To notify you about potential matches, sightings, and activity on your reports.',
-      'To connect owners, finders, and rescue volunteers — only the minimum needed to help reunite a pet, and only after the relevant parties opt in.',
+      'To connect owners, finders, and rescue volunteers - only the minimum needed to help reunite a pet, and only after the relevant parties opt in.',
       'To keep the platform safe (preventing abuse, spam, and fraudulent reports).',
     ],
   },
   {
-    title: 'What we share — and what we don’t',
+    title: 'What we share - and what we don’t',
     body: [
       'We do not sell your personal information.',
       'Contact details (phone, email, exact address) are not published publicly. They are shared only when you and another party mutually choose to connect about a specific match.',
-      'Public report pages show pet details and a coarse area — never your exact home location or raw contact info.',
+      'Public report pages show pet details and a coarse area - never your exact home location or raw contact info.',
       'We may share information when required by law, or to investigate safety and abuse.',
     ],
   },
@@ -71,7 +71,7 @@ export default function PrivacyPage() {
             </span>
           </h1>
           <p className="text-midnight-200 text-lg max-w-xl mx-auto">
-            We collect only what’s needed to reunite pets with their families — and we protect it.
+            We collect only what’s needed to reunite pets with their families - and we protect it.
           </p>
           <p className="text-midnight-300/70 text-sm mt-4">Last updated: {LAST_UPDATED}</p>
         </div>

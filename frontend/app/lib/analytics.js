@@ -26,12 +26,12 @@ export async function getDashboardStats(dateRange = 30) {
     // Total cases all time
     prisma.case.count(),
 
-    // Active (open) cases — CaseStatus has no 'LOST'; open = not yet resolved.
+    // Active (open) cases - CaseStatus has no 'LOST'; open = not yet resolved.
     prisma.case.count({
       where: { status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
     }),
 
-    // Resolved cases — CaseStatus has no 'FOUND'; resolved = REUNITED or CLOSED_OTHER.
+    // Resolved cases - CaseStatus has no 'FOUND'; resolved = REUNITED or CLOSED_OTHER.
     prisma.case.count({
       where: { status: { in: ['REUNITED', 'CLOSED_OTHER'] } },
     }),

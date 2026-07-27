@@ -1,13 +1,13 @@
 /**
- * Flyer copy — direct, dignified, warm. Community voice: the flyer states what
+ * Flyer copy - direct, dignified, warm. Community voice: the flyer states what
  * happened and exactly how to help, like a calm neighbor asking neighbors.
- * No talking-pet gimmick, no guilt-trips, no cutesy trinkets — the pet's face
+ * No talking-pet gimmick, no guilt-trips, no cutesy trinkets - the pet's face
  * and a huge phone number do the emotional work; the words stay factual.
  *
  * This is the deterministic fallback that runs with NO AI; the cascade's Haiku
  * copy uses this same voice as its north star and can override headline/plea
  * per case. Placeholders {name} / {species} are interpolated by fillCopy().
- * Keep every line short and scannable — this is a flyer.
+ * Keep every line short and scannable - this is a flyer.
  */
 
 export const FLYER_COPY = {
@@ -57,7 +57,7 @@ export function resolveFlyerCopy(caseData, shared = {}) {
   return {
     headline: shared.headline ? shared.headline : fillCopy(headlineTemplate, { name, species }),
     plea,
-    // Same single sentence everywhere — kept as its own field so social cards
+    // Same single sentence everywhere - kept as its own field so social cards
     // can stay short if the AI plea runs long.
     pleaShort: plea,
     approachLine: fillCopy(

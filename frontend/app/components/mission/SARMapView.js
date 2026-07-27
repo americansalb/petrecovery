@@ -288,7 +288,7 @@ export default function SARMapView({
 
     if (!searchPath || searchPath.length === 0) return;
 
-    // Draw coverage corridor — your beam: the ground your flashlight covered
+    // Draw coverage corridor - your beam: the ground your flashlight covered
     if (searchPath.length >= 2) {
       const corridorCoords = generateCorridorPolygon(searchPath, CORRIDOR_WIDTH_METERS);
       if (corridorCoords) {
@@ -545,7 +545,7 @@ export default function SARMapView({
 
       const popupHtml = `<div style="text-align:center;"><b style="color:${zoneColor}">${isConfirmed ? 'Confirmed sighting' : 'Reported sighting'}</b><br>${timeAgoText}${sighting.description ? `<br><small>${String(sighting.description).slice(0, 120)}</small>` : ''}</div>`;
 
-      // The uncertainty circle grows with age but FADES as it grows —
+      // The uncertainty circle grows with age but FADES as it grows -
       // a fresh sighting glows, a stale one keeps only its pin. This is
       // what keeps the map dark instead of washed in overlay color.
       if (hoursSinceSighting < 24) {
@@ -672,7 +672,7 @@ export default function SARMapView({
         </div>
       )}
 
-      {/* Map Controls — one consistent stack */}
+      {/* Map Controls - one consistent stack */}
       {interactive && (
         <div
           className="absolute top-4 right-4 z-[400] flex flex-col gap-2"

@@ -1,5 +1,5 @@
 /**
- * Flyer visual tokens — brand midnight + flash, LOST = red stamp semantic,
+ * Flyer visual tokens - brand midnight + flash, LOST = red stamp semantic,
  * FOUND = emerald (found flyers are future scope but the token exists).
  */
 

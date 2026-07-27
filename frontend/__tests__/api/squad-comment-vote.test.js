@@ -1,5 +1,5 @@
 /**
- * COM-1 regression — squad comment vote flow.
+ * COM-1 regression - squad comment vote flow.
  *
  * The bug: the membership lookup used the wrong composite-key accessor
  * (userId_rescueSquadId instead of the generated rescueSquadId_userId), so every
@@ -7,7 +7,7 @@
  *
  * NOTE ON SCOPE: prisma is mocked here, so this locks the route's auth /
  * validation / persist FLOW (401/400/403/404 + create-on-new-vote), NOT the
- * composite-key string itself — a mock can't enforce Prisma's schema. The
+ * composite-key string itself - a mock can't enforce Prisma's schema. The
  * key-name drift is only catchable against a real client; that's what the
  * proposed ephemeral-DB route smoke test (Pattern 4) is for. This test still
  * guards the flow against logic regressions.

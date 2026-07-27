@@ -46,7 +46,7 @@ export async function GET(request, { params }) {
     }
 
     // Get badges. UserBadge has no Prisma relation to Badge (scalar badgeId
-    // only), so join manually — include:{badge} throws at runtime.
+    // only), so join manually - include:{badge} throws at runtime.
     const userBadges = await prisma.userBadge.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },

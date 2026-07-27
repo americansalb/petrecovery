@@ -367,7 +367,7 @@ export default function AdminGroupsPage() {
                         {g.state ? `, ${g.state}` : ''}
                       </td>
                       <td className="px-4 py-3 text-gray-600 max-w-[220px]">
-                        <div className="truncate" title={g.coverage || ''}>{g.coverage || '\u2014'}</div>
+                        <div className="truncate" title={g.coverage || ''}>{g.coverage || '-'}</div>
                         <CityChips citiesJson={g.cities} />
                       </td>
                       <td className="px-4 py-3">

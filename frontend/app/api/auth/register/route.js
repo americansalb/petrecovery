@@ -301,8 +301,8 @@ export async function POST(request) {
     const emailVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
     const emailVerifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Create user — plus their Health Book pet when one rode along with
-    // signup (/care/start) — in one transaction, so "register to save
+    // Create user - plus their Health Book pet when one rode along with
+    // signup (/care/start) - in one transaction, so "register to save
     // your pet" can never half-succeed.
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({

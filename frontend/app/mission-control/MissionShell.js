@@ -4,8 +4,8 @@
  * MissionShell - Mission Control, rebuilt around three questions
  *
  * Every state of this screen answers, in order: What's happening?
- * (situation line + state chip) — What should I do right now? (the
- * ActionDock's ONE primary + the ranked HelpChecklist) — Where? (the
+ * (situation line + state chip) - What should I do right now? (the
+ * ActionDock's ONE primary + the ranked HelpChecklist) - Where? (the
  * map, edge-to-edge under everything, dark cartography).
  *
  * One mission, three instruments:

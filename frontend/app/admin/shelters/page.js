@@ -542,7 +542,7 @@ export default function AdminSheltersPage() {
                           {shelter.phone}
                         </a>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -554,7 +554,7 @@ export default function AdminSheltersPage() {
                           {shelter.email}
                         </a>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -570,7 +570,7 @@ export default function AdminSheltersPage() {
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -580,7 +580,7 @@ export default function AdminSheltersPage() {
                           Available
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">—</span>
+                        <span className="text-xs text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-4 py-4">
@@ -601,7 +601,7 @@ export default function AdminSheltersPage() {
                     </td>
                     <td className="px-4 py-4">
                       <span className="text-xs text-gray-500">
-                        {shelter.fetchedAt ? new Date(shelter.fetchedAt).toLocaleDateString() : '—'}
+                        {shelter.fetchedAt ? new Date(shelter.fetchedAt).toLocaleDateString() : '-'}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">

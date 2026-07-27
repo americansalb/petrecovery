@@ -1,12 +1,12 @@
 /**
  * Live-search CRIT regression (EA msg 569/588): the client (useSearchSession)
  * sends action 'mark' with a { point } object, but the server only handled
- * start/ping/end — so every breadcrumb fell through to 400, sessions recorded 0
+ * start/ping/end - so every breadcrumb fell through to 400, sessions recorded 0
  * pings → 0 distance → 0 points → empty coverage map. The headline gamified-search
  * feature was dead. Fixed by an adapter: 'mark' → handlePing with renamed fields.
  *
  * Anti-theater: assert 'mark' actually PERSISTS a LocationPing with the mapped
- * coords (not just "doesn't 400") — a relabel that still dropped would be theater.
+ * coords (not just "doesn't 400") - a relabel that still dropped would be theater.
  */
 
 import { NextRequest } from 'next/server';

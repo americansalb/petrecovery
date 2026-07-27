@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * LocationPicker — shared "where" step for both report wizards.
+ * LocationPicker - shared "where" step for both report wizards.
  *
  * Search-first: a three-geocoder autocomplete (Apple MapKit + Photon +
  * Nominatim via /api/geocode) plus an explicit "Use my location" button.
- * Geolocation is NEVER requested on mount — only on that tap. The map
+ * Geolocation is NEVER requested on mount - only on that tap. The map
  * appears once a spot is chosen, with a draggable pin and tap-to-move.
  *
  * Controlled: value = { lat, lng, address, city } | null. Every position
@@ -137,7 +137,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   }, []);
 
   // Surface the last confirmed location as an OFFER (legacy `reportLocation`
-  // shape) — never auto-apply it. A stale pin from a previous report that a
+  // shape) - never auto-apply it. A stale pin from a previous report that a
   // stressed user confirms without noticing is worse than one extra tap.
   useEffect(() => {
     if (!storageKey || value) return;
@@ -165,7 +165,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
         JSON.stringify({ center: [value.lat, value.lng], address: value.address, city: value.city, locked: true })
       );
     } catch {
-      /* storage full/blocked — non-fatal */
+      /* storage full/blocked - non-fatal */
     }
   }, [storageKey, value]);
 
@@ -183,7 +183,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
     }
   };
 
-  // Map lifecycle — create once a position exists, then keep pin in sync
+  // Map lifecycle - create once a position exists, then keep pin in sync
   useEffect(() => {
     if (typeof window === 'undefined' || !value) return;
     const center = [value.lat, value.lng];
@@ -343,7 +343,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   const useMyLocation = () => {
     setLocateError(null);
     if (!navigator.geolocation) {
-      setLocateError("Your browser can't share location — try searching instead.");
+      setLocateError("Your browser can't share location - try searching instead.");
       return;
     }
     setIsLocating(true);
@@ -355,7 +355,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
         setIsLocating(false);
       },
       () => {
-        setLocateError("Couldn't get your location — try searching for the address instead.");
+        setLocateError("Couldn't get your location - try searching for the address instead.");
         setIsLocating(false);
       },
       { timeout: 10000, enableHighAccuracy: true }

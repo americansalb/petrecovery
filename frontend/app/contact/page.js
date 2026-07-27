@@ -92,7 +92,7 @@ export default function ContactPage() {
             Looking for something specific?
           </h2>
           <p className="text-slate-500">
-            Many things are faster to do directly — jump straight in below.
+            Many things are faster to do directly - jump straight in below.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 gap-5">

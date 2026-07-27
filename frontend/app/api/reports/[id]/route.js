@@ -60,7 +60,7 @@ export async function GET(request, { params }) {
     const session = await getServerSession(authOptions);
     const isOwner = session?.user?.email === report.reporter.email;
     // SEC-19/SEC-10: the case page is public/shareable, but a pet's exact
-    // last-seen point is usually near the owner's home/routine — exposing precise
+    // last-seen point is usually near the owner's home/routine - exposing precise
     // coords + street address to anonymous viewers is a stalking/safety risk.
     // So: authenticated searchers get EXACT location; anonymous viewers get a
     // coarse (~1km / neighborhood) view. Coordinates round to 2 decimals (~1.1km).
@@ -83,7 +83,7 @@ export async function GET(request, { params }) {
     // If this is a FOUND pet, surface potential matches (open LOST cases).
     // PII-broker contract (relay-connect-spec §6): this payload may be read by an
     // unauthenticated viewer, so it must NOT contain owner name/phone/email, the
-    // exact last-seen address, or raw coordinates — only pet fields, a coarse
+    // exact last-seen address, or raw coordinates - only pet fields, a coarse
     // area, and the calibrated confidence. Contact is brokered separately.
     let potentialMatches = [];
     if (report.reportType === 'FOUND') {

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * "Is this animal OK?" — the calm glance that answers the question in one
+ * "Is this animal OK?" - the calm glance that answers the question in one
  * look: vaccine standing, weight, active medications, any medical note,
  * and the vet you would phone.
  *
@@ -170,7 +170,7 @@ export default function PetGlance({
           <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">{initialsOf(pet.vetName || pet.vetClinic)}</span>
           <div className="flex-1 min-w-0">
             <Overline>Primary vet</Overline>
-            {/* A phone number alone is still a reachable vet — never hide it. */}
+            {/* A phone number alone is still a reachable vet - never hide it. */}
             <b className="block text-[14.5px] font-semibold text-care-ink mt-0.5 truncate">{pet.vetName || pet.vetClinic || pet.vetPhone}</b>
             <span className="text-[11.5px] text-care-sub truncate block">{[pet.vetClinic, (pet.vetName || pet.vetClinic) ? pet.vetPhone : null].filter(Boolean).join(' · ')}</span>
           </div>

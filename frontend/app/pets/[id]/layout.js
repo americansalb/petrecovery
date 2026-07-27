@@ -72,7 +72,7 @@ function PetIdentity({ pet }) {
  * The pet couldn't be loaded: a bad or stale link, a deleted pet, or one
  * this account can't see. Every room reads the same pet from context, so a
  * single guard here stops any of them from spinning forever (Profile) or
- * presenting a phantom pet — an "empty" Health record inviting a first
+ * presenting a phantom pet - an "empty" Health record inviting a first
  * vaccine, a People page offering to share a pet that doesn't exist.
  */
 function PetUnavailable() {
@@ -131,7 +131,7 @@ function PetShell({ children }) {
   return (
     <div className="min-h-screen bg-care-bg">
       <div className="lg:grid lg:grid-cols-[240px_1fr] max-w-[1240px] mx-auto">
-        {/* LEFT NAV RAIL — desktop */}
+        {/* LEFT NAV RAIL - desktop */}
         <aside className="hidden lg:flex flex-col gap-6 px-5 py-7 border-r border-care-line bg-care-surface min-h-[calc(100vh-4rem)]">
           <PetIdentity pet={pet} />
 

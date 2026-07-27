@@ -16,7 +16,7 @@ import PortalShell from './PortalShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata = {
-  title: 'Shelter Portal — ReunitePets.org',
+  title: 'Shelter Portal - ReunitePets.org',
   description: 'Your shelter workspace on ReunitePets.org.',
 };
 

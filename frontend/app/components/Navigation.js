@@ -4,7 +4,7 @@
  * Navigation Component - Universal Nav Bar
  *
  * THE one top bar, identical on every route: same h-16 height, same links,
- * same Report CTA — content and size never change from page to page. It
+ * same Report CTA - content and size never change from page to page. It
  * only adapts to auth STATE (guests get Sign in/Join, members get their
  * menu), never to the route; the sole exception is the immersive-route
  * list in app/lib/navChrome.js (Mission Control ships its own chrome).
@@ -107,7 +107,7 @@ export default function Navigation() {
   };
 
   // The bar renders everywhere except intentional immersive takeovers
-  // (shared policy in app/lib/navChrome.js) — auth pages included, so the
+  // (shared policy in app/lib/navChrome.js) - auth pages included, so the
   // chrome never blinks in and out while moving through the site.
   if (isImmersiveRoute(pathname)) return null;
 
@@ -120,7 +120,7 @@ export default function Navigation() {
       <nav className="sticky top-0 z-50 bg-midnight-900 border-b border-midnight-800">
         <div className="max-w-7xl mx-auto px-4">
           <div className="h-16 flex items-center justify-between gap-4">
-            {/* Logo — explicit box so the bar never reflows while the CDN image
+            {/* Logo - explicit box so the bar never reflows while the CDN image
                 loads; wordmark only where the full link set still fits */}
             <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
               <img src={LOGO_ICON} alt="ReunitePets" width={56} height={56} className="h-14 w-14 object-contain" />
@@ -149,7 +149,7 @@ export default function Navigation() {
                 Lost &amp; Found
               </NavLink>
 
-              {/* Always the same trigger — the user's squads only change what's
+              {/* Always the same trigger - the user's squads only change what's
                   INSIDE the dropdown, never the size or shape of the bar */}
               <NavDropdown
                 label="Rescue Forces"
@@ -193,7 +193,7 @@ export default function Navigation() {
                   bar's link set is identical for every role */}
             </div>
 
-            {/* Right Side — CTA first so it never moves; everything that
+            {/* Right Side - CTA first so it never moves; everything that
                 depends on the session renders to its right */}
             <div className="flex items-center gap-2">
               {/* Report Pet CTA - on every page, always the same size */}

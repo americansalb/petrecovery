@@ -37,7 +37,7 @@ export function SectionHeader({ eyebrow, title, action }) {
 /**
  * Medical conditions. A labelled note, not a bare red paragraph: unlabelled
  * red text reads as an error string, and a long condition list must not
- * own the first screen — clamp to two lines with an expander.
+ * own the first screen - clamp to two lines with an expander.
  */
 export function AlertRibbon({ text, href }) {
   const [expanded, setExpanded] = useState(false);
@@ -105,7 +105,7 @@ function protectionSummary(vaccinations) {
  * The record in one line.
  *
  * This used to be three stat tiles. On a new animal they read "0 / none /
- * 0" — a wall of zeros telling you nothing — and on a full record they
+ * 0" - a wall of zeros telling you nothing - and on a full record they
  * simply repeated the three sections printed directly beneath them. A
  * summary that duplicates its own detail is decoration.
  *
@@ -378,7 +378,7 @@ export function WeightCard({
 /* ----------------------------------- Vet ---------------------------------- */
 export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, saving }) {
   const input = 'w-full rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
-  // A phone number alone is still a vet on file — in an emergency it is
+  // A phone number alone is still a vet on file - in an emergency it is
   // the single most valuable field, so it must never render as "none".
   const hasVet = pet?.vetName || pet?.vetClinic || pet?.vetPhone;
   const vetTitle = [pet?.vetName, pet?.vetClinic].filter(Boolean).join(', ') || pet?.vetPhone;

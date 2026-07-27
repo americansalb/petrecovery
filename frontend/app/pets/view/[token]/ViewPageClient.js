@@ -391,7 +391,7 @@ export default function PublicPetViewPage() {
             sees: this is family-kept data, not a clinic-verified record. */}
         <p className="mt-8 text-[12px] text-neutral-400">
           This Health Book is kept by {pet.name}&apos;s people and isn&apos;t verified by a clinic.
-          For anything official, ask for the paper certificate — and in an emergency, call a vet first.
+          For anything official, ask for the paper certificate. In an emergency, call a vet first.
         </p>
 
         {/* Join request */}

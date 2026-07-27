@@ -8,7 +8,7 @@
  * backwards compatibility but every dialog renders the same plain way.
  *
  * Layering: z-[60], deliberately above the mobile GlobalBottomNav (z-50)
- * — a bottom sheet whose primary button hides behind the tab bar is a
+ * - a bottom sheet whose primary button hides behind the tab bar is a
  * dead end on every phone.
  */
 

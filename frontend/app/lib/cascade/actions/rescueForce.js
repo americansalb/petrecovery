@@ -1,5 +1,5 @@
 /**
- * rescue_force action (tier 0) — surface the rescue force(s) the create route
+ * rescue_force action (tier 0) - surface the rescue force(s) the create route
  * already assigned this case to, so the reporter can see the neighborhood
  * search team that's now on it. Read-only. SKIPPED (via the runner) when there
  * is no assignment.

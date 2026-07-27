@@ -1,5 +1,5 @@
 /**
- * shelters action (tier 0) — a shortlist of the nearest shelters / animal
+ * shelters action (tier 0) - a shortlist of the nearest shelters / animal
  * control the owner can call today (where lost pets most often end up). Uses
  * the key-free local shelter DB; when it's empty, returns honest, actionable
  * guidance rather than a fake list.
@@ -35,7 +35,7 @@ export async function runShelters(ctx) {
 
   const guidance =
     shelters.length === 0
-      ? 'Call every animal shelter, humane society, and animal-control office within ~20 miles and file a lost-pet report — check back every 1–2 days, since many pets are surrendered days after going missing.'
+      ? 'Call every animal shelter, humane society, and animal-control office within ~20 miles and file a lost-pet report - check back every 1–2 days, since many pets are surrendered days after going missing.'
       : null;
 
   return { count: shelters.length, result: { shelters, guidance } };

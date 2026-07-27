@@ -81,7 +81,7 @@ export async function POST(request, { params }) {
     // Create update/note
     const update = await prisma.caseUpdate.create({
       data: {
-        caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) — was 500ing every note POST
+        caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) - was 500ing every note POST
         authorId: session.user.id,
         content: content.trim(),
         isUpdate: true,
@@ -159,7 +159,7 @@ export async function GET(request, { params }) {
     }
 
     // Permission check (mirrors POST): only the case owner, admin/moderator, or
-    // an assigned participant may read case notes — they aren't public.
+    // an assigned participant may read case notes - they aren't public.
     const existingCase = await prisma.case.findUnique({
       where: { id: params.missionId },
       select: {

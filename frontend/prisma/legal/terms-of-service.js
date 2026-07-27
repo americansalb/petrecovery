@@ -1,11 +1,11 @@
 /**
- * Terms of Service — single source of truth.
+ * Terms of Service, single source of truth.
  *
  * Consumed by prisma/seed.js (fresh installs) and
  * prisma/sync-legal-docs.js (version-aware upgrade on boot), so a
  * version bump here reaches production on the next deploy.
  *
- * v1.1.0: added section 5, "Pet Care Tools" — a plain-language
+ * v1.1.0: added section 5, "Pet Care Tools", a plain-language
  * responsibility note for the free medication/care tracker (helper,
  * not veterinary advice; release folded in once, calmly).
  *
@@ -13,7 +13,7 @@
  * weight log, vet info, health share pages): owner-kept record, not a
  * verified medical record or proof of vaccination; statuses are date
  * math; emergencies go to a vet; share-link visibility; release
- * extended to health records. Same calm register — disclose clearly,
+ * extended to health records. Same calm register: disclose clearly,
  * don't scare.
  */
 
@@ -57,12 +57,12 @@ By using PetRecovery.org, you agree to the following terms:
 
 ## 5. Pet Care Tools & Your Pet's Health Book
 
-ReunitePets includes free tools for everyday pet care — medication schedules, dose logging, care routines, a Health Book (vaccination records, weight history, and your vet's contact info), and shareable care and health pages. Here's the honest, common-sense version of how to hold them:
+ReunitePets includes free tools for everyday pet care: medication schedules, dose logging, care routines, a Health Book (vaccination records, weight history, and your vet's contact info), and shareable care and health pages. Here's the honest, common-sense version of how to hold them:
 
 - **A helper, not a vet**: These tools help you remember and organize. They do not provide veterinary or medical advice, they do not create a veterinarian-client-patient relationship, and they never replace guidance from your veterinarian or a medication's label.
-- **A record you keep**: The Health Book shows exactly what you (and caregivers you invite) enter. Nothing in it is verified by a clinic. Labels like "current," "due soon," or "expired" are simple date arithmetic on the dates you typed — helpful nudges, not medical judgments.
-- **Not an official document**: The Health Book is not proof of vaccination and not a substitute for official records. For anything formal — travel, boarding, grooming, licensing, or a rabies certificate — the paperwork from your vet is the document that counts. A good habit: double-check what you enter against the certificate it came from.
-- **Emergencies are for vets**: If your pet seems sick, hurt, or off, contact a veterinarian or emergency clinic right away. Never wait on an app — including this one.
+- **A record you keep**: The Health Book shows exactly what you (and caregivers you invite) enter. Nothing in it is verified by a clinic. Labels like "current," "due soon," or "expired" are simple date arithmetic on the dates you typed: helpful nudges, not medical judgments.
+- **Not an official document**: The Health Book is not proof of vaccination and not a substitute for official records. For anything formal (travel, boarding, grooming, licensing, or a rabies certificate), the paperwork from your vet is the document that counts. A good habit: double-check what you enter against the certificate it came from.
+- **Emergencies are for vets**: If your pet seems sick, hurt, or off, contact a veterinarian or emergency clinic right away. Never wait on an app, including this one.
 - **Your judgment leads**: You are responsible for the information you enter (medications, doses, dates, records) and for the care decisions you make for your pet.
 - **Reminders can fail**: Notifications depend on devices and networks. Please don't rely on them alone for critical care.
 - **Shared access**: When you invite caregivers or share a view link, anyone who has that link can see your pet's care and health record. Share thoughtfully; you can change or revoke sharing anytime from your pet's pages.

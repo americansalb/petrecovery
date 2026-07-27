@@ -27,7 +27,7 @@ export const INSTRUMENTS = {
 export default function useInstrument() {
   // Native detection (docs/MOBILE_APP_PLAN.md): false on the web, true only
   // inside the Capacitor shell. Resolved in an effect so the first client
-  // render matches the server (never native) — no hydration flash.
+  // render matches the server (never native) - no hydration flash.
   const [isNative, setIsNative] = useState(false);
   const [resolved, setResolved] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);

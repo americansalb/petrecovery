@@ -17,7 +17,7 @@ export async function GET(request, { params }) {
   try {
     // The dynamic segment is [missionId]; older code read params.id (undefined),
     // which silently matched an arbitrary case. Accept either the cuid id or the
-    // case number — the old UUID regex never matched our cuid ids anyway.
+    // case number - the old UUID regex never matched our cuid ids anyway.
     const id = params.missionId || params.id;
 
     const missionData = await prisma.case.findFirst({

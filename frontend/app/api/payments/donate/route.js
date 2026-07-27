@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
  * reconciliation) and could authorize a real card with no record. It has no
  * UI caller. Payments are being rebuilt properly for the ad-boost feature;
  * until then this endpoint charges nothing and returns 410 Gone. Do not
- * re-enable — build on the new boost payment flow instead.
+ * re-enable - build on the new boost payment flow instead.
  */
 
 const GONE = () =>

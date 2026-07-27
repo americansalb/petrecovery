@@ -1,10 +1,10 @@
 /**
- * Global-chrome policy — the single source of truth for where the universal
+ * Global-chrome policy - the single source of truth for where the universal
  * navigation renders. Both Navigation (top bar) and GlobalBottomNav (mobile
  * tab bar) read from here; pages never hide chrome ad hoc.
  *
  * House rule (docs/APP_MAP.md §8.2): the top bar is identical on every
- * route — same height, same links, same CTA — and steps aside only inside
+ * route - same height, same links, same CTA - and steps aside only inside
  * intentional full-screen immersive experiences. The mobile tab bar
  * additionally yields to focused wizard flows whose own fixed action bars
  * would collide with it. Enforced by __tests__/global-chrome.test.js.

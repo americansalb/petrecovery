@@ -15,7 +15,7 @@ import { encode } from 'next-auth/jwt';
 import bcrypt from 'bcryptjs';
 import prisma from '@/app/lib/prisma';
 
-// Mirror of the SEC-18 block in app/lib/auth.js — keep in lockstep.
+// Mirror of the SEC-18 block in app/lib/auth.js - keep in lockstep.
 const SEC18_SEEDED_ADMINS = ['contact@aalb.org', 'sarama@petrecovery.app'];
 
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days, matches authOptions

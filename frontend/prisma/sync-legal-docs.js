@@ -1,7 +1,7 @@
 /**
  * Version-aware legal document sync, run at boot (see "start" in
  * package.json) so a Terms version bump in prisma/legal/ reaches the
- * live DB on the next deploy — prod never runs the full seed.
+ * live DB on the next deploy - prod never runs the full seed.
  *
  * Create-if-missing, update-if-version-changed, otherwise no-op.
  * Never exits non-zero: a hiccup here must not block the app from

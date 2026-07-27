@@ -5,7 +5,7 @@
  * used by privileged endpoints (mission command center, targeted notifications).
  *
  * Role is always read FRESH from the DB rather than trusted from the session
- * JWT — a long-lived token can carry a stale role, so security decisions must
+ * JWT - a long-lived token can carry a stale role, so security decisions must
  * not rely on it.
  */
 

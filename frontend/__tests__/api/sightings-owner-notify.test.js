@@ -3,7 +3,7 @@
  * when it actually delivered (no false hope), and must actually deliver when the
  * case has an owner. EA found /api/sightings returned "the owner has been
  * notified" while the send was a TODO (a false confirmation on a sighting of a
- * missing pet — the worst cruelty-class failure). Fixed: real in-app + email
+ * missing pet - the worst cruelty-class failure). Fixed: real in-app + email
  * delivery, honest copy gated on ownerNotified.
  *
  * Completes the cruelty-gate family lock: found-match (CRIT-A), sightings

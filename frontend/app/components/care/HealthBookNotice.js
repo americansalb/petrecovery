@@ -6,8 +6,8 @@
  * Anyone using the Health Book should have agreed to the current Terms
  * (which carry the health-record disclosures). New signups accept at
  * registration; this card catches everyone from before the Terms grew
- * the Health Book section. Tone is deliberately casual — four
- * common-sense lines and one button — but tapping it records a real,
+ * the Health Book section. Tone is deliberately casual - four
+ * common-sense lines and one button - but tapping it records a real,
  * versioned Terms acceptance via /api/legal/accept.
  *
  * Fails open: if the status check errors, we show nothing rather than
@@ -62,10 +62,10 @@ export default function HealthBookNotice({ petName = 'your pet' }) {
         <div className="min-w-0">
           <p className="text-[15px] font-semibold text-care-ink">One quick thing about the Health Book</p>
           <ul className="mt-2 space-y-1.5 text-[13.5px] text-care-sub list-disc pl-4">
-            <li>It&apos;s a record you keep — not medical advice. Your vet always has the final word.</li>
+            <li>It&apos;s a record you keep, not medical advice. Your vet always has the final word.</li>
             <li>Statuses are just date math on what you enter, so double-check against the paper certificate. For anything official (travel, boarding, licensing), the vet&apos;s paperwork is the real document.</li>
             <li>Share links show {petName}&apos;s record to anyone holding the link. You can revoke them anytime.</li>
-            <li>If {petName} ever seems unwell, call your vet or an emergency clinic first — not an app.</li>
+            <li>If {petName} ever seems unwell, call your vet or an emergency clinic first, not an app.</li>
           </ul>
           <div className="mt-3.5 flex items-center gap-4">
             <button
@@ -73,7 +73,7 @@ export default function HealthBookNotice({ petName = 'your pet' }) {
               disabled={agreeing}
               className="rounded-xl bg-care-teal text-white text-[13px] font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-40"
             >
-              {agreeing ? 'Saving...' : 'Sounds good — I agree'}
+              {agreeing ? 'Saving...' : 'Sounds good, I agree'}
             </button>
             <Link href="/legal/terms" target="_blank" className="text-[12.5px] font-medium text-care-sub hover:text-care-ink">
               Read the full terms

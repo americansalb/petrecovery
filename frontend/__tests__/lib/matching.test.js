@@ -2,7 +2,7 @@
  * Regression suite for the reunion engine (app/lib/matching.js).
  *
  * This is the core that turns "report posted" into "pet found", so it carries
- * lives — these tests lock the behaviors the team audited in Delphi disc. 1:
+ * lives - these tests lock the behaviors the team audited in Delphi disc. 1:
  *  - CORR-1: a valid 0 coordinate (equator / prime meridian) must NOT be
  *    discarded as "missing" (falsy-zero bug).
  *  - The species hard gate (cross-species => score 0, suppressed).
@@ -25,7 +25,7 @@ import {
   FEED_FLOOR,
 } from '@/app/lib/matching';
 
-describe('hasCoords — preserves a valid 0 (CORR-1)', () => {
+describe('hasCoords - preserves a valid 0 (CORR-1)', () => {
   test('0,0 (equator / prime meridian) is valid', () => {
     expect(hasCoords(0, 0)).toBe(true);
   });
@@ -57,7 +57,7 @@ describe('calculateDistance', () => {
   });
 });
 
-describe('scoreToProbability — provisional calibration anchors', () => {
+describe('scoreToProbability - provisional calibration anchors', () => {
   test('microchip is a deterministic identity match => 1.0 regardless of raw score', () => {
     expect(scoreToProbability(10, 'microchip')).toBe(1);
     expect(scoreToProbability(0, 'microchip')).toBe(1);
@@ -78,7 +78,7 @@ describe('scoreToProbability — provisional calibration anchors', () => {
   });
 });
 
-describe('getConfidenceBand — the floor, in probability units', () => {
+describe('getConfidenceBand - the floor, in probability units', () => {
   test('PUSH_FLOOR is the actionable boundary (inclusive)', () => {
     expect(getConfidenceBand(PUSH_FLOOR)).toBe('actionable');
     expect(getConfidenceBand(PUSH_FLOOR - 0.001)).toBe('feed');
@@ -104,7 +104,7 @@ describe('calculateMatchScore', () => {
     ...extra,
   });
 
-  test('CORR-1 keystone: identical pets at (0,0) score location points and match — a falsy-zero bug would drop this', () => {
+  test('CORR-1 keystone: identical pets at (0,0) score location points and match - a falsy-zero bug would drop this', () => {
     const result = calculateMatchScore(dogAt(0, 0), dogAt(0, 0));
     expect(result.details.distance).toBe(0);
     expect(result.details.scores.location).toBe(25); // would be 0 under truthiness
@@ -138,7 +138,7 @@ describe('calculateMatchScore', () => {
   });
 });
 
-describe('findMatches — ranking & filtering', () => {
+describe('findMatches - ranking & filtering', () => {
   const target = { petSpecies: 'DOG', petBreed: 'Labrador', petColor: 'black', latitude: 40.0, longitude: -75.0, lastSeenAt: '2026-05-01T00:00:00Z' };
 
   test('a microchip identity match (low raw score) outranks a high-scoring fuzzy guess and is not filtered by minScore', () => {
@@ -172,7 +172,7 @@ describe('findMatches — ranking & filtering', () => {
   });
 });
 
-describe('getMatchQuality — returns an OBJECT, not a string (CORR-4)', () => {
+describe('getMatchQuality - returns an OBJECT, not a string (CORR-4)', () => {
   test('tiers expose .label/.color/.bg so the UI must compare .label', () => {
     expect(getMatchQuality(85)).toMatchObject({ label: 'Excellent Match' });
     expect(getMatchQuality(65)).toMatchObject({ label: 'Good Match' });

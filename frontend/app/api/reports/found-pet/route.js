@@ -26,7 +26,7 @@ export async function POST(request) {
       // Phone will be fetched from their profile if they have one
     }
 
-    // Normalize email like /api/auth/register does — a mixed-case email here
+    // Normalize email like /api/auth/register does - a mixed-case email here
     // would create an account that credentials login (which lowercases) can
     // never find, and a duplicate once the user registers properly.
     email = email?.toLowerCase().trim() || null;
@@ -239,7 +239,7 @@ export async function POST(request) {
       maxResults: 20,
     });
 
-    // Format matches for response — §4d no-PII shape (this payload can reach an
+    // Format matches for response - §4d no-PII shape (this payload can reach an
     // unauthenticated finder). NO owner name, exact address, or raw coords; only
     // pet fields + coarseArea + the calibrated band/confidence. Drop 'suppress'.
     const formattedMatches = matches
@@ -264,7 +264,7 @@ export async function POST(request) {
     // CRUELTY GATE (CORR-3): only notify the owner for 'actionable'-band matches
     // (pTrueMatch >= PUSH_FLOOR), NOT every shown match. Previously we showed
     // matches down to score 30 but the UI claimed "owners notified" for all of
-    // them while only score>=50 actually got an alert — false hope on the worst
+    // them while only score>=50 actually got an alert - false hope on the worst
     // day. The notify set must equal what we claim to have notified.
     // CORE LOOP (CRIT-A/B): actually DELIVER to the owner (in-app + email),
     // not just write a dead Alert row, and use the correct Alert.caseId (the
@@ -291,11 +291,11 @@ export async function POST(request) {
         if (match.reporter?.email) {
           await sendEmail({
             to: match.reporter.email,
-            subject: `Possible match for your lost ${petType} — ReunitePets.org`,
+            subject: `Possible match for your lost ${petType} - ReunitePets.org`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #10b981;">A possible match for ${ownerPetName}</h2>
-                <p>Good news — someone in your area just reported a found ${petType} that may match your lost pet.</p>
+                <p>Good news - someone in your area just reported a found ${petType} that may match your lost pet.</p>
                 <p><a href="${getEmailBaseUrl()}${match.caseNumber ? `/cases/${match.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Review the match</a></p>
                 <p><small style="color:#6b7280;">ReunitePets never asks for payment to reconnect you with your pet. Review the match safely through the site.</small></p>
               </div>
@@ -315,7 +315,7 @@ export async function POST(request) {
         notifiedCount++;
       } catch (err) {
         console.error('Owner match-notify failed for case', match.id, err?.message);
-        // Isolated — never fail the report save or block other recipients.
+        // Isolated - never fail the report save or block other recipients.
       }
     }));
 

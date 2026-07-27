@@ -4,7 +4,7 @@
  * `User.email` is required + unique, but a lost-pet reporter may only have a
  * phone. We synthesize a deterministic, undeliverable address from the phone
  * digits so the same phone always maps back to the same account. The
- * `.invalid` TLD is reserved (RFC 2606) and can never receive mail — every
+ * `.invalid` TLD is reserved (RFC 2606) and can never receive mail - every
  * email-send site must skip these addresses via isPlaceholderEmail().
  */
 

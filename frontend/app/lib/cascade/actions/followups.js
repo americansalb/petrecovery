@@ -1,5 +1,5 @@
 /**
- * followups action (tier 2) — persists the day-1/3/7 check-in reminders as
+ * followups action (tier 2) - persists the day-1/3/7 check-in reminders as
  * durable CaseFollowUp rows (idempotent via @@unique([caseId, day])). Nothing
  * is sent here; delivery happens later when a due row is drained by the sweep
  * endpoint or a piggyback drain (see ../followups.js). An already-resolved case
@@ -15,7 +15,7 @@ export async function runFollowups(ctx) {
   const c = ctx.case;
 
   if (isResolved(c)) {
-    const skip = new Error('case already resolved — no reminders scheduled');
+    const skip = new Error('case already resolved - no reminders scheduled');
     skip.skip = true;
     throw skip;
   }

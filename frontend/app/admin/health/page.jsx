@@ -618,7 +618,7 @@ function MetricCard({ label, value }) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4">
       <div className="text-2xl font-bold text-gray-900 mb-1">
-        {value !== undefined ? value.toLocaleString() : '—'}
+        {value !== undefined ? value.toLocaleString() : '-'}
       </div>
       <div className="text-xs text-gray-600">{label}</div>
       <div className="text-xs text-gray-400 mt-1">Updated now</div>
@@ -1158,7 +1158,7 @@ function TestGeocodeCard({ onSwitchToErrors }) {
             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Note: City queries not yet supported — use 5-digit ZIP code.
+            Note: City queries not yet supported - use 5-digit ZIP code.
           </p>
           {validationError && (
             <p className="text-sm text-red-600 mt-1">{validationError}</p>

@@ -36,7 +36,7 @@ describe('SEC-20: GET /api/reports/dashboard is admin-only', () => {
     prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
     // The route gates on isAdmin() (fresh-DB role lookup, lives in authz.js).
     // Mock it to honor the per-test role so the prisma role mock above still
-    // drives the gate — otherwise a bare jest.fn() returns undefined (falsy)
+    // drives the gate - otherwise a bare jest.fn() returns undefined (falsy)
     // and EVERY case 403s, including the admin one (false green/red).
     isAdmin.mockImplementation(async () => {
       const u = await prisma.user.findUnique();
@@ -50,7 +50,7 @@ describe('SEC-20: GET /api/reports/dashboard is admin-only', () => {
     expect(res.status).toBe(401);
   });
 
-  test('KEYSTONE: a non-admin (role USER) is 403 — no BI leak', async () => {
+  test('KEYSTONE: a non-admin (role USER) is 403 - no BI leak', async () => {
     prisma.user.findUnique.mockResolvedValue({ role: 'USER' });
     const res = await call();
     expect(res.status).toBe(403);
@@ -65,7 +65,7 @@ describe('SEC-20: GET /api/reports/dashboard is admin-only', () => {
   test('an admin is NOT 403/401 (gate lets admins through, not over-locked)', async () => {
     prisma.user.findUnique.mockResolvedValue({ role: 'ADMIN' });
     const res = await call();
-    // May be 200 (BI runs) or 500 (BI internals unmocked) — the point is the
+    // May be 200 (BI runs) or 500 (BI internals unmocked) - the point is the
     // authz gate does NOT block an admin.
     expect(res.status).not.toBe(403);
     expect(res.status).not.toBe(401);

@@ -1,7 +1,7 @@
 /**
  * THE keystone functional test (architect msg 515 / EA msg 513-516):
  * a FOUND report with an ACTIONABLE match must (a) save (not 500) AND (b)
- * actually notify the owner — and a non-actionable match must NOT notify
+ * actually notify the owner - and a non-actionable match must NOT notify
  * (cruelty gate, CORR-3). If this is red, the product doesn't do its one job.
  *
  * Covers the fixes:
@@ -13,7 +13,7 @@
  * Uses the REAL matching engine (pure) so bands are genuine. Logged-in finder
  * path keeps the mock tractable (no guest-account branch). NOTE: mocked prisma
  * can't catch the caseId-vs-missionId DRIFT itself (that needs the ephemeral-DB
- * smoke test) — here we assert the contract (alert data carries caseId).
+ * smoke test) - here we assert the contract (alert data carries caseId).
  */
 
 import { NextRequest } from 'next/server';
@@ -120,13 +120,13 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendEmail.mock.calls[0][0].to).toBe(OWNER_EMAIL);
 
-    // The "last inch": the notification must be CLICKABLE to the match — the
+    // The "last inch": the notification must be CLICKABLE to the match - the
     // actionUrl resolves to the case by caseNumber (the missionNumber alias bug
     // would have made this null/undefined / a broken link).
     expect(createInAppNotification.mock.calls[0][0].actionUrl).toBe('/cases/CASE-2026-000123');
 
     // Alert persisted with caseId (CRIT-B). NOTE: this is the ALERT model
-    // specifically — its schema field is caseId and it has NO missionId. This is
+    // specifically - its schema field is caseId and it has NO missionId. This is
     // NOT a blanket "missionId is always wrong" rule: @map'd models
     // (CaseAssignment) and MissionControl children DO use missionId. Per-model
     // schema-match, not a sweep (architect msg 587).

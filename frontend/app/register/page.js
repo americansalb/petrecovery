@@ -6,11 +6,11 @@
 export const dynamic = 'force-dynamic';
 
 /**
- * Register Wizard — one clean decision per screen.
+ * Register Wizard - one clean decision per screen.
  *
  * Name → Email → Phone (skippable) → Password → Terms, then a "check your
  * inbox" finale (accounts need email verification before sign-in, so the old
- * auto-login-after-register always failed — we don't pretend otherwise).
+ * auto-login-after-register always failed - we don't pretend otherwise).
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -79,7 +79,7 @@ export default function RegisterPage() {
     if (error) setError('');
   };
 
-  // Per-step validation — the gate for Continue/Enter.
+  // Per-step validation - the gate for Continue/Enter.
   const validateStep = () => {
     switch (STEPS[step]) {
       case 'name':
@@ -162,7 +162,7 @@ export default function RegisterPage() {
         return;
       }
       // Accounts must verify email before sign-in, so the honest next step is
-      // the inbox — not a doomed auto-login.
+      // the inbox - not a doomed auto-login.
       setDone(true);
     } catch {
       setError('An error occurred. Please try again.');

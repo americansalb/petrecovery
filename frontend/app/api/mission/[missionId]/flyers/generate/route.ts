@@ -121,7 +121,7 @@ export async function POST(
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || 'https://www.reunitepets.org';
     const caseUrl = `${baseUrl}/cases/${(missionRecord as any).caseNumber || missionId}`;
 
-    // Embed a real, scannable QR as a data URL (no external service — works
+    // Embed a real, scannable QR as a data URL (no external service - works
     // offline and survives the print CSP; the old placeholder never scanned).
     let qrCodeUrl = '';
     if (includeQrCode) {
@@ -148,7 +148,7 @@ export async function POST(
 
     // Build flyer data. Cases carry denormalized pet/owner fields directly,
     // so use those first (always present) and fall back to the linked Pet /
-    // reporter records — the old code only read the Pet relation, which is
+    // reporter records - the old code only read the Pet relation, which is
     // null for report-created cases, so every such flyer printed "Unknown".
     const m = missionRecord as any;
     const flyerData: FlyerData = {

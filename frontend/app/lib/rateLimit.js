@@ -116,7 +116,7 @@ export const RateLimitPresets = {
  * spoofable, so an attacker can mint a fresh rate-limit bucket per request.
  * In production set RATELIMIT_TRUSTED_IP_HEADER to the header your edge/proxy
  * injects with the real client IP (e.g. 'x-real-ip', 'cf-connecting-ip',
- * 'true-client-ip') — that value can't be forged past a trusted proxy.
+ * 'true-client-ip') - that value can't be forged past a trusted proxy.
  * The leftmost-XFF path remains only as a last-resort fallback for local/dev.
  */
 function getClientIP(request) {
@@ -354,7 +354,7 @@ export function withRateLimit(request, preset, keyPrefix) {
  * Global (NOT per-IP) rate limit / spend ceiling.
  *
  * Unlike checkRateLimitAsync, this keys on a fixed name shared across ALL callers,
- * so it acts as a hard per-window ceiling — a circuit breaker for expensive
+ * so it acts as a hard per-window ceiling - a circuit breaker for expensive
  * downstream work (e.g. paid AI calls). It defends total cost even when the
  * per-IP limit is evaded via IP rotation or a spoofed x-forwarded-for header.
  * Uses Redis when available, in-memory fallback otherwise.
@@ -377,7 +377,7 @@ export async function checkGlobalLimitAsync(name, options) {
 
   if (redis) {
     // IMPORTANT: a cost/abuse ceiling must FAIL CLOSED. Unlike checkRateLimitRedis
-    // (which swallows Redis errors and returns success:true — fine for an
+    // (which swallows Redis errors and returns success:true - fine for an
     // availability limiter), here a Redis blip must NOT remove the cap. On any
     // Redis error we degrade to the in-memory counter (a real per-instance cap),
     // never allow-all.
@@ -407,10 +407,10 @@ export async function checkGlobalLimitAsync(name, options) {
     } catch (err) {
       // FAIL CLOSED, hard: a cost ceiling must reject when it can't verify the
       // count. An in-memory fallback would silently become a PER-INSTANCE cap
-      // (aggregate N×ceiling across instances) — not the global guarantee. Since
+      // (aggregate N×ceiling across instances) - not the global guarantee. Since
       // callers of a global cost ceiling are expected to degrade gracefully
       // (e.g. analyze-pet is best-effort), rejecting here costs no critical UX.
-      console.error('Global limit Redis op error — failing closed (reject):', err.message);
+      console.error('Global limit Redis op error - failing closed (reject):', err.message);
       return {
         success: false,
         remaining: 0,

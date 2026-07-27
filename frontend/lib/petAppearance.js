@@ -1,5 +1,5 @@
 /**
- * Canonical pet appearance vocabulary — structured, tappable choices instead
+ * Canonical pet appearance vocabulary - structured, tappable choices instead
  * of free text, so every profile carries ACCURATE, matchable data (flyers,
  * lost/found matching, finder identification all consume this).
  *
@@ -97,7 +97,7 @@ export function validateMicrochip(raw) {
   const chip = normalizeMicrochip(raw);
   if (!chip) return { ok: true, value: null };
   if (!MICROCHIP_REGEX.test(chip)) {
-    return { ok: false, error: 'Microchip IDs are 9–15 digits (no spaces) — check the vet paperwork' };
+    return { ok: false, error: 'Microchip IDs are 9–15 digits (no spaces) - check the vet paperwork' };
   }
   return { ok: true, value: chip };
 }

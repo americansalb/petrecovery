@@ -341,7 +341,7 @@ export default function CasePageClient() {
               caseCreatedAt={caseData?.createdAt}
             />
 
-            {/* Share kit — printable flyers, social images + captions, scannable
+            {/* Share kit - printable flyers, social images + captions, scannable
                 QR generated at report time. Renders nothing for older cases. */}
             {!isReunited && (
               <RecoveryKitPanel caseNumber={caseNumber} petName={caseData?.petName} />

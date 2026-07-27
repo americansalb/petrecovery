@@ -20,7 +20,7 @@ export async function POST(request) {
   const correlationId = crypto.randomUUID();
 
   // This route mints accounts and fans out verification email + SMS + the
-  // whole cascade, so it must be throttled — otherwise it's an account-flood
+  // whole cascade, so it must be throttled - otherwise it's an account-flood
   // and Twilio/email cost-DoS vector. Per-IP moderate public-write limit.
   const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'reports:create');
   if (!rl.success) {
@@ -64,7 +64,7 @@ export async function POST(request) {
       firstName = session.user.name || firstName;
     }
 
-    // Normalize email like /api/auth/register does — a mixed-case email here
+    // Normalize email like /api/auth/register does - a mixed-case email here
     // would create an account that credentials login (which lowercases) can
     // never find, and a duplicate once the user registers properly.
     email = email?.toLowerCase().trim() || null;
@@ -256,7 +256,7 @@ export async function POST(request) {
     // Seed the durable cascade activation now (cheap, awaited) so the success
     // screen can read/poll it immediately and the response can carry a
     // snapshot. The heavy work is ENQUEUED later (just before the response),
-    // after the patrol Alert + rescue-force assignment rows exist — those are
+    // after the patrol Alert + rescue-force assignment rows exist - those are
     // inputs the cascade's neighbor_alert / rescue_force actions read.
     let activationSnapshot = null;
     try {
@@ -276,7 +276,7 @@ export async function POST(request) {
 
     // Send verification email for ALL new users (Fix 4: unified for guest + createAccount paths)
     if (isNewUser && !session?.user) {
-      // Case expiry applies to every unverified reporter — including
+      // Case expiry applies to every unverified reporter - including
       // phone-only ones, who can never verify an email.
       const caseExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
       await prisma.case.update({
@@ -284,7 +284,7 @@ export async function POST(request) {
         data: { expiresAt: caseExpiry }
       });
 
-      // Placeholder addresses (phone-only reporters) are undeliverable —
+      // Placeholder addresses (phone-only reporters) are undeliverable -
       // skip the token + send entirely.
       if (!phoneOnly) {
         const rawVerifyToken = crypto.randomBytes(32).toString('hex');
@@ -681,7 +681,7 @@ export async function POST(request) {
     }
 
     // Send guest report email if account was not explicitly created
-    // (skipped for phone-only reporters — their address is a placeholder)
+    // (skipped for phone-only reporters - their address is a placeholder)
     if (!accountCreated && !session?.user && !phoneOnly) {
       // Guest report: the user row exists but has no usable password, so give
       // them (1) a direct link back to their live case and (2) a way to set a
@@ -698,7 +698,7 @@ export async function POST(request) {
       const caseNumberSafe = escapeHtml(report.caseNumber);
       sendEmail({
         to: email,
-        subject: `${petName}'s lost-pet report is live — here's your link`,
+        subject: `${petName}'s lost-pet report is live - here's your link`,
         html: renderBrandedEmail({
           preheader: `Track sightings and manage ${petName}'s case.`,
           heading: `${petName}'s report is live`,
@@ -725,7 +725,7 @@ export async function POST(request) {
       });
     }
 
-    // Phone-only reporters get no email at all — text them the case link so
+    // Phone-only reporters get no email at all - text them the case link so
     // they have a way back to their report after closing the tab. Best-effort
     // (sendSms no-ops gracefully when Twilio isn't configured).
     if (phoneOnly && phone) {
@@ -758,7 +758,7 @@ export async function POST(request) {
 
     // Fire the report-time action cascade FIRE-AND-FORGET, now that the patrol
     // Alert rows and rescue-force CaseAssignment rows exist. The reporter's
-    // response is never blocked — the cascade runs on the next tick.
+    // response is never blocked - the cascade runs on the next tick.
     enqueueCascade(report.id, { correlationId });
 
     return NextResponse.json({

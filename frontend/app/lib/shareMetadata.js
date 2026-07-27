@@ -15,7 +15,7 @@ import { normalizePhotoUrl } from '@/app/lib/utils';
 
 export const SITE_NAME = 'ReunitePets';
 
-// Same logo the root layout uses — the fallback when an entity has no photo
+// Same logo the root layout uses - the fallback when an entity has no photo
 export const FALLBACK_SHARE_IMAGE =
   'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png';
 
@@ -86,7 +86,7 @@ export function genericShareMetadata(
 }
 
 // ---------------------------------------------------------------------------
-// Shelters — public shelter pages (/shelters/[id])
+// Shelters - public shelter pages (/shelters/[id])
 // ---------------------------------------------------------------------------
 
 /**
@@ -113,7 +113,7 @@ export function shelterShareMetadata(shelter, profile, { canonicalPath } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Missions (Case records) — shared by /cases, /missions, /reports, /alerts, /join
+// Missions (Case records) - shared by /cases, /missions, /reports, /alerts, /join
 // ---------------------------------------------------------------------------
 
 /** Mission routes accept a case number OR a raw id (UUID/CUID), like the API. */
@@ -123,7 +123,7 @@ export function missionWhere(param) {
   return isUuid || isCuid ? { id: param } : { caseNumber: param };
 }
 
-/** Exactly the fields the mission card needs — keep lookups cheap. */
+/** Exactly the fields the mission card needs - keep lookups cheap. */
 export const missionShareSelect = {
   caseNumber: true,
   reportType: true,

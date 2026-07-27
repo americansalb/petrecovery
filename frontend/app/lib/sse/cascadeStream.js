@@ -1,5 +1,5 @@
 /**
- * Per-case cascade activation SSE — lights up the "Recovery Kit" success
+ * Per-case cascade activation SSE - lights up the "Recovery Kit" success
  * screen live as each action completes. Keyed on caseNumber (which exists the
  * instant the case does, unlike the mission stream's MissionControl record) and
  * guest-accessible (reporters have no session). Purely additive: the durable
@@ -21,7 +21,7 @@ export function broadcastActivation(caseNumber, event) {
     try {
       controller.enqueue(message);
     } catch {
-      /* closed — cleaned up on abort */
+      /* closed - cleaned up on abort */
     }
   });
 }

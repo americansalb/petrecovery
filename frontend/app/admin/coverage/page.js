@@ -5,7 +5,7 @@
  *
  * One map of everything local we can point owners at: areas with community
  * groups in the directory (navy circles sized by group count) and active
- * shelters (green dots). The empty stretches are the point — that's where to
+ * shelters (green dots). The empty stretches are the point - that's where to
  * pre-warm the group directory or grow shelter data next.
  */
 

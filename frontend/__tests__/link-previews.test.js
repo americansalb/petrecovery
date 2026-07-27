@@ -1,10 +1,10 @@
 /**
- * Link preview (share card) coverage — the rule lives in docs/LINK_PREVIEWS.md.
+ * Link preview (share card) coverage - the rule lives in docs/LINK_PREVIEWS.md.
  *
  * Every publicly shareable route must serve entity-specific OpenGraph tags
  * from a SERVER page.js (generateMetadata), and the main public segments
- * must carry static cards in a layout.js. Client pages can't do either —
- * preview bots don't run JS — so this suite is a static source check:
+ * must carry static cards in a layout.js. Client pages can't do either -
+ * preview bots don't run JS - so this suite is a static source check:
  * fast, no DB, runs in CI.
  *
  * Adding a new dynamic public route? Either give it generateMetadata
@@ -20,7 +20,7 @@ const APP_DIR = path.join(__dirname, '..', 'app');
 const read = (rel) => fs.readFileSync(path.join(APP_DIR, rel), 'utf8');
 const exists = (rel) => fs.existsSync(path.join(APP_DIR, rel));
 
-/** Routes whose links get shared around — must unfurl as the entity. */
+/** Routes whose links get shared around - must unfurl as the entity. */
 const ENTITY_PAGES = [
   'cases/[caseNumber]/page.js',
   'pets/view/[token]/page.js',

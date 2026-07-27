@@ -1,7 +1,7 @@
 /**
  * Bundled Inter fonts for server-side rendering.
  *
- * satori (SVG) and @resvg/resvg-js (PNG) both need real TTF/OTF buffers — they
+ * satori (SVG) and @resvg/resvg-js (PNG) both need real TTF/OTF buffers - they
  * cannot read woff2 or fetch fonts at runtime (the agent proxy blocks font
  * CDNs anyway). react-pdf needs the same buffers registered once. So the four
  * weights are vendored as .ttf next to this file (OFL, see LICENSE.txt) and

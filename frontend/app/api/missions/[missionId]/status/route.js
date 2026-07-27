@@ -167,7 +167,7 @@ export async function POST(request, { params }) {
       // Create status change note
       await tx.caseUpdate.create({
         data: {
-          caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) — was 500ing the whole status transaction
+          caseId: params.missionId, // CaseUpdate's field is caseId (no missionId) - was 500ing the whole status transaction
           authorId: session.user.id,
           content: `Status changed from ${oldStatus} to ${status}${resolutionNotes ? '. Notes: ' + resolutionNotes : ''}`,
           isUpdate: true,
@@ -220,7 +220,7 @@ export async function POST(request, { params }) {
             type: 'CASE_STATUS',
             title: reunited ? `${petName} was reunited! 🎉` : `Case closed: ${petName}`,
             message: reunited
-              ? `Great news — ${petName} has been reunited with their family. Thank you for helping search!`
+              ? `Great news - ${petName} has been reunited with their family. Thank you for helping search!`
               : `The case for ${petName} has been closed. Thank you for your help.`,
             actionUrl: updatedMission.caseNumber ? `/cases/${updatedMission.caseNumber}` : null,
           }).catch(() => {})

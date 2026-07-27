@@ -34,7 +34,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const rawLimit = parseInt(searchParams.get('limit') || '100', 10);
     const rawOffset = parseInt(searchParams.get('offset') || '0', 10);
-    // Guard against NaN/negative query params (e.g. ?offset=abc) — unguarded these
+    // Guard against NaN/negative query params (e.g. ?offset=abc) - unguarded these
     // reach Prisma as skip:NaN/take:NaN and throw a 500.
     const limit = Number.isNaN(rawLimit) ? 100 : Math.min(Math.max(rawLimit, 1), 500);
     const offset = Number.isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);

@@ -317,7 +317,7 @@ export default function TodayPage() {
         null
       ) : !hasAnything ? (
         /* No meds yet is not "nothing to show": the health glance must
-           still answer "Is this animal OK?" — hiding it here made a pet
+           still answer "Is this animal OK?" - hiding it here made a pet
            with two expired vaccines look perfectly fine on Today. */
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
           <Card className="text-center py-12 mt-2 px-6 self-start">

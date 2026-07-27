@@ -1,5 +1,5 @@
 /**
- * Vaccination status math — the single source of truth the Today glance,
+ * Vaccination status math - the single source of truth the Today glance,
  * the Health overview band, the Vaccines tab, and the public clinical page
  * all render from. A shot with no expiry is "on file", not falsely current;
  * a lapsed shot is EXPIRED, not merely due; and the one-sentence verdict

@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * StepScreen — the one-bold-question scaffold every wizard step renders in.
+ * StepScreen - the one-bold-question scaffold every wizard step renders in.
  *
- * Handles: heading focus on step change (a11y — the question guides the eye),
+ * Handles: heading focus on step change (a11y - the question guides the eye),
  * slide-up entrance, consistent measure/padding, error banner, and the sticky
  * footer action bar (safe-area aware). Steps whose options advance on tap
  * simply pass no primary action and get no footer.
@@ -14,7 +14,7 @@ import { Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
 
 export default function StepScreen({
-  stepKey, // unique per step — remounts content so the entrance replays
+  stepKey, // unique per step - remounts content so the entrance replays
   variant = 'lost',
   eyebrow,
   question,

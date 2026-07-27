@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * RecoveryKit — the live "here is everything we just did for you" dashboard on
+ * RecoveryKit - the live "here is everything we just did for you" dashboard on
  * the lost-report success screen (and reused on the case page). Reads the
  * durable /recovery-kit endpoint (so it renders fully on a cold reload with no
  * live connection) and layers SSE + a 3s poll on top so the checklist lights up
@@ -145,7 +145,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
       setKit(data);
       if (data.status) setStatus(data.status);
     } catch {
-      /* transient — the poll retries */
+      /* transient - the poll retries */
     }
   }, [caseNumber]);
 
@@ -179,7 +179,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
   const anyStep = kit?.steps?.length > 0;
   const working = !isTerminal(status);
 
-  // Share mode has no live "building…" state — stay invisible until loaded so
+  // Share mode has no live "building…" state - stay invisible until loaded so
   // the case page never flashes an empty panel.
   if (shareMode && !kit) return fallback;
 
@@ -210,11 +210,11 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
       </div>
       <p className="text-sm text-midnight-500 mb-4">
         {shareMode
-          ? 'Print a flyer, post an image, or share the link — every one is another pair of eyes.'
+          ? 'Print a flyer, post an image, or share the link - every one is another pair of eyes.'
           : 'The moment you posted, we went to work. Here’s everything we did to help bring them home.'}
       </p>
 
-      {/* THE OWNER'S NEXT MOVES — the three actions that find most pets. */}
+      {/* THE OWNER'S NEXT MOVES - the three actions that find most pets. */}
       {!shareMode && (
         <div className="rounded-2xl border-2 border-[#0A0D26] bg-white overflow-hidden mb-4">
           <div className="h-1.5 bg-[#F2D21B]" />
@@ -231,7 +231,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-[#0A0D26] text-sm">Print flyers and post them near the last-seen spot</p>
                   <p className="text-xs text-[#8A8377] mt-0.5 mb-2">
-                    Corners, mailboxes, store windows — eye level. Each has a map and a QR code back to your case.
+                    Corners, mailboxes, store windows - eye level. Each has a map and a QR code back to your case.
                   </p>
                   {kit?.assets?.flyers?.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
@@ -334,7 +334,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
         </div>
       )}
 
-      {/* Everything the system already did — demoted below the owner's moves. */}
+      {/* Everything the system already did - demoted below the owner's moves. */}
       {!shareMode && (
         <div className="mb-4">
           <Panel title="Everything we already did for you" icon={Sparkles} defaultOpen={false}>
@@ -349,7 +349,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
         </div>
       )}
 
-      {/* Scannable QR (share mode only) — the printable/postable link back here */}
+      {/* Scannable QR (share mode only) - the printable/postable link back here */}
       {shareMode && kit?.assets?.qr?.url && (
         <div className="mb-4 flex items-center gap-4 rounded-2xl border border-midnight-100 bg-white p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -366,7 +366,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
               <p className="font-bold text-midnight-800 text-sm">Scan to open this page</p>
             </div>
             <p className="text-xs text-midnight-500 leading-relaxed">
-              Point a phone camera at this code to jump straight here — it&apos;s printed on every flyer, too.
+              Point a phone camera at this code to jump straight here - it&apos;s printed on every flyer, too.
             </p>
             <a
               href={kit.assets.qr.url}
@@ -381,7 +381,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
         </div>
       )}
 
-      {/* Possible matches — the payoff (success screen only) */}
+      {/* Possible matches - the payoff (success screen only) */}
       {!shareMode && kit?.matches?.length > 0 && (
         <div className="mb-4">
           <Panel title={`${kit.matches.length} possible match${kit.matches.length === 1 ? '' : 'es'} near you`} icon={Heart}>
@@ -420,7 +420,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
                 <AssetChip key={f.kind} href={f.url} label={f.label} icon={Download} />
               ))}
             </div>
-            <p className="text-xs text-midnight-400 mt-2">Print and post them around the neighborhood — each has a QR code back to this page.</p>
+            <p className="text-xs text-midnight-400 mt-2">Print and post them around the neighborhood - each has a QR code back to this page.</p>
           </Panel>
         </div>
       )}

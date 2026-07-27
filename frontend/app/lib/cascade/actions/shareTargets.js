@@ -1,5 +1,5 @@
 /**
- * share_targets action (tier 1) — find the LOCAL places to post this case.
+ * share_targets action (tier 1) - find the LOCAL places to post this case.
  *
  * Groups are a directory, not a per-case lookup: the first case in an area
  * pays for one web search (+ optional Haiku rank), and the results live in

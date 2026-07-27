@@ -138,7 +138,7 @@ function Hero({ metrics }) {
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 mb-6">
               {/* Yellow-on-navy is THE brand move (navbar CTA, footer CTA, the
-                  posters' LOST DOG band) — the crisis button speaks it loudest */}
+                  posters' LOST DOG band) - the crisis button speaks it loudest */}
               <Link
                 href="/report/new"
                 className="inline-flex items-center gap-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl shadow-lg shadow-flash-400/25 transition-all hover:scale-[1.02] w-full sm:w-auto justify-center"
@@ -234,7 +234,7 @@ function FindYourForce() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
 
-  // Search in place — nobody gets shipped to another page mid-thought.
+  // Search in place - nobody gets shipped to another page mid-thought.
   const go = async (e) => {
     e.preventDefault();
     const q = query.trim();

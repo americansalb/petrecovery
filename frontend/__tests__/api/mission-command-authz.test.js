@@ -2,7 +2,7 @@
  * SEC-1 regression: Mission Command Center authorization.
  *
  * EA's audit found the command route had `// TODO: Verify user is a leader` and
- * zero checks — ANY logged-in user could POST {action:'RESOLVE_DECEASED'} or
+ * zero checks - ANY logged-in user could POST {action:'RESOLVE_DECEASED'} or
  * {action:'BROADCAST'} to ANY missionId, marking a stranger's pet deceased or
  * mass-messaging all volunteers. Fixed with userHasCaseAuthority() (owner /
  * assigned squad leader / admin) gating both GET and POST before any action.

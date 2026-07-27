@@ -8,7 +8,7 @@ import { buildShareMetadata } from '@/app/lib/shareMetadata';
 
 export const metadata = buildShareMetadata({
   title: "Lost Pet Advice | ReunitePets",
-  description: "What to do first when a pet goes missing \u2014 proven steps, species by species.",
+  description: "What to do first when a pet goes missing - proven steps, species by species.",
   index: true,
 });
 

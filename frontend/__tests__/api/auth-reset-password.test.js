@@ -21,7 +21,7 @@ jest.mock('bcryptjs', () => ({
 }));
 
 // Mock rate limiting (always allow). The route uses the ASYNC limiter
-// (withRateLimitAsync) since SEC-17 (bb92eba) — mock both forms.
+// (withRateLimitAsync) since SEC-17 (bb92eba) - mock both forms.
 jest.mock('@/app/lib/rateLimit', () => ({
   withRateLimit: jest.fn().mockReturnValue({ success: true }),
   withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
