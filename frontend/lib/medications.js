@@ -206,17 +206,58 @@ export function slotsWithStatus(med, doses, day) {
     if (d.slotKey) bySlotKey.set(d.slotKey, d);
     byInstant.set(new Date(d.scheduledFor).getTime(), d);
   }
-  return slotsForDate(med, day).map((slot) => {
+  const consumed = new Set();
+  const slots = slotsForDate(med, day).map((slot) => {
     const dose = bySlotKey.get(slot.slotKey) || byInstant.get(slot.scheduledFor.getTime()) || null;
+    if (dose) consumed.add(dose);
     return { ...slot, dose, status: dose ? dose.status : null };
   });
+
+  // A dose logged BEFORE the med's times were edited keeps its old slotKey, so
+  // it no longer matches any current slot. Left unsurfaced, that GIVEN record
+  // silently disappears from the day: adherence under-counts, and the caregiver
+  // — seeing the new slot as un-given — re-logs it, a double dose and a double
+  // supply decrement. Recover such logged doses as read-only rows on the day
+  // they belong to so history stays intact and the caregiver sees the pet was
+  // already dosed. `orphaned: true` marks a row that is off the current
+  // schedule (it counts as given/skipped but never as a new due slot).
+  const dayPrefix = slotKeyFor(day, ''); // "YYYY-MM-DDT"
+  const orphans = [];
+  for (const d of doses || []) {
+    if (consumed.has(d)) continue;
+    // Only real logged actions are recoverable; a bare null-status row is noise.
+    if (d.status !== 'GIVEN' && d.status !== 'SKIPPED') continue;
+    const belongsToDay = d.slotKey
+      ? d.slotKey.startsWith(dayPrefix)
+      : sameDay(new Date(d.scheduledFor), day);
+    if (!belongsToDay) continue;
+    const sf = new Date(d.scheduledFor);
+    const time = d.slotKey
+      ? d.slotKey.slice(11, 16)
+      : `${String(sf.getHours()).padStart(2, '0')}:${String(sf.getMinutes()).padStart(2, '0')}`;
+    orphans.push({
+      time,
+      scheduledFor: sf,
+      slotKey: d.slotKey || slotKeyFor(day, time),
+      dose: d,
+      status: d.status,
+      orphaned: true,
+    });
+  }
+  if (orphans.length === 0) return slots;
+  return [...slots, ...orphans].sort((a, b) => a.scheduledFor - b.scheduledFor);
 }
 
-/** {due, given, skipped} for one med on one day. */
+/**
+ * {due, given, skipped} for one med on one day. Orphaned rows (a dose logged
+ * against a since-edited time) count as given/skipped but NOT as due: they are
+ * a completed action, not an outstanding obligation, so they must never make a
+ * fully dosed day read as a missed one.
+ */
 export function adherenceForDay(med, doses, day) {
   const slots = slotsWithStatus(med, doses, day);
   return {
-    due: slots.length,
+    due: slots.filter((s) => !s.orphaned).length,
     given: slots.filter((s) => s.status === 'GIVEN').length,
     skipped: slots.filter((s) => s.status === 'SKIPPED').length,
   };
