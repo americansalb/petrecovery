@@ -16,9 +16,14 @@
  * product status and reading them as decoration would be a mistake.
  *
  * Copy register: plain (CLAUDE.md). No comma-quip titles, no metaphors,
- * no anthropomorphized product, no icon-badge card grids, no promise
- * that a paid tier will never exist (MONETIZATION.md keeps one open;
- * what is permanent is that everything on the bill stays free).
+ * no anthropomorphized product, no icon-badge card grids.
+ *
+ * PRICING CLAIMS ARE PRESENT TENSE. Never "forever", never
+ * "permanently": MONETIZATION.md keeps a paid CRM tier open, and no
+ * startup can underwrite eternity (usage costs, edge cases, whatever
+ * 2030 looks like). What we promise instead is the thing a shelter
+ * director actually fears losing: no card on file, nothing here behind
+ * a paywall, and warning before any of that changes.
  */
 
 import Link from 'next/link';
@@ -223,13 +228,18 @@ export default function ForSheltersPage() {
               ))}
             </ul>
             <div className="mt-5 flex items-baseline gap-3 border-t-2 border-midnight-900 pt-5">
-              <span className="text-lg font-black text-midnight-900">Total, forever</span>
+              <span className="text-lg font-black text-midnight-900">Total</span>
               <span className="flex-1" />
               <span className="text-3xl font-black tabular-nums text-midnight-900">$0</span>
             </div>
           </div>
-          <p className="mt-6 text-center text-sm text-midnight-400">
-            Everything on this list stays free for shelters and rescues, permanently.
+          {/* Present tense on purpose. We do not promise eternity we
+              cannot underwrite; we promise no surprises, which is the
+              thing a shelter director is actually afraid of. */}
+          <p className="mx-auto mt-6 max-w-md text-center text-sm leading-relaxed text-midnight-400">
+            What shelters pay today: no card on file, no trial clock, nothing on
+            this list behind a paywall. If that ever changes, you will hear it
+            from us first.
           </p>
         </div>
       </section>

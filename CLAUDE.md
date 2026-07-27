@@ -48,6 +48,15 @@ claim we can't back ("it ranks on Google"). No em dashes in frontend
 source. When in doubt, write it the way a shelter director would say it
 to a coworker.
 
+Pricing claims are present tense, site-wide. Never "forever" or
+"permanently" (founder rule, 2026-07-27): `MONETIZATION.md` keeps a paid
+CRM tier open, usage costs and edge cases are unknowable, and an
+eternity promise is either disbelieved or held against us later. Say
+what is true today ("free, no card", "nothing behind a paywall") plus a
+commitment we can keep ("if that changes, you hear it from us first").
+This binds the Terms of Service too, where the promise would actually
+be enforceable.
+
 The same law governs form and volume: nobody reads feature prose. Show
 the actual product (a real screen, not icons), keep lists scannable (a
 few words per line), and spend full sentences only where trust demands

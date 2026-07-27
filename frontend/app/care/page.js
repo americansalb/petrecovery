@@ -88,7 +88,7 @@ export default function CareLandingPage() {
           Never miss a dose.
         </h1>
         <p className="text-lg text-neutral-500 mt-5 max-w-xl mx-auto">
-          Track medications, vaccines, and weight in one place, and share it with any vet or sitter. Free forever.
+          Track medications, vaccines, and weight in one place, and share it with any vet or sitter. Free, no card.
         </p>
         <div className="flex items-center justify-center gap-4 mt-8 flex-wrap">
           <Link

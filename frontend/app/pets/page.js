@@ -246,7 +246,7 @@ export default function MyPetsPage() {
             <p className="text-lg font-medium text-neutral-900 mb-1">Add your first pet</p>
             <p className="text-[15px] text-neutral-500 max-w-sm mx-auto mb-6">
               Track medications with one-tap logging, keep vaccine and weight records,
-              and share a link any vet or sitter can read. Free forever.
+              and share a link any vet or sitter can read. Free, no card.
             </p>
             <Link
               href="/care/start"

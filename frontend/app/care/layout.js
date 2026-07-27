@@ -6,7 +6,7 @@
 import { buildShareMetadata } from '@/app/lib/shareMetadata';
 
 export const metadata = buildShareMetadata({
-  title: 'Your Pet’s Health Book, Free Forever | ReunitePets',
+  title: 'Your Pet’s Health Book, Free | ReunitePets',
   description:
     'Medications with one-tap logging, vaccine records, weight tracking, and a link any vet or sitter can read. No app, no fees, no catch.',
   index: true,
