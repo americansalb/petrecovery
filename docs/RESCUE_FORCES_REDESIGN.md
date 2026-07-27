@@ -180,9 +180,10 @@ Decisions:
   the threshold. Card is pet-first: photo, name, elapsed time, last-seen, searcher
   avatars.
 - **TERRITORY** replaces division pills: real geometry (`Division.centerLat/lng +
-  radiusMiles` or `customBoundary`) drawn as labeled shaded zones inside the force
+  radiusMiles` or `customBoundary`) drawn as labeled zones inside the force
   boundary. Clicking a zone *is* division navigation. Geolocated visitors get a
-  "You're in X's area" pin — the join suggestion made spatial.
+  "You're in X's area" pin — the join suggestion made spatial. Full visual +
+  interaction spec: §5.2.1, the Lantern Map.
 - **CREW** replaces "4 Members": avatars grouped by division, role stars, on-duty
   glow (`availabilityStatus`), overflow count. Faces do the explaining.
 - **ACTIVITY** replaces the forum: an auto-generated event pulse (joins, sightings,
@@ -190,6 +191,69 @@ Decisions:
   post. Authored discussion belongs to the Hub; link out if a force has a Hub tag.
 - **Deleted from this page**: tabs, Hot/New/Top, Sarama welcome post, "FEATURED
   CASES", per-force forum, any explanatory bullet list.
+
+### 5.2.1 The Lantern Map — TerritoryMap visual & interaction spec
+
+The brand is a flashlight in the midnight dark; the territory map takes it
+literally. The map card is a **window into the night layer** — deep midnight
+tiles (same CARTO dark family Mission Control uses) set inside the light civic
+page. You look *into* the operational world from the calm one, and the card
+quietly foreshadows the room the mission CTA leads to.
+
+**Encoding — one channel per meaning, no rainbow, no crime map:**
+
+- **Zone fill = midnight, luminance = watch level.** Exactly three named steps,
+  not a gradient: *resting* (base), *watched* (≥1 member on duty — the windows
+  are lit), *active* (searchers currently in the field — brightest). One hue
+  family; meaning rides on luminance, which survives every colorblindness type
+  by construction. Validate the three steps against the dark surface with the
+  dataviz palette validator during build.
+- **Flash is the signal, never a fill.** Live missions render as pulsing flash
+  flares (dot + soft beam radius). Selected zone gets a flash ring. Scarcity is
+  what keeps flash meaning "something is happening *here*."
+- **Neighbor separability** comes from hairline borders + the luminance steps +
+  always-on zone labels — never from assigning each division its own hue.
+  (Rainbow zones read as data where none exists: "why is North red?")
+- **"Needs searchers"** is the one status state: a *dim zone with a live flare*
+  — a neighborhood where a pet is missing and nobody's light is on. The
+  composition itself is the alarm (a flare burning alone in the dark), backed by
+  a small amber chip `⚠ Needs searchers` pinned to the zone — icon + label,
+  never color alone. Trigger: live missions > on-duty members in the zone.
+- **Rejected: continuous lost-pet-density choropleth.** Dark-red-shaded
+  neighborhoods read as a crime heatmap and stigmatize exactly the areas that
+  need volunteers; all-time aggregates go stale; 2–6 zones can't support a ramp's
+  implied precision; and the flares already *show* density concretely — clustered
+  pulsing dots are the honest, self-updating version of the same information.
+
+**The four states a squint must distinguish:**
+
+| Zone look | Meaning | What it makes you feel / do |
+|---|---|---|
+| Bright, no flare | Watched and calm | Safety — "the lights are on here" |
+| Bright + flare | Active response underway | Confidence — help is already out |
+| Dim + flare | Mission without coverage | The pull — "bring your light" → Join |
+| Dim, no flare | Resting | Neutral; no alarm |
+
+**Interaction (the click):**
+
+- Hover / keyboard focus: zone lifts ~8% luminance, label brightens. Zones are
+  focusable; `Enter` opens.
+- **Click/tap → zone card**: anchored popover on desktop, bottom-sheet peek on
+  mobile. Contents in order: `DIVISION · NORTH AUSTIN` kicker → on-duty avatars
+  with glow → live missions as pet thumbnails (`Max · 18h`) → `[Open division →]`
+  `[Join]`. Zero-suppression rules apply (a division with nothing live shows
+  avatars + "all quiet"). Activating the header or the zone a second time
+  navigates; `Esc` / tap-out dismisses. On dim-state zones the join line reads
+  **"Keep North Austin lit."** — the metaphor persuades; no instructional copy.
+- Legend is a one-line caption under the map (`● on duty · ✦ mission live ·
+  dim = needs lights`), not a boxed legend.
+- Optional micro-delight, build-gated: a faint radial luminance lift (~8%, 200ms
+  ease) follows the cursor inside the map card only — visitors literally sweep a
+  flashlight across their city. Ship only if it stays subtle; desktop only.
+
+The network map on `/rescue-forces` (§5.1) speaks the same grammar at city
+scale: pin glow = members on duty, flare halo = live mission — one visual
+language from the country view down to the street view.
 
 ### 5.3 `/rescue-forces/[id]/divisions/[divisionId]` — the division
 
@@ -255,9 +319,10 @@ network page will show — you finish by admiring the thing you made.
 New (all on midnight/flash tokens, light ground, `shadow-card`, `rounded-2xl`):
 
 - `ForceCard` — network-grid card w/ coverage thumbnail + pulsing missing-now.
-- `TerritoryMap` — Leaflet, light Carto tiles; force boundary + shaded labeled
-  division zones + mission dots; click-through navigation. (Reuse geometry logic
-  from `SquadCoverageMap`; this is a *civic* map, not the SAR map.)
+- `TerritoryMap` — Leaflet, the Lantern Map (§5.2.1): midnight tiles, three-step
+  luminance zones, flash flares, zone cards on click. (Reuse geometry logic from
+  `SquadCoverageMap`; visually a sibling of the Mission Control map, not the SAR
+  toolkit itself.)
 - `MissionLiveCard` — pet-first live card; `animate-pulse-soft` LIVE dot; single
   flash CTA → Mission Control.
 - `VitalsRow` — labeled vitals with zero-suppression rules.
