@@ -26,6 +26,7 @@ import { usePet } from '@/app/components/care/PetProvider';
 import { AddCareModal } from '@/app/components/care/GoodStuff';
 import { CareIconChip } from '@/app/components/icons/CareIcons';
 import WeekStrip from '@/app/components/care/WeekStrip';
+import PetGlance from '@/app/components/care/PetGlance';
 import { Card, Overline } from '@/app/components/care/kit/Tile';
 import { cn, ConfirmModal } from '@/components/ui';
 import { vaccinationStatus } from '@/lib/healthBook';
@@ -591,76 +592,14 @@ export default function TodayPage() {
             )}
           </div>
 
-          {/* RIGHT RAIL — Is Max OK */}
-          <aside className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <Overline>Is {pet?.name || 'Max'} OK?</Overline>
-              <Link href={`/pets/${petId}/health`} className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-care-teal">Health <ChevronRight size={13} /></Link>
-            </div>
-
-            {/* vaccines */}
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between px-4 pt-4 pb-3">
-                <span className="flex items-center gap-2.5"><span className="w-7 h-7 rounded-lg bg-care-tealWash text-care-teal flex items-center justify-center"><Syringe size={15} /></span><b className="text-[13.5px] font-semibold text-care-ink">Vaccines</b></span>
-                <span className="text-[11.5px] text-care-sub">{withExpiry.length ? <><b className="text-care-ink font-semibold">{vaxCurrent}</b> of {withExpiry.length} current</> : `${vaccinations.length} on file`}</span>
-              </div>
-              <div className="px-4 pb-2">
-                {(vaccinations.length ? vaccinations.slice(0, 3) : []).map((v, idx) => {
-                  const st = vaccinationStatus(v);
-                  const soon = st === 'DUE_SOON' || st === 'EXPIRED';
-                  return (
-                    <div key={v.id} className={cn('flex items-center gap-2.5 py-2.5', idx > 0 && 'border-t border-care-line')}>
-                      {soon ? <AlertCircle size={16} className="text-care-amber shrink-0" /> : <Check size={16} className="text-care-teal shrink-0" />}
-                      <span className="flex-1 min-w-0 text-[13px] font-semibold text-care-ink truncate">{v.name}</span>
-                      {soon ? (
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-care-amber bg-care-amberWash ring-1 ring-care-amberLine rounded-lg px-2 py-1"><span className="w-1.5 h-1.5 rounded-full bg-care-amber" />{st === 'EXPIRED' ? 'Expired' : `Due ${v.expiresAt ? shortMonth(v.expiresAt).replace(' ', ' ') : 'soon'}`}</span>
-                      ) : (
-                        <span className="text-[11.5px] text-care-sub">to <b className="text-care-ink font-semibold">{v.expiresAt ? shortMonth(v.expiresAt) : shortMonth(v.administeredAt)}</b></span>
-                      )}
-                    </div>
-                  );
-                })}
-                {vaccinations.length === 0 && <p className="text-[12.5px] text-care-sub py-2.5">None on file yet.</p>}
-              </div>
-            </Card>
-
-            {/* weight + meds split */}
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="p-4">
-                <Overline>Weight</Overline>
-                {latestWeight ? (
-                  <>
-                    <div className="flex items-baseline gap-1 mt-2.5"><span className="text-[27px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">{latestWeight.weightLbs}</span><span className="text-[12px] text-care-sub">lb</span></div>
-                    {weightDelta != null && weightDelta !== 0 && (
-                      <div className="flex items-center gap-1 mt-2 text-[11px] text-care-teal font-semibold"><TrendingDown size={12} className={weightDelta > 0 ? 'rotate-180' : ''} />{Math.abs(weightDelta)} lb · 6 mo</div>
-                    )}
-                  </>
-                ) : <p className="text-[12px] text-care-sub mt-2.5">Not logged</p>}
-              </Card>
-              <Card className="p-4">
-                <Overline>Active meds</Overline>
-                <div className="flex items-baseline gap-1 mt-2.5"><span className="text-[27px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">{activeMeds.length}</span><span className="text-[12px] text-care-sub">meds</span></div>
-                {lowCount > 0 && <div className="mt-2 text-[11px] text-care-amber font-semibold">{lowCount} low on supply</div>}
-              </Card>
-            </div>
-
-            {/* medical note */}
-            {pet?.medicalConditions && (
-              <Card className="flex items-center gap-3 p-4">
-                <span className="w-8 h-8 rounded-[9px] bg-[#f4f5f4] text-care-sub flex items-center justify-center shrink-0"><Heart size={16} /></span>
-                <div className="min-w-0"><Overline>Medical note</Overline><p className="text-[13.5px] font-semibold text-care-ink truncate mt-0.5">{pet.medicalConditions}</p></div>
-              </Card>
-            )}
-
-            {/* vet */}
-            {(pet?.vetName || pet?.vetClinic) && (
-              <Card className="flex items-center gap-3 p-4">
-                <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">{initialsOf(pet.vetName)}</span>
-                <div className="flex-1 min-w-0"><Overline>Primary vet</Overline><b className="block text-[14.5px] font-semibold text-care-ink mt-0.5 truncate">{pet.vetName || pet.vetClinic}</b><span className="text-[11.5px] text-care-sub truncate block">{[pet.vetClinic, pet.vetPhone].filter(Boolean).join(' · ')}</span></div>
-                {pet.vetPhone && <a href={`tel:${pet.vetPhone}`} aria-label="Call clinic" className="w-11 h-11 rounded-[13px] bg-care-teal text-white flex items-center justify-center shrink-0 hover:bg-care-tealDark transition-colors"><Phone size={18} /></a>}
-              </Card>
-            )}
-          </aside>
+          {/* The glance is shared with the shelter's animal page */}
+          <PetGlance
+            pet={pet}
+            vaccinations={vaccinations}
+            weights={weights}
+            meds={meds}
+            healthHref={`/pets/${petId}/health`}
+          />
         </div>
       )}
     </div>

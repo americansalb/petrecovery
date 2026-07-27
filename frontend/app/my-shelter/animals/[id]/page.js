@@ -33,6 +33,7 @@ export default async function PortalAnimal({ params }) {
       id: true, name: true, species: true, breed: true, age: true, sex: true,
       color: true, size: true, primaryPhotoUrl: true, shelterStatus: true,
       intakeType: true, intakeDate: true, intakeFoundAddress: true, createdAt: true,
+      medicalConditions: true, vetName: true, vetClinic: true, vetPhone: true,
       transfers: { where: { status: 'PENDING' }, select: { toEmail: true }, take: 1 },
     },
   });
@@ -125,6 +126,13 @@ export default async function PortalAnimal({ params }) {
         petId={pet.id}
         petName={pet.name}
         species={pet.species}
+        petRecord={{
+          name: pet.name,
+          medicalConditions: pet.medicalConditions,
+          vetName: pet.vetName,
+          vetClinic: pet.vetClinic,
+          vetPhone: pet.vetPhone,
+        }}
         shelterStatus={pet.shelterStatus}
         pendingTransferEmail={pet.transfers[0]?.toEmail || null}
         holdActive={Boolean(holdActive)}
