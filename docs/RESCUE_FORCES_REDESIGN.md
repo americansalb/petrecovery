@@ -50,7 +50,18 @@ with zero explanatory copy**. Elegant, clean, simple, on-brand (midnight/flash).
 
 ## 1.5 The site around these pages — registers and funnels (full-gallery review)
 
-Reviewed against the complete 2026-07-04 gallery, not just the force captures.
+Reviewed against a **fresh full-gallery sweep captured 2026-07-27** (dev server +
+seeded DB, `scripts/gallery-sweep.js`), which replaced the stale 2026-07-04 set.
+Re-verification results: the force pages are pixel-identical to July (no code
+touched them — every diagnosis in §1 is current); the homepage hero was reworked
+after July (product screenshot above the fold, flat brand buttons) but every
+load-bearing claim below still holds; the `/lost-pet/[city]` page is confirmed
+purple today **and its stat cards drift between captures (July: "29 Active
+Missions · 44 Searchers"; today: "56 · 113") over near-identical seed data —
+fabricated-looking numbers on an SEO page is a trust hazard in its own right**;
+and `/join/[missionId]` renders a Connection Error on a healthy freshly-seeded
+server — reproducibly broken, not capture flakiness.
+
 Two facts reframe the project:
 
 **The design north star already exists.** The homepage and the public case portal
