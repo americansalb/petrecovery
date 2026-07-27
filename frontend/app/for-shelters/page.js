@@ -7,7 +7,8 @@
  *   3. Order: an animal's path through the building (arrives, in your
  *      care, goes home) as a timeline. That is how shelter staff think,
  *      so it needs no explaining.
- *   4. Price: the whole offering as an itemized bill totalling $0.
+ *   4. Price: one number, because it is one number. An itemized table
+ *      here only restated step 3 in the least readable form there is.
  *   5. Reason and the way in.
  *
  * COLOR LAW: midnight + flash only. Flash marks exactly two things on
@@ -68,18 +69,6 @@ const PATH = [
     'Adoption: the full medical record moves to the adopter’s account.',
     'Either way the record stays with the animal.',
   ]],
-];
-
-/* The one pricing table this product needs. */
-const PRICE_LIST = [
-  'Medical records for every animal',
-  'Lost-pet matching on every stray',
-  'Stray hold tracking',
-  'Full-record transfer to adopters',
-  'Adoption inquiry inbox',
-  'Staff and volunteer accounts',
-  'A public shelter page',
-  'A listing in the shelter directory',
 ];
 
 const STEPS = [
@@ -211,35 +200,27 @@ export default function ForSheltersPage() {
         </ol>
       </section>
 
-      {/* 4. The price, as the bill it replaces */}
-      <section className="bg-midnight-900 py-20 md:py-24">
-        <div className="mx-auto max-w-xl px-4">
-          <h2 className="mb-10 text-center text-3xl font-black tracking-tight text-white md:text-4xl">
+      {/* 4. The price. It is one number, so it gets one number: an
+          itemized table here only restated the timeline above in the
+          least readable form available. */}
+      <section className="bg-midnight-900 py-24 md:py-32">
+        <div className="mx-auto max-w-2xl px-4 text-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-midnight-400">
             What it costs
-          </h2>
-          <div className="rounded-2xl bg-[#FFFDF6] px-6 py-8 shadow-2xl shadow-black/30 sm:px-10">
-            <ul>
-              {PRICE_LIST.map((label) => (
-                <li key={label} className="flex items-baseline gap-3 py-2">
-                  <span className="font-medium text-midnight-800">{label}</span>
-                  <span className="relative -top-1 flex-1 border-b border-dotted border-midnight-300" />
-                  <span className="font-semibold tabular-nums text-midnight-500">$0</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-5 flex items-baseline gap-3 border-t-2 border-midnight-900 pt-5">
-              <span className="text-lg font-black text-midnight-900">Total</span>
-              <span className="flex-1" />
-              <span className="text-3xl font-black tabular-nums text-midnight-900">$0</span>
-            </div>
-          </div>
+          </p>
+          <p className="mt-3 flex items-start justify-center font-black leading-none text-flash-400">
+            <span className="mt-2 text-4xl md:mt-4 md:text-6xl">$</span>
+            <span className="text-[7rem] tracking-tight md:text-[11rem]">0</span>
+          </p>
+          <p className="mt-1 text-xl font-bold text-white md:text-2xl">
+            There is no pricing page. This is it.
+          </p>
           {/* Present tense on purpose. We do not promise eternity we
               cannot underwrite; we promise no surprises, which is the
               thing a shelter director is actually afraid of. */}
-          <p className="mx-auto mt-6 max-w-md text-center text-sm leading-relaxed text-midnight-400">
-            What shelters pay today: no card on file, no trial clock, nothing on
-            this list behind a paywall. If that ever changes, you will hear it
-            from us first.
+          <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed text-midnight-400">
+            No card on file, no trial clock, nothing behind a paywall. If that
+            ever changes, you will hear it from us first.
           </p>
         </div>
       </section>
