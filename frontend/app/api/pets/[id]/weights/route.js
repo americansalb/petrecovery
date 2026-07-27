@@ -78,8 +78,19 @@ export async function DELETE(request, { params }) {
     });
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-    await prisma.petWeightEntry.update({ where: { id: entryId }, data: { deletedAt: new Date() } });
-    return NextResponse.json({ ok: true });
+    // The profile's headline weight follows the newest entry, so deleting the
+    // newest one must fall back to the next newest (or clear when none remain).
+    // Without this, the profile keeps showing the weight just deleted.
+    const entry = await prisma.$transaction(async (tx) => {
+      await tx.petWeightEntry.update({ where: { id: entryId }, data: { deletedAt: new Date() } });
+      const newest = await tx.petWeightEntry.findFirst({
+        where: { petId: id, deletedAt: null },
+        orderBy: { recordedAt: 'desc' },
+      });
+      await tx.pet.update({ where: { id }, data: { weight: newest ? newest.weightLbs : null } });
+      return newest;
+    });
+    return NextResponse.json({ ok: true, weight: entry ? entry.weightLbs : null });
   } catch (error) {
     console.error('[WEIGHTS API] delete failed:', error);
     return NextResponse.json({ error: 'Failed to remove entry' }, { status: 500 });
