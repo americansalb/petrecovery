@@ -41,6 +41,21 @@ describe('POST validation', () => {
     expect(prisma.petWeightEntry.create).not.toHaveBeenCalled();
   });
 
+  test('rejects a future-dated entry (would hijack the headline weight)', async () => {
+    const future = new Date(Date.now() + 7 * 86400000).toISOString();
+    const res = await POST(req({ weightLbs: 42, recordedAt: future }), params);
+    expect(res.status).toBe(400);
+    expect(prisma.petWeightEntry.create).not.toHaveBeenCalled();
+  });
+
+  test('accepts a backdated entry (historical weigh-ins are valid)', async () => {
+    prisma.petWeightEntry.create.mockResolvedValue({ id: 'w0', weightLbs: 40 });
+    prisma.petWeightEntry.findFirst.mockResolvedValue({ weightLbs: 41.2 });
+    const past = new Date(Date.now() - 30 * 86400000).toISOString();
+    const res = await POST(req({ weightLbs: 40, recordedAt: past }), params);
+    expect(res.status).toBe(201);
+  });
+
   test('a valid weight is stored and becomes the headline', async () => {
     prisma.petWeightEntry.create.mockResolvedValue({ id: 'w1', weightLbs: 41.2 });
     prisma.petWeightEntry.findFirst.mockResolvedValue({ weightLbs: 41.2 });
