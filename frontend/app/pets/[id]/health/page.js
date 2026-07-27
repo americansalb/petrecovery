@@ -134,7 +134,21 @@ function HealthInner() {
         <div className="flex flex-col gap-6">
           <div>
             <AlertRibbon text={pet?.medicalConditions} href={isOwner ? `/pets/${petId}/profile?tab=id` : undefined} />
-            <HealthStatusBand name={name} status={bookStatus} />
+            {/* The empty and needs-attention states now carry the action the
+                sentence promises ("first vaccine" / "one tap to update"),
+                so the owner isn't left to discover the Vaccines tab. */}
+            <HealthStatusBand
+              name={name}
+              status={bookStatus}
+              action={canManage && (bookStatus.tone === 'empty' || bookStatus.tone === 'bad' || bookStatus.tone === 'warn') ? (
+                <button
+                  onClick={() => { setTab('vaccines'); if (bookStatus.tone === 'empty') setShowAdd(true); }}
+                  className="rounded-xl bg-care-teal text-white text-[13px] font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors"
+                >
+                  {bookStatus.tone === 'empty' ? 'Add first vaccine' : 'Update vaccines'}
+                </button>
+              ) : null}
+            />
           </div>
           {/* The status band above already states the vaccination position
               by name and date, so the summary carries only what it does

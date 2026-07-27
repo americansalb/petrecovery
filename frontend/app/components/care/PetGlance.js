@@ -44,8 +44,18 @@ export default function PetGlance({
   const medItems = meds.filter((m) => m.kind !== 'CARE');
   const activeMeds = medItems.filter((m) => m.isActive);
   const lowCount = activeMeds.filter(isLowSupply).length;
-  const withExpiry = vaccinations.filter((v) => !v.deletedAt && v.expiresAt);
+  const liveVax = vaccinations.filter((v) => !v.deletedAt);
+  const withExpiry = liveVax.filter((v) => v.expiresAt);
   const vaxCurrent = withExpiry.filter((v) => vaccinationStatus(v) === 'PROTECTED').length;
+  // Show the vaccines that need attention first. Ordering by recency (the API
+  // default) can bury an expired or due-soon shot below three current ones,
+  // so "Is X OK?" reads all-green while a vaccine has lapsed.
+  const VAX_RANK = { EXPIRED: 0, DUE_SOON: 1, PROTECTED: 2, ON_FILE: 3 };
+  const rankedVax = [...liveVax].sort(
+    (a, b) =>
+      (VAX_RANK[vaccinationStatus(a)] - VAX_RANK[vaccinationStatus(b)]) ||
+      (new Date(b.administeredAt) - new Date(a.administeredAt))
+  );
   const latestWeight = weights[weights.length - 1];
   const weightDelta = weights.length > 1
     ? +(latestWeight.weightLbs - weights[0].weightLbs).toFixed(1)
@@ -81,27 +91,39 @@ export default function PetGlance({
           </span>
         </div>
         <div className="px-4 pb-2">
-          {vaccinations.slice(0, 3).map((v, idx) => {
+          {rankedVax.slice(0, 3).map((v, idx) => {
             const st = vaccinationStatus(v);
-            const soon = st === 'DUE_SOON' || st === 'EXPIRED';
             return (
               <div key={v.id} className={cn('flex items-center gap-2.5 py-2.5', idx > 0 && 'border-t border-care-line')}>
-                {soon ? <AlertCircle size={16} className="text-care-amber shrink-0" /> : <Check size={16} className="text-care-teal shrink-0" />}
+                {st === 'EXPIRED' ? (
+                  <AlertCircle size={16} className="text-red-600 shrink-0" />
+                ) : st === 'DUE_SOON' ? (
+                  <AlertCircle size={16} className="text-care-amber shrink-0" />
+                ) : (
+                  <Check size={16} className="text-care-teal shrink-0" />
+                )}
                 <span className="flex-1 min-w-0 text-[13px] font-semibold text-care-ink truncate">{v.name}</span>
-                {soon ? (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-care-amber bg-care-amberWash ring-1 ring-care-amberLine rounded-lg px-2 py-1">
+                {st === 'EXPIRED' ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-2 py-1 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    Expired {v.expiresAt ? shortMonth(v.expiresAt) : ''}
+                  </span>
+                ) : st === 'DUE_SOON' ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-care-amber bg-care-amberWash ring-1 ring-care-amberLine rounded-lg px-2 py-1 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-care-amber" />
-                    {st === 'EXPIRED' ? 'Expired' : `Due ${v.expiresAt ? shortMonth(v.expiresAt) : 'soon'}`}
+                    Due {v.expiresAt ? shortMonth(v.expiresAt) : 'soon'}
                   </span>
                 ) : (
-                  <span className="text-[11.5px] text-care-sub">
-                    to <b className="text-care-ink font-semibold">{v.expiresAt ? shortMonth(v.expiresAt) : shortMonth(v.administeredAt)}</b>
+                  // A vaccine with no expiry on file is "on file", never "to <given date>":
+                  // the given date is in the past and reads as false coverage.
+                  <span className="text-[11.5px] text-care-sub shrink-0">
+                    {v.expiresAt ? <>to <b className="text-care-ink font-semibold">{shortMonth(v.expiresAt)}</b></> : 'on file'}
                   </span>
                 )}
               </div>
             );
           })}
-          {vaccinations.length === 0 && <p className="text-[12.5px] text-care-sub py-2.5">None on file yet.</p>}
+          {liveVax.length === 0 && <p className="text-[12.5px] text-care-sub py-2.5">None on file yet.</p>}
         </div>
       </Card>
       )}

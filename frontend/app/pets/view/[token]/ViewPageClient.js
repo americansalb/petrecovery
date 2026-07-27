@@ -18,6 +18,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import Link from 'next/link';
+import { vaccinationStatus } from '@/lib/healthBook';
 import { Loader2 } from 'lucide-react';
 import { Modal } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
@@ -351,10 +352,26 @@ export default function PublicPetViewPage() {
               {data.vaccinations?.length > 0 && (
                 <div className="flex items-baseline justify-between gap-4 py-3">
                   <dt className="text-[13px] text-neutral-500 shrink-0">Vaccines</dt>
+                  {/* This is the clinical face a vet or sitter reads, so each
+                      vaccine states its status, not a bare date: an expired
+                      shot must not read as current, and a no-expiry record
+                      must not show its given date as if it were coverage. */}
                   <dd className="text-[15px] text-neutral-900 text-right">
-                    {data.vaccinations.map((v) =>
-                      `${v.name} ${new Date(v.expiresAt || v.administeredAt).toLocaleDateString([], { month: 'numeric', year: 'numeric' })}`
-                    ).join(' · ')}
+                    {data.vaccinations.map((v, i) => {
+                      const st = vaccinationStatus(v);
+                      const mmyyyy = (d) => new Date(d).toLocaleDateString([], { month: 'numeric', year: 'numeric' });
+                      let label; let cls = 'text-neutral-500';
+                      if (st === 'EXPIRED') { label = `expired ${mmyyyy(v.expiresAt)}`; cls = 'text-red-600 font-medium'; }
+                      else if (st === 'DUE_SOON') { label = `due ${mmyyyy(v.expiresAt)}`; cls = 'text-amber-600 font-medium'; }
+                      else if (st === 'ON_FILE') { label = 'on file'; }
+                      else { label = `thru ${mmyyyy(v.expiresAt)}`; }
+                      return (
+                        <span key={v.id || i}>
+                          {i > 0 && <span className="text-neutral-300"> · </span>}
+                          {v.name} <span className={cls}>({label})</span>
+                        </span>
+                      );
+                    })}
                   </dd>
                 </div>
               )}
