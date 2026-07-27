@@ -33,14 +33,24 @@ export function rememberMode(id) {
   } catch { /* cookies disabled: switching still works, it just forgets */ }
 }
 
+/**
+ * Guests hold no server modes, but the doors must still be visible -
+ * discoverability is the whole point of the switcher. The fallback pair
+ * gives each hat a sensible public landing.
+ */
+const GUEST_MODES = [
+  { id: 'owner', label: 'Owner', detail: 'Care for your own pets', href: '/care' },
+  { id: 'searcher', label: 'Searcher', detail: 'Help find pets near you', href: '/rescue-forces/search' },
+];
+
 function useAccountModes() {
   const [modes, setModes] = useState(null);
   useEffect(() => {
     let alive = true;
     fetch('/api/account/modes')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive && d) setModes(d.modes || []); })
-      .catch(() => { /* optional chrome: stay quiet */ });
+      .then((d) => { if (alive) setModes(d?.modes?.length ? d.modes : GUEST_MODES); })
+      .catch(() => { if (alive) setModes(GUEST_MODES); });
     return () => { alive = false; };
   }, []);
   return modes;

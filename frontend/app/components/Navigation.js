@@ -131,6 +131,31 @@ export default function Navigation() {
               <span className="hidden sm:inline lg:hidden xl:inline">Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
+            {/* The hat, worn visibly: which world you're browsing and the
+                door to the others - one tap, never buried in a menu.
+                Searcher wears flash so the state reads at a glance. */}
+            <div className="hidden lg:block relative shrink-0" data-dropdown="hat">
+              <button
+                onClick={() => toggleDropdown('hat')}
+                aria-expanded={activeDropdown === 'hat'}
+                aria-haspopup="menu"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[13px] font-bold transition ${
+                  hat === 'searcher'
+                    ? 'bg-flash-400/10 border-flash-400/40 text-flash-300 hover:bg-flash-400/20'
+                    : 'bg-white/5 border-white/15 text-midnight-200 hover:bg-white/10'
+                }`}
+              >
+                {hat === 'searcher' ? <Shield className="w-3.5 h-3.5" /> : <PawPrint className="w-3.5 h-3.5" />}
+                {hat === 'searcher' ? 'Searching' : 'Owner'}
+                <ChevronDown className={`w-3 h-3 transition-transform ${activeDropdown === 'hat' ? 'rotate-180' : ''}`} />
+              </button>
+              {activeDropdown === 'hat' && (
+                <div className="absolute left-0 top-full mt-2 w-72 rounded-xl bg-white shadow-xl border border-midnight-100 overflow-hidden animate-fade-in">
+                  <AccountModeSwitcher current={hat} onNavigate={() => setActiveDropdown(null)} />
+                </div>
+              )}
+            </div>
+
             {/* Desktop Navigation: one home per domain, same for guests and members */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
               {/* Hat-scoped center (docs/PRODUCT_IA_PLAN.md, "Three doors"):
@@ -437,6 +462,10 @@ export default function Navigation() {
 
         {/* Mobile Nav Links */}
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+          {/* The doors come first - switching worlds is the drawer's
+              headline action, for guests and members alike */}
+          <AccountModeSwitcher current={hat} onNavigate={() => setMobileMenuOpen(false)} />
+
           {/* Browse section - Always visible */}
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
@@ -468,7 +497,6 @@ export default function Navigation() {
               <MobileNavLink href="/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/notifications')} onClick={() => setMobileMenuOpen(false)} />
               {/* Messages hidden pre-launch (guaranteed-empty until conversations are wired). */}
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
-              <AccountModeSwitcher current={hat} onNavigate={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/settings" icon={Settings} label="Settings" active={pathname.startsWith('/settings')} onClick={() => setMobileMenuOpen(false)} />
 
               {userSquads.length > 0 && (
