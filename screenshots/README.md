@@ -1,8 +1,16 @@
 # Page Screenshot Gallery
 
-Full-page screenshots of every route in the app, captured 2026-07-04 against a local
+Full-page screenshots of every route in the app, captured **2026-07-27** against a local
 dev server (PostgreSQL seeded via `frontend/prisma/seed-sample-data.js`; login `admin@localdev.test`).
 Viewport 1440px, full-page. Regenerate with `frontend/scripts/gallery-sweep.js` (usage in its header).
+
+2026-07-27 sweep notes: 108 routes refreshed; the five click-through admin captures
+(auth-74/75/92/93/94) failed their warm-login retry this run and remain from the
+2026-07-04 set. CDN assets were blocked by the sandbox egress in this run, so brand
+logo/mascot images may render as alt text; console-error counts in `report.json` are
+inflated by those blocked requests. `/join/[missionId]` (pub-28) renders a Connection
+Error against a healthy seeded server — a real, reproducible page break, not a
+capture artifact (also present in the 07-04 set).
 
 This capture includes the 2026-07 care-product redesign: one dashboard (`/pets`,
 warm register; signed-in `/care` redirects there), one wizard (`/care/start`;

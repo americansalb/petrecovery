@@ -2,6 +2,7 @@ import './globals.css';
 import { Inter } from 'next/font/google';
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
+import { HatProvider } from './contexts/HatContext';
 import Navigation from './components/Navigation';
 import GlobalBottomNav from './components/GlobalBottomNav';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -57,6 +58,7 @@ export default function RootLayout({ children }) {
       <body className="m-0 p-0 font-sans antialiased bg-midnight-50 text-midnight-900">
         <SessionProvider>
           <ModeProvider>
+          <HatProvider>
             <PushNotificationProvider>
               <GPSProvider>
                 <ErrorBoundary>
@@ -71,6 +73,7 @@ export default function RootLayout({ children }) {
                 </ErrorBoundary>
               </GPSProvider>
             </PushNotificationProvider>
+          </HatProvider>
           </ModeProvider>
         </SessionProvider>
       </body>

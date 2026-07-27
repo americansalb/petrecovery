@@ -2,11 +2,13 @@
  * Universal navbar consistency - the rule lives in docs/APP_MAP.md §8.2.
  *
  * The global chrome (top bar + mobile tab bar) must be IDENTICAL on every
- * route: same height, same links, same CTA. It steps aside only inside
- * intentional immersive experiences, and that list lives in ONE place:
- * app/lib/navChrome.js. No page gets to ship its own competing top bar,
- * and the nav components themselves must not grow ad-hoc per-route
- * conditionals.
+ * route - same height, same CTA, same links *per hat*: the center link
+ * set may vary by the session's hat (owner/searcher, app/contexts/
+ * HatContext.js - see docs/PRODUCT_IA_PLAN.md "Three doors"), never by
+ * the route. Chrome steps aside only inside intentional immersive
+ * experiences, and that list lives in ONE place: app/lib/navChrome.js.
+ * No page gets to ship its own competing top bar, and the nav components
+ * themselves must not grow ad-hoc per-route conditionals.
  *
  * Like link-previews.test.js this is a static source check: fast, no DOM,
  * runs in CI. Adding a full-screen takeover? Register it in navChrome.js.
@@ -127,6 +129,13 @@ describe('no page ships its own top bar', () => {
 describe('nav components defer to the shared policy', () => {
   const navigation = read('components/Navigation.js');
   const bottomNav = read('components/GlobalBottomNav.js');
+
+  test('chrome varies by hat, never by route', () => {
+    // Both chrome components draw their variation from HatContext -
+    // session-state emphasis, not per-route special cases.
+    expect(navigation).toMatch(/useHat\(\)/);
+    expect(bottomNav).toMatch(/useHat\(\)/);
+  });
 
   test('Navigation.js hides only via isImmersiveRoute', () => {
     expect(navigation).toMatch(/isImmersiveRoute\(pathname\)/);

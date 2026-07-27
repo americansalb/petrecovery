@@ -46,10 +46,14 @@ import {
 import { Button } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
 import { isImmersiveRoute } from '@/app/lib/navChrome';
+import { useHat } from '@/app/contexts/HatContext';
 
 export default function Navigation() {
   const { data: session, status: sessionStatus } = useSession();
   const pathname = usePathname();
+  // The hat re-aims the CENTER link set only (owner vs searcher emphasis);
+  // bar geometry, logo, Report CTA, and the session slot never move.
+  const { hat } = useHat();
   const [userSquads, setUserSquads] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -127,10 +131,39 @@ export default function Navigation() {
               <span className="hidden sm:inline lg:hidden xl:inline">Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
+            {/* The hat, worn visibly: which world you're browsing and the
+                door to the others - one tap, never buried in a menu.
+                Searcher wears flash so the state reads at a glance. */}
+            <div className="hidden lg:block relative shrink-0" data-dropdown="hat">
+              <button
+                onClick={() => toggleDropdown('hat')}
+                aria-expanded={activeDropdown === 'hat'}
+                aria-haspopup="menu"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[13px] font-bold transition ${
+                  hat === 'searcher'
+                    ? 'bg-flash-400/10 border-flash-400/40 text-flash-300 hover:bg-flash-400/20'
+                    : 'bg-white/5 border-white/15 text-midnight-200 hover:bg-white/10'
+                }`}
+              >
+                {hat === 'searcher' ? <Shield className="w-3.5 h-3.5" /> : <PawPrint className="w-3.5 h-3.5" />}
+                {hat === 'searcher' ? 'Searching' : 'Owner'}
+                <ChevronDown className={`w-3 h-3 transition-transform ${activeDropdown === 'hat' ? 'rotate-180' : ''}`} />
+              </button>
+              {activeDropdown === 'hat' && (
+                <div className="absolute left-0 top-full mt-2 w-72 rounded-xl bg-white shadow-xl border border-midnight-100 overflow-hidden animate-fade-in">
+                  <AccountModeSwitcher current={hat} onNavigate={() => setActiveDropdown(null)} />
+                </div>
+              )}
+            </div>
+
             {/* Desktop Navigation: one home per domain, same for guests and members */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
-              {/* My Pets is daily life (medications, profiles): first-class, always */}
-              {session && (
+              {/* Hat-scoped center (docs/PRODUCT_IA_PLAN.md, "Three doors"):
+                  the owner hat leads with daily life and shelters, the
+                  searcher hat with the rescue network. Bar geometry, the
+                  Report CTA, and the session slot are hat-invariant, and
+                  cross-hat surfaces (Lost & Found, Hub) ride in both. */}
+              {hat === 'owner' && session && (
                 <NavLink href="/pets" active={pathname.startsWith('/pets')}>
                   <PawPrint className="w-4 h-4" />
                   My Pets
@@ -139,18 +172,35 @@ export default function Navigation() {
 
               {/* The everyday door, a peer of Lost & Found and visible to all:
                   this is how a first-time visitor learns the Health Book exists */}
-              <NavLink href="/care" active={pathname.startsWith('/care')}>
-                <Heart className="w-4 h-4" />
-                Pet Care
-              </NavLink>
+              {hat === 'owner' && (
+                <NavLink href="/care" active={pathname.startsWith('/care')}>
+                  <Heart className="w-4 h-4" />
+                  Pet Care
+                </NavLink>
+              )}
 
               <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
                 <Search className="w-4 h-4" />
                 Lost &amp; Found
               </NavLink>
 
-              {/* Always the same trigger - the user's squads only change what's
-                  INSIDE the dropdown, never the size or shape of the bar */}
+              {hat === 'owner' ? (
+                /* The shelter world's front door - directory for owners,
+                   with the free-tools pitch and portal one hop inside */
+                <NavLink
+                  href="/shelters"
+                  active={
+                    pathname.startsWith('/shelters') ||
+                    pathname.startsWith('/for-shelters') ||
+                    pathname.startsWith('/shelter/')
+                  }
+                >
+                  <Building2 className="w-4 h-4" />
+                  Shelters
+                </NavLink>
+              ) : (
+              /* Always the same trigger - the user's squads only change what's
+                  INSIDE the dropdown, never the size or shape of the bar */
               <NavDropdown
                 label="Rescue Forces"
                 icon={Shield}
@@ -183,6 +233,7 @@ export default function Navigation() {
                 <DropdownLink href="/rescue-forces/search" icon={Search} title="Find rescue forces" description="Every neighborhood needs one" />
                 <DropdownLink href="/rescue-forces/create" icon={Shield} title="Start a rescue force" description="Organize your city's searchers" />
               </NavDropdown>
+              )}
 
               <NavLink href="/hub" active={pathname.startsWith('/hub')}>
                 <Sparkles className="w-4 h-4" />
@@ -275,7 +326,7 @@ export default function Navigation() {
                             so the inbox would be a guaranteed-empty dead-end. */}
                         {/* Renders only for people who hold more than one
                             hat; everyone else sees an unchanged menu. */}
-                        <AccountModeSwitcher current="owner" onNavigate={() => setActiveDropdown(null)} />
+                        <AccountModeSwitcher current={hat} onNavigate={() => setActiveDropdown(null)} />
                         <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                           <User className="w-4 h-4" />
                           <span className="font-medium">My Profile</span>
@@ -411,14 +462,23 @@ export default function Navigation() {
 
         {/* Mobile Nav Links */}
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+          {/* The doors come first - switching worlds is the drawer's
+              headline action, for guests and members alike */}
+          <AccountModeSwitcher current={hat} onNavigate={() => setMobileMenuOpen(false)} />
+
           {/* Browse section - Always visible */}
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
           </div>
-          <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
+          {hat === 'owner' && (
+            <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
+          )}
           <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
+          {hat === 'owner' ? (
+            <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
+          ) : (
+            <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
+          )}
 
           <div className="border-t border-midnight-100 my-2" />
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
@@ -437,7 +497,6 @@ export default function Navigation() {
               <MobileNavLink href="/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/notifications')} onClick={() => setMobileMenuOpen(false)} />
               {/* Messages hidden pre-launch (guaranteed-empty until conversations are wired). */}
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
-              <AccountModeSwitcher current="owner" onNavigate={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/settings" icon={Settings} label="Settings" active={pathname.startsWith('/settings')} onClick={() => setMobileMenuOpen(false)} />
 
               {userSquads.length > 0 && (

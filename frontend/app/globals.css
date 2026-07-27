@@ -151,7 +151,7 @@ body {
 
 /* Prevent horizontal scroll.
    Must be `clip`, not `hidden`: overflow-x:hidden forces overflow-y to
-   compute to `auto`, turning body into a scroll container — which silently
+   compute to `auto`, turning body into a scroll container - which silently
    breaks EVERY position:sticky descendant (the universal navbar scrolled
    away with the page instead of pinning). `clip` clips without creating a
    scroll container, so sticky keeps working. */
@@ -835,3 +835,33 @@ img {
   animation: slideUp 0.3s ease-out;
 }
 
+
+/* Lantern Map (rescue-force territory) - flare + zone labels */
+.lantern-flare {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #facc15;
+  box-shadow: 0 0 10px 3px rgba(250, 204, 21, 0.55);
+  animation: lanternFlare 1.8s ease-in-out infinite;
+}
+@keyframes lanternFlare {
+  0%, 100% { box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.45); }
+  50% { box-shadow: 0 0 16px 6px rgba(250, 204, 21, 0.75); }
+}
+.lantern-zone-label {
+  display: block;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+/* The Lantern Map stays midnight even while (or if) tiles load */
+.lantern-map.leaflet-container {
+  background: #0b1526;
+}

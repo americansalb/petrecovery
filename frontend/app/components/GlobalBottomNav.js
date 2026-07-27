@@ -2,21 +2,43 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Search, Shield, PawPrint, Plus } from 'lucide-react';
+import { Home, Search, Shield, PawPrint, Plus, Building2, Sparkles } from 'lucide-react';
 import { hidesBottomNav } from '@/app/lib/navChrome';
+import { useHat } from '@/app/contexts/HatContext';
 
-const leftItems = [
-  { href: '/dashboard', icon: Home, label: 'Home', exact: true },
-  { href: '/pets', icon: PawPrint, label: 'My Pets' },
-];
-
-const rightItems = [
-  { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
-  { href: '/rescue-forces/search', icon: Shield, label: 'Forces', alsoActive: ['/rescue-forces'] },
-];
+/**
+ * Tab slots are hat-scoped (docs/PRODUCT_IA_PLAN.md, "Three doors"):
+ * the owner hat spends its precious slots on daily life, the searcher
+ * hat on the rescue network. Geometry and the Report action are
+ * hat-invariant, and Home + Lost & Found ride in both.
+ */
+const TABS = {
+  owner: {
+    left: [
+      { href: '/dashboard', icon: Home, label: 'Home', exact: true },
+      { href: '/pets', icon: PawPrint, label: 'My Pets' },
+    ],
+    right: [
+      { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
+      { href: '/shelters', icon: Building2, label: 'Shelters', alsoActive: ['/for-shelters', '/shelter'] },
+    ],
+  },
+  searcher: {
+    left: [
+      { href: '/dashboard', icon: Home, label: 'Home', exact: true },
+      { href: '/rescue-forces/search', icon: Shield, label: 'Forces', alsoActive: ['/rescue-forces'] },
+    ],
+    right: [
+      { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
+      { href: '/hub', icon: Sparkles, label: 'Hub' },
+    ],
+  },
+};
 
 export default function GlobalBottomNav() {
   const pathname = usePathname();
+  const { hat } = useHat();
+  const { left: leftItems, right: rightItems } = TABS[hat] || TABS.owner;
 
   // Shared chrome policy (app/lib/navChrome.js): hidden only inside
   // immersive takeovers and focused flows whose own fixed bars would

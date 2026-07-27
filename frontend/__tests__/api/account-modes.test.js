@@ -3,7 +3,10 @@
  * belong to right now?
  *
  * Presentation only. It must never be the thing that decides what someone
- * may DO, and it must not invent hats the person does not hold.
+ * may DO, and it must not invent hats the person does not hold - with one
+ * deliberate exception: the SEARCHER door is always offered (it is the
+ * recruitment door, docs/PRODUCT_IA_PLAN.md "Three doors"). Members land
+ * on their force; everyone else lands on the network to find one.
  */
 
 jest.mock('next-auth', () => ({ getServerSession: jest.fn() }));
@@ -31,32 +34,36 @@ beforeEach(() => {
 });
 
 describe('GET /api/account/modes', () => {
-  test('a plain pet owner gets one mode, so the switcher stays hidden', async () => {
+  test('a plain pet owner gets owner plus the always-open searcher door', async () => {
     const res = await GET();
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.modes).toHaveLength(1);
-    expect(body.modes[0].id).toBe('owner');
+    expect(body.modes.map((m) => m.id)).toEqual(['owner', 'searcher']);
+    // Not a member of any force: the door leads to the network, not a force
+    expect(body.modes[1]).toEqual(
+      expect.objectContaining({ label: 'Searcher', href: '/rescue-forces/search' })
+    );
   });
 
   test('a shelter hat adds the shelter world, named after the shelter', async () => {
     getShelterForUser.mockResolvedValue({ shelterId: 's-1', role: 'STAFF' });
     const res = await GET();
     const body = await res.json();
-    expect(body.modes.map((m) => m.id)).toEqual(['owner', 'shelter']);
+    expect(body.modes.map((m) => m.id)).toEqual(['owner', 'shelter', 'searcher']);
     expect(body.modes[1]).toEqual(
       expect.objectContaining({ label: 'Austin Animal Center', href: '/my-shelter' })
     );
   });
 
-  test('an active rescue force adds the rescuer world', async () => {
+  test('an active rescue force points the searcher door at that force', async () => {
     prisma.rescueForceMember.findFirst.mockResolvedValue({
       rescueSquad: { id: 'rf-9', name: 'Travis County Search' },
     });
     const res = await GET();
     const body = await res.json();
-    expect(body.modes.map((m) => m.id)).toEqual(['owner', 'rescuer']);
+    expect(body.modes.map((m) => m.id)).toEqual(['owner', 'searcher']);
     expect(body.modes[1].href).toBe('/rescue-forces/rf-9');
+    expect(body.modes[1].label).toBe('Travis County Search');
   });
 
   test('only ACTIVE, unresigned memberships count', async () => {
@@ -75,7 +82,7 @@ describe('GET /api/account/modes', () => {
     });
     const res = await GET();
     const body = await res.json();
-    expect(body.modes.map((m) => m.id)).toEqual(['owner', 'shelter', 'rescuer']);
+    expect(body.modes.map((m) => m.id)).toEqual(['owner', 'shelter', 'searcher']);
   });
 
   test('signed out is 401, never a mode list', async () => {

@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import {
   Building2, HeartPulse, Radar, HeartHandshake, Users, Globe2,
-  ArrowRight, CheckCircle2, Sparkles,
+  ArrowRight, CheckCircle2, Sparkles, Inbox, CalendarClock, ListChecks,
 } from 'lucide-react';
 
 const FEATURES = [
@@ -23,9 +23,24 @@ const FEATURES = [
     body: 'Log a stray and we quietly check it against local lost-pet reports, photos included. You review the match side by side; the owner is only contacted after you confirm.',
   },
   {
+    icon: CalendarClock,
+    title: 'Stray holds, tracked',
+    body: 'Set your jurisdiction’s hold period once. Every stray shows where its hold stands, and the day adoption can go ahead, the portal tells you.',
+  },
+  {
     icon: HeartHandshake,
     title: 'Adoptions that keep the history',
     body: 'Send the full record home with the adopter in one click. Vaccines, meds, weights: everything arrives in their account, nothing gets lost in a paper folder.',
+  },
+  {
+    icon: Inbox,
+    title: 'Adoption inquiries in one inbox',
+    body: 'The ask-about-an-animal form on your page lands in your portal, tied to the animal, with a status your team can work. Nothing buried in a shared email account.',
+  },
+  {
+    icon: ListChecks,
+    title: 'A desk that catches things',
+    body: 'Expiring vaccinations, records never sent home, animals without photos, long-stayers: each morning the portal surfaces them with the one action that clears each.',
   },
   {
     icon: Users,
