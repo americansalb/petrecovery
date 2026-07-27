@@ -14,7 +14,7 @@
  */
 
 import { useSession, signOut } from 'next-auth/react';
-import AccountModeSwitcher from './AccountModeSwitcher';
+import AccountModeSwitcher, { useAccountModes } from './AccountModeSwitcher';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -54,6 +54,10 @@ export default function Navigation() {
   // The hat re-aims the CENTER link set only (owner vs searcher emphasis);
   // bar geometry, logo, Report CTA, and the session slot never move.
   const { hat } = useHat();
+  // Auth-state, not route-state: someone who helps run a shelter gets
+  // their portal in the bar's shelter slot instead of the directory.
+  const modes = useAccountModes();
+  const shelterHome = modes?.find((m) => m.id === 'shelter') || null;
   const [userSquads, setUserSquads] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -185,19 +189,29 @@ export default function Navigation() {
               </NavLink>
 
               {hat === 'owner' ? (
-                /* The shelter world's front door - directory for owners,
-                   with the free-tools pitch and portal one hop inside */
-                <NavLink
-                  href="/shelters"
-                  active={
-                    pathname.startsWith('/shelters') ||
-                    pathname.startsWith('/for-shelters') ||
-                    pathname.startsWith('/shelter/')
-                  }
-                >
-                  <Building2 className="w-4 h-4" />
-                  Shelters
-                </NavLink>
+                shelterHome ? (
+                  /* Shelter staff never hunt for their own door: the slot
+                     that shows everyone else the directory takes them
+                     straight into their portal, one click from anywhere. */
+                  <NavLink href="/my-shelter" active={pathname.startsWith('/shelter/')}>
+                    <Building2 className="w-4 h-4" />
+                    My Shelter
+                  </NavLink>
+                ) : (
+                  /* The shelter world's front door - directory for owners,
+                     with the free-tools pitch and portal one hop inside */
+                  <NavLink
+                    href="/shelters"
+                    active={
+                      pathname.startsWith('/shelters') ||
+                      pathname.startsWith('/for-shelters') ||
+                      pathname.startsWith('/shelter/')
+                    }
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Shelters
+                  </NavLink>
+                )
               ) : (
               /* Always the same trigger - the user's squads only change what's
                   INSIDE the dropdown, never the size or shape of the bar */
@@ -475,7 +489,11 @@ export default function Navigation() {
           )}
           <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
           {hat === 'owner' ? (
-            <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
+            shelterHome ? (
+              <MobileNavLink href="/my-shelter" icon={Building2} label="My Shelter" active={pathname.startsWith('/shelter/')} onClick={() => setMobileMenuOpen(false)} />
+            ) : (
+              <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
+            )
           ) : (
             <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
           )}

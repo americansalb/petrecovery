@@ -865,3 +865,34 @@ img {
 .lantern-map.leaflet-container {
   background: #0b1526;
 }
+
+/* Civic directory map (daylight sibling of the lantern map): midnight
+   pins carry identity, flash appears only on the selected place. */
+.civic-map.leaflet-container {
+  background: #e2e8f0; /* midnight-200 while tiles load or when blocked */
+}
+.shelter-pin {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #0f172a;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.shelter-pin.is-selected {
+  background: #facc15;
+  border-color: #0f172a;
+  transform: scale(1.4);
+  box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.28);
+}
+.shelter-pin-you {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #2563eb;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
+}

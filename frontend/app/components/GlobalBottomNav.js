@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Home, Search, Shield, PawPrint, Plus, Building2, Sparkles } from 'lucide-react';
 import { hidesBottomNav } from '@/app/lib/navChrome';
 import { useHat } from '@/app/contexts/HatContext';
+import { useAccountModes } from './AccountModeSwitcher';
 
 /**
  * Tab slots are hat-scoped (docs/PRODUCT_IA_PLAN.md, "Three doors"):
@@ -35,10 +36,19 @@ const TABS = {
   },
 };
 
+/**
+ * Auth-state, not route-state: shelter staff get their portal in the
+ * slot everyone else uses to find one - one tap from anywhere.
+ */
+const MY_SHELTER_TAB = { href: '/my-shelter', icon: Building2, label: 'My Shelter', alsoActive: ['/shelter/'] };
+
 export default function GlobalBottomNav() {
   const pathname = usePathname();
   const { hat } = useHat();
-  const { left: leftItems, right: rightItems } = TABS[hat] || TABS.owner;
+  const modes = useAccountModes();
+  const hasShelterHat = !!modes?.some((m) => m.id === 'shelter');
+  const { left: leftItems, right } = TABS[hat] || TABS.owner;
+  const rightItems = hat === 'owner' && hasShelterHat ? [right[0], MY_SHELTER_TAB] : right;
 
   // Shared chrome policy (app/lib/navChrome.js): hidden only inside
   // immersive takeovers and focused flows whose own fixed bars would
