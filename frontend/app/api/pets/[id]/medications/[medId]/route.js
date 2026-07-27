@@ -28,7 +28,7 @@ export async function PATCH(request, { params }) {
     const existing = await findOwnedMedication(id, medId);
     if (!existing) return NextResponse.json({ error: 'Medication not found' }, { status: 404 });
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { data, error } = validateMedicationInput(body, { partial: true });
     if (error) return NextResponse.json({ error }, { status: 400 });
 

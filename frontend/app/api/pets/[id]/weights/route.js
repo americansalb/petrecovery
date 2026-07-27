@@ -34,7 +34,7 @@ export async function POST(request, { params }) {
     const auth = await requirePetAccess(id, 'CAREGIVER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const weightLbs = parseFloat(body.weightLbs);
     if (isNaN(weightLbs) || weightLbs <= 0 || weightLbs > 500) {
       return NextResponse.json({ error: 'Weight should be a number of pounds' }, { status: 400 });

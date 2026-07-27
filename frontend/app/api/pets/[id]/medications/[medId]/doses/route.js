@@ -46,7 +46,7 @@ export async function POST(request, { params }) {
     const medication = await findOwnedMedication(id, medId);
     if (!medication) return NextResponse.json({ error: 'Medication not found' }, { status: 404 });
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const scheduledFor = new Date(body.scheduledFor);
     if (Number.isNaN(scheduledFor.getTime())) {
       return NextResponse.json({ error: 'Invalid scheduledFor' }, { status: 400 });
