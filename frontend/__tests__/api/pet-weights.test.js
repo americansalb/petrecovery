@@ -56,6 +56,13 @@ describe('POST validation', () => {
     expect(res.status).toBe(201);
   });
 
+  test('a malformed JSON body is a 400, not a 500', async () => {
+    const badReq = { json: async () => { throw new SyntaxError('Unexpected token'); } };
+    const res = await POST(badReq, params);
+    expect(res.status).toBe(400);
+    expect(prisma.petWeightEntry.create).not.toHaveBeenCalled();
+  });
+
   test('a valid weight is stored and becomes the headline', async () => {
     prisma.petWeightEntry.create.mockResolvedValue({ id: 'w1', weightLbs: 41.2 });
     prisma.petWeightEntry.findFirst.mockResolvedValue({ weightLbs: 41.2 });

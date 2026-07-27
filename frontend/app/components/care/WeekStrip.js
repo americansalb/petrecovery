@@ -44,6 +44,11 @@ export default function WeekStrip({ meds, selectedDay, onSelectDay }) {
               onClick={() => onSelectDay(day)}
               aria-pressed={isSelected}
               aria-label={`${day.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}: ${due ? `${given} of ${due} given` : 'nothing due'}. Tap to review or log.`}
+              // Seven equal cells can't all hold the global 44px min-width on a
+              // narrow phone without overflowing the row and clipping the last
+              // day. Let them shrink to the track; the ~45px height keeps a
+              // comfortable tap target.
+              style={{ minWidth: 0 }}
               className={cn(
                 'flex flex-col items-center gap-1 rounded-lg border py-2 px-1 transition-colors',
                 isSelected ? 'border-care-teal bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'

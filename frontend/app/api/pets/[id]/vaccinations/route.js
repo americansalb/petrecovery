@@ -53,7 +53,7 @@ export async function POST(request, { params }) {
     const auth = await requirePetAccess(id, 'CAREGIVER');
     if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { data, error } = validate(body);
     if (error) return NextResponse.json({ error }, { status: 400 });
 
