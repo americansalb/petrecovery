@@ -22,8 +22,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PawPrint, Building2, Shield, Check, ChevronDown } from 'lucide-react';
+import { useHat } from '@/app/contexts/HatContext';
 
-const ICONS = { owner: PawPrint, shelter: Building2, rescuer: Shield };
+const ICONS = { owner: PawPrint, shelter: Building2, searcher: Shield };
 
 /** Remembered so the next sign-in lands where you left off. */
 export function rememberMode(id) {
@@ -53,6 +54,9 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   const router = useRouter();
   const modes = useAccountModes();
   const [open, setOpen] = useState(false);
+  // Owner/searcher also re-aim the global chrome (HatContext); shelter is
+  // a place (the portal owns its chrome), so it only navigates.
+  const { setHat } = useHat();
 
   if (!modes) return null; // still loading
 
@@ -82,6 +86,7 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
   if (variant === 'sidebar') {
     const go = (mode) => {
       rememberMode(mode.id);
+      if (mode.id === 'owner' || mode.id === 'searcher') setHat(mode.id);
       setOpen(false);
       if (onNavigate) onNavigate();
       router.push(mode.href);
@@ -123,6 +128,12 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
     );
   }
 
+  // The shelter door must stay discoverable even for people who don't
+  // hold that hat yet — it's how a shelter director learns the free
+  // portal exists. (/shelter/dashboard sorts out pitch vs pending vs
+  // invite.) Holders get their shelter as a mode row instead.
+  const hasShelterMode = modes.some((m) => m.id === 'shelter');
+
   return (
     <div className="border-b border-midnight-100">
       <p className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-midnight-400">
@@ -134,7 +145,11 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
           <Link
             key={m.id}
             href={m.href}
-            onClick={() => { rememberMode(m.id); if (onNavigate) onNavigate(); }}
+            onClick={() => {
+              rememberMode(m.id);
+              if (m.id === 'owner' || m.id === 'searcher') setHat(m.id);
+              if (onNavigate) onNavigate();
+            }}
             className="flex items-center gap-3 px-4 py-2.5 text-midnight-700 hover:bg-midnight-50 transition"
           >
             <Icon className="w-4 h-4 shrink-0" />
@@ -146,6 +161,19 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
           </Link>
         );
       })}
+      {!hasShelterMode && (
+        <Link
+          href="/shelter/dashboard"
+          onClick={() => { if (onNavigate) onNavigate(); }}
+          className="flex items-center gap-3 px-4 py-2.5 text-midnight-700 hover:bg-midnight-50 transition"
+        >
+          <Building2 className="w-4 h-4 shrink-0" />
+          <span className="flex-1 min-w-0">
+            <span className="block font-medium truncate">Shelter Portal</span>
+            <span className="block text-[12px] text-midnight-400">Run a shelter? Free tools</span>
+          </span>
+        </Link>
+      )}
     </div>
   );
 }

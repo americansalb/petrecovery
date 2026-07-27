@@ -56,12 +56,22 @@ export async function GET() {
       });
     }
 
+    // The searcher door is ALWAYS offered — it is the recruitment door,
+    // not a members-only area. Members land on their force; everyone
+    // else lands on the network to find one.
     if (rescue?.rescueSquad) {
       modes.push({
-        id: 'rescuer',
+        id: 'searcher',
         label: rescue.rescueSquad.name,
-        detail: 'Rescue force',
+        detail: 'Searching · your rescue force',
         href: `/rescue-forces/${rescue.rescueSquad.id}`,
+      });
+    } else {
+      modes.push({
+        id: 'searcher',
+        label: 'Searcher',
+        detail: 'Help find pets near you',
+        href: '/rescue-forces/search',
       });
     }
 
