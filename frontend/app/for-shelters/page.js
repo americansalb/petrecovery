@@ -36,15 +36,17 @@ const PORTAL_ROSTER = [
   ['Clover', 'Domestic shorthair', 'Available', 'bg-emerald-500', '3d in care'],
 ];
 
-const INCLUDED = [
+/* The offering as the one pricing table this product will ever need:
+   every line item costs nothing, and the total is the strategy. */
+const PRICE_LIST = [
   'Medical records for every animal',
-  'New strays checked against local lost-pet reports',
+  'Lost-pet matching on every stray',
   'Stray hold tracking',
-  'Records transfer to adopters',
-  'An adoption inquiry inbox',
+  'Full-record transfer to adopters',
+  'Adoption inquiry inbox',
   'Staff and volunteer accounts',
-  'A public page (no website needed)',
-  'Listed in the shelter directory',
+  'A public shelter page',
+  'A listing in the shelter directory',
 ];
 
 const STEPS = [
@@ -67,7 +69,7 @@ export default function ForSheltersPage() {
           </h1>
           <p className="text-lg md:text-xl text-midnight-200 max-w-2xl mx-auto mb-9">
             Animal records, lost-pet matching, adoption tools, and a public page.
-            No credit card, no trial, no paid tier: ReunitePets is a nonprofit.
+            No credit card and no trial: ReunitePets is a nonprofit.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -148,24 +150,33 @@ export default function ForSheltersPage() {
         </div>
       </section>
 
-      {/* What's included: a list you can scan, not prose */}
+      {/* The offering, priced: an itemized bill where the total is the
+          strategy. The receipt promises that everything ON it is free;
+          it deliberately says nothing about what may be sold beside it
+          later (MONETIZATION.md keeps a paid CRM tier open). */}
       <section className="mx-auto max-w-4xl px-4 py-16 md:py-20">
-        <h2 className="mb-3 text-center text-3xl font-black text-midnight-900 md:text-4xl">
-          Everything included
+        <h2 className="mb-10 text-center text-3xl font-black text-midnight-900 md:text-4xl">
+          What it costs
         </h2>
-        <p className="mb-10 text-center text-midnight-600">
-          Every account gets all of it. There is no paid tier.
-        </p>
-        <ul className="mx-auto grid max-w-2xl gap-x-10 gap-y-3 sm:grid-cols-2">
-          {INCLUDED.map((line) => (
-            <li key={line} className="flex items-start gap-2.5 text-midnight-800">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-flash-500" />
-              <span className="font-medium">{line}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-8 text-center text-sm text-midnight-500">
-          Matching never contacts an owner until your staff confirms the match.
+        <div className="mx-auto max-w-xl rounded-2xl border border-midnight-200 bg-white px-6 py-7 sm:px-10 sm:py-9 shadow-card">
+          <ul>
+            {PRICE_LIST.map((label) => (
+              <li key={label} className="flex items-baseline gap-3 py-2">
+                <span className="font-medium text-midnight-800">{label}</span>
+                <span className="relative -top-1 flex-1 border-b-2 border-dotted border-midnight-200" aria-hidden="true" />
+                <span className="font-semibold tabular-nums text-midnight-400">$0</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 flex items-baseline gap-3 border-t-2 border-midnight-900 pt-4">
+            <span className="text-lg font-black text-midnight-900">Total, forever</span>
+            <span className="flex-1" aria-hidden="true" />
+            <span className="text-2xl font-black tabular-nums text-midnight-900">$0</span>
+          </div>
+        </div>
+        <p className="mt-6 text-center text-sm text-midnight-500">
+          The only fine print: matching never contacts an owner until your staff
+          confirms the match.
         </p>
       </section>
 
@@ -195,10 +206,10 @@ export default function ForSheltersPage() {
         <p className="text-midnight-700 leading-relaxed mb-4">
           ReunitePets exists to get lost pets home, and lost pets end up in
           shelters. Every shelter working here means more strays checked against
-          lost-pet reports. That is why there is no paid version.
+          lost-pet reports. Charging for that would work against the mission.
         </p>
         <ul className="inline-flex flex-col items-start gap-2 text-midnight-700 mb-9">
-          {['No cost, ever, for shelters and rescues', 'No ads on your page, no selling your data', 'A human reviews every shelter, so the directory stays trustworthy'].map((line) => (
+          {['Everything above stays free, permanently', 'No ads on your page, no selling your data', 'A human reviews every shelter, so the directory stays trustworthy'].map((line) => (
             <li key={line} className="inline-flex items-center gap-2.5">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> {line}
             </li>
