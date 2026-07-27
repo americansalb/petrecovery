@@ -3,14 +3,25 @@
 /**
  * Navigation Component - Universal Nav Bar
  *
- * THE one top bar, identical on every route: same h-16 height, same links,
- * same Report CTA - content and size never change from page to page. It
- * only adapts to auth STATE (guests get Sign in/Join, members get their
- * menu), never to the route; the sole exception is the immersive-route
- * list in app/lib/navChrome.js (Mission Control ships its own chrome).
- * While the session is resolving, a fixed-size placeholder holds the
- * right-side slot so the bar never reflows after load.
- * Enforced by __tests__/global-chrome.test.js.
+ * THE one top bar. Same height, same links, same Report CTA, for every
+ * person on every route. The center link set is a CONSTANT
+ * (CENTER_LINKS): it does not vary by route, by whether you are signed
+ * in, by whether you help run a shelter, or by anything else. A bar that
+ * rearranges itself as you move around reads as broken, so anything
+ * personal (your shelter, your rescue forces) lives in the account menu
+ * instead.
+ *
+ * The only permitted variations, both deliberate:
+ *   1. The session slot on the right (guests get Sign in/Join, members
+ *      get the bell and their menu). A fixed-size placeholder holds it
+ *      while the session resolves so the bar never reflows.
+ *   2. Whole-bar removal inside immersive takeovers listed in
+ *      app/lib/navChrome.js, each of which ships its own visible way
+ *      back out (Mission Control "Exit", the portal "Exit to
+ *      ReunitePets").
+ *
+ * Pages may add SUBTABS below the bar (anchored `sticky top-16`), never
+ * their own top bar. Enforced by __tests__/global-chrome.test.js.
  */
 
 import { useSession, signOut } from 'next-auth/react';
@@ -46,18 +57,28 @@ import {
 import { Button } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
 import { isImmersiveRoute } from '@/app/lib/navChrome';
-import { useHat } from '@/app/contexts/HatContext';
+
+/**
+ * The universal center link set: one home per domain, in one order, for
+ * everyone. /care sends signed-in people to /pets (app/care/CareGate.js),
+ * so a single Pet Care link lands each visitor in the right place without
+ * the bar itself changing.
+ */
+const CENTER_LINKS = [
+  { href: '/care', label: 'Pet Care', icon: Heart, activePrefixes: ['/pets'] },
+  { href: '/lost-and-found', label: 'Lost & Found', icon: Search, activePrefixes: ['/cases'] },
+  { href: '/rescue-forces/search', label: 'Rescue Forces', icon: Shield, activePrefixes: ['/rescue-forces', '/divisions'] },
+  { href: '/shelters', label: 'Shelters', icon: MapPin, activePrefixes: ['/for-shelters', '/shelter/', '/my-shelter'] },
+  { href: '/hub', label: 'Hub', icon: Sparkles, activePrefixes: [] },
+];
+
+function isActive(pathname, href, activePrefixes = []) {
+  return pathname.startsWith(href) || activePrefixes.some((p) => pathname.startsWith(p));
+}
 
 export default function Navigation() {
   const { data: session, status: sessionStatus } = useSession();
   const pathname = usePathname();
-  // The hat re-aims the CENTER link set only (owner vs searcher emphasis);
-  // bar geometry, logo, Report CTA, and the session slot never move.
-  const { hat } = useHat();
-  // Auth-state, not route-state: someone who helps run a shelter gets
-  // their portal in the bar's shelter slot instead of the directory.
-  const modes = useAccountModes();
-  const shelterHome = modes?.find((m) => m.id === 'shelter') || null;
   const [userSquads, setUserSquads] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -135,128 +156,18 @@ export default function Navigation() {
               <span className="hidden sm:inline lg:hidden xl:inline">Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
-            {/* The default world is UNMARKED - owners see no mode chrome at
-                all (nobody thinks of themselves as "an Owner"). The pill
-                appears only while wearing the searcher hat: a gold status
-                that doubles as the door back. */}
-            {hat === 'searcher' && (
-              <div className="hidden lg:block relative shrink-0" data-dropdown="hat">
-                <button
-                  onClick={() => toggleDropdown('hat')}
-                  aria-expanded={activeDropdown === 'hat'}
-                  aria-haspopup="menu"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[13px] font-bold transition bg-flash-400/10 border-flash-400/40 text-flash-300 hover:bg-flash-400/20"
-                >
-                  <Shield className="w-3.5 h-3.5" />
-                  Searching
-                  <ChevronDown className={`w-3 h-3 transition-transform ${activeDropdown === 'hat' ? 'rotate-180' : ''}`} />
-                </button>
-                {activeDropdown === 'hat' && (
-                  <div className="absolute left-0 top-full mt-2 w-72 rounded-xl bg-white shadow-xl border border-midnight-100 overflow-hidden animate-fade-in">
-                    <AccountModeSwitcher current={hat} onNavigate={() => setActiveDropdown(null)} />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Desktop Navigation: one home per domain, same for guests and members */}
+            {/* Desktop Navigation: THE link set. Identical for everyone -
+                guest, member, shelter staff, force member - and identical
+                on every route. Nothing here is conditional; if a link
+                needs to appear for some people and not others, it belongs
+                in the account menu, not in the bar. */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
-              {/* Hat-scoped center (docs/PRODUCT_IA_PLAN.md, "Three doors"):
-                  the owner hat leads with daily life and shelters, the
-                  searcher hat with the rescue network. Bar geometry, the
-                  Report CTA, and the session slot are hat-invariant, and
-                  cross-hat surfaces (Lost & Found, Hub) ride in both. */}
-              {hat === 'owner' && session && (
-                <NavLink href="/pets" active={pathname.startsWith('/pets')}>
-                  <PawPrint className="w-4 h-4" />
-                  My Pets
+              {CENTER_LINKS.map(({ href, label, icon: Icon, activePrefixes }) => (
+                <NavLink key={href} href={href} active={isActive(pathname, href, activePrefixes)}>
+                  <Icon className="w-4 h-4" />
+                  {label}
                 </NavLink>
-              )}
-
-              {/* The guest marketing door: how a first-time visitor learns
-                  the Health Book exists. Members already have My Pets, and
-                  /care redirects them there - one door, not two lookalikes. */}
-              {hat === 'owner' && !session && (
-                <NavLink href="/care" active={pathname.startsWith('/care')}>
-                  <Heart className="w-4 h-4" />
-                  Pet Care
-                </NavLink>
-              )}
-
-              {/* Two shelter ideas, two doors, nothing morphs: "My
-                  Shelter" is the staff door to THEIR portal and exists
-                  only for accounts that hold the hat; "Shelters" below is
-                  the public directory and keeps its meaning for everyone.
-                  Mine-first order, alongside My Pets. */}
-              {hat === 'owner' && shelterHome && (
-                <NavLink href="/my-shelter" active={pathname.startsWith('/shelter/')}>
-                  <Building2 className="w-4 h-4" />
-                  My Shelter
-                </NavLink>
-              )}
-
-              <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
-                <Search className="w-4 h-4" />
-                Lost &amp; Found
-              </NavLink>
-
-              {hat === 'owner' ? (
-                /* The public directory - one meaning, for everyone,
-                   forever. Staff get their portal as a SEPARATE link
-                   above; this door never changes what it means. */
-                <NavLink
-                  href="/shelters"
-                  active={
-                    pathname.startsWith('/shelters') ||
-                    pathname.startsWith('/for-shelters') ||
-                    (!shelterHome && pathname.startsWith('/shelter/'))
-                  }
-                >
-                  <MapPin className="w-4 h-4" />
-                  Shelters
-                </NavLink>
-              ) : (
-              /* Always the same trigger - the user's squads only change what's
-                  INSIDE the dropdown, never the size or shape of the bar */
-              <NavDropdown
-                label="Rescue Forces"
-                icon={Shield}
-                active={pathname.startsWith('/rescue-forces') || pathname.startsWith('/divisions')}
-                isOpen={activeDropdown === 'squads'}
-                onToggle={() => toggleDropdown('squads')}
-              >
-                {userSquads.length > 0 && (
-                  <>
-                    <div className="max-h-64 overflow-y-auto">
-                      {userSquads.map(squad => (
-                        <Link
-                          key={squad.id}
-                          href={`/rescue-forces/${squad.id}`}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                            {squad.name?.[0] || '?'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                            <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                    <DropdownDivider />
-                  </>
-                )}
-                <DropdownLink href="/rescue-forces/search" icon={Search} title="Find rescue forces" description="Every neighborhood needs one" />
-                <DropdownLink href="/rescue-forces/create" icon={Shield} title="Start a rescue force" description="Organize your city's searchers" />
-              </NavDropdown>
-              )}
-
-              <NavLink href="/hub" active={pathname.startsWith('/hub')}>
-                <Sparkles className="w-4 h-4" />
-                Hub
-              </NavLink>
-
+              ))}
               {/* Admin tooling lives in the user menu, not the bar: the
                   bar's link set is identical for every role */}
             </div>
@@ -341,9 +252,10 @@ export default function Navigation() {
                         </Link>
                         {/* Messages hidden pre-launch: no conversation is created yet,
                             so the inbox would be a guaranteed-empty dead-end. */}
-                        {/* Renders only for people who hold more than one
-                            hat; everyone else sees an unchanged menu. */}
-                        <AccountModeSwitcher current={hat} onNavigate={() => setActiveDropdown(null)} />
+                        {/* Your places (your shelter, your rescue force).
+                            This is where anything person-specific goes now
+                            that the bar itself never changes. */}
+                        <AccountModeSwitcher onNavigate={() => setActiveDropdown(null)} />
                         <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                           <User className="w-4 h-4" />
                           <span className="font-medium">My Profile</span>
@@ -479,32 +391,24 @@ export default function Navigation() {
 
         {/* Mobile Nav Links */}
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-          {/* The doors come first - switching worlds is the drawer's
-              headline action, for guests and members alike */}
-          <AccountModeSwitcher current={hat} onNavigate={() => setMobileMenuOpen(false)} />
+          {/* Your places (your shelter, your rescue force) come first:
+              person-specific rows live here, never in the bar. */}
+          <AccountModeSwitcher onNavigate={() => setMobileMenuOpen(false)} />
 
-          {/* Browse section - Always visible */}
+          {/* The same five links as the desktop bar, same order. */}
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
           </div>
-          {hat === 'owner' && (
-            <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
-          )}
-          <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
-          {/* Staff's own door already leads this drawer - the switcher
-              above shows their shelter BY NAME - so Browse carries only
-              the public directory. One door per idea, no lookalikes. */}
-          {hat === 'owner' ? (
-            <MobileNavLink href="/shelters" icon={MapPin} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
-          ) : (
-            <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
-          )}
-
-          <div className="border-t border-midnight-100 my-2" />
-          <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
-            Community
-          </div>
-          <MobileNavLink href="/hub" icon={Sparkles} label="Rescue Hub" active={pathname.startsWith('/hub')} onClick={() => setMobileMenuOpen(false)} />
+          {CENTER_LINKS.map(({ href, label, icon, activePrefixes }) => (
+            <MobileNavLink
+              key={href}
+              href={href}
+              icon={icon}
+              label={label}
+              active={isActive(pathname, href, activePrefixes)}
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          ))}
 
           {/* Auth-only section */}
           {session && (
