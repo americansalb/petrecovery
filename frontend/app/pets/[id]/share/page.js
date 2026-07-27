@@ -159,12 +159,12 @@ export default function PeoplePage() {
       <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-5">People</h1>
 
       {error && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-red-50 text-red-700 px-4 py-3 mb-4 text-sm">
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl bg-red-50 text-red-700 px-4 py-3 mb-4 text-sm">
           <span>{error}</span><button onClick={() => setError(null)} className="text-red-600 hover:text-red-800" aria-label="Dismiss"><X size={16} /></button>
         </div>
       )}
       {success && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-care-tealWash text-care-teal px-4 py-3 mb-4 text-sm">
+        <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-care-tealWash text-care-teal px-4 py-3 mb-4 text-sm">
           <span>{success}</span><button onClick={() => setSuccess(null)} className="text-care-teal hover:text-care-tealDark" aria-label="Dismiss"><X size={16} /></button>
         </div>
       )}

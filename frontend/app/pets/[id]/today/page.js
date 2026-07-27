@@ -300,12 +300,12 @@ export default function TodayPage() {
         </div>
       )}
       {notice && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-care-tealWash text-care-teal text-sm px-4 py-3 mb-4">
+        <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-care-tealWash text-care-teal text-sm px-4 py-3 mb-4">
           <span>{notice}</span><button onClick={() => setNotice(null)} aria-label="Dismiss" className="text-care-teal hover:text-care-tealDark"><X size={16} /></button>
         </div>
       )}
       {outboxCount > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-care-surface shadow-care text-care-sub text-sm px-4 py-3 mb-4">
+        <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-care-surface shadow-care text-care-sub text-sm px-4 py-3 mb-4">
           <span>{outboxCount} dose log{outboxCount !== 1 ? 's' : ''} saved on this device, waiting to sync.</span>
           <button onClick={flushOutbox} className="font-semibold text-care-ink hover:text-care-teal">Sync now</button>
         </div>
