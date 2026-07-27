@@ -205,7 +205,10 @@ export default function PeoplePage() {
                     <p className="text-[14.5px] font-semibold text-care-ink truncate">{displayNameOf(share)}</p>
                     <p className="text-[12.5px] text-care-sub truncate">{share.role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}{isPending && ', invited'}</p>
                   </div>
-                  <select value={share.role} onChange={(e) => changeRole(share, e.target.value)} disabled={busyId === share.id} aria-label={`Role for ${share.email}`} className="rounded-lg border border-care-line px-2.5 py-1.5 text-sm text-care-sub focus:outline-none focus:border-care-teal disabled:opacity-50">
+                  {/* Inline width:auto beats the unlayered globals `select { width:100% }`
+                      (an @layer utility like w-auto can't); without it the select
+                      swallows the whole row and hides the member's name on mobile. */}
+                  <select value={share.role} onChange={(e) => changeRole(share, e.target.value)} disabled={busyId === share.id} aria-label={`Role for ${share.email}`} style={{ width: 'auto' }} className="shrink-0 rounded-lg border border-care-line px-2.5 py-1.5 text-sm text-care-sub focus:outline-none focus:border-care-teal disabled:opacity-50">
                     <option value="CAREGIVER">Caregiver</option>
                     <option value="VIEWER">Viewer</option>
                   </select>

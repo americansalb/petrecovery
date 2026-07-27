@@ -265,7 +265,13 @@ export default function TodayPage() {
   const shortMonth = (d) => new Date(d).toLocaleDateString([], { month: 'short', year: 'numeric' });
   const greeting = (() => { const h = now.getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })();
 
+  // Any focus dose mid-write: disables the batch button so a double-tap can't
+  // launch overlapping batches (each dose already guards itself, but the batch
+  // control needs its own gate).
+  const focusBusy = focus.some(({ med, slot }) => busy(`${med.id}-${slot.scheduledFor.getTime()}`));
+
   const markAllDue = async () => {
+    if (focusBusy) return;
     for (const { med, slot } of focus) {
       // sequential to keep supply counts consistent
       // eslint-disable-next-line no-await-in-loop
@@ -350,8 +356,14 @@ export default function TodayPage() {
                       <span className="text-[15px] text-white/80 font-medium max-w-[90px] leading-tight">{focus.length === 1 ? 'dose to give' : 'doses to give'}</span>
                     </div>
                     {canManage && (
-                      <button onClick={markAllDue} className="h-12 px-5 rounded-2xl bg-white text-care-tealDark text-[14.5px] font-semibold inline-flex items-center gap-2 hover:bg-white/90 transition-colors shadow-lg mt-5">
-                        <Check size={18} strokeWidth={2.4} /> {focus.length === 1 ? 'Mark given' : 'Mark all given'}
+                      <button
+                        onClick={markAllDue}
+                        disabled={focusBusy}
+                        className="h-12 px-5 rounded-2xl bg-white text-care-tealDark text-[14.5px] font-semibold inline-flex items-center gap-2 hover:bg-white/90 transition-colors shadow-lg mt-5 disabled:opacity-70 disabled:cursor-not-allowed"
+                      >
+                        {focusBusy
+                          ? <><Loader2 size={18} className="animate-spin" /> Marking…</>
+                          : <><Check size={18} strokeWidth={2.4} /> {focus.length === 1 ? 'Mark given' : 'Mark all given'}</>}
                       </button>
                     )}
                     {laterCount > 0 && <p className="mt-3 text-[12px] text-white/60">{laterCount} more later today</p>}
