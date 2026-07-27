@@ -101,7 +101,7 @@ export default function CareLandingPage() {
             Sign in
           </Link>
         </div>
-        <p className="text-[13px] text-neutral-400 mt-6">Always free. Takes a minute. Works on any phone.</p>
+        <p className="text-[13px] text-neutral-400 mt-6">Free to use. Takes a minute. Works on any phone.</p>
 
         <div className="mt-12 max-w-md mx-auto">
           <TodayMock />

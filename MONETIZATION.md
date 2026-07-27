@@ -43,13 +43,22 @@ ever charged for the thing that finds their pet.
 ## Revenue streams
 
 1. **Advertising to users.** New in v3 — supersedes v2's blanket "no
-   advertising platform" principle. User-facing surfaces may carry
-   clearly-labeled ads. Standing guardrails that survive from v2: no
-   ads on shelter pages (that promise is live on /for-shelters and is
-   kept), no selling user data, no pay-for-placement in any directory,
-   search result, or match. Format and partners TBD.
+   advertising platform" principle. Any user-facing surface may carry
+   ads, shelter pages included: a page of adoptable animals is exactly
+   the contextual placement the founder described wanting (a subtle pet
+   food brand beside a feeding log). Placement should be elegant and
+   relevant, ideally AI-chosen. Format and partners TBD.
+
+   NO SELF-IMPOSED GUARDRAILS HERE. Earlier drafts of this file carried
+   invented restrictions ("never on shelter pages", "no pay-for-
+   placement") that the founder never asked for, and worse, they were
+   published as promises on /for-shelters and then cited back here as
+   settled policy. Do not add a constraint to this section, or to any
+   marketing page, unless the founder states it. The one live
+   data-selling commitment is in the privacy policy (`/privacy`), where
+   it is a deliberate legal statement rather than marketing copy.
 2. **Shelter CRM, paid tier.** Today's portal is the free product,
-   whole, forever. A future advanced CRM — deeper workflows, plus v2's
+   whole. A future advanced CRM — deeper workflows, plus v2's
    "Shelter Pro" identity layer (own subdomain, white-label page,
    later bring-your-own domain) — is the paid layer, sold to shelters
    that already love the free one.
@@ -78,8 +87,9 @@ ever charged for the thing that finds their pet.
   and a pet-theft incentive, for pennies.
 - **Physical products** (QR tags, printed flyers). Inventory, shipping,
   and returns are operational weight a software nonprofit does not want.
-- **Ads on shelter pages, selling user data, pay-for-placement.** The
-  parts of v2's no-ads principle that v3 keeps.
+(Ads on shelter pages and pay-for-placement used to sit in this list.
+They were never founder decisions, so they are gone; see the
+advertising entry above.)
 
 ## Build sequencing
 
