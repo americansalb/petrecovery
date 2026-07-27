@@ -7,6 +7,7 @@ import { logEvent } from '@/lib/logging';
 import { sendVerificationEmail } from '@/app/lib/email';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { TERMS_OF_SERVICE_DOC } from '@/prisma/legal/terms-of-service';
 
 const BASE_URL = getEmailBaseUrl();
 
@@ -280,6 +281,21 @@ export async function POST(request) {
     // Hash password with strong salt rounds
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // The signup checkbox names BOTH documents, but historically only the
+    // waiver was recorded. Record Terms acceptance too, pinned to the
+    // versions actually live right now (falls back to the shipped Terms
+    // version on a fresh database that hasn't synced legal docs yet).
+    let tosVersion = TERMS_OF_SERVICE_DOC.version;
+    let waiverVersion = '1.0';
+    if (acceptedTerms) {
+      const [tosDoc, waiverDoc] = await Promise.all([
+        prisma.legalDocument?.findFirst({ where: { type: 'TERMS_OF_SERVICE', isActive: true }, select: { version: true } }),
+        prisma.legalDocument?.findFirst({ where: { type: 'LIABILITY_WAIVER', isActive: true }, select: { version: true } }),
+      ]).catch(() => [null, null]);
+      if (tosDoc?.version) tosVersion = tosDoc.version;
+      if (waiverDoc?.version) waiverVersion = waiverDoc.version;
+    }
+
     // Generate email verification token (hash before storing, send raw in email)
     const rawVerifyToken = crypto.randomBytes(32).toString('hex');
     const emailVerifyToken = crypto.createHash('sha256').update(rawVerifyToken).digest('hex');
@@ -299,10 +315,12 @@ export async function POST(request) {
           emailVerified: null, // Requires email verification
           emailVerifyToken,
           emailVerifyExpiry,
-          // Set waiver acceptance if user accepted during registration
+          // Record BOTH acceptances the signup checkbox names
           ...(acceptedTerms && {
             waiverAcceptedAt: new Date(),
-            waiverVersionAccepted: '1.0',
+            waiverVersionAccepted: waiverVersion,
+            tosAcceptedAt: new Date(),
+            tosVersionAccepted: tosVersion,
           }),
         },
       });

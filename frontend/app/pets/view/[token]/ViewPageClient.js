@@ -387,6 +387,13 @@ export default function PublicPetViewPage() {
           </section>
         )}
 
+        {/* The clinical face carries the same soft disclosure the owner
+            sees: this is family-kept data, not a clinic-verified record. */}
+        <p className="mt-8 text-[12px] text-neutral-400">
+          This Health Book is kept by {pet.name}&apos;s people and isn&apos;t verified by a clinic.
+          For anything official, ask for the paper certificate — and in an emergency, call a vet first.
+        </p>
+
         {/* Join request */}
         <div className="mt-12 flex items-center justify-between gap-4">
           <p className="text-sm text-neutral-500">Caring for {pet.name}? Ask to join to log doses yourself.</p>

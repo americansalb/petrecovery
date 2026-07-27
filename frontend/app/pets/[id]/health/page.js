@@ -19,6 +19,7 @@ import {
   AlertRibbon, HealthStatusBand, VitalsTrio, VaccinePassport, AddVaccineModal,
   WeightCard, VetCard, MonthHistory, SectionHeader,
 } from '@/app/components/care/HealthRecord';
+import HealthBookNotice from '@/app/components/care/HealthBookNotice';
 import { healthBookStatus } from '@/lib/healthBook';
 
 const TABS = ['overview', 'vaccines', 'weight', 'vet'];
@@ -179,6 +180,8 @@ function HealthInner() {
         className="mb-5"
       />
 
+      <HealthBookNotice petName={name} />
+
       {error && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl bg-red-50 text-red-700 text-sm px-4 py-3 mb-4">
           <span>{error}</span><button onClick={() => setError(null)} aria-label="Dismiss" className="text-red-600 hover:text-red-800"><X size={16} /></button>
@@ -245,6 +248,12 @@ function HealthInner() {
       {tab === 'vet' && (
         <VetCard pet={pet} isOwner={isOwner} vetDraft={vetDraft} onDraft={setVetDraft} onSave={saveVet} onCancel={() => setVetDraft(null)} saving={savingVet} />
       )}
+
+      {/* The room's constant, soft disclaimer (docs/HEALTH_BOOK_DESIGN.md §7) */}
+      <p className="mt-10 text-[12px] text-care-faint">
+        A record you keep, not medical advice — your vet&apos;s guidance comes first.
+        If {name} ever seems unwell, call your vet or an emergency clinic.
+      </p>
 
       {showAdd && (
         <AddVaccineModal
