@@ -33,21 +33,21 @@ function PetRow({ pet, href, basics, note, activeCase, onOpenCase }) {
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="text-[15px] font-medium text-neutral-900 truncate">{pet.name}</p>
+          <p className="text-care-base font-medium text-neutral-900 truncate">{pet.name}</p>
           {activeCase && (
             /* In a panic, the badge is what gets tapped: it opens the CASE,
                while the rest of the row still opens the pet's care pages. */
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenCase(activeCase); }}
-              className="text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0 hover:bg-red-100 transition-colors"
+              className="text-care-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0 hover:bg-red-100 transition-colors"
               aria-label={`${pet.name} is missing. Open the case.`}
             >
               Missing · view case
             </button>
           )}
         </div>
-        {(basics || note) && <p className="text-[13px] text-neutral-500 truncate">{note || basics}</p>}
+        {(basics || note) && <p className="text-care-sm text-neutral-500 truncate">{note || basics}</p>}
       </div>
       <ChevronRight size={16} className="text-neutral-300 group-hover:text-neutral-500 transition-colors shrink-0" />
     </Link>
@@ -167,7 +167,7 @@ export default function MyPetsPage() {
 
         {pendingInvites.length > 0 && (
           <div className="mb-8">
-            <p className="text-[13px] font-medium text-neutral-500 mb-1">Invitations</p>
+            <p className="text-care-sm font-medium text-neutral-500 mb-1">Invitations</p>
             <div className="divide-y divide-neutral-100">
               {pendingInvites.map((invite) => (
                 <div key={invite.shareId} className="flex items-center gap-3 py-3">
@@ -179,8 +179,8 @@ export default function MyPetsPage() {
                     </span>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-medium text-neutral-900 truncate">{invite.pet.name}</p>
-                    <p className="text-[13px] text-neutral-500 truncate">
+                    <p className="text-care-base font-medium text-neutral-900 truncate">{invite.pet.name}</p>
+                    <p className="text-care-sm text-neutral-500 truncate">
                       {invite.ownerName} invited you as {invite.role === 'CAREGIVER' ? 'a caregiver' : 'a viewer'}
                     </p>
                   </div>
@@ -188,7 +188,7 @@ export default function MyPetsPage() {
                     <button
                       onClick={() => respondToInvite(invite, false)}
                       disabled={respondingId === invite.shareId}
-                      className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors disabled:opacity-50"
+                      className="text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors disabled:opacity-50"
                     >
                       Decline
                     </button>
@@ -209,7 +209,7 @@ export default function MyPetsPage() {
         {pets.length === 0 && sharedPets.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-lg font-medium text-neutral-900 mb-1">Add your first pet</p>
-            <p className="text-[15px] text-neutral-500 max-w-sm mx-auto mb-6">
+            <p className="text-care-base text-neutral-500 max-w-sm mx-auto mb-6">
               Track medications with one-tap logging, keep vaccine and weight records,
               and share a link any vet or sitter can read. Free forever.
             </p>
@@ -237,7 +237,7 @@ export default function MyPetsPage() {
 
         {sharedPets.length > 0 && (
           <div className="mt-8">
-            <p className="text-[13px] font-medium text-neutral-500 mb-1">Shared with me</p>
+            <p className="text-care-sm font-medium text-neutral-500 mb-1">Shared with me</p>
             <div className="divide-y divide-neutral-100">
               {sharedPets.map(({ shareId, role, ownerName, pet }) => (
                 <PetRow

@@ -12,7 +12,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { X } from 'lucide-react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import { ConfirmModal } from '@/components/ui';
-import { Card } from '@/app/components/care/kit/Tile';
+import { Card, Overline } from '@/app/components/care/kit/Tile';
 import { usePet } from '@/app/components/care/PetProvider';
 import SubTabs from '@/app/components/care/kit/SubTabs';
 import {
@@ -41,6 +41,7 @@ function HealthInner() {
   const [loadError, setLoadError] = useState(false);
   const [error, setError] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [addPreset, setAddPreset] = useState(null);
   const [managing, setManaging] = useState(false);
   const [weightInput, setWeightInput] = useState('');
   const [weightDate, setWeightDate] = useState('');
@@ -155,10 +156,10 @@ function HealthInner() {
   if (loadError) {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-3xl">
-        <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-4">Health</h1>
+        <h1 className="text-care-2xl font-semibold tracking-tight text-care-ink mb-4">Health</h1>
         <Card className="px-5 py-8 text-center">
-          <p className="text-[15px] font-semibold text-care-ink">Couldn&apos;t load {name}&apos;s Health Book</p>
-          <p className="text-[13.5px] text-care-sub mt-1 mb-4">The record is safe - this page just couldn&apos;t reach it. Check your connection and try again.</p>
+          <p className="text-care-base font-semibold text-care-ink">Couldn&apos;t load {name}&apos;s Health Book</p>
+          <p className="text-care-sm text-care-sub mt-1 mb-4">The record is safe - this page just couldn&apos;t reach it. Check your connection and try again.</p>
           <button
             onClick={() => { setLoading(true); load(); }}
             className="rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"
@@ -171,8 +172,21 @@ function HealthInner() {
   }
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-3xl">
-      <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-4">Health</h1>
+    <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-4xl">
+      {/* The record belongs to an animal, so the animal is on it. A 44px
+          avatar in the rail was the only trace of the pet on their own
+          medical page. */}
+      <header className="flex items-center gap-4 mb-6">
+        <span className="w-14 h-14 rounded-care-lg shrink-0 overflow-hidden bg-gradient-to-br from-care-tealWash to-care-bg ring-1 ring-care-tealRing flex items-center justify-center">
+          {pet?.primaryPhotoUrl
+            ? <img src={pet.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
+            : <span className="font-serif text-care-xl font-semibold text-care-teal">{(name || '?').charAt(0).toUpperCase()}</span>}
+        </span>
+        <div className="min-w-0">
+          <Overline>Health Book</Overline>
+          <h1 className="text-care-2xl font-semibold text-care-ink truncate">{name}</h1>
+        </div>
+      </header>
       <SubTabs
         tabs={[{ id: 'overview', label: 'Overview' }, { id: 'vaccines', label: 'Vaccines' }, { id: 'weight', label: 'Weight' }, { id: 'vet', label: 'Vet' }]}
         active={tab}
@@ -201,7 +215,7 @@ function HealthInner() {
               action={canManage && (bookStatus.tone === 'empty' || bookStatus.tone === 'bad' || bookStatus.tone === 'warn') ? (
                 <button
                   onClick={() => { switchTab('vaccines'); if (bookStatus.tone === 'empty') setShowAdd(true); }}
-                  className="rounded-xl bg-care-teal text-white text-[13px] font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors"
+                  className="rounded-xl bg-care-teal text-white text-care-sm font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors"
                 >
                   {bookStatus.tone === 'empty' ? 'Add first vaccine' : 'Update vaccines'}
                 </button>
@@ -221,10 +235,11 @@ function HealthInner() {
       {tab === 'vaccines' && (
         <VaccinePassport
           vaccinations={vaccinations}
+          species={pet?.species}
           canManage={canManage}
           managing={managing}
           onToggleManage={() => setManaging((v) => !v)}
-          onAdd={() => setShowAdd(true)}
+          onAdd={(presetName) => { setAddPreset(typeof presetName === 'string' ? presetName : null); setShowAdd(true); }}
           onRemove={setConfirmVaxRemove}
         />
       )}
@@ -250,7 +265,7 @@ function HealthInner() {
       )}
 
       {/* The room's constant, soft disclaimer (docs/HEALTH_BOOK_DESIGN.md §7) */}
-      <p className="mt-10 text-[12px] text-care-faint">
+      <p className="mt-10 text-care-xs text-care-faint">
         A record you keep, not medical advice. Your vet&apos;s guidance comes first, and
         if {name} ever seems unwell, call your vet or an emergency clinic.
       </p>
@@ -259,7 +274,8 @@ function HealthInner() {
         <AddVaccineModal
           petId={petId}
           species={pet?.species}
-          onClose={() => setShowAdd(false)}
+          presetName={addPreset}
+          onClose={() => { setShowAdd(false); setAddPreset(null); }}
           onSaved={(vax, retired = []) =>
             setVaccinations((prev) => [vax, ...prev.filter((v) => !retired.includes(v.id))])}
         />

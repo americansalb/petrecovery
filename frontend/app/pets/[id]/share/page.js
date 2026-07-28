@@ -130,14 +130,14 @@ export default function PeoplePage() {
 
   const petName = pet?.name || ctxPet?.name || 'this pet';
   const chip = (on) => cn('rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors', on ? 'bg-care-teal text-white border-care-teal' : 'border-care-line text-care-sub hover:border-care-ink');
-  const input = 'w-full rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
+  const input = 'w-full rounded-xl border border-care-line px-3.5 py-2.5 text-care-base text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
 
   if (access && access !== 'OWNER') {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-3xl">
-        <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-2">People</h1>
-        <p className="text-[15px] text-care-ink">You help care for {petName}.</p>
-        <p className="text-[15px] text-care-sub mt-1">
+        <h1 className="text-care-2xl font-semibold tracking-tight text-care-ink mb-2">People</h1>
+        <p className="text-care-base text-care-ink">You help care for {petName}.</p>
+        <p className="text-care-base text-care-sub mt-1">
           {access === 'CAREGIVER' ? 'You can log doses on Today and keep the record up to date. Only the owner manages who has access.' : `You can read ${petName}'s record and schedule. Only the owner manages who has access.`}
         </p>
       </div>
@@ -149,14 +149,14 @@ export default function PeoplePage() {
   const requests = shares.filter((s) => s.status === 'REQUESTED');
 
   const avatar = (share) => (
-    <span className="w-9 h-9 rounded-full shrink-0 bg-care-tealWash text-care-teal flex items-center justify-center text-[13px] font-semibold">
+    <span className="w-9 h-9 rounded-full shrink-0 bg-care-tealWash text-care-teal flex items-center justify-center text-care-sm font-semibold">
       {displayNameOf(share).charAt(0).toUpperCase()}
     </span>
   );
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-3xl">
-      <h1 className="text-[24px] font-semibold tracking-tight text-care-ink mb-5">People</h1>
+      <h1 className="text-care-2xl font-semibold tracking-tight text-care-ink mb-5">People</h1>
 
       {error && (
         <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl bg-red-50 text-red-700 px-4 py-3 mb-4 text-sm">
@@ -177,12 +177,12 @@ export default function PeoplePage() {
               <div key={share.id} className={cn('flex items-center gap-3 px-5 py-3.5', i > 0 && 'border-t border-care-lineSoft')}>
                 {avatar(share)}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14.5px] font-semibold text-care-ink truncate">{displayNameOf(share)}</p>
-                  <p className="text-[12.5px] text-care-sub truncate">Asked to join as a caregiver</p>
+                  <p className="text-care-base font-semibold text-care-ink truncate">{displayNameOf(share)}</p>
+                  <p className="text-care-sm text-care-sub truncate">Asked to join as a caregiver</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <button onClick={() => remove(share)} disabled={busyId === share.id} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors disabled:opacity-50">Decline</button>
-                  <button onClick={() => approve(share)} disabled={busyId === share.id} className="rounded-xl bg-care-teal text-white text-[13px] font-semibold px-4 py-1.5 hover:bg-care-tealDark transition-colors disabled:opacity-50">{busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : 'Approve'}</button>
+                  <button onClick={() => remove(share)} disabled={busyId === share.id} className="text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors disabled:opacity-50">Decline</button>
+                  <button onClick={() => approve(share)} disabled={busyId === share.id} className="rounded-xl bg-care-teal text-white text-care-sm font-semibold px-4 py-1.5 hover:bg-care-tealDark transition-colors disabled:opacity-50">{busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : 'Approve'}</button>
                 </div>
               </div>
             ))}
@@ -193,7 +193,7 @@ export default function PeoplePage() {
       <section className="mb-6">
         <Overline className="mb-2.5">Care team</Overline>
         {active.length === 0 && pending.length === 0 ? (
-          <Card className="px-5 py-6"><p className="text-[14px] text-care-sub">Just you so far. Invite someone below to share the load.</p></Card>
+          <Card className="px-5 py-6"><p className="text-care-base text-care-sub">Just you so far. Invite someone below to share the load.</p></Card>
         ) : (
           <Card className="overflow-hidden">
             {[...active, ...pending].map((share, i) => {
@@ -202,8 +202,8 @@ export default function PeoplePage() {
                 <div key={share.id} className={cn('flex items-center gap-3 px-5 py-3.5', i > 0 && 'border-t border-care-lineSoft')}>
                   {avatar(share)}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[14.5px] font-semibold text-care-ink truncate">{displayNameOf(share)}</p>
-                    <p className="text-[12.5px] text-care-sub truncate">{share.role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}{isPending && ', invited'}</p>
+                    <p className="text-care-base font-semibold text-care-ink truncate">{displayNameOf(share)}</p>
+                    <p className="text-care-sm text-care-sub truncate">{share.role === 'CAREGIVER' ? 'Caregiver' : 'Viewer'}{isPending && ', invited'}</p>
                   </div>
                   {/* Inline width:auto beats the unlayered globals `select { width:100% }`
                       (an @layer utility like w-auto can't); without it the select
@@ -212,7 +212,7 @@ export default function PeoplePage() {
                     <option value="CAREGIVER">Caregiver</option>
                     <option value="VIEWER">Viewer</option>
                   </select>
-                  <button onClick={() => remove(share)} disabled={busyId === share.id} className="text-[13px] font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50 shrink-0" aria-label={`Remove ${share.email}`}>{busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : 'Remove'}</button>
+                  <button onClick={() => remove(share)} disabled={busyId === share.id} className="text-care-sm font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50 shrink-0" aria-label={`Remove ${share.email}`}>{busyId === share.id ? <Loader2 size={14} className="animate-spin" /> : 'Remove'}</button>
                 </div>
               );
             })}
@@ -230,7 +230,7 @@ export default function PeoplePage() {
               <button type="button" onClick={() => setRole('VIEWER')} className={chip(role === 'VIEWER')}>Viewer</button>
               <button type="submit" disabled={inviting || !email.trim()} className="ml-auto rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-50">{inviting ? <Loader2 size={14} className="animate-spin" /> : 'Invite'}</button>
             </div>
-            <p className="text-[12.5px] text-care-sub">A caregiver logs doses and keeps the record; a viewer can only read it.</p>
+            <p className="text-care-sm text-care-sub">A caregiver logs doses and keeps the record; a viewer can only read it.</p>
           </form>
         </Card>
       </section>
@@ -241,19 +241,19 @@ export default function PeoplePage() {
           {linkUrl ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <input readOnly value={absoluteLink || ''} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 rounded-xl border border-care-line bg-care-bg px-3.5 py-2.5 text-[13px] text-care-sub focus:outline-none" aria-label="Public view link" />
+                <input readOnly value={absoluteLink || ''} onFocus={(e) => e.target.select()} className="flex-1 min-w-0 rounded-xl border border-care-line bg-care-bg px-3.5 py-2.5 text-care-sm text-care-sub focus:outline-none" aria-label="Public view link" />
                 <button onClick={copyLink} className="shrink-0 rounded-xl border border-care-line text-sm font-semibold text-care-ink px-4 py-2.5 hover:border-care-ink transition-colors">{copied ? 'Copied' : 'Copy'}</button>
               </div>
               <div className="flex items-center gap-4">
-                <button onClick={() => setLink('POST')} disabled={linkBusy} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors disabled:opacity-50">New link</button>
-                <button onClick={() => setLink('DELETE')} disabled={linkBusy} className="text-[13px] font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50">Turn off</button>
+                <button onClick={() => setLink('POST')} disabled={linkBusy} className="text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors disabled:opacity-50">New link</button>
+                <button onClick={() => setLink('DELETE')} disabled={linkBusy} className="text-care-sm font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50">Turn off</button>
               </div>
-              <p className="text-[12.5px] text-care-sub">Anyone with the link can read {petName}'s page and ask to join. You approve every request here.</p>
+              <p className="text-care-sm text-care-sub">Anyone with the link can read {petName}'s page and ask to join. You approve every request here.</p>
             </div>
           ) : (
             <div>
               <button onClick={() => setLink('POST')} disabled={linkBusy} className="rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-50">{linkBusy ? 'Creating...' : 'Create view link'}</button>
-              <p className="text-[12.5px] text-care-sub mt-2">A link any vet or sitter can read without an account.</p>
+              <p className="text-care-sm text-care-sub mt-2">A link any vet or sitter can read without an account.</p>
             </div>
           )}
         </Card>

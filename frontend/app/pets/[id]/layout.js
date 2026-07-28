@@ -53,13 +53,13 @@ function PetIdentity({ pet }) {
         {pet?.primaryPhotoUrl ? (
           <img src={pet.primaryPhotoUrl} alt="" className="w-full h-full object-cover" />
         ) : (
-          <span className="font-serif text-[19px] font-semibold text-care-teal">{initials(pet?.name)}</span>
+          <span className="font-serif text-care-lg font-semibold text-care-teal">{initials(pet?.name)}</span>
         )}
       </span>
       <div className="min-w-0">
-        <p className="text-[17px] font-semibold tracking-tight text-care-ink leading-tight truncate">{pet?.name || ' '}</p>
+        <p className="text-care-lg font-semibold tracking-tight text-care-ink leading-tight truncate">{pet?.name || ' '}</p>
         {pet && (
-          <p className="text-[11.5px] text-care-sub truncate">
+          <p className="text-care-xs text-care-sub truncate">
             {[pet.breed || pet.species, pet.age != null && `${pet.age} yr${pet.age !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
           </p>
         )}
@@ -82,13 +82,13 @@ function PetUnavailable() {
         <span className="mx-auto mb-4 flex w-14 h-14 items-center justify-center rounded-full bg-care-bg ring-1 ring-care-line">
           <PawPrint size={24} className="text-care-faint" strokeWidth={1.8} />
         </span>
-        <h1 className="text-[19px] font-semibold text-care-ink">This pet isn't available</h1>
-        <p className="mt-2 text-[14px] text-care-sub">
+        <h1 className="text-care-lg font-semibold text-care-ink">This pet isn't available</h1>
+        <p className="mt-2 text-care-base text-care-sub">
           It may have been removed, or you may not have access. Check the link, or head back to your pets.
         </p>
         <Link
           href="/pets"
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-care-teal px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-care-tealDark transition-colors"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-care-teal px-5 py-2.5 text-care-base font-semibold text-white hover:bg-care-tealDark transition-colors"
         >
           <ArrowLeft size={16} /> Back to my pets
         </Link>
@@ -138,14 +138,14 @@ function PetShell({ children }) {
           {activeCase && (
             <Link
               href={`/mission-control?mission=${activeCase.caseNumber}`}
-              className="flex items-center gap-2 text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 hover:bg-red-100 transition-colors"
+              className="flex items-center gap-2 text-care-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 hover:bg-red-100 transition-colors"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {pet?.name} is missing
             </Link>
           )}
 
           <nav className="flex flex-col gap-0.5" aria-label="Pet sections">
-            <p className="px-2 pb-2 text-[10.5px] font-bold uppercase tracking-[0.16em] text-care-faint">Menu</p>
+            <p className="px-2 pb-2 text-care-xs font-bold uppercase tracking-[0.16em] text-care-faint">Menu</p>
             {TABS.map(({ id, label, icon: Icon }) => {
               const on = segment === id;
               return (
@@ -154,7 +154,7 @@ function PetShell({ children }) {
                   href={tabHref(id)}
                   aria-current={on ? 'page' : undefined}
                   className={cn(
-                    'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors',
+                    'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-care-sm font-medium transition-colors',
                     on ? 'bg-care-tealWash text-care-teal font-semibold' : 'text-care-sub hover:text-care-ink hover:bg-care-bg'
                   )}
                 >
@@ -168,7 +168,7 @@ function PetShell({ children }) {
 
           {allPets.length > 1 && (
             <div className="pt-5 border-t border-care-line">
-              <p className="px-2 pb-2 text-[10.5px] font-bold uppercase tracking-[0.16em] text-care-faint">Pets</p>
+              <p className="px-2 pb-2 text-care-xs font-bold uppercase tracking-[0.16em] text-care-faint">Pets</p>
               {allPets.map((p) => {
                 const on = p.id === petId;
                 return (
@@ -178,9 +178,9 @@ function PetShell({ children }) {
                     className={cn('flex items-center gap-3 px-2.5 py-2 rounded-xl', on ? 'bg-care-bg ring-1 ring-care-tealRing' : 'hover:bg-care-bg')}
                   >
                     <span className="w-7 h-7 rounded-full shrink-0 bg-gradient-to-br from-[#f1f6f4] to-[#e7efec] ring-1 ring-care-tealRing flex items-center justify-center overflow-hidden">
-                      {p.primaryPhotoUrl ? <img src={p.primaryPhotoUrl} alt="" className="w-full h-full object-cover" /> : <span className="font-serif text-[13px] font-semibold text-care-teal">{initials(p.name)}</span>}
+                      {p.primaryPhotoUrl ? <img src={p.primaryPhotoUrl} alt="" className="w-full h-full object-cover" /> : <span className="font-serif text-care-sm font-semibold text-care-teal">{initials(p.name)}</span>}
                     </span>
-                    <span className="text-[13px] font-semibold text-care-ink truncate">{p.name}</span>
+                    <span className="text-care-sm font-semibold text-care-ink truncate">{p.name}</span>
                     {activeCaseOf(p) && (
                       <span className="ml-auto w-2 h-2 rounded-full bg-red-500 shrink-0" title={`${p.name} is missing`} aria-label={`${p.name} is missing`} />
                     )}
@@ -190,7 +190,7 @@ function PetShell({ children }) {
             </div>
           )}
 
-          <Link href="/pets" className="mt-auto text-[12px] font-medium text-care-sub hover:text-care-ink transition-colors">
+          <Link href="/pets" className="mt-auto text-care-xs font-medium text-care-sub hover:text-care-ink transition-colors">
             All pets
           </Link>
         </aside>
@@ -199,7 +199,7 @@ function PetShell({ children }) {
         <div className="lg:hidden px-4 sm:px-6 pt-5 bg-care-surface border-b border-care-line">
           <PetIdentity pet={pet} />
           {activeCase && (
-            <Link href={`/mission-control?mission=${activeCase.caseNumber}`} className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
+            <Link href={`/mission-control?mission=${activeCase.caseNumber}`} className="inline-flex items-center gap-1.5 mt-3 text-care-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Missing
             </Link>
           )}
@@ -213,7 +213,7 @@ function PetShell({ children }) {
                   key={id}
                   href={tabHref(id)}
                   aria-current={on ? 'page' : undefined}
-                  className={cn('py-2.5 text-[13.5px] font-medium border-b-2 whitespace-nowrap transition-colors', on ? 'text-care-teal border-care-teal' : 'text-care-sub border-transparent')}
+                  className={cn('py-2.5 text-care-sm font-medium border-b-2 whitespace-nowrap transition-colors', on ? 'text-care-teal border-care-teal' : 'text-care-sub border-transparent')}
                 >
                   {label}
                 </Link>

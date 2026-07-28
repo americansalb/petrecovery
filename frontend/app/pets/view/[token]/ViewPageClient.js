@@ -27,8 +27,8 @@ import GoodStuff from '@/app/components/care/GoodStuff';
 import { formatSchedule, startOfDay } from '@/lib/medications';
 
 const primaryButton = 'w-full inline-flex items-center justify-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2.5 hover:bg-care-tealDark disabled:opacity-40 transition-colors';
-const quietSwitch = 'text-[13px] font-medium text-neutral-500 underline underline-offset-2 hover:text-neutral-900 transition-colors';
-const inputClass = 'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
+const quietSwitch = 'text-care-sm font-medium text-neutral-500 underline underline-offset-2 hover:text-neutral-900 transition-colors';
+const inputClass = 'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-care-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
 
 /* ------------------------------- Join modal ------------------------------- */
 
@@ -178,7 +178,7 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
                 {busy && <Loader2 size={16} className="animate-spin" />}
                 Create account and send request
               </button>
-              <p className="text-center text-[13px] text-neutral-500">
+              <p className="text-center text-care-sm text-neutral-500">
                 Already have an account?{' '}
                 <button type="button" onClick={() => { setMode('signin'); setError(null); }} className={quietSwitch}>
                   Sign in
@@ -202,7 +202,7 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
                 {busy && <Loader2 size={16} className="animate-spin" />}
                 Sign in and send request
               </button>
-              <p className="text-center text-[13px] text-neutral-500">
+              <p className="text-center text-care-sm text-neutral-500">
                 New here?{' '}
                 <button type="button" onClick={() => { setMode('signup'); setError(null); }} className={quietSwitch}>
                   Create an account
@@ -282,7 +282,7 @@ export default function PublicPetViewPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 truncate">{pet.name}</h1>
             {subline && <p className="text-sm text-neutral-500 truncate">{subline}</p>}
           </div>
-          <span className="text-[12px] font-medium text-neutral-500 border border-neutral-300 rounded-full px-2.5 py-0.5 shrink-0">
+          <span className="text-care-xs font-medium text-neutral-500 border border-neutral-300 rounded-full px-2.5 py-0.5 shrink-0">
             View only
           </span>
         </header>
@@ -307,15 +307,15 @@ export default function PublicPetViewPage() {
         {/* Medication list */}
         {active.length > 0 && (
           <section className="mt-10">
-            <h2 className="text-[13px] font-medium text-neutral-500">All medications</h2>
+            <h2 className="text-care-sm font-medium text-neutral-500">All medications</h2>
             <ul className="divide-y divide-neutral-100 mt-1">
               {active.map((med) => (
                 <li key={med.id} className="py-3">
-                  <p className="text-[15px] font-medium text-neutral-900">
+                  <p className="text-care-base font-medium text-neutral-900">
                     {med.name}
                     {med.strength && <span className="font-normal text-neutral-500"> · {med.strength}</span>}
                   </p>
-                  <p className="text-[13px] text-neutral-500 mt-0.5">{med.instructions || formatSchedule(med)}</p>
+                  <p className="text-care-sm text-neutral-500 mt-0.5">{med.instructions || formatSchedule(med)}</p>
                 </li>
               ))}
             </ul>
@@ -325,26 +325,26 @@ export default function PublicPetViewPage() {
         {/* The clinical facts a vet or sitter scans in 20 seconds */}
         {(data.vaccinations?.length > 0 || data.latestWeight || pet.vetName || pet.vetClinic || pet.vetPhone) && (
           <section className="mt-10">
-            <h2 className="text-[13px] font-medium text-neutral-500">For the vet</h2>
+            <h2 className="text-care-sm font-medium text-neutral-500">For the vet</h2>
             <dl className="divide-y divide-neutral-100 mt-1">
               {(pet.vetName || pet.vetClinic) && (
                 <div className="flex items-baseline justify-between gap-4 py-3">
-                  <dt className="text-[13px] text-neutral-500 shrink-0">Vet</dt>
-                  <dd className="text-[15px] text-neutral-900 text-right">
+                  <dt className="text-care-sm text-neutral-500 shrink-0">Vet</dt>
+                  <dd className="text-care-base text-neutral-900 text-right">
                     {[pet.vetName, pet.vetClinic].filter(Boolean).join(', ')}
                   </dd>
                 </div>
               )}
               {pet.vetPhone && (
                 <div className="flex items-baseline justify-between gap-4 py-3">
-                  <dt className="text-[13px] text-neutral-500 shrink-0">Phone</dt>
-                  <dd className="text-[15px] text-neutral-900 text-right tabular-nums">{pet.vetPhone}</dd>
+                  <dt className="text-care-sm text-neutral-500 shrink-0">Phone</dt>
+                  <dd className="text-care-base text-neutral-900 text-right tabular-nums">{pet.vetPhone}</dd>
                 </div>
               )}
               {data.latestWeight && (
                 <div className="flex items-baseline justify-between gap-4 py-3">
-                  <dt className="text-[13px] text-neutral-500 shrink-0">Weight</dt>
-                  <dd className="text-[15px] text-neutral-900 text-right tabular-nums">
+                  <dt className="text-care-sm text-neutral-500 shrink-0">Weight</dt>
+                  <dd className="text-care-base text-neutral-900 text-right tabular-nums">
                     {/* A vet scanning this must see that a weigh-in is old:
                         "May 28" with no year reads as recent forever. */}
                     {data.latestWeight.weightLbs} lbs · {new Date(data.latestWeight.recordedAt).toLocaleDateString([], {
@@ -357,12 +357,12 @@ export default function PublicPetViewPage() {
               )}
               {data.vaccinations?.length > 0 && (
                 <div className="flex items-baseline justify-between gap-4 py-3">
-                  <dt className="text-[13px] text-neutral-500 shrink-0">Vaccines</dt>
+                  <dt className="text-care-sm text-neutral-500 shrink-0">Vaccines</dt>
                   {/* This is the clinical face a vet or sitter reads, so each
                       vaccine states its status, not a bare date: an expired
                       shot must not read as current, and a no-expiry record
                       must not show its given date as if it were coverage. */}
-                  <dd className="text-[15px] text-neutral-900 text-right">
+                  <dd className="text-care-base text-neutral-900 text-right">
                     {/* One entry per vaccine (newest), worst standing first,
                         matching the owner-facing passport. */}
                     {rankVaccinations(latestPerName(data.vaccinations)).map((v, i) => {
@@ -389,7 +389,7 @@ export default function PublicPetViewPage() {
 
         {/* The clinical face carries the same soft disclosure the owner
             sees: this is family-kept data, not a clinic-verified record. */}
-        <p className="mt-8 text-[12px] text-neutral-400">
+        <p className="mt-8 text-care-xs text-neutral-400">
           This Health Book is kept by {pet.name}&apos;s people and isn&apos;t verified by a clinic.
           For anything official, ask for the paper certificate. In an emergency, call a vet first.
         </p>

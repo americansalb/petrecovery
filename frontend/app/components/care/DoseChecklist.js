@@ -34,7 +34,7 @@ export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo, day }) {
     <div className="flex items-center gap-3 py-3">
       <span
         className={cn(
-          'w-14 shrink-0 text-[13px] tabular-nums',
+          'w-14 shrink-0 text-care-sm tabular-nums',
           overdue ? 'text-red-600 font-medium' : 'text-neutral-500'
         )}
       >
@@ -42,17 +42,17 @@ export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo, day }) {
       </span>
 
       <div className="flex-1 min-w-0">
-        <p className={cn('text-[15px] font-medium truncate', handled ? 'text-neutral-400' : 'text-neutral-900')}>
+        <p className={cn('text-care-base font-medium truncate', handled ? 'text-neutral-400' : 'text-neutral-900')}>
           {med.name}
           {med.strength && <span className="font-normal text-neutral-400"> {med.strength}</span>}
         </p>
         {(med.instructions || overdue) && !handled && (
-          <p className="text-[13px] text-neutral-500 truncate">
+          <p className="text-care-sm text-neutral-500 truncate">
             {overdue ? 'Overdue' : med.instructions}
           </p>
         )}
         {slot.orphaned && handled && (
-          <p className="text-[13px] text-neutral-400 truncate">Logged off schedule</p>
+          <p className="text-care-sm text-neutral-400 truncate">Logged off schedule</p>
         )}
       </div>
 
@@ -61,29 +61,29 @@ export function DoseRow({ med, slot, busy, readOnly, onMark, onUndo, day }) {
       ) : handled ? (
         <span className="flex items-center gap-3 shrink-0">
           {given ? (
-            <span className="inline-flex items-center gap-1 text-[13px] text-emerald-600">
+            <span className="inline-flex items-center gap-1 text-care-sm text-emerald-600">
               <Check size={15} />
               {slot.dose?.givenAt ? new Date(slot.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Given'}
             </span>
           ) : (
-            <span className="text-[13px] text-neutral-400">Skipped</span>
+            <span className="text-care-sm text-neutral-400">Skipped</span>
           )}
           {!readOnly && (
             <button
               onClick={() => onUndo(med, slot)}
-              className="text-[13px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
+              className="text-care-sm font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
             >
               Undo
             </button>
           )}
         </span>
       ) : readOnly ? (
-        <span className="text-[13px] text-neutral-400 shrink-0">Due</span>
+        <span className="text-care-sm text-neutral-400 shrink-0">Due</span>
       ) : (
         <span className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => onMark(med, slot, 'SKIPPED')}
-            className="text-[13px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
+            className="text-care-sm font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
             aria-label={`Skip ${med.name} at ${formatTime(slot.time)}`}
           >
             Skip
@@ -111,7 +111,7 @@ export function PrnSection({ meds, day, busyKeys, readOnly, onLogPrnNow, onUndoP
 
   return (
     <section className="mt-8">
-      <p className="text-[13px] font-medium text-neutral-500 mb-1">As needed</p>
+      <p className="text-care-sm font-medium text-neutral-500 mb-1">As needed</p>
       <div className="divide-y divide-neutral-100">
         {meds.map((med) => {
           const count = (med.doses || []).filter(
@@ -121,19 +121,19 @@ export function PrnSection({ meds, day, busyKeys, readOnly, onLogPrnNow, onUndoP
           return (
             <div key={med.id} className="flex items-center gap-3 py-3">
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-medium text-neutral-900 truncate">
+                <p className="text-care-base font-medium text-neutral-900 truncate">
                   {med.name}
                   {med.strength && <span className="font-normal text-neutral-400"> {med.strength}</span>}
                 </p>
                 {count > 0 && (
-                  <p className="text-[13px] text-neutral-500">
+                  <p className="text-care-sm text-neutral-500">
                     {count} given {isToday ? 'today' : 'this day'}
                   </p>
                 )}
               </div>
 
               {readOnly ? (
-                count > 0 && <span className="text-[13px] text-emerald-600 shrink-0">{count} given</span>
+                count > 0 && <span className="text-care-sm text-emerald-600 shrink-0">{count} given</span>
               ) : busy ? (
                 <Loader2 className="w-4 h-4 animate-spin text-neutral-400" />
               ) : isToday ? (
@@ -141,7 +141,7 @@ export function PrnSection({ meds, day, busyKeys, readOnly, onLogPrnNow, onUndoP
                   {count > 0 && (
                     <button
                       onClick={() => onUndoPrnLast(med)}
-                      className="text-[13px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
+                      className="text-care-sm font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
                       aria-label={`Undo last ${med.name}`}
                     >
                       Undo
@@ -217,13 +217,13 @@ export function DayChecklist({
     <section className="mb-2">
       {!isToday && (
         <div className="flex items-center justify-between gap-3 mb-2">
-          <p className="text-[13px] font-medium text-neutral-500">
+          <p className="text-care-sm font-medium text-neutral-500">
             {day.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
           </p>
           {onBackToToday && (
             <button
               onClick={onBackToToday}
-              className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+              className="text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
             >
               Back to today
             </button>
@@ -238,13 +238,13 @@ export function DayChecklist({
       )}
 
       {pending.length === 0 && slots.length > 0 && (
-        <p className="text-[15px] text-neutral-500 py-3">
+        <p className="text-care-base text-neutral-500 py-3">
           {isToday ? 'All doses given.' : 'Nothing left for this day.'}
         </p>
       )}
 
       {slots.length === 0 && !isToday && (
-        <p className="text-[15px] text-neutral-500 py-3">Nothing was scheduled this day.</p>
+        <p className="text-care-base text-neutral-500 py-3">Nothing was scheduled this day.</p>
       )}
 
       <PrnSection
@@ -259,7 +259,7 @@ export function DayChecklist({
 
       {done.length > 0 && (
         <div className="mt-8">
-          <p className="text-[13px] font-medium text-neutral-500 mb-1">Done</p>
+          <p className="text-care-sm font-medium text-neutral-500 mb-1">Done</p>
           <div className="divide-y divide-neutral-100">
             {done.map(rowFor)}
           </div>

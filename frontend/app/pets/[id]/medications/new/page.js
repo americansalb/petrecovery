@@ -24,11 +24,17 @@ import {
   SCHEDULE_OPTIONS, WEEKDAYS, medColor, formatSchedule,
 } from '@/lib/medications';
 
+/**
+ * Only the first step is required. Everything after it has a working
+ * default (daily at 8am, no supply tracking, an icon derived from the
+ * form), so saving is available the moment there is a name - the wizard
+ * is a path for people who want the detail, never a toll gate.
+ */
 const STEPS = [
   { key: 'what', label: 'What' },
-  { key: 'schedule', label: 'Schedule' },
-  { key: 'supply', label: 'Supply' },
-  { key: 'look', label: 'Look' },
+  { key: 'schedule', label: 'Schedule', optional: true },
+  { key: 'supply', label: 'Supply', optional: true },
+  { key: 'look', label: 'Style', optional: true },
 ];
 
 const TIME_PRESETS = [
@@ -59,17 +65,17 @@ const EMPTY_FORM = {
 };
 
 const inputClass =
-  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
+  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-care-base text-neutral-900 ' +
   'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal transition-colors';
 
-const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
+const labelClass = 'block text-care-sm font-medium text-neutral-700 mb-1.5';
 
 function Field({ label, hint, required, children }) {
   return (
     <label className="block">
       <span className={labelClass}>
         {label} {required && <span className="text-red-600">*</span>}
-        {hint && <span className="block font-normal text-[13px] text-neutral-400 mt-0.5">{hint}</span>}
+        {hint && <span className="block font-normal text-care-sm text-neutral-400 mt-0.5">{hint}</span>}
       </span>
       {children}
     </label>
@@ -231,7 +237,10 @@ function MedicationWizard() {
     return true;
   }, [step, form]);
 
+  const canSave = form.name.trim().length > 0;
+
   const save = async () => {
+    if (!canSave || saving) return;
     setSaving(true);
     setError(null);
     try {
@@ -295,7 +304,10 @@ function MedicationWizard() {
       <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-1">
         {editId ? `Edit ${form.name || 'medication'}` : 'Add a medication'}
       </h1>
-      <p className="text-[13px] text-neutral-500 mb-6">Step {step + 1} of {STEPS.length}, {STEPS[step].label}</p>
+      <p className="text-care-sm text-neutral-500 mb-6">
+        Step {step + 1} of {STEPS.length}, {STEPS[step].label}
+        {STEPS[step].optional && <span className="text-neutral-400"> (optional)</span>}
+      </p>
 
       {/* Progress segments */}
       <div className="flex gap-1.5 mb-8" role="list" aria-label="Wizard progress">
@@ -327,7 +339,7 @@ function MedicationWizard() {
               className={cn(inputClass, 'resize-none')}
             />
             <div className="flex items-center justify-between gap-3 mt-2.5 flex-wrap">
-              <p className="text-[13px] text-neutral-500">We'll fill the fields below. You stay in control.</p>
+              <p className="text-care-sm text-neutral-500">We'll fill the fields below. You stay in control.</p>
               <button
                 type="button"
                 onClick={runSmartFill}
@@ -338,10 +350,24 @@ function MedicationWizard() {
               </button>
             </div>
             {parseNote && (
-              <p className={cn('mt-2.5 text-[13px]', parseNote.tone === 'ok' ? 'text-emerald-600' : 'text-red-600')}>
+              <p className={cn('mt-2.5 text-care-sm', parseNote.tone === 'ok' ? 'text-emerald-600' : 'text-red-600')}>
                 {parseNote.text}
                 {parseNote.source === 'ai' && <span className="text-neutral-400"> (read by AI)</span>}
               </p>
+            )}
+            {/* A good parse already knows the whole prescription. Making it
+                walk three more screens to save wastes the one feature that
+                removes the typing. */}
+            {parseNote?.tone === 'ok' && form.name.trim() && (
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="mt-3 inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-semibold px-5 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-50"
+              >
+                {saving && <Loader2 size={14} className="animate-spin" />}
+                Looks right, save it
+              </button>
             )}
           </div>
           )}
@@ -381,7 +407,7 @@ function MedicationWizard() {
           </Field>
 
           {form.scheduleType === 'AS_NEEDED' ? (
-            <p className="text-[15px] text-neutral-600 rounded-lg bg-neutral-50 px-4 py-3">
+            <p className="text-care-base text-neutral-600 rounded-lg bg-neutral-50 px-4 py-3">
               No fixed schedule. You'll get a <span className="font-medium text-neutral-900">Give</span> button on Today for whenever you give it.
             </p>
           ) : (
@@ -421,7 +447,7 @@ function MedicationWizard() {
                       onChange={(e) => set({ intervalDays: e.target.value })}
                       className={cn(inputClass, 'w-24')}
                     />
-                    <span className="text-[15px] text-neutral-600">
+                    <span className="text-care-base text-neutral-600">
                       days {Number(form.intervalDays) === 2 && '(every other day)'}
                       {Number(form.intervalDays) === 7 && '(weekly)'}
                       {Number(form.intervalDays) === 30 && '(monthly)'}
@@ -477,7 +503,7 @@ function MedicationWizard() {
                     <button
                       type="button"
                       onClick={() => set({ timesOfDay: [...form.timesOfDay, '12:00'] })}
-                      className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+                      className="inline-flex items-center gap-1 text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
                     >
                       <Plus size={14} /> Add another time
                     </button>
@@ -501,7 +527,7 @@ function MedicationWizard() {
       {/* Step 3: Supply */}
       {step === 2 && (
         <div className="space-y-5">
-          <p className="text-[13px] text-neutral-500">
+          <p className="text-care-sm text-neutral-500">
             All optional. Tell us what's in the bottle and we'll count down with every dose and warn you before it runs out.
           </p>
           <div className="grid grid-cols-2 gap-4">
@@ -571,12 +597,12 @@ function MedicationWizard() {
                 <MedIconChip med={previewMed} size="lg" />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[15px] font-medium text-neutral-900">{form.name || 'Medication'}</span>
-                    {form.strength && <span className="text-[13px] text-neutral-400">{form.strength}</span>}
+                    <span className="text-care-base font-medium text-neutral-900">{form.name || 'Medication'}</span>
+                    {form.strength && <span className="text-care-sm text-neutral-400">{form.strength}</span>}
                   </div>
-                  {form.purpose && <p className="text-[13px] text-neutral-500 mt-0.5">{form.purpose}</p>}
-                  <p className="text-[13px] text-neutral-600 mt-1">{formatSchedule(previewMed)}</p>
-                  {form.instructions && <p className="text-[13px] text-neutral-500 mt-0.5">{form.instructions}</p>}
+                  {form.purpose && <p className="text-care-sm text-neutral-500 mt-0.5">{form.purpose}</p>}
+                  <p className="text-care-sm text-neutral-600 mt-1">{formatSchedule(previewMed)}</p>
+                  {form.instructions && <p className="text-care-sm text-neutral-500 mt-0.5">{form.instructions}</p>}
                 </div>
               </div>
             </div>
@@ -590,32 +616,48 @@ function MedicationWizard() {
           <button
             type="button"
             onClick={() => setStep(step - 1)}
-            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+            className="inline-flex items-center gap-1.5 text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
           >
             <ArrowLeft size={15} /> Back
           </button>
         ) : <span />}
 
-        {step < STEPS.length - 1 ? (
-          <button
-            type="button"
-            onClick={() => setStep(step + 1)}
-            disabled={!stepValid}
-            className="rounded-full bg-care-teal text-white text-sm font-medium px-5 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-40"
-          >
-            Continue
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={save}
-            disabled={!form.name.trim() || saving}
-            className="inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-5 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-50"
-          >
-            {saving && <Loader2 size={14} className="animate-spin" />}
-            {editId ? 'Save changes' : 'Add medication'}
-          </button>
-        )}
+        {/* Saving is never gated behind the optional steps: the old flow put
+            the only save button on step 4, so adding a pill meant walking a
+            colour picker, and editing one dose time meant the same trip. */}
+        <div className="flex items-center gap-2.5">
+          {step < STEPS.length - 1 && canSave && (
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-full border border-care-teal text-care-teal text-sm font-semibold px-5 py-2 hover:bg-care-tealWash transition-colors disabled:opacity-50"
+            >
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              {editId ? 'Save changes' : 'Save'}
+            </button>
+          )}
+          {step < STEPS.length - 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep(step + 1)}
+              disabled={!stepValid}
+              className="rounded-full bg-care-teal text-white text-sm font-semibold px-5 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-40"
+            >
+              Continue
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={save}
+              disabled={!canSave || saving}
+              className="inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-semibold px-5 py-2 hover:bg-care-tealDark transition-colors disabled:opacity-50"
+            >
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              {editId ? 'Save changes' : 'Add medication'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -90,7 +90,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
             )}
           >
             <CareIconChip name={a.label} color={a.color} size="sm" />
-            <span className="text-[12px] font-medium text-neutral-700">{a.label}</span>
+            <span className="text-care-xs font-medium text-neutral-700">{a.label}</span>
           </button>
         ))}
         <button
@@ -101,7 +101,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
           )}
         >
           <CareIconChip name="" color="slate" size="sm" />
-          <span className="text-[12px] font-medium text-neutral-700">Custom</span>
+          <span className="text-care-xs font-medium text-neutral-700">Custom</span>
         </button>
       </div>
 
@@ -110,7 +110,7 @@ export function AddCareModal({ petId, onClose, onSaved }) {
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}
           placeholder="Name it (belly rubs, garden patrol)"
-          className="w-full mb-4 rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal"
+          className="w-full mb-4 rounded-lg border border-neutral-300 px-3.5 py-2.5 text-care-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-care-teal"
         />
       )}
 
@@ -333,20 +333,20 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
       )}
 
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="text-[13px] font-medium text-neutral-500">Routines</p>
+        <p className="text-care-sm font-medium text-neutral-500">Routines</p>
         {interactive && (
           <span className="flex items-center gap-4">
             {careItems.length > 0 && (
               <button
                 onClick={() => setManaging(!managing)}
-                className="text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+                className="text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
               >
                 {managing ? 'Done' : 'Manage'}
               </button>
             )}
             <button
               onClick={() => setShowAdd(true)}
-              className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
+              className="inline-flex items-center gap-1 text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors"
             >
               <Plus size={13} /> Add
             </button>
@@ -362,8 +362,8 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
             <div key={care.id} className={cn('flex items-center gap-3 py-3', !care.isActive && 'opacity-50')}>
               <CareIconChip name={care.name} color={care.color} size="sm" />
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-medium text-neutral-900 truncate">{care.name}</p>
-                <p className="text-[13px] text-neutral-500 truncate">{formatSchedule(care)}{!care.isActive && ', paused'}</p>
+                <p className="text-care-base font-medium text-neutral-900 truncate">{care.name}</p>
+                <p className="text-care-sm text-neutral-500 truncate">{formatSchedule(care)}{!care.isActive && ', paused'}</p>
               </div>
               <button
                 onClick={() => togglePause(care)}
@@ -418,9 +418,9 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
               <div key={care.id} className="flex items-center gap-3 py-3">
                 <CareIconChip name={care.name} color={care.color} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-medium text-neutral-900 truncate">{care.name}</p>
+                  <p className="text-care-base font-medium text-neutral-900 truncate">{care.name}</p>
                   {slots.length > 1 && (
-                    <p className="text-[13px] text-neutral-500">{doneCount} of {slots.length} today</p>
+                    <p className="text-care-sm text-neutral-500">{doneCount} of {slots.length} today</p>
                   )}
                 </div>
                 <span className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -435,7 +435,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
                         title={!interactive ? undefined : done ? `Undo ${formatTime(slot.time)}` : `Mark ${formatTime(slot.time)} done`}
                         aria-label={`${care.name} ${formatTime(slot.time)}${done ? ', done, tap to undo' : ''}`}
                         className={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[13px] font-medium tabular-nums transition-colors',
+                          'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-care-sm font-medium tabular-nums transition-colors',
                           done
                             ? 'bg-emerald-600 text-white border-emerald-600'
                             : 'border-neutral-300 text-neutral-700',
@@ -461,11 +461,11 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
               <div key={care.id} className="flex items-center gap-3 py-3">
                 <CareIconChip name={care.name} color={care.color} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-medium text-neutral-900 truncate">{care.name}</p>
-                  {count > 0 && <p className="text-[13px] text-neutral-500">{count} today</p>}
+                  <p className="text-care-base font-medium text-neutral-900 truncate">{care.name}</p>
+                  {count > 0 && <p className="text-care-sm text-neutral-500">{count} today</p>}
                 </div>
                 {readOnly ? (
-                  count > 0 && <span className="text-[13px] text-emerald-600">{count} today</span>
+                  count > 0 && <span className="text-care-sm text-emerald-600">{count} today</span>
                 ) : busy ? (
                   <Loader2 size={16} className="animate-spin text-neutral-400" />
                 ) : (
@@ -474,7 +474,7 @@ export default function GoodStuff({ petId, meds, setMeds, canManage, readOnly = 
                       <button
                         onClick={() => undoPrn(care)}
                         aria-label={`Undo last ${care.name}`}
-                        className="text-[13px] font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
+                        className="text-care-sm font-medium text-neutral-400 hover:text-neutral-900 transition-colors"
                       >
                         Undo
                       </button>

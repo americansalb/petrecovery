@@ -54,11 +54,11 @@ export default function WeekStrip({ meds, selectedDay, onSelectDay }) {
                 isSelected ? 'border-care-teal bg-neutral-50' : 'border-neutral-200 hover:border-neutral-400'
               )}
             >
-              <span className="text-[12px] font-medium text-neutral-500">
+              <span className="text-care-xs font-medium text-neutral-500">
                 {isToday ? 'Today' : day.toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}
               </span>
               <span className={cn(
-                'text-[13px] tabular-nums',
+                'text-care-sm tabular-nums',
                 complete ? 'text-emerald-600' : due ? 'text-neutral-900' : 'text-neutral-300'
               )}>
                 {due ? `${given}/${due}` : '.'}

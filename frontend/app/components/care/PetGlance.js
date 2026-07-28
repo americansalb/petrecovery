@@ -65,7 +65,7 @@ export default function PetGlance({
       <div className="flex items-center justify-between">
         <Overline>{heading || `Is ${petName} OK?`}</Overline>
         {healthHref && (
-          <Link href={healthHref} className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-care-teal">
+          <Link href={healthHref} className="inline-flex items-center gap-0.5 text-care-xs font-semibold text-care-teal">
             Health <ChevronRight size={13} />
           </Link>
         )}
@@ -76,9 +76,9 @@ export default function PetGlance({
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <span className="flex items-center gap-2.5">
             <span className="w-7 h-7 rounded-lg bg-care-tealWash text-care-teal flex items-center justify-center"><Syringe size={15} /></span>
-            <b className="text-[13.5px] font-semibold text-care-ink">Vaccines</b>
+            <b className="text-care-sm font-semibold text-care-ink">Vaccines</b>
           </span>
-          <span className="text-[11.5px] text-care-sub">
+          <span className="text-care-xs text-care-sub">
             {withExpiry.length
               ? <><b className="text-care-ink font-semibold">{vaxCurrent}</b> of {withExpiry.length} current</>
               : `${vaccinations.length} on file`}
@@ -96,28 +96,28 @@ export default function PetGlance({
                 ) : (
                   <Check size={16} className="text-care-teal shrink-0" />
                 )}
-                <span className="flex-1 min-w-0 text-[13px] font-semibold text-care-ink truncate">{v.name}</span>
+                <span className="flex-1 min-w-0 text-care-sm font-semibold text-care-ink truncate">{v.name}</span>
                 {st === 'EXPIRED' ? (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-2 py-1 shrink-0">
+                  <span className="inline-flex items-center gap-1.5 text-care-xs font-semibold text-red-700 bg-red-50 ring-1 ring-red-200 rounded-lg px-2 py-1 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
                     Expired {v.expiresAt ? shortMonth(v.expiresAt) : ''}
                   </span>
                 ) : st === 'DUE_SOON' ? (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-care-amber bg-care-amberWash ring-1 ring-care-amberLine rounded-lg px-2 py-1 shrink-0">
+                  <span className="inline-flex items-center gap-1.5 text-care-xs font-semibold text-care-amber bg-care-amberWash ring-1 ring-care-amberLine rounded-lg px-2 py-1 shrink-0">
                     <span className="w-1.5 h-1.5 rounded-full bg-care-amber" />
                     Due {v.expiresAt ? shortMonth(v.expiresAt) : 'soon'}
                   </span>
                 ) : (
                   // A vaccine with no expiry on file is "on file", never "to <given date>":
                   // the given date is in the past and reads as false coverage.
-                  <span className="text-[11.5px] text-care-sub shrink-0">
+                  <span className="text-care-xs text-care-sub shrink-0">
                     {v.expiresAt ? <>to <b className="text-care-ink font-semibold">{shortMonth(v.expiresAt)}</b></> : 'on file'}
                   </span>
                 )}
               </div>
             );
           })}
-          {liveVax.length === 0 && <p className="text-[12.5px] text-care-sub py-2.5">None on file yet.</p>}
+          {liveVax.length === 0 && <p className="text-care-sm text-care-sub py-2.5">None on file yet.</p>}
         </div>
       </Card>
       )}
@@ -129,28 +129,28 @@ export default function PetGlance({
           {latestWeight ? (
             <>
               <div className="flex items-baseline gap-1 mt-2.5">
-                <span className="text-[27px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">{latestWeight.weightLbs}</span>
-                <span className="text-[12px] text-care-sub">lb</span>
+                <span className="text-care-2xl font-semibold tracking-tight text-care-ink tabular-nums leading-none">{latestWeight.weightLbs}</span>
+                <span className="text-care-xs text-care-sub">lb</span>
               </div>
               {/* Real window, not a hardcoded "6 mo": the delta is latest vs
                   the oldest entry in the last 90 days, labelled with the
                   actual span between them. */}
               {weightTrend?.delta != null && weightTrend.delta !== 0 && (
-                <div className="flex items-center gap-1 mt-2 text-[11px] text-care-teal font-semibold">
+                <div className="flex items-center gap-1 mt-2 text-care-xs text-care-teal font-semibold">
                   <TrendingDown size={12} className={weightTrend.delta > 0 ? 'rotate-180' : ''} />
                   {Math.abs(weightTrend.delta)} lb · {weightTrend.spanLabel}
                 </div>
               )}
             </>
-          ) : <p className="text-[12px] text-care-sub mt-2.5">Not logged</p>}
+          ) : <p className="text-care-xs text-care-sub mt-2.5">Not logged</p>}
         </Card>
         <Card className="p-4">
           <Overline>Active meds</Overline>
           <div className="flex items-baseline gap-1 mt-2.5">
-            <span className="text-[27px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">{activeMeds.length}</span>
-            <span className="text-[12px] text-care-sub">meds</span>
+            <span className="text-care-2xl font-semibold tracking-tight text-care-ink tabular-nums leading-none">{activeMeds.length}</span>
+            <span className="text-care-xs text-care-sub">meds</span>
           </div>
-          {lowCount > 0 && <div className="mt-2 text-[11px] text-care-amber font-semibold">{lowCount} low on supply</div>}
+          {lowCount > 0 && <div className="mt-2 text-care-xs text-care-amber font-semibold">{lowCount} low on supply</div>}
         </Card>
       </div>
       )}
@@ -160,19 +160,19 @@ export default function PetGlance({
           <span className="w-8 h-8 rounded-[9px] bg-[#f4f5f4] text-care-sub flex items-center justify-center shrink-0"><Heart size={16} /></span>
           <div className="min-w-0">
             <Overline>Medical note</Overline>
-            <p className="text-[13.5px] font-semibold text-care-ink truncate mt-0.5">{pet.medicalConditions}</p>
+            <p className="text-care-sm font-semibold text-care-ink truncate mt-0.5">{pet.medicalConditions}</p>
           </div>
         </Card>
       )}
 
       {wants('vet') && (pet?.vetName || pet?.vetClinic || pet?.vetPhone) && (
         <Card className="flex items-center gap-3 p-4">
-          <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">{initialsOf(pet.vetName || pet.vetClinic)}</span>
+          <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-care-lg font-semibold">{initialsOf(pet.vetName || pet.vetClinic)}</span>
           <div className="flex-1 min-w-0">
             <Overline>Primary vet</Overline>
             {/* A phone number alone is still a reachable vet - never hide it. */}
-            <b className="block text-[14.5px] font-semibold text-care-ink mt-0.5 truncate">{pet.vetName || pet.vetClinic || pet.vetPhone}</b>
-            <span className="text-[11.5px] text-care-sub truncate block">{[pet.vetClinic, (pet.vetName || pet.vetClinic) ? pet.vetPhone : null].filter(Boolean).join(' · ')}</span>
+            <b className="block text-care-base font-semibold text-care-ink mt-0.5 truncate">{pet.vetName || pet.vetClinic || pet.vetPhone}</b>
+            <span className="text-care-xs text-care-sub truncate block">{[pet.vetClinic, (pet.vetName || pet.vetClinic) ? pet.vetPhone : null].filter(Boolean).join(' · ')}</span>
           </div>
           {pet.vetPhone && (
             <a href={`tel:${pet.vetPhone}`} aria-label="Call clinic" className="w-11 h-11 rounded-[13px] bg-care-teal text-white flex items-center justify-center shrink-0 hover:bg-care-tealDark transition-colors">

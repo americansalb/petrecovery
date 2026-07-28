@@ -56,7 +56,7 @@ export default function Ring({
         {label !== undefined ? (
           <>
             <span className="text-[26px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">{label}</span>
-            {sublabel && <span className="text-[11px] font-medium text-care-sub uppercase tracking-wide mt-1">{sublabel}</span>}
+            {sublabel && <span className="text-care-xs font-medium text-care-sub uppercase tracking-wide mt-1">{sublabel}</span>}
           </>
         ) : (
           <span className="text-[26px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">

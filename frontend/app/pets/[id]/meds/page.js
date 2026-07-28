@@ -74,9 +74,9 @@ function MedsInner() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-3xl">
       <div className="flex items-end justify-between gap-3 mb-4">
-        <h1 className="text-[24px] font-semibold tracking-tight text-care-ink">Medications</h1>
+        <h1 className="text-care-2xl font-semibold tracking-tight text-care-ink">Medications</h1>
         {canManage && (
-          <Link href={`/pets/${petId}/medications/new`} className="inline-flex items-center gap-1.5 rounded-xl bg-care-teal text-white text-[13.5px] font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors">
+          <Link href={`/pets/${petId}/medications/new`} className="inline-flex items-center gap-1.5 rounded-xl bg-care-teal text-white text-care-sm font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors">
             <Plus size={15} /> Add
           </Link>
         )}
@@ -99,7 +99,7 @@ function MedsInner() {
         meds.length === 0 ? (
           <Card className="text-center py-12 px-6">
             <p className="text-[16px] font-semibold text-care-ink">No medications yet</p>
-            <p className="text-[14px] text-care-sub mt-1 mb-5">Add one and log doses with a tap on Today.</p>
+            <p className="text-care-base text-care-sub mt-1 mb-5">Add one and log doses with a tap on Today.</p>
             {canManage && <Link href={`/pets/${petId}/medications/new`} className="inline-flex items-center gap-2 rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"><Plus size={16} /> Add a medication</Link>}
           </Card>
         ) : (
@@ -118,7 +118,7 @@ function MedsInner() {
               </div>
             )}
             <div className="flex justify-end">
-              <a href={`/api/pets/${petId}/medications/export`} download className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors" title="Download a full backup of all medication data">Download backup</a>
+              <a href={`/api/pets/${petId}/medications/export`} download className="text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors" title="Download a full backup of all medication data">Download backup</a>
             </div>
           </div>
         )
@@ -129,7 +129,7 @@ function MedsInner() {
             <ActivityFeed meds={meds} />
           </Card>
           <div className="flex justify-end">
-            <a href={`/api/pets/${petId}/medications/export`} download className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors" title="Download the complete medication and dose record">Download the full record</a>
+            <a href={`/api/pets/${petId}/medications/export`} download className="text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors" title="Download the complete medication and dose record">Download the full record</a>
           </div>
         </div>
       )}

@@ -28,7 +28,7 @@ export function CardGrid({ className, children }) {
 
 /** Small uppercase eyebrow label used across the care surfaces. */
 export function Overline({ className, children }) {
-  return <p className={cn('text-[10.5px] font-bold uppercase tracking-[0.16em] text-care-faint', className)}>{children}</p>;
+  return <p className={cn('text-care-xs font-bold uppercase tracking-[0.16em] text-care-faint', className)}>{children}</p>;
 }
 
 /** A stat: big number + label + optional sub, the Health-summary building block. */
@@ -39,10 +39,10 @@ export function Stat({ label, value, unit, sub, subTone = 'sub', trailing }) {
       <div className="min-w-0">
         <Overline>{label}</Overline>
         <div className="flex items-baseline gap-1 mt-2.5">
-          <span className="text-[27px] font-semibold tracking-tight text-care-ink tabular-nums leading-none">{value}</span>
-          {unit && <span className="text-[12px] text-care-sub font-medium">{unit}</span>}
+          <span className="text-care-2xl font-semibold tracking-tight text-care-ink tabular-nums leading-none">{value}</span>
+          {unit && <span className="text-care-xs text-care-sub font-medium">{unit}</span>}
         </div>
-        {sub && <p className={cn('text-[11.5px] mt-2', subColor)}>{sub}</p>}
+        {sub && <p className={cn('text-care-xs mt-2', subColor)}>{sub}</p>}
       </div>
       {trailing && <div className="shrink-0">{trailing}</div>}
     </div>

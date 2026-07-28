@@ -29,8 +29,8 @@ function Rows({ children }) {
 function Row({ label, value, missing, editHref, first }) {
   return (
     <div className={`flex items-start justify-between gap-4 px-5 py-3.5 ${!first ? 'border-t border-care-lineSoft' : ''}`}>
-      <dt className="text-[13px] text-care-sub shrink-0 pt-0.5">{label}</dt>
-      <dd className="text-[14.5px] text-care-ink text-right min-w-0">
+      <dt className="text-care-sm text-care-sub shrink-0 pt-0.5">{label}</dt>
+      <dd className="text-care-base text-care-ink text-right min-w-0">
         {value || (editHref ? <Link href={editHref} className="inline-flex items-center gap-0.5 text-care-sub hover:text-care-ink">Add<ChevronRight size={13} /></Link> : <span className="text-care-faint">{missing || 'Not noted'}</span>)}
       </dd>
     </div>
@@ -72,8 +72,8 @@ function ProfileInner() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-3xl">
       <div className="flex items-end justify-between gap-3 mb-4">
-        <h1 className="text-[24px] font-semibold tracking-tight text-care-ink">Profile</h1>
-        {isOwner && <Link href={`/pets/${petId}/edit`} className="inline-flex items-center gap-1.5 rounded-xl border border-care-line text-[13.5px] font-semibold text-care-ink px-4 py-2 hover:border-care-ink transition-colors"><Pencil size={14} /> Edit</Link>}
+        <h1 className="text-care-2xl font-semibold tracking-tight text-care-ink">Profile</h1>
+        {isOwner && <Link href={`/pets/${petId}/edit`} className="inline-flex items-center gap-1.5 rounded-xl border border-care-line text-care-sm font-semibold text-care-ink px-4 py-2 hover:border-care-ink transition-colors"><Pencil size={14} /> Edit</Link>}
       </div>
 
       <SubTabs
@@ -93,7 +93,7 @@ function ProfileInner() {
             <div>
               <Overline className="mb-2.5">Personality</Overline>
               <div className="flex flex-wrap gap-2">
-                {personality.map((t) => <span key={t} className="text-[13px] px-3 py-1 rounded-full bg-care-surface shadow-care text-care-ink">{t}</span>)}
+                {personality.map((t) => <span key={t} className="text-care-sm px-3 py-1 rounded-full bg-care-surface shadow-care text-care-ink">{t}</span>)}
               </div>
             </div>
           )}
@@ -108,8 +108,8 @@ function ProfileInner() {
             <Row label="Collar & tag" value={pet.collarInfo} editHref={anchored('identification')} />
             <Row label="Distinctive marks" value={pet.distinctiveMarks} editHref={anchored('appearance')} />
             <div className="flex items-start justify-between gap-4 px-5 py-3.5 border-t border-care-lineSoft">
-              <dt className="text-[13px] text-care-sub shrink-0 pt-0.5">Medical</dt>
-              <dd className="text-[14.5px] text-right min-w-0">{pet.medicalConditions ? <span className="text-red-600 font-medium">{pet.medicalConditions}</span> : (editHref ? <Link href={anchored('medical')} className="inline-flex items-center gap-0.5 text-care-sub hover:text-care-ink">Add<ChevronRight size={13} /></Link> : <span className="text-care-faint">None noted</span>)}</dd>
+              <dt className="text-care-sm text-care-sub shrink-0 pt-0.5">Medical</dt>
+              <dd className="text-care-base text-right min-w-0">{pet.medicalConditions ? <span className="text-red-600 font-medium">{pet.medicalConditions}</span> : (editHref ? <Link href={anchored('medical')} className="inline-flex items-center gap-0.5 text-care-sub hover:text-care-ink">Add<ChevronRight size={13} /></Link> : <span className="text-care-faint">None noted</span>)}</dd>
             </div>
           </Rows>
         </div>
@@ -122,7 +122,7 @@ function ProfileInner() {
           </div>
         ) : (
           <Card className="text-center py-12 px-6">
-            <p className="text-[15px] text-care-sub">No photos yet.</p>
+            <p className="text-care-base text-care-sub">No photos yet.</p>
             {isOwner && <Link href={`/pets/${petId}/edit`} className="inline-flex items-center gap-2 mt-4 rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"><Pencil size={15} /> Add photos</Link>}
           </Card>
         )

@@ -321,8 +321,8 @@ export default function TodayPage() {
            with two expired vaccines look perfectly fine on Today. */
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-5">
           <Card className="text-center py-12 mt-2 px-6 self-start">
-            <p className="text-[17px] font-semibold text-care-ink">No medications to track yet</p>
-            <p className="text-[14px] text-care-sub mt-1 mb-5">Add a medication and check off doses with a tap.</p>
+            <p className="text-care-lg font-semibold text-care-ink">No medications to track yet</p>
+            <p className="text-care-base text-care-sub mt-1 mb-5">Add a medication and check off doses with a tap.</p>
             {canManage && <Link href={`/pets/${petId}/medications/new`} className="inline-flex items-center gap-2 rounded-xl bg-care-teal text-white text-sm font-semibold px-5 py-2.5 hover:bg-care-tealDark transition-colors"><Plus size={16} /> Add a medication</Link>}
           </Card>
           <PetGlance
@@ -340,12 +340,12 @@ export default function TodayPage() {
             <div className="flex items-end justify-between">
               <div>
                 <Overline>{greeting}</Overline>
-                <h1 className="text-[24px] font-semibold tracking-tight text-care-ink leading-none mt-1.5">
+                <h1 className="text-care-2xl font-semibold tracking-tight text-care-ink leading-none mt-1.5">
                   Today <span className="text-care-faint font-medium">· {now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                 </h1>
               </div>
               <div className="hidden sm:flex items-center gap-2 text-care-sub">
-                <Clock size={16} /><b className="text-[13px] font-semibold text-care-ink">{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</b>
+                <Clock size={16} /><b className="text-care-sm font-semibold text-care-ink">{now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</b>
               </div>
             </div>
 
@@ -354,31 +354,31 @@ export default function TodayPage() {
               <section className="relative overflow-hidden rounded-[24px] text-white p-6 sm:p-7 shadow-care-hero"
                 style={{ background: 'radial-gradient(120% 130% at 88% -10%, rgba(169,221,210,.18), transparent 52%), linear-gradient(158deg,#0f5750 0%,#0b433c 100%)' }}>
                 <div className="flex items-center justify-between mb-5">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.13] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.13em]">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.13] px-3 py-1.5 text-care-xs font-bold uppercase tracking-[0.13em]">
                     <span className="w-1.5 h-1.5 rounded-full bg-care-mint" /> {focusOverdue ? 'Overdue' : 'Up next'}
                   </span>
                   <div className="text-right">
-                    <b className="block text-[14px] font-semibold">{focusOverdue ? `${focus.length} overdue` : `Next · ${formatTime(focusTime)}`}</b>
+                    <b className="block text-care-base font-semibold">{focusOverdue ? `${focus.length} overdue` : `Next · ${formatTime(focusTime)}`}</b>
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-6 sm:items-center">
                   <div className="sm:pr-7 sm:border-r sm:border-white/[0.14] shrink-0">
                     <div className="flex items-baseline gap-2.5">
                       <span className="text-[56px] font-semibold tracking-tight leading-[0.86]">{focus.length}</span>
-                      <span className="text-[15px] text-white/80 font-medium max-w-[90px] leading-tight">{focus.length === 1 ? 'dose to give' : 'doses to give'}</span>
+                      <span className="text-care-base text-white/80 font-medium max-w-[90px] leading-tight">{focus.length === 1 ? 'dose to give' : 'doses to give'}</span>
                     </div>
                     {canManage && (
                       <button
                         onClick={markAllDue}
                         disabled={focusBusy}
-                        className="h-12 px-5 rounded-2xl bg-white text-care-tealDark text-[14.5px] font-semibold inline-flex items-center gap-2 hover:bg-white/90 transition-colors shadow-lg mt-5 disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="h-12 px-5 rounded-2xl bg-white text-care-tealDark text-care-base font-semibold inline-flex items-center gap-2 hover:bg-white/90 transition-colors shadow-lg mt-5 disabled:opacity-70 disabled:cursor-not-allowed"
                       >
                         {focusBusy
                           ? <><Loader2 size={18} className="animate-spin" /> Marking…</>
                           : <><Check size={18} strokeWidth={2.4} /> {focus.length === 1 ? 'Mark given' : 'Mark all given'}</>}
                       </button>
                     )}
-                    {laterCount > 0 && <p className="mt-3 text-[12px] text-white/60">{laterCount} more later today</p>}
+                    {laterCount > 0 && <p className="mt-3 text-care-xs text-white/60">{laterCount} more later today</p>}
                   </div>
                   <div className="flex-1 min-w-0">
                     {focus.map(({ med, slot }) => {
@@ -388,8 +388,8 @@ export default function TodayPage() {
                         <div key={`${med.id}-${slot.time}`} className="flex items-center gap-3.5 py-3 border-b border-white/[0.13] last:border-0">
                           <span className="w-10 h-10 rounded-xl bg-white/[0.11] text-care-mint flex items-center justify-center shrink-0"><G size={20} /></span>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-2"><b className="text-[16px] font-semibold">{med.name}</b>{med.strength && <em className="text-[13px] not-italic text-white/70">{med.strength}</em>}</div>
-                            {med.instructions && <div className="text-[12px] text-care-mint mt-0.5">{med.instructions}</div>}
+                            <div className="flex items-baseline gap-2"><b className="text-[16px] font-semibold">{med.name}</b>{med.strength && <em className="text-care-sm not-italic text-white/70">{med.strength}</em>}</div>
+                            {med.instructions && <div className="text-care-xs text-care-mint mt-0.5">{med.instructions}</div>}
                           </div>
                           {canManage && (
                             b ? <Loader2 size={18} className="animate-spin text-white/70" /> :
@@ -403,9 +403,9 @@ export default function TodayPage() {
               </section>
             ) : (
               <section className="rounded-[24px] text-white p-7 shadow-care-hero" style={{ background: 'linear-gradient(158deg,#0f5750 0%,#0b433c 100%)' }}>
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.13] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.13em] mb-4"><Check size={13} strokeWidth={2.5} /> All done</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/[0.13] px-3 py-1.5 text-care-xs font-bold uppercase tracking-[0.13em] mb-4"><Check size={13} strokeWidth={2.5} /> All done</span>
                 <p className="text-[26px] font-semibold tracking-tight">Every dose given{pet?.name ? ` for ${pet.name}` : ''}.</p>
-                <p className="text-white/75 text-[14px] mt-1.5">{given} of {due} today. Nice work keeping the schedule.</p>
+                <p className="text-white/75 text-care-base mt-1.5">{given} of {due} today. Nice work keeping the schedule.</p>
               </section>
             )}
 
@@ -414,15 +414,15 @@ export default function TodayPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <Overline>Today</Overline>
-                  <Link href={`/pets/${petId}/meds?tab=history`} className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-care-teal">History <ChevronRight size={13} /></Link>
+                  <Link href={`/pets/${petId}/meds?tab=history`} className="inline-flex items-center gap-0.5 text-care-xs font-semibold text-care-teal">History <ChevronRight size={13} /></Link>
                 </div>
                 <Card className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <span className="flex items-center gap-2.5">
                       <span className="w-8 h-8 rounded-[10px] bg-care-tealWash text-care-teal flex items-center justify-center"><Pill size={17} /></span>
-                      <b className="text-[15px] font-semibold text-care-ink">Medications</b>
+                      <b className="text-care-base font-semibold text-care-ink">Medications</b>
                     </span>
-                    <span className="text-[13px] text-care-sub"><b className="text-care-ink font-semibold">{given}</b> of {due} given</span>
+                    <span className="text-care-sm text-care-sub"><b className="text-care-ink font-semibold">{given}</b> of {due} given</span>
                   </div>
                   <div className="flex gap-1.5 mb-4">
                     {slots.map(({ med, slot }, i) => (
@@ -433,29 +433,29 @@ export default function TodayPage() {
                   {doneSlots.length > 0 ? (
                     <div>
                       {doneSlots.slice(0, 3).map(({ med, slot }) => (
-                        <div key={`${med.id}-${slot.time}`} className="flex items-center gap-2.5 py-2 text-[12.5px] border-b border-care-lineSoft last:border-0">
+                        <div key={`${med.id}-${slot.time}`} className="flex items-center gap-2.5 py-2 text-care-sm border-b border-care-lineSoft last:border-0">
                           <Check size={15} className={slot.status === 'GIVEN' ? 'text-care-teal' : 'text-care-faint'} />
                           <span className="flex-1 min-w-0 truncate font-semibold text-care-ink">{med.name}<span className="font-normal text-care-faint ml-1.5">{med.strength}</span></span>
-                          {slot.orphaned && <span className="text-[11px] text-care-faint whitespace-nowrap">off schedule</span>}
+                          {slot.orphaned && <span className="text-care-xs text-care-faint whitespace-nowrap">off schedule</span>}
                           <span className="text-care-sub tabular-nums">{slot.status === 'SKIPPED' ? 'Skipped' : (slot.dose?.givenAt ? new Date(slot.dose.givenAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'Given')}</span>
-                          {canManage && <button onClick={() => undoDose(med, slot)} className="text-[12px] font-medium text-care-faint hover:text-care-ink">Undo</button>}
+                          {canManage && <button onClick={() => undoDose(med, slot)} className="text-care-xs font-medium text-care-faint hover:text-care-ink">Undo</button>}
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[13px] text-care-sub py-2">No doses logged yet today.</p>
+                    <p className="text-care-sm text-care-sub py-2">No doses logged yet today.</p>
                   )}
                   {pending.length > 0 && (
                     /* Overdue and upcoming are different facts: never print a
                        past slot time as if it were the next dose. */
                     <div className={cn('mt-3.5 flex items-center gap-2.5 rounded-xl px-3.5 py-2.5', overduePending.length ? 'bg-care-amberWash ring-1 ring-care-amberLine' : 'bg-care-tealWash')}>
                       <Clock size={16} className={overduePending.length ? 'text-care-amber' : 'text-care-teal'} />
-                      <b className={cn('text-[12.5px] font-semibold', overduePending.length ? 'text-care-amber' : 'text-care-tealDark')}>
+                      <b className={cn('text-care-sm font-semibold', overduePending.length ? 'text-care-amber' : 'text-care-tealDark')}>
                         {overduePending.length
                           ? `${overduePending.length} overdue`
                           : `${pending.length} dose${pending.length !== 1 ? 's' : ''} due`}
                       </b>
-                      <span className={cn('ml-auto text-[12px] font-semibold', overduePending.length ? 'text-care-amber' : 'text-care-teal')}>
+                      <span className={cn('ml-auto text-care-xs font-semibold', overduePending.length ? 'text-care-amber' : 'text-care-teal')}>
                         {overduePending.length
                           ? (pending.length > overduePending.length ? `next ${formatTime(pending.find((x) => x.slot.scheduledFor >= now)?.slot.time || pending[0].slot.time)}` : 'give now')
                           : formatTime(pending[0].slot.time)}
@@ -470,23 +470,23 @@ export default function TodayPage() {
                   <Overline>Routines</Overline>
                   {canManage && (
                     <span className="flex items-center gap-3">
-                      {allCareItems.length > 0 && <button onClick={() => setManagingRoutines((v) => !v)} className="text-[11.5px] font-semibold text-care-sub hover:text-care-ink">{managingRoutines ? 'Done' : 'Manage'}</button>}
-                      <button onClick={() => setShowAddRoutine(true)} className="inline-flex items-center gap-0.5 text-[11.5px] font-semibold text-care-teal">Add <Plus size={13} /></button>
+                      {allCareItems.length > 0 && <button onClick={() => setManagingRoutines((v) => !v)} className="text-care-xs font-semibold text-care-sub hover:text-care-ink">{managingRoutines ? 'Done' : 'Manage'}</button>}
+                      <button onClick={() => setShowAddRoutine(true)} className="inline-flex items-center gap-0.5 text-care-xs font-semibold text-care-teal">Add <Plus size={13} /></button>
                     </span>
                   )}
                 </div>
                 {managingRoutines ? (
                   <Card className="overflow-hidden divide-y divide-care-lineSoft">
                     {allCareItems.length === 0 ? (
-                      <p className="text-[13px] text-care-sub px-5 py-4">No routines to manage.</p>
+                      <p className="text-care-sm text-care-sub px-5 py-4">No routines to manage.</p>
                     ) : allCareItems.map((care) => {
                       const b = busy(`care-${care.id}`);
                       return (
                         <div key={care.id} className={cn('flex items-center gap-3 px-5 py-3.5', !care.isActive && 'opacity-55')}>
                           <CareIconChip name={care.name} color={care.color} size="sm" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-semibold text-care-ink truncate">{care.name}</p>
-                            <p className="text-[12px] text-care-sub truncate">{formatSchedule(care)}{!care.isActive && ', paused'}</p>
+                            <p className="text-care-base font-semibold text-care-ink truncate">{care.name}</p>
+                            <p className="text-care-xs text-care-sub truncate">{formatSchedule(care)}{!care.isActive && ', paused'}</p>
                           </div>
                           {b ? <Loader2 size={16} className="animate-spin text-care-faint" /> : (
                             <>
@@ -501,7 +501,7 @@ export default function TodayPage() {
                 ) : (
                 <Card className="p-5">
                   {careItems.length === 0 ? (
-                    <p className="text-[13px] text-care-sub py-2">No routines yet.{canManage && ' Add walks, treats, brushing.'}</p>
+                    <p className="text-care-sm text-care-sub py-2">No routines yet.{canManage && ' Add walks, treats, brushing.'}</p>
                   ) : (
                     <div className="flex">
                       {careItems.slice(0, 3).map((care, i) => {
@@ -525,8 +525,8 @@ export default function TodayPage() {
                             <span className={cn('w-11 h-11 rounded-[13px] flex items-center justify-center mb-2.5', (allDone || doneCount > 0) ? 'bg-care-tealWash' : 'bg-[#f4f5f4]')}>
                               <CareIconChip name={care.name} color={care.color} size="sm" />
                             </span>
-                            <span className="text-[13px] font-semibold text-care-ink">{care.name}</span>
-                            <span className={cn('text-[11px] mt-1', doneCount > 0 && !isPrn ? 'text-care-teal font-semibold' : 'text-care-faint')}>
+                            <span className="text-care-sm font-semibold text-care-ink">{care.name}</span>
+                            <span className={cn('text-care-xs mt-1', doneCount > 0 && !isPrn ? 'text-care-teal font-semibold' : 'text-care-faint')}>
                               {isPrn ? (doneCount > 0 ? `Done · ${doneCount}×` : 'Anytime') : `${doneCount} of ${total}`}
                             </span>
                             {!isPrn && cs.length > 0 && (
@@ -555,13 +555,13 @@ export default function TodayPage() {
                     return (
                       <Card key={med.id} className="p-5 flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <b className="text-[15px] font-semibold text-care-ink block truncate">{med.name}</b>
-                          <span className="text-[12.5px] text-care-sub">{count > 0 ? `${count} given today` : med.strength || 'As needed'}</span>
+                          <b className="text-care-base font-semibold text-care-ink block truncate">{med.name}</b>
+                          <span className="text-care-sm text-care-sub">{count > 0 ? `${count} given today` : med.strength || 'As needed'}</span>
                         </div>
                         {canManage && (b ? <Loader2 size={16} className="animate-spin text-care-sub" /> : (
                           <span className="flex items-center gap-3 shrink-0">
-                            {count > 0 && <button onClick={() => undoPrnLast(med)} className="text-[12.5px] font-medium text-care-faint hover:text-care-ink">Undo</button>}
-                            <button onClick={() => logPrnNow(med)} className="rounded-xl bg-care-teal text-white text-[13px] font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors">{count > 0 ? 'Again' : 'Give'}</button>
+                            {count > 0 && <button onClick={() => undoPrnLast(med)} className="text-care-sm font-medium text-care-faint hover:text-care-ink">Undo</button>}
+                            <button onClick={() => logPrnNow(med)} className="rounded-xl bg-care-teal text-white text-care-sm font-semibold px-4 py-2 hover:bg-care-tealDark transition-colors">{count > 0 ? 'Again' : 'Give'}</button>
                           </span>
                         ))}
                       </Card>
@@ -574,38 +574,38 @@ export default function TodayPage() {
             {medItems.length > 0 && (
               <div className="mt-1">
                 {!pastOpen ? (
-                  <button onClick={() => setPastOpen(true)} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors"><RotateCcw size={14} /> Catch up a missed day</button>
+                  <button onClick={() => setPastOpen(true)} className="inline-flex items-center gap-1.5 text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors"><RotateCcw size={14} /> Catch up a missed day</button>
                 ) : (
                   <Card className="p-5">
                     <div className="flex items-center justify-between mb-3">
                       <Overline>Past days</Overline>
-                      <button onClick={() => { setPastOpen(false); setPastDay(null); }} className="text-[12.5px] font-medium text-care-sub hover:text-care-ink">Close</button>
+                      <button onClick={() => { setPastOpen(false); setPastDay(null); }} className="text-care-sm font-medium text-care-sub hover:text-care-ink">Close</button>
                     </div>
                     <WeekStrip meds={medItems} selectedDay={pastDay || today} onSelectDay={(d) => setPastDay(sameDay(d, today) ? null : startOfDay(d))} />
                     {pastDay && (
                       <div className="mt-4 border-t border-care-lineSoft pt-3">
-                        <p className="text-[13px] font-semibold text-care-ink mb-1.5">{pastDay.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                        <p className="text-care-sm font-semibold text-care-ink mb-1.5">{pastDay.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                         {pastSlots.length === 0 ? (
-                          <p className="text-[13px] text-care-sub py-2">Nothing was scheduled that day.</p>
+                          <p className="text-care-sm text-care-sub py-2">Nothing was scheduled that day.</p>
                         ) : pastSlots.map(({ med, slot }) => {
                           const b = busy(`${med.id}-${slot.scheduledFor.getTime()}`);
                           const done = slot.status === 'GIVEN';
                           const skipped = slot.status === 'SKIPPED';
                           return (
                             <div key={`${med.id}-${slot.time}`} className="flex items-center gap-3 py-2.5 border-b border-care-lineSoft last:border-0">
-                              <span className="w-12 shrink-0 text-[12.5px] text-care-sub tabular-nums">{formatTime(slot.time)}</span>
-                              <span className="flex-1 min-w-0 text-[14px] font-semibold text-care-ink truncate">{med.name}<span className="font-normal text-care-faint ml-1.5">{med.strength}</span></span>
+                              <span className="w-12 shrink-0 text-care-sm text-care-sub tabular-nums">{formatTime(slot.time)}</span>
+                              <span className="flex-1 min-w-0 text-care-base font-semibold text-care-ink truncate">{med.name}<span className="font-normal text-care-faint ml-1.5">{med.strength}</span></span>
                               {b ? <Loader2 size={15} className="animate-spin text-care-faint" /> : (done || skipped) ? (
-                                <span className="flex items-center gap-2.5 shrink-0 text-[12.5px]">
+                                <span className="flex items-center gap-2.5 shrink-0 text-care-sm">
                                   <span className={done ? 'text-care-teal' : 'text-care-faint'}>{done ? 'Given' : 'Skipped'}</span>
                                   {canManage && <button onClick={() => undoDose(med, slot)} className="font-medium text-care-faint hover:text-care-ink">Undo</button>}
                                 </span>
                               ) : canManage ? (
                                 <span className="flex items-center gap-2.5 shrink-0">
-                                  <button onClick={() => markDose(med, slot, 'SKIPPED')} className="text-[12.5px] font-medium text-care-faint hover:text-care-ink">Skip</button>
-                                  <button onClick={() => markDose(med, slot, 'GIVEN')} className="rounded-full bg-care-teal text-white text-[12.5px] font-semibold px-3.5 py-1 hover:bg-care-tealDark transition-colors">Log</button>
+                                  <button onClick={() => markDose(med, slot, 'SKIPPED')} className="text-care-sm font-medium text-care-faint hover:text-care-ink">Skip</button>
+                                  <button onClick={() => markDose(med, slot, 'GIVEN')} className="rounded-full bg-care-teal text-white text-care-sm font-semibold px-3.5 py-1 hover:bg-care-tealDark transition-colors">Log</button>
                                 </span>
-                              ) : <span className="text-[12.5px] text-care-faint">Missed</span>}
+                              ) : <span className="text-care-sm text-care-faint">Missed</span>}
                             </div>
                           );
                         })}

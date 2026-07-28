@@ -61,10 +61,10 @@ const EMPTY_DRAFT = {
 };
 
 const inputClass =
-  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
+  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-care-base text-neutral-900 ' +
   'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
 
-const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
+const labelClass = 'block text-care-sm font-medium text-neutral-700 mb-1.5';
 
 const primaryBtn =
   'rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark ' +
@@ -77,7 +77,7 @@ const secondaryBtn =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
 
 const quietBtn =
-  'text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors ' +
+  'text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors ' +
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
 
 function loadDraft() {
@@ -363,11 +363,11 @@ export default function PetWizard() {
   return (
     <main className="min-h-screen bg-white">
       <div className="max-w-lg mx-auto px-4 sm:px-6 py-8">
-        <p className="text-[13px] text-neutral-500 mb-1">Step {step + 1} of {STEPS.length}</p>
+        <p className="text-care-sm text-neutral-500 mb-1">Step {step + 1} of {STEPS.length}</p>
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 mb-6">{TITLES[stepKey]}</h1>
 
         {resumed && step === 0 && (
-          <p className="text-[13px] text-neutral-500 mb-5">Resumed your saved draft.</p>
+          <p className="text-care-sm text-neutral-500 mb-5">Resumed your saved draft.</p>
         )}
 
         {/* STEP: who */}
@@ -418,7 +418,7 @@ export default function PetWizard() {
             {intake.type === 'STRAY' && (
               <div>
                 <p className={labelClass}>Where was this animal found?</p>
-                <p className="text-[13px] text-neutral-500 mb-3">
+                <p className="text-care-sm text-neutral-500 mb-3">
                   The found location lets us check nearby lost-pet reports for a worried owner.
                 </p>
                 <LocationPicker
@@ -454,7 +454,7 @@ export default function PetWizard() {
                       )}
                       style={{ background: css }}
                     />
-                    <span className={cn('text-[11px]', active ? 'font-medium text-neutral-900' : 'text-neutral-500')}>
+                    <span className={cn('text-care-xs', active ? 'font-medium text-neutral-900' : 'text-neutral-500')}>
                       {value}
                     </span>
                   </button>
@@ -472,7 +472,7 @@ export default function PetWizard() {
             </div>
 
             {draft.coatColors.length > 0 && (
-              <p className="text-[13px] text-neutral-500 mb-5">
+              <p className="text-care-sm text-neutral-500 mb-5">
                 On flyers: <span className="font-medium text-neutral-900">{composeColor(draft.coatColors, draft.coatPattern)}</span>
               </p>
             )}
@@ -543,8 +543,8 @@ export default function PetWizard() {
                 {draft.meds.map((m, i) => (
                   <div key={i} className="flex items-center gap-3 py-3">
                     <span className="flex-1 min-w-0">
-                      <span className="block text-[15px] font-medium text-neutral-900 truncate">{m.name}</span>
-                      <span className="block text-[13px] text-neutral-500">{m.times.map(timeLabel).join(' · ')}</span>
+                      <span className="block text-care-base font-medium text-neutral-900 truncate">{m.name}</span>
+                      <span className="block text-care-sm text-neutral-500">{m.times.map(timeLabel).join(' · ')}</span>
                     </span>
                     <button
                       type="button"
@@ -632,7 +632,7 @@ export default function PetWizard() {
 
             {!isMember && (
               <form onSubmit={saveAsGuest} className="space-y-4">
-                <p className="text-[13px] text-neutral-500">Saving needs a free account.</p>
+                <p className="text-care-sm text-neutral-500">Saving needs a free account.</p>
                 <div>
                   <label className={labelClass} htmlFor="hb-first-name">First name</label>
                   <input
@@ -669,7 +669,7 @@ export default function PetWizard() {
                     className={inputClass}
                   />
                 </div>
-                <label className="flex items-start gap-2.5 text-[13px] text-neutral-600 cursor-pointer">
+                <label className="flex items-start gap-2.5 text-care-sm text-neutral-600 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={account.terms}
@@ -689,7 +689,7 @@ export default function PetWizard() {
                     {saving ? 'Saving...' : 'Create account and save'}
                   </button>
                 </div>
-                <p className="text-[13px] text-neutral-500">
+                <p className="text-care-sm text-neutral-500">
                   Already have an account?{' '}
                   <Link href={`/login?callbackUrl=${encodeURIComponent('/care/start')}`} className="font-medium text-neutral-900 underline">
                     Sign in
@@ -707,7 +707,7 @@ export default function PetWizard() {
 
         {/* When Continue is disabled, say why instead of leaving a grey mystery */}
         {!lastStep && !canNext && (
-          <p className="text-[13px] text-neutral-500 mt-4 text-right">
+          <p className="text-care-sm text-neutral-500 mt-4 text-right">
             {stepKey === 'who' && (!draft.name.trim() ? 'Enter a name to continue.' : 'Pick a species to continue.')}
             {stepKey === 'intake' && 'Pick an intake type to continue.'}
             {stepKey === 'looks' && (!draft.coatColors.length ? 'Pick at least one color to continue.' : 'Pick a size to continue.')}

@@ -96,11 +96,32 @@ module.exports = {
         diary: ['Georgia', '"Times New Roman"', 'serif'],
         stamp: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
       },
-      /* === Border Radius === */
+      /* === Care type scale ===
+         The care surfaces had grown 12+ ad-hoc sizes including half-pixel
+         values (11.5, 12.5, 13.5, 14.5) with no line-height control, which
+         is most of why they read thin and unconsidered. Seven steps, each
+         with its own leading and optical tracking. Use these on /pets and
+         /care instead of text-[13px]. */
+      fontSize: {
+        'care-xs':   ['11px', { lineHeight: '15px', letterSpacing: '0.02em' }],
+        'care-sm':   ['13px', { lineHeight: '19px' }],
+        'care-base': ['15px', { lineHeight: '23px' }],
+        'care-lg':   ['17px', { lineHeight: '24px', letterSpacing: '-0.006em' }],
+        'care-xl':   ['21px', { lineHeight: '28px', letterSpacing: '-0.014em' }],
+        'care-2xl':  ['27px', { lineHeight: '32px', letterSpacing: '-0.02em' }],
+        'care-3xl':  ['34px', { lineHeight: '38px', letterSpacing: '-0.026em' }],
+      },
+      /* === Border Radius ===
+         care-* is the care product's four-step radius scale, replacing the
+         eleven different radii the pet surfaces had accumulated. */
       borderRadius: {
         'xl': '0.75rem',
         '2xl': '1rem',
         '3xl': '1.5rem',
+        'care-sm': '10px',
+        'care': '14px',
+        'care-lg': '20px',
+        'care-xl': '26px',
       },
       /* === Box Shadows === */
       boxShadow: {

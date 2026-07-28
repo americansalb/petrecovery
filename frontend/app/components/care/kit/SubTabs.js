@@ -33,13 +33,13 @@ export default function SubTabs({ tabs, active, onChange, className }) {
             tabIndex={on ? 0 : -1}
             onClick={() => onChange(t.id)}
             className={cn(
-              'relative px-3.5 py-2.5 text-[13.5px] font-medium transition-colors -mb-px border-b-2',
+              'relative px-3.5 py-2.5 text-care-sm font-medium transition-colors -mb-px border-b-2',
               on ? 'text-care-teal border-care-teal' : 'text-care-sub border-transparent hover:text-care-ink'
             )}
           >
             {t.label}
             {t.badge != null && t.badge > 0 && (
-              <span className="ml-1.5 text-[11px] font-semibold text-care-teal">{t.badge}</span>
+              <span className="ml-1.5 text-care-xs font-semibold text-care-teal">{t.badge}</span>
             )}
           </button>
         );

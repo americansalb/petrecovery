@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Plus, Loader2, Phone, Check, AlertCircle, Heart } from 'lucide-react';
+import { Plus, Loader2, Phone, Check, AlertCircle, Heart, X } from 'lucide-react';
 import { Modal, cn } from '@/components/ui';
 import { Card, Overline } from '@/app/components/care/kit/Tile';
 import {
@@ -52,11 +52,11 @@ export function AlertRibbon({ text, href }) {
       <div className="min-w-0">
         <span className="flex items-center gap-2">
           <Overline>Medical note</Overline>
-          {href && <a href={href} className="text-[11.5px] font-semibold text-care-teal hover:underline">Edit</a>}
+          {href && <a href={href} className="text-care-xs font-semibold text-care-teal hover:underline">Edit</a>}
         </span>
-        <p className={cn('text-[14px] font-medium text-red-600 mt-0.5', !expanded && 'line-clamp-2')}>{value}</p>
+        <p className={cn('text-care-base font-medium text-red-600 mt-0.5', !expanded && 'line-clamp-2')}>{value}</p>
         {long && (
-          <button onClick={() => setExpanded((v) => !v)} className="text-[12.5px] font-medium text-care-sub hover:text-care-ink mt-0.5">
+          <button onClick={() => setExpanded((v) => !v)} className="text-care-sm font-medium text-care-sub hover:text-care-ink mt-0.5">
             {expanded ? 'Less' : 'More'}
           </button>
         )}
@@ -81,8 +81,8 @@ export function HealthStatusBand({ name, status, action }) {
   return (
     <div className="flex items-start justify-between gap-4 flex-wrap">
       <div className="min-w-0">
-        <p className={cn('text-[22px] font-semibold tracking-tight', tone)}>{head}</p>
-        {status.sentence && <p className="text-[14px] text-care-sub mt-1">{status.sentence}</p>}
+        <p className={cn('text-care-xl font-semibold tracking-tight', tone)}>{head}</p>
+        {status.sentence && <p className="text-care-base text-care-sub mt-1">{status.sentence}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -143,7 +143,7 @@ export function VitalsTrio({ vaccinations, weights, meds, showVaccinations = tru
   }
 
   return (
-    <p className="text-[14px] text-care-sub">
+    <p className="text-care-base text-care-sub">
       {vaxText && <span className={cn('font-medium', vaxTone)}>{vaxText}</span>}
       {vaxText && parts.length > 0 && ' · '}
       {parts.join(' · ')}
@@ -152,13 +152,16 @@ export function VitalsTrio({ vaccinations, weights, meds, showVaccinations = tru
 }
 
 /* ------------------------------ Add vaccine ------------------------------ */
-export function AddVaccineModal({ petId, species, onClose, onSaved }) {
+export function AddVaccineModal({ petId, species, presetName, onClose, onSaved }) {
   const presets = vaccinePresetsFor(species);
   const today = new Date().toISOString().slice(0, 10);
-  const [picked, setPicked] = useState(null);
+  // Arriving from a ghost stamp means the vaccine is already chosen; open
+  // with it picked and its duration set so the modal is one tap from done.
+  const preselected = presetName ? presets.find((p) => p.name === presetName) : null;
+  const [picked, setPicked] = useState(preselected || null);
   const [customName, setCustomName] = useState('');
   const [givenOn, setGivenOn] = useState(today);
-  const [duration, setDuration] = useState(null); // 1 | 3 | 0 | 'custom'
+  const [duration, setDuration] = useState(preselected ? preselected.years : null); // 1 | 3 | 0 | 'custom'
   const [customExpiry, setCustomExpiry] = useState('');
   const [vetName, setVetName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -190,8 +193,8 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   };
 
   const chip = (on) => cn('rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors', on ? 'bg-care-teal text-white border-care-teal' : 'border-care-line text-care-sub hover:border-care-ink');
-  const input = 'w-full mb-4 rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
-  const label = 'text-[13px] font-medium text-care-ink mb-1.5';
+  const input = 'w-full mb-4 rounded-xl border border-care-line px-3.5 py-2.5 text-care-base text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
+  const label = 'text-care-sm font-medium text-care-ink mb-1.5';
 
   return (
     <Modal onClose={onClose} title="Add a vaccine" subtitle={picked ? undefined : 'Pick the vaccine to record'}>
@@ -229,51 +232,102 @@ export function AddVaccineModal({ petId, species, onClose, onSaved }) {
   );
 }
 
-/* Vaccines as rows: one live stamp per vaccine, worst standing first. */
-export function VaccinePassport({ vaccinations, canManage, managing, onToggleManage, onAdd, onRemove }) {
+/* --------------------------------- Stamps --------------------------------- */
+/**
+ * Vaccines as STAMPS, the metaphor the design doc specified and the app
+ * never built (docs/HEALTH_BOOK_DESIGN.md §1): a rounded badge with a
+ * vaccine mark, the name, the date in a stamped mono face, and a status
+ * ring. Empty slots for the species' usual shots render as dashed ghost
+ * stamps that fill themselves in on a tap, so a thin record shows what it
+ * is missing instead of just being short.
+ */
+const STAMP_STYLE = {
+  PROTECTED: { ring: 'ring-stampgreen/35', bg: 'bg-stampgreen-wash', ink: 'text-stampgreen', label: 'Current' },
+  DUE_SOON:  { ring: 'ring-marker/45',     bg: 'bg-marker-wash',     ink: 'text-care-amber', label: 'Due soon' },
+  EXPIRED:   { ring: 'ring-stampred/40',   bg: 'bg-stampred-wash',   ink: 'text-stampred',   label: 'Expired' },
+  ON_FILE:   { ring: 'ring-care-line',     bg: 'bg-care-bg',         ink: 'text-care-sub',   label: 'On file' },
+};
+
+function Stamp({ vax, managing, onRemove }) {
+  const st = vaccinationStatus(vax);
+  const s = STAMP_STYLE[st] || STAMP_STYLE.ON_FILE;
+  const dated = vax.expiresAt
+    ? `${st === 'EXPIRED' ? 'expired' : 'thru'} ${shortDate(vax.expiresAt)}`
+    : `given ${shortDate(vax.administeredAt)}`;
+  return (
+    <div className={cn('relative rounded-care-lg ring-1 p-4 flex flex-col items-center text-center transition-transform hover:-translate-y-[1px]', s.ring, s.bg)}>
+      <span className={cn('w-10 h-10 rounded-full bg-care-surface ring-1 flex items-center justify-center mb-2.5', s.ring, s.ink)}>
+        {st === 'EXPIRED' || st === 'DUE_SOON' ? <AlertCircle size={18} /> : <Check size={18} />}
+      </span>
+      <p className="text-care-sm font-semibold text-care-ink leading-tight line-clamp-2" title={vax.name}>{vax.name}</p>
+      <p className={cn('font-stamp text-care-xs uppercase mt-1.5 tracking-wider', s.ink)}>{dated}</p>
+      <span className={cn('text-care-xs font-semibold mt-2', s.ink)}>{s.label}</span>
+      {managing && (
+        <button
+          onClick={() => onRemove(vax)}
+          aria-label={`Remove ${vax.name}`}
+          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-care-surface ring-1 ring-care-line text-care-sub hover:text-red-600 flex items-center justify-center"
+        >
+          <X size={13} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function GhostStamp({ name, onAdd }) {
+  return (
+    <button
+      onClick={() => onAdd(name)}
+      className="rounded-care-lg border border-dashed border-care-line p-4 flex flex-col items-center text-center hover:border-care-teal hover:bg-care-tealWash/40 transition-colors group"
+    >
+      <span className="w-10 h-10 rounded-full border border-dashed border-care-line group-hover:border-care-teal text-care-faint group-hover:text-care-teal flex items-center justify-center mb-2.5">
+        <Plus size={17} />
+      </span>
+      <p className="text-care-sm font-semibold text-care-faint group-hover:text-care-ink leading-tight">{name}</p>
+      <p className="font-stamp text-care-xs uppercase mt-1.5 tracking-wider text-care-faint">not on file</p>
+    </button>
+  );
+}
+
+export function VaccinePassport({ vaccinations, species, canManage, managing, onToggleManage, onAdd, onRemove }) {
   const rows = rankVaccinations(latestPerName(vaccinations));
+  // Ghost slots: the usual shots for this species that have no stamp yet.
+  const have = new Set(rows.map((v) => (v.name || '').trim().toLowerCase()));
+  const ghosts = canManage && !managing
+    ? vaccinePresetsFor(species).map((p) => p.name).filter((n) => !have.has(n.toLowerCase()))
+    : [];
+
   return (
     <section>
       <SectionHeader
         title="Vaccines"
         action={(
           <span className="flex items-center gap-4">
-            {canManage && rows.length > 0 && <button onClick={onToggleManage} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{managing ? 'Done' : 'Manage'}</button>}
-            {canManage && <button onClick={onAdd} className="inline-flex items-center gap-1 text-[13px] font-semibold text-care-teal">Add <Plus size={14} /></button>}
+            {canManage && rows.length > 0 && <button onClick={onToggleManage} className="text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors">{managing ? 'Done' : 'Manage'}</button>}
+            {canManage && <button onClick={() => onAdd()} className="inline-flex items-center gap-1 text-care-sm font-semibold text-care-teal">Add <Plus size={14} /></button>}
           </span>
         )}
       />
-      {rows.length === 0 ? (
-        /* One quiet line, not a tall empty box. An empty record should
-           invite the first entry, not stage a void around a sentence. */
+      {rows.length === 0 && !ghosts.length ? (
         <Card className="px-5 py-3.5">
-          <p className="text-[14px] text-care-sub">
+          <p className="text-care-base text-care-sub">
             Nothing recorded yet.{' '}
             {canManage && (
-              <button onClick={onAdd} className="font-semibold text-care-teal hover:underline">
+              <button onClick={() => onAdd()} className="font-semibold text-care-teal hover:underline">
                 Add the first vaccination
               </button>
             )}
           </p>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          {rows.map((vax, i) => {
-            const st = vaccinationStatus(vax);
-            const soon = st === 'DUE_SOON' || st === 'EXPIRED';
-            return (
-              <div key={vax.id} className={cn('flex items-center gap-3 px-5 py-3.5', i > 0 && 'border-t border-care-lineSoft')}>
-                {soon ? <AlertCircle size={17} className={VAX_DOT[st]} /> : <Check size={17} className={VAX_DOT[st]} />}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14.5px] font-semibold text-care-ink truncate">{vax.name}</p>
-                  <p className="text-[12.5px] text-care-sub">{vax.expiresAt ? (st === 'EXPIRED' ? `Expired ${shortDate(vax.expiresAt)}` : `Good until ${shortDate(vax.expiresAt)}`) : `Recorded ${shortDate(vax.administeredAt)}`}</p>
-                </div>
-                <span className={cn('text-[12.5px] font-medium shrink-0', VAX_DOT[st])}>{VAX_LABEL[st]}</span>
-                {managing && <button onClick={() => onRemove(vax)} className="text-[12.5px] font-medium text-red-600 hover:text-red-700 shrink-0">Remove</button>}
-              </div>
-            );
-          })}
-        </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {rows.map((vax) => <Stamp key={vax.id} vax={vax} managing={managing} onRemove={onRemove} />)}
+          {ghosts.map((n) => <GhostStamp key={n} name={n} onAdd={onAdd} />)}
+        </div>
+      )}
+      {ghosts.length > 0 && rows.length > 0 && (
+        <p className="text-care-xs text-care-faint mt-3">Dashed slots are the usual shots for this species. Tap one to record it.</p>
       )}
     </section>
   );
@@ -318,11 +372,11 @@ export function WeightCard({
         title="Weight"
         action={(
           <span className="flex items-center gap-4">
-            {latest && <span className="text-[12.5px] text-care-sub">last {dayDate(latest.recordedAt)}</span>}
+            {latest && <span className="text-care-sm text-care-sub">last {dayDate(latest.recordedAt)}</span>}
             {/* A fat-fingered entry (14.2 for 142) permanently bends the
                 chart unless it can be removed right here. */}
             {canManage && weights.length > 0 && onToggleManage && (
-              <button onClick={onToggleManage} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{managing ? 'Done' : 'Manage'}</button>
+              <button onClick={onToggleManage} className="text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors">{managing ? 'Done' : 'Manage'}</button>
             )}
           </span>
         )}
@@ -331,7 +385,7 @@ export function WeightCard({
           record shows one place to type instead of a headline over a void. */}
       <Card className={latest ? 'p-5' : 'px-5 py-4'}>
         {latest && (
-          <p className="text-[28px] font-semibold tracking-tight text-care-ink tabular-nums">{latest.weightLbs}<span className="text-[15px] text-care-sub ml-1">lb</span></p>
+          <p className="text-care-2xl font-semibold tracking-tight text-care-ink tabular-nums">{latest.weightLbs}<span className="text-care-base text-care-sub ml-1">lb</span></p>
         )}
         {weights.length >= 2 && !managing && <WeightChart weights={weights} />}
         {managing ? (
@@ -339,11 +393,11 @@ export function WeightCard({
             {[...weights].reverse().map((e, i) => (
               <div key={e.id} className={cn('flex items-center gap-3 px-5 py-2.5', i > 0 && 'border-t border-care-lineSoft')}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-semibold text-care-ink tabular-nums">{e.weightLbs} lb</p>
-                  {e.note && <p className="text-[12px] text-care-sub truncate">{e.note}</p>}
+                  <p className="text-care-base font-semibold text-care-ink tabular-nums">{e.weightLbs} lb</p>
+                  {e.note && <p className="text-care-xs text-care-sub truncate">{e.note}</p>}
                 </div>
-                <span className="text-[12.5px] text-care-sub shrink-0">{dayDate(e.recordedAt)}</span>
-                <button onClick={() => onRemove(e)} className="text-[12.5px] font-medium text-red-600 hover:text-red-700 shrink-0">Remove</button>
+                <span className="text-care-sm text-care-sub shrink-0">{dayDate(e.recordedAt)}</span>
+                <button onClick={() => onRemove(e)} className="text-care-sm font-medium text-red-600 hover:text-red-700 shrink-0">Remove</button>
               </div>
             ))}
           </div>
@@ -353,7 +407,7 @@ export function WeightCard({
                 forces typed inputs to width:100%, so without wrap + min-w-0
                 the Log button is pushed off a narrow screen entirely. */}
             <div className="flex flex-wrap items-center gap-2">
-              <input value={weightInput} onChange={(e) => onWeightInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onLog()} placeholder="Weight (lb)" inputMode="decimal" aria-label="Weight in pounds" className="min-w-0 flex-1 basis-32 rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal" />
+              <input value={weightInput} onChange={(e) => onWeightInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onLog()} placeholder="Weight (lb)" inputMode="decimal" aria-label="Weight in pounds" className="min-w-0 flex-1 basis-32 rounded-xl border border-care-line px-3.5 py-2.5 text-care-base text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal" />
               {onWeightDate && (
                 <input
                   type="date"
@@ -362,12 +416,12 @@ export function WeightCard({
                   onChange={(e) => onWeightDate(e.target.value === today ? '' : e.target.value)}
                   aria-label="Date weighed (leave empty for today)"
                   title="Date weighed. Leave empty for today, e.g. to enter a vet-visit weigh-in."
-                  className="min-w-0 shrink rounded-xl border border-care-line px-3 py-2.5 text-[14px] text-care-sub focus:outline-none focus:border-care-teal"
+                  className="min-w-0 shrink rounded-xl border border-care-line px-3 py-2.5 text-care-base text-care-sub focus:outline-none focus:border-care-teal"
                 />
               )}
               <button onClick={onLog} disabled={saving || !weightInput} className="shrink-0 rounded-xl bg-care-teal text-white text-sm font-semibold px-4 py-2.5 hover:bg-care-tealDark disabled:opacity-40 transition-colors">{saving ? <Loader2 size={15} className="animate-spin" /> : 'Log'}</button>
             </div>
-            <p className="text-[12px] text-care-faint mt-2">Pick a date to enter a past weigh-in, like a vet visit. Empty means today.</p>
+            <p className="text-care-xs text-care-faint mt-2">Pick a date to enter a past weigh-in, like a vet visit. Empty means today.</p>
           </div>
         )}
       </Card>
@@ -377,20 +431,20 @@ export function WeightCard({
 
 /* ----------------------------------- Vet ---------------------------------- */
 export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, saving }) {
-  const input = 'w-full rounded-xl border border-care-line px-3.5 py-2.5 text-[15px] text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
+  const input = 'w-full rounded-xl border border-care-line px-3.5 py-2.5 text-care-base text-care-ink placeholder:text-care-faint focus:outline-none focus:border-care-teal';
   // A phone number alone is still a vet on file - in an emergency it is
   // the single most valuable field, so it must never render as "none".
   const hasVet = pet?.vetName || pet?.vetClinic || pet?.vetPhone;
   const vetTitle = [pet?.vetName, pet?.vetClinic].filter(Boolean).join(', ') || pet?.vetPhone;
   return (
     <section>
-      <SectionHeader title="Vet" action={isOwner && vetDraft === null && <button onClick={() => onDraft({ vetName: pet?.vetName || '', vetClinic: pet?.vetClinic || '', vetPhone: pet?.vetPhone || '' })} className="text-[13px] font-medium text-care-sub hover:text-care-ink transition-colors">{hasVet ? 'Edit' : 'Add'}</button>} />
+      <SectionHeader title="Vet" action={isOwner && vetDraft === null && <button onClick={() => onDraft({ vetName: pet?.vetName || '', vetClinic: pet?.vetClinic || '', vetPhone: pet?.vetPhone || '' })} className="text-care-sm font-medium text-care-sub hover:text-care-ink transition-colors">{hasVet ? 'Edit' : 'Add'}</button>} />
       <Card className="p-5">
         {vetDraft ? (
           <div className="space-y-2.5">
             {[['vetName', 'Vet name'], ['vetClinic', 'Clinic'], ['vetPhone', 'Phone']].map(([k, ph]) => (
               <label key={k} className="block">
-                <span className="block text-[12.5px] font-medium text-care-sub mb-1">{ph}</span>
+                <span className="block text-care-sm font-medium text-care-sub mb-1">{ph}</span>
                 <input value={vetDraft[k]} onChange={(e) => onDraft({ ...vetDraft, [k]: e.target.value })} placeholder={ph} className={input} />
               </label>
             ))}
@@ -401,18 +455,18 @@ export function VetCard({ pet, isOwner, vetDraft, onDraft, onSave, onCancel, sav
           </div>
         ) : hasVet ? (
           <div className="flex items-center gap-3.5">
-            <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-[17px] font-semibold">
+            <span className="w-11 h-11 rounded-[13px] bg-care-tealWash text-care-teal flex items-center justify-center shrink-0 font-serif text-care-lg font-semibold">
               {pet.vetName || pet.vetClinic
                 ? (pet.vetName || pet.vetClinic).replace(/^Dr\.?\s*/i, '').charAt(0).toUpperCase()
                 : <Phone size={17} />}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-semibold text-care-ink truncate">{vetTitle}</p>
-              {pet.vetPhone && vetTitle !== pet.vetPhone && <a href={`tel:${pet.vetPhone}`} className="text-[13px] text-care-sub hover:text-care-ink">{pet.vetPhone}</a>}
+              <p className="text-care-base font-semibold text-care-ink truncate">{vetTitle}</p>
+              {pet.vetPhone && vetTitle !== pet.vetPhone && <a href={`tel:${pet.vetPhone}`} className="text-care-sm text-care-sub hover:text-care-ink">{pet.vetPhone}</a>}
             </div>
             {pet.vetPhone && <a href={`tel:${pet.vetPhone}`} aria-label="Call clinic" className="w-11 h-11 rounded-[13px] bg-care-teal text-white flex items-center justify-center shrink-0 hover:bg-care-tealDark transition-colors"><Phone size={18} /></a>}
           </div>
-        ) : <p className="text-[14px] text-care-sub">No vet on file.</p>}
+        ) : <p className="text-care-base text-care-sub">No vet on file.</p>}
       </Card>
     </section>
   );
@@ -461,7 +515,7 @@ export function MonthHistory({ vaccinations, weights, meds }) {
             <div className="flex items-baseline justify-between gap-3 mb-2">
               <Overline>{g.key}</Overline>
               {adherence && (
-                <p className="text-[12.5px] text-care-sub" title="Scheduled doses marked given this month (last 35 days)">
+                <p className="text-care-sm text-care-sub" title="Scheduled doses marked given this month (last 35 days)">
                   {adherence.given} of {adherence.due} doses given{' '}
                   <span className={cn('font-semibold tabular-nums', adherence.pct >= 90 ? 'text-care-teal' : adherence.pct >= 60 ? 'text-care-amber' : 'text-red-600')}>({adherence.pct}%)</span>
                   <span className="text-care-faint"> · last 35 days</span>
@@ -472,8 +526,8 @@ export function MonthHistory({ vaccinations, weights, meds }) {
               {g.items.map((ev, i) => (
                 <div key={ev.id} className={cn('flex items-center gap-3 px-5 py-3', i > 0 && 'border-t border-care-lineSoft')}>
                   <span className={cn('w-2 h-2 rounded-full shrink-0', ev.kind === 'vax' ? 'bg-care-teal' : 'bg-care-faint')} aria-hidden="true" />
-                  <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold text-care-ink truncate">{ev.title}</p><p className="text-[12.5px] text-care-sub truncate">{ev.sub}</p></div>
-                  <span className="text-[12.5px] text-care-sub shrink-0">{ev.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
+                  <div className="min-w-0 flex-1"><p className="text-care-base font-semibold text-care-ink truncate">{ev.title}</p><p className="text-care-sm text-care-sub truncate">{ev.sub}</p></div>
+                  <span className="text-care-sm text-care-sub shrink-0">{ev.at.toLocaleDateString([], { month: 'short', day: 'numeric' })}</span>
                 </div>
               ))}
             </Card>

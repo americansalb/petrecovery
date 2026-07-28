@@ -54,13 +54,13 @@ const PERSONALITY_TRAITS = [
 ];
 
 const inputClass =
-  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] text-neutral-900 ' +
+  'w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-care-base text-neutral-900 ' +
   'placeholder:text-neutral-400 focus:outline-none focus:border-care-teal';
 
-const labelClass = 'block text-[13px] font-medium text-neutral-700 mb-1.5';
+const labelClass = 'block text-care-sm font-medium text-neutral-700 mb-1.5';
 
 const quietAction =
-  'text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition-colors';
+  'text-care-sm font-medium text-neutral-500 hover:text-neutral-900 transition-colors';
 
 /* Building blocks ----------------------------------------------------------- */
 
@@ -115,7 +115,7 @@ function Section({ label, id, children }) {
   // (e.g. /pets/[id]/edit#identification) instead of the top of the form.
   return (
     <section id={id} className="mb-10 scroll-mt-24">
-      <h2 className="text-[13px] font-medium text-neutral-500 mb-4">{label}</h2>
+      <h2 className="text-care-sm font-medium text-neutral-500 mb-4">{label}</h2>
       {children}
     </section>
   );
@@ -439,7 +439,7 @@ export default function EditPetPage() {
                 maxLength={40}
                 className={cn(inputClass, errors.name && 'border-red-600')}
               />
-              {errors.name && <p className="text-[13px] text-red-600 mt-1.5">{errors.name}</p>}
+              {errors.name && <p className="text-care-sm text-red-600 mt-1.5">{errors.name}</p>}
             </div>
 
             <div>
@@ -476,7 +476,7 @@ export default function EditPetPage() {
                   >
                     <Minus size={15} />
                   </button>
-                  <span className="w-16 text-center text-[15px] text-neutral-900 tabular-nums">
+                  <span className="w-16 text-center text-care-base text-neutral-900 tabular-nums">
                     {form.age === '' ? 'Not set' : `${form.age} yr${form.age === '1' ? '' : 's'}`}
                   </span>
                   <button
@@ -487,7 +487,7 @@ export default function EditPetPage() {
                   >
                     <Plus size={15} />
                   </button>
-                  {errors.age && <p className="text-[13px] text-red-600">{errors.age}</p>}
+                  {errors.age && <p className="text-care-sm text-red-600">{errors.age}</p>}
                 </div>
               </div>
             </div>
@@ -542,7 +542,7 @@ export default function EditPetPage() {
                           </span>
                         )}
                       </span>
-                      <span className={cn('text-[11px]', active ? 'text-neutral-900 font-medium' : 'text-neutral-500')}>
+                      <span className={cn('text-care-xs', active ? 'text-neutral-900 font-medium' : 'text-neutral-500')}>
                         {value}
                       </span>
                     </button>
@@ -567,7 +567,7 @@ export default function EditPetPage() {
                     type="button"
                     onClick={() => setCustomColorInput('')}
                     aria-label="Add another color"
-                    className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
+                    className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-care-sm font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
                   >
                     Add color
                   </button>
@@ -581,20 +581,20 @@ export default function EditPetPage() {
                   />
                 )}
               </div>
-              {errors.color && <p className="text-[13px] text-red-600 mt-2">{errors.color}</p>}
+              {errors.color && <p className="text-care-sm text-red-600 mt-2">{errors.color}</p>}
               <div className="flex flex-wrap items-center gap-2 mt-3">
                 {COAT_PATTERNS.map((p) => (
                   <ChoiceChip
                     key={p}
                     active={(form.coatPattern || 'Solid') === p}
                     onClick={() => set({ coatPattern: p === 'Solid' ? null : p })}
-                    className="px-3 py-1.5 text-[13px]"
+                    className="px-3 py-1.5 text-care-sm"
                   >
                     {p}
                   </ChoiceChip>
                 ))}
                 {form.coatPattern && !COAT_PATTERNS.includes(form.coatPattern) && (
-                  <ChoiceChip active onClick={() => set({ coatPattern: null })} className="px-3 py-1.5 text-[13px]">
+                  <ChoiceChip active onClick={() => set({ coatPattern: null })} className="px-3 py-1.5 text-care-sm">
                     <span className="inline-flex items-center gap-1">{form.coatPattern} <X size={12} /></span>
                   </ChoiceChip>
                 )}
@@ -602,7 +602,7 @@ export default function EditPetPage() {
                   <button
                     type="button"
                     onClick={() => setCustomPatternInput('')}
-                    className="px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
+                    className="px-3 py-1.5 rounded-full border border-dashed border-neutral-300 text-care-sm font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
                   >
                     Add pattern
                   </button>
@@ -638,7 +638,7 @@ export default function EditPetPage() {
             {/* Weight has one write path, the Health tab's weight log, so the
                 trend chart and this number can never disagree. */}
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] text-neutral-500">
+              <p className="text-care-sm text-neutral-500">
                 Weight: {petWeight != null ? `${petWeight} lbs` : 'not logged yet'}
               </p>
               <Link href={`/pets/${petId}/health`} className={cn(quietAction, 'shrink-0')}>
@@ -672,7 +672,7 @@ export default function EditPetPage() {
                 aria-label="Microchip number"
                 className={cn(inputClass, 'font-mono text-sm', errors.microchipId && 'border-red-600')}
               />
-              {errors.microchipId && <p className="text-[13px] text-red-600 mt-1.5">{errors.microchipId}</p>}
+              {errors.microchipId && <p className="text-care-sm text-red-600 mt-1.5">{errors.microchipId}</p>}
             </div>
             <div>
               <label htmlFor="pet-collar" className={labelClass}>Collar and tag</label>
@@ -722,7 +722,7 @@ export default function EditPetPage() {
               <button
                 type="button"
                 onClick={() => setCustomTraitInput('')}
-                className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-[13px] font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
+                className="px-3.5 py-2 rounded-full border border-dashed border-neutral-300 text-care-sm font-medium text-neutral-500 hover:border-care-teal hover:text-neutral-900 transition-colors"
               >
                 Add trait
               </button>
@@ -736,7 +736,7 @@ export default function EditPetPage() {
               />
             )}
           </div>
-          {errors.personality && <p className="text-[13px] text-red-600 mt-2">{errors.personality}</p>}
+          {errors.personality && <p className="text-care-sm text-red-600 mt-2">{errors.personality}</p>}
         </Section>
 
         <Section id="medical" label="Vet">
@@ -756,7 +756,7 @@ export default function EditPetPage() {
           <button
             onClick={() => setDeleteConfirmOpen(true)}
             disabled={deleting}
-            className="text-[13px] font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
+            className="text-care-sm font-medium text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
           >
             {deleting ? 'Removing...' : `Remove ${pet.name}`}
           </button>
