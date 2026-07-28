@@ -119,7 +119,7 @@ export default function TransferAcceptClient({ token }) {
                 {accepting ? 'Accepting…' : `Accept ${state.invite.pet.name}'s record`}
               </button>
               <p className="text-xs text-midnight-500 mt-4">
-                Free forever. No card, no catch.
+                No cost, no card, no catch.
               </p>
             </>
           )}

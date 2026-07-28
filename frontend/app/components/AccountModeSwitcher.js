@@ -20,10 +20,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { PawPrint, Building2, Shield, Check, ChevronDown } from 'lucide-react';
 
-const ICONS = { owner: PawPrint, shelter: Building2, rescuer: Shield };
+const ICONS = { owner: PawPrint, shelter: Building2, searcher: Shield };
 
 /** Remembered so the next sign-in lands where you left off. */
 export function rememberMode(id) {
@@ -32,16 +33,63 @@ export function rememberMode(id) {
   } catch { /* cookies disabled: switching still works, it just forgets */ }
 }
 
-function useAccountModes() {
+/**
+ * Guests hold no server modes, but the doors must still be visible -
+ * discoverability is the whole point of the switcher. The fallback pair
+ * gives each hat a sensible public landing.
+ */
+const GUEST_MODES = [
+  { id: 'owner', label: 'Pet Care', detail: 'A free Health Book for your pets', href: '/care' },
+  { id: 'searcher', label: 'Help find lost pets', detail: 'Join searchers near you', href: '/rescue-forces/search' },
+];
+
+/**
+ * Shared by every chrome consumer (top bar, tab bar, both switcher
+ * surfaces): one fetch per sign-in, cached at module level and keyed by
+ * the session's user so sign-in/out invalidates it. Guests skip the
+ * network entirely - their doors are static.
+ */
+let modesCache = { key: null, promise: null, at: 0 };
+
+export function useAccountModes() {
+  const { data: session, status } = useSession();
   const [modes, setModes] = useState(null);
+  const userId = session?.user?.id || null;
+
   useEffect(() => {
+    if (status === 'loading') return undefined;
+    const key = userId || 'guest';
     let alive = true;
-    fetch('/api/account/modes')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive && d) setModes(d.modes || []); })
-      .catch(() => { /* optional chrome: stay quiet */ });
-    return () => { alive = false; };
-  }, []);
+
+    const load = (force) => {
+      // The 5s window collapses the burst when several chrome consumers
+      // react to the same focus event: one fetch, shared by all.
+      const stale = force && Date.now() - modesCache.at > 5000;
+      if (modesCache.key !== key || stale) {
+        modesCache = {
+          key,
+          at: Date.now(),
+          promise: userId
+            ? fetch('/api/account/modes')
+                .then((r) => (r.ok ? r.json() : null))
+                .then((d) => (d?.modes?.length ? d.modes : GUEST_MODES))
+                .catch(() => GUEST_MODES)
+            : Promise.resolve(GUEST_MODES),
+        };
+      }
+      modesCache.promise.then((m) => { if (alive) setModes(m); });
+    };
+
+    load(false);
+
+    // Hats change mid-session (claiming a shelter, joining a force).
+    // Coming back to the tab re-checks, so the bar never shows a world
+    // the account no longer holds - or hides one it just gained.
+    const onFocus = () => { if (userId) load(true); };
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; window.removeEventListener('focus', onFocus); };
+  }, [status, userId]);
+
   return modes;
 }
 
@@ -123,18 +171,29 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
     );
   }
 
+  // The shelter door must stay discoverable even for people who don't
+  // hold that hat yet - it's how a shelter director learns the free
+  // portal exists. (/shelter/dashboard sorts out pitch vs pending vs
+  // invite.) Holders get their shelter as a mode row instead.
+  const hasShelterMode = modes.some((m) => m.id === 'shelter');
+
+  // Only the OTHER worlds: you are already where you are, and a switcher
+  // that lists your current location as a link is noise. No concept
+  // header either - the rows are plain destinations.
+  const others = modes.filter((m) => m.id !== current);
+
   return (
-    <div className="border-b border-midnight-100">
-      <p className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-midnight-400">
-        Switch view
-      </p>
-      {modes.map((m) => {
+    <div className="border-b border-midnight-100 py-1">
+      {others.map((m) => {
         const Icon = ICONS[m.id] || PawPrint;
         return (
           <Link
             key={m.id}
             href={m.href}
-            onClick={() => { rememberMode(m.id); if (onNavigate) onNavigate(); }}
+            onClick={() => {
+              rememberMode(m.id);
+              if (onNavigate) onNavigate();
+            }}
             className="flex items-center gap-3 px-4 py-2.5 text-midnight-700 hover:bg-midnight-50 transition"
           >
             <Icon className="w-4 h-4 shrink-0" />
@@ -142,10 +201,22 @@ export default function AccountModeSwitcher({ current, variant = 'menu', onNavig
               <span className="block font-medium truncate">{m.label}</span>
               <span className="block text-[12px] text-midnight-400">{m.detail}</span>
             </span>
-            {m.id === active.id && <Check className="w-4 h-4 text-flash-600 shrink-0" />}
           </Link>
         );
       })}
+      {!hasShelterMode && (
+        <Link
+          href="/shelter/dashboard"
+          onClick={() => { if (onNavigate) onNavigate(); }}
+          className="flex items-center gap-3 px-4 py-2.5 text-midnight-700 hover:bg-midnight-50 transition"
+        >
+          <Building2 className="w-4 h-4 shrink-0" />
+          <span className="flex-1 min-w-0">
+            <span className="block font-medium truncate">Shelter Portal</span>
+            <span className="block text-[12px] text-midnight-400">Run a shelter? Free tools</span>
+          </span>
+        </Link>
+      )}
     </div>
   );
 }

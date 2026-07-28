@@ -198,7 +198,7 @@ export default async function PublicShelterPage({ params }) {
 
         <p className="text-xs text-midnight-400 text-center">
           This page is provided free by ReunitePets. Shelters manage their animals and
-          health records here at no cost, forever.
+          health records here at no cost.
         </p>
       </section>
     </div>

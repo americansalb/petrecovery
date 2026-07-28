@@ -2,21 +2,32 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Search, Shield, PawPrint, Plus } from 'lucide-react';
+import { Home, Search, PawPrint, Plus, MapPin } from 'lucide-react';
 import { hidesBottomNav } from '@/app/lib/navChrome';
 
-const leftItems = [
+/**
+ * Four tabs and the Report button, identical for every person on every
+ * route. Nothing here is conditional: a tab bar that reshuffles as you
+ * move around reads as broken. Person-specific destinations live in the
+ * drawer's "your places" rows, not in these slots.
+ *
+ * /care sends signed-in people straight to /pets (app/care/CareGate.js),
+ * so one Pet Care tab serves guests and members alike.
+ */
+const LEFT_TABS = [
   { href: '/dashboard', icon: Home, label: 'Home', exact: true },
-  { href: '/pets', icon: PawPrint, label: 'My Pets' },
+  { href: '/care', icon: PawPrint, label: 'Pet Care', alsoActive: ['/pets'] },
 ];
 
-const rightItems = [
+const RIGHT_TABS = [
   { href: '/lost-and-found', icon: Search, label: 'Lost & Found', alsoActive: ['/cases'] },
-  { href: '/rescue-forces/search', icon: Shield, label: 'Forces', alsoActive: ['/rescue-forces'] },
+  { href: '/shelters', icon: MapPin, label: 'Shelters', alsoActive: ['/for-shelters', '/shelter', '/my-shelter'] },
 ];
 
 export default function GlobalBottomNav() {
   const pathname = usePathname();
+  const leftItems = LEFT_TABS;
+  const rightItems = RIGHT_TABS;
 
   // Shared chrome policy (app/lib/navChrome.js): hidden only inside
   // immersive takeovers and focused flows whose own fixed bars would

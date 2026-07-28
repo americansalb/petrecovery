@@ -3,18 +3,29 @@
 /**
  * Navigation Component - Universal Nav Bar
  *
- * THE one top bar, identical on every route: same h-16 height, same links,
- * same Report CTA - content and size never change from page to page. It
- * only adapts to auth STATE (guests get Sign in/Join, members get their
- * menu), never to the route; the sole exception is the immersive-route
- * list in app/lib/navChrome.js (Mission Control ships its own chrome).
- * While the session is resolving, a fixed-size placeholder holds the
- * right-side slot so the bar never reflows after load.
- * Enforced by __tests__/global-chrome.test.js.
+ * THE one top bar. Same height, same links, same Report CTA, for every
+ * person on every route. The center link set is a CONSTANT
+ * (CENTER_LINKS): it does not vary by route, by whether you are signed
+ * in, by whether you help run a shelter, or by anything else. A bar that
+ * rearranges itself as you move around reads as broken, so anything
+ * personal (your shelter, your rescue forces) lives in the account menu
+ * instead.
+ *
+ * The only permitted variations, both deliberate:
+ *   1. The session slot on the right (guests get Sign in/Join, members
+ *      get the bell and their menu). A fixed-size placeholder holds it
+ *      while the session resolves so the bar never reflows.
+ *   2. Whole-bar removal inside immersive takeovers listed in
+ *      app/lib/navChrome.js, each of which ships its own visible way
+ *      back out (Mission Control "Exit", the portal "Exit to
+ *      ReunitePets").
+ *
+ * Pages may add SUBTABS below the bar (anchored `sticky top-16`), never
+ * their own top bar. Enforced by __tests__/global-chrome.test.js.
  */
 
 import { useSession, signOut } from 'next-auth/react';
-import AccountModeSwitcher from './AccountModeSwitcher';
+import AccountModeSwitcher, { useAccountModes } from './AccountModeSwitcher';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -46,6 +57,24 @@ import {
 import { Button } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
 import { isImmersiveRoute } from '@/app/lib/navChrome';
+
+/**
+ * The universal center link set: one home per domain, in one order, for
+ * everyone. /care sends signed-in people to /pets (app/care/CareGate.js),
+ * so a single Pet Care link lands each visitor in the right place without
+ * the bar itself changing.
+ */
+const CENTER_LINKS = [
+  { href: '/care', label: 'Pet Care', icon: Heart, activePrefixes: ['/pets'] },
+  { href: '/lost-and-found', label: 'Lost & Found', icon: Search, activePrefixes: ['/cases'] },
+  { href: '/rescue-forces/search', label: 'Rescue Forces', icon: Shield, activePrefixes: ['/rescue-forces', '/divisions'] },
+  { href: '/shelters', label: 'Shelters', icon: MapPin, activePrefixes: ['/for-shelters', '/shelter/', '/my-shelter'] },
+  { href: '/hub', label: 'Hub', icon: Sparkles, activePrefixes: [] },
+];
+
+function isActive(pathname, href, activePrefixes = []) {
+  return pathname.startsWith(href) || activePrefixes.some((p) => pathname.startsWith(p));
+}
 
 export default function Navigation() {
   const { data: session, status: sessionStatus } = useSession();
@@ -127,68 +156,18 @@ export default function Navigation() {
               <span className="hidden sm:inline lg:hidden xl:inline">Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
-            {/* Desktop Navigation: one home per domain, same for guests and members */}
+            {/* Desktop Navigation: THE link set. Identical for everyone -
+                guest, member, shelter staff, force member - and identical
+                on every route. Nothing here is conditional; if a link
+                needs to appear for some people and not others, it belongs
+                in the account menu, not in the bar. */}
             <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
-              {/* My Pets is daily life (medications, profiles): first-class, always */}
-              {session && (
-                <NavLink href="/pets" active={pathname.startsWith('/pets')}>
-                  <PawPrint className="w-4 h-4" />
-                  My Pets
+              {CENTER_LINKS.map(({ href, label, icon: Icon, activePrefixes }) => (
+                <NavLink key={href} href={href} active={isActive(pathname, href, activePrefixes)}>
+                  <Icon className="w-4 h-4" />
+                  {label}
                 </NavLink>
-              )}
-
-              {/* The everyday door, a peer of Lost & Found and visible to all:
-                  this is how a first-time visitor learns the Health Book exists */}
-              <NavLink href="/care" active={pathname.startsWith('/care')}>
-                <Heart className="w-4 h-4" />
-                Pet Care
-              </NavLink>
-
-              <NavLink href="/lost-and-found" active={pathname.startsWith('/lost-and-found') || pathname.startsWith('/cases')}>
-                <Search className="w-4 h-4" />
-                Lost &amp; Found
-              </NavLink>
-
-              {/* Always the same trigger - the user's squads only change what's
-                  INSIDE the dropdown, never the size or shape of the bar */}
-              <NavDropdown
-                label="Rescue Forces"
-                icon={Shield}
-                active={pathname.startsWith('/rescue-forces') || pathname.startsWith('/divisions')}
-                isOpen={activeDropdown === 'squads'}
-                onToggle={() => toggleDropdown('squads')}
-              >
-                {userSquads.length > 0 && (
-                  <>
-                    <div className="max-h-64 overflow-y-auto">
-                      {userSquads.map(squad => (
-                        <Link
-                          key={squad.id}
-                          href={`/rescue-forces/${squad.id}`}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-midnight-50 transition"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-midnight-900 text-white flex items-center justify-center text-sm font-bold">
-                            {squad.name?.[0] || '?'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-midnight-900 truncate">{squad.name}</div>
-                            <div className="text-xs text-midnight-500">{squad.city}, {squad.state}</div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                    <DropdownDivider />
-                  </>
-                )}
-                <DropdownLink href="/rescue-forces/search" icon={Search} title="Find rescue forces" description="Every neighborhood needs one" />
-                <DropdownLink href="/rescue-forces/create" icon={Shield} title="Start a rescue force" description="Organize your city's searchers" />
-              </NavDropdown>
-
-              <NavLink href="/hub" active={pathname.startsWith('/hub')}>
-                <Sparkles className="w-4 h-4" />
-                Hub
-              </NavLink>
-
+              ))}
               {/* Admin tooling lives in the user menu, not the bar: the
                   bar's link set is identical for every role */}
             </div>
@@ -273,9 +252,10 @@ export default function Navigation() {
                         </Link>
                         {/* Messages hidden pre-launch: no conversation is created yet,
                             so the inbox would be a guaranteed-empty dead-end. */}
-                        {/* Renders only for people who hold more than one
-                            hat; everyone else sees an unchanged menu. */}
-                        <AccountModeSwitcher current="owner" onNavigate={() => setActiveDropdown(null)} />
+                        {/* Your places (your shelter, your rescue force).
+                            This is where anything person-specific goes now
+                            that the bar itself never changes. */}
+                        <AccountModeSwitcher onNavigate={() => setActiveDropdown(null)} />
                         <Link href="/profile" className="flex items-center gap-3 px-4 py-3 text-midnight-700 hover:bg-midnight-50 transition">
                           <User className="w-4 h-4" />
                           <span className="font-medium">My Profile</span>
@@ -411,20 +391,24 @@ export default function Navigation() {
 
         {/* Mobile Nav Links */}
         <div className="py-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-          {/* Browse section - Always visible */}
+          {/* Your places (your shelter, your rescue force) come first:
+              person-specific rows live here, never in the bar. */}
+          <AccountModeSwitcher onNavigate={() => setMobileMenuOpen(false)} />
+
+          {/* The same five links as the desktop bar, same order. */}
           <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
             Browse
           </div>
-          <MobileNavLink href="/care" icon={Heart} label="Pet Care" active={pathname.startsWith('/care')} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/lost-and-found" icon={Search} label="Lost & Found" active={pathname.startsWith('/lost-and-found')} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/shelters" icon={Building2} label="Find Shelters" active={pathname === '/shelters'} onClick={() => setMobileMenuOpen(false)} />
-          <MobileNavLink href="/rescue-forces/search" icon={Users} label="Find Rescue Forces" active={pathname === '/rescue-forces/search'} onClick={() => setMobileMenuOpen(false)} />
-
-          <div className="border-t border-midnight-100 my-2" />
-          <div className="px-4 py-2 text-xs font-semibold text-midnight-500 uppercase tracking-wider">
-            Community
-          </div>
-          <MobileNavLink href="/hub" icon={Sparkles} label="Rescue Hub" active={pathname.startsWith('/hub')} onClick={() => setMobileMenuOpen(false)} />
+          {CENTER_LINKS.map(({ href, label, icon, activePrefixes }) => (
+            <MobileNavLink
+              key={href}
+              href={href}
+              icon={icon}
+              label={label}
+              active={isActive(pathname, href, activePrefixes)}
+              onClick={() => setMobileMenuOpen(false)}
+            />
+          ))}
 
           {/* Auth-only section */}
           {session && (
@@ -437,7 +421,6 @@ export default function Navigation() {
               <MobileNavLink href="/notifications" icon={Bell} label="Notifications" active={pathname.startsWith('/notifications')} onClick={() => setMobileMenuOpen(false)} />
               {/* Messages hidden pre-launch (guaranteed-empty until conversations are wired). */}
               <MobileNavLink href="/pets" icon={PawPrint} label="My Pets" active={pathname.startsWith('/pets')} onClick={() => setMobileMenuOpen(false)} />
-              <AccountModeSwitcher current="owner" onNavigate={() => setMobileMenuOpen(false)} />
               <MobileNavLink href="/settings" icon={Settings} label="Settings" active={pathname.startsWith('/settings')} onClick={() => setMobileMenuOpen(false)} />
 
               {userSquads.length > 0 && (

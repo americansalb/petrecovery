@@ -108,3 +108,48 @@ Risks and answers:
    flows (dose logging, care chips, stamps) by driving the app.
 3. Follow-ons: "snap the certificate" parsing, documents, landing
    page screenshots refreshed from the final UI.
+
+## 6. Three doors, one record (amendment, 2026-07-27)
+
+The "two doors" of §2 gain a third, and the doors become wearable. One
+account, three hats — **Owner / Searcher / Shelter** — chosen with the
+account switcher (`AccountModeSwitcher`, fed by `/api/account/modes`),
+never in settings. A hat is UI EMPHASIS ONLY: presentation re-aims,
+permission is always re-derived server-side, and switching hides
+nothing and loses nothing.
+
+Naming decision: the middle hat is **Searcher** (not "Rescuer", which
+implies housing animals). It matches the product's own language: search
+party, "3 searching", "Join the search".
+
+Rules (Phase A shipped 2026-07-27):
+
+1. **The chrome wears the hat.** `HatContext` (`app/contexts/`) holds
+   owner|searcher, persisted per device; the top bar's CENTER link set
+   and the mobile tab bar swap with it. Owner: My Pets · Pet Care ·
+   Lost & Found · Shelters · Hub. Searcher: Lost & Found · Rescue
+   Forces · Hub. Bar geometry, logo, the Report CTA, and the session
+   slot are hat-invariant. Shelter is a PLACE, not a bar state: the
+   /my-shelter portal owns its chrome, and "switching to Shelter" is
+   navigation.
+2. **Deep links auto-switch.** A searcher-world URL (/rescue-forces,
+   /mission-control, /divisions, /join) puts the searcher hat on; an
+   owner-world URL (/pets, /care, /my-alerts) the owner hat; shared
+   surfaces (hub, lost-and-found, shelters directory, report flows)
+   never switch. Nobody lands in a chrome that mismatches the page.
+3. **The searcher door is always offered** — it is the recruitment
+   door. Members land on their force; everyone else lands on
+   /rescue-forces/search. The shelter door renders for hat-holders as
+   their shelter, and for everyone else as the quiet "Shelter Portal"
+   discovery link.
+4. **Report is never behind a hat.** The emergency action stays global
+   in every chrome, desktop and mobile.
+
+The universal-navbar rule (APP_MAP §8.2) is amended accordingly:
+identical on every route *per hat*; hat conditionals are session-state,
+not route conditionals, and remain enforced by
+`__tests__/global-chrome.test.js`.
+
+Phase B (open): per-hat home surfaces (a searcher dashboard leading
+with missions near you), duty toggle in the searcher bar, hat-aware
+notification preferences.

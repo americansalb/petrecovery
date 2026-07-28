@@ -170,7 +170,7 @@ function Hero({ metrics }) {
             </Link>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2 text-midnight-300 text-sm">
-              {['Always free', 'Takes about a minute', 'Powered by neighbors near you'].map((t) => (
+              {['Free to use', 'Takes about a minute', 'Powered by neighbors near you'].map((t) => (
                 <span key={t} className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" /> {t}
                 </span>
@@ -561,8 +561,8 @@ function ShelterLane() {
           </h2>
           <p className="text-midnight-300 mt-3">
             Shelter software costs money everywhere else. Here, every animal you
-            manage helps a lost pet get found, so we give shelters the whole
-            platform for nothing. Forever.
+            manage helps a lost pet get found, so shelters get the whole platform
+            for nothing.
           </p>
           <div className="flex flex-wrap items-center gap-3 mt-5">
             <Link
@@ -595,7 +595,7 @@ function ShelterLane() {
   );
 }
 
-/* ----------------------------- Free forever band -------------------------- */
+/* ------------------------------ The gift band ----------------------------- */
 
 const PILLARS = [
   {
@@ -621,15 +621,15 @@ const PILLARS = [
   },
 ];
 
-function FreeForever() {
+function GiftBand() {
   return (
     <section className="max-w-5xl mx-auto px-4 mb-16 md:mb-24">
       <h2 className="text-center text-3xl md:text-4xl font-extrabold text-midnight-900 mb-3">
         Built as a gift, run like one
       </h2>
       <p className="text-center text-midnight-500 max-w-2xl mx-auto mb-10">
-        Everything that helps a pet is free for everyone, forever. The only thing
-        we ever charge for is optional extra reach, and that keeps the lights on.
+        Report a lost pet, join a search, keep your pet&rsquo;s records: all of it is
+        free to use, and a nonprofit keeps it running.
       </p>
       <div className="grid md:grid-cols-3 gap-5">
         {PILLARS.map(({ icon: Icon, title, body, href, label }) => (
@@ -676,7 +676,7 @@ function FooterCta() {
           <div>
             <p className="font-extrabold text-white text-lg mb-2">Reunite<span className="text-flash-400">Pets</span></p>
             <p className="text-midnight-400 leading-relaxed">
-              Coordinated search and rescue for lost pets, powered by neighbors. Free, forever.
+              Coordinated search and rescue for lost pets, powered by neighbors. Free to use.
             </p>
           </div>
           <div>
@@ -740,7 +740,7 @@ export default function HomePage() {
       <ActiveMissions missions={missions} loading={missionsLoading} />
       <HealthBookLane />
       <ShelterLane />
-      <FreeForever />
+      <GiftBand />
       <FooterCta />
     </main>
   );

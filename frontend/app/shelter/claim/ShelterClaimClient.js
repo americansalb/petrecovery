@@ -114,7 +114,7 @@ export default function ShelterClaimClient() {
               <p className="text-midnight-600 mb-6">
                 {state.shelter.city}, {state.shelter.state}. Your free account unlocks
                 animal management, health records, lost-pet matching, staff seats, and
-                your own public page. Free forever.
+                your own public page. No cost, no card.
               </p>
               {claimError && <p className="text-sm text-red-600 mb-3">{claimError}</p>}
               <button

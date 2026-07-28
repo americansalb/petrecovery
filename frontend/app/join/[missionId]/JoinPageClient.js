@@ -51,7 +51,10 @@ export default function JoinMissionPage() {
 
   const fetchMissionInfo = async () => {
     try {
-      const res = await fetch(`/api/mission/${missionId}`);
+      // join-info is the anonymous-safe subset; the bare mission GET is
+      // auth-gated (exact coords + live GPS) and 401s for guests, which
+      // used to render this page as a Connection Error for every share link.
+      const res = await fetch(`/api/mission/${missionId}/join-info`);
       if (!res.ok) {
         if (res.status === 404) {
           setError('NO_MISSION');

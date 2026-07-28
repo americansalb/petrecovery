@@ -128,8 +128,8 @@ export default async function ShelterDashboardPage() {
             <h2 className="text-xl font-bold text-midnight-900 mb-2">You don’t manage a shelter yet</h2>
             <p className="text-midnight-700 mb-5">
               If you run a shelter or rescue, your free account takes about a minute to
-              set up: animal management, health records, lost-pet matching, and your own
-              public page.
+              set up: medical records for every animal, lost-pet matching, adoption
+              inquiries, accounts for your staff, and a public page. Everything is free.
             </p>
             <Link href="/shelter/start" className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-5 py-2.5 rounded-xl transition">
               Get your free shelter account
