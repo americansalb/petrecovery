@@ -98,6 +98,23 @@ export function slotKeyFor(day, hhmm) {
   return `${y}-${mo}-${da}T${hhmm}`;
 }
 
+/**
+ * The canonical instant for a slot: its wall-clock key read as UTC.
+ *
+ * The dose API stores new rows at this instant rather than at the writing
+ * device's local one, so the (medicationId, scheduledFor) unique index makes
+ * the SLOT unique across timezones. Without it two caregivers in different
+ * zones checking off the same 8am dose each insert a row: two GIVEN records
+ * and two supply decrements for one pill.
+ *
+ * Null for a malformed key, so callers fall back to the raw instant.
+ */
+export function canonicalInstantForSlot(slotKey) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(slotKey || '')) return null;
+  const d = new Date(`${slotKey}:00.000Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 /** Midnight (local) for a date. */
 export function startOfDay(date) {
   const d = new Date(date);

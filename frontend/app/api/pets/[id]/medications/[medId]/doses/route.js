@@ -21,6 +21,11 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { requirePetAccess } from '@/app/lib/petOwnership';
 import { audit, AUDIT_ACTIONS } from '@/app/lib/medicationAudit';
+// A unique index on slotKey would be the tidier guarantee, but adding one to a
+// live table is exactly the migration the deploy's bare `prisma db push`
+// cannot carry - so the slot's canonical instant carries it through the index
+// that already exists.
+import { canonicalInstantForSlot } from '@/lib/medications';
 
 async function findOwnedMedication(petId, medId) {
   const medication = await prisma.petMedication.findUnique({ where: { id: medId } });
@@ -34,6 +39,18 @@ function supplyDelta(prevStatus, nextStatus) {
   if (!wasGiven && isGiven) return -1;
   if (wasGiven && !isGiven) return 1;
   return 0;
+}
+
+/** Apply a supply change atomically, clamped at zero.
+ *  Reading the count before the transaction and writing back read+delta loses
+ *  one of two concurrent decrements; increment is computed by the database. */
+async function applySupply(tx, medId, hasSupply, delta) {
+  if (!hasSupply || delta === 0) return;
+  await tx.petMedication.update({ where: { id: medId }, data: { quantityRemaining: { increment: delta } } });
+  await tx.petMedication.updateMany({
+    where: { id: medId, quantityRemaining: { lt: 0 } },
+    data: { quantityRemaining: 0 },
+  });
 }
 
 // POST /api/pets/[id]/medications/[medId]/doses
@@ -59,7 +76,14 @@ export async function POST(request, { params }) {
 
     const status = body.status === 'SKIPPED' ? 'SKIPPED' : 'GIVEN';
     const notes = (body.notes || '').trim().slice(0, 500) || null;
-    const givenAt = status === 'GIVEN' ? new Date(body.givenAt || Date.now()) : null;
+    // A malformed givenAt used to reach Prisma as an Invalid Date and fail the
+    // whole write with a 500, so a caregiver's tap on a bad payload lost the
+    // dose entirely. Fall back to now instead.
+    let givenAt = null;
+    if (status === 'GIVEN') {
+      const parsed = body.givenAt ? new Date(body.givenAt) : new Date();
+      givenAt = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    }
     // Timezone-independent slot identity (new clients send it; legacy rows and
     // PRN doses have none). It is what makes two caregivers in different
     // timezones, or a re-timed schedule, resolve to the SAME dose row.
@@ -93,27 +117,27 @@ export async function POST(request, { params }) {
     const delta = supplyDelta(prevStatus, status);
     const isRevival = Boolean(existing);
 
-    const result = await prisma.$transaction(async (tx) => {
+    // New rows land on the slot's canonical instant so the unique index makes
+    // the slot itself unique, whatever timezone the writer is in.
+    const storedInstant = (!existing && canonicalInstantForSlot(slotKey)) || scheduledFor;
+
+    const write = async () => prisma.$transaction(async (tx) => {
       // Update the row we already identified (by slotKey or instant) in place,
       // so a cross-timezone or re-timed log can never spawn a second row for
       // the slot; backfill slotKey onto a legacy row the first time it is
-      // touched. Otherwise create it. The (medicationId, scheduledFor) unique
-      // still backstops same-timezone races at the database level.
+      // touched.
       const dose = existing
         ? await tx.medicationDose.update({
             where: { id: existing.id },
             data: { status, notes, givenAt, deletedAt: null, slotKey: existing.slotKey ?? slotKey },
           })
         : await tx.medicationDose.create({
-            data: { medicationId: medId, scheduledFor, slotKey, status, notes, givenAt },
+            data: { medicationId: medId, scheduledFor: storedInstant, slotKey, status, notes, givenAt },
           });
 
-      const updatedMed = await tx.petMedication.update({
-        where: { id: medId },
-        data:
-          medication.quantityRemaining != null && delta !== 0
-            ? { quantityRemaining: Math.max(0, medication.quantityRemaining + delta) }
-            : {},
+      await applySupply(tx, medId, medication.quantityRemaining != null, delta);
+      const updatedMed = await tx.petMedication.findUnique({
+        where: { id: medId }, select: { quantityRemaining: true },
       });
 
       await audit(tx, {
@@ -125,8 +149,30 @@ export async function POST(request, { params }) {
         snapshot: { before: existing || null, after: dose, supplyDelta: delta },
       });
 
-      return { dose, quantityRemaining: updatedMed.quantityRemaining };
+      return { dose, quantityRemaining: updatedMed?.quantityRemaining ?? null };
     });
+
+    let result;
+    try {
+      result = await write();
+    } catch (err) {
+      // The other caregiver won the race and inserted this slot between our
+      // lookup and our insert. Their record stands; report it rather than
+      // retrying into a second dose.
+      if (err?.code === 'P2002') {
+        const winner = await prisma.medicationDose.findFirst({
+          where: { medicationId: medId, ...(slotKey ? { slotKey } : { scheduledFor: storedInstant }) },
+        });
+        if (winner) {
+          return NextResponse.json({
+            dose: winner,
+            quantityRemaining: medication.quantityRemaining,
+            alreadyLogged: true,
+          });
+        }
+      }
+      throw err;
+    }
 
     return NextResponse.json(result, { status: isRevival ? 200 : 201 });
   } catch (error) {
@@ -164,6 +210,16 @@ export async function DELETE(request, { params }) {
         where: { medicationId_scheduledFor: { medicationId: medId, scheduledFor } },
       });
     }
+    // Rows written since slots became canonical sit at the slot's UTC instant
+    // rather than the caller's local one.
+    if (!existing) {
+      const canonical = canonicalInstantForSlot(slotKey);
+      if (canonical) {
+        existing = await prisma.medicationDose.findUnique({
+          where: { medicationId_scheduledFor: { medicationId: medId, scheduledFor: canonical } },
+        });
+      }
+    }
     if (!existing || existing.deletedAt) {
       return NextResponse.json({ error: 'No log for that slot' }, { status: 404 });
     }
@@ -177,12 +233,9 @@ export async function DELETE(request, { params }) {
         data: { deletedAt: new Date() },
       });
 
-      const updatedMed = await tx.petMedication.update({
-        where: { id: medId },
-        data:
-          medication.quantityRemaining != null && delta !== 0
-            ? { quantityRemaining: Math.max(0, medication.quantityRemaining + delta) }
-            : {},
+      await applySupply(tx, medId, medication.quantityRemaining != null, delta);
+      const updatedMed = await tx.petMedication.findUnique({
+        where: { id: medId }, select: { quantityRemaining: true },
       });
 
       await audit(tx, {

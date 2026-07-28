@@ -1,6 +1,13 @@
 // Jest configuration for PetRecovery
 // https://nextjs.org/docs/testing
 
+// Run the suite in a daylight-saving timezone, not UTC. Dose scheduling is
+// wall-clock arithmetic, so UTC is the one environment where its DST bugs
+// cannot appear; pinning a real zone keeps lib/__tests__/medications-timezone
+// honest and surfaces any new tz assumption on every run. Workers inherit
+// this, and pinning it also stops results drifting with the CI host.
+process.env.TZ = process.env.TZ || 'America/New_York';
+
 const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
