@@ -1,11 +1,14 @@
 # MVP Launch Plan
 
-**Written:** 2026-08-03 (revised same day after a second, deeper pass)
+**Written:** 2026-08-03 (revised twice the same day, after a deeper API pass and
+then a browser pass)
 **Method:** every claim was verified against the code on `claude/mvp-launch-plan-qfj453`
 (tip of `pet_main` at `6d00056`) with a production build booted against a real
-seeded Postgres and the APIs driven by hand. Nothing is inherited from an older
-doc without re-checking it. Where the first pass got something wrong, the
-correction is called out rather than quietly edited.
+seeded Postgres: APIs driven by hand with curl, then the same server driven in
+headless Chromium via Playwright at 1440 and 390 wide, logged out and logged in
+(section 8). Nothing is inherited from an older doc without re-checking it.
+Where an earlier pass got something wrong, the correction is called out rather
+than quietly edited — there are two so far, in sections 2 and 5.
 
 ---
 
@@ -29,6 +32,8 @@ Verified green:
 | Report a found pet | works: case created, matches scored, owner notified |
 | Authorization (pet IDOR, notification IDOR, conversation IDOR, admin gates) | **solid** — 404 for strangers, 403 on writes, 401/307 anon, 403 for non-admin |
 | Rate limiting | **works** — 75-request burst: 60 served, 15 × 429 |
+| Report a sighting (case-page modal → `/api/missions/[id]/sightings`) | works — 201, row written |
+| UI, driven in Chromium (desktop + mobile, both sessions) | renders cleanly and on-brand; mobile measured at `scrollWidth === 390`, `overflow-x: clip` |
 
 Scale of the surface: **117 pages, 304 API routes, 158 Prisma models.**
 
@@ -218,13 +223,21 @@ A static check of every `prisma.<model>` reference against `schema.prisma` finds
 `squadMembership` (8 files), `lostReport` (2), `gpsBreadcrumb` (1),
 `shiftSignup` (1).
 
-Two of these are user-facing features that are simply dead:
+Two of these reach real users:
 
-**Sightings are 100% broken.** `app/api/sightings/route.js:76` passes
+**The legacy sighting route is broken.** `app/api/sightings/route.js:76` passes
 `missionId` to `prisma.sighting.create()`, but the `Sighting` model requires
-`caseId`. Every submission 500s. The UI does use this endpoint
-(`app/sightings/report/page.js:49`). This is the same `missionId`→`caseId` drift
-that CRIT-B already fixed once in the found-pet route.
+`caseId`, so every call 500s. It is used by the standalone `/sightings/report`
+page (`app/sightings/report/page.js:49`). Same `missionId`→`caseId` drift that
+CRIT-B already fixed once in the found-pet route.
+
+> **Correction.** An earlier revision of this document said "sightings are 100%
+> broken." That was wrong, and the mistake is worth recording: there are two
+> sighting endpoints, and I checked one consumer and generalised. The primary
+> path — the "I've Seen {pet}" modal on the case page — posts to
+> `/api/missions/[missionId]/sightings`, which **works** (verified: HTTP 201,
+> row written). Only the legacy `/sightings/report` page is dead. What is true
+> of both: neither accepts an anonymous report (see 8c).
 
 And the test suite **asserts the broken shape**. From
 `__tests__/api/sightings.test.js:197`:
@@ -322,7 +335,96 @@ and is loaded by `next build`. `public/manifest.json` shortcuts point at legacy
 
 ---
 
-## 8. The plan
+## 8. The UI, driven in a real browser
+
+Everything above this section was API-level. This section is a separate pass:
+Chromium via Playwright against the same seeded server, desktop (1440) and
+mobile (390), logged out and logged in. Captures are in `screenshots/` from the
+2026-07-27 sweep; this pass drove the specific journeys the sections above
+identified as broken.
+
+**The layout and design system are in good shape.** The homepage, browse, case
+page, wizards, dashboard and notifications all render cleanly and on-brand
+(midnight + flash-yellow, Lucide icons, plain copy). Mobile is genuinely
+correct: `scrollWidth === 390` on every page tested, with `overflow-x: clip` on
+both `html` and `body`, exactly as the CLAUDE.md trap note requires.
+
+### 8a. The dead end, now visible
+
+Logged in as the owner of `AUS-2026-0001`, the notification bell shows **2**,
+and `/notifications` reads:
+
+> **Possible match for Max** — Someone just reported a found DOG that may match
+> your lost pet. **Tap to review and connect.** · [View details]
+
+"View details" goes to `/cases/AUS-2026-0001`. That page contains no reference
+to the match. The right rail offers Share This Alert, Check Nearby Shelters,
+Print Flyers, Join Search Party. The 0.95-confidence golden retriever found 100
+metres away appears nowhere. This is P0-2 with a picture.
+
+### 8b. Real UI defects found
+
+1. **The push-permission modal covers the primary CTA.** On the desktop case
+   page, the "Stay Connected / Enable Notifications" card is anchored over the
+   right end of the big yellow "I've Seen {pet}" bar — the single most important
+   action on the page, for the one visitor most likely to help.
+2. **"Contact Owner Directly" is shown to the owner.**
+   `ActionCards.js:163` gates that card on `caseData?.contact?.phone` alone, not
+   on `isOwner` — which `CasePageClient.js:88` already computes. The owner is
+   offered a `tel:` link to their own number, directly under a panel that
+   correctly says "YOUR CASE".
+3. **`/patrol/join` is off-brand and pre-design-system.** It renders a second
+   full-width dark header bar *below* the universal navbar (with its own back
+   arrow), uses emoji as icons (🦸📍🔔👀❤️) where every other page uses Lucide,
+   and its primary CTA is a purple/indigo gradient that exists nowhere else in
+   the midnight/flash-yellow system. The notifications page also uses
+   indigo/purple buttons. There are effectively two colour systems in the app,
+   and the older one is on the pages that were not part of recent redesigns.
+   The same page's "Get Started" leads to the flow that 500s (section 5).
+4. **`/sightings/report` bounces anonymous visitors with no context.** The page
+   hard-redirects to `/login` on mount (`page.js:30`) before rendering anything,
+   and the login screen it lands on says "Sign in to track your alerts" — the
+   wrong sentence for someone trying to report a dog they just saw. No return
+   path, no explanation.
+
+### 8c. Nobody can report a sighting without an account
+
+Both sighting endpoints reject anonymous callers:
+`/api/sightings` and `/api/missions/[missionId]/sightings` each return 401
+("Please sign in to report a sighting").
+
+This is the product's least-committed, highest-frequency helpful act — a
+passerby who spots the dog — and it is behind a signup wall, while the *found
+pet* funnel deliberately has none. Worth a deliberate decision, not an
+inherited default.
+
+### 8d. What I checked and found NOT to be bugs
+
+Recording these because three of them looked alarming in a screenshot and are
+capture artifacts of this sandbox:
+
+- The brand logo renders as the alt text "Reuni" — the CDN
+  (`petrescue.b-cdn.net`) is unreachable from the sandbox. Documented in
+  `screenshots/README.md`.
+- Map panels render grey with correct pins — OSM/CARTO tiles are blocked by the
+  same egress restriction.
+- "Active missions" appeared to be three empty cards. Those are the loading
+  skeletons (`app/page.js:435`); my first capture was simply too early. After a
+  full settle the section renders Rusty, Whiskers and Max correctly with a
+  pinned map.
+- Mobile appeared to overflow horizontally. It does not. The elements measuring
+  past the right edge are all children of the off-canvas drawer
+  (`fixed top-0 right-0 w-[300px]`, parked at `right: 690` on a 390 viewport) —
+  its correct closed state, pulled into frame by Playwright's `fullPage`
+  screenshot.
+
+Only the seeded placeholder artwork has a genuine (cosmetic) clipping issue:
+the SVGs have their labels baked in, so "Black Cat" and "Golden Retriever" are
+cropped by the card's image box.
+
+---
+
+## 9. The plan
 
 ### Phase 0 — Close the loop (4 to 6 days) — BLOCKING
 
@@ -337,6 +439,9 @@ and is loaded by `next build`. `public/manifest.json` shortcuts point at legacy
    the contract test: no raw phone, email or exact coordinates before mutual
    opt-in.
 4. **Turn `finder-funnel.contract.test.js` on** as each piece lands.
+5. **Two case-page fixes while you are in there** (8b): stop the push-permission
+   modal from covering the "I've Seen {pet}" CTA, and gate the "Contact Owner
+   Directly" card on `!isOwner` — the page already computes it.
 
 **Acceptance:** a found report matching an `IN_PROGRESS` lost case notifies the
 owner; the owner opens the notification a day later, sees the match, confirms it,
@@ -365,14 +470,20 @@ the Playwright job blocking once it has a seeded DB.
 
 ### Phase 1 — Repair the drift (2 to 3 days) — BLOCKING for what ships
 
-Fix `sightings` and `patrol/join` — both are user-facing features that are
-currently dead. Fix or delete the other fourteen. Deleting is a legitimate
-answer for `communities` (already redirected away), `emergency/evacuation`,
-`volunteers/schedule` and `integrations`; do not ship a navbar link to a 500.
+Fix `patrol/join` (dead on submit) and the legacy `/api/sightings` route. Fix or
+delete the other fourteen. Deleting is a legitimate answer for `communities`
+(already redirected away), `emergency/evacuation`, `volunteers/schedule` and
+`integrations`; do not ship a navbar link to a 500.
+
+While fixing `patrol/join`, bring the page onto the design system (8b): it
+carries a second dark header bar under the universal navbar, emoji icons, and a
+purple gradient CTA that exists nowhere else. Either fix `/sightings/report`'s
+context-free bounce to `/login`, or delete the page now that the case-page modal
+is the real path.
 
 ### Phase 2 — Don't hurt the users (2 to 3 days) — BLOCKING
 
-1. Decide the PII posture (section 9) and implement it; rate-limit the public
+1. Decide the PII posture (section 10) and implement it; rate-limit the public
    case detail endpoint either way.
 2. Defuse the CAPTCHA landmine: wire it properly and fix the env names, or remove
    `CAPTCHA_ROUTES` from middleware. Do not leave it half-present.
@@ -390,7 +501,7 @@ monitoring on `/api/health` alerting somewhere the founder actually reads.
 Rotate the seeded admin passwords and set `SEC18_ROTATED=true`; confirm
 `NEXTAUTH_SECRET`; create `/onboarding` or repoint `pages.newUser`; audit every
 env var against what the code actually reads (the reCAPTCHA mismatch will not be
-the only one); fix `manifest.json`; legal review; cut the surface (section 9).
+the only one); fix `manifest.json`; legal review; cut the surface (section 10).
 
 ### Phase 5 — Scale hygiene (1 day, can follow launch)
 
@@ -400,7 +511,7 @@ and order `reverseMatch` candidates by proximity rather than recency.
 
 ---
 
-## 9. Two decisions only the founder can make
+## 10. Three decisions only the founder can make
 
 **A. Public contact details.** Any anonymous visitor can pull every lost-pet
 owner's name, phone and email from a documented API. Options: keep it (a digital
@@ -414,13 +525,23 @@ harm lands on someone on their worst day.
 impression to defend, and section 5 shows how much of the periphery is broken.
 
 Recommended MVP surface: report lost, report found, browse, case page, match and
-connect, sightings (once fixed), pets, dashboard, auth, legal, plus the shelter
-portal if a shelter is ready. Everything else stays reachable by URL but comes
-off the navbar until it has been driven against a real database.
+connect, sightings, pets, dashboard, auth, legal, plus the shelter portal if a
+shelter is ready. Everything else stays reachable by URL but comes off the
+navbar until it has been driven against a real database.
+
+**C. Whether reporting a sighting requires an account.** Today it does — both
+endpoints 401 anonymous callers (8c). The found-pet funnel deliberately has no
+signup wall; sightings have a hard one. The argument for keeping it is
+accountability on a claim about someone's pet; the argument against is that
+spotting a dog on your commute is the lowest-commitment help there is, and a
+signup wall converts a large share of it to nothing.
+
+Recommendation: allow anonymous sightings with the same device/IP rate limits
+the found funnel uses, and mark them lower-certainty in the activity feed.
 
 ---
 
-## 10. What is not on the critical path
+## 11. What is not on the critical path
 
 Push notifications beyond what exists, the division system UI, the simulator,
 gamification and points, the ad-fund widget (still hardcoded), the mobile
@@ -435,7 +556,7 @@ Treat both as history.
 
 ---
 
-## 11. Timeline
+## 12. Timeline
 
 | Phase | Effort | Blocking? |
 |---|---|---|
@@ -452,7 +573,7 @@ Treat both as history.
 the founder-gated items (password rotation, legal review, the PII decision) run
 in parallel rather than at the end.
 
-## 12. Definition of done
+## 13. Definition of done
 
 A stranger finds a dog. They report it with a photo and a location, without
 making an account. The owner — whose case a rescue force is already searching —
