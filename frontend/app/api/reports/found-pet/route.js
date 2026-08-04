@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { findMatches } from '@/app/lib/matching';
+import { findMatches, OPEN_CASE_STATUS } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 
@@ -188,7 +188,7 @@ export async function POST(request) {
     const lostPetCases = await prisma.case.findMany({
       where: {
         reportType: 'LOST',
-        status: 'ACTIVE',
+        status: OPEN_CASE_STATUS,
         petSpecies: petType.toUpperCase(),
       },
       include: {

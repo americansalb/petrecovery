@@ -165,6 +165,24 @@ export const PUSH_FLOOR = 0.70; // auto-push to owner + actionable Confirm-&-Con
 export const FEED_FLOOR = 0.40; // owner feed only - no alert, no CTA
 
 /**
+ * Prisma `status` filter for "this case is still open, keep matching it".
+ *
+ * CaseStatus has THREE open states, not one: a case moves ACTIVE ->
+ * IN_PROGRESS the moment a rescue force accepts it, and -> SIGHTING_REPORTED
+ * on the first sighting. Every matcher used to filter on `status: 'ACTIVE'`
+ * alone, so the instant a case got attention it silently stopped being
+ * matched - the exact cases most likely to be reunited were the ones dropped.
+ * Verified before the fix: an identical found-pet report scored 0 matches
+ * against an IN_PROGRESS case and 0.95/actionable against the same case set
+ * back to ACTIVE.
+ *
+ * Exported as one constant so the three matchers (found-pet, reports/[id],
+ * cascade/reverseMatch) cannot drift apart again. Mirrors the idiom already
+ * used in app/api/dashboard/route.js.
+ */
+export const OPEN_CASE_STATUS = { notIn: ['REUNITED', 'CLOSED_OTHER'] };
+
+/**
  * PROVISIONAL raw-score → P(true-match) mapping.
  *
  * ⚠️ PROVISIONAL - to be replaced by the calibrated curve from Probe A

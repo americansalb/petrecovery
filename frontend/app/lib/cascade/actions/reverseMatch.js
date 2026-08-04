@@ -8,6 +8,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { reverseMatch, formatMatch } from '../reverseMatch.js';
+import { OPEN_CASE_STATUS } from '@/app/lib/matching';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { sendPushToUser } from '@/app/lib/push';
 
@@ -18,7 +19,7 @@ export async function runReverseMatch(ctx) {
   const candidates = await prisma.case.findMany({
     where: {
       reportType: 'FOUND',
-      status: 'ACTIVE',
+      status: OPEN_CASE_STATUS,
       OR: [
         { petSpecies: lost.petSpecies },
         ...(lostChip ? [{ pet: { microchipId: lostChip } }] : []),

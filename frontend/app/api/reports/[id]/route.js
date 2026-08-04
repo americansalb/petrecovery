@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { calculateMatchScore } from '@/app/lib/matching';
+import { calculateMatchScore, OPEN_CASE_STATUS } from '@/app/lib/matching';
 
 export async function GET(request, { params }) {
   try {
@@ -89,7 +89,7 @@ export async function GET(request, { params }) {
     if (report.reportType === 'FOUND') {
       const lostCases = await prisma.case.findMany({
         where: {
-          status: 'ACTIVE',
+          status: OPEN_CASE_STATUS,
           reportType: 'LOST',
         },
       });
