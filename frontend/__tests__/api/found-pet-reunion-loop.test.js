@@ -27,11 +27,20 @@ jest.mock('@/app/lib/prisma', () => ({
     pet: { create: jest.fn() },
     case: { create: jest.fn(), findMany: jest.fn() },
     alert: { create: jest.fn() },
+    emailPreference: { findMany: jest.fn() },
+    emailLog: { create: jest.fn() },
   },
 }));
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
-jest.mock('@/app/lib/email', () => ({ __esModule: true, sendEmail: jest.fn() }));
+jest.mock('@/app/lib/email', () => ({
+  __esModule: true,
+  sendEmail: jest.fn(),
+  // ownerAlerts renders through the branded layout; a minimal passthrough
+  // keeps subject/body assertions meaningful without HTML noise.
+  renderBrandedEmail: ({ heading = '', bodyHtml = '', footnote = '' }) => `${heading} ${bodyHtml} ${footnote}`,
+  escapeHtml: (s) => String(s ?? ''),
+}));
 jest.mock('@/app/lib/config', () => ({ __esModule: true, getEmailBaseUrl: () => 'http://localhost:5757' }));
 jest.mock('@/app/lib/notifications-inapp', () => ({ __esModule: true, createInAppNotification: jest.fn() }));
 jest.mock('bcryptjs', () => ({ __esModule: true, default: { hash: jest.fn().mockResolvedValue('hash') } }));
@@ -100,7 +109,9 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     prisma.pet.create.mockResolvedValue({ id: 'pet-1' });
     prisma.case.create.mockResolvedValue({ id: 'found-case-1', caseNumber: 'FOUND-2026-000001' });
     prisma.alert.create.mockResolvedValue({});
-    sendEmail.mockResolvedValue(undefined);
+    prisma.emailPreference.findMany.mockResolvedValue([]); // no prefs = default allowed
+    prisma.emailLog.create.mockResolvedValue({});
+    sendEmail.mockResolvedValue({ success: true }); // real sendEmail contract: resolves, never throws
     createInAppNotification.mockResolvedValue(undefined);
   });
 
@@ -120,10 +131,12 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(sendEmail.mock.calls[0][0].to).toBe(OWNER_EMAIL);
 
-    // The "last inch": the notification must be CLICKABLE to the match - the
-    // actionUrl resolves to the case by caseNumber (the missionNumber alias bug
-    // would have made this null/undefined / a broken link).
-    expect(createInAppNotification.mock.calls[0][0].actionUrl).toBe('/cases/CASE-2026-000123');
+    // The "last inch": the notification must be CLICKABLE to something that
+    // shows the animal. Since the owner-alerts rework (founder direction
+    // 2026-08-08) it deep-links to the FOUND case page - the owner lands on
+    // the found pet's photo, not on their own page (which renders no matches
+    // yet; MVP_LAUNCH_PLAN P0-2).
+    expect(createInAppNotification.mock.calls[0][0].actionUrl).toBe('/cases/FOUND-2026-000001');
 
     // Alert persisted with caseId (CRIT-B). NOTE: this is the ALERT model
     // specifically - its schema field is caseId and it has NO missionId. This is
@@ -137,19 +150,36 @@ describe('Reunion loop: FOUND report -> owner notification', () => {
     expect(alertData.deliveredAt).toBeInstanceOf(Date);
   });
 
-  test('CORR-3 cruelty gate: a NON-actionable (feed-band) match does NOT notify the owner', async () => {
+  test('CORR-3, amended 2026-08-08: a NON-actionable nearby case gets the honest NEARBY email, never a match push', async () => {
     // same species + same area (location pts) but different breed/color => mid
-    // score => feed band (shown, but below the PUSH floor) => must NOT notify.
+    // score => feed band. The original cruelty gate said: total silence below
+    // the push floor. Founder direction 2026-08-08 (OWNER_ENGAGEMENT_PLAN.md):
+    // owners hear about EVERY nearby found pet of their species - but the gate
+    // survives as copy. The nearby email claims no match ("may not be"), and
+    // the in-app bell stays reserved for real matches: no push here.
     prisma.case.findMany.mockResolvedValue([
       lostCandidate({ breed: 'Poodle', color: 'white', lat: 40.0, lng: -75.0 }),
     ]);
 
     const res = await post();
     expect(res.status).toBeLessThan(300);
+
+    // Still NO in-app match push (the bell means "we think this is your pet").
     expect(createInAppNotification).not.toHaveBeenCalled();
-    // no owner email (finder is logged in, so no welcome email either)
+    // And still no Alert row - that is the match-tier record.
+    expect(prisma.alert.create).not.toHaveBeenCalled();
+
+    // But the owner DOES get the nearby email, with honest copy.
     const ownerEmails = sendEmail.mock.calls.filter(c => c[0]?.to === OWNER_EMAIL);
-    expect(ownerEmails).toHaveLength(0);
+    expect(ownerEmails).toHaveLength(1);
+    expect(ownerEmails[0][0].subject).toMatch(/near where/i);
+    expect(ownerEmails[0][0].subject).not.toMatch(/match/i);
+    expect(ownerEmails[0][0].html).toMatch(/may not be/i);
+
+    // Honest counts: no match claimed, one nearby owner told.
+    const body = await res.json();
+    expect(body.matchesNotified).toBe(0);
+    expect(body.nearbyNotified).toBe(1);
   });
 
   test('a recipient-notify failure is isolated and does NOT fail the report save (BR-1)', async () => {

@@ -130,7 +130,7 @@ export function hasCoords(lat, lng) {
 }
 
 /** First finite coordinate among the candidates (preserves a valid 0), else null. */
-function pickCoord(...vals) {
+export function pickCoord(...vals) {
   for (const v of vals) if (Number.isFinite(v)) return v;
   return null;
 }

@@ -20,12 +20,21 @@ export const FOLLOWUP_DAYS = [1, 3, 7];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** A case is done receiving nudges once it's resolved in any way. */
+/**
+ * A case is done receiving nudges once it's resolved in any way.
+ *
+ * Resolved means REUNITED or CLOSED_OTHER - the two closed CaseStatus values.
+ * The old check ("anything but ACTIVE/PENDING is resolved") silently stopped
+ * the day-3/7 check-ins the moment a rescue force accepted the case
+ * (IN_PROGRESS) or a sighting came in (SIGHTING_REPORTED) - the searches most
+ * in need of encouragement. PENDING is not a CaseStatus value at all. Same
+ * bug family as the matcher OPEN_CASE_STATUS fix in app/lib/matching.js.
+ */
 export function isResolved(c) {
   return Boolean(
     c?.resolvedAt ||
       c?.resolution ||
-      (c?.status && !['ACTIVE', 'PENDING'].includes(c.status))
+      (c?.status && ['REUNITED', 'CLOSED_OTHER'].includes(c.status))
   );
 }
 

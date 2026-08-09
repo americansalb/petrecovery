@@ -5,8 +5,8 @@ import { sendEmail } from '../../../lib/email';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { findMatches, OPEN_CASE_STATUS } from '@/app/lib/matching';
+import { alertOwnersOfFoundReport } from '@/app/lib/ownerAlerts';
 import { getEmailBaseUrl } from '@/app/lib/config';
-import { createInAppNotification } from '@/app/lib/notifications-inapp';
 
 export async function POST(request) {
   try {
@@ -272,52 +272,18 @@ export async function POST(request) {
     // exact high-confidence match that matters). Each recipient is isolated so
     // one failure can't fail the report save or truncate the rest; notifiedCount
     // counts only owners actually notified (honest copy).
-    const actionableMatches = matches.filter(m => m.band === 'actionable').map(m => m.case);
-    let notifiedCount = 0;
-
-    await Promise.all(actionableMatches.map(async (match) => {
-      try {
-        const ownerPetName = match.pet?.name || 'your pet';
-
-        await createInAppNotification({
-          userId: match.reporterId,
-          type: 'FOUND_MATCH',
-          title: `Possible match for ${ownerPetName}`,
-          message: `Someone just reported a found ${petType} that may match your lost pet. Tap to review and connect.`,
-          actionUrl: match.caseNumber ? `/cases/${match.caseNumber}` : null,
-          data: { foundCaseId: report.id },
-        });
-
-        if (match.reporter?.email) {
-          await sendEmail({
-            to: match.reporter.email,
-            subject: `Possible match for your lost ${petType} - ReunitePets.org`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #10b981;">A possible match for ${ownerPetName}</h2>
-                <p>Good news - someone in your area just reported a found ${petType} that may match your lost pet.</p>
-                <p><a href="${getEmailBaseUrl()}${match.caseNumber ? `/cases/${match.caseNumber}` : '/dashboard'}" style="display:inline-block;background:#10b981;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Review the match</a></p>
-                <p><small style="color:#6b7280;">ReunitePets never asks for payment to reconnect you with your pet. Review the match safely through the site.</small></p>
-              </div>
-            `,
-          });
-        }
-
-        await prisma.alert.create({
-          data: {
-            caseId: match.id,
-            userId: match.reporterId,
-            method: 'EMAIL',
-            deliveredAt: new Date(),
-          },
-        });
-
-        notifiedCount++;
-      } catch (err) {
-        console.error('Owner match-notify failed for case', match.id, err?.message);
-        // Isolated - never fail the report save or block other recipients.
-      }
-    }));
+    // Founder direction 2026-08-08 (docs/OWNER_ENGAGEMENT_PLAN.md): owners
+    // also hear about ANY nearby found pet of their species, in an email that
+    // says plainly it may not be theirs. alertOwnersOfFoundReport keeps the
+    // old contract for actionable matches (in-app + email + Alert row) and
+    // adds the email-only nearby tier; recipients stay isolated.
+    const { matchesNotified: notifiedCount, nearbyNotified } = await alertOwnersOfFoundReport({
+      report,
+      center,
+      matches,
+      lostCases: lostPetCases,
+      petType,
+    });
 
     // 6. Send email in background (don't wait for it)
     if (accountCreated && tempPassword) {
@@ -365,6 +331,7 @@ export async function POST(request) {
       reportId: report.id,
       accountCreated,
       matchesNotified: notifiedCount,
+      nearbyNotified,
       potentialMatches: formattedMatches, // §4d no-PII shape
     });
 
