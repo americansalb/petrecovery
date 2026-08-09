@@ -85,3 +85,48 @@ Weekly digest for long-running cases (`EmailPreference.weeklyDigest` exists).
 - Every send logged to `EmailLog`.
 - One recipient failing never blocks the report or the other recipients.
 - Every behavior above pinned by a test that fails if it regresses.
+
+## Abuse hardening (2026-08-09 self-review, "expect people to abuse us")
+
+Adversarial review of Part 1. The nearby-email fan-out is a real attack surface;
+this records every hole found, what is fixed, and what is deliberately deferred.
+
+### Fixed
+
+- **Weaponizable email cannon (was CRITICAL).** `found-pet` is anonymous and
+  fans real email out to every nearby same-species owner from an unbounded
+  query, with only a weak in-memory 60/min-per-IP middleware backstop. Abused
+  three ways: mass-blast that burns the sending domain's reputation (breaking
+  ALL platform email), targeted false-hope harassment, and an email/DB cost
+  bomb. Now guarded three ways, each tested and verified live:
+  - `PUBLIC_WRITE` rate limit on the route (10/min/IP, Redis-backed, 5-min
+    block) - the same guard its sibling `reports/create` already carried.
+    Verified: a 20-request burst returns 10×200 then 10×429.
+  - Candidate query bounded (`take: 500`), so one report in a dense metro can
+    never load thousands of rows.
+  - Hard per-report blast cap (`MAX_OWNER_ALERTS_PER_REPORT = 200`) in
+    `ownerAlerts`, nearest-first, match tier never dropped, overflow logged
+    (never silently truncated). Defense in depth: holds even if a caller
+    ignores the query bound.
+
+### Deferred (named, ranked, NOT silently shipped)
+
+- **HIGH - the nearby email links to a page that leaks the finder's phone.**
+  `GET /api/public/missions/[caseNumber]` returns finder name + phone with no
+  auth. This is launch-plan P1-1; Part 1 now drives traffic to it. Must be
+  settled with founder decision A (public contact vs relay) before these emails
+  go out in production.
+- **MEDIUM - no per-owner cooldown.** The rate limit caps a flood at 10/min/IP,
+  but within that a single owner can still receive one email per accepted
+  found report (verified: 10 accepted Mutt reports = 10 emails to Max's owner).
+  Needs a per-recipient throttle (e.g. at most one nearby email per owner per
+  found pet per N hours), checked against `EmailLog`/`Alert`.
+- **MEDIUM - ignores `quietHours` / `digestFrequency`.** The schema promises
+  batching (IMMEDIATE/DAILY/WEEKLY) and quiet hours; Part 1 sends immediately
+  regardless. A user who chose "weekly digest" still gets instant sends.
+- **MEDIUM - unsubscribe is a GET.** Email scanners prefetch links and silently
+  unsubscribe people. A POST one-click handler already exists; the email should
+  ship the RFC 8058 `List-Unsubscribe` / `List-Unsubscribe-Post` headers, not a
+  bare GET link.
+- **LOW - `unsubscribeToken` is `cuid()`**, not crypto-random. Guessable in
+  principle; low stakes (unsubscribe only), but not best-practice.

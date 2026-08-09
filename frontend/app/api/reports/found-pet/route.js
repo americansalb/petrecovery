@@ -7,9 +7,20 @@ import { authOptions } from '@/app/lib/auth';
 import { findMatches, OPEN_CASE_STATUS } from '@/app/lib/matching';
 import { alertOwnersOfFoundReport } from '@/app/lib/ownerAlerts';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 
 export async function POST(request) {
   try {
+    // This route is anonymous and fans real email out to every nearby owner of
+    // a matching lost pet. Unthrottled that is (a) a sender-reputation DoS - a
+    // loop of found reports blasts thousands of owners and burns the sending
+    // domain, (b) a targeted false-hope harassment vector, (c) an email/DB
+    // cost bomb. Mirrors the PUBLIC_WRITE guard its sibling reports/create
+    // already carries. Redis-backed with in-memory fallback; the per-report
+    // blast is separately capped in ownerAlerts (MAX_OWNER_ALERTS_PER_REPORT).
+    const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'reports:found-pet');
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession(authOptions);
     const body = await request.json();
     let {
@@ -185,6 +196,16 @@ export async function POST(request) {
     });
 
     // 5. Find potential matches - look for LOST pets that match this FOUND pet
+    // Bounded candidate load. In a dense metro the open same-species set can be
+    // thousands; loading all of them (and then emailing all of them) is a cost
+    // and reputation DoS. Newest-first is a COARSE bound, not a geographic one:
+    // Postgres can't sort by distance without PostGIS, so a nearby-but-old case
+    // can in principle be pushed past the cap by newer far-away ones. Accepted
+    // for now because ownerAlerts applies the precise 10-mile filter and the
+    // hard per-report blast cap on top; the proper fix is a geo-indexed
+    // candidate query (MVP_LAUNCH_PLAN Phase 5). 500 is far above any single
+    // metro's realistic open-case count today.
+    const CANDIDATE_LIMIT = 500;
     const lostPetCases = await prisma.case.findMany({
       where: {
         reportType: 'LOST',
@@ -194,7 +215,9 @@ export async function POST(request) {
       include: {
         pet: true,
         reporter: true,
-      }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: CANDIDATE_LIMIT,
     });
 
     // Use the matching algorithm to find and score potential matches

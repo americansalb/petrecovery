@@ -33,6 +33,15 @@ jest.mock('@/app/lib/prisma', () => ({
 }));
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
+// The route rate-limits found-pet (abuse guard). Mock it "allow" here - like
+// every sibling route test - so the reunion-loop assertions run, and to avoid
+// the real module's un-unref'd cleanup timer hanging jest without --forceExit.
+jest.mock('@/app/lib/rateLimit', () => ({
+  __esModule: true,
+  withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
+  RateLimitPresets: { PUBLIC_WRITE: {} },
+  rateLimitResponse: jest.fn(),
+}));
 jest.mock('@/app/lib/email', () => ({
   __esModule: true,
   sendEmail: jest.fn(),

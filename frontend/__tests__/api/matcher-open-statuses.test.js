@@ -31,9 +31,17 @@ jest.mock('@/app/lib/prisma', () => ({
     pet: { create: jest.fn() },
     case: { create: jest.fn(), findMany: jest.fn() },
     alert: { create: jest.fn() },
+    emailPreference: { findMany: jest.fn().mockResolvedValue([]) },
+    emailLog: { create: jest.fn().mockResolvedValue({}) },
   },
 }));
 jest.mock('@/app/lib/auth', () => ({ __esModule: true, authOptions: {} }));
+jest.mock('@/app/lib/rateLimit', () => ({
+  __esModule: true,
+  withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
+  RateLimitPresets: { PUBLIC_WRITE: {} },
+  rateLimitResponse: jest.fn(),
+}));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
 jest.mock('@/app/lib/email', () => ({ __esModule: true, sendEmail: jest.fn() }));
 jest.mock('@/app/lib/config', () => ({ __esModule: true, getEmailBaseUrl: () => 'http://localhost:5757' }));

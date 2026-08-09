@@ -38,6 +38,7 @@ import {
   planOwnerAlerts,
   alertOwnersOfFoundReport,
   NEARBY_RADIUS_MILES,
+  MAX_OWNER_ALERTS_PER_REPORT,
 } from '@/app/lib/ownerAlerts';
 
 // Found report at a fixed point; ~1 mile is ~0.0145 degrees of latitude.
@@ -74,13 +75,11 @@ beforeEach(() => {
 });
 
 describe('planOwnerAlerts (pure tiering)', () => {
+  const FOUND_PT = { latitude: 40.0, longitude: -75.0 };
+
   test('match tier wins over nearby for the same owner - one alert per owner', () => {
     const c = lost({ id: 'l1', ownerId: 'o1', email: 'o1@x.com' });
-    const plan = planOwnerAlerts({
-      matches: [actionableMatch(c)],
-      lostCases: [c],
-      found: { latitude: FOUND.lastSeenLatitude, longitude: FOUND.lastSeenLongitude },
-    });
+    const { plan } = planOwnerAlerts({ matches: [actionableMatch(c)], lostCases: [c], found: FOUND_PT });
     expect(plan.size).toBe(1);
     expect(plan.get('o1').tier).toBe('match');
   });
@@ -88,27 +87,57 @@ describe('planOwnerAlerts (pure tiering)', () => {
   test('a non-match owner inside the radius gets the nearby tier; outside gets nothing', () => {
     const near = lost({ id: 'l1', ownerId: 'near', email: 'n@x.com', lat: 40.0 + 2 / 69 }); // ~2 mi
     const far = lost({ id: 'l2', ownerId: 'far', email: 'f@x.com', lat: 40.0 + (NEARBY_RADIUS_MILES + 15) / 69 });
-    const plan = planOwnerAlerts({
-      matches: [],
-      lostCases: [near, far],
-      found: { latitude: 40.0, longitude: -75.0 },
-    });
+    const { plan } = planOwnerAlerts({ matches: [], lostCases: [near, far], found: FOUND_PT });
     expect(plan.get('near')?.tier).toBe('nearby');
     expect(plan.has('far')).toBe(false);
   });
 
   test('no coords on the found report means no nearby tier at all (cannot honestly say "near you")', () => {
     const c = lost({ id: 'l1', ownerId: 'o1', email: 'o1@x.com' });
-    const plan = planOwnerAlerts({ matches: [], lostCases: [c], found: { latitude: null, longitude: null } });
+    const { plan } = planOwnerAlerts({ matches: [], lostCases: [c], found: { latitude: null, longitude: null } });
     expect(plan.size).toBe(0);
   });
 
   test('a lost case without coords is skipped for nearby (but still reachable via match tier)', () => {
     const noCoords = lost({ id: 'l1', ownerId: 'o1', email: 'o1@x.com', lat: null, lng: null });
-    const nearbyPlan = planOwnerAlerts({ matches: [], lostCases: [noCoords], found: { latitude: 40, longitude: -75 } });
+    const { plan: nearbyPlan } = planOwnerAlerts({ matches: [], lostCases: [noCoords], found: FOUND_PT });
     expect(nearbyPlan.size).toBe(0);
-    const matchPlan = planOwnerAlerts({ matches: [actionableMatch(noCoords)], lostCases: [noCoords], found: { latitude: 40, longitude: -75 } });
+    const { plan: matchPlan } = planOwnerAlerts({ matches: [actionableMatch(noCoords)], lostCases: [noCoords], found: FOUND_PT });
     expect(matchPlan.get('o1')?.tier).toBe('match');
+  });
+
+  describe('per-report blast cap (abuse ceiling)', () => {
+    // One owner per case, all inside the radius, spread over increasing distance.
+    function manyNearby(n) {
+      return Array.from({ length: n }, (_, i) =>
+        lost({ id: `l${i}`, ownerId: `o${i}`, email: `o${i}@x.com`, lat: 40.0 + (i + 1) * 0.0002 })
+      );
+    }
+
+    test('never plans more than MAX_OWNER_ALERTS_PER_REPORT, and reports the overflow', () => {
+      const over = MAX_OWNER_ALERTS_PER_REPORT + 25;
+      const { plan, truncated } = planOwnerAlerts({ matches: [], lostCases: manyNearby(over), found: FOUND_PT });
+      expect(plan.size).toBe(MAX_OWNER_ALERTS_PER_REPORT);
+      expect(truncated).toBe(25);
+    });
+
+    test('the cap keeps the NEAREST owners, not arbitrary ones', () => {
+      const cases = manyNearby(MAX_OWNER_ALERTS_PER_REPORT + 10); // o0 nearest ... last farthest
+      const { plan } = planOwnerAlerts({ matches: [], lostCases: cases, found: FOUND_PT });
+      expect(plan.has('o0')).toBe(true); // nearest kept
+      expect(plan.has(`o${MAX_OWNER_ALERTS_PER_REPORT + 9}`)).toBe(false); // farthest dropped
+    });
+
+    test('match-tier owners are never dropped to make room for nearby ones', () => {
+      const matchCase = lost({ id: 'match', ownerId: 'vip', email: 'vip@x.com', lat: 40.0 + 5 / 69 });
+      const { plan } = planOwnerAlerts({
+        matches: [actionableMatch(matchCase)],
+        lostCases: [matchCase, ...manyNearby(MAX_OWNER_ALERTS_PER_REPORT + 50)],
+        found: FOUND_PT,
+      });
+      expect(plan.get('vip')?.tier).toBe('match');
+      expect(plan.size).toBe(MAX_OWNER_ALERTS_PER_REPORT);
+    });
   });
 });
 
