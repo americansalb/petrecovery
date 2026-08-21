@@ -18,6 +18,20 @@ export default function AutoMigratePage() {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
 
+  // Deliberately NOT auto-running.
+  //
+  // This used to call runMigration() the moment a session resolved, so
+  // navigating to the URL - or hitting browser-back onto it - POSTed
+  // /api/admin/migrate and ran raw DDL against the live database. Every
+  // statement is additive and idempotent today (ADD COLUMN IF NOT EXISTS,
+  // CREATE TABLE IF NOT EXISTS), so it could not drop anything, and the
+  // endpoint re-reads the admin role from the database rather than
+  // trusting the session. That is what kept it out of the blocker list.
+  //
+  // It is still a page that runs schema changes as a side effect of
+  // navigation, duplicating what prisma db push already does at boot. One
+  // careless edit to the statement list makes it destructive, and by then
+  // the trigger is a back button. Someone asks for it now.
   useEffect(() => {
     if (status === 'loading') return;
 
@@ -26,8 +40,7 @@ export default function AutoMigratePage() {
       return;
     }
 
-    // Auto-run migration
-    runMigration();
+    setMigrationStatus('idle');
   }, [session, status]);
 
   const runMigration = async () => {
@@ -94,11 +107,23 @@ export default function AutoMigratePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
-        {migrationStatus === 'checking' && (
-          <div className="bg-slate-800/50 backdrop-blur-sm border-2 border-cyan-500/50 rounded-2xl p-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mb-4"></div>
-            <h1 className="text-2xl font-bold text-white mb-2">Checking...</h1>
-            <p className="text-slate-400">Preparing to run migration</p>
+        {(migrationStatus === 'idle' || migrationStatus === 'checking') && (
+          <div className="bg-slate-800/50 backdrop-blur-sm border-2 border-cyan-500/50 rounded-2xl p-8">
+            <h1 className="text-2xl font-bold text-white mb-3">Run database migration</h1>
+            <p className="text-slate-300 mb-2">
+              This applies additive schema changes to the live database: new
+              columns and tables, created only if they are missing.
+            </p>
+            <p className="text-slate-400 mb-6 text-sm">
+              Boot already runs prisma db push, so you usually do not need
+              this. Use it when a deploy reported that step failed.
+            </p>
+            <button
+              onClick={runMigration}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-bold hover:shadow-lg transition-all"
+            >
+              Run migration
+            </button>
           </div>
         )}
 

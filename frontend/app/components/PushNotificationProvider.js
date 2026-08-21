@@ -19,6 +19,21 @@ export function usePush() {
   return useContext(PushContext);
 }
 
+/**
+ * The only routes allowed to raise the notification prompt.
+ *
+ * Everything else - reporting a lost pet, running or joining a search,
+ * messaging, the admin screens - is either someone in the middle of
+ * something or someone with their hands full. See the note in the effect
+ * below.
+ */
+const PROMPTABLE_ROUTES = ['/dashboard', '/pets', '/settings', '/hub'];
+
+function isRoute(pathname, route) {
+  if (!pathname) return false;
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
+
 export default function PushNotificationProvider({ children }) {
   const { data: session, status } = useSession();
   const pathname = usePathname();
@@ -35,8 +50,21 @@ export default function PushNotificationProvider({ children }) {
 
   // Show prompt after login (with delay)
   useEffect(() => {
-    // Don't show on auth pages
-    if (pathname?.startsWith('/login') || pathname?.startsWith('/register')) {
+    // Only on the calm screens.
+    //
+    // This used to exclude /login and /register and fire everywhere else,
+    // three seconds after any authenticated page load. On a 390px phone it
+    // renders fixed to the bottom and covers the tab bar, so it landed on
+    // top of step one of the lost-pet report wizard, on Mission Control
+    // while a search was being run, on the message composer, and on the
+    // join screen. Asking someone whose dog is missing to think about
+    // notification permissions, over the form they are filling in, is the
+    // wrong moment for the ask and a bad answer for us: they dismiss it,
+    // and the dismissal is remembered for a week.
+    //
+    // An allowlist rather than a blocklist, so a new route is quiet by
+    // default and has to be added here deliberately.
+    if (!PROMPTABLE_ROUTES.some((route) => isRoute(pathname, route))) {
       return;
     }
 
@@ -88,9 +116,10 @@ export default function PushNotificationProvider({ children }) {
     <PushContext.Provider value={push}>
       {children}
 
-      {/* Push Notification Prompt Banner */}
+      {/* Push Notification Prompt Banner. bottom-20 on mobile clears the
+          fixed tab bar, the way /pets and /dashboard pad for it. */}
       {showPrompt && push.isSupported && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 animate-slide-up">
+        <div className="fixed bottom-20 md:bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 animate-slide-up">
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
             {/* Header */}
             <div className="bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 flex items-center gap-3">
