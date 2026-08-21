@@ -38,7 +38,7 @@ local fixes. The estimate below is days, not months.
 | | count |
 |---|---|
 | Blockers (fix before launch) | 7 |
-| High (fix in the first week) | 17 |
+| High (fix in the first week) | 19 |
 | Medium | 13 |
 | Verified-and-fine / claims refuted | 12 |
 
@@ -536,7 +536,43 @@ Related gap: `/patrol/join` does have a waiver step with a checkbox, but
 `/join/[missionId]` — the zero-friction anonymous volunteer join, the link a
 stranger taps from a text message — has no waiver reference at all.
 
-### H17 — The PWA is never actually installable
+### H17 — `/api/sarama` is an unauthenticated proxy to a paid LLM API
+
+`app/api/sarama/route.js` has no `getServerSession`, and
+`grep -c rateLimit` on the file returns **0** — it imports no rate limiting at
+all. It reads `ANTHROPIC_API_KEY` and POSTs to `api.anthropic.com`.
+
+Verified: an unauthenticated POST passes every gate and reaches the handler,
+failing only because this environment has no key set —
+
+```
+POST /api/sarama  (no cookie)  ->  500
+{"error":"Sarama is not configured. Please add ANTHROPIC_API_KEY …"}
+```
+
+In production, where the key *is* set, that same anonymous request issues a paid
+call. Only middleware's default 60/min/IP applies, which is both expensive at
+that rate and trivially distributed.
+
+The codebase already knows the right pattern — `/api/ai/analyze-pet` and
+`lib/ai/comparePetPhotos.js` both use `withRateLimitAsync` and a global
+per-minute cost ceiling. This route is the outlier.
+
+### H18 — A destructive schema delta takes the site down instead of failing safe
+
+```
+"start": "prisma db push --skip-generate && node prisma/sync-legal-docs.js && next start"
+```
+
+`prisma db push` exits non-zero when it detects a change it will not apply
+without `--accept-data-loss`. Because the chain is `&&`, **`next start` never
+runs** — a schema delta the tool considers destructive takes the whole site
+down at deploy rather than deploying the previous behaviour.
+
+It also means every deploy mutates the production schema before the app boots,
+with no migration history, no review step and no rollback path.
+
+### H19 — The PWA is never actually installable
 
 - `public/manifest.json` exists but there is **no `<link rel="manifest">`** in
   the rendered HTML and no reference in `app/layout.js`. No `theme-color` meta
@@ -623,7 +659,7 @@ This is not a project in trouble. Several parts are better than they need to be.
 7. B6 — wire up an error tracker.
 
 **First week.** H1 (CAPTCHA, before the spam arrives — it also gates B7 and the
-second half of B1), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13, H16.
+second half of B1), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13, H16, H17.
 
 **Two questions only the founder can answer.** Both are on public pages, and
 both are the kind of claim that is expensive to get wrong:

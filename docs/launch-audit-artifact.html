@@ -230,7 +230,7 @@ a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
 
 <div class="ledger">
   <div><span class="n n-blocker">7</span><span class="l">Blockers<br>fix before launch</span></div>
-  <div><span class="n n-high">17</span><span class="l">High<br>first week</span></div>
+  <div><span class="n n-high">19</span><span class="l">High<br>first week</span></div>
   <div><span class="n n-medium">13</span><span class="l">Medium<br>backlog</span></div>
   <div><span class="n n-good">12</span><span class="l">Checked&nbsp;fine<br>or refuted</span></div>
 </div>
@@ -482,7 +482,24 @@ GET /api/public/missions/CASE-2026-675159    (no cookie)
       <p><b>Related gap:</b> the patrol sign-up does have a waiver step with a checkbox, but the zero-friction join page — the link a stranger taps from a text message to join a physical search — has no waiver reference at all.</p>
     </div></details>
 
-    <details class="f"><summary><span class="fid fid-high">H17</span><span class="ftitle">The PWA is never actually installable</span><span class="chev">▸</span></summary><div class="fbody">
+    <details class="f"><summary><span class="fid fid-high">H17</span><span class="ftitle">/api/sarama is an unauthenticated proxy to a paid LLM API</span><span class="chev">&#9656;</span></summary><div class="fbody">
+      <p>The route has no session check, and <code>grep -c rateLimit</code> on the file returns <b>0</b> — it imports no rate limiting at all. It reads the Anthropic key and posts to the API.</p>
+      <p class="ev">Verified &mdash; an unauthenticated POST passes every gate and reaches the handler</p>
+<pre><code>POST /api/sarama  (no cookie)  -> 500
+{"error":"Sarama is not configured. Please add ANTHROPIC_API_KEY ..."}</code></pre>
+      <p>It fails here only because this environment has no key set. In production, where the key <em>is</em> set, that same anonymous request issues a paid call. Only the middleware default of 60/min/IP applies — expensive at that rate, and trivially distributed.</p>
+      <p>The codebase already knows the right pattern: the pet-analysis route and the photo-comparison library both use a rate limiter and a global per-minute cost ceiling. This route is the outlier.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H18</span><span class="ftitle">A destructive schema delta takes the site down instead of failing safe</span><span class="chev">&#9656;</span></summary><div class="fbody">
+<pre><code>"start": "prisma db push --skip-generate
+          &amp;&amp; node prisma/sync-legal-docs.js
+          &amp;&amp; next start"</code></pre>
+      <p><code>prisma db push</code> exits non-zero when it detects a change it will not apply without <code>--accept-data-loss</code>. Because the chain is <code>&amp;&amp;</code>, <b>the server never starts</b> — a schema delta the tool considers destructive takes the whole site down at deploy rather than deploying the previous behaviour.</p>
+      <p>It also means every deploy mutates the production schema before the app boots, with no migration history, no review step and no rollback path.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H19</span><span class="ftitle">The PWA is never actually installable</span><span class="chev">▸</span></summary><div class="fbody">
       <p>The manifest exists but there is <b>no <code>&lt;link rel="manifest"&gt;</code></b> in the rendered HTML and no reference in the root layout. No theme-color meta either. Its <code>start_url</code> is <code>/dashboard</code> — a protected route — so an installed app would open on a login redirect, and its icons are on the CDN rather than same-origin.</p>
       <p>The service worker is registered only inside the push flow, so offline caching and the offline page never activate for a normal visitor.</p>
     </div></details>
@@ -538,7 +555,7 @@ GET /api/public/missions/CASE-2026-675159    (no cookie)
       <thead><tr><th>When</th><th>Work</th></tr></thead>
       <tbody>
         <tr><td class="mid">Before<br>launch</td><td>B1 — drop <code>contact</code> from the public endpoint; paginate and de-PII <code>/api/database</code>; extend the regression test to both.<br>B7 — stop binding anonymous reports to existing accounts by email alone.<br>B4 — delete or query the city-page stats; validate or <code>noindex</code> the slugs.<br>B5 — z-index and bottom inset on the mobile case CTA.<br>B2 — move <code>bcrypt.hash</code> out of the transaction.<br>B3 — fix the status value and the response shape; add a test.<br>B6 — wire up an error tracker.</td></tr>
-        <tr><td class="mid">First<br>week</td><td>H1 (CAPTCHA, before the spam arrives — it also gates B7 and the second half of B1), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13, H16.</td></tr>
+        <tr><td class="mid">First<br>week</td><td>H1 (CAPTCHA, before the spam arrives — it also gates B7 and the second half of B1), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13, H16, H17.</td></tr>
       </tbody>
     </table>
   </div>
