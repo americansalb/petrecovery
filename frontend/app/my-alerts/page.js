@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { caseStatusLabel, caseStatusColors, isCaseOpen } from '@/app/lib/caseStatus';
 
 export default function MyAlertsPage() {
   const { data: session, status } = useSession();
@@ -60,8 +61,8 @@ export default function MyAlertsPage() {
   // Filter alerts client-side based on status
   const filteredAlerts = alerts.filter(alert => {
     if (filter === 'all') return true;
-    if (filter === 'active') return ['OPEN', 'ACTIVE_SEARCH'].includes(alert.status);
-    if (filter === 'found') return alert.status === 'RESOLVED';
+    if (filter === 'active') return isCaseOpen(alert.status);
+    if (filter === 'found') return alert.status === 'REUNITED';
     if (filter === 'closed') return alert.status === 'CLOSED_OTHER';
     return true;
   });
@@ -84,7 +85,8 @@ export default function MyAlertsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'RESOLVED',
+          status: 'REUNITED',
+          resolution: 'REUNITED',
           statusReason: 'Pet found and reunited with owner',
         }),
       });
@@ -132,29 +134,8 @@ export default function MyAlertsPage() {
     return null;
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'OPEN':
-      case 'ACTIVE_SEARCH':
-        return { bg: '#fee2e2', border: '#dc2626', text: '#991b1b' };
-      case 'RESOLVED':
-        return { bg: '#d1fae5', border: '#10b981', text: '#065f46' };
-      case 'CLOSED_OTHER':
-        return { bg: '#f3f4f6', border: '#6b7280', text: '#374151' };
-      default:
-        return { bg: '#f3f4f6', border: '#6b7280', text: '#374151' };
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'OPEN': return 'Open';
-      case 'ACTIVE_SEARCH': return 'Active Search';
-      case 'RESOLVED': return 'Found';
-      case 'CLOSED_OTHER': return 'Closed';
-      default: return status;
-    }
-  };
+  const getStatusColor = caseStatusColors;
+  const getStatusLabel = caseStatusLabel;
 
   const getSpeciesEmoji = (species) => {
     switch (species) {
@@ -179,7 +160,7 @@ export default function MyAlertsPage() {
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
-  const isActiveStatus = (status) => ['OPEN', 'ACTIVE_SEARCH'].includes(status);
+  const isActiveStatus = isCaseOpen;
 
   return (
     <div style={{
@@ -252,15 +233,14 @@ export default function MyAlertsPage() {
         </div>
       )}
 
-      {/* Header */}
+      {/* In-flow page header. NOT sticky: the universal navbar owns the top
+          of the screen, and a second bar pinned to top: 0 competes with it.
+          See docs/APP_MAP.md 8.2. */}
       <div style={{
-        backgroundColor: '#1e40af',
-        color: 'white',
+        backgroundColor: 'white',
+        color: '#0f172a',
         padding: '1rem',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
+        borderBottom: '1px solid #e2e8f0',
       }}>
         <div style={{
           maxWidth: '800px',
@@ -272,8 +252,9 @@ export default function MyAlertsPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <Link
               href="/dashboard"
+              aria-label="Back to dashboard"
               style={{
-                color: 'white',
+                color: '#64748b',
                 textDecoration: 'none',
                 fontSize: '1.5rem',
               }}
@@ -284,7 +265,7 @@ export default function MyAlertsPage() {
               <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
                 My Alerts
               </h1>
-              <p style={{ fontSize: '0.875rem', opacity: 0.9 }}>
+              <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
                 Manage your lost pet reports
               </p>
             </div>
@@ -293,12 +274,12 @@ export default function MyAlertsPage() {
             href="/report/new"
             style={{
               padding: '0.5rem 1rem',
-              backgroundColor: '#dc2626',
+              backgroundColor: '#facc15',
               borderRadius: '0.5rem',
-              color: 'white',
+              color: '#0f172a',
               textDecoration: 'none',
               fontSize: '0.875rem',
-              fontWeight: '600',
+              fontWeight: '700',
             }}
           >
             + New Report
@@ -559,7 +540,7 @@ export default function MyAlertsPage() {
                             fontSize: '0.875rem',
                             color: '#6b7280',
                           }}>
-                            📍 {alert.lastSeenLandmark || `${alert.city}, ${alert.state}`}
+                            📍 {alert.lastSeenAddress || 'Location not recorded'}
                           </p>
                         </div>
                         <div style={{ textAlign: 'right', fontSize: '0.875rem', color: '#6b7280' }}>
@@ -670,7 +651,7 @@ export default function MyAlertsPage() {
                         )}
                       </div>
 
-                      {alert.status === 'RESOLVED' && (
+                      {alert.status === 'REUNITED' && (
                         <div style={{
                           marginTop: '1rem',
                           padding: '0.75rem',

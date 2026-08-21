@@ -121,6 +121,15 @@ describe('no page ships its own top bar', () => {
     const src = read(rel);
     expect(src).not.toMatch(/sticky top-0/);
     expect(src).not.toMatch(/fixed top-0/);
+
+    // Inline styles count too. /my-alerts shipped a full-width blue bar at
+    // position:'sticky', top: 0 for months and this test never saw it,
+    // because it only looked for the Tailwind spelling.
+    //
+    // Sticky only. position:'fixed' with top: 0 is how every modal overlay
+    // in this codebase covers the screen, and an overlay is not a bar.
+    const inlineStickyTopBar = /position:\s*['"]sticky['"][^}]*?\btop:\s*0\b/s;
+    expect(src).not.toMatch(inlineStickyTopBar);
   });
 
   test('KNOWN_EXCEPTIONS entries still exist and still need the exception', () => {
