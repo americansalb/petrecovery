@@ -29,7 +29,11 @@ export default function AlertsPage() {
     setError('');
     try {
       const params = new URLSearchParams();
-      params.set('status', 'OPEN');
+      // 'OPEN' is not a CaseStatus and never has been - it made this endpoint
+      // 500 and every visitor saw an error instead of the alerts feed. LIVE is
+      // the group the API exposes for "still being searched for": ACTIVE,
+      // IN_PROGRESS and SIGHTING_REPORTED.
+      params.set('status', 'LIVE');
       params.set('limit', '50');
       if (filter !== 'all') {
         params.set('species', filter.toUpperCase());

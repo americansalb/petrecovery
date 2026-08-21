@@ -22,6 +22,9 @@ export const dynamic = 'force-dynamic';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Phone validation regex
 const PHONE_REGEX = /^[\d\s\-\(\)\+\.]{7,20}$/;
+// The real CaseStatus enum (prisma/schema.prisma). A status filter is checked
+// against this rather than handed to Prisma to reject with a 500.
+const VALID_CASE_STATUSES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED', 'REUNITED', 'CLOSED_OTHER'];
 // Valid US state codes
 const VALID_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
@@ -69,7 +72,19 @@ export async function GET(request) {
     } else if (statusGroup === 'REUNITED') {
       where.status = 'REUNITED';
     } else if (statusGroup !== 'ALL') {
-      where.status = status;
+      // An unrecognised value used to be passed straight to Prisma, which threw
+      // an enum validation error and turned a bad query string into a 500. The
+      // /alerts page sent status=OPEN - a value this enum has never had - so the
+      // whole page rendered an error for every visitor. A caller's typo is a
+      // 400, and it says which values are real.
+      if (!VALID_CASE_STATUSES.includes(statusGroup)) {
+        return NextResponse.json({
+          error: `Unknown status "${status}"`,
+          code: 'INVALID_STATUS',
+          allowed: ['LIVE', 'ALL', ...VALID_CASE_STATUSES],
+        }, { status: 400 });
+      }
+      where.status = statusGroup;
     }
 
     // One search box covers the obvious questions: name, breed, color, place

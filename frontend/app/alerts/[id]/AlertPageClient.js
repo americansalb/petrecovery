@@ -12,6 +12,7 @@ export default function AlertDetailPage() {
   const alertId = params.id;
 
   const [alert, setAlert] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [sightings, setSightings] = useState([]);
   const [activeTab, setActiveTab] = useState('details'); // details, sightings, updates
 
@@ -26,10 +27,16 @@ export default function AlertDetailPage() {
       try {
         const res = await fetch(`/api/public/missions/${alertId}`);
         if (!res.ok) {
-          throw new Error('Failed to fetch alert');
+          const e = new Error('Failed to fetch alert');
+          e.status = res.status;
+          throw e;
         }
         const data = await res.json();
-        const missionData = data.case;
+        // This endpoint returns the case at the TOP LEVEL. Reading data.case
+        // gave undefined, so the next line threw on .lastSeenAt, the catch
+        // below swallowed it, and every alert permalink redirected away - the
+        // exact link a "spotted near you" notification sends people to.
+        const missionData = data;
 
         // Calculate time ago
         const createdDate = new Date(missionData.lastSeenAt || missionData.createdAt);
@@ -54,10 +61,14 @@ export default function AlertDetailPage() {
           lastSeenAddress: `${missionData.city}, ${missionData.state}${missionData.zipCode ? ' ' + missionData.zipCode : ''}`,
           lastSeenDetails: missionData.petDescription || missionData.lastSeenLandmark || '',
           timeAgo,
-          status: missionData.status === 'RESOLVED' || missionData.status === 'CLOSED_OTHER' ? 'FOUND' : 'ACTIVE',
-          reporterName: missionData.contactName || 'Unknown',
-          reporterPhone: missionData.contactPhone || '',
-          reporterEmail: missionData.contactEmail || '',
+          // REUNITED is the enum value; RESOLVED never existed, so a found pet
+          // still displayed as ACTIVE here.
+          status: missionData.status === 'REUNITED' || missionData.status === 'CLOSED_OTHER' ? 'FOUND' : 'ACTIVE',
+          // The API nests these under `contact`, and deliberately no longer
+          // returns an email (see app/api/public/missions/[caseNumber]).
+          reporterName: missionData.contact?.name || 'The owner',
+          reporterPhone: missionData.contact?.phone || '',
+          reporterEmail: '',
           distinctiveMarks: missionData.petDistinctiveMarks || '',
           microchipId: missionData.petMicrochipId || '',
           hasReward: missionData.rewardAmount > 0,
@@ -66,12 +77,18 @@ export default function AlertDetailPage() {
           userId: missionData.createdById,
         });
 
-        // Set sightings if available (would need to be added to API)
-        setSightings([]);
+        // The API does return sightings - this page just never read them.
+        setSightings(missionData.sightings || []);
       } catch (err) {
         console.error('Error fetching alert:', err);
-        // Fallback to redirect if not found
-        router.push('/alerts');
+        // Only a genuinely missing alert should bounce. Redirecting on ANY
+        // error is what hid the response-shape bug above for so long: the page
+        // looked like it was "just redirecting" rather than throwing.
+        if (err?.status === 404) {
+          router.push('/alerts');
+        } else {
+          setLoadError('We could not load this alert. It may have been closed.');
+        }
       }
     };
 
@@ -79,6 +96,29 @@ export default function AlertDetailPage() {
       fetchAlert();
     }
   }, [alertId, router]);
+
+  // A failure has to say so. This page used to redirect on any error, which is
+  // how a response-shape bug looked like normal navigation for months.
+  if (loadError) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '1rem',
+        padding: '2rem',
+        textAlign: 'center',
+        backgroundColor: '#f3f4f6',
+      }}>
+        <div style={{ fontSize: '1.125rem', fontWeight: 600 }}>{loadError}</div>
+        <Link href="/alerts" style={{ color: '#1e40af', fontWeight: 600 }}>
+          Back to alerts
+        </Link>
+      </div>
+    );
+  }
 
   if (status === 'loading' || !alert) {
     return (
