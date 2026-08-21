@@ -5,7 +5,7 @@
     "finalUrl": "/",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -31,7 +31,7 @@
     "route": "/lost-and-found",
     "finalUrl": "/lost-and-found",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -42,7 +42,7 @@
     "route": "/about",
     "finalUrl": "/about",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -54,7 +54,7 @@
     "finalUrl": "/about-sarama",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -64,7 +64,7 @@
     "route": "/advice",
     "finalUrl": "/advice",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -75,7 +75,7 @@
     "route": "/contact",
     "finalUrl": "/contact",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -86,11 +86,11 @@
     "route": "/found",
     "finalUrl": "/report/found",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -102,6 +102,26 @@
     "finalUrl": "/shelters",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -112,7 +132,7 @@
     "route": "/login",
     "finalUrl": "/login",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -123,7 +143,7 @@
     "route": "/register",
     "finalUrl": "/register",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -135,7 +155,7 @@
     "finalUrl": "/forgot-password",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -146,7 +166,7 @@
     "finalUrl": "/reset-password",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -157,7 +177,7 @@
     "finalUrl": "/verify-email",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -168,7 +188,7 @@
     "finalUrl": "/legal/terms",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -178,6 +198,7 @@
     "route": "/legal/consent",
     "finalUrl": "/login?returnUrl=%2Flegal%2Fconsent",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -193,7 +214,7 @@
     "route": "/privacy",
     "finalUrl": "/privacy",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -205,7 +226,7 @@
     "finalUrl": "/offline",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -216,7 +237,7 @@
     "finalUrl": "/cases/AUS-2026-0001",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -242,22 +263,22 @@
     "finalUrl": "/lost-pet/austin-tx",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
       "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 400 (Bad Request)",
       "Failed to load resource: the server responded with a status of 400 (Bad Request)"
     ]
   },
   {
     "name": "pub-20-pet-public-view",
-    "route": "/pets/view/7lVFzqonWPVyc8fYLF0prqCzbp9NphCw-LTT8RvxihY",
-    "finalUrl": "/pets/view/7lVFzqonWPVyc8fYLF0prqCzbp9NphCw-LTT8RvxihY",
+    "route": "/pets/view/6l9WMppNhpqytONhfhkDn2ZdRtT6vKZdvEWTShptI5k",
+    "finalUrl": "/pets/view/6l9WMppNhpqytONhfhkDn2ZdRtT6vKZdvEWTShptI5k",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -268,7 +289,7 @@
     "finalUrl": "/hub",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -282,7 +303,7 @@
     "finalUrl": "/hub/search?q=lost",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -294,7 +315,7 @@
     "route": "/hub/c/lost-pet-help",
     "finalUrl": "/hub/c/lost-pet-help",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -308,17 +329,17 @@
     "finalUrl": "/hub/thread/tips-for-shy-cats-hiding-nearby",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "pub-25-hub-user",
-    "route": "/hub/u/cms2ry8eg0000qovsye8vext4",
-    "finalUrl": "/hub/u/cms2ry8eg0000qovsye8vext4",
+    "route": "/hub/u/cmt33u2jw0000qy58ms6mmipr",
+    "finalUrl": "/hub/u/cmt33u2jw0000qy58ms6mmipr",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -326,26 +347,26 @@
   },
   {
     "name": "pub-26-report-public-mission",
-    "route": "/reports/cms2ry8mp000dqovsia997toe",
-    "finalUrl": "/reports/cms2ry8mp000dqovsia997toe",
+    "route": "/reports/cmt33u2t8000dqy584ock3isb",
+    "finalUrl": "/reports/cmt33u2t8000dqy584ock3isb",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "pub-27-alert-detail",
-    "route": "/alerts/cms2ry8mp000dqovsia997toe",
+    "route": "/alerts/cmt33u2t8000dqy584ock3isb",
     "finalUrl": "/login",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
       "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -355,15 +376,13 @@
   },
   {
     "name": "pub-28-join-mission",
-    "route": "/join/cms2ry8mp000dqovsia997toe",
-    "finalUrl": "/join/cms2ry8mp000dqovsia997toe",
+    "route": "/join/cmt33u2t8000dqy584ock3isb",
+    "finalUrl": "/join/cmt33u2t8000dqy584ock3isb",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
@@ -372,7 +391,7 @@
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -386,7 +405,7 @@
     "finalUrl": "/rescue-forces/search",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -398,7 +417,7 @@
     "route": "/rescue-forces/search",
     "finalUrl": "/rescue-forces/search",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -406,24 +425,25 @@
   },
   {
     "name": "pub-32-rescue-force-detail",
-    "route": "/rescue-forces/cms2ry8nz000uqovsiici5a3f",
-    "finalUrl": "/rescue-forces/cms2ry8nz000uqovsiici5a3f",
+    "route": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp",
+    "finalUrl": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "pub-33-communities-legacy",
-    "route": "/communities/cms2ry8nz000uqovsiici5a3f",
+    "route": "/communities/cmt33u2u5000uqy58vct0lmfp",
     "finalUrl": "/rescue-forces/search",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -434,7 +454,7 @@
     "route": "/care",
     "finalUrl": "/care",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -446,7 +466,7 @@
     "finalUrl": "/care/start",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -458,7 +478,7 @@
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -469,7 +489,7 @@
     "finalUrl": "/pets",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -480,21 +500,21 @@
     "finalUrl": "/care/start",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-36-pet-detail",
-    "route": "/pets/cms2ry8m00005qovsdifgovot",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/today",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/today",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -502,64 +522,64 @@
   },
   {
     "name": "auth-37-pet-care",
-    "route": "/pets/cms2ry8m00005qovsdifgovot/care",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/today",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759/care",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/today",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Error loading squads: TypeError: Failed to fetch\n    at loadUserSquads (webpack-internal:///1613:179:31)\n    at Navigation._session_user (webpack-internal:///1613:133:13)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Error loading squads: TypeError: Failed to fetch\n    at loadUserSquads (webpack-internal:///1613:117:31)\n    at Navigation._session_user (webpack-internal:///1613:71:13)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-38-pet-edit",
-    "route": "/pets/cms2ry8m00005qovsdifgovot/edit",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/edit",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759/edit",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/edit",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-39-pet-medications",
-    "route": "/pets/cms2ry8m00005qovsdifgovot/medications",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/meds",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759/medications",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/meds",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-40-pet-medications-new",
-    "route": "/pets/cms2ry8m00005qovsdifgovot/medications/new",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/medications/new",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759/medications/new",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/medications/new",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-41-pet-share",
-    "route": "/pets/cms2ry8m00005qovsdifgovot/share",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/share",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759/share",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/share",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -569,7 +589,7 @@
     "route": "/profile",
     "finalUrl": "/profile",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -580,7 +600,7 @@
     "route": "/settings",
     "finalUrl": "/settings",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -591,7 +611,7 @@
     "route": "/settings/accounts",
     "finalUrl": "/settings/accounts",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -606,7 +626,7 @@
     "route": "/settings/integrations",
     "finalUrl": "/settings/integrations",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -619,7 +639,7 @@
     "finalUrl": "/settings/notifications",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -629,7 +649,7 @@
     "route": "/notifications",
     "finalUrl": "/notifications",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -641,18 +661,18 @@
     "finalUrl": "/messages",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-49-message-conversation",
-    "route": "/messages/cms2ry8r10024qovs71rbu9yv",
-    "finalUrl": "/messages/cms2ry8r10024qovs71rbu9yv",
+    "route": "/messages/cmt33u2wf0024qy58uqskqfpt",
+    "finalUrl": "/messages/cmt33u2wf0024qy58uqskqfpt",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -662,7 +682,7 @@
     "route": "/alerts",
     "finalUrl": "/alerts",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -675,7 +695,7 @@
     "route": "/my-alerts",
     "finalUrl": "/my-alerts",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -686,7 +706,7 @@
     "route": "/report/new",
     "finalUrl": "/report/new",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -697,7 +717,7 @@
     "route": "/report/found",
     "finalUrl": "/report/found",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -705,10 +725,10 @@
   },
   {
     "name": "auth-54-sightings-report",
-    "route": "/sightings/report?alertId=cms2ry8mp000dqovsia997toe",
-    "finalUrl": "/sightings/report?alertId=cms2ry8mp000dqovsia997toe",
+    "route": "/sightings/report?alertId=cmt33u2t8000dqy584ock3isb",
+    "finalUrl": "/sightings/report?alertId=cmt33u2t8000dqy584ock3isb",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -719,13 +739,13 @@
     "route": "/missions/report",
     "finalUrl": "/report/new",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Error loading squads: TypeError: Failed to fetch\n    at loadUserSquads (webpack-internal:///1613:179:31)\n    at Navigation._session_user (webpack-internal:///1613:133:13)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Error loading squads: TypeError: Failed to fetch\n    at loadUserSquads (webpack-internal:///1613:117:31)\n    at Navigation._session_user (webpack-internal:///1613:71:13)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -736,7 +756,7 @@
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -783,7 +803,7 @@
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
     "consoleErrors": [
       "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:146:13)",
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -824,7 +844,7 @@
     "route": "/hub/new",
     "finalUrl": "/hub/new",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -838,16 +858,20 @@
     "finalUrl": "/rescue-forces/create",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-60-rf-command-center",
-    "route": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/command-center",
-    "finalUrl": "/rescue-forces/cms2ry8nz000uqovsiici5a3f",
+    "route": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/command-center",
+    "finalUrl": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -861,11 +885,11 @@
   },
   {
     "name": "auth-61-rf-divisions",
-    "route": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/divisions",
-    "finalUrl": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/divisions",
+    "route": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/divisions",
+    "finalUrl": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/divisions",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -876,10 +900,10 @@
   },
   {
     "name": "auth-62-rf-division-detail",
-    "route": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/divisions/cms2ry8o4000wqovsn9n9qfws",
-    "finalUrl": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/divisions/cms2ry8o4000wqovsn9n9qfws",
+    "route": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/divisions/cmt33u2u8000wqy58plf8p64a",
+    "finalUrl": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/divisions/cmt33u2u8000wqy58plf8p64a",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -887,9 +911,10 @@
   },
   {
     "name": "auth-63-rf-mission-control",
-    "route": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/mission-control",
-    "finalUrl": "/rescue-forces/cms2ry8nz000uqovsiici5a3f",
+    "route": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/mission-control",
+    "finalUrl": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -904,11 +929,11 @@
   },
   {
     "name": "auth-64-rf-settings",
-    "route": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/settings",
-    "finalUrl": "/rescue-forces/cms2ry8nz000uqovsiici5a3f/settings",
+    "route": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/settings",
+    "finalUrl": "/rescue-forces/cmt33u2u5000uqy58vct0lmfp/settings",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -921,7 +946,7 @@
     "finalUrl": "/rescue-forces/search",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -931,7 +956,7 @@
     "route": "/communities/request",
     "finalUrl": "/rescue-forces/search",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -943,12 +968,13 @@
     "finalUrl": "/login?callbackUrl=/divisions/request",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 400 (Bad Request)",
       "Failed to load resource: the server responded with a status of 400 (Bad Request)"
     ]
   },
@@ -957,9 +983,8 @@
     "route": "/patrol/database",
     "finalUrl": "/lost-and-found",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 400 (Bad Request)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -973,7 +998,7 @@
     "route": "/patrol/join",
     "finalUrl": "/patrol/join",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -984,11 +1009,11 @@
     "route": "/shelter/dashboard",
     "finalUrl": "/my-shelter",
     "consoleErrors": [
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1000,7 +1025,7 @@
     "finalUrl": "/shelter/start",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -1010,7 +1035,7 @@
     "route": "/simulate",
     "finalUrl": "/simulate",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1052,7 +1077,7 @@
     "finalUrl": "/simulator",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1079,7 +1104,7 @@
     "finalUrl": "/dashboard",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1093,7 +1118,7 @@
     "route": "/admin/analytics",
     "finalUrl": "/dashboard",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1109,7 +1134,7 @@
     "finalUrl": "/admin/auto-migrate",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -1120,7 +1145,7 @@
     "finalUrl": "/admin/check-config",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -1130,7 +1155,7 @@
     "route": "/admin/communities",
     "finalUrl": "/admin/communities",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1142,7 +1167,7 @@
     "finalUrl": "/admin/communities/create",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -1160,7 +1185,7 @@
     "route": "/admin/divisions",
     "finalUrl": "/admin/divisions",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1171,7 +1196,7 @@
     "route": "/admin/divisions/create",
     "finalUrl": "/admin/divisions/create",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1183,7 +1208,7 @@
     "finalUrl": "/admin/divisions/requests",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
@@ -1195,7 +1220,7 @@
     "route": "/admin/health",
     "finalUrl": "/admin/health",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1207,7 +1232,7 @@
     "finalUrl": "/admin/missions",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -1218,7 +1243,7 @@
     "finalUrl": "/admin/missions/new",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 404 (Not Found)",
@@ -1227,10 +1252,10 @@
   },
   {
     "name": "auth-86-admin-mission-detail",
-    "route": "/admin/missions/cms2ry8mp000dqovsia997toe",
-    "finalUrl": "/admin/missions/cms2ry8mp000dqovsia997toe",
+    "route": "/admin/missions/cmt33u2t8000dqy584ock3isb",
+    "finalUrl": "/admin/missions/cmt33u2t8000dqy584ock3isb",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1247,7 +1272,7 @@
     "route": "/admin/pets",
     "finalUrl": "/admin/pets",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1258,7 +1283,7 @@
     "route": "/admin/prisma",
     "finalUrl": "/admin/prisma",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1269,7 +1294,7 @@
     "route": "/admin/qa",
     "finalUrl": "/admin/qa",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1280,7 +1305,7 @@
     "route": "/admin/rescue-forces",
     "finalUrl": "/admin/rescue-forces",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1291,7 +1316,7 @@
     "route": "/admin/rescue-forces/create",
     "finalUrl": "/admin/rescue-forces/create",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1302,7 +1327,7 @@
     "route": "/admin/shelters",
     "finalUrl": "/dashboard",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1318,7 +1343,7 @@
     "finalUrl": "/dashboard",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1332,7 +1357,7 @@
     "route": "/admin/users",
     "finalUrl": "/dashboard",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1348,7 +1373,7 @@
     "finalUrl": "/admin/wipe-squads",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -1358,7 +1383,7 @@
     "route": "/legal/consent",
     "finalUrl": "/legal/consent",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
@@ -1369,7 +1394,7 @@
     "route": "/care",
     "finalUrl": "/pets",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1380,9 +1405,11 @@
   },
   {
     "name": "auth-98-pet-health",
-    "route": "/pets/cms2ry8m00005qovsdifgovot/health",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/health",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759/health",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/health",
     "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1391,50 +1418,54 @@
   },
   {
     "name": "auth-99-pet-today",
-    "route": "/pets/cms2ry8m00005qovsdifgovot/today",
-    "finalUrl": "/pets/cms2ry8m00005qovsdifgovot/today",
+    "route": "/pets/cmt33u2sr0005qy58k51e4759/today",
+    "finalUrl": "/pets/cmt33u2sr0005qy58k51e4759/today",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-100-admin-pet-detail",
-    "route": "/admin/pets/cms2ry8m00005qovsdifgovot",
-    "finalUrl": "/admin/pets/cms2ry8m00005qovsdifgovot",
+    "route": "/admin/pets/cmt33u2sr0005qy58k51e4759",
+    "finalUrl": "/admin/pets/cmt33u2sr0005qy58k51e4759",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-101-admin-user-detail",
-    "route": "/admin/users/cms2ry8h10001qovs5w9gwi9r",
-    "finalUrl": "/admin/users/cms2ry8h10001qovs5w9gwi9r",
+    "route": "/admin/users/cmt33u2nw0001qy580v0lvvbn",
+    "finalUrl": "/admin/users/cmt33u2nw0001qy580v0lvvbn",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
   },
   {
     "name": "auth-102-alert-detail-authed",
-    "route": "/alerts/cms2ry8mp000dqovsia997toe",
+    "route": "/alerts/cmt33u2t8000dqy584ock3isb",
     "finalUrl": "/alerts",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
       "Error fetching alert: TypeError: Cannot read properties of undefined (reading 'lastSeenAt')\n    at fetchAlert (webpack-internal:///737:46:58)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)"
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)",
+      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)"
     ]
   },
   {
@@ -1442,10 +1473,18 @@
     "route": "/missions/AUS-2026-0001",
     "finalUrl": "/mission-control?mission=AUS-2026-0001",
     "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)",
-      "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
-      "Error fetching alerts: Error: Failed to list public cases\n    at eval (webpack-internal:///397:58:23)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
@@ -1478,25 +1517,14 @@
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:146:13)",
+      "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:146:13)",
+      "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:146:13)",
+      "Error fetching sightings: TypeError: Failed to fetch\n    at eval (webpack-internal:///5679:167:31)",
+      "Error fetching coverage: TypeError: Failed to fetch\n    at eval (webpack-internal:///62:42:31)",
+      "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:146:13)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Error fetching coverage: TypeError: Failed to fetch\n    at eval (webpack-internal:///62:42:31)\n    at eval (webpack-internal:///62:81:9)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23334:13)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
-      "Error fetching chat: TypeError: Failed to fetch\n    at eval (webpack-internal:///6707:30:31)\n    at eval (webpack-internal:///6707:138:9)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23334:13)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
-      "Error loading search session: TypeError: Failed to fetch\n    at loadSession (webpack-internal:///5:127:35)\n    at eval (webpack-internal:///5:147:9)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23334:13)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
-      "Error fetching POIs: TypeError: Failed to fetch\n    at eval (webpack-internal:///2468:25:31)\n    at eval (webpack-internal:///2468:43:9)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23334:13)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
-      "Error fetching sightings: TypeError: Failed to fetch\n    at eval (webpack-internal:///5679:167:31)\n    at eval (webpack-internal:///5679:226:13)\n    at commitHookEffectListMount (webpack-internal:///618:21102:23)\n    at commitHookPassiveMountEffects (webpack-internal:///618:23154:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23259:11)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23334:13)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23370:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)\n    at commitPassiveMountOnFiber (webpack-internal:///618:23256:9)\n    at recursivelyTraversePassiveMountEffects (webpack-internal:///618:23237:7)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
@@ -1507,7 +1535,7 @@
     "finalUrl": "/lost-and-found",
     "consoleErrors": [
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
-      "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+      "Refused to apply style from 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' because its MIME type ('text/plain') is not a supported stylesheet MIME type, and strict MIME checking is enabled.",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)",
       "Failed to load resource: the server responded with a status of 403 (Forbidden)"
     ]
