@@ -83,7 +83,7 @@ function ResetPasswordForm() {
           width: '40px',
           height: '40px',
           border: '3px solid #e5e7eb',
-          borderTop: '3px solid #2563eb',
+          borderTop: '3px solid #0f172a',
           borderRadius: '50%',
           margin: '0 auto',
           animation: 'spin 1s linear infinite',
@@ -103,7 +103,7 @@ function ResetPasswordForm() {
         <h1 style={{
           fontSize: '2rem',
           fontWeight: 'bold',
-          color: '#1e40af',
+          color: '#0f172a',
           marginBottom: '0.5rem',
         }}>
           {status === 'success' ? 'Password Reset!' : 'Reset Your Password'}
@@ -237,8 +237,8 @@ function ResetPasswordForm() {
             style={{
               width: '100%',
               padding: '1rem',
-              backgroundColor: status === 'loading' ? '#9ca3af' : '#2563eb',
-              color: 'white',
+              backgroundColor: status === 'loading' ? '#9ca3af' : '#facc15',
+              color: '#0f172a',
               border: 'none',
               borderRadius: '0.5rem',
               fontSize: '1.125rem',
@@ -261,8 +261,8 @@ function ResetPasswordForm() {
               display: 'block',
               width: '100%',
               padding: '1rem',
-              backgroundColor: '#2563eb',
-              color: 'white',
+              backgroundColor: '#facc15',
+              color: '#0f172a',
               textAlign: 'center',
               borderRadius: '0.5rem',
               fontSize: '1rem',
@@ -284,7 +284,7 @@ function ResetPasswordForm() {
         <Link
           href="/login"
           style={{
-            color: '#2563eb',
+            color: '#0f172a',
             fontWeight: '600',
             textDecoration: 'none',
           }}

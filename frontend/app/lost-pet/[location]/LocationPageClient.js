@@ -84,9 +84,13 @@ export default function LocationLandingPage() {
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
       {/* Hero Section */}
       <div style={{
-        background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+        // Brand midnight, matching the navbar this sits directly under.
+        // Was a violet-to-purple gradient with an indigo accent, which
+        // belonged to no part of this site - and these city pages are the
+        // first thing most people see of it, arriving from a search.
+        background: '#0f172a',
         color: 'white',
-        padding: '4rem 2rem',
+        padding: '4rem 1.5rem',
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
           <div style={{
@@ -103,12 +107,17 @@ export default function LocationLandingPage() {
             {location.display}
           </div>
 
+          {/* clamp() instead of a fixed 2.5rem: at 390px the fixed size
+              broke this into "Lost & Found / Pets in Austin, / TX". The
+              city and state are kept together on their own line. */}
           <h1 style={{
-            fontSize: '2.5rem',
+            fontSize: 'clamp(1.75rem, 6vw, 2.5rem)',
             fontWeight: 800,
             marginBottom: '1rem',
+            lineHeight: 1.15,
           }}>
-            Lost & Found Pets in {location.city}, {location.state}
+            Lost &amp; Found Pets in{' '}
+            <span style={{ whiteSpace: 'nowrap' }}>{location.city}, {location.state}</span>
           </h1>
 
           <p style={{
@@ -134,8 +143,8 @@ export default function LocationLandingPage() {
                 alignItems: 'center',
                 gap: '0.5rem',
                 padding: '1rem 2rem',
-                background: 'white',
-                color: '#4f46e5',
+                background: '#facc15',
+                color: '#0f172a',
                 borderRadius: '12px',
                 fontWeight: 600,
                 textDecoration: 'none',
@@ -180,7 +189,7 @@ export default function LocationLandingPage() {
               source for "Active Searchers" per city, so that card is gone
               rather than filled with a plausible-looking figure. */}
           <StatCard
-            icon={<PawPrint size={24} color="#4f46e5" />}
+            icon={<PawPrint size={24} color="#0f172a" />}
             value={stats.activeMissions || 0}
             label={stats.activeMissions === 1 ? 'Pet missing now' : 'Pets missing now'}
           />
@@ -206,7 +215,7 @@ export default function LocationLandingPage() {
           <Link
             href={`/cases?location=${encodeURIComponent(location.city)}`}
             style={{
-              color: '#4f46e5',
+              color: '#0f172a',
               textDecoration: 'none',
               fontWeight: 500,
               display: 'flex',
@@ -276,7 +285,7 @@ export default function LocationLandingPage() {
                   display: 'inline-block',
                   marginTop: '1rem',
                   padding: '0.75rem 1.5rem',
-                  background: '#4f46e5',
+                  background: '#0f172a',
                   color: 'white',
                   borderRadius: '8px',
                   textDecoration: 'none',
@@ -337,7 +346,7 @@ export default function LocationLandingPage() {
             Found a pet in {location.city}?
           </h3>
           <p>
-            If you've found a lost pet, please <Link href="/report/found" style={{ color: '#4f46e5' }}>report it here</Link>.
+            If you've found a lost pet, please <Link href="/report/found" style={{ color: '#0f172a' }}>report it here</Link>.
             We'll help match it with owners who are searching.
           </p>
         </div>

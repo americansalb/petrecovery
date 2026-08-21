@@ -48,7 +48,7 @@ export default function NotFound() {
         <h1 style={{
           fontSize: '6rem',
           fontWeight: 'bold',
-          color: '#1e40af',
+          color: '#0f172a',
           marginBottom: '0',
           lineHeight: 1,
         }}>
@@ -83,8 +83,8 @@ export default function NotFound() {
             href="/"
             style={{
               padding: '0.75rem 1.5rem',
-              backgroundColor: '#2563eb',
-              color: 'white',
+              backgroundColor: '#facc15',
+              color: '#0f172a',
               border: 'none',
               borderRadius: '0.5rem',
               fontSize: '1rem',
@@ -100,8 +100,8 @@ export default function NotFound() {
             style={{
               padding: '0.75rem 1.5rem',
               backgroundColor: 'transparent',
-              color: '#2563eb',
-              border: '2px solid #2563eb',
+              color: '#0f172a',
+              border: '2px solid #0f172a',
               borderRadius: '0.5rem',
               fontSize: '1rem',
               fontWeight: '600',
@@ -137,11 +137,11 @@ export default function NotFound() {
               Report Lost Pet
             </Link>
             <span style={{ color: '#d1d5db' }}>|</span>
-            <Link href="/rescue-forces" style={{ color: '#2563eb', textDecoration: 'none' }}>
+            <Link href="/rescue-forces" style={{ color: '#0f172a', fontWeight: 600, textDecoration: 'none' }}>
               Find Rescue Forces
             </Link>
             <span style={{ color: '#d1d5db' }}>|</span>
-            <Link href="/login" style={{ color: '#2563eb', textDecoration: 'none' }}>
+            <Link href="/login" style={{ color: '#0f172a', fontWeight: 600, textDecoration: 'none' }}>
               Sign In
             </Link>
           </div>

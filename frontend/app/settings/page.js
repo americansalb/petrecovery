@@ -16,6 +16,9 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/app/components/ui/Toast';
+// lucide, not emoji: the rest of the chrome uses these and emoji render
+// differently on every platform.
+import { User, Bell, Link2, Plug, ClipboardList } from 'lucide-react';
 
 export default function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -51,10 +54,10 @@ export default function SettingsPage() {
   }
 
   const tabs = [
-    { id: 'account', label: 'Account', href: '/settings?tab=account', icon: '👤' },
-    { id: 'notifications', label: 'Notifications', href: '/settings/notifications', icon: '🔔' },
-    { id: 'accounts', label: 'Connected Accounts', href: '/settings/accounts', icon: '🔗' },
-    { id: 'integrations', label: 'Integrations', href: '/settings/integrations', icon: '🔌' },
+    { id: 'account', label: 'Account', href: '/settings?tab=account', icon: User },
+    { id: 'notifications', label: 'Notifications', href: '/settings/notifications', icon: Bell },
+    { id: 'accounts', label: 'Connected Accounts', href: '/settings/accounts', icon: Link2 },
+    { id: 'integrations', label: 'Integrations', href: '/settings/integrations', icon: Plug },
   ];
 
   return (
@@ -70,11 +73,11 @@ export default function SettingsPage() {
               href={t.href}
               className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
                 tab === t.id
-                  ? 'bg-indigo-100 text-indigo-700'
+                  ? 'bg-midnight-900 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <span>{t.icon}</span>
+              <t.icon className="w-4 h-4" />
               {t.label}
             </Link>
           ))}
@@ -88,7 +91,7 @@ export default function SettingsPage() {
             {/* Profile Info */}
             <div className="space-y-6">
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-16 h-16 rounded-full bg-midnight-900 flex items-center justify-center text-white text-2xl font-bold">
                   {session.user.firstName?.[0] || session.user.email?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div>
@@ -106,7 +109,7 @@ export default function SettingsPage() {
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">👤</span>
+                    <User className="w-5 h-5 text-midnight-500" />
                     <div>
                       <div className="font-semibold text-gray-900">Edit Profile</div>
                       <div className="text-sm text-gray-500">Update your name, photo, and bio</div>
@@ -120,7 +123,7 @@ export default function SettingsPage() {
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">🔔</span>
+                    <Bell className="w-5 h-5 text-midnight-500" />
                     <div>
                       <div className="font-semibold text-gray-900">Notification Preferences</div>
                       <div className="text-sm text-gray-500">Manage email and push notifications</div>
@@ -134,7 +137,7 @@ export default function SettingsPage() {
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">🔗</span>
+                    <Link2 className="w-5 h-5 text-midnight-500" />
                     <div>
                       <div className="font-semibold text-gray-900">Connected Accounts</div>
                       <div className="text-sm text-gray-500">Link Google, Facebook, or Apple</div>
@@ -148,7 +151,7 @@ export default function SettingsPage() {
                   className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">📋</span>
+                    <ClipboardList className="w-5 h-5 text-midnight-500" />
                     <div>
                       <div className="font-semibold text-gray-900">Legal & Privacy</div>
                       <div className="text-sm text-gray-500">Review consent and liability waiver</div>

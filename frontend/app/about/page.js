@@ -7,7 +7,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 text-white py-16">
+      <div className="bg-midnight-900 text-white py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <img
             src={SARAMA_AVATAR}
@@ -48,12 +48,12 @@ export default function AboutPage() {
             When you see Sarama on ReunitePets, she's here to guide you, encourage you, and remind you that lost doesn't mean gone forever.
           </p>
 
-          <p className="text-2xl font-bold text-center text-indigo-700 my-12 italic">
+          <p className="text-2xl font-bold text-center text-midnight-900 my-12 italic">
             The search continues until they're home.
           </p>
 
           {/* Call to Action */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-8 text-center text-white mt-12">
+          <div className="bg-midnight-900 rounded-2xl p-8 text-center text-white mt-12">
             <h3 className="text-2xl font-bold mb-4">Join Our Mission</h3>
             <p className="text-white/90 mb-6">
               Help us reunite lost pets with their families. Every volunteer, every share, every sighting matters.
@@ -61,7 +61,7 @@ export default function AboutPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/register"
-                className="px-6 py-3 bg-white text-indigo-700 font-bold rounded-lg hover:bg-indigo-50 transition"
+                className="px-6 py-3 bg-flash-400 text-midnight-900 font-bold rounded-lg hover:bg-flash-500 transition"
               >
                 Get Started
               </Link>
