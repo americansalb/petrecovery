@@ -49,6 +49,8 @@ export async function POST(request, { params }) {
           location,
           name,
           userId,
+          waiverAccepted: data?.waiverAccepted ?? body?.waiverAccepted,
+          waiverVersion: data?.waiverVersion ?? body?.waiverVersion,
         });
         break;
 

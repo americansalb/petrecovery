@@ -28,6 +28,10 @@ export async function GET(request) {
         title: true,
         summary: true,
         publishedAt: true,
+        // The consent page renders doc.content behind its "Read Full Text"
+        // toggle. Without this field that panel opened empty, so people
+        // were asked to accept a Liability Waiver they could not read.
+        content: true,
       },
       orderBy: [
         { type: 'asc' }, // Order: TERMS_OF_SERVICE, LIABILITY_WAIVER, PRIVACY_POLICY

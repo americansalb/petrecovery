@@ -9,6 +9,11 @@
  * responsibility note for the free medication/care tracker (helper,
  * not veterinary advice; release folded in once, calmly).
  *
+ * v1.3.0: renamed the party throughout from PetRecovery.org to
+ * ReunitePets. No obligation added, removed or reworded - the site had
+ * been renamed and the Terms still bound users to a name the site no
+ * longer uses.
+ *
  * v1.2.0: section 5 grew to cover the Health Book (vaccination records,
  * weight log, vet info, health share pages): owner-kept record, not a
  * verified medical record or proof of vaccination; statuses are date
@@ -20,7 +25,7 @@
 const TERMS_OF_SERVICE_DOC = {
   slug: 'terms-of-service',
   type: 'TERMS_OF_SERVICE',
-  version: '1.2.0',
+  version: '1.3.0',
   title: 'Terms of Service',
   summary: 'Platform usage rules and guidelines',
   content: `# Terms of Service
@@ -28,7 +33,7 @@ const TERMS_OF_SERVICE_DOC = {
 **Last Updated:** July 27, 2026
 **Version:** 1.2.0
 
-By using PetRecovery.org, you agree to the following terms:
+By using ReunitePets, you agree to the following terms:
 
 ## 1. Account Responsibilities
 
@@ -66,13 +71,13 @@ ReunitePets includes free tools for everyday pet care: medication schedules, dos
 - **Your judgment leads**: You are responsible for the information you enter (medications, doses, dates, records) and for the care decisions you make for your pet.
 - **Reminders can fail**: Notifications depend on devices and networks. Please don't rely on them alone for critical care.
 - **Shared access**: When you invite caregivers or share a view link, anyone who has that link can see your pet's care and health record. Share thoughtfully; you can change or revoke sharing anytime from your pet's pages.
-- **Release**: To the fullest extent permitted by law, you agree that PetRecovery.org and the Released Parties named in our Liability Waiver are not liable for outcomes related to use of the care tools or the Health Book, including missed, late, or incorrect doses, inaccurate or incomplete records, or decisions made in reliance on statuses, records, or reminders shown by the service.
+- **Release**: To the fullest extent permitted by law, you agree that ReunitePets and the Released Parties named in our Liability Waiver are not liable for outcomes related to use of the care tools or the Health Book, including missed, late, or incorrect doses, inaccurate or incomplete records, or decisions made in reliance on statuses, records, or reminders shown by the service.
 
 ## 6. Content & Intellectual Property
 
 - **Your Content**: You retain ownership of photos and content you upload
 - **License**: You grant us a license to display and distribute your content for pet recovery purposes
-- **Platform Content**: PetRecovery.org branding and platform features are our intellectual property
+- **Platform Content**: ReunitePets branding and platform features are our intellectual property
 
 ## 7. Disclaimers
 
@@ -103,7 +108,7 @@ These terms are governed by the laws of the United States and the state in which
 
 ---
 
-**By using PetRecovery.org, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**`,
+**By using ReunitePets, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.**`,
 };
 
 module.exports = { TERMS_OF_SERVICE_DOC };

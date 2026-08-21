@@ -3636,6 +3636,17 @@ model MissionVolunteer {
   status   String   @default("ACTIVE") // AVAILABLE, ACTIVE, ON_BREAK, RESPONDING, PERIMETER, OFFLINE
   joinedAt DateTime @default(now())
 
+  // Liability waiver, accepted at the moment of joining.
+  //
+  // /join is deliberately a no-account flow, so there is no User row to
+  // hang waiverAcceptedAt on for most people who use it. Recorded here
+  // instead: this is someone agreeing to walk roads and fields looking
+  // for an animal, and every other route into that activity already
+  // asks. Version is stored so a later waiver revision is
+  // distinguishable from this one.
+  waiverAcceptedAt      DateTime?
+  waiverVersionAccepted String?
+
   // Location
   currentLocation    String? // JSON
   lastLocationUpdate DateTime?

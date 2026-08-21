@@ -15,7 +15,23 @@ import { sendPushToMany, PUSH_TEMPLATES } from '@/app/lib/push';
  * Creates a temporary volunteer session from SMS/share link
  */
 export async function quickJoin(missionId, options = {}) {
-  const { deviceId, location, name } = options;
+  const { deviceId, location, name, waiverAccepted, waiverVersion } = options;
+
+  // Joining a search means walking roads, fields and other people's
+  // property looking for an animal. Every other route into that activity
+  // - creating a rescue force, opening a mission - already requires the
+  // Liability Waiver. This one did not ask at all, which made the waiver
+  // optional in practice: the easiest way in was the one with no gate.
+  //
+  // /join is deliberately a no-account flow, so this cannot lean on
+  // User.waiverAcceptedAt; acceptance is recorded on the volunteer row.
+  if (!waiverAccepted) {
+    return {
+      success: false,
+      error: 'Please accept the liability waiver before joining the search.',
+      code: 'WAIVER_NOT_ACCEPTED',
+    };
+  }
 
   const mission = await prisma.missionControl.findUnique({
     where: { id: missionId },
@@ -42,6 +58,8 @@ export async function quickJoin(missionId, options = {}) {
       joinedAt: new Date(),
       currentLocation: location ? JSON.stringify(location) : null,
       lastLocationUpdate: location ? new Date() : null,
+      waiverAcceptedAt: new Date(),
+      waiverVersionAccepted: waiverVersion || null,
     }
   });
 

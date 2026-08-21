@@ -104,6 +104,21 @@ export default function JoinMissionPage() {
     );
   };
 
+  // The waiver, fetched so the text is readable right here rather than
+  // behind a link nobody follows on a phone at dusk.
+  const [waiver, setWaiver] = useState(null);
+  const [waiverAccepted, setWaiverAccepted] = useState(false);
+  const [waiverOpen, setWaiverOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/legal/documents/liability-waiver')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((doc) => { if (!cancelled && doc) setWaiver(doc); })
+      .catch(() => { /* the checkbox still gates joining */ });
+    return () => { cancelled = true; };
+  }, []);
+
   const handleJoin = async () => {
     if (!location) {
       setLocationError('Location required to join');
@@ -122,6 +137,8 @@ export default function JoinMissionPage() {
           deviceId,
           location,
           name: name.trim() || 'Anonymous Helper',
+          waiverAccepted,
+          waiverVersion: waiver?.version || null,
         }),
       });
 
@@ -373,10 +390,42 @@ export default function JoinMissionPage() {
           </ul>
         </div>
 
+        <div style={styles.waiverBox}>
+          <label style={styles.waiverLabel}>
+            <input
+              type="checkbox"
+              checked={waiverAccepted}
+              onChange={(e) => setWaiverAccepted(e.target.checked)}
+              style={styles.waiverCheckbox}
+            />
+            <span>
+              I have read and accept the{' '}
+              <button
+                type="button"
+                onClick={() => setWaiverOpen((open) => !open)}
+                style={styles.waiverToggle}
+              >
+                Liability Waiver
+              </button>
+              {waiver?.version ? ` (v${waiver.version})` : ''}. I am searching
+              voluntarily and at my own risk.
+            </span>
+          </label>
+
+          {waiverOpen && (
+            <div style={styles.waiverText}>
+              {waiver?.content || 'Loading the waiver...'}
+            </div>
+          )}
+        </div>
+
         <button
           onClick={handleJoin}
-          style={styles.finalJoinButton}
-          disabled={stage === 'JOINING'}
+          style={{
+            ...styles.finalJoinButton,
+            ...(waiverAccepted ? {} : styles.finalJoinButtonDisabled),
+          }}
+          disabled={stage === 'JOINING' || !waiverAccepted}
         >
           {stage === 'JOINING' ? 'Joining...' : "I'm Ready - Start Searching"}
         </button>
@@ -667,6 +716,56 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     minHeight: TOUCH_TARGETS.large,
+  },
+  finalJoinButtonDisabled: {
+    backgroundColor: '#5a6b5c',
+    color: 'rgba(255,255,255,0.65)',
+    cursor: 'not-allowed',
+  },
+  waiverBox: {
+    background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    borderRadius: '12px',
+    padding: '14px',
+    marginBottom: '14px',
+  },
+  waiverLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '10px',
+    fontSize: '14px',
+    lineHeight: 1.5,
+    color: '#e7ebf1',
+    cursor: 'pointer',
+  },
+  waiverCheckbox: {
+    width: '22px',
+    height: '22px',
+    marginTop: '1px',
+    flexShrink: 0,
+    accentColor: '#4CAF50',
+    cursor: 'pointer',
+  },
+  waiverToggle: {
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    color: '#8ab4f8',
+    fontSize: '14px',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+  },
+  waiverText: {
+    marginTop: '12px',
+    maxHeight: '240px',
+    overflowY: 'auto',
+    background: 'rgba(0,0,0,0.25)',
+    borderRadius: '8px',
+    padding: '12px',
+    fontSize: '12.5px',
+    lineHeight: 1.6,
+    color: '#c8d0da',
+    whiteSpace: 'pre-wrap',
   },
 
   // Active state

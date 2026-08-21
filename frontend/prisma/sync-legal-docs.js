@@ -10,8 +10,13 @@
 
 const { PrismaClient } = require('@prisma/client');
 const { TERMS_OF_SERVICE_DOC } = require('./legal/terms-of-service');
+const { LIABILITY_WAIVER_DOC } = require('./legal/liability-waiver');
+const { PRIVACY_POLICY_DOC } = require('./legal/privacy-policy');
 
-const DOCS = [TERMS_OF_SERVICE_DOC];
+// All three, not just the Terms. The waiver and the privacy policy used
+// to live inline in seed.js, which production never runs, so their text
+// was frozen at whatever the database happened to hold.
+const DOCS = [TERMS_OF_SERVICE_DOC, LIABILITY_WAIVER_DOC, PRIVACY_POLICY_DOC];
 
 async function main() {
   const prisma = new PrismaClient();
