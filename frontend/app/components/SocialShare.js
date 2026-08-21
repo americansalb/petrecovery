@@ -537,7 +537,7 @@ export function SharePreview({ petName, petType, description, imageUrl, url }) {
           marginBottom: '0.25rem',
           textTransform: 'uppercase'
         }}>
-          petrecovery.org
+          reunitepets.org
         </div>
         <div style={{
           fontSize: '1.1rem',

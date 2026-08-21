@@ -282,7 +282,7 @@ export default function CommunityRequestPage() {
             color: '#64748b',
             lineHeight: '1.6'
           }}>
-            Help us expand PetRecovery to your area! Submit a request to create a new community.
+            Help us expand ReunitePets to your area! Submit a request to create a new community.
           </p>
         </div>
 

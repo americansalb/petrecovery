@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { USER_AGENT } from '@/app/lib/brand';
 
 const BEHAVIOR_OPTIONS = [
   { value: 'FRIENDLY', label: 'Friendly/Approachable', emoji: '😊', confidence: 'HIGH' },
@@ -69,7 +70,7 @@ export default function SightingModal({ missionData, onClose, onSubmitted }) {
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-            { headers: { 'User-Agent': 'PetRecovery.org' } }
+            { headers: { 'User-Agent': USER_AGENT } }
           );
           if (res.ok) {
             const data = await res.json();
@@ -106,7 +107,7 @@ export default function SightingModal({ missionData, onClose, onSubmitted }) {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'PetRecovery.org' } }
+        { headers: { 'User-Agent': USER_AGENT } }
       );
 
       if (res.ok) {

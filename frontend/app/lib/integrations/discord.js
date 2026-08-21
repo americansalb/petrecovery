@@ -331,11 +331,11 @@ export async function verifyWebhook(webhookUrl) {
  */
 export async function sendTestMessage(webhookUrl) {
   return sendWebhookMessage(webhookUrl, {
-    content: ':white_check_mark: PetRecovery webhook connected successfully! You will receive pet alerts in this channel.',
+    content: ':white_check_mark: ReunitePets webhook connected successfully! You will receive pet alerts in this channel.',
     embeds: [
       {
         title: 'Webhook Verified',
-        description: 'This Discord channel is now linked to PetRecovery. You will receive notifications for lost pet alerts, sightings, and reunions.',
+        description: 'This Discord channel is now linked to ReunitePets. You will receive notifications for lost pet alerts, sightings, and reunions.',
         color: 0x51cf66,
         timestamp: new Date().toISOString(),
       },

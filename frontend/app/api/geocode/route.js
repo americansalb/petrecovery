@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { USER_AGENT } from '@/app/lib/brand';
 
 /**
  * GET /api/geocode
@@ -85,7 +86,7 @@ export async function GET(request) {
       response = await fetch(nominatimUrl, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'PetRecovery.org (contact@petrecovery.org)',
+          'User-Agent': USER_AGENT,
           'Accept': 'application/json',
         },
       });

@@ -5,6 +5,7 @@ import prisma from '@/app/lib/prisma';
 import { getCitiesByZip, getCityByName } from '@/app/lib/cities';
 import { getMexicanStateFromPostalCode } from '@/app/lib/states';
 import { logEvent } from '@/lib/logging';
+import { USER_AGENT } from '@/app/lib/brand';
 
 // GET /api/rescue-forces - Search for cities with rescue forces nearby
 export async function GET(request) {
@@ -447,7 +448,7 @@ export async function POST(request) {
       try {
         const nomRes = await fetch(
           `https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=MX&format=json&limit=1`,
-          { headers: { 'User-Agent': 'PetRecovery.org' } }
+          { headers: { 'User-Agent': USER_AGENT } }
         );
 
         if (nomRes.ok) {
@@ -467,7 +468,7 @@ export async function POST(request) {
         try {
           const nomRes = await fetch(
             `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&country=MX&format=json&limit=1`,
-            { headers: { 'User-Agent': 'PetRecovery.org' } }
+            { headers: { 'User-Agent': USER_AGENT } }
           );
 
           if (nomRes.ok) {
@@ -503,7 +504,7 @@ export async function POST(request) {
           const query = encodeURIComponent(`${city}, ${state}, USA`);
           const nomRes = await fetch(
             `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-            { headers: { 'User-Agent': 'PetRecovery-RescueSquad/1.0' } }
+            { headers: { 'User-Agent': USER_AGENT } }
           );
 
           if (nomRes.ok) {
@@ -555,7 +556,7 @@ export async function POST(request) {
 
       const boundaryRes = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&polygon_geojson=1&limit=1`,
-        { headers: { 'User-Agent': 'PetRecovery.org (contact@petrecovery.org)' } }
+        { headers: { 'User-Agent': USER_AGENT } }
       );
 
       if (boundaryRes.ok) {
@@ -852,7 +853,7 @@ async function searchMexicanLocation(query, isPostalCode) {
     }
 
     const response = await fetch(nominatimUrl, {
-      headers: { 'User-Agent': 'PetRecovery.org' }
+      headers: { 'User-Agent': USER_AGENT }
     });
 
     if (!response.ok) {

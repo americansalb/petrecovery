@@ -64,7 +64,7 @@ async function checkPointOnwater(lat: number, lng: number): Promise<boolean | nu
   try {
     const url = `https://api.onwater.io/api/v1/results/${lat},${lng}`;
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'PetRecovery/1.0' },
+      headers: { 'User-Agent': 'ReunitePets/1.0' },
     });
 
     if (!response.ok) return null;

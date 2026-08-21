@@ -225,10 +225,10 @@ export async function generateVerificationDocument(missionId, documentType) {
           circumstances: missionData.escapeScenario,
         },
         verification: {
-          platform: 'PetRecovery.org',
+          platform: 'ReunitePets',
           missionNumber: missionData.missionNumber,
           verificationCode: generateVerificationCode(missionId),
-          verifyUrl: `https://petrecovery.org/verify/${missionData.missionNumber}`,
+          verifyUrl: `https://www.reunitepets.org/verify/${missionData.missionNumber}`,
         },
       };
       break;
@@ -269,14 +269,14 @@ export async function generateVerificationDocument(missionId, documentType) {
             (new Date(missionData.resolvedAt) - new Date(missionData.createdAt)) / (1000 * 60 * 60 * 24)
           ),
         },
-        verifiedBy: 'PetRecovery.org',
+        verifiedBy: 'ReunitePets',
       };
       break;
   }
 
   // Generate PDF URL (in production, create actual PDF)
-  document.pdfUrl = `https://petrecovery.org/api/documents/${document.id}/pdf`;
-  document.qrCode = `https://petrecovery.org/verify/${document.id}`;
+  document.pdfUrl = `https://www.reunitepets.org/api/documents/${document.id}/pdf`;
+  document.qrCode = `https://www.reunitepets.org/verify/${document.id}`;
 
   return document;
 }

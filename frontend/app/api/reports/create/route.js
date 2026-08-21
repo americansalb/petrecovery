@@ -714,7 +714,6 @@ export async function POST(request) {
               <li>Update information as needed</li>
             </ul>
             <p>We'll send you updates when volunteers report sightings.</p>
-            <p>Email verification link will be sent separately (coming soon).</p>
           `
         }).catch(err => {
           logEvent({

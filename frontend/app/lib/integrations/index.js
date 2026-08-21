@@ -154,7 +154,7 @@ export async function testIntegration(prisma, integrationId) {
 
   if (integration.type === 'SLACK') {
     return slack.sendWebhookMessage(config.webhookUrl, {
-      text: ':white_check_mark: Test message from PetRecovery - your integration is working!',
+      text: ':white_check_mark: Test message from ReunitePets - your integration is working!',
     });
   } else if (integration.type === 'DISCORD') {
     return discord.sendTestMessage(config.webhookUrl);

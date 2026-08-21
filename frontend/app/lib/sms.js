@@ -124,7 +124,7 @@ export async function sendVerificationCode(userId, phoneNumber) {
     // Send SMS
     const result = await sendSms(
       formattedPhone,
-      `Your PetRecovery verification code is: ${code}. It expires in 10 minutes.`,
+      `Your ReunitePets verification code is: ${code}. It expires in 10 minutes.`,
       { userId, messageType: 'VERIFICATION' }
     );
 
@@ -214,7 +214,7 @@ export async function verifyPhoneNumber(userId, phoneNumber, code) {
  * Send urgent alert SMS
  */
 export async function sendUrgentAlert(userId, phoneNumber, { petName, missionNumber, location, message }) {
-  const alertMessage = `URGENT PetRecovery Alert: ${petName} (Case #${missionNumber}) spotted near ${location}. ${message || 'Check app for details.'}`;
+  const alertMessage = `URGENT ReunitePets Alert: ${petName} (Case #${missionNumber}) spotted near ${location}. ${message || 'Check app for details.'}`;
 
   return sendSms(phoneNumber, alertMessage, {
     userId,
@@ -226,7 +226,7 @@ export async function sendUrgentAlert(userId, phoneNumber, { petName, missionNum
  * Send sighting notification SMS
  */
 export async function sendSightingAlert(userId, phoneNumber, { petName, location, confidence }) {
-  const alertMessage = `PetRecovery: Someone reported seeing ${petName} near ${location}. Confidence: ${confidence}/10. Check your notifications for details.`;
+  const alertMessage = `ReunitePets: Someone reported seeing ${petName} near ${location}. Confidence: ${confidence}/10. Check your notifications for details.`;
 
   return sendSms(phoneNumber, alertMessage, {
     userId,
@@ -238,7 +238,7 @@ export async function sendSightingAlert(userId, phoneNumber, { petName, location
  * Send case update SMS
  */
 export async function sendCaseUpdateSms(userId, phoneNumber, { missionNumber, updateType, summary }) {
-  const alertMessage = `PetRecovery Case ${missionNumber}: ${updateType}. ${summary}`;
+  const alertMessage = `ReunitePets Case ${missionNumber}: ${updateType}. ${summary}`;
 
   return sendSms(phoneNumber, alertMessage, {
     userId,

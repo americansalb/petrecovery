@@ -64,7 +64,7 @@ export async function GET(request) {
 
     if (BUNNY_STORAGE_ZONE && BUNNY_API_KEY && !config.bunnynet.storageZone.isPlaceholder && !config.bunnynet.apiKey.isPlaceholder) {
       try {
-        const testContent = 'Test upload from PetRecovery.org - ' + new Date().toISOString();
+        const testContent = 'Test upload from ReunitePets - ' + new Date().toISOString();
         const timestamp = Date.now();
         const filename = `test/config-check-${timestamp}.txt`;
         const uploadUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/${filename}`;

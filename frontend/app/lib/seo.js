@@ -4,7 +4,7 @@
  * Schema.org structured data and meta tag generation
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.reunitepets.org';
 
 /**
  * Generate Lost Pet schema.org JSON-LD
@@ -43,7 +43,7 @@ export function generateOrganizationSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'PetRecovery.org',
+    name: 'ReunitePets',
     url: BASE_URL,
     logo: `${BASE_URL}/logo.png`,
     description: 'Community-powered pet recovery platform helping reunite lost pets with their families',
@@ -132,7 +132,7 @@ export function generateMetaTags({
   type = 'website',
   keywords,
 }) {
-  const fullTitle = title ? `${title} | PetRecovery.org` : 'PetRecovery.org - Find Lost Pets';
+  const fullTitle = title ? `${title} | ReunitePets` : 'ReunitePets - Find Lost Pets';
   const fullUrl = url ? `${BASE_URL}${url}` : BASE_URL;
   const fullImage = image || `${BASE_URL}/og-image.png`;
 
@@ -146,7 +146,7 @@ export function generateMetaTags({
       url: fullUrl,
       type,
       images: [{ url: fullImage }],
-      siteName: 'PetRecovery.org',
+      siteName: 'ReunitePets',
     },
     twitter: {
       card: 'summary_large_image',

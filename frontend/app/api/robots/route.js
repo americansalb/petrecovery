@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.reunitepets.org';
 
 export async function GET() {
-  const robotsTxt = `# PetRecovery.org Robots.txt
+  const robotsTxt = `# ReunitePets Robots.txt
 User-agent: *
 Allow: /
 Disallow: /api/

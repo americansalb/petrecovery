@@ -45,7 +45,7 @@ export default function AboutPage() {
           </div>
 
           <p className="text-gray-700 leading-relaxed mb-6">
-            When you see Sarama on PetRecovery, she's here to guide you, encourage you, and remind you that lost doesn't mean gone forever.
+            When you see Sarama on ReunitePets, she's here to guide you, encourage you, and remind you that lost doesn't mean gone forever.
           </p>
 
           <p className="text-2xl font-bold text-center text-indigo-700 my-12 italic">

@@ -149,7 +149,7 @@ function injectUnsubscribeFooter(html, token) {
 
 export async function sendEmail({ to, subject, html, attachments, unsubscribeToken }) {
   const from = process.env.EMAIL_FROM
-    || (process.env.EMAIL_USER ? `PetRecovery <${process.env.EMAIL_USER}>` : FROM_FALLBACK);
+    || (process.env.EMAIL_USER ? `ReunitePets <${process.env.EMAIL_USER}>` : FROM_FALLBACK);
 
   const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 

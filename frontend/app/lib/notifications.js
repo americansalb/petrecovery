@@ -61,7 +61,7 @@ export async function sendCaseReportConfirmation(missionData, options = {}) {
           <div style="padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
             <p>Hi ${missionData.contactName || 'there'},</p>
 
-            <p>Thank you for submitting a lost pet report to PetRecovery.org.</p>
+            <p>Thank you for submitting a lost pet report to ReunitePets.</p>
 
             <div style="background: #f3f4f6; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #1f2937;">Case Details:</h3>
@@ -89,7 +89,7 @@ export async function sendCaseReportConfirmation(missionData, options = {}) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -238,7 +238,7 @@ export async function sendAdminPublicReportAlert(missionData) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Admin Notification System
+              <strong>ReunitePets</strong> - Admin Notification System
             </p>
           </div>
         </body>
@@ -408,7 +408,7 @@ export async function sendCaseStatusUpdate(missionData, previousStatus, newStatu
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -579,7 +579,7 @@ export async function sendFoundPetNotification(data) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -745,7 +745,7 @@ export async function sendSightingNotification(data) {
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
             <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+              <strong>ReunitePets</strong> - Reuniting Lost Pets with Their Families
             </p>
           </div>
         </body>
@@ -865,7 +865,7 @@ export async function sendCaseAssignmentNotification(data) {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Organized Rescue Forces
+            <strong>ReunitePets</strong> - Organized Rescue Forces
           </p>
         </div>
       </body>
@@ -968,7 +968,7 @@ export async function sendCommunityRequestNotification(data) {
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
 
           <p style="color: #6b7280; font-size: 14px; margin: 0;">
-            <strong>PetRecovery.org</strong> - Reuniting Lost Pets with Their Families
+            <strong>ReunitePets</strong> - Reuniting Lost Pets with Their Families
           </p>
         </div>
       </body>

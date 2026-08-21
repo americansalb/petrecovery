@@ -255,7 +255,7 @@ export async function POST(request, { params }) {
             </div>
 
             <p style="color: #6b7280; font-size: 12px; padding: 20px;">
-              Case #${missionData.caseNumber} • PetRecovery.org
+              Case #${missionData.caseNumber} • ReunitePets
             </p>
           </div>
         `

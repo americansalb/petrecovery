@@ -268,7 +268,7 @@ export async function exportData(prisma, exportConfig) {
 
   return {
     ...exportResult,
-    filename: `petrecovery_${reportType}_${formatDateForFilename(new Date())}.${exportResult.extension}`,
+    filename: `reunitepets_${reportType}_${formatDateForFilename(new Date())}.${exportResult.extension}`,
     size: exportResult.content.length,
     generatedAt: new Date().toISOString(),
   };

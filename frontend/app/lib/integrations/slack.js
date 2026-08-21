@@ -287,7 +287,7 @@ export async function notifySlackChannels(prisma, missionId, messageFormatter, d
 export async function verifyWebhook(webhookUrl) {
   try {
     const testMessage = {
-      text: 'PetRecovery webhook verification - this channel is now connected!',
+      text: 'ReunitePets webhook verification - this channel is now connected!',
     };
 
     const response = await fetch(webhookUrl, {

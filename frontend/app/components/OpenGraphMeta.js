@@ -67,7 +67,7 @@ export default function OpenGraphMeta({
  * Use this in page.js files for SSR meta tags
  */
 export function generateCaseMetadata(missionData) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.reunitepets.org';
 
   return {
     title: `Help Find ${missionData.petName}! - Missing ${missionData.petSpecies} | ReunitePets.org`,
@@ -108,7 +108,7 @@ export function generateCaseMetadata(missionData) {
  * Generate JSON-LD structured data for lost pets
  */
 export function generateCaseStructuredData(missionData) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.reunitepets.org';
 
   return {
     '@context': 'https://schema.org',

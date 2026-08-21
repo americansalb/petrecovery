@@ -51,7 +51,7 @@ export interface EmailResult {
 // =============================================================================
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'PetRecovery <alerts@petrecovery.org>';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'ReunitePets <alerts@petrecovery.org>';
 
 // =============================================================================
 // EMAIL TEMPLATES
@@ -102,7 +102,7 @@ function getShelterEmailHtml(params: ShelterEmailParams): string {
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
     <p style="margin-top: 0;">Dear ${shelterName} team,</p>
 
-    <p>We're reaching out from PetRecovery.org to ask for your help. A beloved pet has gone missing in your area, and we're hoping your ${typeLabel} might be able to assist.</p>
+    <p>We're reaching out from ReunitePets to ask for your help. A beloved pet has gone missing in your area, and we're hoping your ${typeLabel} might be able to assist.</p>
 
     ${petPhotoUrl ? `
     <div style="text-align: center; margin: 20px 0;">
@@ -169,7 +169,7 @@ function getShelterEmailHtml(params: ShelterEmailParams): string {
     <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
 
     <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0;">
-      This email was sent via <a href="https://petrecovery.org" style="color: #667eea;">PetRecovery.org</a>, a free service helping reunite lost pets with their families.
+      This email was sent via <a href="https://www.reunitepets.org" style="color: #667eea;">ReunitePets</a>, a free service helping reunite lost pets with their families.
     </p>
   </div>
 </body>
@@ -198,7 +198,7 @@ Lost Pet Alert
 
 Dear ${shelterName} team,
 
-We're reaching out from PetRecovery.org to ask for your help. A beloved pet has gone missing in your area.
+We're reaching out from ReunitePets to ask for your help. A beloved pet has gone missing in your area.
 
 MISSING PET DETAILS
 -------------------
@@ -223,7 +223,7 @@ View full case details: ${caseUrl}
 Thank you for helping reunite lost pets with their families!
 
 ---
-This email was sent via PetRecovery.org
+This email was sent via ReunitePets
   `.trim();
 }
 

@@ -297,8 +297,8 @@ async function generateVictoryCard(mission, stats, reunionPhotoUrl) {
       coverage: `${stats.zonesSearched}/${stats.totalZones} zones`,
     },
     photoUrl: reunionPhotoUrl || mission.case.petPhotoUrl,
-    shareText: `${mission.case.petName} is home safe! Thank you to the ${stats.totalVolunteers} volunteers who searched for ${Math.round(stats.durationHours)} hours. Community makes miracles happen! #PetRecovery`,
-    shareUrl: `https://petrecovery.org/cases/${mission.case.missionNumber}/success`,
+    shareText: `${mission.case.petName} is home safe! Thank you to the ${stats.totalVolunteers} volunteers who searched for ${Math.round(stats.durationHours)} hours. Community makes miracles happen! #ReunitePets`,
+    shareUrl: `https://www.reunitepets.org/cases/${mission.case.missionNumber}/success`,
   };
 }
 

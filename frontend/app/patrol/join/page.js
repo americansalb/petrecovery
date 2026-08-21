@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { theme } from '../../lib/theme';
 import { captchaHeaders } from '@/app/lib/captchaClient';
+import { USER_AGENT } from '@/app/lib/brand';
 
 export default function JoinPatrol() {
   const { data: session, status } = useSession();
@@ -147,7 +148,7 @@ export default function JoinPatrol() {
         `https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=US&format=json&limit=1`,
         {
           headers: {
-            'User-Agent': 'PetRecovery.org'
+            'User-Agent': USER_AGENT
           }
         }
       );

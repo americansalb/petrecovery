@@ -68,7 +68,8 @@ describe('sendEmail provider chain', () => {
 
     expect(sendViaResend).not.toHaveBeenCalled();
     expect(sendViaSmtp).toHaveBeenCalledWith(expect.objectContaining({
-      from: 'PetRecovery <app@gmail.com>',
+      // The From name people actually see when SMTP is the provider.
+      from: 'ReunitePets <app@gmail.com>',
       to: MSG.to,
     }));
     expect(result.success).toBe(true);

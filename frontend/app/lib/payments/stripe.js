@@ -53,10 +53,10 @@ export async function createDonationSession(options) {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: missionId ? `Donation for ${caseName}'s Search` : 'PetRecovery Donation',
+            name: missionId ? `Donation for ${caseName}'s Search` : 'ReunitePets Donation',
             description: missionId
               ? 'Support the search effort'
-              : 'Support PetRecovery.org operations',
+              : 'Support ReunitePets operations',
           },
           unit_amount: Math.round(amount * 100), // Stripe uses cents
         },
