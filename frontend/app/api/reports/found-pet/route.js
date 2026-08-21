@@ -7,6 +7,7 @@ import { authOptions } from '@/app/lib/auth';
 import { findMatches } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
+import { buildCaseNumber } from '@/app/lib/caseNumber';
 
 export async function POST(request) {
   try {
@@ -155,7 +156,8 @@ export async function POST(request) {
 
     // 4. Create found report
     const foundAt = calculateFoundTime(timeElapsed);
-    const caseNumber = `FOUND-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+    // Same collision problem as the lost-pet intake - see app/lib/caseNumber.js
+    const caseNumber = buildCaseNumber({ kind: 'FOUND' });
 
     const report = await prisma.case.create({
       data: {

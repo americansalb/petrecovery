@@ -11,6 +11,7 @@ import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 
 // Allow large body for base64 image uploads and longer timeout
 export const maxDuration = 30;
@@ -90,9 +91,32 @@ export async function POST(request) {
     let accountCreated = false;
     let tempPassword = null;
 
+    // Password hashing happens BEFORE the transaction opens. bcrypt at cost 12
+    // is ~250-500ms of CPU and blocks the event loop, and it used to run inside
+    // the interactive transaction below - which takes Prisma's default 5000ms
+    // budget. Under any concurrency the budget expired mid-write and the report
+    // failed with "Transaction already closed ... 7483ms passed". That is the
+    // most important write in the product, failing for the person whose pet has
+    // just gone missing.
+    //
+    // Neither input depends on the lookup inside the transaction, so both can be
+    // computed up front. When the user already exists the hash is simply unused;
+    // one wasted hash off the transaction's clock is the right trade.
+    const optedInWithPassword = Boolean(password && createAccount);
+    const candidateTempPassword = optedInWithPassword ? null : crypto.randomBytes(12).toString('base64');
+    const precomputedPasswordHash = await bcrypt.hash(
+      optedInWithPassword ? password : candidateTempPassword,
+      12
+    );
+
     // Use transaction to ensure all related records are created atomically
     // User lookup is inside the transaction to prevent race conditions (Fix 5)
-    const result = await prisma.$transaction(async (tx) => {
+    //
+    // Wrapped in withCaseNumberRetry: the case number is generated per attempt
+    // and Case.caseNumber is @unique, so a genuine collision retries with a new
+    // number instead of 500ing the report. Only a caseNumber unique violation
+    // retries; everything else propagates.
+    const result = await withCaseNumberRetry((caseNumber) => prisma.$transaction(async (tx) => {
       // Check if user exists by email (inside transaction for serialized access)
       let existingUser = await tx.user.findUnique({
         where: { email }
@@ -137,22 +161,20 @@ export async function POST(request) {
 
       // Create account if doesn't exist (always need user record for pets/cases)
       if (!user) {
-        let passwordHash;
+        // Hashed above, outside the transaction - see the note there.
+        const passwordHash = precomputedPasswordHash;
 
-        if (password && createAccount) {
+        if (optedInWithPassword) {
           // User explicitly opted in with password
-          passwordHash = await bcrypt.hash(password, 12);
           accountCreated = true;
         } else if (session?.user) {
           // Logged in via session
-          tempPassword = crypto.randomBytes(12).toString('base64');
-          passwordHash = await bcrypt.hash(tempPassword, 12);
+          tempPassword = candidateTempPassword;
           accountCreated = true;
         } else {
           // Guest report - create account but user didn't opt in for full access
-          tempPassword = crypto.randomBytes(12).toString('base64');
-          passwordHash = await bcrypt.hash(tempPassword, 12);
           // accountCreated stays false - they didn't explicitly create account
+          tempPassword = candidateTempPassword;
         }
 
         user = await tx.user.create({
@@ -226,7 +248,6 @@ export async function POST(request) {
 
       // Create case
       const lastSeenAt = calculateLastSeenTime(timeElapsed);
-      const caseNumber = `CASE-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
       const petSizeValue = size || 'MEDIUM';
 
       // Build pet description including indoor/outdoor status for cats
@@ -269,7 +290,13 @@ export async function POST(request) {
       });
 
       return { user, pet, report, isNewUser: !existingUser };
-    });
+    }, {
+      // Defence in depth: the hashing that used to blow this budget is gone,
+      // but this callback still does ~10 writes and prod runs against a
+      // network-attached database. 15s is generous for that and still bounded.
+      timeout: 15000,
+      maxWait: 10000,
+    }), { cityName, lastSeenAddress });
 
     const { user, report, isNewUser } = result;
 
