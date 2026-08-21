@@ -35,28 +35,46 @@ export default function LocationLandingPage() {
   const loadLocationData = async () => {
     setLoading(true);
     try {
-      // Load cases for this location
-      const casesRes = await fetch(`/api/missions?location=${encodeURIComponent(location.city)}&limit=6`);
-      if (casesRes.ok) {
-        const data = await casesRes.json();
+      const city = encodeURIComponent(location.city);
+      const state = encodeURIComponent(location.state);
+
+      // /api/missions needs a session, so on this page - the one Google sends
+      // strangers to - it answered 401 and the board rendered empty. The public
+      // endpoint is the correct source here, and it reports a real total.
+      const [openRes, reunitedRes, squadsRes] = await Promise.all([
+        fetch(`/api/public/missions?city=${city}&state=${state}&limit=6`),
+        fetch(`/api/public/missions?city=${city}&state=${state}&status=REUNITED&limit=1`),
+        fetch(`/api/rescue-forces?state=${state}&limit=4`),
+      ]);
+
+      let activeMissions = 0;
+      if (openRes.ok) {
+        const data = await openRes.json();
         setCases(data.cases || []);
+        activeMissions = data.pagination?.totalCount ?? (data.cases || []).length;
+      } else {
+        setCases([]);
       }
 
-      // Load squads for this location
-      const squadsRes = await fetch(`/api/rescue-forces?state=${location.state}&limit=4`);
+      let reunited = 0;
+      if (reunitedRes.ok) {
+        const data = await reunitedRes.json();
+        reunited = data.pagination?.totalCount ?? 0;
+      }
+
       if (squadsRes.ok) {
         const data = await squadsRes.json();
         setSquads(data.squads || []);
       }
 
-      // Mock stats for now
-      setStats({
-        activeMissions: Math.floor(Math.random() * 50) + 10,
-        reunited: Math.floor(Math.random() * 200) + 50,
-        activeSearchers: Math.floor(Math.random() * 100) + 20,
-      });
+      // These are counted, not invented. They used to be Math.random(), which
+      // published a different "Pets Reunited" figure on every page load of a
+      // public, indexed page.
+      setStats({ activeMissions, reunited });
     } catch (err) {
       console.error('Error loading location data:', err);
+      setCases([]);
+      setStats({ activeMissions: 0, reunited: 0 });
     } finally {
       setLoading(false);
     }
@@ -158,20 +176,18 @@ export default function LocationLandingPage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '1rem',
         }}>
+          {/* Two counted numbers, not three invented ones. There is no honest
+              source for "Active Searchers" per city, so that card is gone
+              rather than filled with a plausible-looking figure. */}
           <StatCard
             icon={<PawPrint size={24} color="#4f46e5" />}
             value={stats.activeMissions || 0}
-            label="Active Missions"
+            label={stats.activeMissions === 1 ? 'Pet missing now' : 'Pets missing now'}
           />
           <StatCard
             icon={<Search size={24} color="#10b981" />}
             value={stats.reunited || 0}
-            label="Pets Reunited"
-          />
-          <StatCard
-            icon={<Users size={24} color="#f59e0b" />}
-            value={stats.activeSearchers || 0}
-            label="Active Searchers"
+            label={stats.reunited === 1 ? 'Pet reunited here' : 'Pets reunited here'}
           />
         </div>
       </div>
