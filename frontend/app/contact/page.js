@@ -3,7 +3,12 @@
 import Link from 'next/link';
 import { Mail, MessageCircle, ArrowRight, Search, Heart, Shield, Clock, MapPin } from 'lucide-react';
 
-const SUPPORT_EMAIL = 'support@petrecovery.org';
+// Single source of truth. This was hardcoded in three places on the retired
+// petrecovery.org domain, including in the Terms and the Privacy Policy where
+// it is the contact of record. Set SUPPORT_EMAIL once the reunitepets.org
+// mailbox is confirmed monitored - do not change the default blind, an
+// unmonitored support address is worse than an off-brand one.
+const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@petrecovery.org';
 
 const QUICK_ACTIONS = [
   {

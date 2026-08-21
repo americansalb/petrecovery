@@ -17,15 +17,22 @@ const inter = Inter({
   variable: '--font-inter',
 });
 
+// Next 14 ignores a `viewport` key inside `metadata` and warns on every route.
+// The old block also set maximumScale:1 / userScalable:false - blocking pinch
+// zoom, a WCAG 1.4.4 failure - and was only harmless because it was ignored.
+// Moved to the export Next actually reads, minus those two keys.
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#0F172A',
+};
+
 export const metadata = {
   title: 'ReunitePets.org - Reunite Lost Pets with Their Families',
   description: 'Beautiful community-powered pet recovery. Get instant help finding your lost pet.',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+  // Without this there is no <link rel="manifest"> in the document at all, so
+  // public/manifest.json was inert and the app was never installable.
+  manifest: '/manifest.json',
   icons: {
     icon: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg',
     shortcut: 'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(8).svg',

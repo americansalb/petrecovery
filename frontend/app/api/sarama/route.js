@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRateLimitAsync, checkGlobalLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
 
 /**
  * Sarama AI Guide - Anthropic Claude Haiku Integration
@@ -63,8 +64,32 @@ IMPORTANT: When ALL required information is collected, respond with:
 
 Where collected_json contains: petType, petName, petSize (dogs), isIndoorCat (cats), timeElapsed, color, location`;
 
+// This route is unauthenticated by design - the wizard helps people who do not
+// have an account yet - but it proxies a PAID model call, and it carried no
+// rate limiting of any kind (grep -c rateLimit returned 0). Anyone could loop
+// it and spend the project's Anthropic budget. The sibling AI routes already
+// do both of these; this one was the outlier.
+const SARAMA_GLOBAL_MAX_PER_MIN = parseInt(process.env.SARAMA_GLOBAL_MAX_PER_MIN || '120', 10);
+
 export async function POST(request) {
   try {
+    // Per-IP first: cheap, and stops one caller monopolising the global budget.
+    const rl = await withRateLimitAsync(request, { windowMs: 60 * 1000, maxRequests: 20, blockDurationMs: 5 * 60 * 1000 }, 'sarama');
+    if (!rl.success) return rateLimitResponse(rl);
+
+    // Then a ceiling across ALL callers, checked BEFORE the paid call, because
+    // a per-IP limit alone is just a budget multiplied by the number of IPs.
+    const globalLimit = await checkGlobalLimitAsync('sarama:global', {
+      windowMs: 60 * 1000,
+      maxRequests: SARAMA_GLOBAL_MAX_PER_MIN,
+    });
+    if (!globalLimit.success) {
+      return NextResponse.json(
+        { error: 'Sarama is busy right now. Please try again in a minute.', code: 'BUSY' },
+        { status: 503 }
+      );
+    }
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
     if (!apiKey) {

@@ -577,13 +577,13 @@ export async function POST(request) {
             const petTypeDisplay = petType || 'pet';
             if (squad.isAutoCreated) {
               // Welcome post for newly auto-created squad
-              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis rescue force was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this rescue force to help reunite pets with their families in your community! 🐾`;
+              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis rescue force was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${report.caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this rescue force to help reunite pets with their families in your community! 🐾`;
             } else if (isNearbyAssist) {
               // Nearby assist post
-              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local rescue force in that area yet - your help could make the difference! 🙏`;
+              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${report.caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local rescue force in that area yet - your help could make the difference! 🙏`;
             } else {
               // Regular case alert
-              postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
+              postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${report.caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
             }
 
             await prisma.squadPost.create({
@@ -591,8 +591,10 @@ export async function POST(request) {
                 rescueSquadId: squad.id,
                 authorId: user.id,
                 content: postContent,
-                isSystemPost: true,
-                isPinned: squad.isAutoCreated, // Pin the welcome post for new squads
+                // isSystemPost / isPinned are NOT columns on SquadPost -
+                // confirmed against both prisma/schema.prisma and the raw DDL in
+                // app/api/admin/migrate. Passing them made this create throw,
+                // which the catch below swallowed.
               }
             });
             console.log('[Report Debug] Created mascot post for squad:', squad.name, isNearbyAssist ? '(nearby assist)' : '');

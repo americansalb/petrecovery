@@ -154,7 +154,7 @@ export default function CareLandingPage() {
 
           <p className="text-midnight-300 text-[15px] mt-8 max-w-2xl mx-auto text-center leading-relaxed">
             Pets with a registered microchip and current contact details, exactly what your record keeps
-            ready, are reunited up to <span className="text-white font-semibold">20 times</span> more often.
+            ready, are reunited far more often - up to <span className="text-white font-semibold">20 times</span> for cats.
           </p>
 
           <div className="flex justify-center mt-7">
