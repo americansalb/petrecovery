@@ -507,7 +507,7 @@ function TaskList({ tasks, missionData, currentUserId, isCoordinator, showNewTas
     <div className="p-4 space-y-4">
       {/* New Task Form */}
       {showNewTask && (
-        <form onSubmit={handleCreateTask} className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
+        <form method="post" onSubmit={handleCreateTask} className="bg-slate-800 rounded-xl p-4 border border-slate-700 space-y-3">
           <div>
             <input
               type="text"

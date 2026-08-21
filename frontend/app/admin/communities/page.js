@@ -525,7 +525,7 @@ export default function AdminCommunitiesPage() {
               </div>
             )}
 
-            <form onSubmit={submitApproval}>
+            <form method="post" onSubmit={submitApproval}>
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{
                   display: 'block',
@@ -732,7 +732,7 @@ export default function AdminCommunitiesPage() {
               </div>
             )}
 
-            <form onSubmit={submitRejection}>
+            <form method="post" onSubmit={submitRejection}>
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{
                   display: 'block',

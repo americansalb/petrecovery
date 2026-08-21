@@ -260,7 +260,7 @@ export default function AdminCreateCommunityPage() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{
+        <form method="post" onSubmit={handleSubmit} style={{
           background: 'white',
           borderRadius: '16px',
           padding: '2.5rem',

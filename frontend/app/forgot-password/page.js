@@ -105,7 +105,7 @@ export default function ForgotPasswordPage() {
 
           {/* Form - Hidden after success */}
           {status !== 'success' && (
-            <form onSubmit={handleSubmit} aria-describedby={status === 'error' ? 'forgot-password-error' : undefined}>
+            <form method="post" onSubmit={handleSubmit} aria-describedby={status === 'error' ? 'forgot-password-error' : undefined}>
               <div className="mb-6">
                 <label htmlFor="email" className="block mb-2 font-semibold text-midnight-700 text-sm">
                   Email Address

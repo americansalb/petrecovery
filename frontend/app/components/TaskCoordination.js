@@ -220,7 +220,7 @@ export default function TaskCoordination({ squadId, missionId, caseName, userRol
 
       {/* Create Task Form */}
       {showCreateForm && isLeader && (
-        <form onSubmit={handleCreateTask} style={{
+        <form method="post" onSubmit={handleCreateTask} style={{
           padding: '2rem',
           background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
           borderRadius: '12px',

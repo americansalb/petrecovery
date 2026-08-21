@@ -156,7 +156,7 @@ function ResetPasswordForm() {
 
       {/* Form - Hidden after success or when no token */}
       {status !== 'success' && token && (
-        <form onSubmit={handleSubmit}>
+        <form method="post" onSubmit={handleSubmit}>
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{
               display: 'block',

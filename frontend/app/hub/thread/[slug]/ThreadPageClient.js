@@ -369,7 +369,7 @@ export default function ThreadPage({ params }) {
               <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
                 <h3 className="font-semibold text-slate-700">Post a Reply</h3>
               </div>
-              <form onSubmit={handleReply} className="p-4">
+              <form method="post" onSubmit={handleReply} className="p-4">
                 <textarea
                   value={replyContent}
                   onChange={(e) => setReplyContent(e.target.value)}

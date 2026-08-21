@@ -277,7 +277,7 @@ export default function DivisionRequestPage() {
                 </Link>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} style={{
+              <form method="post" onSubmit={handleSubmit} style={{
                 background: 'white',
                 borderRadius: '16px',
                 padding: '2.5rem',

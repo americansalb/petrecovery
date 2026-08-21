@@ -364,7 +364,7 @@ export default function AdminCreateDivisionPage() {
 
         {/* Step 1: ZIP Code */}
         {step === 1 && (
-          <form onSubmit={handleZipSubmit}>
+          <form method="post" onSubmit={handleZipSubmit}>
             <div style={{
               background: 'white',
               borderRadius: '16px',
@@ -429,7 +429,7 @@ export default function AdminCreateDivisionPage() {
 
         {/* Step 2: Draw Map & Name Division */}
         {step === 2 && rescueSquad && (
-          <form onSubmit={handleDivisionSubmit}>
+          <form method="post" onSubmit={handleDivisionSubmit}>
             {/* Squad Info Banner */}
             <div style={{
               background: 'white',

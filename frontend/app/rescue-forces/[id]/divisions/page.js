@@ -360,7 +360,7 @@ export default function DivisionsManagementPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateDivision}>
+            <form method="post" onSubmit={handleCreateDivision}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-midnight-700 mb-2">
@@ -446,7 +446,7 @@ export default function DivisionsManagementPage() {
               </button>
             </div>
 
-            <form onSubmit={handleUpdateDivision}>
+            <form method="post" onSubmit={handleUpdateDivision}>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-midnight-700 mb-2">

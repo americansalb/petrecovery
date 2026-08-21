@@ -59,7 +59,7 @@ export default function InquirySection({ shelterId, shelterName, animals }) {
       <p className="text-sm text-midnight-600 mb-4">
         Your message goes straight to the {shelterName} team; they&rsquo;ll reply by email.
       </p>
-      <form onSubmit={submit} className="space-y-3">
+      <form method="post" onSubmit={submit} className="space-y-3">
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label htmlFor="inq-name" className="block text-sm font-semibold text-midnight-800 mb-1">Your name</label>

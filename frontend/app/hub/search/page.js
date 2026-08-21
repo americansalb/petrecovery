@@ -86,7 +86,7 @@ function SearchContent() {
             Back to Hub
           </Link>
 
-          <form onSubmit={handleSearch} className="relative">
+          <form method="post" onSubmit={handleSearch} className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"

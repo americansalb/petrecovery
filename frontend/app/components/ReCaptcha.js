@@ -284,7 +284,7 @@ export function InvisibleReCaptcha({
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form method="post" onSubmit={handleSubmit}>
       {children}
       {!isReady && (
         <div className="text-sm text-gray-500">Loading security check...</div>

@@ -140,7 +140,7 @@ export default function AdminUsersPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <form method="post" onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* Search */}
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">

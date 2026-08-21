@@ -223,7 +223,7 @@ export default function PeoplePage() {
       <section className="mb-6">
         <Overline className="mb-2.5">Invite someone</Overline>
         <Card className="p-5">
-          <form onSubmit={invite} className="space-y-3">
+          <form method="post" onSubmit={invite} className="space-y-3">
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="their@email.com" aria-label="Email to invite" className={input} />
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setRole('CAREGIVER')} className={chip(role === 'CAREGIVER')}>Caregiver</button>

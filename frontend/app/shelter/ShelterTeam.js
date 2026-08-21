@@ -170,7 +170,7 @@ export default function ShelterTeam() {
       {canManage && (
         /* globals.css forces email inputs + selects to width:100%, so the
            layout is shaped by grid tracks, not input width utilities */
-        <form onSubmit={invite} className="px-4 py-3 bg-slate-50/60 grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-center">
+        <form method="post" onSubmit={invite} className="px-4 py-3 bg-slate-50/60 grid gap-2 sm:grid-cols-[minmax(0,1fr)_9rem_auto] sm:items-center">
           <input
             type="email"
             required

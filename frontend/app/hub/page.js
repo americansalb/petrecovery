@@ -163,7 +163,7 @@ export default function HubPage() {
           </div>
 
           {/* Search Bar */}
-          <form onSubmit={handleSearch} className="mt-4 max-w-md">
+          <form method="post" onSubmit={handleSearch} className="mt-4 max-w-md">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input

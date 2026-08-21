@@ -213,7 +213,7 @@ export default function AdminGroupsPage() {
           </div>
         )}
 
-        <form onSubmit={runSweep} className="bg-white rounded-lg shadow p-4 mb-6">
+        <form method="post" onSubmit={runSweep} className="bg-white rounded-lg shadow p-4 mb-6">
           <p className="text-sm font-semibold text-gray-900 mb-1">Run a search for a city</p>
           <p className="text-xs text-gray-500 mb-3">
             Runs the same discovery the cascade uses (web search for public Facebook groups, then AI ranking)

@@ -353,6 +353,7 @@ export default function SquadChat({
 
       {/* Message input */}
       <form
+        method="post"
         onSubmit={handleSendMessage}
         style={{
           padding: '1rem',

@@ -160,7 +160,7 @@ export default function SheltersDirectoryClient({ initialShelters }) {
                 starting today.
               </p>
             </div>
-            <form onSubmit={searchWider} className="flex-1 flex items-center gap-2 lg:max-w-xl">
+            <form method="post" onSubmit={searchWider} className="flex-1 flex items-center gap-2 lg:max-w-xl">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-midnight-400 pointer-events-none" />
                 <input

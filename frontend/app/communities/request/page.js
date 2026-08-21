@@ -335,7 +335,7 @@ export default function CommunityRequestPage() {
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
+        <form method="post" onSubmit={handleSubmit}>
           {/* Community Type */}
           <div style={{ marginBottom: '2rem' }}>
             <label style={{

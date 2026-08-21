@@ -95,7 +95,7 @@ export default function ShelterProfileEditor({ shelterId, hideHeading = false })
         </p>
       )}
 
-      <form onSubmit={save} className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-5 space-y-4">
+      <form method="post" onSubmit={save} className="rounded-2xl border border-midnight-100 bg-white shadow-sm p-5 space-y-4">
         <div>
           <label htmlFor="sp-mission" className="block text-sm font-semibold text-midnight-800 mb-1">
             Mission <span className="font-normal text-midnight-400">(one line)</span>

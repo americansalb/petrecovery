@@ -454,7 +454,7 @@ export default function ConversationPage() {
 
       {/* Message Input */}
       {!isClosed ? (
-        <form onSubmit={sendMessage} className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
+        <form method="post" onSubmit={sendMessage} className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
           <div className="flex items-end gap-2">
             <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-2">
               <textarea

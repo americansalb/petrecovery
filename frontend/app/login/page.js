@@ -106,7 +106,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
+          <form method="post" onSubmit={handleSubmit} aria-describedby={error ? 'login-error' : undefined}>
             <div className="mb-5">
               <label htmlFor="email" className="block mb-2 font-semibold text-midnight-700 text-sm">
                 Email Address

@@ -61,7 +61,7 @@ export default function StrayHoldControl({ holdDays }) {
   }
 
   return (
-    <form onSubmit={save} className="flex flex-wrap items-center gap-2 text-[13px] text-midnight-500">
+    <form method="post" onSubmit={save} className="flex flex-wrap items-center gap-2 text-[13px] text-midnight-500">
       <label htmlFor="stray-hold-days" className="shrink-0">Hold strays for</label>
       {/* globals.css forces number inputs to width:100%; the wrapper
           fixes the track width instead of an input width utility */}

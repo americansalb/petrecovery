@@ -631,7 +631,7 @@ export default function PetWizard() {
             )}
 
             {!isMember && (
-              <form onSubmit={saveAsGuest} className="space-y-4">
+              <form method="post" onSubmit={saveAsGuest} className="space-y-4">
                 <p className="text-care-sm text-neutral-500">Saving needs a free account.</p>
                 <div>
                   <label className={labelClass} htmlFor="hb-first-name">First name</label>

@@ -166,7 +166,7 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
           )}
 
           {mode === 'signup' && (
-            <form onSubmit={handleSignup} className="space-y-3">
+            <form method="post" onSubmit={handleSignup} className="space-y-3">
               <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Your first name" aria-label="Your first name" autoComplete="given-name" className={inputClass} />
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" aria-label="Email" autoComplete="email" className={inputClass} />
               <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Choose a password (8+ characters)" aria-label="Choose a password, at least 8 characters" autoComplete="new-password" className={inputClass} />
@@ -188,7 +188,7 @@ function JoinModal({ token, petName, ownerFirstName, onClose }) {
           )}
 
           {mode === 'signin' && (
-            <form onSubmit={handleSignin} className="space-y-3">
+            <form method="post" onSubmit={handleSignin} className="space-y-3">
               <p className="text-sm text-neutral-600">
                 You already have an account. Sign in to send the request.
               </p>

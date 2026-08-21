@@ -363,7 +363,7 @@ function AdoptionPanel({ petId, petName, pendingTransferEmail, holdActive }) {
         {holdActive && ' The legal hold has not ended yet, so wait to complete the adoption.'}
       </p>
       {/* globals.css forces email inputs to width:100%; grid tracks shape the row */}
-      <form onSubmit={invite} className="grid gap-2 sm:grid-cols-[minmax(0,18rem)_auto] sm:items-center">
+      <form method="post" onSubmit={invite} className="grid gap-2 sm:grid-cols-[minmax(0,18rem)_auto] sm:items-center">
         <input
           type="email"
           required

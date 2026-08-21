@@ -267,7 +267,7 @@ function FindYourForce() {
           Every force covers a real place. Enter your city or ZIP to find yours,
           or be the neighbor who starts it.
         </p>
-        <form onSubmit={go} className="flex flex-col sm:flex-row gap-3">
+        <form method="post" onSubmit={go} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-midnight-400" />
             <input

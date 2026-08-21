@@ -444,7 +444,7 @@ export default function CaseDetailPage({ params }) {
             {/* Case Notes */}
             <Section title="Case Notes">
               {/* Add Note Form */}
-              <form onSubmit={handleAddNote} style={{ marginBottom: '1.5rem' }}>
+              <form method="post" onSubmit={handleAddNote} style={{ marginBottom: '1.5rem' }}>
                 <textarea
                   value={noteContent}
                   onChange={(e) => setNoteContent(e.target.value)}

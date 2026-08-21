@@ -424,7 +424,7 @@ export default function ProfilePage() {
           </div>
 
           {editMode ? (
-            <form onSubmit={handleSave}>
+            <form method="post" onSubmit={handleSave}>
               <div className="grid md:grid-cols-3 gap-4 mb-6">
                 <div>
                   <label htmlFor="firstName" className="block mb-2 font-semibold text-midnight-700 text-sm">

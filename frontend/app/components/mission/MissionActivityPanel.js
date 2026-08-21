@@ -235,7 +235,7 @@ export default function MissionActivityPanel({ missionData, userRole, currentUse
 
           {/* Add note input */}
           {canAddNotes && (
-            <form onSubmit={handleSubmitNote} className="p-4 border-t border-slate-700/50 bg-slate-800/30">
+            <form method="post" onSubmit={handleSubmitNote} className="p-4 border-t border-slate-700/50 bg-slate-800/30">
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -400,7 +400,7 @@ function ChatView({ assignmentId, currentUserId, canSend }) {
       </div>
 
       {canSend && (
-        <form onSubmit={handleSend} className="p-4 border-t border-slate-700/50 bg-slate-800/30">
+        <form method="post" onSubmit={handleSend} className="p-4 border-t border-slate-700/50 bg-slate-800/30">
           <div className="flex gap-2">
             <input
               type="text"

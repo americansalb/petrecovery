@@ -152,7 +152,7 @@ function Row({ pet, holdDays, onChanged }) {
       {open && !pet.pendingTransferEmail && (
         /* globals.css forces email inputs to width:100%; grid tracks shape
            the row instead of input width utilities */
-        <form onSubmit={invite} className="mt-3 md:pl-[54px] grid gap-2 sm:grid-cols-[minmax(0,16rem)_auto_auto] sm:items-center">
+        <form method="post" onSubmit={invite} className="mt-3 md:pl-[54px] grid gap-2 sm:grid-cols-[minmax(0,16rem)_auto_auto] sm:items-center">
           <input
             type="email"
             required

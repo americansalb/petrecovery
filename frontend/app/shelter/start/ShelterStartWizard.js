@@ -394,7 +394,7 @@ export default function ShelterStartWizard() {
       )}
 
       {stepKey === 'account' && (
-        <form onSubmit={submitGuest} className="space-y-4">
+        <form method="post" onSubmit={submitGuest} className="space-y-4">
           <div>
             <label className={labelClass} htmlFor="sh-first">First name</label>
             <input

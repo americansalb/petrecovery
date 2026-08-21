@@ -159,7 +159,7 @@ function ReportSightingForm() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form method="post" onSubmit={handleSubmit} className="space-y-6">
             {!alertId && (
               <div>
                 <label className="block text-sm font-semibold text-midnight-900 mb-2">

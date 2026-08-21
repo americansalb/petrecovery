@@ -138,7 +138,7 @@ function NewThreadForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form method="post" onSubmit={handleSubmit}>
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             {/* Category Selection */}
             <div className="p-4 border-b border-slate-200">

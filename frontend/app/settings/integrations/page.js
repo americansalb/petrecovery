@@ -330,7 +330,7 @@ function AddIntegrationModal({ onClose, onSuccess }) {
         <div className="p-6">
           <h2 className="text-xl font-bold mb-4">Add Integration</h2>
 
-          <form onSubmit={handleSubmit}>
+          <form method="post" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-50 text-red-700 p-3 rounded mb-4 text-sm">
                 {error}
