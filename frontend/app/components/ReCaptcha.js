@@ -299,28 +299,36 @@ export function InvisibleReCaptcha({
 export function withReCaptcha(WrappedComponent, options = {}) {
   const { version = 'v3', action = 'submit' } = options;
 
-  return function ReCaptchaWrappedComponent(props) {
+  // Two components, picked here rather than inside one that branches on
+  // `version` at render time. The old shape called useReCaptchaV3() below
+  // an early return, so whether that hook ran depended on a branch. It
+  // happened to be safe - `version` is fixed when the HOC is created and
+  // never changes for a given wrapped component - but it reads as a
+  // hook-order bug, ESLint flags it as one, and the next person to make
+  // `version` a prop would turn it into a real one.
+
+  function ReCaptchaV2Wrapper(props) {
     const [captchaToken, setCaptchaToken] = useState(null);
     const captchaRef = useRef(null);
 
-    if (version === 'v2') {
-      return (
-        <WrappedComponent
-          {...props}
-          captchaToken={captchaToken}
-          captchaRef={captchaRef}
-          renderCaptcha={() => (
-            <ReCaptchaV2
-              ref={captchaRef}
-              onVerify={setCaptchaToken}
-              onExpire={() => setCaptchaToken(null)}
-            />
-          )}
-        />
-      );
-    }
+    return (
+      <WrappedComponent
+        {...props}
+        captchaToken={captchaToken}
+        captchaRef={captchaRef}
+        renderCaptcha={() => (
+          <ReCaptchaV2
+            ref={captchaRef}
+            onVerify={setCaptchaToken}
+            onExpire={() => setCaptchaToken(null)}
+          />
+        )}
+      />
+    );
+  }
 
-    // v3
+  function ReCaptchaV3Wrapper(props) {
+    const [captchaToken, setCaptchaToken] = useState(null);
     const { executeRecaptcha, isReady } = useReCaptchaV3();
 
     const getCaptchaToken = async () => {
@@ -337,7 +345,9 @@ export function withReCaptcha(WrappedComponent, options = {}) {
         isCaptchaReady={isReady}
       />
     );
-  };
+  }
+
+  return version === 'v2' ? ReCaptchaV2Wrapper : ReCaptchaV3Wrapper;
 }
 
 export default ReCaptchaV2;

@@ -1,7 +1,15 @@
 node_modules
-.env
-.env.local
-*.env
+# Ignore every env file, then let the templates back in.
+#
+# The pattern used to be `*.env`, which matches files ENDING in .env and
+# therefore never matched .env.production or .env.staging - both of which
+# were tracked. They held placeholders, so nothing leaked, but the moment
+# someone filled in a real DATABASE_URL or NEXTAUTH_SECRET it would have
+# been committed without a word. The committed copies are now
+# .env.production.example and .env.staging.example.
+.env*
+!.env.example
+!*.env.example
 .DS_Store
 build
 dist

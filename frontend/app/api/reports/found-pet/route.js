@@ -7,7 +7,7 @@ import { authOptions } from '@/app/lib/auth';
 import { findMatches } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
-import { buildCaseNumber } from '@/app/lib/caseNumber';
+import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 
 export async function POST(request) {
   try {
@@ -156,10 +156,10 @@ export async function POST(request) {
 
     // 4. Create found report
     const foundAt = calculateFoundTime(timeElapsed);
-    // Same collision problem as the lost-pet intake - see app/lib/caseNumber.js
-    const caseNumber = buildCaseNumber({ kind: 'FOUND' });
-
-    const report = await prisma.case.create({
+    // Retried on collision, like the lost-pet intake. The suffix is random,
+    // so a clash is unlikely rather than impossible, and a 500 here loses
+    // a found animal someone is standing next to.
+    const report = await withCaseNumberRetry((caseNumber) => prisma.case.create({
       data: {
         caseNumber,
         petId: pet.id,
@@ -184,7 +184,7 @@ export async function POST(request) {
         status: 'ACTIVE',
         priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'HIGH',
       }
-    });
+    }), { kind: 'FOUND' });
 
     // 5. Find potential matches - look for LOST pets that match this FOUND pet
     const lostPetCases = await prisma.case.findMany({

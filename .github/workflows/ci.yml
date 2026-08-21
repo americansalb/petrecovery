@@ -44,9 +44,17 @@ jobs:
         working-directory: frontend
         run: npx prisma generate
 
+      # `|| echo` again: this step could not fail either, and there was no
+      # ESLint config at all, so `next lint` was dropping into its
+      # interactive setup prompt and the step passed regardless. It had
+      # never actually linted anything. It does now, and it fails on errors.
+      #
+      # The warning ceiling is a ratchet, not a target: it sits just above
+      # the current count so the number cannot climb, and should come down
+      # as warnings get worked off.
       - name: Run ESLint
         working-directory: frontend
-        run: npm run lint || echo "Linting not configured"
+        run: npx next lint --max-warnings=360
 
   # Job 2: Unit Tests
   test:

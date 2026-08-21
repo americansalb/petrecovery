@@ -58,17 +58,21 @@ export default function ScoutTipBanner({
     }
   }, [onShare, tip]);
 
+  // Above the `if (!tip)` below, with handleShare. It used to sit after it,
+  // so the number of hooks this component ran changed with whether `tip`
+  // was set - and a banner whose tip arrives or clears is exactly what
+  // this component is for. React throws "Rendered more hooks than during
+  // the previous render" on that transition.
+  const handleAction = useCallback(() => {
+    if (onAction && tip?.actionType) {
+      onAction(tip.actionType, tip);
+    }
+  }, [onAction, tip]);
+
   if (!tip) return null;
 
   const typeIcon = TYPE_ICONS[tip.type] || '\u{1F4AC}';
   const colors = TYPE_COLORS[tip.type] || TYPE_COLORS.STRATEGY;
-
-  // Handle action button click
-  const handleAction = useCallback(() => {
-    if (onAction && tip.actionType) {
-      onAction(tip.actionType, tip);
-    }
-  }, [onAction, tip]);
 
   // Chat message variant
   if (variant === 'chat') {

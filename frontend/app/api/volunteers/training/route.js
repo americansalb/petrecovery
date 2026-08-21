@@ -167,8 +167,10 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Module ID required' }, { status: 400 });
     }
 
-    const module = TRAINING_MODULES.find(m => m.id === moduleId);
-    if (!module) {
+    // Named trainingModule, not module: assigning to `module` shadows the
+    // CommonJS global that bundlers rely on, which is why Next flags it.
+    const trainingModule = TRAINING_MODULES.find(m => m.id === moduleId);
+    if (!trainingModule) {
       return NextResponse.json({ error: 'Module not found' }, { status: 404 });
     }
 
