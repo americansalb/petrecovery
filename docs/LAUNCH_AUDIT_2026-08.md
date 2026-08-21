@@ -66,11 +66,18 @@ What was done:
   route, and error, empty and wizard states. Index:
   `screenshots/audit-2026-08/README.md`.
 - **The automated gates were run**, not assumed (§8).
-- **Twenty subagents** audited the codebase across 13 dimensions and reviewed
-  the screenshots across 7 batches, with an adversarial verification pass.
-- **Every finding below was then reproduced by hand** — by reading the code, by
-  `curl`, by measuring the live DOM, or by querying the database. Findings that
-  did not survive are in §7.
+- **Subagents swept for candidates**, in two passes. A visual review read the
+  screenshots across 7 batches and ran to completion, including its
+  adversarial merge — it deflated 87 raw observations to 47. A code audit
+  swept 13 dimensions and produced 118 raw candidates; **its per-finding
+  verification stage did not finish** (roughly 100 high-effort verifier agents
+  against a ~12-wide concurrency cap) and was stopped. Nothing in this report
+  rests on it.
+- **Every finding below was reproduced by hand** — by reading the code, by
+  `curl`, by measuring the live DOM, or by querying the database. That is the
+  guarantee, and it is independent of what the subagents did or did not
+  finish: subagents were used to find candidates, never to confirm them.
+  Candidates that did not survive my own check are in §7.
 
 ---
 
