@@ -12,12 +12,17 @@ export const dynamic = "force-dynamic";
  */
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useToast } from '@/app/components/ui/Toast';
 
 export default function SettingsPage() {
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   const { data: session, status } = useSession();
   const router = useRouter();
   const toast = useToast();
@@ -156,17 +161,83 @@ export default function SettingsPage() {
               {/* Danger Zone */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <h3 className="text-lg font-semibold text-red-600 mb-4">Danger Zone</h3>
-                <button
-                  onClick={() => {
-                    if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                      // TODO: Implement account deletion
-                      toast.warning('Account deletion is not yet implemented. Please contact support.');
-                    }
-                  }}
-                  className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-medium"
-                >
-                  Delete Account
-                </button>
+                {!deleteOpen ? (
+                  <button
+                    onClick={() => { setDeleteOpen(true); setDeleteError(''); setDeletePassword(''); }}
+                    className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition font-medium"
+                  >
+                    Delete Account
+                  </button>
+                ) : (
+                  <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 max-w-lg">
+                    <p className="text-sm text-red-900 font-semibold mb-1">
+                      Delete your account
+                    </p>
+                    <p className="text-sm text-red-800 mb-3">
+                      This removes your profile, your pets and your settings, and cannot
+                      be undone. Sightings you reported on other people&apos;s searches stay
+                      on those cases without your name, so nobody loses the record of
+                      where an animal was seen.
+                    </p>
+                    <p className="text-sm text-red-800 mb-3">
+                      If you have a report still open, close it or mark the pet reunited
+                      first.
+                    </p>
+
+                    <label htmlFor="delete-password" className="block text-sm font-medium text-red-900 mb-1">
+                      Enter your password to confirm
+                    </label>
+                    <input
+                      id="delete-password"
+                      type="password"
+                      autoComplete="current-password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      className="w-full px-3 py-2 border-2 border-red-200 rounded-lg mb-3 bg-white"
+                    />
+
+                    {deleteError && (
+                      <p role="alert" className="text-sm text-red-700 mb-3">{deleteError}</p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          setDeleting(true);
+                          setDeleteError('');
+                          try {
+                            const res = await fetch('/api/account/delete', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ password: deletePassword }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok) {
+                              setDeleteError(data.error || 'We could not delete your account.');
+                              return;
+                            }
+                            await signOut({ callbackUrl: '/' });
+                          } catch (err) {
+                            setDeleteError('We could not reach the server. Nothing was changed.');
+                          } finally {
+                            setDeleting(false);
+                          }
+                        }}
+                        disabled={deleting || !deletePassword}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium disabled:opacity-50"
+                      >
+                        {deleting ? 'Deleting...' : 'Delete my account'}
+                      </button>
+                      <button
+                        onClick={() => setDeleteOpen(false)}
+                        disabled={deleting}
+                        className="px-4 py-2 border-2 border-red-200 text-red-700 rounded-lg font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
