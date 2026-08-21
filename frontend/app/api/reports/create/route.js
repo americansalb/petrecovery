@@ -98,6 +98,26 @@ export async function POST(request) {
         where: { email }
       });
 
+      // An anonymous caller must not be able to post as somebody else. Typing a
+      // stranger's address used to attach the case to THEIR account, publish it
+      // under their name, and copy their stored phone onto a public record.
+      //
+      // The test is emailVerified, NOT passwordHash: this endpoint gives every
+      // guest a hashed temp password, so a password proves nothing about who
+      // owns the address. A verified account means that person clicked a link
+      // in that inbox - posting as them anonymously is impersonation. An
+      // unverified row is either a guest shell this endpoint minted on an
+      // earlier report or a signup that never confirmed, and in both cases
+      // nobody has proven ownership, so a repeat guest report still goes
+      // through. Mirrors the PHONE_CONFLICT contract just below.
+      //
+      // Residual, deliberately: an account registered but not yet verified can
+      // still be reported against anonymously. Closing that needs verification
+      // to be enforced at signup, which is a separate change.
+      if (existingUser?.emailVerified && !session?.user) {
+        throw new Error('ACCOUNT_EXISTS');
+      }
+
       // If user exists and phone wasn't provided, try to get it from their record
       if (existingUser && !phone) {
         phone = existingUser.phone;
@@ -785,6 +805,20 @@ export async function POST(request) {
 
   } catch (error) {
     // Handle phone conflict thrown from inside transaction
+    // An anonymous submission naming a real account. Say so plainly and point
+    // at the one action that resolves it; never hint at whether the report
+    // would otherwise have succeeded.
+    if (error.message === 'ACCOUNT_EXISTS') {
+      return NextResponse.json(
+        {
+          error: 'That email already has a ReunitePets account. Sign in and your report will be filed to it, or use a different email.',
+          code: 'ACCOUNT_EXISTS',
+          signInUrl: '/login?callbackUrl=%2Freport%2Fnew'
+        },
+        { status: 409 }
+      );
+    }
+
     if (error.message?.startsWith('PHONE_CONFLICT:')) {
       const maskedEmail = error.message.split('PHONE_CONFLICT:')[1];
       return NextResponse.json(

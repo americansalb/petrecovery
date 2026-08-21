@@ -476,10 +476,13 @@ export default function PublicDatabasePage() {
                       fontSize: '0.9rem',
                     }}>
                       <div style={{ fontWeight: '600', color: theme.colors.gray[900] }}>
-                        Contact: {report.reporterName}
+                        Reported by {report.reporterName}
                       </div>
+                      {/* No phone here: /api/database returns the whole board in
+                          one response, so contact details on it would be a bulk
+                          harvest. Reach an owner from that case's own page. */}
                       <div style={{ color: theme.colors.gray[600], marginTop: '0.25rem' }}>
-                        {report.reporterPhone}
+                        Open the case to contact them
                       </div>
                     </div>
                   ) : (

@@ -14,9 +14,20 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { normalizePhotoUrl } from '@/app/lib/utils';
+import { withRateLimitAsync, rateLimitResponse } from '@/app/lib/rateLimit';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
+
+// This route is unauthenticated and returns the owner's phone number, so a
+// caller who can guess or scrape case numbers could otherwise walk the whole
+// table. 20/min is far above what a neighbour reading one shared link needs and
+// far below what makes bulk collection worthwhile.
+const PUBLIC_CASE_DETAIL_LIMIT = {
+  windowMs: 60 * 1000,
+  maxRequests: 20,
+  blockDurationMs: 5 * 60 * 1000,
+};
 
 /**
  * GET /api/public/missions/[missionNumber] - View public case detail
@@ -26,6 +37,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(request, { params }) {
   const startTime = Date.now();
   const { caseNumber } = params;
+
+  const limit = await withRateLimitAsync(request, PUBLIC_CASE_DETAIL_LIMIT, 'public-case-detail');
+  if (!limit.success) return rateLimitResponse(limit);
 
   try {
     // Fetch case by caseNumber OR raw id (legacy /reports/{id} links
@@ -62,7 +76,8 @@ export async function GET(request, { params }) {
         reporterId: true,
         ownerName: true,
         ownerPhone: true,
-        ownerEmail: true,
+        // ownerEmail is deliberately NOT selected: this route is public, and a
+        // field that never leaves the query cannot leak through a later edit.
         // Engagement metrics
         viewCount: true,
         shareCount: true,
@@ -190,22 +205,26 @@ export async function GET(request, { params }) {
       updates: missionData.updates || []
     };
 
-    // Include contact info for LOST reports (owner wants to be contacted)
-    if (missionData.reportType === 'LOST') {
-      response.contact = {
-        name: missionData.ownerName,
-        phone: missionData.ownerPhone,
-        email: missionData.ownerEmail,
-        disclaimer: 'Contact information provided by reporter. Please exercise caution when communicating with strangers.'
-      };
-    } else {
-      response.contact = {
-        available: true,
-        name: missionData.ownerName,
-        phone: missionData.ownerPhone,
-        disclaimer: 'Contact information provided by reporter. Please exercise caution when communicating with strangers.'
-      };
-    }
+    // Contact block: the case page turns this into a "call the owner" tel: link,
+    // so the phone stays. Two things deliberately do NOT ship here:
+    //
+    //   email     - nothing renders it (the case page has no mailto path), and an
+    //               address on a public endpoint is pure harvest material. SEC-3
+    //               (__tests__/api/reports-id-pii.test.js) closed exactly this on
+    //               /api/reports/[id]; this route is the same class.
+    //   full name - the screen only ever needs "call <first name>", and a full
+    //               name plus a phone plus a neighbourhood is an identity.
+    //
+    // The phone is still per-case PII on an unauthenticated route, so the handler
+    // is rate limited (see PUBLIC_CASE_DETAIL_LIMIT above) to keep a legitimate
+    // one-off lookup working while making enumeration expensive.
+    const contactFirstName = String(missionData.ownerName || '').trim().split(/\s+/)[0] || 'The owner';
+    response.contact = {
+      available: Boolean(missionData.ownerPhone),
+      name: contactFirstName,
+      phone: missionData.ownerPhone || null,
+      disclaimer: 'Contact information provided by reporter. Please exercise caution when communicating with strangers.'
+    };
 
     const responseTime = Date.now() - startTime;
 

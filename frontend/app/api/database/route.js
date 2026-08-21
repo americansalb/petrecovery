@@ -6,6 +6,16 @@ import { authOptions } from '@/app/lib/auth';
 // Force dynamic rendering since we use session/headers
 export const dynamic = 'force-dynamic';
 
+// This endpoint returns the WHOLE case table in one response. It used to attach
+// the reporter's name, phone and email to every row for any signed-in caller,
+// which made a single request a complete contact list of distressed pet owners
+// (the SEC-3 class - see __tests__/api/reports-id-pii.test.js). Contact details
+// now never leave this route: a neighbour who needs to reach one owner goes to
+// that case's own page, which is per-case and rate limited. The result set is
+// also capped so a browse endpoint cannot be used to mirror the database.
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 50;
+
 export async function GET(request) {
   try {
     // Get session (but don't require it)
@@ -17,6 +27,11 @@ export async function GET(request) {
     const reportType = searchParams.get('type'); // LOST, FOUND, or null for all
     const species = searchParams.get('species'); // DOG, CAT, etc
     const status = searchParams.get('status') || 'ACTIVE';
+    const limit = Math.min(
+      Math.max(parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE), 10) || DEFAULT_PAGE_SIZE, 1),
+      MAX_PAGE_SIZE
+    );
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
 
     // Build where clause
     const where = {
@@ -27,47 +42,49 @@ export async function GET(request) {
       where.reportType = reportType;
     }
 
-    // Fetch all cases
-    const cases = await prisma.case.findMany({
-      where,
-      include: {
-        reporter: {
-          select: {
-            firstName: true,
-            phone: true,
-            email: true,
-          }
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    // Filter by search query and species
-    let filteredCases = cases;
+    // Species and free-text search are part of the QUERY, not a pass over the
+    // fetched rows. They used to filter in JS after findMany() pulled the whole
+    // table into memory, which is fine at seed scale and falls over the moment
+    // the board is real - this endpoint was observed against 87,000 rows.
+    if (species) {
+      where.petSpecies = species;
+    }
 
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filteredCases = filteredCases.filter(c =>
-        c.petName.toLowerCase().includes(query) ||
-        (c.petBreed && c.petBreed.toLowerCase().includes(query)) ||
-        c.petColor.toLowerCase().includes(query) ||
-        c.lastSeenAddress.toLowerCase().includes(query)
-      );
+      const contains = { contains: searchQuery, mode: 'insensitive' };
+      where.OR = [
+        { petName: contains },
+        { petBreed: contains },
+        { petColor: contains },
+        { lastSeenAddress: contains },
+      ];
     }
 
-    if (species) {
-      filteredCases = filteredCases.filter(c =>
-        c.petSpecies === species
-      );
-    }
+    // Reporter contact is intentionally NOT selected - see the note above.
+    const [cases, totalMatching] = await Promise.all([
+      prisma.case.findMany({
+        where,
+        include: {
+          reporter: {
+            select: {
+              firstName: true,
+            }
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: offset,
+        take: limit,
+      }),
+      prisma.case.count({ where }),
+    ]);
 
     // Check if user is authenticated (owner or patrol member)
     const isAuthenticated = !!session?.user?.email;
 
     // Format response
-    const formattedReports = filteredCases.map(c => ({
+    const formattedReports = cases.map(c => ({
       id: c.id,
       caseNumber: c.caseNumber,
       reportType: c.reportType,
@@ -82,17 +99,18 @@ export async function GET(request) {
       lastSeenAt: c.lastSeenAt,
       lastSeenAddress: c.lastSeenAddress,
       createdAt: c.createdAt,
-      // Only include contact info if authenticated
-      ...(isAuthenticated ? {
-        reporterName: c.reporter?.firstName || c.ownerName,
-        reporterPhone: c.reporter?.phone || c.ownerPhone,
-        reporterEmail: c.reporter?.email || c.ownerEmail,
-      } : {}),
+      // A first name is all the board needs to say who reported it. Phone and
+      // email are never included here - use the case's own page to make contact.
+      reporterName: c.reporter?.firstName || String(c.ownerName || '').trim().split(/\s+/)[0] || null,
     }));
 
     return NextResponse.json({
       reports: formattedReports,
-      total: formattedReports.length,
+      total: totalMatching,
+      count: formattedReports.length,
+      limit,
+      offset,
+      hasMore: offset + formattedReports.length < totalMatching,
       isAuthenticated,
     }, { status: 200 });
 
