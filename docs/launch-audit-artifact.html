@@ -1,0 +1,573 @@
+<title>ReunitePets Launch Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#F6F7F9; --surface:#FFFFFF; --surface-2:#EEF1F5;
+  --ink:#151A21; --muted:#59636F; --rule:#DCE1E8; --rule-strong:#C3CBD6;
+  --accent:#1D5E86; --accent-soft:#E4EDF4;
+  --blocker:#A8231C; --blocker-bg:#FBEAE8;
+  --high:#8A5700; --high-bg:#FAF0DE;
+  --medium:#59636F; --medium-bg:#EDF0F4;
+  --good:#1B6A4F; --good-bg:#E5F2EC;
+  --shadow:0 1px 2px rgba(21,26,33,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1319; --surface:#161B23; --surface-2:#1D242E;
+    --ink:#E7EBF1; --muted:#98A3B0; --rule:#28303B; --rule-strong:#3A4553;
+    --accent:#5FA6D0; --accent-soft:#172A38;
+    --blocker:#F08078; --blocker-bg:#2E1614;
+    --high:#E0A33F; --high-bg:#2C2211;
+    --medium:#98A3B0; --medium-bg:#1D242E;
+    --good:#5FBE96; --good-bg:#122619;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1319; --surface:#161B23; --surface-2:#1D242E;
+  --ink:#E7EBF1; --muted:#98A3B0; --rule:#28303B; --rule-strong:#3A4553;
+  --accent:#5FA6D0; --accent-soft:#172A38;
+  --blocker:#F08078; --blocker-bg:#2E1614;
+  --high:#E0A33F; --high-bg:#2C2211;
+  --medium:#98A3B0; --medium-bg:#1D242E;
+  --good:#5FBE96; --good-bg:#122619;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:60rem; margin:0 auto; padding:0 1.5rem 6rem}
+@media (max-width:640px){ .wrap{padding:0 1.1rem 4rem} }
+
+/* ---------- masthead ---------- */
+.mast{border-bottom:2px solid var(--ink); padding:3rem 0 1rem; margin-bottom:2.5rem}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.72rem;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; margin-bottom:1.4rem;
+}
+h1{
+  font-family:Newsreader,Georgia,serif; font-weight:500; font-size:clamp(2.1rem,5.5vw,3.1rem);
+  line-height:1.1; margin:0 0 .6rem; letter-spacing:-.015em; text-wrap:balance;
+}
+.standfirst{font-size:1.06rem; color:var(--muted); max-width:44rem; margin:0}
+
+/* ---------- verdict ---------- */
+.verdict{
+  background:var(--surface); border:1px solid var(--rule);
+  border-top:3px solid var(--blocker); box-shadow:var(--shadow);
+  padding:1.9rem 1.9rem 1.6rem; margin-bottom:1rem;
+}
+@media (max-width:640px){ .verdict{padding:1.4rem 1.2rem} }
+.verdict-label{
+  font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--blocker); font-weight:600; margin-bottom:.5rem;
+}
+.verdict h2{
+  font-family:Newsreader,Georgia,serif; font-weight:600; font-size:clamp(1.9rem,4.5vw,2.5rem);
+  margin:0 0 .8rem; line-height:1.15; letter-spacing:-.01em;
+}
+.verdict p{margin:0 0 .9rem; max-width:46rem}
+.verdict p:last-child{margin-bottom:0}
+
+/* ---------- ledger ---------- */
+.ledger{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+  background:var(--rule); border:1px solid var(--rule); margin-bottom:3rem;
+}
+@media (max-width:560px){ .ledger{grid-template-columns:repeat(2,1fr)} }
+.ledger div{background:var(--surface); padding:1.05rem 1.1rem}
+.ledger .n{
+  font-family:"IBM Plex Mono",monospace; font-size:1.85rem; font-weight:600;
+  font-variant-numeric:tabular-nums; line-height:1; display:block; margin-bottom:.3rem;
+}
+.ledger .l{font-size:.8rem; color:var(--muted); line-height:1.35; display:block}
+.n-blocker{color:var(--blocker)} .n-high{color:var(--high)}
+.n-medium{color:var(--medium)} .n-good{color:var(--good)}
+
+/* ---------- sections ---------- */
+section{margin-bottom:3.5rem}
+h3{
+  font-family:Newsreader,Georgia,serif; font-weight:600; font-size:1.6rem;
+  margin:0 0 .35rem; letter-spacing:-.01em;
+}
+.sec-note{color:var(--muted); font-size:.95rem; margin:0 0 1.4rem; max-width:44rem}
+h3 + .sec-note{margin-top:0}
+.rule-top{border-top:1px solid var(--rule-strong); padding-top:1.4rem}
+
+/* ---------- top three ---------- */
+ol.top3{list-style:none; counter-reset:t; margin:0 0 3rem; padding:0}
+ol.top3 li{
+  counter-increment:t; display:grid; grid-template-columns:2.4rem 1fr; gap:1rem;
+  padding:1.05rem 0; border-bottom:1px solid var(--rule);
+}
+ol.top3 li:first-child{border-top:1px solid var(--rule)}
+ol.top3 li::before{
+  content:counter(t,decimal-leading-zero);
+  font-family:"IBM Plex Mono",monospace; font-size:.85rem; font-weight:600;
+  color:var(--blocker); padding-top:.15rem; font-variant-numeric:tabular-nums;
+}
+ol.top3 b{font-weight:600}
+
+/* ---------- finding register ---------- */
+.register{border-top:1px solid var(--rule-strong)}
+details.f{border-bottom:1px solid var(--rule); background:var(--surface)}
+details.f > summary{
+  display:grid; grid-template-columns:3.1rem 1fr auto; gap:.9rem; align-items:baseline;
+  padding:.95rem 1rem; cursor:pointer; list-style:none; font-weight:500;
+}
+details.f > summary::-webkit-details-marker{display:none}
+details.f > summary:hover{background:var(--surface-2)}
+details.f > summary:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.fid{
+  font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600;
+  letter-spacing:.02em; padding-top:.15rem;
+}
+.fid-blocker{color:var(--blocker)} .fid-high{color:var(--high)} .fid-medium{color:var(--medium)}
+.ftitle{text-wrap:pretty}
+.chev{
+  font-family:"IBM Plex Mono",monospace; font-size:.7rem; color:var(--muted);
+  transition:transform .15s ease; padding-top:.2rem;
+}
+details.f[open] > summary .chev{transform:rotate(90deg)}
+details.f[open] > summary{background:var(--surface-2)}
+.fbody{padding:.3rem 1rem 1.5rem 5rem; max-width:52rem}
+@media (max-width:640px){ .fbody{padding-left:1rem} details.f > summary{grid-template-columns:2.9rem 1fr auto} }
+.fbody p{margin:0 0 .85rem}
+.fbody p:last-child{margin-bottom:0}
+.fix{
+  border-top:1px solid var(--rule); padding-top:.8rem; margin-top:1rem;
+  font-size:.94rem; color:var(--muted);
+}
+.fix b{color:var(--ink); font-weight:600}
+
+code{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.86em;
+  background:var(--surface-2); padding:.1em .35em; border-radius:2px;
+  overflow-wrap:anywhere;
+}
+pre{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.8rem; line-height:1.6;
+  background:var(--surface-2); border:1px solid var(--rule);
+  border-left:2px solid var(--rule-strong);
+  padding:.85rem 1rem; overflow-x:auto; margin:0 0 1rem;
+}
+pre code{background:none; padding:0; font-size:1em}
+.ev{
+  font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 .4rem; font-weight:600;
+}
+
+/* ---------- tables ---------- */
+.tbl-scroll{overflow-x:auto; border:1px solid var(--rule); background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:.92rem; min-width:34rem}
+th,td{text-align:left; padding:.7rem .9rem; border-bottom:1px solid var(--rule); vertical-align:top}
+th{
+  font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--muted); font-weight:600;
+  border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+}
+tr:last-child td{border-bottom:none}
+td.mid{font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600; color:var(--medium); white-space:nowrap}
+td.num{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+.pass{color:var(--good); font-weight:600}
+.fail{color:var(--blocker); font-weight:600}
+.warn{color:var(--high); font-weight:600}
+
+/* ---------- lists ---------- */
+ul.plain{list-style:none; margin:0; padding:0}
+ul.plain li{
+  padding:.75rem 0 .75rem 1.4rem; border-bottom:1px solid var(--rule); position:relative;
+}
+ul.plain li::before{
+  content:""; position:absolute; left:0; top:1.28rem;
+  width:.42rem; height:.42rem; background:var(--good);
+}
+ul.plain.neg li::before{background:var(--muted)}
+ul.plain li:first-child{border-top:1px solid var(--rule)}
+ul.plain b{font-weight:600}
+
+.callout{
+  background:var(--accent-soft); border:1px solid var(--rule);
+  border-left:2px solid var(--accent); padding:1.1rem 1.2rem; margin:0 0 1.5rem;
+}
+.callout p{margin:0 0 .7rem} .callout p:last-child{margin:0}
+.callout strong{font-weight:600}
+
+footer{
+  border-top:2px solid var(--ink); margin-top:4rem; padding-top:1.2rem;
+  font-family:"IBM Plex Mono",monospace; font-size:.74rem; color:var(--muted);
+  display:flex; flex-wrap:wrap; gap:.4rem 1.5rem;
+}
+a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">
+    <span>Pre-launch audit</span><span>2026-08-21</span>
+    <span>branch @ parity with pet_main</span><span>263 screenshots</span>
+  </div>
+  <h1>Are we ready to launch?</h1>
+  <p class="standfirst">A launch-readiness audit of ReunitePets, run against the code that ships to reunitepets.org — built, seeded, and driven in a browser rather than read.</p>
+</header>
+
+<div class="verdict">
+  <div class="verdict-label">Verdict</div>
+  <h2>Not yet — but the gap is days, not months.</h2>
+  <p>The product is further along than the repo's own docs suggest, and the best of it is genuinely good: the homepage, Mission Control, the shelter portal, the case page, the report wizard. The build passes, the test suite is green, and several routes the internal map lists as unauthenticated have quietly been hardened.</p>
+  <p>But six things would go wrong on day one in ways that are hard to walk back, and two of them are the kind that end up in a screenshot on social media. None is architectural. Every blocker below is a small, local fix.</p>
+</div>
+
+<div class="ledger">
+  <div><span class="n n-blocker">6</span><span class="l">Blockers<br>fix before launch</span></div>
+  <div><span class="n n-high">16</span><span class="l">High<br>first week</span></div>
+  <div><span class="n n-medium">13</span><span class="l">Medium<br>backlog</span></div>
+  <div><span class="n n-good">12</span><span class="l">Checked&nbsp;fine<br>or refuted</span></div>
+</div>
+
+<section>
+  <h3>The three that matter most</h3>
+  <p class="sec-note">Ranked by how much damage they do before anyone notices.</p>
+  <ol class="top3">
+    <li><span><b>An unauthenticated API hands out every reporter's name, phone and email</b> — in bulk, to anyone who asks. That is a scraper's list of distressed pet owners, the exact population targeted by "I have your pet, send money" scams. The team already fixed this same bug class once, on a sibling route, and wrote a regression test for it.</span></li>
+    <li><span><b>The city landing pages publish randomly generated "Pets Reunited" numbers</b> that change on every refresh. These pages are public, indexed, and are where Google sends someone searching "lost dog austin".</span></li>
+    <li><span><b>On a phone, the "I've Seen Max" button is not clickable</b> — the global tab bar is painted over it. That is the product's core loop failing on the device most people use.</span></li>
+  </ol>
+</section>
+
+<section>
+  <h3>How this was checked</h3>
+  <div class="callout">
+    <p><strong>The production domain was not reachable from this environment.</strong> Requests to <code>www.reunitepets.org</code> return 403 from the network policy's egress gateway. So this audits <em>the code that ships to that domain</em>, exercised by running it: PostgreSQL 16 seeded from the repo's own fixtures, the dev server, and a browser driving both.</p>
+    <p>Anything depending on production configuration — whether the email key is set, the real shelter dataset, true response times under load — is out of scope and flagged where it matters.</p>
+  </div>
+  <p class="sec-note" style="max-width:46rem">Twenty subagents audited the codebase across 13 dimensions and reviewed the screenshots across 7 batches, with an adversarial verification pass. Every finding below was then reproduced by hand — by reading the code, by <code>curl</code>, by measuring the live DOM, or by querying the database. Five claims did not survive that check and were cut; they are listed at the end rather than quietly dropped.</p>
+</section>
+
+<section>
+  <h3>Blockers</h3>
+  <p class="sec-note">Each one reproduced first-hand. Open a row for the evidence.</p>
+  <div class="register">
+
+    <details class="f" open>
+      <summary><span class="fid fid-blocker">B1</span><span class="ftitle">An unauthenticated API publishes every reporter's name, phone and email</span><span class="chev">▸</span></summary>
+      <div class="fbody">
+        <p><code>app/api/public/missions/[caseNumber]/route.js:193-206</code>. There is no session check anywhere in the 255-line file.</p>
+        <p class="ev">Reproduced, no cookie</p>
+<pre><code>$ curl .../api/public/missions/AUS-2026-0001
+"contact": {
+  "name":  "Avery Admin",
+  "phone": "512-555-0100",
+  "email": "admin@localdev.test"
+}</code></pre>
+        <p>It is bulk-harvestable: the sibling list endpoint — also unauthenticated — enumerates every case number, so two calls per victim yield the whole list. The response also returns unfuzzed coordinates, and there is no location-fuzzing helper anywhere in the codebase.</p>
+        <p>Three things make this a blocker rather than a design decision:</p>
+        <p>— <b>The current product deliberately does the opposite.</b> The canonical case page and its API return no phone and no email. The live contact model is a brokered relay whose own docstring states a "hard contract … NO response below MUTUAL_OPTIN status contains owner OR finder phone/email/raw contact/exact coords". This legacy endpoint still implements the policy the product abandoned.</p>
+        <p>— <b>The team already fixed this exact bug class.</b> <code>__tests__/api/reports-id-pii.test.js</code> locks <code>/api/reports/[id]</code> against "a PII harvest of distressed owners" and states the rule: <em>"assert on the raw API payload, not the rendered UI — the cruelest leaks are fields the screen hides but the JSON still ships."</em> That is precisely this bug, on the route nobody re-checked. Verified side by side: the tested route is clean, this one leaks.</p>
+        <p>— <b>No test covers this endpoint.</b></p>
+        <div class="fix"><b>Fix.</b> Drop <code>contact</code> from the endpoint, or gate it behind a session and the relay's opt-in state. Extend the existing regression test to cover it.</div>
+      </div>
+    </details>
+
+    <details class="f" open>
+      <summary><span class="fid fid-blocker">B2</span><span class="ftitle">The lost-pet report intake runs bcrypt inside a 5-second transaction, and 500s</span><span class="chev">▸</span></summary>
+      <div class="fbody">
+        <p><code>app/api/reports/create/route.js:95</code> opens an interactive transaction with no options, so it gets Prisma's default 5000&nbsp;ms timeout. The callback runs 157 lines, and at lines 124, 129 and 134 it awaits <code>bcrypt.hash(…, 12)</code> — CPU-bound, event-loop-blocking, roughly 250–500&nbsp;ms each.</p>
+        <p class="ev">Three sequential anonymous reports, idle local database</p>
+<pre><code>req1 -> 200
+req2 -> 500   Transaction already closed: the timeout for this
+req3 -> 200   transaction was 5000 ms, however 7483 ms passed</code></pre>
+        <p>On a network-attached production database under concurrency this gets worse, not better. This is the single most important write in the product — a person reporting that their pet is missing — and it fails intermittently.</p>
+        <div class="fix"><b>Fix.</b> Hash the password before opening the transaction. Keep the transaction to the writes.</div>
+      </div>
+    </details>
+
+    <details class="f" open>
+      <summary><span class="fid fid-blocker">B3</span><span class="ftitle">The entire Alerts feature is dead, list and detail</span><span class="chev">▸</span></summary>
+      <div class="fbody">
+        <p>Both halves are broken, independently.</p>
+        <p><b>The list</b> sends <code>status=OPEN</code>, but the <code>CaseStatus</code> enum has no such value — it is <code>ACTIVE</code>, <code>IN_PROGRESS</code>, <code>SIGHTING_REPORTED</code>, <code>REUNITED</code>, <code>CLOSED_OTHER</code>. Reproduced: the request returns <b>500</b> <code>{"error":"Failed to list public cases"}</code>.</p>
+        <p><b>The detail page</b> reads <code>data.case</code> from a response that returns the case at the top level. The resulting <code>TypeError</code> is caught and turned into a redirect away from the page. Confirmed in the sweep both logged out and logged in, with the console error <code>Cannot read properties of undefined (reading 'lastSeenAt')</code>.</p>
+        <p>These are the deep-link targets for "a pet was spotted near you" notifications. Rechecked on a quiet server to rule out load: still broken.</p>
+        <div class="fix"><b>Fix.</b> Send a real status value; read the response at the top level. Add a test that loads an alert by id.</div>
+      </div>
+    </details>
+
+    <details class="f" open>
+      <summary><span class="fid fid-blocker">B4</span><span class="ftitle">City landing pages publish randomly generated "Pets Reunited" numbers</span><span class="chev">▸</span></summary>
+      <div class="fbody">
+        <p class="ev">app/lost-pet/[location]/LocationPageClient.js:52-57</p>
+<pre><code>// Mock stats for now
+setStats({
+  activeMissions:  Math.floor(Math.random() * 50) + 10,
+  reunited:        Math.floor(Math.random() * 200) + 50,
+  activeSearchers: Math.floor(Math.random() * 100) + 20,
+});</code></pre>
+        <p>Rendered as three stat cards labelled "Active Missions", <b>"Pets Reunited"</b> and "Active Searchers".</p>
+        <p class="ev">Four consecutive loads of /lost-pet/austin-tx</p>
+<pre><code>load 1:  0,   0,   0    (pre-effect)
+load 2: 30,  60, 116
+load 3: 30, 149,  42
+load 4: 53, 177,  79</code></pre>
+        <p>"Pets Reunited" went 60 → 149 → 177 on three refreshes of the same page. These pages are public and marked <code>index, follow</code>. Worse, the route accepts any slug — <code>/lost-pet/asdfghjkl-qq</code> returns 200 with the title <em>"Lost &amp; Found Pets in Asdfghjkl, QQ"</em> — so the fabricated claim can be generated for any string, indefinitely.</p>
+        <p>This is a fabricated performance claim on an indexed page, and it is discoverable by pressing F5.</p>
+        <div class="fix"><b>Fix.</b> Query the real numbers, or remove the cards. Then either validate the slug against the city list and 404 unknown ones, or mark them <code>noindex</code>.</div>
+      </div>
+    </details>
+
+    <details class="f" open>
+      <summary><span class="fid fid-blocker">B5</span><span class="ftitle">On a phone, the case page's sighting button is not clickable</span><span class="chev">▸</span></summary>
+      <div class="fbody">
+        <p class="ev">Measured at 390 × 844 on a real case page</p>
+<pre><code>Before scrolling
+  "I've Seen Max" CTA at top: 1010px in an 844px viewport
+  — 166px below the fold.
+
+After scrolling
+  sticky CTA container   top 743 → 844   (101px, z-index 40)
+  global tab bar         top 779 → 844   ( 65px, z-index 50,
+                                           background: white)
+
+Hit test at the centre of the CTA:  ctaContainsHit = false</code></pre>
+        <p>The tab bar is opaque and sits above the sticky CTA. It covers 65 of the CTA's 101 pixels, and a tap at the CTA's centre hits the tab bar and navigates away.</p>
+        <p>A neighbour who just spotted the dog opens the shared link, scrolls, taps the one button that files a sighting — and gets sent somewhere else.</p>
+        <div class="fix"><b>Fix.</b> Raise the CTA above the tab bar and add bottom padding equal to the tab bar height plus the safe-area inset, or suppress the tab bar on case detail. Verify by tapping the centre point, not by looking at it.</div>
+      </div>
+    </details>
+
+    <details class="f" open>
+      <summary><span class="fid fid-blocker">B6</span><span class="ftitle">Nothing reports errors in production</span><span class="chev">▸</span></summary>
+      <div class="fbody">
+        <p><code>app/lib/errorTracking.js</code> is a stub. Every Sentry call in it is a comment, <code>@sentry/*</code> is not in <code>package.json</code>, and the init function is never called anywhere. Exactly one file imports the module. There is no <code>global-error.js</code>.</p>
+        <p>A server-side exception in production goes to stdout and nowhere else. No alert, no aggregation, no ownership.</p>
+        <p>This is a blocker because of what it does to the others: B2 and B3 are exactly the kind of failure that would ship, run for weeks, and be discovered only when a user complains — and B2's victims are people whose report silently failed, who have no reason to come back and tell you.</p>
+        <div class="fix"><b>Fix.</b> Wire up any error tracker before launch. This is an afternoon.</div>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<section>
+  <h3>High</h3>
+  <p class="sec-note">Real user-facing damage, survivable for a week.</p>
+  <div class="register">
+    <details class="f"><summary><span class="fid fid-high">H1</span><span class="ftitle">CAPTCHA is not wired up; report intake is limited only to 60/min/IP</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The codebase implements real reCAPTCHA verification. <b>No API route calls it — there are zero call sites.</b> The only gate does nothing unless an env flag is set, and even then it only checks the header is <em>present</em>, never verifies the token; <code>x-recaptcha-token: anything</code> passes.</p>
+      <p>Report intake is absent from the rate-limit config, so it falls to the default 60/min/IP — and each call creates a user row and sends email.</p>
+      <p class="ev">Reproduced</p>
+      <p>Three anonymous POSTs created three real public cases ("Ghost1", "Ghost3", at "123 Fake St") with no CAPTCHA, no account and no moderation. They appear on the public corkboard and pushed the homepage "N pets waiting to come home right now" counter from 3 to 7. Rate-limit state is an in-memory map — per-instance, reset by every deploy.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H2</span><span class="ftitle">A new report never announces itself to the local Rescue Force</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>Two independent bugs in the same block, both swallowed by one try/catch.</p>
+      <p>The announcement text interpolates a bare <code>caseNumber</code>, but that variable is declared inside the transaction callback and is out of scope there. Reproduced in the dev log on <em>every</em> report: <code>Failed to create mascot post: ReferenceError: caseNumber is not defined</code>.</p>
+      <p>Separately, the write sets <code>isSystemPost</code> and <code>isPinned</code> on a model that has neither field — confirmed in both the Prisma schema and the raw migration DDL. It would throw even with the first bug fixed.</p>
+      <p>Verified: test reports created zero squad posts. The community-mobilisation loop — the product's whole differentiator — silently does not run.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H3</span><span class="ftitle">The Hub reports zero threads forever, and returns 200 saying it succeeded</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The stats endpoint filters on <code>isDeleted</code> for both forum threads and posts. <b>Neither model has that field.</b> The query rejects, and the catch returns HTTP <b>200</b> with <code>success: true</code> and every count hardcoded to zero.</p>
+      <p class="ev">Reproduced — the database holds 1 thread and 3 categories</p>
+<pre><code>{"success":true,"stats":{"totalThreads":0,"totalPosts":0,
+ "totalMembers":0,"totalCategories":0},"categories":[]}</code></pre>
+      <p>The Hub is one of five links in the frozen universal navbar, and the homepage sells it as "A community, not just an app". Every visitor who clicks it finds a dead forum. Because it answers 200 saying it succeeded, nothing can detect it.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H4</span><span class="ftitle">/my-alerts is the most broken page in the product</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>Three defects on the page where an owner goes to mark their pet found.</p>
+      <p><b>It prints <code>📍 undefined, undefined</code>.</b> The location line falls back to <code>city, state</code>, but the Case model has none of <code>city</code>, <code>state</code> or <code>lastSeenLandmark</code> — those fields belong to a nested relation. The fallback always renders the literal string. Another component in the same codebase already guards this correctly.</p>
+      <p><b>Its filters can never match.</b> "Active" filters on <code>OPEN</code>/<code>ACTIVE_SEARCH</code> and "Found" on <code>RESOLVED</code> — none of which are real status values. Both tabs are permanently empty, and status labels fall through to the raw enum, so owners see <code>IN_PROGRESS</code>.</p>
+      <p><b>It is off-brand</b>: royal-blue header bar, bootstrap-red button.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H5</span><span class="ftitle">16 of 26 admin pages bounce to /dashboard on any hard load</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The guard runs while the session is still loading, when <code>session</code> is undefined — so the role check is true and it redirects before the session ever resolves. There is no loading guard. Reproduced this run on three admin routes. Bookmarks and refreshes are broken for admins; only in-app navigation works.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H6</span><span class="ftitle">Login submits the password in the URL before React hydrates</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The form has an <code>onSubmit</code> handler but no <code>action</code> and no <code>method</code>. React's handler only binds after hydration; before that the browser performs its default submit — a GET with the fields as query parameters.</p>
+      <p class="ev">Captured verbatim during the sweep</p>
+<pre><code>navigated to ".../login?email=admin%40localdev.test
+                       &amp;password=LocalDevScreenshots1%21"</code></pre>
+      <p>The password then lives in browser history, in any proxy or CDN access log, and in the <code>Referer</code> header of later requests. Adding a hydration wait made the sweep log in cleanly, which confirms the mechanism. Same pattern on forgot-password and reset-password — where the leaked field is the <em>new</em> password.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H7</span><span class="ftitle">19 production-runtime vulnerabilities, 3 critical, in the auth chain</span><span class="chev">▸</span></summary><div class="fbody">
+      <p><code>npm audit --omit=dev</code>: 19 total — 3 critical, 12 high, 4 moderate.</p>
+      <p><b>Critical:</b> <code>next-auth</code> 4.24.13 and <code>@auth/core</code> — "Email normalizer validates the address before Unicode normalization, allowing a homoglyph @ bypass". <b>High:</b> <code>jws</code> 3.2.2 "Improperly Verifies HMAC Signature"; <code>axios</code> SSRF; <code>next</code> 14.2.33 DoS.</p>
+      <p>CI runs <code>npm audit … || echo</code>, so this has been green the whole time.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H8</span><span class="ftitle">Sitemap and robots.txt point at the retired domain; the SEO pages are in neither</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>All 16 URLs in the sitemap are on <code>petrecovery.org</code>. The canonical host is <code>www.reunitepets.org</code> — middleware 301s the old host — so every declared URL redirects. <code>robots.txt</code> declares two sitemaps, both on the old domain.</p>
+      <p>The sitemap lists <code>/cases</code> (verified <b>404</b>) and <code>/database</code> (a redirect stub), and <b>not one city landing page</b> — though those are the primary organic acquisition surface.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H9</span><span class="ftitle">The push-notification prompt interrupts every screen, including the crisis ones</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The provider excludes only login and register. It fires 3 seconds after any authenticated page load on every other route. On mobile it renders full-width at the bottom, covering roughly 40% of a 390 × 844 viewport and the whole tab bar.</p>
+      <p>Captured over: step 1 of the lost-pet report wizard, a still-loading pets list, a still-loading Mission Control, the message composer, and every admin screen.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H10</span><span class="ftitle">"Delete Account" is a shipped button that does nothing</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>A red "Danger Zone" button whose confirm dialog says <em>"This action cannot be undone"</em>, which then shows a toast: <em>"Account deletion is not yet implemented. Please contact support."</em> — with <code>// TODO: Implement account deletion</code> inline. No account-deletion route exists anywhere.</p>
+      <p>The privacy policy says users may request deletion by contacting you, so the <em>policy</em> survives — but the UI actively misrepresents, and there is no deletion pipeline at all.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H11</span><span class="ftitle">No unsubscribe link on any outbound email</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>An unsubscribe endpoint exists, but <b>nothing links to it</b>. No template references it, and the mailer adds no footer and no <code>List-Unsubscribe</code> header. Eight templates, zero opt-outs.</p>
+      <p>SMS, by contrast, is handled correctly — STOP/START/UNSUBSCRIBE are all implemented. Beyond compliance, a missing <code>List-Unsubscribe</code> header hurts inbox placement at launch volume.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H12</span><span class="ftitle">Transactional email is on the old brand and admits an unbuilt feature</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The notifications module — imported by eight or more live routes including found-pet reports and sightings — brands all eight templates <b>PetRecovery.org</b>. The SMS opt-out copy says "PetRecovery SMS alerts". A public page still reads "When you see Sarama on <b>PetRecovery</b>".</p>
+      <p>And one email carries the subject <em>"Welcome to ReunitePets.org — Verify Your Email"</em> with the body <em>"Email verification link will be sent separately (coming soon)."</em> There is no link.</p>
+      <p>Page titles and OpenGraph tags are correct, and case pages serve the pet's photo as the preview image — the link-preview system itself is fine.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H13</span><span class="ftitle">Support address is on the retired domain, including in the Terms and Privacy Policy</span><span class="chev">▸</span></summary><div class="fbody">
+      <p><code>support@petrecovery.org</code> is hardcoded on the contact page, the terms page and the privacy policy. On contact it is the single largest CTA, labelled "Monitored 7 days a week", on a site branded ReunitePets throughout.</p>
+      <p>A support address on a different domain from the site is one of the specific things people check for legitimacy — and it is the contact of record in two legally binding documents.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H14</span><span class="ftitle">/care overstates a study its own footnote contradicts</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The page claims pets with records ready "are reunited up to <b>20 times</b> more often". Three lines below, its own source note says the study "found microchipped pets returned <b>2.5 times more often for dogs and 20 times for cats</b>". The headline generalises the cat figure to all pets.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H15</span><span class="ftitle">/admin/auto-migrate runs raw DDL on page load, with no button</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>An effect calls the migration as soon as a session resolves — commented <code>// Auto-run migration</code>. Navigating to the URL, or hitting browser-back onto it, POSTs the migration endpoint.</p>
+      <p>High and not blocker because the endpoint is properly guarded (the role is re-read fresh from the database) and every statement is additive and idempotent, so it cannot drop data today. But it is a page that fires <code>$executeRawUnsafe</code> against production on navigation, duplicating what the boot command already does. One careless edit makes it destructive.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H16</span><span class="ftitle">The PWA is never actually installable</span><span class="chev">▸</span></summary><div class="fbody">
+      <p>The manifest exists but there is <b>no <code>&lt;link rel="manifest"&gt;</code></b> in the rendered HTML and no reference in the root layout. No theme-color meta either. Its <code>start_url</code> is <code>/dashboard</code> — a protected route — so an installed app would open on a login redirect, and its icons are on the CDN rather than same-origin.</p>
+      <p>The service worker is registered only inside the push flow, so offline caching and the offline page never activate for a normal visitor.</p>
+    </div></details>
+  </div>
+</section>
+
+<section>
+  <h3>Medium</h3>
+  <p class="sec-note">Worth fixing, not worth delaying for.</p>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>ID</th><th>Finding</th></tr></thead>
+      <tbody>
+        <tr><td class="mid">M1</td><td>Case numbers are the year plus the last six digits of epoch milliseconds — a space that repeats every ~16.7 minutes against a unique column, and does not match the documented city-year-sequence format. A correct generator exists, but only in the disaster-mode library.</td></tr>
+        <tr><td class="mid">M2</td><td>The public case page paints an <b>empty white card</b> whenever a case has no Recovery Kit: the wrapper renders its own border and background even when the child returns nothing. Verified against a seeded case.</td></tr>
+        <tr><td class="mid">M3</td><td>City landing pages are a violet-gradient template with indigo, emerald and amber accents — nothing of the brand. On a phone the headline wraps so "TX" lands alone on a line after a dangling comma.</td></tr>
+        <tr><td class="mid">M4</td><td>Failure and emptiness are indistinguishable in the admin queues: a failed fetch leaves the array empty, so a broken queue reassures the operator with "All caught up!".</td></tr>
+        <tr><td class="mid">M5</td><td>The join-a-search page renders "Golden <b>DOG</b> · Golden Retriever" — the species enum printed raw and mashed into the colour — on the page a stranger opens from a text message.</td></tr>
+        <tr><td class="mid">M6</td><td>A signed-in non-admin visiting <code>/admin</code> gets raw JSON in the browser. Logged-out is handled correctly.</td></tr>
+        <tr><td class="mid">M7</td><td><b>No footer on any page except the homepage.</b> Every other route — including the legal pages themselves — ends with no Privacy, Terms or Contact link.</td></tr>
+        <tr><td class="mid">M8</td><td>Design-system drift: emoji tab icons and a lavender active tab in Settings; bootstrap blue and red on the 404 and password reset; purple on About; red and green on the join page and mobile drawer. The on-brand "Case not found" screen proves the right pattern already exists.</td></tr>
+        <tr><td class="mid">M9</td><td>Auth actions have three names: the nav says "Sign in"/"Join", the drawer says "Login"/"Sign Up", the login page says "Sign In"/"Create Account". The drawer also lists "Pet Care" twice.</td></tr>
+        <tr><td class="mid">M10</td><td><code>.gitignore</code> uses <code>*.env</code>, which matches only files <em>ending</em> in <code>.env</code> — so <code>.env.production</code> and <code>.env.staging</code> are tracked. They hold placeholders today (no secret is leaked), but the build <em>does</em> load the production file, which sets <code>NEXTAUTH_URL</code> to the retired domain. Change the pattern before someone fills in real values.</td></tr>
+        <tr><td class="mid">M11</td><td>A viewport config blocking pinch-zoom sits in an export Next 14 ignores (896 deprecation warnings in one session), so browsers currently get the safe default. <b>The trap:</b> "fixing" the deprecation by moving it would ship a WCAG 1.4.4 failure. Move it <em>and</em> drop those keys.</td></tr>
+        <tr><td class="mid">M12</td><td>ESLint has never run. It is installed but has no config anywhere, so the lint command drops into its interactive setup prompt — and CI swallows the result.</td></tr>
+        <tr><td class="mid">M13</td><td>In-card clipping at 390px: the case page's Search Area header shows "2 sigh"; the rescue-force activity feed clamps every entry to one line, so a verified sighting loses the where and the which-pet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h3>What is genuinely good</h3>
+  <p class="sec-note">This is not a project in trouble. Several parts are better than they need to be.</p>
+  <ul class="plain">
+    <li><b>The shelter surface is the most finished thing here.</b> The pitch page leads with "Shelter software that costs nothing", a concrete subhead, and a real screenshot of the actual portal. The portal itself opens on a "Needs attention" list of specific, actionable items in plain language: <em>"Rufus and Clover have no photos yet. Adopters scroll past empty squares, and photo matching can't run."</em></li>
+    <li><b>Mission Control delivers on the differentiator</b> — live counts, the sighting CTA in the primary slot, ways to help, activity log, "Found Max? Mark as reunited", and a visible exit.</li>
+    <li><b>The homepage holds up at every viewport.</b> Both primary actions are fully visible above the fold on a 390px phone as large, thumb-friendly pills.</li>
+    <li><b>The report wizard is well built</b> — a clear step rail, one question per step, an X to leave, big touch targets.</li>
+    <li><b>The email layer is thoughtfully engineered</b>: a Resend → SMTP → loud-no-op provider chain, and deliberate HTML escaping with a written rationale about a pet's name turning a domain-authenticated email into a phishing relay.</li>
+    <li><b>The security posture is better than the docs suggest.</b> Several routes the internal map lists as unauthenticated now return 401. The destructive squad wipe has a two-step confirm plus a literal type-YES gate, and its API re-reads the role from the database rather than trusting the token.</li>
+    <li><b>Link previews work.</b> Case pages serve the pet's photo as the preview image with correct per-entity titles — the thing that decides whether a shared link helps.</li>
+    <li><b>Some error states are already right</b> and can be copied to the broken ones: "Case not found" ships a proper card with a way out, and the wrong-password login says what happened while staying on brand.</li>
+    <li><b>The AI that ships is real</b> — a genuine vision call with a global per-minute cost ceiling, not the mock modules sitting beside it.</li>
+  </ul>
+</section>
+
+<section>
+  <h3>Suggested order</h3>
+  <p class="sec-note">Every blocker is a local change.</p>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>When</th><th>Work</th></tr></thead>
+      <tbody>
+        <tr><td class="mid">Before<br>launch</td><td>B1 — delete <code>contact</code> from the public endpoint; extend the regression test to it.<br>B4 — delete or query the city-page stats; validate or <code>noindex</code> the slugs.<br>B5 — z-index and bottom inset on the mobile case CTA.<br>B2 — move <code>bcrypt.hash</code> out of the transaction.<br>B3 — fix the status value and the response shape; add a test.<br>B6 — wire up an error tracker.</td></tr>
+        <tr><td class="mid">First<br>week</td><td>H1 (CAPTCHA, before the spam arrives), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout" style="margin-top:1.6rem">
+    <p><strong>Two questions only you can answer.</strong> Both are on public pages, and both are the kind of claim that is expensive to get wrong.</p>
+    <p>— The shelter pitch page and the homepage state <strong>"ReunitePets is a nonprofit"</strong>. Nothing in the repo establishes the entity's legal status, and it is not mentioned in the Terms. If it is not a registered nonprofit, this needs to come out.</p>
+    <p>— Is <strong>support@petrecovery.org</strong> actually monitored? It is the contact of record in the Terms and the Privacy Policy.</p>
+  </div>
+</section>
+
+<section>
+  <h3>The gates, as measured</h3>
+  <p class="sec-note">Run, not assumed.</p>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>Gate</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td class="mid">npm test</td><td><span class="pass">Pass</span> — 51 suites, 591 passed, 10 todo, ~8s</td></tr>
+        <tr><td class="mid">next build</td><td><span class="pass">Pass</span> — compiled successfully, 231/231 static pages, exit 0. Shared first-load JS 87.5 kB, middleware 49.2 kB</td></tr>
+        <tr><td class="mid">npm run lint</td><td><span class="fail">Does not run</span> — no ESLint config exists; drops into an interactive prompt</td></tr>
+        <tr><td class="mid">npm audit</td><td><span class="warn">19 production vulns</span> — 3 critical, 12 high, 4 moderate</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="sec-note rule-top" style="margin-top:1.6rem"><b>What CI actually gates:</b> only the test suite and the build. Lint, the Playwright end-to-end suite (explicitly marked "non-blocking") and <code>npm audit</code> are all swallowed with <code>|| echo</code>.</p>
+
+  <p class="ev" style="margin-top:1.6rem">Warm page timings, quiet dev server — relative signal only</p>
+<pre><code>/                    0.86 s     /api/public/missions  0.13 s
+/cases/[n]           0.30 s     /api/public/homepage  1.56 s
+/lost-and-found      0.16 s
+/lost-pet/austin-tx  0.16 s
+/shelters            2.12 s  &lt;- slowest; geocodes server-side</code></pre>
+</section>
+
+<section>
+  <h3>Checked and found fine, or refuted</h3>
+  <p class="sec-note">Recorded so nobody re-audits them, and so the findings above carry their proper weight.</p>
+  <ul class="plain neg">
+    <li><b>"The case page overflows the phone viewport and scrolls sideways."</b> Measured false. At 390 × 844 on six routes, <code>scrollWidth === clientWidth === 390</code> and <code>overflow-x</code> is <code>clip</code> on both html and body. The only element past the right edge is the <em>closed</em> mobile drawer, correctly parked off-canvas. Playwright's full-page raster expands to include off-canvas fixed elements — a capture artifact, and also what read as "a half-drawn menu bleeding in".</li>
+    <li><b>"Wipe All Squad Data is one unguarded click."</b> False — two-step confirm plus a literal type-YES gate.</li>
+    <li><b>"The pet edit form has no way to save."</b> Mostly false — a save bar appears once the form is dirty. The real, smaller point: on an untouched form the only visible action is the destructive one.</li>
+    <li><b>"Eight routes end in an indefinite spinner."</b> Only the alert detail page is genuinely broken. The others render fine on a quiet server; those captures were taken while ten subagents and a browser sweep were hitting one dev server.</li>
+    <li><b>"The public missions API is pathologically slow."</b> My own measurement error — 13–16 s under that same contention, <b>0.13 s</b> on a quiet server. The query is a single findMany plus count with an explicit select.</li>
+    <li>The 3 MB US-cities JSON never reaches the client bundle — only two server-side routes import it.</li>
+    <li>Structured logging exists and is used, in 52 API route files, alongside ~866 raw console calls.</li>
+    <li>The committed production env file contains placeholders only. No live secret is committed.</li>
+    <li>The random-value AI modules are labelled as mocks by the real implementation's own docstring and are reachable only through a session-gated route. Cleanup ticket, not a finding.</li>
+    <li>Many admin routes do their own fresh database role check without using the shared helper — so "lacks the helper" is not by itself a finding.</li>
+  </ul>
+</section>
+
+<section>
+  <h3>One note on the repo's own docs</h3>
+  <p class="sec-note" style="max-width:46rem">The roadmap says "MVP Complete ~95%", the vision doc says "~45%", and the reality-check doc says "~35%". The code supports none of them cleanly. The <em>surface</em> is close to complete — 104 page files, 281 API routes, a passing build and a green suite — while <em>operational</em> readiness is not: no error tracking, no lint, CAPTCHA unwired, several primary features silently broken. Treat feature completeness and launch readiness as two separate numbers. The app map is stale in places too — several routes it lists as unauthenticated are now gated, and the mobile app has been rewritten from Capacitor to Expo and is a foundation, not a shippable app. Read it as a map, not as truth.</p>
+</section>
+
+<footer>
+  <span>ReunitePets launch audit</span>
+  <span>2026-08-21</span>
+  <span>263 screenshots · screenshots/audit-2026-08/</span>
+  <span>docs/LAUNCH_AUDIT_2026-08.md</span>
+</footer>
+
+</div>
