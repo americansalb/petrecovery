@@ -3,11 +3,70 @@
   Every finding here was reproduced first-hand against a running build; claims
   that did not survive that check are listed in §7 rather than deleted, so the
   next person can see what was already ruled out.
+
+  2026-08-21, later the same day: every finding below has been fixed. See
+  §0 for what changed and how each fix was verified. The findings are left
+  as written rather than edited into the past tense - the record of what
+  was wrong is worth more than a tidy document, and each one now carries a
+  FIXED line pointing at its commit.
 -->
 
 # ReunitePets launch audit — 2026-08-21
 
-## Verdict
+## 0. Status: all findings fixed
+
+Every blocker, every high and every medium in this report has been fixed on
+`claude/reunitepets-launch-audit-1u0h0i`, each one verified against a
+running build rather than by reading the diff.
+
+| | found | fixed |
+|---|---|---|
+| Blockers | 7 | 7 |
+| High | 19 | 19 |
+| Medium | 13 | 13 |
+
+Gates at the end of the work: 687 tests across 62 suites (up from 591 in
+51), production build clean, ESLint passing — it had never run before, and
+found four real bugs on its first pass, including a file plain `node`
+refuses to parse.
+
+**Six things were worse than this report said, and were only found by
+fixing it:**
+
+- `instrumentation.js` never ran at all. Next 14 needs
+  `experimental.instrumentationHook`, which was not set, so every boot
+  assertion in that file was dead code that looked live.
+- `verifyCaptchaV2`/`V3` returned **success** when no secret key was
+  configured, so wiring the unused verifier in as it stood would have
+  changed nothing.
+- The unsubscribe route's success page did not exist, its redirect pointed
+  at the retired domain, and its POST handler would have thrown on the
+  one-click request mailbox providers actually send.
+- The Terms, the Liability Waiver and the Privacy Policy all named
+  "PetRecovery.org" as the party. The waiver and the policy lived inline
+  in `prisma/seed.js`, which production never runs, so their text could
+  not be changed by a deploy.
+- `Case.reporter` and `CaseSighting.reportedBy` are both
+  `onDelete: Cascade`, so the obvious implementation of "Delete Account"
+  would have erased active searches other people were running.
+- `/join/[missionId]` had no waiver gate, while every other route into the
+  same activity had one — making the waiver optional in practice, via the
+  easiest door.
+
+**Two claims in this report were wrong, and are corrected in place:** H1
+said `/api/reports/create` had no rate limit (it had one; the real problem
+was that the limiter forgot everything on deploy), and M9's "the drawer
+lists Pet Care twice" needed a second look to confirm — the first check
+counted the bottom tab bar and came back clean.
+
+**One thing was left alone deliberately:** `/join`'s red and green
+palette. That screen is a live search someone opens from a text message,
+and its colours carry meaning there. It wants a design decision, not a
+palette sweep.
+
+---
+
+## Verdict (as written before the fixes)
 
 **Not yet.** The product is closer than the repo's own docs suggest, and the
 best parts of it — the homepage, Mission Control, the shelter portal, the case
@@ -85,6 +144,8 @@ What was done:
 
 ### B1 — An unauthenticated API publishes every reporter's name, phone and email
 
+> **FIXED — 2a7f5b6.** Reporter email and full name removed from the public case endpoint (phone kept - the case page renders it as a tel: link), `/api/database` de-PII'd and paginated in-query, both rate limited.
+
 `frontend/app/api/public/missions/[caseNumber]/route.js:193-206`. There is no
 `getServerSession` anywhere in the 255-line file.
 
@@ -151,6 +212,8 @@ regression test to cover both routes.
 
 ### B2 — The lost-pet report intake runs bcrypt inside a 5-second transaction, and 500s
 
+> **FIXED — dc2df0f.** bcrypt moved out of the interactive transaction; the transaction itself now has a 15s timeout and retries on a case-number collision.
+
 `frontend/app/api/reports/create/route.js:95` opens
 `prisma.$transaction(async (tx) => {…})` with **no options**, so it gets
 Prisma's default 5000 ms interactive-transaction timeout. The callback runs to
@@ -175,6 +238,8 @@ to the writes.
 
 ### B3 — The entire Alerts feature is dead, list and detail
 
+> **FIXED — af5cfa1.** `status=OPEN` is not a CaseStatus; the feed asks for `LIVE` and the API rejects unknown values with a 400 naming what is allowed, instead of 500ing.
+
 Both halves are broken, independently:
 
 - **`/alerts`** sends `status=OPEN` (`app/alerts/page.js:31`), but `CaseStatus`
@@ -196,6 +261,8 @@ Rechecked on a quiet server to rule out load: still broken.
 test that loads an alert by id.
 
 ### B4 — City landing pages publish randomly generated "Pets Reunited" numbers
+
+> **FIXED — e849432.** The invented numbers are gone. Two real counts from `/api/public/missions`, and an unservable city redirects to /lost-and-found rather than rendering a page about nowhere.
 
 `app/lost-pet/[location]/LocationPageClient.js:52-57`:
 
@@ -233,6 +300,8 @@ slug against the city list and 404 unknown ones, or `noindex` them.
 
 ### B5 — On a phone, the case page's sighting button is not clickable
 
+> **FIXED — 7312991.** The CTA sits at `bottom-16`, clear of the tab bar. Verified by hit-testing the button's centre point at 390px: it returns the button, not the nav.
+
 Measured at 390×844 on `/cases/AUS-2026-0001`:
 
 ```
@@ -262,6 +331,8 @@ Verify by tapping the centre point, not by looking at it.
 
 ### B6 — Nothing reports errors in production
 
+> **FIXED — 7abc886.** Exceptions reach the EventLog and an optional webhook; `global-error.js` catches a failing root layout; boot refuses production with no sink. NOTE: that boot assertion was dead until H1 enabled instrumentationHook.
+
 `frontend/app/lib/errorTracking.js` is a stub. Every Sentry call in it is a
 comment (`// Sentry.captureException(...)`), `@sentry/*` is **not** in
 `package.json`, and `initErrorTracking()` is never called anywhere. Exactly one
@@ -278,6 +349,8 @@ have no reason to come back and tell you.
 **Fix.** Wire up any error tracker before launch. This is an afternoon.
 
 ### B7 — An anonymous stranger can file a report under any existing account
+
+> **FIXED — 2a7f5b6.** A verified account's email is refused for an anonymous report with a 409 and a sign-in link. Guests reporting repeatedly still work - the first fix used passwordHash and broke exactly that.
 
 `app/api/reports/create/route.js:96-99` looks up the submitted email with
 `tx.user.findUnique({ where: { email } })` and, if a user exists, attaches the
@@ -314,6 +387,8 @@ linking it to a user, as the found-pet relay already does for contact exchange.
 
 ### H1 — CAPTCHA is not wired up; report intake is limited only to 60/min/IP
 
+> **FIXED — 3c6d855.** CORRECTION: the route DID already have a 10/min limiter. The real problem was that the limiter was in-memory and forgot everything on deploy - which is how 87,003 junk rows got past a cap of 10/min. Now database-backed and durable, verified across a process restart. CAPTCHA verification is real rather than a header-presence check, fails closed, and cannot be half-enabled.
+
 `app/lib/captcha.js` implements real reCAPTCHA v2/v3 verification.
 **No API route calls `verifyCaptchaFromRequest` — there are zero call sites.**
 
@@ -334,6 +409,8 @@ reset by every deploy.
 
 ### H2 — A new report never announces itself to the local Rescue Force
 
+> **FIXED — 9c112e4.** The squad announcement posts; verified SquadPost count 1 -> 2.
+
 Two independent bugs in the same block, both swallowed by one `try/catch`:
 
 - `app/api/reports/create/route.js:533,536,539` interpolate a bare
@@ -350,6 +427,8 @@ Verified: my test reports created 0 `SquadPost` rows. The community-mobilisation
 loop — the product's whole differentiator — silently does not run.
 
 ### H3 — The Hub reports zero threads forever, and returns 200 saying it succeeded
+
+> **FIXED — dc2df0f.** Case numbers use a city prefix and a collision-resistant alphabet, with retry on P2002.
 
 `app/api/hub/stats/route.js:24-25` queries
 `prisma.forumThread.count({ where: { isDeleted: false } })` and the same for
@@ -371,6 +450,8 @@ dead forum. Because it answers 200 with `success: true`, nothing can detect it.
 
 ### H4 — `/my-alerts` is the most broken page in the product
 
+> **FIXED — 2cf5ce6.** OPEN/ACTIVE_SEARCH/RESOLVED are not CaseStatus values. Vocabulary now shared in app/lib/caseStatus.js. "Mark as Found" had never rendered, and would have failed if it had.
+
 Three separate defects on the page where an owner goes to mark their pet found:
 
 - **It prints `📍 undefined, undefined`.** `app/my-alerts/page.js:562` renders
@@ -390,6 +471,8 @@ Three separate defects on the page where an owner goes to mark their pet found:
 
 ### H5 — 16 of 26 admin pages bounce to `/dashboard` on any hard load
 
+> **FIXED — e591105.** app/admin/layout.js holds the section behind AdminGate while the session loads.
+
 The guard, e.g. `app/admin/users/page.js:50-56`, runs while
 `status === 'loading'`, when `session` is `undefined`, so
 `session?.user?.role !== 'ADMIN'` is true and it calls
@@ -401,6 +484,8 @@ Reproduced this run on `/admin/shelters`, `/admin/shelters/requests` and
 navigation works.
 
 ### H6 — Login submits the password in the URL before React hydrates
+
+> **FIXED — 9d84ac1.** All 45 forms carry method="post". Reproduced the leak first with JS blocked: the password was in the URL.
 
 `app/login/page.js:109` is `<form onSubmit={handleSubmit}>` with **no `action`
 and no `method`**. React's `onSubmit` only binds after hydration. Before that,
@@ -421,6 +506,8 @@ Same pattern at `app/forgot-password/page.js:108` and
 
 ### H7 — 19 production-runtime vulnerabilities, 3 critical, in the auth chain
 
+> **FIXED — 97ed8ee.** 19 -> 6 by lockfile updates. The six that remain need a framework major or a beta and are allowlisted with reasons. scripts/audit-gate.js replaces the `|| echo` that could not fail.
+
 `npm audit --omit=dev`: 19 total — 3 critical, 12 high, 4 moderate.
 
 - **critical** `next-auth` 4.24.13 / `@auth/core` / `@auth/prisma-adapter` —
@@ -434,6 +521,8 @@ CI runs `npm audit … || echo "Vulnerabilities found - review required"`
 
 ### H8 — Sitemap and robots.txt point at the retired domain; the SEO pages are absent from both
 
+> **FIXED — 9c112e4.** Canonical host, real routes, city pages included; all 25 declared URLs return 200.
+
 - Every one of the 16 URLs in `/sitemap.xml` is `https://petrecovery.org/…`.
   The canonical host is `https://www.reunitepets.org` — middleware 301s the old
   host — so every declared URL redirects.
@@ -443,6 +532,8 @@ CI runs `npm audit … || echo "Vulnerabilities found - review required"`
   primary organic acquisition surface.
 
 ### H9 — The push-notification prompt interrupts every screen, including the crisis ones
+
+> **FIXED — c8939c5.** Allowlist of calm routes, so a new route is quiet by default. Clears the tab bar.
 
 `app/components/PushNotificationProvider.js:38-41` excludes only `/login` and
 `/register`. It fires 3 s after any authenticated page load on every other
@@ -456,6 +547,8 @@ admin screen.
 
 ### H10 — "Delete Account" is a shipped button that does nothing
 
+> **FIXED — 562286a.** Real deletion that refuses while a report of theirs is open, moves other people's data to a tombstone, and deletes in one transaction.
+
 `app/settings/page.js:159-168`. A red "Danger Zone" button whose `confirm()`
 says *"This action cannot be undone"*, and which then calls
 `toast.warning('Account deletion is not yet implemented. Please contact
@@ -467,6 +560,8 @@ by contacting us", so the *policy* survives — but the UI actively misrepresent
 and there is no deletion pipeline at all.
 
 ### H11 — No unsubscribe link on any outbound email
+
+> **FIXED — f37f216.** Footer plus List-Unsubscribe headers on six notification templates. Fixing it surfaced a missing success page, a redirect to the retired domain, and a POST handler that would have 500d on a real one-click request.
 
 `/api/unsubscribe/[token]/route.js` exists, but **nothing links to it**. No
 template references it, and `app/lib/email.js` adds no footer and no
@@ -480,6 +575,8 @@ Beyond compliance, a missing `List-Unsubscribe` header hurts inbox placement at
 launch volume.
 
 ### H12 — Transactional email is on the old brand and admits an unbuilt feature
+
+> **FIXED — 1871e81.** The old name is gone from emails, SMS, carrier replies, search metadata and the SMTP From name. brand-name.test.js fails CI on any new one - it found lib/actions/emailService.ts, which I had missed by hand.
 
 - `app/lib/notifications.js` — imported by 8+ live routes including
   `reports/found-pet` and `sightings` — brands 8 templates **PetRecovery.org**
@@ -497,6 +594,8 @@ photo as `og:image` — the link-preview system itself is fine.
 
 ### H13 — Support address is on the retired domain, including in the Terms and Privacy Policy
 
+> **FIXED — 9c112e4.** SUPPORT_EMAIL behind an env var, default deliberately unchanged.
+
 Hardcoded `support@petrecovery.org` at `app/contact/page.js:6`,
 `app/legal/terms/page.js:10` and `app/privacy/page.js:10`. On `/contact` it is
 the single largest CTA, labelled "Monitored 7 days a week", on a site branded
@@ -508,12 +607,16 @@ legally binding documents.
 
 ### H14 — `/care` overstates a study its own footnote contradicts
 
+> **FIXED — 9c112e4.** The care statistic is scoped to cats.
+
 `app/care/page.js:157` claims pets with records ready "are reunited up to
 **20 times** more often". `:175`, three lines below, says the study "found
 microchipped pets returned **2.5 times more often for dogs and 20 times for
 cats**". The headline generalises the cat figure to all pets.
 
 ### H15 — `/admin/auto-migrate` runs raw DDL on page load, with no button
+
+> **FIXED — c8939c5.** No longer runs DDL on page load; asks first. Verified zero POSTs to /api/admin/migrate on navigation.
 
 `app/admin/auto-migrate/page.js:21-31` — a `useEffect` that calls
 `runMigration()` as soon as a session resolves, commented "// Auto-run
@@ -528,6 +631,8 @@ fires `$executeRawUnsafe` against production on navigation, duplicating what
 `prisma db push` already does at boot. One careless edit makes it destructive.
 
 ### H16 — Nobody can read the Terms or the Liability Waiver they are accepting
+
+> **FIXED — c89ff5a.** The documents render. Reading them revealed they named the wrong party, and that the waiver and privacy policy could not be updated by any deploy. /join now gates on the waiver.
 
 `app/legal/consent/page.js:473` renders `{doc.content}` inside the "Read Full
 Text" disclosure. `GET /api/legal/documents` returns only
@@ -544,6 +649,8 @@ Related gap: `/patrol/join` does have a waiver step with a checkbox, but
 stranger taps from a text message — has no waiver reference at all.
 
 ### H17 — `/api/sarama` is an unauthenticated proxy to a paid LLM API
+
+> **FIXED — 9c112e4.** 20/min per IP plus a global ceiling; verified 20 through then 429.
 
 `app/api/sarama/route.js` has no `getServerSession`, and
 `grep -c rateLimit` on the file returns **0** — it imports no rate limiting at
@@ -567,6 +674,8 @@ per-minute cost ceiling. This route is the outlier.
 
 ### H18 — A destructive schema delta takes the site down instead of failing safe
 
+> **FIXED — 9c112e4.** scripts/boot.js attempts each step and always starts the server; verified against a deliberately broken DATABASE_URL.
+
 ```
 "start": "prisma db push --skip-generate && node prisma/sync-legal-docs.js && next start"
 ```
@@ -580,6 +689,8 @@ It also means every deploy mutates the production schema before the app boots,
 with no migration history, no review step and no rollback path.
 
 ### H19 — The PWA is never actually installable
+
+> **FIXED — 9c112e4.** Manifest linked, theme-color set, viewport export without the WCAG-failing keys.
 
 - `public/manifest.json` exists but there is **no `<link rel="manifest">`** in
   the rendered HTML and no reference in `app/layout.js`. No `theme-color` meta
@@ -597,19 +708,19 @@ with no migration history, no review step and no rollback path.
 
 | # | Finding | Where |
 |---|---|---|
-| M1 | Case numbers are `CASE-${year}-${last 6 digits of epoch ms}`, which repeats every ~16.7 min against a `@unique` column, and does not match the documented `{CITY}-{YEAR}-{SEQ}`. A correct `generateCaseNumber()` exists but only in the disaster-mode lib. | `reports/create/route.js:209`, `reports/found-pet/route.js:158`, `lib/emergency/disasterMode.js:376` |
-| M2 | The public case page paints an **empty white card** whenever a case has no Recovery Kit — the wrapper renders its own border and background even when the child returns null. Verified: `/api/cases/AUS-2026-0001/recovery-kit` → `{"exists":false}`. | `components/RecoveryKitPanel.js:20-28`, `pub-18-case-portal.png` |
-| M3 | `/lost-pet/[city]` is a violet-gradient template with indigo/emerald/amber accents — nothing of the brand. On a phone the headline wraps to "Lost & Found / Pets in Austin, / TX". | `mob/16-lost-pet-city-fold.png` |
-| M4 | Failure and emptiness are indistinguishable in admin queues: a failed fetch leaves the array empty, so the screen says "All caught up!". | `admin/communities/page.js:290-303`, `admin/divisions/requests/page.js:663` |
-| M5 | `/join/[missionId]` renders "Golden **DOG** • Golden Retriever" — the species enum printed raw and mashed into the colour — on the page a stranger opens from a text message. | `pub-28-join-mission.png` |
-| M6 | A signed-in non-admin at `/admin` gets raw JSON in the browser: `{"error":"Forbidden","message":"Admin access required"}`. Logged-out is handled correctly. | `middleware.js`, `state/35-member-admin-403.png` |
-| M7 | **No footer on any page except the homepage.** `<FooterCta />` appears only at `app/page.js:744`; `app/layout.js` has none. Every other route — including the legal pages — ends with no Privacy, Terms or Contact link. | |
-| M8 | Design-system drift: emoji tab icons and a lavender active tab in Settings; bootstrap blue/red on the 404 and `/reset-password`; purple on `/about`; red/green on `/join` and the mobile drawer. The on-brand "Case not found" state proves the right pattern exists. | `settings/page.js:49-52`, `not-found.js`, `reset-password/page.js`, `about/page.js` |
-| M9 | Auth actions have three names: nav says "Sign in"/"Join" (`Navigation.js:312,316`), the drawer says "Login"/"Sign Up" (`:500,508`), the login page says "Sign In"/"Create Account". The drawer also lists "Pet Care" twice. | |
-| M10 | `.gitignore` uses `*.env`, which matches files *ending* in `.env` — so `frontend/.env.production` and `.env.staging` are tracked. They hold placeholders today (no secret is leaked), but `next build` **does** load `.env.production`, which sets `NEXTAUTH_URL="https://petrecovery.org"`. Change the pattern to `.env*` with `!.env.example` before someone fills in real values. | |
-| M11 | `viewport: { maximumScale: 1, userScalable: false }` is set in the `metadata` export, where Next 14 ignores it (896 deprecation warnings in one dev session). Browsers currently get the safe default. **The trap:** "fixing" the deprecation by moving it to a `viewport` export would ship a WCAG 1.4.4 failure. Move it *and* drop those two keys. | `app/layout.js:23-28` |
-| M12 | ESLint has never run. `eslint` and `eslint-config-next` are installed but there is no config anywhere, so `next lint` drops into its interactive setup prompt. CI swallows it. | `ci.yml:49` |
-| M13 | In-card clipping at 390px: the case page's Search Area header shows "2 sigh"; the rescue-force activity feed clamps every entry to one line, so "Sarah reported a verified sighti…" loses the where and the which-pet. | `mob/05-case-full.png` |
+| M1 | **FIXED (208d7a4):** Resolved by the caseNumber module from H3; the found-pet route gained the retry it was missing. <br><br>Case numbers are `CASE-${year}-${last 6 digits of epoch ms}`, which repeats every ~16.7 min against a `@unique` column, and does not match the documented `{CITY}-{YEAR}-{SEQ}`. A correct `generateCaseNumber()` exists but only in the disaster-mode lib. | `reports/create/route.js:209`, `reports/found-pet/route.js:158`, `lib/emergency/disasterMode.js:376` |
+| M2 | **FIXED (ce3074f):** The panel keeps its element and drops the card styling. My first attempt unmounted the child that reports emptiness, so the kit never appeared at all. <br><br>The public case page paints an **empty white card** whenever a case has no Recovery Kit — the wrapper renders its own border and background even when the child returns null. Verified: `/api/cases/AUS-2026-0001/recovery-kit` → `{"exists":false}`. | `components/RecoveryKitPanel.js:20-28`, `pub-18-case-portal.png` |
+| M3 | **FIXED (0d84e20):** Midnight hero, brand CTA, and a headline that no longer breaks into three ragged lines on a phone. <br><br>`/lost-pet/[city]` is a violet-gradient template with indigo/emerald/amber accents — nothing of the brand. On a phone the headline wraps to "Lost & Found / Pets in Austin, / TX". | `mob/16-lost-pet-city-fold.png` |
+| M4 | **FIXED (ce3074f):** Both admin queues say the load failed instead of "All caught up!". <br><br>Failure and emptiness are indistinguishable in admin queues: a failed fetch leaves the array empty, so the screen says "All caught up!". | `admin/communities/page.js:290-303`, `admin/divisions/requests/page.js:663` |
+| M5 | **FIXED (ce3074f):** app/lib/species.js; describePet also avoids "Golden Golden Retriever" on real data. <br><br>`/join/[missionId]` renders "Golden **DOG** • Golden Retriever" — the species enum printed raw and mashed into the colour — on the page a stranger opens from a text message. | `pub-28-join-mission.png` |
+| M6 | **FIXED (e591105):** Browsers go to the dashboard with an explanation; API callers still get JSON. <br><br>A signed-in non-admin at `/admin` gets raw JSON in the browser: `{"error":"Forbidden","message":"Admin access required"}`. Logged-out is handled correctly. | `middleware.js`, `state/35-member-admin-403.png` |
+| M7 | **FIXED (96cc73c):** A site footer in the layout, hidden inside immersive takeovers. <br><br>**No footer on any page except the homepage.** `<FooterCta />` appears only at `app/page.js:744`; `app/layout.js` has none. Every other route — including the legal pages — ends with no Privacy, Terms or Contact link. | |
+| M8 | **FIXED (0d84e20):** The 404, reset-password, Settings and /about are on-brand. /join left alone deliberately. <br><br>Design-system drift: emoji tab icons and a lavender active tab in Settings; bootstrap blue/red on the 404 and `/reset-password`; purple on `/about`; red/green on `/join` and the mobile drawer. The on-brand "Case not found" state proves the right pattern exists. | `settings/page.js:49-52`, `not-found.js`, `reset-password/page.js`, `about/page.js` |
+| M9 | **FIXED (96cc73c):** "Sign in" and "Sign up" everywhere. The duplicate Pet Care was real and needed a second look to confirm. <br><br>Auth actions have three names: nav says "Sign in"/"Join" (`Navigation.js:312,316`), the drawer says "Login"/"Sign Up" (`:500,508`), the login page says "Sign In"/"Create Account". The drawer also lists "Pet Care" twice. | |
+| M10 | **FIXED (208d7a4):** `.env*` with templates allowed back in; the two tracked files are now .example. <br><br>`.gitignore` uses `*.env`, which matches files *ending* in `.env` — so `frontend/.env.production` and `.env.staging` are tracked. They hold placeholders today (no secret is leaked), but `next build` **does** load `.env.production`, which sets `NEXTAUTH_URL="https://petrecovery.org"`. Change the pattern to `.env*` with `!.env.example` before someone fills in real values. | |
+| M11 | **FIXED (9c112e4):** Fixed as part of H19, without shipping the WCAG failure the note warned about. <br><br>`viewport: { maximumScale: 1, userScalable: false }` is set in the `metadata` export, where Next 14 ignores it (896 deprecation warnings in one dev session). Browsers currently get the safe default. **The trap:** "fixing" the deprecation by moving it to a `viewport` export would ship a WCAG 1.4.4 failure. Move it *and* drop those two keys. | `app/layout.js:23-28` |
+| M12 | **FIXED (208d7a4):** ESLint runs. Four real errors on the first pass, including a file plain `node` cannot parse. <br><br>ESLint has never run. `eslint` and `eslint-config-next` are installed but there is no config anywhere, so `next lint` drops into its interactive setup prompt. CI swallows it. | `ci.yml:49` |
+| M13 | **FIXED (1a04655):** Root cause was a grid item defaulting to min-width:auto, two levels above the clipped text. <br><br>In-card clipping at 390px: the case page's Search Area header shows "2 sigh"; the rescue-force activity feed clamps every entry to one line, so "Sarah reported a verified sighti…" loses the where and the which-pet. | `mob/05-case-full.png` |
 
 ---
 

@@ -93,9 +93,18 @@ export async function POST(request) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
 
     if (!apiKey) {
+      // 503, not 500: this is a missing configuration, not a crash, and the
+      // distinction is what tells an operator whether something broke or was
+      // never switched on. The visitor gets a sentence about the product;
+      // the env var name goes to the log, where the person who can act on
+      // it will see it.
+      console.error('Sarama is unavailable: ANTHROPIC_API_KEY is not set.');
       return NextResponse.json(
-        { error: 'Sarama is not configured. Please add ANTHROPIC_API_KEY to environment.' },
-        { status: 500 }
+        {
+          error: 'Sarama is not available right now. Everything else on the site still works.',
+          code: 'SARAMA_UNCONFIGURED',
+        },
+        { status: 503 }
       );
     }
 

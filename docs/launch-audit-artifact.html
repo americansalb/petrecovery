@@ -222,18 +222,40 @@ a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
 </header>
 
 <div class="verdict">
-  <div class="verdict-label">Verdict</div>
-  <h2>Not yet — but the gap is days, not months.</h2>
-  <p>The product is further along than the repo's own docs suggest, and the best of it is genuinely good: the homepage, Mission Control, the shelter portal, the case page, the report wizard. The build passes, the test suite is green, and several routes the internal map lists as unauthenticated have quietly been hardened.</p>
-  <p>But seven things would go wrong on day one in ways that are hard to walk back, and three of them are the kind that end up in a screenshot on social media. None is architectural. Every blocker below is a small, local fix.</p>
+  <div class="verdict-label">Status</div>
+  <h2>All 39 findings fixed.</h2>
+  <p>The audit below found seven blockers, nineteen high and thirteen medium issues. Every one has been fixed on <code>claude/reunitepets-launch-audit-1u0h0i</code>, each verified against a running build rather than by reading the diff. The findings are left as originally written — the record of what was wrong is worth more than a tidy document.</p>
+  <p>Gates at the end: <b>687 tests across 62 suites</b> (up from 591 in 51), production build clean, and ESLint passing. ESLint had never run here — no config existed, and the CI step ended in <code>|| echo</code>, so it could not fail. Its first real pass found four genuine bugs, including a file that plain <code>node</code> refuses to parse.</p>
 </div>
 
 <div class="ledger">
-  <div><span class="n n-blocker">7</span><span class="l">Blockers<br>fix before launch</span></div>
-  <div><span class="n n-high">19</span><span class="l">High<br>first week</span></div>
-  <div><span class="n n-medium">13</span><span class="l">Medium<br>backlog</span></div>
+  <div><span class="n n-good">7</span><span class="l">Blockers<br>all fixed</span></div>
+  <div><span class="n n-good">19</span><span class="l">High<br>all fixed</span></div>
+  <div><span class="n n-good">13</span><span class="l">Medium<br>all fixed</span></div>
   <div><span class="n n-good">12</span><span class="l">Checked&nbsp;fine<br>or refuted</span></div>
 </div>
+
+<section>
+  <h3>Six things were worse than this report said</h3>
+  <p class="sec-note">Found only by fixing it. Each was invisible from reading the code.</p>
+  <ol class="top3">
+    <li><span><b><code>instrumentation.js</code> never ran at all.</b> Next 14 needs <code>experimental.instrumentationHook</code>, which was not set — so every boot assertion in that file was dead code that looked live, including the production error-sink check added earlier in this same audit.</span></li>
+    <li><span><b>The CAPTCHA verifier returned <em>success</em> when unconfigured.</b> Wiring the unused verifier in as it stood would have changed nothing at all.</span></li>
+    <li><span><b>The unsubscribe path had never been walked.</b> The success page it redirects to did not exist, the redirect pointed at the retired domain, and its POST handler would have thrown on the one-click request Gmail and Outlook actually send.</span></li>
+    <li><span><b>The Terms, Waiver and Privacy Policy all named the wrong company</b> — and the waiver and policy lived inline in the seed script, which production never runs, so no deploy could ever have corrected them.</span></li>
+    <li><span><b>"Delete Account" could not be a <code>user.delete()</code>.</b> Two cascade rules meant the obvious implementation would have erased active searches other people were out running.</span></li>
+    <li><span><b><code>/join</code> had no waiver gate</b> while every other route into the same activity had one — which made the waiver optional in practice, through the easiest door.</span></li>
+  </ol>
+</section>
+
+<section>
+  <h3>Two claims in this report were wrong</h3>
+  <p class="sec-note">Corrected in place rather than quietly dropped.</p>
+  <ol class="top3">
+    <li><span><b>H1 said <code>/api/reports/create</code> had no rate limit.</b> It had one, predating this work. The real problem was worse and less obvious: the limiter was per-process and in-memory, so it forgot everything on every deploy. That is how 87,003 junk rows got past a cap set to 10 per minute.</span></li>
+    <li><span><b>M9's "the drawer lists Pet Care twice" needed a second look.</b> The first check counted the bottom tab bar and came back clean. Opening the drawer properly showed it was real.</span></li>
+  </ol>
+</section>
 
 <section>
   <h3>The four that matter most</h3>
