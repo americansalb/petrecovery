@@ -43,13 +43,23 @@ export default function StickyMobileCTA({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="fixed bottom-0 left-0 right-0 z-40 lg:hidden"
+          /* bottom-16 sits this bar exactly on top of GlobalBottomNav, whose
+             row is h-16. Both are lg:hidden and the tab bar only disappears
+             inside an immersive route, which a case page never is, so they
+             appear and disappear together.
+
+             This was bottom-0 z-40 against the tab bar's bottom-0 z-50 opaque
+             white: the tab bar covered 65px of this bar's 101px and a tap at
+             this bar's centre landed on the tab bar underneath. The one control
+             that files a sighting was unreachable on a phone. If you change the
+             tab bar height, change this with it. */
+          className="fixed bottom-16 left-0 right-0 z-40 lg:hidden"
         >
           {/* Gradient fade for smooth transition */}
           <div className="h-6 bg-gradient-to-t from-white to-transparent" />
 
-          {/* CTA Bar */}
-          <div className="bg-white border-t border-midnight-100 shadow-lg px-4 py-3 safe-area-inset-bottom">
+          {/* CTA Bar - no safe-area padding here; the tab bar below owns it */}
+          <div className="bg-white border-t border-midnight-100 shadow-lg px-4 py-3">
             <div className="flex items-center gap-3">
               {/* Primary CTA - Report Sighting */}
               <button

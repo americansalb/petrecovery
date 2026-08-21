@@ -52,9 +52,13 @@ fs.mkdirSync(OUT, { recursive: true });
     const box = (el) => { const r = el.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: Math.round(r.height) }; };
     const tab = document.querySelector('nav.fixed.bottom-0');
     // the sticky CTA is the other fixed bottom-0 container
+    // Any fixed element anchored near the bottom - not just bottom:0, since the
+    // sighting CTA deliberately sits one tab-bar height up.
     const fixedBottoms = [...document.querySelectorAll('div,nav')].filter((e) => {
       const cs = getComputedStyle(e);
-      return cs.position === 'fixed' && cs.bottom === '0px' && e.getBoundingClientRect().height > 20;
+      if (cs.position !== 'fixed') return false;
+      const r = e.getBoundingClientRect();
+      return r.height > 20 && r.bottom > window.innerHeight - 200;
     });
     const info = fixedBottoms.map((e) => ({
       tag: e.tagName.toLowerCase(),
