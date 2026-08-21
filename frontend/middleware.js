@@ -271,6 +271,19 @@ export async function middleware(request) {
 
     // Check admin access
     if (isAdminRoute && token.role !== 'ADMIN') {
+      // A signed-in non-admin who follows an /admin link is a person, not
+      // a script. Handing them a raw JSON body - which is what this did -
+      // shows them {"error":"Forbidden"} as the entire page. Send API
+      // callers the JSON they can parse, and send browsers somewhere with
+      // a navbar on it.
+      const wantsHtml = (request.headers.get('accept') || '').includes('text/html');
+
+      if (wantsHtml && !pathname.startsWith('/api/')) {
+        const deniedUrl = new URL('/dashboard', request.url);
+        deniedUrl.searchParams.set('denied', 'admin');
+        return NextResponse.redirect(deniedUrl);
+      }
+
       return new NextResponse(
         JSON.stringify({ error: 'Forbidden', message: 'Admin access required' }),
         {

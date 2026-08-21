@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   PawPrint, Plus, ArrowRight, ArrowUpRight, Users, Search, Eye, Loader2,
@@ -49,6 +49,10 @@ function Label({ children, action }) {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Set by middleware when a signed-in non-admin follows an /admin link.
+  // Without this they just arrive here for no visible reason.
+  const deniedAdmin = searchParams.get('denied') === 'admin';
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -153,6 +157,13 @@ export default function DashboardPage() {
   return (
     /* pb clears the fixed mobile tab bar, as /pets does */
     <div className="min-h-screen bg-slate-50 pb-24 lg:pb-12">
+      {deniedAdmin && (
+        <div role="status" className="bg-slate-800">
+          <div className="max-w-5xl mx-auto px-4 py-2.5 text-sm text-slate-100">
+            That page is for site administrators. You are signed in, just not as one.
+          </div>
+        </div>
+      )}
       {activeSearches.length > 0 && (
         <Link href={`/mission-control?mission=${activeSearches[0].missionId}`} className="block bg-red-600 hover:bg-red-700 transition-colors">
           <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3 text-white text-sm">
