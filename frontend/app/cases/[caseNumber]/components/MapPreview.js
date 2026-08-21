@@ -203,15 +203,19 @@ export default function MapPreview({
     >
       {/* Header */}
       <div className="px-5 py-4 border-b border-midnight-100">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        {/* min-w-0 on the left, shrink-0 on the count. Without them the
+            address column refuses to shrink below its content width and
+            pushes the count past the card edge, which read as "2 sigh" at
+            390px even though the count already says whitespace-nowrap. */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <h2 className="font-bold text-midnight-900 text-lg">Search Area</h2>
             {lastSeenAddress && (
               <p className="text-sm text-midnight-500 mt-0.5 line-clamp-2">{lastSeenAddress}</p>
             )}
           </div>
           {sightingsCount > 0 && (
-            <span className="text-sm text-amber-600 font-medium whitespace-nowrap">
+            <span className="shrink-0 text-sm text-amber-600 font-medium whitespace-nowrap">
               {sightingsCount} sighting{sightingsCount !== 1 ? 's' : ''}
             </span>
           )}

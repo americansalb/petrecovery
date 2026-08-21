@@ -411,7 +411,10 @@ export default async function ForcePage({ params }) {
                       <span className="w-7 h-7 rounded-full bg-midnight-50 border border-midnight-100 flex items-center justify-center shrink-0">
                         <Icon className="w-3.5 h-3.5 text-midnight-500" />
                       </span>
-                      <p className="flex-1 min-w-0 text-sm text-midnight-700 truncate">{a.message}</p>
+                      {/* line-clamp-2, not truncate: one line dropped the where and the
+                          which-pet, so "Sarah reported a verified sighti..." told
+                          a reader nothing they could act on. */}
+                      <p className="flex-1 min-w-0 text-sm text-midnight-700 line-clamp-2">{a.message}</p>
                       <span className="text-[12px] text-midnight-400 tabular-nums shrink-0">
                         {timeAgo(a.createdAt)}
                       </span>

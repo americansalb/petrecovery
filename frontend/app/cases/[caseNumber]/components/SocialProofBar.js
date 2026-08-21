@@ -69,12 +69,15 @@ export default function SocialProofBar({
       {/* Activity Ticker */}
       {latestActivity && (
         <div className="border-t border-midnight-100 bg-midnight-50 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse flex-shrink-0" />
-            <p className="text-sm text-midnight-700 flex-1 truncate">
+          {/* items-start + line-clamp-2, not items-center + truncate: one line
+              cut this to "Mike reported a sighting near Ne..." on a phone,
+              losing the where, which is the only part worth reading. */}
+          <div className="flex items-start gap-3">
+            <div className="w-2 h-2 mt-1.5 bg-emerald-500 rounded-full animate-pulse flex-shrink-0" />
+            <p className="text-sm text-midnight-700 flex-1 min-w-0 line-clamp-2">
               <span className="font-medium">{latestActivity.message}</span>
             </p>
-            <span className="text-xs text-midnight-400 flex-shrink-0 flex items-center gap-1">
+            <span className="text-xs text-midnight-400 flex-shrink-0 flex items-center gap-1 mt-0.5">
               <Clock className="w-3 h-3" />
               {formatTimeAgo(latestActivity.time)}
             </span>

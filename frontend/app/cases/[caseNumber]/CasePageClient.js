@@ -321,8 +321,13 @@ export default function CasePageClient() {
       {/* Main Content */}
       <section className="max-w-6xl mx-auto px-4 pb-32 lg:pb-12">
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column - Map & Timeline */}
-          <div className="lg:col-span-2 space-y-6">
+          {/* Left Column - Map & Timeline.
+              min-w-0 because a grid item defaults to min-width: auto and so
+              refuses to shrink below its widest content. Without it this
+              column measured 429px inside a 358px grid on a 390px phone,
+              pushing card contents past the screen edge - which is what
+              clipped the Search Area header to "2 sigh". */}
+          <div className="lg:col-span-2 min-w-0 space-y-6">
             {/* Map Preview - Same map as Mission Control */}
             <MapPreview
               caseNumber={caseNumber}
@@ -349,7 +354,7 @@ export default function CasePageClient() {
           </div>
 
           {/* Right Column - Actions */}
-          <div className="space-y-6">
+          <div className="min-w-0 space-y-6">
             {/* Owner tools: close the loop right here */}
             {isOwner && !isReunited && (
               <div className="rounded-2xl border-2 border-midnight-900 bg-midnight-900 p-5">
