@@ -17,6 +17,12 @@ export default function AdminCommunitiesPage() {
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // Separate from `error`, which belongs to the approve/reject flow. A
+  // failed LOAD used to leave requests as [] and say nothing, so the page
+  // rendered "All caught up!" - identical to a genuinely empty queue. An
+  // admin could walk away from a stack of pending requests because the
+  // API 500d.
+  const [loadError, setLoadError] = useState('');
 
   // Approval form state
   const [approvalData, setApprovalData] = useState({
@@ -52,9 +58,16 @@ export default function AdminCommunitiesPage() {
       if (res.ok) {
         const data = await res.json();
         setRequests(data.requests || []);
+        setLoadError('');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setRequests([]);
+        setLoadError(data.error || `Could not load requests (${res.status}).`);
       }
     } catch (error) {
       console.error('Error fetching requests:', error);
+      setRequests([]);
+      setLoadError('Could not reach the server.');
     } finally {
       setLoading(false);
     }
@@ -280,7 +293,38 @@ export default function AdminCommunitiesPage() {
         </div>
 
         {/* Requests List */}
-        {requests.length === 0 ? (
+        {loadError ? (
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '3rem 2rem',
+            textAlign: 'center',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+            border: '2px solid #fecaca'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: '#991b1b', marginBottom: '0.5rem' }}>
+              Could not load the queue
+            </h2>
+            <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>
+              {loadError} There may be requests waiting.
+            </p>
+            <button
+              onClick={fetchRequests}
+              style={{
+                padding: '0.65rem 1.25rem',
+                borderRadius: '10px',
+                border: 'none',
+                background: '#0f172a',
+                color: 'white',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        ) : requests.length === 0 ? (
           <div style={{
             background: 'white',
             borderRadius: '16px',

@@ -128,7 +128,7 @@ function Panel({ title, icon: Icon, children, defaultOpen = true }) {
   );
 }
 
-export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fallback = null, mode = 'full', petName, shareUrl, onShare }) {
+export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fallback = null, mode = 'full', petName, shareUrl, onShare, onEmptyChange }) {
   // 'full'  = live success-screen dashboard (checklist + matches + assets + plan)
   // 'share' = public case-page toolkit (scannable QR + printable flyers + share
   //           images/captions only; no internal checklist or owner-facing matches)
@@ -179,21 +179,30 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
   const anyStep = kit?.steps?.length > 0;
   const working = !isTerminal(status);
 
-  // Share mode has no live "building…" state - stay invisible until loaded so
-  // the case page never flashes an empty panel.
-  if (shareMode && !kit) return fallback;
+  // Whether this renders nothing, decided once so the caller can be told.
+  //
+  //   - share mode has no live "building…" state, so stay invisible until
+  //     loaded and the case page never flashes an empty panel
+  //   - no activation at all (older cases, cascade never seeded) means the
+  //     caller's legacy static list instead of an empty dashboard
+  //   - share mode is a pure asset toolkit: nothing shareable, nothing shown
+  const hasShareable = Boolean(
+    kit?.assets?.qr?.url || kit?.assets?.flyers?.length > 0 || kit?.assets?.social?.length > 0
+  );
+  const isEmpty =
+    (shareMode && !kit) ||
+    Boolean(kit && kit.exists === false) ||
+    Boolean(shareMode && kit && !hasShareable);
 
-  // If there is no activation at all (older cases / cascade never seeded), show
-  // the caller's legacy static list instead of an empty dashboard.
-  if (kit && kit.exists === false) return fallback;
+  // Told to the parent rather than left for it to work out again. A wrapper
+  // that paints its own border and background around a child returning null
+  // is an empty white card on the public case page, which is what
+  // RecoveryKitPanel used to draw.
+  useEffect(() => {
+    if (onEmptyChange) onEmptyChange(isEmpty);
+  }, [isEmpty, onEmptyChange]);
 
-  // Share mode is a pure asset toolkit: if nothing shareable rendered (all
-  // assets failed, or still building on a cold case-page load), show nothing.
-  if (shareMode && kit) {
-    const hasShareable =
-      kit.assets?.qr?.url || kit.assets?.flyers?.length > 0 || kit.assets?.social?.length > 0;
-    if (!hasShareable) return fallback;
-  }
+  if (isEmpty) return fallback;
 
   return (
     <div className="text-left">

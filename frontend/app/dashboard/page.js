@@ -23,8 +23,10 @@ import Link from 'next/link';
 import {
   PawPrint, Plus, ArrowRight, ArrowUpRight, Users, Search, Eye, Loader2,
 } from 'lucide-react';
+import { SPECIES_LABELS } from '@/app/lib/species';
 
-const SPECIES_LABEL = { DOG: 'Dog', CAT: 'Cat', BIRD: 'Bird', RABBIT: 'Rabbit', OTHER: 'Pet' };
+// Species wording lives in app/lib/species.js, not in a private copy per page.
+const SPECIES_LABEL = SPECIES_LABELS;
 
 function elapsed(hours) {
   if (hours < 1) return 'just now';

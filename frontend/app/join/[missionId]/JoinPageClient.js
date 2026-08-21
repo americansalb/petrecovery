@@ -10,6 +10,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { TOUCH_TARGETS, triggerHaptic, announce } from '@/app/lib/missionControl/accessibility';
+import { describePet } from '@/app/lib/species';
 
 export default function JoinMissionPage() {
   const params = useParams();
@@ -276,9 +277,15 @@ export default function JoinMissionPage() {
           )}
           <div style={styles.petInfo}>
             <h1 style={styles.petName}>{mission.pet?.name || 'Lost Pet'}</h1>
+            {/* Was `{color} {species}`, which printed the enum raw: "Golden
+                DOG - Golden Retriever" on the page a stranger opens from a
+                text message. */}
             <p style={styles.petDesc}>
-              {mission.pet?.color} {mission.pet?.species}
-              {mission.pet?.breed && ` • ${mission.pet.breed}`}
+              {describePet({
+                species: mission.pet?.species,
+                breed: mission.pet?.breed,
+                color: mission.pet?.color,
+              })}
             </p>
           </div>
         </div>

@@ -15,10 +15,12 @@ import { getPublicShelter } from '@/app/lib/shelterPublic';
 import { shelterShareMetadata, genericShareMetadata } from '@/app/lib/shareMetadata';
 import { SHELTER_STATUS_LABELS } from '@/app/lib/shelterStatuses';
 import InquirySection from './InquirySection';
+import { SPECIES_LABELS } from '@/app/lib/species';
 
 export const dynamic = 'force-dynamic';
 
-const SPECIES_LABEL = { DOG: 'Dog', CAT: 'Cat', BIRD: 'Bird', RABBIT: 'Rabbit', OTHER: 'Pet' };
+// Species wording lives in app/lib/species.js, not in a private copy per page.
+const SPECIES_LABEL = SPECIES_LABELS;
 const SEX_LABEL = { MALE: 'Male', FEMALE: 'Female' };
 
 export async function generateMetadata({ params }) {

@@ -635,6 +635,12 @@ export default function AdminDivisionRequestsPage() {
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             <p style={{ color: '#64748b', fontWeight: '500' }}>Loading requests...</p>
           </div>
+        ) : error ? (
+          // The error banner above already says what went wrong. What must
+          // NOT happen is the "All caught up!" empty state rendering under
+          // it: a failed load leaves requests as [], so the page would tell
+          // an admin the queue was clear while a red banner said otherwise.
+          null
         ) : requests.length === 0 ? (
           <div style={{
             background: 'white',

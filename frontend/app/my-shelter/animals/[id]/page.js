@@ -17,10 +17,12 @@ import {
   INTAKE_TYPE_LABELS, strayHoldEndsAt, daysInCare,
 } from '@/app/lib/shelterStatuses';
 import { ArrowLeft, Radar, PawPrint } from 'lucide-react';
+import { SPECIES_LABELS } from '@/app/lib/species';
 
 export const dynamic = 'force-dynamic';
 
-const SPECIES_LABEL = { DOG: 'Dog', CAT: 'Cat', BIRD: 'Bird', RABBIT: 'Rabbit', OTHER: 'Pet' };
+// Species wording lives in app/lib/species.js, not in a private copy per page.
+const SPECIES_LABEL = SPECIES_LABELS;
 const SEX_LABEL = { MALE: 'Male', FEMALE: 'Female' };
 
 export default async function PortalAnimal({ params }) {
