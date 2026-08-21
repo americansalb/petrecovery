@@ -209,6 +209,17 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # `|| echo` made this step incapable of failing, so it reported green
+      # through 19 production vulnerabilities including 3 critical ones in
+      # the auth chain. It fails now.
+      #
+      # Production dependencies only: a dev-tool advisory does not ship to
+      # anyone, and mixing them in was what made the old output easy to
+      # wave through.
+      #
+      # Six advisories currently have no fix that is not a framework major
+      # or a beta, so they are listed in audit-allowlist.json with the
+      # reason. Anything NEW fails the build.
       - name: Run npm audit
         working-directory: frontend
-        run: npm audit --audit-level=high || echo "Vulnerabilities found - review required"
+        run: node scripts/audit-gate.js

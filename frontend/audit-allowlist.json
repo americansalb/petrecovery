@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Advisories with no fix that is not a framework major or a beta release.",
+    "Each entry needs a reason and a review date. scripts/audit-gate.js fails",
+    "the build on anything not listed here, so this file is the whole",
+    "argument for shipping with a known advisory - not a place to park work."
+  ],
+  "reviewBy": "2026-11-01",
+  "allowed": {
+    "@auth/core": "Critical: email normalizer validates before Unicode normalization, allowing a homoglyph @ bypass. Advisory range is *, so no released version is unaffected and there is nothing to upgrade to. Reachable only via the Email provider, which this app does not use: app/lib/auth.js runs Credentials plus OAuth. Revisit when Auth.js ships a fixed line.",
+    "next-auth": "Same advisory, inherited from @auth/core. npm offers 4.24.7 as the fix, which is a DOWNGRADE from the installed 4.24.15 and forfeits every patch since. Real fix is next-auth v5, still beta.",
+    "@auth/prisma-adapter": "Same advisory chain as @auth/core.",
+    "postcss": "Reached only through next's build toolchain, so it goes with the next major above. Not part of the served runtime.",
+    "nodemailer": "High: a message-level `raw` option bypasses disableFileAccess/disableUrlAccess. app/lib/email.js never passes `raw` - it sends from/to/subject/html/attachments/headers and nothing else. Upgrading to 9.x also breaks next-auth, which declares nodemailer ^7.0.7; npm marks the tree invalid. Breaking auth is worse than an advisory we do not trigger.",
+    "next": "High: DoS via the Image Optimizer on self-hosted deployments. Fix is next 16, two majors from the 14.2 line this app is built on. That is a migration, not a launch-week patch."
+  }
+}
