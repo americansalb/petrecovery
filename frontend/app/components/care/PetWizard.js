@@ -28,6 +28,7 @@ import { INTAKE_TYPES, INTAKE_TYPE_LABELS } from '@/app/lib/shelterStatuses';
 import {
   COAT_COLORS, COAT_PATTERNS, MAX_COAT_COLORS, composeColor, parseColor,
 } from '@/lib/petAppearance';
+import { captchaHeaders } from '@/app/lib/captchaClient';
 
 const DRAFT_KEY = 'rp_healthbook_draft';
 const NAME_MAX = 40;
@@ -258,7 +259,7 @@ export default function PetWizard() {
       const photoUrls = images.map((img) => img.url);
       const res = await fetch('/api/pets', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('register')) },
         body: JSON.stringify({
           ...pet,
           photos: photoUrls,

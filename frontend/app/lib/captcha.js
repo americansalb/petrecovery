@@ -9,6 +9,22 @@ const RECAPTCHA_V3_SECRET = process.env.RECAPTCHA_V3_SECRET_KEY;
 const RECAPTCHA_V3_THRESHOLD = parseFloat(process.env.RECAPTCHA_V3_THRESHOLD || '0.5');
 
 /**
+ * Is server-side CAPTCHA verification actually possible?
+ *
+ * Both halves have to be present to mean anything: a secret key so the
+ * server can verify, and a site key so the browser can mint a token in
+ * the first place. A secret with no site key rejects every real visitor;
+ * a site key with no secret verifies nothing.
+ */
+export function isCaptchaConfigured(version = 'v3') {
+  const secret = version === 'v2' ? RECAPTCHA_V2_SECRET : RECAPTCHA_V3_SECRET;
+  const siteKey = version === 'v2'
+    ? process.env.NEXT_PUBLIC_RECAPTCHA_V2_SITE_KEY
+    : process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY;
+  return Boolean(secret && siteKey);
+}
+
+/**
  * Verify a reCAPTCHA v2 token
  *
  * @param {string} token - The reCAPTCHA response token
@@ -17,8 +33,13 @@ const RECAPTCHA_V3_THRESHOLD = parseFloat(process.env.RECAPTCHA_V3_THRESHOLD || 
  */
 export async function verifyCaptchaV2(token, remoteIp = null) {
   if (!RECAPTCHA_V2_SECRET) {
-    console.warn('ReCAPTCHA v2 secret key not configured');
-    return { success: true }; // Pass-through if not configured
+    // Fail CLOSED. This function is only reached when something has
+    // decided a CAPTCHA is required; answering "sure, verified" because
+    // no secret is configured turns the whole check into decoration. The
+    // boot assertion in instrumentation.js stops production from ever
+    // reaching this state, so getting here means a real misconfiguration.
+    console.error('CAPTCHA required but RECAPTCHA_V2_SECRET_KEY is not set - refusing the request');
+    return { success: false, error: 'CAPTCHA is not configured', code: 'CAPTCHA_NOT_CONFIGURED' };
   }
 
   if (!token) {
@@ -79,8 +100,9 @@ export async function verifyCaptchaV2(token, remoteIp = null) {
  */
 export async function verifyCaptchaV3(token, expectedAction, remoteIp = null) {
   if (!RECAPTCHA_V3_SECRET) {
-    console.warn('ReCAPTCHA v3 secret key not configured');
-    return { success: true, score: 1.0 }; // Pass-through if not configured
+    // Fail CLOSED, for the reason given on verifyCaptchaV2 above.
+    console.error('CAPTCHA required but RECAPTCHA_V3_SECRET_KEY is not set - refusing the request');
+    return { success: false, error: 'CAPTCHA is not configured', code: 'CAPTCHA_NOT_CONFIGURED' };
   }
 
   if (!token) {
@@ -244,6 +266,36 @@ export default {
   verifyCaptchaV2,
   verifyCaptchaV3,
   verifyCaptchaFromRequest,
+  isCaptchaConfigured,
   isCaptchaRequired,
   createCaptchaChallenge,
 };
+
+/**
+ * Boot check: never let REQUIRE_CAPTCHA be on without the keys to honour it.
+ *
+ * With the flag on and keys missing, every POST to a protected route is
+ * refused - which on this site means nobody can file a lost-pet report.
+ * Failing at boot makes that a deploy that does not go out, instead of a
+ * silent outage discovered from the support inbox.
+ *
+ * Called from instrumentation.js.
+ */
+export function assertCaptchaConfig() {
+  if (process.env.REQUIRE_CAPTCHA !== 'true') return;
+
+  if (isCaptchaConfigured('v3')) {
+    console.log('[boot] CAPTCHA: enabled and configured (reCAPTCHA v3)');
+    return;
+  }
+
+  const missing = [
+    process.env.RECAPTCHA_V3_SECRET_KEY ? null : 'RECAPTCHA_V3_SECRET_KEY',
+    process.env.NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY ? null : 'NEXT_PUBLIC_RECAPTCHA_V3_SITE_KEY',
+  ].filter(Boolean);
+
+  throw new Error(
+    `REQUIRE_CAPTCHA=true but ${missing.join(' and ')} not set. ` +
+    'Every report and signup would be refused. Set the keys or unset REQUIRE_CAPTCHA.'
+  );
+}

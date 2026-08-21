@@ -8,6 +8,12 @@ const nextConfig = {
 
   // Ensure static files needed at runtime are copied to standalone output
   experimental: {
+    // Next 14 does not run instrumentation.js without this flag. Without
+    // it the boot assertions in that file - production has somewhere to
+    // send exceptions, CAPTCHA is not half-configured, rate limits are
+    // durable - are dead code that looks live.
+    instrumentationHook: true,
+
     // Keep the pure-JS render stack (react-pdf) and the resvg native addon out
     // of the webpack server bundle — require()'d from node_modules at runtime.
     serverComponentsExternalPackages: ['@react-pdf/renderer', '@resvg/resvg-js', 'satori', 'yoga-wasm-web'],

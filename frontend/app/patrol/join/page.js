@@ -5,6 +5,7 @@ import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { theme } from '../../lib/theme';
+import { captchaHeaders } from '@/app/lib/captchaClient';
 
 export default function JoinPatrol() {
   const { data: session, status } = useSession();
@@ -189,7 +190,7 @@ export default function JoinPatrol() {
         // Create account
         const registerRes = await fetch('/api/auth/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('register')) },
           body: JSON.stringify({
             email: accountInfo.email,
             password: accountInfo.password,

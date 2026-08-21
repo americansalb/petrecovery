@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Button, cn } from '@/components/ui';
 import { LOGO_ICON } from '@/lib/brandAssets';
+import { captchaHeaders } from '@/app/lib/captchaClient';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[\d\s\-\(\)\+\.]{7,20}$/;
@@ -146,7 +147,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('register')) },
         body: JSON.stringify({
           email: form.email.trim(),
           password: form.password,

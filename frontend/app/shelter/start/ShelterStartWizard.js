@@ -21,6 +21,7 @@ import {
   Building2, HeartHandshake, Loader2, CheckCircle2, Clock, MailCheck, ArrowRight,
 } from 'lucide-react';
 import CityAutocomplete from '@/app/components/CityAutocomplete';
+import { captchaHeaders } from '@/app/lib/captchaClient';
 
 const SHELTER_TYPES = [
   { value: 'SHELTER', label: 'Shelter', hint: 'a facility that takes animals in' },
@@ -197,7 +198,7 @@ export default function ShelterStartWizard() {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('register')) },
         body: JSON.stringify({
           firstName: account.firstName.trim(),
           email: account.email.trim(),

@@ -29,8 +29,16 @@ async function getRedisClient() {
   }
 
   try {
-    // Dynamic import to avoid requiring redis in non-Redis environments
-    const { createClient } = await import('redis');
+    // Dynamic import to avoid requiring redis in non-Redis environments.
+    //
+    // webpackIgnore keeps the bundler from following this. Without it,
+    // anything that imports this module drags the redis client into its
+    // bundle - including the Edge bundle built for instrumentation.js
+    // and middleware, where redis's dependency on node:net cannot
+    // resolve and the whole site 500s. The import still works at
+    // runtime under Node, which is the only place it is reached.
+    const redisSpecifier = 'redis';
+    const { createClient } = await import(/* webpackIgnore: true */ redisSpecifier);
     // Bounded retries + no offline queue: a bad/unreachable REDIS_URL (for
     // example a placeholder hostname) must degrade to the in-memory limiter
     // instantly, never hang auth requests or spam reconnects forever.
@@ -205,6 +213,144 @@ async function checkRateLimitRedis(redis, key, options) {
   }
 }
 
+
+// Prisma is loaded lazily so this module stays importable from anywhere,
+// including runtimes where Prisma cannot run. One failed attempt is
+// remembered: if the client will not load, every later check falls
+// through to the in-memory limiter instead of retrying on every request.
+let prismaClient = null;
+async function getPrismaClient() {
+  if (prismaClient !== null) return prismaClient || null;
+  try {
+    const mod = await import('@/app/lib/prisma');
+    prismaClient = mod.default || mod.prisma;
+    return prismaClient;
+  } catch (err) {
+    console.warn('Rate limit: database backend unavailable, using in-memory:', err.message);
+    prismaClient = false;
+    return null;
+  }
+}
+
+// Rows outlive their window by design (the block may still be running),
+// but nothing needs them a day later. Sweeping on roughly one request in
+// two hundred keeps the table small without a scheduler.
+let lastSweep = 0;
+const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+function maybeSweepDatabaseCounters(prisma) {
+  const now = Date.now();
+  if (Math.random() > 0.005) return;
+  if (now - lastSweep < SWEEP_INTERVAL_MS) return;
+  lastSweep = now;
+  const cutoff = new Date(now - 24 * 60 * 60 * 1000);
+  try {
+    prisma.$executeRaw`DELETE FROM "RateLimitCounter" WHERE "updatedAt" < ${cutoff}`
+      .catch(() => { /* best effort - a large table is not an outage */ });
+  } catch {
+    /* same */
+  }
+}
+
+/**
+ * Check rate limit using the database.
+ *
+ * The in-memory store is per-process, so it forgets everything on every
+ * deploy, restart and scale event. A limiter that resets that often is
+ * not a limiter: it is how 87,003 junk report rows got past a cap set to
+ * 10 per minute. Redis solves this properly, but only once someone
+ * provisions Redis. This backend needs nothing that is not already
+ * running, so the cap holds by default rather than when configured.
+ *
+ * One statement per check, atomic in Postgres. The CASE arms decide, at
+ * the row level, whether the stored window has expired: expired means
+ * start a new window at 1, otherwise increment. Two requests racing on
+ * the same key serialise on the row lock and both are counted.
+ */
+async function checkRateLimitDatabase(key, options) {
+  const { windowMs, maxRequests, blockDurationMs } = options;
+  const now = Date.now();
+  const windowFloor = new Date(now - windowMs);
+
+  const prisma = await getPrismaClient();
+  if (!prisma) return null;
+
+  const rows = await prisma.$queryRaw`
+    INSERT INTO "RateLimitCounter" ("key", "count", "windowStart", "updatedAt")
+    VALUES (${key}, 1, NOW(), NOW())
+    ON CONFLICT ("key") DO UPDATE SET
+      "count" = CASE
+        WHEN "RateLimitCounter"."windowStart" < ${windowFloor} THEN 1
+        ELSE "RateLimitCounter"."count" + 1
+      END,
+      "windowStart" = CASE
+        WHEN "RateLimitCounter"."windowStart" < ${windowFloor} THEN NOW()
+        ELSE "RateLimitCounter"."windowStart"
+      END,
+      "blockedUntil" = CASE
+        WHEN "RateLimitCounter"."windowStart" < ${windowFloor} THEN NULL
+        ELSE "RateLimitCounter"."blockedUntil"
+      END,
+      "updatedAt" = NOW()
+    RETURNING "count", "windowStart", "blockedUntil"
+  `;
+
+  const row = rows?.[0];
+  if (!row) return null;
+
+  // Still serving an earlier block: say no without extending it, so a
+  // client that keeps hammering cannot push its own release further away.
+  const blockedUntil = row.blockedUntil ? new Date(row.blockedUntil).getTime() : null;
+  if (blockedUntil && now < blockedUntil) {
+    return {
+      success: false,
+      remaining: 0,
+      resetAt: blockedUntil,
+      blocked: true,
+      retryAfter: Math.ceil((blockedUntil - now) / 1000),
+    };
+  }
+
+  const count = Number(row.count);
+  const windowStart = new Date(row.windowStart).getTime();
+
+  if (count > maxRequests) {
+    const blockUntilTime = now + blockDurationMs;
+    // Raw, like the counter above, so this does not depend on the Prisma
+    // client having been regenerated since the model was added. It is also
+    // wrapped rather than .catch()-ed: a missing model accessor throws
+    // synchronously, which no .catch() on the promise would ever see.
+    try {
+      await prisma.$executeRaw`
+        UPDATE "RateLimitCounter"
+        SET "blockedUntil" = ${new Date(blockUntilTime)}, "updatedAt" = NOW()
+        WHERE "key" = ${key}
+      `;
+    } catch (err) {
+      // Recording the block failed, so the next request starts a fresh
+      // count instead of being turned away immediately. This one is still
+      // over the line, so it is still refused.
+      console.error('Rate limit: could not persist block for', key, '-', err.message);
+    }
+
+    return {
+      success: false,
+      remaining: 0,
+      resetAt: blockUntilTime,
+      blocked: true,
+      retryAfter: Math.ceil(blockDurationMs / 1000),
+    };
+  }
+
+  maybeSweepDatabaseCounters(prisma);
+
+  return {
+    success: true,
+    remaining: maxRequests - count,
+    resetAt: windowStart + windowMs,
+    blocked: false,
+  };
+}
+
 /**
  * Check rate limit using in-memory store
  */
@@ -277,13 +423,23 @@ export async function checkRateLimitAsync(request, options) {
   const ip = getClientIP(request);
   const key = `${keyPrefix}:${ip}`;
 
-  // Try Redis first
+  // Redis first when it is configured: same durability, lower latency.
   const redis = await getRedisClient();
   if (redis) {
     return checkRateLimitRedis(redis, key, { windowMs, maxRequests, blockDurationMs });
   }
 
-  // Fallback to in-memory
+  // Then the database, which is always there. This is the difference
+  // between a cap that holds across a deploy and one that forgets.
+  try {
+    const durable = await checkRateLimitDatabase(key, { windowMs, maxRequests, blockDurationMs });
+    if (durable) return durable;
+  } catch (err) {
+    console.error('Rate limit: database check failed, using in-memory:', err.message);
+  }
+
+  // Last resort. Per-process and forgetful, but better than no cap when
+  // the database is the thing that is down.
   return checkRateLimitMemory(key, { windowMs, maxRequests, blockDurationMs });
 }
 
@@ -449,4 +605,24 @@ export async function withRateLimitAsync(request, preset, keyPrefix) {
  */
 export function isUsingRedis() {
   return redisAvailable;
+}
+
+/**
+ * Which backend rate limits will actually use, for the boot log.
+ *
+ * Redis and the database both survive a restart. In-memory does not, and
+ * an operator should be told when that is all there is, because a cap
+ * that resets on every deploy is not a cap.
+ */
+export async function describeRateLimitBackend() {
+  if (process.env.REDIS_URL) {
+    const redis = await getRedisClient();
+    if (redis) return { backend: 'redis', durable: true };
+    return { backend: 'memory', durable: false, note: 'REDIS_URL is set but the connection failed' };
+  }
+
+  const prisma = await getPrismaClient();
+  if (prisma) return { backend: 'database', durable: true };
+
+  return { backend: 'memory', durable: false, note: 'no Redis and no database client' };
 }

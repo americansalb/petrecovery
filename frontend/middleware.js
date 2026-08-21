@@ -281,26 +281,52 @@ export async function middleware(request) {
     }
   }
 
-  // Check CAPTCHA requirement for specific routes
-  if (request.method === 'POST' && CAPTCHA_ROUTES.some(route => pathname.startsWith(route))) {
+  // CAPTCHA on the routes that mint accounts and reports.
+  //
+  // This used to check only that an x-recaptcha-token header EXISTED. A
+  // bot sending `x-recaptcha-token: x` sailed through, so the check
+  // stopped nothing while reading, to anyone auditing the file, like a
+  // defence. Now the token is actually verified with Google, and a bad
+  // one is refused.
+  //
+  // Off unless REQUIRE_CAPTCHA=true, and instrumentation.js refuses to
+  // boot production with that flag set but no keys - so this cannot be
+  // switched on into a state where it rejects every real visitor.
+  if (
+    process.env.REQUIRE_CAPTCHA === 'true' &&
+    request.method === 'POST' &&
+    CAPTCHA_ROUTES.some(route => pathname.startsWith(route))
+  ) {
+    // Header only, never the body: reading the body here would consume
+    // the stream the route handler needs.
     const captchaToken = request.headers.get('x-recaptcha-token');
 
-    // If no CAPTCHA token and route requires it, return challenge
-    if (!captchaToken && process.env.REQUIRE_CAPTCHA === 'true') {
-      return new NextResponse(
-        JSON.stringify({
-          error: 'CAPTCHA required',
-          message: 'Please complete the security verification',
-          captchaRequired: true,
-        }),
-        {
-          status: 403,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Captcha-Required': 'true',
-          },
-        }
-      );
+    const captchaFailure = (message) => new NextResponse(
+      JSON.stringify({
+        error: 'CAPTCHA required',
+        message,
+        captchaRequired: true,
+      }),
+      {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Captcha-Required': 'true',
+        },
+      }
+    );
+
+    if (!captchaToken) {
+      return captchaFailure('Please complete the security verification');
+    }
+
+    const { verifyCaptchaV3 } = await import('@/app/lib/captcha');
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    const remoteIp = forwardedFor ? forwardedFor.split(',')[0].trim() : null;
+    const verdict = await verifyCaptchaV3(captchaToken, null, remoteIp);
+
+    if (!verdict.success) {
+      return captchaFailure(verdict.error || 'Security verification failed');
     }
   }
 

@@ -36,6 +36,7 @@ import {
   LOST_TIME_OPTIONS, WIZARD_THEMES, speciesToApi,
 } from '../../components/report/wizardTheme';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
+import { captchaHeaders } from '@/app/lib/captchaClient';
 
 const VARIANT = 'lost';
 // Contact capture mode. 'either' lets reporters choose email OR text -
@@ -280,7 +281,7 @@ export default function ReportLostPet() {
         : [];
       const response = await fetch('/api/reports/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('report_create')) },
         body: JSON.stringify({
           email: effectiveEmail,
           phone: effectivePhone,
