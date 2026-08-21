@@ -39,7 +39,11 @@ export function rememberMode(id) {
  * gives each hat a sensible public landing.
  */
 const GUEST_MODES = [
-  { id: 'owner', label: 'Pet Care', detail: 'A free Health Book for your pets', href: '/care' },
+  // Labelled Health Book, not "Pet Care": the drawer already carries a
+  // Pet Care link in its BROWSE list pointing at this same /care route, so
+  // the two read as a duplicated entry. This one names what is behind the
+  // door instead.
+  { id: 'owner', label: 'Health Book', detail: 'Vaccinations, meds and vet info in one place', href: '/care' },
   { id: 'searcher', label: 'Help find lost pets', detail: 'Join searchers near you', href: '/rescue-forces/search' },
 ];
 

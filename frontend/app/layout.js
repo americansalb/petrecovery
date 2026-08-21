@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import SessionProvider from './components/SessionProvider';
 import { ModeProvider } from './contexts/ModeContext';
 import Navigation from './components/Navigation';
+import SiteFooter from './components/SiteFooter';
 import GlobalBottomNav from './components/GlobalBottomNav';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineBanner from '@/components/OfflineBanner';
@@ -73,6 +74,7 @@ export default function RootLayout({ children }) {
                     <main className="pb-16 lg:pb-0">
                       {children}
                     </main>
+                    <SiteFooter />
                     <GlobalBottomNav />
                   </ClientProviders>
                 </ErrorBoundary>

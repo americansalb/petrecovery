@@ -12,7 +12,7 @@
  * instead.
  *
  * The only permitted variations, both deliberate:
- *   1. The session slot on the right (guests get Sign in/Join, members
+ *   1. The session slot on the right (guests get Sign in/Sign up, members
  *      get the bell and their menu). A fixed-size placeholder holds it
  *      while the session resolves so the bar never reflows.
  *   2. Whole-bar removal inside immersive takeovers listed in
@@ -305,7 +305,7 @@ export default function Navigation() {
                   </div>
                 </>
               ) : (
-                /* Guest: Sign in + Join */
+                /* Guest: Sign in + Sign up */
                 <div className="hidden lg:flex items-center gap-2">
                   <Link href="/login">
                     <Button variant="ghost" size="sm" className="text-white hover:bg-midnight-800 whitespace-nowrap">
@@ -313,7 +313,7 @@ export default function Navigation() {
                     </Button>
                   </Link>
                   <Link href="/register">
-                    <Button size="sm" className="whitespace-nowrap">Join</Button>
+                    <Button size="sm" className="whitespace-nowrap">Sign up</Button>
                   </Link>
                 </div>
               )}
@@ -497,7 +497,7 @@ export default function Navigation() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-midnight-300 text-midnight-700 rounded-xl font-medium hover:bg-midnight-100 transition"
               >
                 <LogIn className="w-4 h-4" />
-                Login
+                Sign in
               </Link>
               <Link
                 href="/register"
@@ -505,7 +505,7 @@ export default function Navigation() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-flash-400 text-midnight-900 rounded-xl font-bold hover:bg-flash-500 transition"
               >
                 <UserPlus className="w-4 h-4" />
-                Sign Up
+                Sign up
               </Link>
             </div>
           )}

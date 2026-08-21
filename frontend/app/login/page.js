@@ -163,7 +163,7 @@ export default function LoginPage() {
               leftIcon={LogIn}
               size="lg"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
@@ -172,7 +172,7 @@ export default function LoginPage() {
               Don't have an account?
             </p>
             <Link href="/register" className="text-midnight-900 font-semibold hover:text-flash-600 transition">
-              Create Account
+              Sign up
             </Link>
           </div>
         </Card>
