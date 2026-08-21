@@ -8,9 +8,19 @@
  */
 
 import { useEffect } from 'react';
+import { captureException } from '@/app/lib/errorTracking';
 
 export default function Error({ error, reset }) {
   useEffect(() => {
+    // Console alone meant nobody ever heard about this. captureException also
+    // writes an EventLog failure row (visible on /admin/health) and posts to
+    // ERROR_WEBHOOK_URL when one is configured.
+    captureException(error, {
+      eventType: 'app.route_error',
+      resourceType: 'app',
+      tags: { boundary: 'route', digest: error?.digest || null },
+    });
+
     // Log error to console
     console.error('========================================');
     console.error('[ERROR-PAGE] Runtime error occurred');

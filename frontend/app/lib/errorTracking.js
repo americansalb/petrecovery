@@ -1,8 +1,25 @@
 /**
  * Error Tracking Service
- * Provides error capture and reporting functionality.
  *
- * In production, this integrates with Sentry. In development, errors are logged to console.
+ * This file used to be a stub: every delivery path was a commented-out Sentry
+ * call, @sentry/* was never a dependency, initErrorTracking() was never called,
+ * and exactly one file imported the module. A server-side exception in
+ * production reached stdout and nowhere else - which is how two blocking bugs
+ * (a failing report intake and a dead Alerts feature) could have run for weeks
+ * unnoticed.
+ *
+ * It now delivers, without picking a vendor:
+ *
+ *   1. EventLog, via logEvent() - the pipeline this codebase already has.
+ *      /api/admin/health/errors reads failure events out of it and the admin
+ *      health dashboard renders them. Server side only; Prisma is not available
+ *      in the browser.
+ *   2. ERROR_WEBHOOK_URL, if set - a plain JSON POST, so Sentry's ingest, a
+ *      Slack hook or anything else works without a code change. This is the
+ *      only path that PUSHES; EventLog has to be looked at.
+ *
+ * Set ERROR_WEBHOOK_URL in production. Without it nothing pages anybody, and
+ * assertProductionErrorSink() below says so at boot.
  *
  * Usage:
  * import { captureException, captureMessage, setUser } from '@/app/lib/errorTracking';
@@ -69,27 +86,74 @@ export function captureException(error, context = {}) {
     environment: config.environment,
   };
 
-  if (config.enabled) {
-    // In production with Sentry:
-    // Sentry.captureException(error, {
-    //   tags: context.tags,
-    //   extra: context.extra,
-    // });
+  // Always greppable on stdout, in every environment.
+  console.error('[ErrorTracking] Exception:', error?.message, context?.extra || '');
+  addToBuffer(errorData);
 
-    // For now, we still log in production to ensure visibility
-    console.error('[ErrorTracking] Exception captured:', errorData);
-  } else {
-    // Development mode - log to console and buffer
-    console.error('[ErrorTracking] Exception:', error.message);
-    if (context.extra) {
-      console.error('[ErrorTracking] Context:', context.extra);
-    }
-
-    // Add to buffer for debugging
-    addToBuffer(errorData);
-  }
+  // Fire-and-forget: reporting an error must never throw a second one, and must
+  // never delay the response the user is waiting for.
+  deliver(errorData, context).catch(() => {});
 
   return errorData;
+}
+
+/**
+ * Send an error to whatever destinations are configured. Never throws.
+ */
+async function deliver(errorData, context = {}) {
+  const tasks = [];
+
+  // EventLog is server-only (Prisma). Imported lazily so this module stays
+  // usable from client components.
+  if (!isBrowser) {
+    tasks.push(
+      import('@/lib/logging')
+        .then(({ logEvent }) => logEvent({
+          event_type: context.eventType || 'app.exception',
+          resource_type: context.resourceType || 'app',
+          resource_id: context.resourceId || null,
+          action: 'read',
+          result: 'failure',
+          error_code: errorData.error.name || 'UNHANDLED',
+          // Message only - a stack can carry file paths and query fragments.
+          error_message: String(errorData.error.message || '').slice(0, 500),
+          metadata: {
+            environment: errorData.environment,
+            ...(context.tags || {}),
+          },
+        }))
+        .catch(() => {})
+    );
+  }
+
+  const webhook = process.env.ERROR_WEBHOOK_URL;
+  if (webhook) {
+    tasks.push(
+      fetch(webhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(errorData),
+      }).catch(() => {})
+    );
+  }
+
+  await Promise.allSettled(tasks);
+}
+
+/**
+ * Call once at boot. Returns true when production has a destination that
+ * actually pushes; logs loudly when it does not.
+ */
+export function assertProductionErrorSink() {
+  if (process.env.NODE_ENV !== 'production') return true;
+  if (process.env.ERROR_WEBHOOK_URL) return true;
+
+  console.error(
+    '[ErrorTracking] No ERROR_WEBHOOK_URL set. Exceptions will be written to ' +
+    'EventLog and stdout only, so nothing will alert anyone - somebody has to ' +
+    'go and look at /admin/health. Set ERROR_WEBHOOK_URL before launch.'
+  );
+  return false;
 }
 
 /**

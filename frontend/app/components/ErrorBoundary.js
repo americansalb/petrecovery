@@ -8,6 +8,7 @@
  */
 
 import React from 'react';
+import { captureException } from '@/app/lib/errorTracking';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -19,13 +20,33 @@ class ErrorBoundary extends React.Component {
     };
   }
 
+  // notFound() and redirect() are implemented as thrown errors carrying a
+  // NEXT_NOT_FOUND / NEXT_REDIRECT digest. A boundary that catches them turns a
+  // deliberate redirect into an error screen. Server-side redirects were
+  // measured working here, so this is defence against the client-navigation
+  // case rather than a fix for an observed break - but a catch-all boundary
+  // this close to the root should never be the thing that decides.
+  static isNextControlFlow(error) {
+    const digest = String(error?.digest || '');
+    return digest === 'NEXT_NOT_FOUND' || digest.startsWith('NEXT_REDIRECT');
+  }
+
   static getDerivedStateFromError(error) {
+    if (ErrorBoundary.isNextControlFlow(error)) throw error;
     // Update state to show fallback UI
     console.error('[ERROR-BOUNDARY] Error caught:', error.message);
     return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
+    if (ErrorBoundary.isNextControlFlow(error)) throw error;
+
+    captureException(error, {
+      eventType: 'app.boundary_error',
+      resourceType: 'app',
+      tags: { boundary: 'component', componentStack: String(errorInfo?.componentStack || '').slice(0, 400) },
+    });
+
     // Log error details
     console.error('========================================');
     console.error('[ERROR-BOUNDARY] Component Error Caught');
