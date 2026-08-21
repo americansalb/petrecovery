@@ -225,22 +225,23 @@ a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
   <div class="verdict-label">Verdict</div>
   <h2>Not yet — but the gap is days, not months.</h2>
   <p>The product is further along than the repo's own docs suggest, and the best of it is genuinely good: the homepage, Mission Control, the shelter portal, the case page, the report wizard. The build passes, the test suite is green, and several routes the internal map lists as unauthenticated have quietly been hardened.</p>
-  <p>But six things would go wrong on day one in ways that are hard to walk back, and two of them are the kind that end up in a screenshot on social media. None is architectural. Every blocker below is a small, local fix.</p>
+  <p>But seven things would go wrong on day one in ways that are hard to walk back, and three of them are the kind that end up in a screenshot on social media. None is architectural. Every blocker below is a small, local fix.</p>
 </div>
 
 <div class="ledger">
-  <div><span class="n n-blocker">6</span><span class="l">Blockers<br>fix before launch</span></div>
-  <div><span class="n n-high">16</span><span class="l">High<br>first week</span></div>
+  <div><span class="n n-blocker">7</span><span class="l">Blockers<br>fix before launch</span></div>
+  <div><span class="n n-high">17</span><span class="l">High<br>first week</span></div>
   <div><span class="n n-medium">13</span><span class="l">Medium<br>backlog</span></div>
   <div><span class="n n-good">12</span><span class="l">Checked&nbsp;fine<br>or refuted</span></div>
 </div>
 
 <section>
-  <h3>The three that matter most</h3>
+  <h3>The four that matter most</h3>
   <p class="sec-note">Ranked by how much damage they do before anyone notices.</p>
   <ol class="top3">
     <li><span><b>An unauthenticated API hands out every reporter's name, phone and email</b> — in bulk, to anyone who asks. That is a scraper's list of distressed pet owners, the exact population targeted by "I have your pet, send money" scams. The team already fixed this same bug class once, on a sibling route, and wrote a regression test for it.</span></li>
     <li><span><b>The city landing pages publish randomly generated "Pets Reunited" numbers</b> that change on every refresh. These pages are public, indexed, and are where Google sends someone searching "lost dog austin".</span></li>
+    <li><span><b>An anonymous stranger can file a lost-pet report under any existing account</b> just by typing that person's email address — publishing a fabricated case in their name, with their address then exposed by the first bug.</span></li>
     <li><span><b>On a phone, the "I've Seen Max" button is not clickable</b> — the global tab bar is painted over it. That is the product's core loop failing on the device most people use.</span></li>
   </ol>
 </section>
@@ -275,7 +276,14 @@ a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
         <p>— <b>The current product deliberately does the opposite.</b> The canonical case page and its API return no phone and no email. The live contact model is a brokered relay whose own docstring states a "hard contract … NO response below MUTUAL_OPTIN status contains owner OR finder phone/email/raw contact/exact coords". This legacy endpoint still implements the policy the product abandoned.</p>
         <p>— <b>The team already fixed this exact bug class.</b> <code>__tests__/api/reports-id-pii.test.js</code> locks <code>/api/reports/[id]</code> against "a PII harvest of distressed owners" and states the rule: <em>"assert on the raw API payload, not the rendered UI — the cruelest leaks are fields the screen hides but the JSON still ships."</em> That is precisely this bug, on the route nobody re-checked. Verified side by side: the tested route is clean, this one leaks.</p>
         <p>— <b>No test covers this endpoint.</b></p>
-        <div class="fix"><b>Fix.</b> Drop <code>contact</code> from the endpoint, or gate it behind a session and the relay's opt-in state. Extend the existing regression test to cover it.</div>
+        <p class="ev">There is a second path</p>
+        <p><code>app/api/database/route.js:86-89</code> attaches the reporter's name, phone and email to <b>every</b> case for any caller with a session — and the route has no <code>take</code>, <code>skip</code> or <code>limit</code>, so it returns the whole table. Reproduced with an ordinary <em>non-admin</em> member:</p>
+<pre><code>GET /api/database -> 200, total: 8, isAuthenticated: true
+  CASE-2026-154069  | Owner   | owner2@localdev.test
+  FOUND-2026-935833 | Finder3 | finder3@localdev.test
+  CASE-2026-920351  | Owner3  | owner3@localdev.test</code></pre>
+        <p>Because registration has no working CAPTCHA (H1), "any session" is one signup away. The same dataset is exposed twice: once with no credential at all, and once behind a free account.</p>
+        <div class="fix"><b>Fix.</b> Drop <code>contact</code> from the public endpoint, or gate it behind a session and the relay's opt-in state. Paginate <code>/api/database</code> and drop the contact fields, or scope them to the case's own participants. Extend the existing regression test to cover both.</div>
       </div>
     </details>
 
@@ -352,6 +360,25 @@ Hit test at the centre of the CTA:  ctaContainsHit = false</code></pre>
         <p>A server-side exception in production goes to stdout and nowhere else. No alert, no aggregation, no ownership.</p>
         <p>This is a blocker because of what it does to the others: B2 and B3 are exactly the kind of failure that would ship, run for weeks, and be discovered only when a user complains — and B2's victims are people whose report silently failed, who have no reason to come back and tell you.</p>
         <div class="fix"><b>Fix.</b> Wire up any error tracker before launch. This is an afternoon.</div>
+      </div>
+    </details>
+
+    <details class="f" open>
+      <summary><span class="fid fid-blocker">B7</span><span class="ftitle">An anonymous stranger can file a report under any existing account</span><span class="chev">&#9656;</span></summary>
+      <div class="fbody">
+        <p><code>app/api/reports/create/route.js:96-99</code> looks up the submitted email and, if a user exists, attaches the case to them. <b>Nothing verifies that the submitter controls that address.</b> Lines 102-104 then copy that user's phone number out of their profile onto the case.</p>
+        <p class="ev">Reproduced &mdash; one unauthenticated POST using a real member's address</p>
+<pre><code>POST /api/reports/create
+  {"email":"sarah@localdev.test", "firstName":"NotSarah",
+   "petName":"ImpersonationTest", ...}              -> 200
+
+cases attached to sarah@localdev.test:  before = 1   after = 2
+
+GET /api/public/missions/CASE-2026-675159    (no cookie)
+  petName: ImpersonationTest
+  contact: {"name":"NotSarah", "email":"sarah@localdev.test"}</code></pre>
+        <p>So a stranger can publish a fabricated lost-pet report in a real person's name, on their account, with their email exposed publicly — and it appears in the victim's own alerts page. Combined with B1 their stored phone number is published too, and with H1 (no CAPTCHA, 60/min/IP) this is automatable.</p>
+        <div class="fix"><b>Fix.</b> For an anonymous submission, do not bind to an existing account. Create the case against a pending identity and require an emailed confirmation before linking it to a user — as the found-pet relay already does for contact exchange.</div>
       </div>
     </details>
 
@@ -449,7 +476,13 @@ Hit test at the centre of the CTA:  ctaContainsHit = false</code></pre>
       <p>High and not blocker because the endpoint is properly guarded (the role is re-read fresh from the database) and every statement is additive and idempotent, so it cannot drop data today. But it is a page that fires <code>$executeRawUnsafe</code> against production on navigation, duplicating what the boot command already does. One careless edit makes it destructive.</p>
     </div></details>
 
-    <details class="f"><summary><span class="fid fid-high">H16</span><span class="ftitle">The PWA is never actually installable</span><span class="chev">▸</span></summary><div class="fbody">
+    <details class="f"><summary><span class="fid fid-high">H16</span><span class="ftitle">Nobody can read the Terms or the Liability Waiver they are accepting</span><span class="chev">&#9656;</span></summary><div class="fbody">
+      <p>The consent page renders <code>{doc.content}</code> inside the "Read Full Text" disclosure. The legal-documents API returns only <code>id, slug, type, version, title, summary, publishedAt</code> — <b>there is no <code>content</code> field</b>. Expanding the Terms of Service or the Liability Waiver opens an empty box.</p>
+      <p>Users are asked to accept two binding documents they are structurally unable to read, and the waiver is the one that gates physical volunteer searching. A waiver the signer could not read is hard to enforce.</p>
+      <p><b>Related gap:</b> the patrol sign-up does have a waiver step with a checkbox, but the zero-friction join page — the link a stranger taps from a text message to join a physical search — has no waiver reference at all.</p>
+    </div></details>
+
+    <details class="f"><summary><span class="fid fid-high">H17</span><span class="ftitle">The PWA is never actually installable</span><span class="chev">▸</span></summary><div class="fbody">
       <p>The manifest exists but there is <b>no <code>&lt;link rel="manifest"&gt;</code></b> in the rendered HTML and no reference in the root layout. No theme-color meta either. Its <code>start_url</code> is <code>/dashboard</code> — a protected route — so an installed app would open on a login redirect, and its icons are on the CDN rather than same-origin.</p>
       <p>The service worker is registered only inside the push flow, so offline caching and the offline page never activate for a normal visitor.</p>
     </div></details>
@@ -504,8 +537,8 @@ Hit test at the centre of the CTA:  ctaContainsHit = false</code></pre>
     <table>
       <thead><tr><th>When</th><th>Work</th></tr></thead>
       <tbody>
-        <tr><td class="mid">Before<br>launch</td><td>B1 — delete <code>contact</code> from the public endpoint; extend the regression test to it.<br>B4 — delete or query the city-page stats; validate or <code>noindex</code> the slugs.<br>B5 — z-index and bottom inset on the mobile case CTA.<br>B2 — move <code>bcrypt.hash</code> out of the transaction.<br>B3 — fix the status value and the response shape; add a test.<br>B6 — wire up an error tracker.</td></tr>
-        <tr><td class="mid">First<br>week</td><td>H1 (CAPTCHA, before the spam arrives), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13.</td></tr>
+        <tr><td class="mid">Before<br>launch</td><td>B1 — drop <code>contact</code> from the public endpoint; paginate and de-PII <code>/api/database</code>; extend the regression test to both.<br>B7 — stop binding anonymous reports to existing accounts by email alone.<br>B4 — delete or query the city-page stats; validate or <code>noindex</code> the slugs.<br>B5 — z-index and bottom inset on the mobile case CTA.<br>B2 — move <code>bcrypt.hash</code> out of the transaction.<br>B3 — fix the status value and the response shape; add a test.<br>B6 — wire up an error tracker.</td></tr>
+        <tr><td class="mid">First<br>week</td><td>H1 (CAPTCHA, before the spam arrives — it also gates B7 and the second half of B1), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13, H16.</td></tr>
       </tbody>
     </table>
   </div>

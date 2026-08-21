@@ -11,11 +11,11 @@
 
 **Not yet.** The product is closer than the repo's own docs suggest, and the
 best parts of it — the homepage, Mission Control, the shelter portal, the case
-page, the report wizard — are genuinely good. But six things would go wrong on
-day one in ways that are hard to walk back, and two of them are the kind that
+page, the report wizard — are genuinely good. But seven things would go wrong on
+day one in ways that are hard to walk back, and three of them are the kind that
 end up in a screenshot on social media.
 
-The three that matter most:
+The four that matter most:
 
 1. **An unauthenticated API hands out every lost-pet reporter's name, phone
    number and email**, in bulk, to anyone who asks. This is a scraper's list of
@@ -25,17 +25,20 @@ The three that matter most:
 2. **The city landing pages publish randomly generated "Pets Reunited" numbers**
    that change on every refresh. These are public, indexed, and are where Google
    sends someone searching "lost dog austin".
-3. **On a phone, the "I've Seen Max" button on a case page is not clickable** —
+3. **An anonymous stranger can file a lost-pet report under any existing
+   account** just by typing that person's email address — publishing a
+   fabricated case in their name, with their address exposed via (1).
+4. **On a phone, the "I've Seen Max" button on a case page is not clickable** —
    the global tab bar is painted over it. That is the product's core loop
    failing on the device most people use.
 
-None of these is a deep architectural problem. All six blockers are small,
+None of these is a deep architectural problem. All seven blockers are small,
 local fixes. The estimate below is days, not months.
 
 | | count |
 |---|---|
-| Blockers (fix before launch) | 6 |
-| High (fix in the first week) | 16 |
+| Blockers (fix before launch) | 7 |
+| High (fix in the first week) | 17 |
 | Medium | 13 |
 | Verified-and-fine / claims refuted | 12 |
 
@@ -117,8 +120,27 @@ Three things make this a blocker rather than a design decision:
 The same response also returns unfuzzed coordinates (`30.2729, -97.7444`) — and
 there is no location-fuzzing helper anywhere in the codebase.
 
-**Fix.** Drop `contact` from this endpoint, or gate it behind a session and the
-relay's opt-in state. Extend the SEC-3 regression test to cover it.
+**There is a second path.** `app/api/database/route.js:86-89` attaches
+`reporterName`, `reporterPhone` and `reporterEmail` to **every** case for any
+caller with a session — and the route has no `take`, `skip` or `limit`, so it
+returns the whole table. Reproduced with an ordinary non-admin member
+(`sarah@localdev.test`):
+
+```
+GET /api/database  →  200, total: 8, isAuthenticated: true
+  CASE-2026-154069  | Owner    | owner2@localdev.test
+  FOUND-2026-935833 | Finder3  | finder3@localdev.test
+  CASE-2026-920351  | Owner3   | owner3@localdev.test
+```
+
+Because registration has no working CAPTCHA (H1), "any session" is one signup
+away. So the same dataset is exposed twice: once with no credential at all, and
+once behind a free account.
+
+**Fix.** Drop `contact` from the public endpoint, or gate it behind a session
+and the relay's opt-in state. Paginate `/api/database` and drop the contact
+fields from it, or scope them to the case's own participants. Extend the SEC-3
+regression test to cover both routes.
 
 ### B2 — The lost-pet report intake runs bcrypt inside a 5-second transaction, and 500s
 
@@ -247,6 +269,37 @@ a user complains — and B2's victims are people whose report silently failed, w
 have no reason to come back and tell you.
 
 **Fix.** Wire up any error tracker before launch. This is an afternoon.
+
+### B7 — An anonymous stranger can file a report under any existing account
+
+`app/api/reports/create/route.js:96-99` looks up the submitted email with
+`tx.user.findUnique({ where: { email } })` and, if a user exists, attaches the
+case to them. Nothing verifies that the submitter controls that address. Lines
+`:102-104` then copy that user's phone number out of their profile onto the
+case.
+
+Reproduced with a single unauthenticated POST using a real member's address:
+
+```
+POST /api/reports/create  {"email":"sarah@localdev.test",
+                           "firstName":"NotSarah",
+                           "petName":"ImpersonationTest", …}    → 200
+
+cases attached to sarah@localdev.test:  before = 1   after = 2
+
+GET /api/public/missions/CASE-2026-675159       (no cookie)
+  petName: ImpersonationTest
+  contact: {"name":"NotSarah", "email":"sarah@localdev.test", …}
+```
+
+So a stranger can publish a fabricated lost-pet report in a real person's name,
+on their account, with their email address exposed publicly — and it appears in
+the victim's own `/my-alerts`. Combined with B1 the victim's stored phone
+number is published too, and with H1 (no CAPTCHA, 60/min/IP) this is automatable.
+
+**Fix.** For an anonymous submission, do not bind to an existing account. Create
+the case against a pending identity and require an emailed confirmation before
+linking it to a user, as the found-pet relay already does for contact exchange.
 
 ---
 
@@ -467,7 +520,23 @@ statement is additive and idempotent (`ADD COLUMN IF NOT EXISTS`,
 fires `$executeRawUnsafe` against production on navigation, duplicating what
 `prisma db push` already does at boot. One careless edit makes it destructive.
 
-### H16 — The PWA is never actually installable
+### H16 — Nobody can read the Terms or the Liability Waiver they are accepting
+
+`app/legal/consent/page.js:473` renders `{doc.content}` inside the "Read Full
+Text" disclosure. `GET /api/legal/documents` returns only
+`id, slug, type, version, title, summary, publishedAt` — **there is no
+`content` field**. So expanding the Terms of Service or the Liability Waiver
+opens an empty box.
+
+Users are asked to accept two binding documents they are structurally unable to
+read, and the waiver is the one that gates physical volunteer searching. A
+waiver the signer could not read is hard to enforce.
+
+Related gap: `/patrol/join` does have a waiver step with a checkbox, but
+`/join/[missionId]` — the zero-friction anonymous volunteer join, the link a
+stranger taps from a text message — has no waiver reference at all.
+
+### H17 — The PWA is never actually installable
 
 - `public/manifest.json` exists but there is **no `<link rel="manifest">`** in
   the rendered HTML and no reference in `app/layout.js`. No `theme-color` meta
@@ -542,17 +611,19 @@ This is not a project in trouble. Several parts are better than they need to be.
 
 ## 6. Suggested order
 
-**Before launch (the six blockers).** Every one is a local change.
+**Before launch (the seven blockers).** Every one is a local change.
 
-1. B1 — delete `contact` from the public endpoint; extend the SEC-3 test to it.
-2. B4 — delete or query the city-page stats; `noindex` or validate the slugs.
-3. B5 — z-index and bottom inset on the mobile case CTA.
-4. B2 — move `bcrypt.hash` out of the transaction.
-5. B3 — fix the status value and the response shape; add a test.
-6. B6 — wire up an error tracker.
+1. B1 — drop `contact` from the public endpoint; paginate and de-PII
+   `/api/database`; extend the SEC-3 test to both.
+2. B7 — stop binding anonymous reports to existing accounts by email alone.
+3. B4 — delete or query the city-page stats; `noindex` or validate the slugs.
+4. B5 — z-index and bottom inset on the mobile case CTA.
+5. B2 — move `bcrypt.hash` out of the transaction.
+6. B3 — fix the status value and the response shape; add a test.
+7. B6 — wire up an error tracker.
 
-**First week.** H1 (CAPTCHA, before the spam arrives), H2, H3, H4, H6, H7,
-H8, H10, H11, H12, H13.
+**First week.** H1 (CAPTCHA, before the spam arrives — it also gates B7 and the
+second half of B1), then H2, H3, H4, H6, H7, H8, H10, H11, H12, H13, H16.
 
 **Two questions only the founder can answer.** Both are on public pages, and
 both are the kind of claim that is expensive to get wrong:
