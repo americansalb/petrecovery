@@ -76,9 +76,11 @@ export async function GET(request, { params }) {
       data: updateData
     });
 
-    // Redirect to unsubscribe confirmation page
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://petrecovery.org';
-    return NextResponse.redirect(`${baseUrl}/unsubscribe/success?type=${type || 'all'}`);
+    // Redirect to the confirmation page. Relative to the request, so this
+    // works on every environment without a base-URL env var - the old
+    // fallback pointed at petrecovery.org, the name before this one.
+    const successUrl = new URL(`/unsubscribe/success?type=${encodeURIComponent(type || 'all')}`, request.url);
+    return NextResponse.redirect(successUrl);
 
   } catch (error) {
     console.error('Error processing unsubscribe:', error);
@@ -97,8 +99,27 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { token } = await params;
-    const body = await request.json();
-    const { reason, types } = body;
+
+    // Two shapes arrive here.
+    //
+    // One is our own form posting JSON. The other is a mailbox provider
+    // acting on the List-Unsubscribe-Post header, which sends
+    // `List-Unsubscribe=One-Click` as form data - RFC 8058. Calling
+    // request.json() on that throws, which would have made Gmail's and
+    // Outlook's own unsubscribe button return a 500.
+    let reason = null;
+    let types = null;
+    const contentType = request.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const body = await request.json().catch(() => ({}));
+      reason = body.reason ?? null;
+      types = body.types ?? null;
+    } else {
+      // One-click: unsubscribe from everything non-essential, no reason.
+      await request.text().catch(() => '');
+      reason = 'one-click';
+    }
 
     if (!token) {
       return NextResponse.json(

@@ -65,16 +65,113 @@ function getSmtp() {
  *   Buffer or a base64 string. Existing callers pass no attachments and are
  *   unaffected.
  */
-export async function sendEmail({ to, subject, html, attachments }) {
+
+/**
+ * The address the app is reachable at, for links inside emails.
+ */
+function siteOrigin() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXTAUTH_URL ||
+    'https://www.reunitepets.org'
+  ).replace(/\/$/, '');
+}
+
+/**
+ * Look up the recipient's unsubscribe token, creating their preference row
+ * if they have not got one yet.
+ *
+ * Returns null for an address with no account (a found-pet finder, say),
+ * in which case the email goes out without an unsubscribe link because
+ * there is no subscription to cancel.
+ */
+export async function unsubscribeTokenFor(email) {
+  if (!email) return null;
+  try {
+    const { default: prisma } = await import('@/app/lib/prisma');
+    const user = await prisma.user.findUnique({
+      where: { email: String(email).toLowerCase().trim() },
+      // The relation is named emailPreferences but is a single optional row.
+      select: { id: true, emailPreferences: { select: { unsubscribeToken: true } } },
+    });
+    if (!user) return null;
+    if (user.emailPreferences?.unsubscribeToken) return user.emailPreferences.unsubscribeToken;
+
+    const created = await prisma.emailPreference.create({
+      data: { userId: user.id },
+      select: { unsubscribeToken: true },
+    });
+    return created.unsubscribeToken;
+  } catch (err) {
+    // Never let this stop a sighting alert going out.
+    console.warn('Could not resolve unsubscribe token:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Footer appended to any email sent with an unsubscribe token.
+ *
+ * Required on bulk mail under CAN-SPAM, and expected by every mailbox
+ * provider: Gmail and Outlook both weigh a missing unsubscribe path when
+ * deciding whether a sender belongs in the inbox or in spam. The
+ * machinery for this - an EmailPreference row per person, a token, a
+ * working /api/unsubscribe/:token - already existed. Nothing linked to it.
+ */
+function unsubscribeFooter(token) {
+  const url = `${siteOrigin()}/api/unsubscribe/${encodeURIComponent(token)}`;
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding:16px 16px 28px; font-family:Arial,Helvetica,sans-serif; font-size:12px; line-height:18px; color:#64748b;">
+          You are getting this because you have a ReunitePets account.<br />
+          <a href="${url}" style="color:#64748b; text-decoration:underline;">Unsubscribe from these emails</a>
+          &nbsp;&middot;&nbsp;
+          <a href="${siteOrigin()}/settings" style="color:#64748b; text-decoration:underline;">Manage what you get</a>
+        </td>
+      </tr>
+    </table>`;
+}
+
+
+/**
+ * Put the footer inside the branded layout rather than after </html>,
+ * which several clients drop.
+ */
+function injectUnsubscribeFooter(html, token) {
+  const footer = unsubscribeFooter(token);
+  if (typeof html !== 'string') return html;
+  if (html.includes('</body>')) {
+    return html.replace('</body>', `${footer}\n  </body>`);
+  }
+  return `${html}${footer}`;
+}
+
+export async function sendEmail({ to, subject, html, attachments, unsubscribeToken }) {
   const from = process.env.EMAIL_FROM
     || (process.env.EMAIL_USER ? `PetRecovery <${process.env.EMAIL_USER}>` : FROM_FALLBACK);
 
   const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 
+  // An unsubscribe path, in both places that matter: visible in the
+  // footer for a person, and in the headers for the mailbox provider's
+  // own one-click button.
+  let body = html;
+  let headers;
+  if (unsubscribeToken) {
+    const url = `${siteOrigin()}/api/unsubscribe/${encodeURIComponent(unsubscribeToken)}`;
+    body = injectUnsubscribeFooter(html, unsubscribeToken);
+    headers = {
+      'List-Unsubscribe': `<${url}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    };
+  }
+
   try {
     const resend = getResend();
     if (resend) {
-      const payload = { from, to, subject, html };
+      const payload = { from, to, subject, html: body };
+      if (headers) payload.headers = headers;
       if (hasAttachments) {
         // Resend expects { filename, content } where content is a Buffer or
         // base64 string; it ignores contentType.
@@ -94,7 +191,8 @@ export async function sendEmail({ to, subject, html, attachments }) {
 
     const smtp = getSmtp();
     if (smtp) {
-      const mail = { from, to, subject, html };
+      const mail = { from, to, subject, html: body };
+      if (headers) mail.headers = headers;
       if (hasAttachments) {
         mail.attachments = attachments.map((a) => ({
           filename: a.filename,

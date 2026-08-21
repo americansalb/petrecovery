@@ -98,3 +98,72 @@ describe('sendEmail provider chain', () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe('unsubscribe path', () => {
+  /**
+   * Not one outbound email carried an unsubscribe link, though the
+   * machinery to honour one - an EmailPreference row per person, a token
+   * on it, a working /api/unsubscribe/:token - had been there all along.
+   *
+   * That matters twice over. CAN-SPAM requires an opt-out on bulk mail,
+   * and Gmail and Outlook both weigh a missing unsubscribe path when
+   * deciding whether a sender reaches the inbox at all. For a service
+   * whose entire job is getting a sighting alert in front of an owner,
+   * landing in spam is the whole product failing quietly.
+   */
+
+  const TOKEN = 'unsub_tok_123';
+
+  test('adds the footer and the List-Unsubscribe headers when given a token', async () => {
+    const { sendEmail } = freshEmailLib({ RESEND_API_KEY: 're_test_123', NEXT_PUBLIC_SITE_URL: 'https://www.reunitepets.org' });
+    sendViaResend.mockResolvedValue({ data: { id: 'email_1' }, error: null });
+
+    await sendEmail({ ...MSG, html: '<html><body><p>hi</p></body></html>', unsubscribeToken: TOKEN });
+
+    const payload = sendViaResend.mock.calls[0][0];
+    expect(payload.html).toContain(`/api/unsubscribe/${TOKEN}`);
+    expect(payload.html).toContain('Unsubscribe from these emails');
+
+    // Inside the document. Several clients drop anything after </body>.
+    expect(payload.html.indexOf('Unsubscribe from these emails')).toBeLessThan(
+      payload.html.indexOf('</body>')
+    );
+
+    // RFC 8058: the header pair that puts a one-click button in Gmail.
+    expect(payload.headers['List-Unsubscribe']).toBe(
+      `<https://www.reunitepets.org/api/unsubscribe/${TOKEN}>`
+    );
+    expect(payload.headers['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
+  });
+
+  test('sends the same headers over SMTP', async () => {
+    const { sendEmail } = freshEmailLib({ EMAIL_USER: 'u@example.com', EMAIL_PASSWORD: 'pw' });
+    sendViaSmtp.mockResolvedValue({});
+
+    await sendEmail({ ...MSG, unsubscribeToken: TOKEN });
+
+    const mail = sendViaSmtp.mock.calls[0][0];
+    expect(mail.headers['List-Unsubscribe']).toContain(`/api/unsubscribe/${TOKEN}`);
+    expect(mail.html).toContain('Unsubscribe from these emails');
+  });
+
+  test('leaves an email without a token exactly as it was', async () => {
+    const { sendEmail } = freshEmailLib({ RESEND_API_KEY: 're_test_123' });
+    sendViaResend.mockResolvedValue({ data: { id: 'email_1' }, error: null });
+
+    await sendEmail(MSG);
+
+    const payload = sendViaResend.mock.calls[0][0];
+    expect(payload.html).toBe(MSG.html);
+    expect(payload.headers).toBeUndefined();
+  });
+
+  test('appends the footer when the html has no body tag', async () => {
+    const { sendEmail } = freshEmailLib({ RESEND_API_KEY: 're_test_123' });
+    sendViaResend.mockResolvedValue({ data: { id: 'email_1' }, error: null });
+
+    await sendEmail({ ...MSG, html: '<p>bare fragment</p>', unsubscribeToken: TOKEN });
+
+    expect(sendViaResend.mock.calls[0][0].html).toContain('Unsubscribe from these emails');
+  });
+});

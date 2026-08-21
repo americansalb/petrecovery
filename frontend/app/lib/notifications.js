@@ -8,7 +8,7 @@
  * - Handle errors gracefully
  */
 
-import { sendEmail } from '@/app/lib/email';
+import { sendEmail, unsubscribeTokenFor } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
 import prisma from '@/app/lib/prisma';
 
@@ -99,6 +99,7 @@ export async function sendCaseReportConfirmation(missionData, options = {}) {
     // Send email
     const result = await sendEmail({
       to: missionData.contactEmail,
+      unsubscribeToken: await unsubscribeTokenFor(missionData.contactEmail),
       subject: `✅ We received your lost pet report: ${missionData.petName || missionData.missionNumber}`,
       html
     });
@@ -417,6 +418,7 @@ export async function sendCaseStatusUpdate(missionData, previousStatus, newStatu
     // Send email
     const result = await sendEmail({
       to: missionData.contactEmail,
+      unsubscribeToken: await unsubscribeTokenFor(missionData.contactEmail),
       subject: `📢 Update on your lost pet case ${missionData.missionNumber}: ${content.title}`,
       html
     });
@@ -586,6 +588,7 @@ export async function sendFoundPetNotification(data) {
 
     const result = await sendEmail({
       to,
+      unsubscribeToken: await unsubscribeTokenFor(to),
       subject: `${matchQuality} Match Found for ${lostPetName}! (${matchScore}% confidence)`,
       html
     });
@@ -751,6 +754,7 @@ export async function sendSightingNotification(data) {
 
     const result = await sendEmail({
       to: ownerEmail,
+      unsubscribeToken: await unsubscribeTokenFor(ownerEmail),
       subject: `New Sighting of ${petName || 'your pet'}! Check immediately`,
       html
     });
@@ -873,6 +877,7 @@ export async function sendCaseAssignmentNotification(data) {
     try {
       const result = await sendEmail({
         to: email,
+        unsubscribeToken: await unsubscribeTokenFor(email),
         subject: `${squadName}: New case assigned - ${petName || petSpecies} in ${location}`,
         html
       });
@@ -973,6 +978,7 @@ export async function sendCommunityRequestNotification(data) {
   try {
     const result = await sendEmail({
       to: email,
+      unsubscribeToken: await unsubscribeTokenFor(email),
       subject: `Community Request ${statusText}: ${communityName}`,
       html
     });
