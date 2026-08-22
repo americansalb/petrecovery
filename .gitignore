@@ -40,3 +40,8 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Seeded design canvases are ~2 MiB of editor payload rebuilt from the
+# .dc.html sources beside them; keep the sources, not the build output.
+design-mc/*.html
+!design-mc/*.dc.html
