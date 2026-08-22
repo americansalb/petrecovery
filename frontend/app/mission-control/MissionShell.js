@@ -33,11 +33,13 @@ import useSearchCoverage from './hooks/useSearchCoverage';
 import usePOIs from './hooks/usePOIs';
 import useCaseOutcome from './hooks/useCaseOutcome';
 import useMissionState, { ROLES, timeAgoShort } from './hooks/useMissionState';
+import useSearchGrid from './hooks/useSearchGrid';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import { calculateProbabilityZones } from '@/app/lib/searchProbability';
 
 import MissionHeader from './components/MissionHeader';
 import HotSightingBanner from './components/HotSightingBanner';
+import { CoverageStrip, CellActionSheet } from './components/GridHud';
 import MapCanvas from './components/MapCanvas';
 import { getPrimaryActionId } from './components/ActionDock';
 import { markLocalAction } from './components/HelpChecklist';
@@ -145,6 +147,50 @@ function MissionShellContent() {
   const chat = useMissionChat(activeMission?.id);
   const { pois, isLoading: poisLoading } = usePOIs(activeMission?.id);
   const outcome = useCaseOutcome(activeMission?.id);
+
+  // ----- The search board -----
+  // GridCell had a full status machine and zero readers; this hook is the
+  // reader. A sighting arriving on the stream also refreshes the sighting
+  // pins, so the board and the pins move together.
+  const gridBoard = useSearchGrid(activeMission?.id, session?.user?.id, {
+    onSighting: fetchSightings,
+  });
+  const [selectedCellId, setSelectedCellId] = useState(null);
+  const selectedCell = useMemo(
+    () => gridBoard.cells.find((c) => c.id === selectedCellId) || null,
+    [gridBoard.cells, selectedCellId]
+  );
+
+  const handleCellClick = useCallback((cell) => {
+    gridBoard.clearActionError();
+    setSelectedCellId((prev) => (prev === cell.id ? null : cell.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleClaimCell = useCallback(async (cellId) => {
+    const result = await gridBoard.claim(cellId);
+    if (result.success) {
+      setSelectedCellId(null);
+      showNotification('success', `${result.cell.label} is yours. Walk it, then mark it searched.`);
+    }
+  }, [gridBoard, showNotification]);
+
+  const handleReleaseCell = useCallback(async (cellId) => {
+    const result = await gridBoard.release(cellId);
+    if (result.success) {
+      setSelectedCellId(null);
+      showNotification('info', 'Block released. Thanks for the legwork.');
+    }
+  }, [gridBoard, showNotification]);
+
+  const handleMarkCellSearched = useCallback(async (cellId) => {
+    const result = await gridBoard.markSearched(cellId);
+    if (result.success) {
+      setSelectedCellId(null);
+      const left = Math.max(0, gridBoard.totalCells - gridBoard.searchedCells - 1);
+      showNotification('success', `${result.cell.label} searched. ${left} blocks to go.`);
+    }
+  }, [gridBoard, showNotification]);
 
   // ----- The heartbeat -----
   const ms = useMissionState({
@@ -590,7 +636,30 @@ function MissionShellContent() {
           keyOffset={isCommand ? { bottom: 24, left: 440 } : { bottom: peekHeight + 16, left: 16 }}
           controlsOffset={isCommand ? { top: 16, right: 380 } : null}
           archived={isArchived}
+          gridCells={gridBoard.cells}
+          selectedCellId={selectedCellId}
+          onCellClick={isArchived ? null : handleCellClick}
         />
+
+        {/* The board's furniture: coverage up top, the one question below */}
+        <CoverageStrip
+          searched={gridBoard.searchedCells}
+          inProgress={gridBoard.inProgressCells}
+          total={gridBoard.totalCells}
+        />
+        {!isArchived && (
+          <CellActionSheet
+            cell={selectedCell}
+            myCell={gridBoard.myCell}
+            onClaim={handleClaimCell}
+            onRelease={handleReleaseCell}
+            onMarkSearched={handleMarkCellSearched}
+            onClose={() => { setSelectedCellId(null); gridBoard.clearActionError(); }}
+            acting={gridBoard.acting}
+            actionError={gridBoard.actionError}
+            bottomOffset={isCommand ? 24 : 12}
+          />
+        )}
 
         {isCommand ? (
           <>

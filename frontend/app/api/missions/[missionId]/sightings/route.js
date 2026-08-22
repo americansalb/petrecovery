@@ -338,6 +338,29 @@ export async function POST(request, { params }) {
       }
     });
 
+    // Tell everyone with the board open, live. The SSE stream existed with
+    // zero broadcasters; a sighting is the single most important thing it
+    // can carry - it is the event that redirects a search in progress.
+    try {
+      const { broadcast } = await import('@/app/lib/sse/missionStream');
+      // Connections are keyed by caseId - the stream route registers them
+      // under its raw [missionId] param.
+      broadcast(missionData.id, {
+        type: 'SIGHTING_REPORTED',
+        sighting: {
+          id: sighting.id,
+          latitude: sighting.latitude,
+          longitude: sighting.longitude,
+          address: sighting.address,
+          description: sighting.description,
+          sightedAt: sighting.sightedAt,
+          reportedByName: sighting.reportedBy?.firstName || null,
+        },
+      });
+    } catch (err) {
+      console.warn('Sighting broadcast failed:', err.message);
+    }
+
     return NextResponse.json({
       sighting,
       message: 'Sighting reported successfully. Thank you for helping!'

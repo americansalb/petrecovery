@@ -23,6 +23,11 @@ const path = require('path');
 const ROOTS = [
   path.join(__dirname, '..', 'app'),
   path.join(__dirname, '..', 'lib'),
+  // Found the hard way: the waiver modal in the ROOT components tree
+  // still asked people to release "PetRecovery.org" from liability -
+  // the wrong party, on the one dialog everyone must click through -
+  // because this list originally stopped at app/ and lib/.
+  path.join(__dirname, '..', 'components'),
 ];
 
 // Deliberate survivors. Each is either invisible to people or would

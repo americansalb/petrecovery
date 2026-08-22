@@ -10,7 +10,7 @@
  * SARMapView) and the MapKey.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
 import MapKey from './MapKey';
@@ -58,11 +58,25 @@ export default function MapCanvas({
   keyOffset = { bottom: 24, left: 16 },
   controlsOffset = null,
   archived = false,
+  gridCells = [],
+  selectedCellId = null,
+  onCellClick = null,
 }) {
   // A finished mission's map rests: the flashlight beam starts off
   // (still available from the Map key for anyone curious)
   const [showZones, setShowZones] = useState(!archived);
   const [showPOIs, setShowPOIs] = useState(defaultShowPOIs && !archived);
+
+  // Once the search board arrives, the beam yields to it - the grid's
+  // priority already encodes "look here", and the two ambers stacked read
+  // as one yellow flood. Auto-hidden exactly once, so the Map key toggle
+  // still means what it says afterwards.
+  const zonesYieldedRef = useRef(false);
+  useEffect(() => {
+    if (zonesYieldedRef.current || !gridCells || gridCells.length === 0) return;
+    zonesYieldedRef.current = true;
+    setShowZones(false);
+  }, [gridCells]);
 
   return (
     <div className="absolute inset-0">
@@ -86,6 +100,9 @@ export default function MapCanvas({
         probabilityZones={probabilityZones}
         focusPoint={focusPoint}
         controlsOffset={controlsOffset}
+        gridCells={gridCells}
+        selectedCellId={selectedCellId}
+        onCellClick={onCellClick}
       />
 
       {/* The one piece of floating furniture; hidden while a leg records */}

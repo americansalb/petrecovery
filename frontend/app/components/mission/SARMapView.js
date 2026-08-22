@@ -67,7 +67,13 @@ export default function SARMapView({
   focusPoint = null,
   // Pixel offsets so floating panels never cover the controls/legend
   controlsOffset = null,
-  legendOffset = null
+  legendOffset = null,
+  // The collaborative search board: GridCell rows from useSearchGrid.
+  // Coverage renders as cell FILLS, events stay pins on top - keeping the
+  // two apart is what stops the map becoming a colour salad.
+  gridCells = [],
+  selectedCellId = null,
+  onCellClick = null
 }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
@@ -76,6 +82,7 @@ export default function SARMapView({
   const searchPathLayersRef = useRef([]);
   const coverageLayersRef = useRef([]);
   const poiMarkersRef = useRef([]);
+  const gridLayersRef = useRef([]);
   const userMarkerRef = useRef(null);
   const [showPOIsState, setShowPOIs] = useState(false);
   const showPOIs = showPOIsProp ?? showPOIsState;
@@ -588,6 +595,82 @@ export default function SARMapView({
       if (currentGen === renderGenRef.current) cleanupLayers();
     };
   }, [lastSeen, sightings, petSpecies, hoursElapsed, showProbabilityZones, probabilityZones, zoneColors, zoneFills]);
+
+  // ----- The search board -----
+  // Block fill answers one question only: has anyone walked this? Claimed
+  // blocks carry their holder's initial; everything found rides above as
+  // the pins the other effects already draw.
+  const GRID_HOLDER_COLORS = ['#38bdf8', '#a78bfa', '#f472b6', '#fb923c', '#34d399', '#e879f9'];
+  const holderColor = (claimedById, mine) => {
+    if (mine) return '#facc15';
+    let h = 0;
+    for (let i = 0; i < (claimedById || '').length; i += 1) h = (h * 31 + claimedById.charCodeAt(i)) >>> 0;
+    return GRID_HOLDER_COLORS[h % GRID_HOLDER_COLORS.length];
+  };
+
+  useEffect(() => {
+    if (!mapInstance.current) return;
+
+    gridLayersRef.current.forEach((layer) => { try { layer.remove(); } catch (e) {} });
+    gridLayersRef.current = [];
+    if (!gridCells || gridCells.length === 0) return;
+
+    gridCells.forEach((cell) => {
+      const bounds = [[cell.southLat, cell.westLng], [cell.northLat, cell.eastLng]];
+      const selected = cell.id === selectedCellId;
+
+      let style;
+      if (cell.status === 'SEARCHED') {
+        style = { color: '#10b981', weight: 1, opacity: 0.35, fillColor: '#10b981', fillOpacity: 0.18 };
+      } else if (cell.status === 'PET_FOUND') {
+        style = { color: '#10b981', weight: 2, opacity: 0.9, fillColor: '#10b981', fillOpacity: 0.5 };
+      } else if (cell.status === 'IN_PROGRESS') {
+        style = {
+          color: '#facc15', weight: cell.mine ? 2.5 : 1.5, opacity: 0.75,
+          dashArray: '6 5', fillColor: '#facc15', fillOpacity: 0.14,
+        };
+      } else if (cell.status === 'NEEDS_REVISIT') {
+        style = { color: '#94a3b8', weight: 0.8, opacity: 0.3, fillColor: '#64748b', fillOpacity: 0.2 };
+      } else if (cell.status === 'CLOSED') {
+        style = { color: '#020617', weight: 0.5, opacity: 0.2, fillColor: '#020617', fillOpacity: 0.4 };
+      } else {
+        // UNSEARCHED: near-invisible so the board reads as work-done, not
+        // work-left. High-priority cells whisper amber: start here.
+        const hot = (cell.priority || 0) >= 8;
+        style = {
+          color: hot ? '#facc15' : '#ffffff', weight: hot ? 1 : 0.6,
+          opacity: hot ? 0.45 : 0.16, fillColor: hot ? '#facc15' : '#ffffff',
+          fillOpacity: hot ? 0.05 : 0.02,
+        };
+      }
+      if (selected) {
+        style = { ...style, color: '#facc15', weight: 3, opacity: 1, fillColor: '#facc15', fillOpacity: 0.22 };
+      }
+
+      const rect = L.rectangle(bounds, { ...style, interactive: !isEditMode && !!onCellClick });
+      if (onCellClick && !isEditMode) rect.on('click', () => onCellClick(cell));
+      rect.addTo(mapInstance.current);
+      gridLayersRef.current.push(rect);
+
+      if (cell.status === 'IN_PROGRESS' && cell.claimedById) {
+        const color = holderColor(cell.claimedById, cell.mine);
+        const initial = cell.mine ? 'You' : (cell.claimedByName || 'H').charAt(0).toUpperCase();
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="display:flex;align-items:center;justify-content:center;` +
+            `min-width:26px;height:26px;padding:0 ${cell.mine ? '7px' : '0'};border-radius:999px;` +
+            `background:#0b1622;border:2px solid ${color};color:${color};` +
+            `font:700 ${cell.mine ? '10px' : '12px'}/1 Inter,system-ui,sans-serif;` +
+            `box-shadow:0 2px 8px rgba(0,0,0,.5);">${initial}</div>`,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+        });
+        const marker = L.marker([cell.centerLatitude, cell.centerLongitude], { icon, interactive: false, zIndexOffset: 400 });
+        marker.addTo(mapInstance.current);
+        gridLayersRef.current.push(marker);
+      }
+    });
+  }, [gridCells, selectedCellId, onCellClick, isEditMode]);
 
   // Render historical coverage trails
   useEffect(() => {

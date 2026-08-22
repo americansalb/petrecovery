@@ -4,8 +4,23 @@
  * Manages connections and broadcasting for mission real-time updates.
  */
 
-// Store active connections by mission ID
-export const connections = new Map();
+// Store active connections by mission ID.
+//
+// On globalThis, not module scope - the same reason prisma.ts does it.
+// Next bundles each route separately, so the stream route (which fills
+// this map) and the mutation routes (which broadcast into it) can get
+// DIFFERENT instances of this module. With a plain module-level Map,
+// every broadcast landed in an empty map and no event ever reached a
+// listener: observed live, with two browsers open. globalThis is shared
+// across bundles in the one server process.
+//
+// Still per-process: on more than one container this needs Redis
+// pub/sub. One box, one truth; two boxes, two half-truths.
+const globalForStream = globalThis;
+if (!globalForStream.__missionStreamConnections) {
+  globalForStream.__missionStreamConnections = new Map();
+}
+export const connections = globalForStream.__missionStreamConnections;
 
 // Broadcast to all connections for a mission
 export function broadcast(missionId, event) {
