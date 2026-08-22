@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    a { color: #facc15; text-decoration: none; }
+    a:hover { color: #fde047; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 390px; height: 844px; background: #060b13; overflow: hidden; color: #e2e8f0;">
+
+  <svg width="390" height="844" viewBox="0 0 390 844" style="position: absolute; inset: 0;">
+    <rect width="390" height="844" fill="#080e17"></rect>
+    <path d="M0 470 C 90 440, 170 520, 260 500 C 330 484, 360 520, 390 508 L 390 620 L 0 620 Z" fill="#0c1a17"></path>
+    <path d="M0 486 C 90 456, 170 536, 260 516 C 330 500, 360 536, 390 524" stroke="#12304a" stroke-width="7" fill="none" opacity=".85"></path>
+    <g stroke="#16202f" stroke-width="8" stroke-linecap="round">
+      <path d="M110 0 L110 844"></path><path d="M290 0 L290 844"></path>
+      <path d="M0 190 L390 190"></path><path d="M0 400 L390 400"></path><path d="M0 640 L390 640"></path>
+    </g>
+    <g stroke="#131c29" stroke-width="4" stroke-linecap="round">
+      <path d="M200 0 L200 844"></path><path d="M0 295 L390 295"></path>
+    </g>
+
+    <!-- the block you have claimed: yours, live -->
+    <rect x="110" y="400" width="180" height="240" fill="#facc15" fill-opacity=".16" stroke="#facc15" stroke-width="2.5" stroke-dasharray="9 6"></rect>
+
+    <!-- neighbours' work -->
+    <g fill="#10b981" fill-opacity=".13" stroke="rgba(255,255,255,.07)">
+      <rect x="110" y="190" width="180" height="210"></rect>
+      <rect x="0" y="400" width="110" height="240"></rect>
+    </g>
+    <rect x="290" y="400" width="100" height="240" fill="#38bdf8" fill-opacity=".13" stroke="#38bdf8" stroke-opacity=".45" stroke-width="1.5" stroke-dasharray="7 5"></rect>
+
+    <!-- your walking trail through the block -->
+    <path d="M200 620 L200 560 L150 560 L150 500 L245 500 L245 452" stroke="#facc15" stroke-width="3" stroke-opacity=".55" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 7"></path>
+
+    <!-- you -->
+    <g transform="translate(245,452)">
+      <circle r="34" fill="#facc15" fill-opacity=".09"></circle>
+      <circle r="20" fill="#facc15" fill-opacity=".14"></circle>
+      <circle r="9" fill="#facc15" stroke="#080e17" stroke-width="3"></circle>
+    </g>
+
+    <!-- the sighting, up ahead -->
+    <g transform="translate(300,300)">
+      <circle r="24" fill="#facc15" fill-opacity=".11"></circle>
+      <circle r="16" fill="#111827" stroke="#facc15" stroke-width="2"></circle>
+      <path d="M-7 0 C -4.5 -4.5, 4.5 -4.5, 7 0 C 4.5 4.5, -4.5 4.5, -7 0 Z" fill="none" stroke="#facc15" stroke-width="1.6"></path>
+      <circle r="2.2" fill="#facc15"></circle>
+    </g>
+  </svg>
+
+  <!-- slim top bar: no fake status bar, the real one sits above this -->
+  <div style="position: absolute; top: 0; left: 0; right: 0; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: rgba(2,6,23,.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,.07);">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+    <span style="flex-grow: 1; font-size: 14.5px; font-weight: 700; color: #f1f5f9;">Finding Max</span>
+    <div style="display: flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 999px; background: rgba(250,204,21,.13); border: 1px solid rgba(250,204,21,.3);">
+      <span style="width: 5px; height: 5px; border-radius: 999px; background: #facc15;"></span>
+      <span style="font-size: 11px; font-weight: 700; color: #facc15;">C4</span>
+    </div>
+  </div>
+
+  <!-- the sighting worth walking toward -->
+  <div style="position: absolute; top: 64px; left: 12px; right: 12px; display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 13px; background: rgba(2,6,23,.9); backdrop-filter: blur(14px); border: 1px solid rgba(250,204,21,.28);">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 21s-7-5.3-7-11a7 7 0 1114 0c0 5.7-7 11-7 11z"></path><circle cx="12" cy="10" r="2.6"></circle></svg>
+    <span style="flex-grow: 1; font-size: 13px; font-weight: 600; color: #f1f5f9;">Sighting 180m north</span>
+    <span style="font-size: 12px; color: #64748b;">4m ago</span>
+  </div>
+
+  <!-- the sheet: one job, one button -->
+  <div style="position: absolute; bottom: 0; left: 0; right: 0; border-radius: 22px 22px 0 0; background: rgba(2,6,23,.94); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,.1); box-shadow: 0 -18px 46px rgba(0,0,0,.5); padding: 10px 16px 22px;">
+    <div style="width: 38px; height: 4px; border-radius: 999px; background: rgba(255,255,255,.18); margin: 0 auto 15px;"></div>
+
+    <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 3px;">
+      <span style="font-size: 19px; font-weight: 800; color: #f8fafc; letter-spacing: -.01em;">You&rsquo;re searching C4</span>
+      <span style="font-size: 13px; font-weight: 600; color: #facc15;">18 min</span>
+    </div>
+    <div style="font-size: 13px; color: #94a3b8; margin-bottom: 15px;">Roughly two thirds walked</div>
+
+    <div style="height: 5px; border-radius: 999px; background: rgba(255,255,255,.08); margin-bottom: 17px; overflow: hidden;">
+      <div style="width: 66%; height: 100%; border-radius: 999px; background: #facc15;"></div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: center; gap: 9px; height: 54px; border-radius: 14px; background: #facc15; color: #020617; font-size: 16px; font-weight: 700; margin-bottom: 10px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+      Mark C4 searched
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 8px; height: 50px; border-radius: 13px; background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.09); font-size: 14px; font-weight: 600; color: #e2e8f0;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#facc15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        I saw Max
+      </div>
+      <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; gap: 8px; height: 50px; border-radius: 13px; background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.09); font-size: 14px; font-weight: 600; color: #e2e8f0;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.5 6.5L21 11l-6.5 2.5L12 20l-2.5-6.5L3 11l6.5-2.5z"></path></svg>
+        Found a clue
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

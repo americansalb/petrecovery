@@ -1,0 +1,5 @@
+# The seeded canvas is build output: ~2MB of bundled editor code wrapped
+# around the artboards below. It is regenerated from the .dc.html files
+# and canvas.json on every change, so committing it would add a 2MB blob
+# to the history for every design tweak. See README.md to rebuild it.
+mission-control-redesign.html

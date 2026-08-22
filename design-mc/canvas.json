@@ -1,0 +1,32 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Owner — a sighting just landed" },
+    { "file": "Claiming.dc.html", "x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Volunteer — claiming a block" },
+    { "file": "Field.dc.html", "x": 0, "y": 1020, "w": 390, "h": 844, "title": "In the field" },
+    { "file": "Language.dc.html", "x": 510, "y": 1020, "w": 940, "h": 820, "title": "The board's vocabulary" }
+  ],
+  "annotations": [
+    {
+      "id": "premise",
+      "x": 0,
+      "y": -150,
+      "w": 620,
+      "text": "The premise: the map stops being wallpaper and becomes the document.\n\nToday it sits between two panels that duplicate each other, and it draws a house and one eye. Everything collaborative — who is searching, what has been covered, what was found — is in the database already and none of it is on the map."
+    },
+    {
+      "id": "one-question",
+      "x": 1520,
+      "y": -150,
+      "w": 620,
+      "text": "One card, and it asks a different question depending on who you are.\n\nThe owner is asked to go where Max was just seen. The volunteer standing in an unsearched block is asked to claim it. Same screen, same data — the card reads the state and picks the one thing worth doing."
+    },
+    {
+      "id": "field-note",
+      "x": 0,
+      "y": 1910,
+      "w": 390,
+      "text": "This is the one that matters most. Searchers are outdoors, one-handed, in poor light. One job on screen, one button, 54px tall."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}
