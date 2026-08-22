@@ -54,9 +54,15 @@ const ALLOWED = [
   'instagram.com/petrecovery',
   "'@petrecovery'",
 
-  // The contact of record. A new mailbox that does not exist bounces
-  // real mail from people who need help.
-  'alerts@petrecovery.org',
+  // Contact-of-record mailboxes. The SENDING domain is verified as
+  // reunitepets.org, so From addresses moved there; these are addresses
+  // people write TO, and a verified sending domain says nothing about
+  // whether anyone reads mail arriving at it. They move when the founder
+  // confirms the inboxes exist, not before - a support address that
+  // bounces is worse than one on the old domain that forwards.
+  'support@petrecovery.org',
+  'data-requests@petrecovery.org',
+  'notifications@petrecovery.org',
 ];
 
 function walk(dir, out = []) {

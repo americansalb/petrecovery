@@ -51,7 +51,20 @@ export interface EmailResult {
 // =============================================================================
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'ReunitePets <alerts@petrecovery.org>';
+// Falls back to EMAIL_FROM before the hard-coded default.
+//
+// There are two email modules here - app/lib/email.js for verification,
+// resets and notifications, and this one for shelter outreach - and they
+// read different variables. EMAIL_FROM is the one documented in the
+// production template; RESEND_FROM_EMAIL appeared only in the dev one. So
+// configuring production from its own template left THIS path on the old
+// petrecovery.org default, which Resend rejects as an unverified sending
+// domain. Notifications would work and shelter outreach would silently
+// fail, which is the hardest kind of broken to notice.
+const FROM_EMAIL =
+  process.env.RESEND_FROM_EMAIL ||
+  process.env.EMAIL_FROM ||
+  'ReunitePets <alerts@reunitepets.org>';
 
 // =============================================================================
 // EMAIL TEMPLATES
