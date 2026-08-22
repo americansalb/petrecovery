@@ -614,6 +614,23 @@ export function isUsingRedis() {
  * an operator should be told when that is all there is, because a cap
  * that resets on every deploy is not a cap.
  */
+/**
+ * Can the rate-limit key be forged?
+ *
+ * getClientIP falls back to the leftmost X-Forwarded-For entry, which is
+ * fully client-controlled: an attacker sending a different value per
+ * request mints a fresh bucket every time and never hits a limit.
+ * Reproduced against a running build - 10 requests then 429 from one
+ * honest IP, and 14 straight through when each carried a forged header.
+ *
+ * RATELIMIT_TRUSTED_IP_HEADER names the header the edge/proxy injects with
+ * the real client IP, which cannot be forged past that proxy. Without it,
+ * every limit in this file is advisory.
+ */
+export function rateLimitKeyIsSpoofable() {
+  return !process.env.RATELIMIT_TRUSTED_IP_HEADER;
+}
+
 export async function describeRateLimitBackend() {
   if (process.env.REDIS_URL) {
     const redis = await getRedisClient();
