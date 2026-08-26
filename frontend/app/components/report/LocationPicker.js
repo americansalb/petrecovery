@@ -14,6 +14,7 @@
  * restored on mount and kept in sync (legacy `reportLocation` shape).
  */
 
+import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, Navigation, MapPin } from 'lucide-react';
 import { searchAutocomplete, getPlaceFromAutocomplete } from '@/app/lib/maps/appleMapKit';
@@ -125,18 +126,6 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   const searchTimeoutRef = useRef(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-
-  // Leaflet CSS once
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link');
-      link.id = 'leaflet-css';
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
-  }, []);
 
   // Surface the last confirmed location as an OFFER (legacy `reportLocation`
   // shape) - never auto-apply it. A stale pin from a previous report that a

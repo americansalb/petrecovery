@@ -13,6 +13,7 @@
  * - Display existing sightings on map
  */
 
+import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 import ImageUpload from '@/app/components/ImageUpload';

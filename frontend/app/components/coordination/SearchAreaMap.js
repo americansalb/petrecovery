@@ -13,6 +13,7 @@
  * - Calculate and display total acreage
  */
 
+import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
 
