@@ -98,8 +98,10 @@ export async function POST(request) {
       }
     });
 
-    // Count nearby active reports
-    const activeReports = await prisma.lostReport.findMany({
+    // Count nearby active reports. The model is Case (Case = Mission =
+    // lost-pet report); prisma.lostReport never existed, so this line 500ed
+    // every signup after the profile writes had already committed.
+    const activeReports = await prisma.case.findMany({
       where: {
         status: 'ACTIVE',
         reportType: 'LOST',
