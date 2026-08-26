@@ -8,6 +8,7 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { PawPrint } from 'lucide-react';
 
 export default function NotFound() {
   useEffect(() => {
@@ -38,11 +39,21 @@ export default function NotFound() {
         textAlign: 'center',
       }}>
         <div style={{
-          fontSize: '5rem',
+          display: 'flex',
+          justifyContent: 'center',
           marginBottom: '1rem',
-          lineHeight: 1,
         }}>
-          &#128062;
+          <span style={{
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            backgroundColor: '#fef9c3',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <PawPrint size={40} color="#0f172a" />
+          </span>
         </div>
 
         <h1 style={{
@@ -133,7 +144,7 @@ export default function NotFound() {
             flexWrap: 'wrap',
             fontSize: '0.9rem',
           }}>
-            <Link href="/report/new" style={{ color: '#dc2626', textDecoration: 'none' }}>
+            <Link href="/report/new" style={{ color: '#0f172a', fontWeight: 600, textDecoration: 'none' }}>
               Report Lost Pet
             </Link>
             <span style={{ color: '#d1d5db' }}>|</span>

@@ -94,7 +94,7 @@ export default function HubPage() {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 size={40} className="animate-spin text-midnight-400 mx-auto mb-4" />
           <p className="text-slate-600">Loading forum...</p>
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function HubPage() {
     {
       name: 'Community',
       icon: '💬',
-      color: 'bg-blue-600',
+      color: 'bg-midnight-700',
       slugs: ['welcome', 'success-stories', 'general', 'training'],
     },
   ];
@@ -171,7 +171,7 @@ export default function HubPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search forums..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-blue-200 focus:outline-none focus:bg-white/20"
+                className="w-full pl-10 pr-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-midnight-300 focus:outline-none focus:bg-white/20"
               />
             </div>
           </form>
@@ -239,7 +239,7 @@ export default function HubPage() {
                               {category.icon || '💬'}
                             </div>
                             <div>
-                              <h3 className="font-semibold text-slate-800 group-hover:text-blue-600 transition-colors">
+                              <h3 className="font-semibold text-slate-800 group-hover:text-flash-600 transition-colors">
                                 {category.name}
                               </h3>
                               <p className="text-sm text-slate-500 line-clamp-1">
@@ -265,7 +265,7 @@ export default function HubPage() {
                           {category.lastPost ? (
                             <Link
                               href={`/hub/thread/${category.lastPost.threadSlug}`}
-                              className="block hover:text-blue-600 transition-colors"
+                              className="block hover:text-flash-600 transition-colors"
                             >
                               <div className="text-sm text-slate-700 line-clamp-1 font-medium">
                                 {category.lastPost.threadTitle}
@@ -317,8 +317,8 @@ export default function HubPage() {
                       href={`/hub/u/${user.id}`}
                       className={`text-sm px-2 py-0.5 rounded hover:bg-slate-100 transition-colors ${
                         user.isAdmin ? 'text-red-600 font-medium' :
-                        user.isMod ? 'text-purple-600 font-medium' :
-                        'text-blue-600'
+                        user.isMod ? 'text-flash-700 font-medium' :
+                        'text-midnight-600'
                       }`}
                     >
                       {user.name}
@@ -337,9 +337,9 @@ export default function HubPage() {
               <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400">
                 <span className="text-red-600">Administrators</span>
                 {' • '}
-                <span className="text-purple-600">Moderators</span>
+                <span className="text-flash-700">Moderators</span>
                 {' • '}
-                <span className="text-blue-600">Members</span>
+                <span className="text-midnight-600">Members</span>
               </div>
             </div>
           </div>
@@ -376,7 +376,7 @@ export default function HubPage() {
                 <div className="mt-4 pt-4 border-t border-slate-100">
                   <div className="text-sm text-slate-600">
                     <span className="text-slate-400">Newest member:</span>{' '}
-                    <Link href={`/hub/u/${stats.newestMember.id}`} className="text-blue-600 hover:underline font-medium">
+                    <Link href={`/hub/u/${stats.newestMember.id}`} className="text-midnight-900 font-medium hover:text-flash-600">
                       {stats.newestMember.name}
                     </Link>
                   </div>
@@ -389,24 +389,24 @@ export default function HubPage() {
         {/* Quick Links */}
         <div className="mt-6 bg-white rounded-lg shadow-sm border border-slate-200 p-4">
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
-            <Link href="/hub/search" className="text-blue-600 hover:underline flex items-center gap-1">
+            <Link href="/hub/search" className="text-midnight-900 font-medium hover:text-flash-600 flex items-center gap-1">
               <Search size={14} />
               Search Forums
             </Link>
             <span className="text-slate-300">|</span>
-            <Link href="/hub/c/success-stories" className="text-blue-600 hover:underline flex items-center gap-1">
+            <Link href="/hub/c/success-stories" className="text-midnight-900 font-medium hover:text-flash-600 flex items-center gap-1">
               <Zap size={14} />
               Success Stories
             </Link>
             <span className="text-slate-300">|</span>
-            <Link href="/hub/c/welcome" className="text-blue-600 hover:underline flex items-center gap-1">
+            <Link href="/hub/c/welcome" className="text-midnight-900 font-medium hover:text-flash-600 flex items-center gap-1">
               <Users size={14} />
               Introduce Yourself
             </Link>
             {authStatus === 'authenticated' && (
               <>
                 <span className="text-slate-300">|</span>
-                <Link href="/hub/new" className="text-blue-600 hover:underline flex items-center gap-1">
+                <Link href="/hub/new" className="text-midnight-900 font-medium hover:text-flash-600 flex items-center gap-1">
                   <Plus size={14} />
                   New Thread
                 </Link>

@@ -99,7 +99,7 @@ export default function CategoryPage({ params }) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 size={40} className="animate-spin text-midnight-400 mx-auto mb-4" />
           <p className="text-slate-600">Loading forum...</p>
         </div>
       </div>
@@ -188,7 +188,7 @@ export default function CategoryPage({ params }) {
 
           {loading ? (
             <div className="p-12 text-center">
-              <Loader2 size={32} className="animate-spin text-blue-600 mx-auto mb-4" />
+              <Loader2 size={32} className="animate-spin text-midnight-400 mx-auto mb-4" />
               <p className="text-slate-500">Loading threads...</p>
             </div>
           ) : threads.length === 0 ? (
@@ -199,7 +199,7 @@ export default function CategoryPage({ params }) {
               {session && (
                 <Link
                   href={`/hub/new?category=${slug}`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-flash-400 text-midnight-900 rounded-lg font-semibold hover:bg-flash-500 transition-colors"
                 >
                   <Plus size={18} />
                   Start a Thread
@@ -252,7 +252,7 @@ export default function CategoryPage({ params }) {
                     onClick={() => handlePageChange(pageNum)}
                     className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                       page === pageNum
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-midnight-900 text-white'
                         : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                     }`}
                   >
@@ -277,7 +277,7 @@ export default function CategoryPage({ params }) {
         <div className="mt-6 text-center">
           <Link
             href="/hub"
-            className="text-blue-600 hover:underline text-sm flex items-center gap-1 justify-center"
+            className="text-midnight-900 font-medium hover:text-flash-600 text-sm flex items-center gap-1 justify-center"
           >
             <ArrowLeft size={14} />
             Back to Forum Index
@@ -333,7 +333,7 @@ function ThreadRow({ thread, formatTime, isPinned }) {
             </div>
 
             {/* Title */}
-            <h3 className="font-medium text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-1">
+            <h3 className="font-medium text-slate-800 group-hover:text-flash-600 transition-colors line-clamp-1">
               {thread.title}
             </h3>
 
@@ -364,7 +364,7 @@ function ThreadRow({ thread, formatTime, isPinned }) {
           {thread.replyCount > 0 ? (
             <Link
               href={`/hub/thread/${thread.slug}`}
-              className="block text-slate-600 hover:text-blue-600 transition-colors"
+              className="block text-slate-600 hover:text-flash-600 transition-colors"
             >
               <div className="text-sm flex items-center gap-1">
                 <Clock size={12} className="text-slate-400" />

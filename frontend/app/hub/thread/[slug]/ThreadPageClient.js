@@ -189,10 +189,10 @@ export default function ThreadPage({ params }) {
   const getTrustLevelColor = (level) => {
     const colors = {
       0: 'text-slate-500',
-      1: 'text-blue-600',
-      2: 'text-green-600',
-      3: 'text-purple-600',
-      4: 'text-amber-600',
+      1: 'text-midnight-600',
+      2: 'text-midnight-800',
+      3: 'text-midnight-900',
+      4: 'text-flash-700',
     };
     return colors[level] || 'text-slate-500';
   };
@@ -201,7 +201,7 @@ export default function ThreadPage({ params }) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={40} className="animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 size={40} className="animate-spin text-midnight-400 mx-auto mb-4" />
           <p className="text-slate-600">Loading thread...</p>
         </div>
       </div>
@@ -215,7 +215,7 @@ export default function ThreadPage({ params }) {
           <MessageSquare size={48} className="mx-auto mb-4 text-slate-300" />
           <h2 className="text-xl font-semibold text-slate-700 mb-2">Thread not found</h2>
           <p className="text-slate-500 mb-4">{error}</p>
-          <Link href="/hub" className="text-blue-600 hover:underline">
+          <Link href="/hub" className="text-midnight-900 font-medium hover:text-flash-600">
             Return to Forum
           </Link>
         </div>
@@ -230,14 +230,14 @@ export default function ThreadPage({ params }) {
         <div className="max-w-5xl mx-auto px-4 py-4">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
-            <Link href="/hub" className="hover:text-blue-600 flex items-center gap-1">
+            <Link href="/hub" className="hover:text-flash-600 flex items-center gap-1">
               <Home size={14} />
               Forum
             </Link>
             <ChevronRight size={14} />
             <Link
               href={`/hub/c/${thread.category?.slug || 'general'}`}
-              className="hover:text-blue-600 flex items-center gap-1"
+              className="hover:text-flash-600 flex items-center gap-1"
               style={{ color: thread.category?.color }}
             >
               <span>{thread.category?.icon}</span>
@@ -375,7 +375,7 @@ export default function ThreadPage({ params }) {
                   onChange={(e) => setReplyContent(e.target.value)}
                   placeholder="Share your thoughts..."
                   rows={5}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-transparent resize-none"
                 />
                 <div className="flex justify-between items-center mt-4">
                   <div className="text-sm text-slate-500">
@@ -384,7 +384,7 @@ export default function ThreadPage({ params }) {
                   <button
                     type="submit"
                     disabled={!replyContent.trim() || submitting}
-                    className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-2 px-5 py-2 bg-flash-400 text-midnight-900 rounded-lg font-semibold hover:bg-flash-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {submitting ? (
                       <Loader2 size={18} className="animate-spin" />
@@ -402,7 +402,7 @@ export default function ThreadPage({ params }) {
               <p className="text-slate-600 mb-4">Sign in to join the conversation</p>
               <Link
                 href={`/login?redirect=/hub/thread/${slug}`}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2 bg-flash-400 text-midnight-900 rounded-lg font-semibold hover:bg-flash-500 transition-colors"
               >
                 Sign In to Reply
               </Link>
@@ -450,12 +450,12 @@ function ForumPost({
         <div className="sm:w-48 p-4 bg-slate-50 border-b sm:border-b-0 sm:border-r border-slate-100 flex-shrink-0">
           <Link href={`/hub/u/${post.author?.id}`} className="block text-center">
             {/* Avatar */}
-            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold mb-2">
+            <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-midnight-600 to-midnight-900 flex items-center justify-center text-white text-2xl font-bold mb-2">
               {post.author?.firstName?.[0] || '?'}
             </div>
 
             {/* Username */}
-            <div className="font-semibold text-slate-800 hover:text-blue-600 transition-colors">
+            <div className="font-semibold text-slate-800 hover:text-flash-600 transition-colors">
               {post.author?.firstName || 'Unknown'}
             </div>
           </Link>
@@ -468,13 +468,13 @@ function ForumPost({
           {/* Badges */}
           <div className="flex items-center justify-center gap-1 mt-2 flex-wrap">
             {profile.isModerator && (
-              <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded font-medium flex items-center gap-0.5">
+              <span className="px-1.5 py-0.5 bg-midnight-900 text-white text-xs rounded font-medium flex items-center gap-0.5">
                 <Shield size={10} />
                 Mod
               </span>
             )}
             {profile.isVerifiedShelter && (
-              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">
+              <span className="px-1.5 py-0.5 bg-flash-100 text-flash-800 text-xs rounded font-medium">
                 Shelter
               </span>
             )}

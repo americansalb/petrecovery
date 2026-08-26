@@ -68,13 +68,15 @@ const inputClass =
 const labelClass = 'block text-care-sm font-medium text-neutral-700 mb-1.5';
 
 const primaryBtn =
-  'rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 hover:bg-care-tealDark ' +
-  'disabled:opacity-40 transition-colors focus-visible:outline focus-visible:outline-2 ' +
+  'rounded-full bg-care-teal text-white text-sm font-medium px-4 py-2 enabled:hover:bg-care-tealDark ' +
+  'disabled:bg-neutral-200 disabled:text-neutral-500 disabled:cursor-not-allowed transition-colors ' +
+  'focus-visible:outline focus-visible:outline-2 ' +
   'focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
 
 const secondaryBtn =
   'rounded-full border border-neutral-300 text-sm font-medium text-neutral-900 px-4 py-2 ' +
-  'hover:border-care-teal disabled:opacity-40 transition-colors focus-visible:outline ' +
+  'enabled:hover:border-care-teal disabled:border-neutral-200 disabled:text-neutral-400 ' +
+  'disabled:cursor-not-allowed transition-colors focus-visible:outline ' +
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900';
 
 const quietBtn =

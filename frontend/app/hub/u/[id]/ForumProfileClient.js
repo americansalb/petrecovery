@@ -23,10 +23,10 @@ const TABS = [
 
 const TRUST_LEVEL_COLORS = {
   0: 'bg-gray-100 text-gray-600',
-  1: 'bg-blue-100 text-blue-700',
-  2: 'bg-green-100 text-green-700',
-  3: 'bg-purple-100 text-purple-700',
-  4: 'bg-amber-100 text-amber-700',
+  1: 'bg-midnight-100 text-midnight-700',
+  2: 'bg-midnight-200 text-midnight-800',
+  3: 'bg-midnight-900 text-white',
+  4: 'bg-flash-100 text-flash-800',
 };
 
 export default function ForumProfilePage({ params }) {
@@ -93,7 +93,7 @@ export default function ForumProfilePage({ params }) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={40} className="animate-spin text-indigo-500 mx-auto mb-4" />
+          <Loader2 size={40} className="animate-spin text-midnight-400 mx-auto mb-4" />
           <p className="text-gray-600">Loading profile...</p>
         </div>
       </div>
@@ -106,7 +106,7 @@ export default function ForumProfilePage({ params }) {
         <div className="text-center">
           <User size={48} className="mx-auto mb-4 text-gray-300" />
           <h2 className="text-xl font-semibold text-gray-700 mb-2">Profile not found</h2>
-          <Link href="/hub" className="text-indigo-600 hover:text-indigo-700 font-medium">
+          <Link href="/hub" className="text-midnight-900 hover:text-flash-600 font-medium">
             Return to Hub
           </Link>
         </div>
@@ -134,7 +134,7 @@ export default function ForumProfilePage({ params }) {
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div className="flex items-start gap-6">
             {/* Avatar */}
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold text-3xl flex-shrink-0">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-midnight-600 to-midnight-900 flex items-center justify-center text-white font-bold text-3xl flex-shrink-0">
               {profile.user.firstName?.[0] || '?'}
             </div>
 
@@ -151,13 +151,13 @@ export default function ForumProfilePage({ params }) {
                   </span>
                 )}
                 {profile.user.isModerator && !profile.user.isAdmin && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-midnight-900 text-white text-xs rounded-full font-medium">
                     <Shield size={12} />
                     Moderator
                   </span>
                 )}
                 {profile.isVerifiedShelter && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-flash-100 text-flash-800 text-xs rounded-full font-medium">
                     <Building2 size={12} />
                     Verified Shelter
                   </span>
@@ -234,7 +234,7 @@ export default function ForumProfilePage({ params }) {
               {profile.badges.map((badge) => (
                 <div
                   key={badge.id}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-flash-50 border border-flash-200 rounded-lg"
                   title={badge.description}
                 >
                   <span className="text-xl">{badge.icon}</span>
@@ -260,7 +260,7 @@ export default function ForumProfilePage({ params }) {
                     onClick={() => handleTabChange(tab.id)}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
                       activeTab === tab.id
-                        ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
+                        ? 'text-midnight-900 border-b-2 border-flash-400 bg-flash-50/50'
                         : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                     }`}
                   >
@@ -276,7 +276,7 @@ export default function ForumProfilePage({ params }) {
           <div className="divide-y">
             {loading ? (
               <div className="p-8 text-center">
-                <Loader2 size={24} className="animate-spin text-indigo-500 mx-auto" />
+                <Loader2 size={24} className="animate-spin text-midnight-400 mx-auto" />
               </div>
             ) : activity.length === 0 ? (
               <div className="p-8 text-center text-gray-500">
@@ -288,7 +288,7 @@ export default function ForumProfilePage({ params }) {
                   {item.type === 'thread' && (
                     <Link href={`/hub/thread/${item.slug}`} className="block">
                       <div className="flex items-start gap-3">
-                        <FileText size={18} className="text-indigo-500 mt-1 flex-shrink-0" />
+                        <FileText size={18} className="text-midnight-400 mt-1 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-medium text-gray-800 truncate">{item.title}</h3>

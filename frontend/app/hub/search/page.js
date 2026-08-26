@@ -93,11 +93,11 @@ function SearchContent() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search discussions..."
-              className="w-full pl-12 pr-24 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full pl-12 pr-24 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-flash-400"
             />
             <button
               type="submit"
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-indigo-600 text-white rounded-md font-medium text-sm hover:bg-indigo-700 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-flash-400 text-midnight-900 rounded-md font-semibold text-sm hover:bg-flash-500 transition-colors"
             >
               Search
             </button>
@@ -116,7 +116,7 @@ function SearchContent() {
               onClick={() => handleTypeChange(t)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 type === t
-                  ? 'bg-indigo-100 text-indigo-700'
+                  ? 'bg-midnight-900 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
@@ -128,7 +128,7 @@ function SearchContent() {
         {/* Results */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 size={32} className="animate-spin text-indigo-500" />
+            <Loader2 size={32} className="animate-spin text-midnight-400" />
           </div>
         ) : !query ? (
           <div className="text-center py-12">
@@ -157,10 +157,10 @@ function SearchContent() {
                   {result.type === 'thread' && (
                     <Link href={`/hub/thread/${result.slug}`} className="block">
                       <div className="flex items-start gap-3">
-                        <FileText size={20} className="text-indigo-500 mt-1 flex-shrink-0" />
+                        <FileText size={20} className="text-midnight-400 mt-1 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <h3 className="font-semibold text-gray-800 hover:text-indigo-600">
+                            <h3 className="font-semibold text-gray-800 hover:text-flash-600">
                               {result.title}
                             </h3>
                             {result.isPinned && (
@@ -261,7 +261,7 @@ export default function SearchPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-indigo-500" />
+        <Loader2 size={32} className="animate-spin text-midnight-400" />
       </div>
     }>
       <SearchContent />

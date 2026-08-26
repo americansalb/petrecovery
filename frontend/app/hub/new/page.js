@@ -99,7 +99,7 @@ function NewThreadForm() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-blue-600" />
+        <Loader2 size={40} className="animate-spin text-midnight-400" />
       </div>
     );
   }
@@ -118,7 +118,7 @@ function NewThreadForm() {
         <div className="max-w-3xl mx-auto px-4 py-4">
           {/* Breadcrumbs */}
           <div className="flex items-center gap-2 text-sm text-slate-500 mb-3">
-            <Link href="/hub" className="hover:text-blue-600 flex items-center gap-1">
+            <Link href="/hub" className="hover:text-flash-600 flex items-center gap-1">
               <Home size={14} />
               Forum
             </Link>
@@ -148,7 +148,7 @@ function NewThreadForm() {
               <select
                 value={formData.categorySlug}
                 onChange={(e) => setFormData(prev => ({ ...prev, categorySlug: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-transparent"
                 required
               >
                 <option value="">Select a category...</option>
@@ -173,7 +173,7 @@ function NewThreadForm() {
                 value={formData.title}
                 onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Enter a descriptive title for your thread..."
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-transparent"
                 maxLength={200}
                 required
               />
@@ -190,7 +190,7 @@ function NewThreadForm() {
                 onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                 placeholder="Share your question, story, or request. Be as detailed as possible..."
                 rows={10}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-transparent resize-none"
                 required
               />
             </div>
@@ -211,7 +211,7 @@ function NewThreadForm() {
                     value={formData.locationTag}
                     onChange={(e) => setFormData(prev => ({ ...prev, locationTag: e.target.value }))}
                     placeholder="City, State"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-transparent text-sm"
                   />
                 </div>
 
@@ -224,7 +224,7 @@ function NewThreadForm() {
                   <select
                     value={formData.urgencyLevel}
                     onChange={(e) => setFormData(prev => ({ ...prev, urgencyLevel: e.target.value }))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-flash-400 focus:border-transparent text-sm"
                   >
                     <option value="NORMAL">Normal</option>
                     <option value="URGENT">Urgent (time-sensitive)</option>
@@ -247,7 +247,7 @@ function NewThreadForm() {
               <button
                 type="submit"
                 disabled={submitting || !formData.title.trim() || !formData.content.trim() || !formData.categorySlug}
-                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-6 py-2 bg-flash-400 text-midnight-900 rounded-lg font-semibold hover:bg-flash-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? (
                   <Loader2 size={18} className="animate-spin" />
@@ -261,9 +261,9 @@ function NewThreadForm() {
         </form>
 
         {/* Tips */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-          <h3 className="font-medium text-blue-800 mb-2">Posting Tips</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
+        <div className="mt-6 p-4 bg-midnight-50 rounded-lg border border-midnight-100">
+          <h3 className="font-medium text-midnight-800 mb-2">Posting Tips</h3>
+          <ul className="text-sm text-midnight-700 space-y-1">
             <li>• Use a clear, descriptive title</li>
             <li>• Include all relevant details in your post</li>
             <li>• Add a location if it's relevant to your topic</li>
@@ -279,7 +279,7 @@ export default function NewThreadPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-blue-600" />
+        <Loader2 size={40} className="animate-spin text-midnight-400" />
       </div>
     }>
       <NewThreadForm />
