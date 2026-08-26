@@ -162,9 +162,10 @@ export default function SuccessScreen({
           <div className="mt-4 p-4 rounded-2xl bg-[#F3EFE7] border border-[#E5E0D4] flex items-start gap-3 text-left">
             <MessageSquare size={19} className="text-[#0B1133] shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-bold text-[#0A0D26]">We texted you the link</p>
+              <p className="font-bold text-[#0A0D26]">Your link is on the way</p>
               <p className="text-[#6B6459] mt-0.5">
-                Check <strong>{contactPhone}</strong> for your case link. Save it, it&apos;s how you
+                We&apos;re texting your case link to <strong>{contactPhone}</strong>. If it doesn&apos;t
+                arrive, save this page&apos;s address - it&apos;s the same link, and it&apos;s how you
                 manage this report.
               </p>
             </div>
@@ -178,7 +179,9 @@ export default function SuccessScreen({
             <div className="text-sm">
               <p className="font-bold text-[#0A0D26]">Check your inbox</p>
               <p className="text-[#6B6459] mt-0.5">
-                We sent a link to <strong>{contactEmail}</strong> so you can manage this report and get updates.
+                A link to manage this report is on its way to <strong>{contactEmail}</strong>. If
+                nothing shows up in a few minutes, check spam - or save this page&apos;s address; it
+                goes to the same place.
               </p>
             </div>
           </div>
