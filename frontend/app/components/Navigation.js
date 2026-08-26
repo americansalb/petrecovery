@@ -55,7 +55,7 @@ import {
   Heart,
 } from 'lucide-react';
 import { Button } from '@/components/ui';
-import { LOGO_ICON } from '@/lib/brandAssets';
+import BrandLogo from './BrandLogo';
 import { isImmersiveRoute } from '@/app/lib/navChrome';
 
 /**
@@ -81,6 +81,7 @@ export default function Navigation() {
   const pathname = usePathname();
   const [userSquads, setUserSquads] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
 
   useEffect(() => {
@@ -152,8 +153,9 @@ export default function Navigation() {
             {/* Logo - explicit box so the bar never reflows while the CDN image
                 loads; wordmark only where the full link set still fits */}
             <Link href="/" className="flex items-center gap-2.5 text-white font-bold text-xl shrink-0">
-              <img src={LOGO_ICON} alt="ReunitePets" width={56} height={56} className="h-14 w-14 object-contain" />
-              <span className="hidden sm:inline lg:hidden xl:inline">Reunite<span className="text-flash-400">Pets</span></span>
+              <BrandLogo width={56} height={56} className="h-14 w-14 object-contain" onFail={() => setLogoFailed(true)} />
+              {/* With the logo gone, the wordmark carries the brand at every width */}
+              <span className={logoFailed ? 'inline' : 'hidden sm:inline lg:hidden xl:inline'}>Reunite<span className="text-flash-400">Pets</span></span>
             </Link>
 
             {/* Desktop Navigation: THE link set. Identical for everyone -
@@ -357,7 +359,7 @@ export default function Navigation() {
           ) : (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <img src={LOGO_ICON} alt="ReunitePets" className="h-10 w-auto" />
+                <BrandLogo alt="" className="h-10 w-auto" />
                 <span className="font-bold text-lg">Reunite<span className="text-flash-400">Pets</span></span>
               </div>
               <button onClick={() => setMobileMenuOpen(false)} aria-label="Close menu" className="p-1 rounded-lg hover:bg-midnight-800 transition">
