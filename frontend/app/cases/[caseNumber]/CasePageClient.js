@@ -523,9 +523,15 @@ export default function CasePageClient() {
             </div>
 
             <div className="space-y-4">
-              {/* Quick sighting with location */}
+              {/* Quick sighting with location. Signed-in helpers report on
+                  the board; a stranger holding a shared link goes through
+                  the no-account join flow, which takes sightings too. */}
               <Link
-                href={`/mission-control?mission=${caseNumber}&action=sighting`}
+                href={
+                  session?.user
+                    ? `/mission-control?mission=${caseNumber}&action=sighting`
+                    : `/join/${caseData?.id || caseNumber}`
+                }
                 className="flex items-center gap-4 p-4 bg-flash-50 border-2 border-flash-300 rounded-xl hover:bg-flash-100 transition"
               >
                 <div className="w-12 h-12 bg-flash-400 rounded-xl flex items-center justify-center">

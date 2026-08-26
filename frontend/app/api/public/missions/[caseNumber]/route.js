@@ -198,7 +198,13 @@ export async function GET(request, { params }) {
         certaintyLevel: s.certaintyLevel,
         photoUrls: s.photoUrls,
         isVerified: s.isVerified,
-        reporterName: s.reportedBy?.firstName || 'Community member'
+        // Account deletion anonymizes users to the literal firstName
+        // 'Deleted' (api/account/delete). The public page was printing
+        // "Deleted reported a sighting" as if that were a person's name.
+        reporterName:
+          !s.reportedBy?.firstName || s.reportedBy.firstName === 'Deleted'
+            ? 'A neighbor'
+            : s.reportedBy.firstName
       })),
       sightingsCount: missionData.sightings?.length || 0,
       // Updates for timeline

@@ -35,10 +35,10 @@ export default function SocialProofBar({
   latestActivity = null // { type: 'sighting'|'share'|'search', message: string, time: Date }
 }) {
   const stats = [
-    { icon: Eye, value: viewCount, label: 'Views', color: 'text-slate-600' },
-    { icon: Share2, value: shareCount, label: 'Shares', color: 'text-blue-600' },
+    { icon: Eye, value: viewCount, label: viewCount === 1 ? 'View' : 'Views', color: 'text-slate-600' },
+    { icon: Share2, value: shareCount, label: shareCount === 1 ? 'Share' : 'Shares', color: 'text-blue-600' },
     { icon: Users, value: activeSearchers, label: 'Searching', color: 'text-purple-600' },
-    { icon: MapPin, value: sightingsCount, label: 'Sightings', color: 'text-amber-600' },
+    { icon: MapPin, value: sightingsCount, label: sightingsCount === 1 ? 'Sighting' : 'Sightings', color: 'text-amber-600' },
   ];
 
   return (

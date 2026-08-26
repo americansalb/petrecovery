@@ -17,6 +17,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ChevronRight, Phone } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 // Text-first action card with colored accent
 function ActionCard({
@@ -98,8 +99,15 @@ export default function ActionCards({
   onShare,
   onReportSighting
 }) {
+  const { status: authStatus } = useSession();
   const locationQuery = encodeURIComponent(caseData?.lastSeenAddress || '');
   const searcherCount = caseData?.activeSearchers || 0;
+  // Signed-in helpers get the full board; strangers get the no-account
+  // join flow instead of Mission Control's sign-in gate.
+  const joinHref =
+    authStatus === 'authenticated'
+      ? `/mission-control?mission=${caseNumber}`
+      : `/join/${caseData?.id || caseNumber}`;
 
   return (
     <motion.div
@@ -152,7 +160,7 @@ export default function ActionCards({
 
         {/* 5. Join Search Party */}
         <ActionCard
-          href={`/mission-control?mission=${caseNumber}`}
+          href={joinHref}
           title="Join Search Party"
           description={searcherCount > 0 ? `${searcherCount} people searching now` : 'Be the first to join'}
           accentColor="bg-emerald-500"
