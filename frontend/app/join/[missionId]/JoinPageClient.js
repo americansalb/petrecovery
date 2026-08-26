@@ -25,6 +25,10 @@ export default function JoinMissionPage() {
   const [locationError, setLocationError] = useState(null);
   const [volunteerId, setVolunteerId] = useState(null);
   const [deviceId, setDeviceId] = useState(null);
+  const [sightingOpen, setSightingOpen] = useState(false);
+  const [sightingNotes, setSightingNotes] = useState('');
+  const [sightingStatus, setSightingStatus] = useState('idle'); // idle, sending, sent, failed
+  const [sightingProtocol, setSightingProtocol] = useState(null);
 
   // Generate or retrieve device ID
   useEffect(() => {
@@ -162,6 +166,48 @@ export default function JoinMissionPage() {
     }
   };
 
+  // Report a sighting as this volunteer. No account: the volunteerId from
+  // the join IS the credential. Uses the location captured at join time;
+  // otherwise asks the browser once, and still submits without one.
+  const submitSighting = async () => {
+    setSightingStatus('sending');
+    let where = location;
+    if (!where && typeof navigator !== 'undefined' && navigator.geolocation) {
+      where = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => resolve(null),
+          { timeout: 6000, maximumAge: 60000 }
+        );
+      });
+    }
+    try {
+      const res = await fetch(`/api/mission/${missionId}/sighting`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REPORT',
+          volunteerId,
+          location: where,
+          notes: sightingNotes.trim(),
+          confidence: 'MEDIUM',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSightingStatus('sent');
+        setSightingProtocol(data.protocol || null);
+        triggerHaptic('success');
+        announce('Sighting reported. Hold your position and keep watching.', 'assertive');
+      } else {
+        setSightingStatus('failed');
+      }
+    } catch (err) {
+      console.error('Sighting report error:', err);
+      setSightingStatus('failed');
+    }
+  };
+
   // Go to squad coordination page
   const goToMission = () => {
     // Try to redirect to squad page if available
@@ -180,12 +226,12 @@ export default function JoinMissionPage() {
       <div style={styles.container}>
         <div style={styles.errorCard}>
           <span style={styles.errorIcon}>🔍</span>
-          <h1 style={styles.errorTitle}>No Active Search</h1>
+          <h1 style={styles.errorTitle}>This link doesn't match a search</h1>
           <p style={styles.errorText}>
-            This search isn't active right now. The pet may have been found already!
+            Ask whoever sent it for a fresh link, or browse the reports near you.
           </p>
-          <a href={`/cases/${missionId}`} style={styles.linkButton}>
-            View Case Details
+          <a href="/lost-and-found" style={styles.linkButton}>
+            Browse lost &amp; found
           </a>
         </div>
       </div>
@@ -193,16 +239,23 @@ export default function JoinMissionPage() {
   }
 
   if (error === 'NOT_ACTIVE') {
+    // RESOLVED is a reunion; anything else closed without one. Only the
+    // first deserves confetti.
+    const reunited = mission?.mode === 'RESOLVED';
     return (
       <div style={styles.container}>
         <div style={styles.successCard}>
-          <span style={styles.successIcon}>🎉</span>
-          <h1 style={styles.successTitle}>Good News!</h1>
+          <span style={styles.successIcon}>{reunited ? '🎉' : '🐾'}</span>
+          <h1 style={reunited ? styles.successTitle : styles.errorTitle}>
+            {reunited ? 'Good news' : 'This search has closed'}
+          </h1>
           <p style={styles.successText}>
-            This search has ended. The pet may have been found!
+            {reunited
+              ? `This search has ended - ${mission?.pet?.name || 'the pet'} may be home already.`
+              : 'The owner closed this search. Thank you for wanting to help.'}
           </p>
           <a href={`/cases/${missionId}`} style={styles.linkButton}>
-            View Case Details
+            View the case
           </a>
         </div>
       </div>
@@ -240,16 +293,67 @@ export default function JoinMissionPage() {
 
   // Already active as volunteer
   if (stage === 'ACTIVE') {
+    const petName = mission?.pet?.name || 'the pet';
     return (
       <div style={styles.container}>
         <div style={styles.activeCard}>
           <span style={styles.activeIcon}>✓</span>
-          <h1 style={styles.activeTitle}>You're In!</h1>
+          <h1 style={styles.activeTitle}>You're in</h1>
           <p style={styles.activeText}>
-            You're part of the search team.
+            You're part of the search team. If you spot {petName}, report it
+            here - it reaches everyone searching right away.
           </p>
+
+          {sightingStatus === 'sent' ? (
+            <div style={styles.protocolCard}>
+              <h2 style={styles.protocolTitle}>Sighting reported. Now:</h2>
+              <ul style={styles.protocolList}>
+                {(sightingProtocol?.instructions || [
+                  'Stay where you are',
+                  'Keep eyes on the pet if you can',
+                  'Do not approach or call out',
+                ]).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ) : sightingOpen ? (
+            <div style={styles.sightingForm}>
+              <textarea
+                value={sightingNotes}
+                onChange={(e) => setSightingNotes(e.target.value)}
+                placeholder={`What did you see? Where is ${petName} headed?`}
+                rows={3}
+                style={styles.sightingTextarea}
+                autoFocus
+              />
+              {sightingStatus === 'failed' && (
+                <p style={styles.sightingError}>
+                  That didn't send. Check your connection and try again.
+                </p>
+              )}
+              <button
+                onClick={submitSighting}
+                disabled={sightingStatus === 'sending'}
+                style={styles.sightingSubmit}
+              >
+                {sightingStatus === 'sending' ? 'Sending...' : 'Send sighting'}
+              </button>
+              <button
+                onClick={() => setSightingOpen(false)}
+                style={styles.sightingCancel}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setSightingOpen(true)} style={styles.sightingButton}>
+              I see {petName} - report a sighting
+            </button>
+          )}
+
           <button onClick={goToMission} style={styles.goButton}>
-            Go to Mission →
+            Open the search page →
           </button>
         </div>
       </div>
@@ -458,7 +562,7 @@ export default function JoinMissionPage() {
 const styles = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#121212',
+    backgroundColor: '#020617',
     color: '#fff',
     padding: '24px',
     display: 'flex',
@@ -501,7 +605,7 @@ const styles = {
     height: '80px',
     borderRadius: '12px',
     objectFit: 'cover',
-    border: '3px solid #4CAF50',
+    border: '3px solid #facc15',
   },
 
   petInfo: {
@@ -539,7 +643,7 @@ const styles = {
   statNumber: {
     fontSize: '28px',
     fontWeight: 700,
-    color: '#4CAF50',
+    color: '#facc15',
   },
 
   statLabel: {
@@ -572,10 +676,10 @@ const styles = {
   joinButton: {
     width: '100%',
     padding: '20px',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#facc15',
     border: 'none',
     borderRadius: '12px',
-    color: '#fff',
+    color: '#020617',
     fontSize: '18px',
     fontWeight: 700,
     cursor: 'pointer',
@@ -629,10 +733,10 @@ const styles = {
   continueButton: {
     width: '100%',
     padding: '18px',
-    backgroundColor: '#2196F3',
+    backgroundColor: '#facc15',
     border: 'none',
     borderRadius: '12px',
-    color: '#fff',
+    color: '#020617',
     fontSize: '16px',
     fontWeight: 600,
     cursor: 'pointer',
@@ -651,7 +755,7 @@ const styles = {
     width: '48px',
     height: '48px',
     border: '4px solid #333',
-    borderTop: '4px solid #2196F3',
+    borderTop: '4px solid #facc15',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
@@ -715,17 +819,17 @@ const styles = {
   finalJoinButton: {
     width: '100%',
     padding: '20px',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#facc15',
     border: 'none',
     borderRadius: '12px',
-    color: '#fff',
+    color: '#020617',
     fontSize: '18px',
     fontWeight: 700,
     cursor: 'pointer',
     minHeight: TOUCH_TARGETS.large,
   },
   finalJoinButtonDisabled: {
-    backgroundColor: '#5a6b5c',
+    backgroundColor: '#3b3a2a',
     color: 'rgba(255,255,255,0.65)',
     cursor: 'not-allowed',
   },
@@ -750,14 +854,14 @@ const styles = {
     height: '22px',
     marginTop: '1px',
     flexShrink: 0,
-    accentColor: '#4CAF50',
+    accentColor: '#facc15',
     cursor: 'pointer',
   },
   waiverToggle: {
     background: 'none',
     border: 'none',
     padding: 0,
-    color: '#8ab4f8',
+    color: '#facc15',
     fontSize: '14px',
     textDecoration: 'underline',
     cursor: 'pointer',
@@ -787,7 +891,8 @@ const styles = {
     justifyContent: 'center',
     width: '80px',
     height: '80px',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#facc15',
+    color: '#020617',
     borderRadius: '50%',
     fontSize: '40px',
     margin: '0 auto 24px',
@@ -808,14 +913,101 @@ const styles = {
   goButton: {
     width: '100%',
     padding: '18px',
-    backgroundColor: '#2196F3',
-    border: 'none',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    border: '1px solid rgba(255,255,255,0.18)',
     borderRadius: '12px',
-    color: '#fff',
+    color: '#e2e8f0',
     fontSize: '16px',
     fontWeight: 600,
     cursor: 'pointer',
     minHeight: TOUCH_TARGETS.medium,
+  },
+
+  // Sighting reporting from the joined state
+  sightingButton: {
+    width: '100%',
+    padding: '20px',
+    backgroundColor: '#facc15',
+    border: 'none',
+    borderRadius: '12px',
+    color: '#020617',
+    fontSize: '17px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    minHeight: TOUCH_TARGETS.large,
+    marginBottom: '12px',
+  },
+
+  sightingForm: {
+    textAlign: 'left',
+    marginBottom: '12px',
+  },
+
+  sightingTextarea: {
+    width: '100%',
+    padding: '14px',
+    backgroundColor: '#0f172a',
+    border: '2px solid rgba(255,255,255,0.15)',
+    borderRadius: '12px',
+    color: '#fff',
+    fontSize: '16px',
+    resize: 'vertical',
+    marginBottom: '10px',
+    boxSizing: 'border-box',
+  },
+
+  sightingSubmit: {
+    width: '100%',
+    padding: '16px',
+    backgroundColor: '#facc15',
+    border: 'none',
+    borderRadius: '12px',
+    color: '#020617',
+    fontSize: '16px',
+    fontWeight: 700,
+    cursor: 'pointer',
+    minHeight: TOUCH_TARGETS.medium,
+    marginBottom: '8px',
+  },
+
+  sightingCancel: {
+    width: '100%',
+    padding: '12px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: '#94a3b8',
+    fontSize: '14px',
+    cursor: 'pointer',
+  },
+
+  sightingError: {
+    color: '#fca5a5',
+    fontSize: '14px',
+    margin: '0 0 10px 0',
+  },
+
+  protocolCard: {
+    textAlign: 'left',
+    backgroundColor: 'rgba(250,204,21,0.08)',
+    border: '1px solid rgba(250,204,21,0.35)',
+    borderRadius: '12px',
+    padding: '16px',
+    marginBottom: '12px',
+  },
+
+  protocolTitle: {
+    fontSize: '16px',
+    fontWeight: 700,
+    margin: '0 0 10px 0',
+    color: '#facc15',
+  },
+
+  protocolList: {
+    margin: 0,
+    paddingLeft: '20px',
+    fontSize: '14.5px',
+    color: '#e2e8f0',
+    lineHeight: 1.8,
   },
 
   // Error states
@@ -869,9 +1061,9 @@ const styles = {
   linkButton: {
     display: 'inline-block',
     padding: '14px 28px',
-    backgroundColor: '#2196F3',
+    backgroundColor: '#facc15',
     borderRadius: '8px',
-    color: '#fff',
+    color: '#020617',
     fontSize: '16px',
     fontWeight: 600,
     textDecoration: 'none',
@@ -902,7 +1094,7 @@ const styles = {
     width: '48px',
     height: '48px',
     border: '4px solid #333',
-    borderTop: '4px solid #4CAF50',
+    borderTop: '4px solid #facc15',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
