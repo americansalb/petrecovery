@@ -93,14 +93,14 @@ export async function POST(request) {
     // A pin-only report arrives with raw "lat, lng" as its address: all
     // three client geocoders failed, or the reporter tapped "use my
     // location" with no network for the reverse lookup. Resolve a human
-    // label here, before the transaction and its time budget; if the
-    // geocoder is down the coordinates stay stored, and the display layer
-    // knows not to print them.
-    let resolvedLastSeenAddress = lastSeenAddress;
-    if (looksLikeCoordinates(lastSeenAddress) && Array.isArray(center)) {
-      const label = await reverseGeocodeLabel(Number(center[0]), Number(center[1]));
-      if (label) resolvedLastSeenAddress = label;
-    }
+    // label for it, overlapped with the bcrypt hash below so a slow
+    // geocoder never adds its full timeout to the post; if it fails the
+    // coordinates stay stored, and the display layer knows not to print
+    // them.
+    const reverseLabelPromise =
+      looksLikeCoordinates(lastSeenAddress) && Array.isArray(center)
+        ? reverseGeocodeLabel(Number(center[0]), Number(center[1]))
+        : Promise.resolve(null);
 
     let accountCreated = false;
     let tempPassword = null;
@@ -118,10 +118,11 @@ export async function POST(request) {
     // one wasted hash off the transaction's clock is the right trade.
     const optedInWithPassword = Boolean(password && createAccount);
     const candidateTempPassword = optedInWithPassword ? null : crypto.randomBytes(12).toString('base64');
-    const precomputedPasswordHash = await bcrypt.hash(
-      optedInWithPassword ? password : candidateTempPassword,
-      12
-    );
+    const [precomputedPasswordHash, reverseLabel] = await Promise.all([
+      bcrypt.hash(optedInWithPassword ? password : candidateTempPassword, 12),
+      reverseLabelPromise,
+    ]);
+    const resolvedLastSeenAddress = reverseLabel || lastSeenAddress;
 
     // Use transaction to ensure all related records are created atomically
     // User lookup is inside the transaction to prevent race conditions (Fix 5)
