@@ -1,19 +1,17 @@
 'use client';
 
 /**
- * The site footer.
+ * The site footer - the one footer, everywhere.
  *
- * There was no footer on any page but the homepage: app/page.js renders a
- * FooterCta of its own and app/layout.js had nothing, so every other route
- * - the legal pages included - ended with no Privacy, no Terms, no way to
- * get in touch. That is the one place a visitor looks for those, and on a
- * service that asks people for their address and their phone number it is
- * not optional.
+ * History: the homepage rendered its own dark three-column footer and this
+ * global one stacked directly beneath it, so scrolling to the bottom of /
+ * showed two footers with different link sets. The richer design won and
+ * lives here now; the homepage's local copy is gone.
  *
- * Deliberately plain, and deliberately not a second navbar: the links a
- * person goes looking for at the bottom of a page, and nothing else.
- * Hidden inside immersive takeovers, which own the whole screen and ship
- * their own way out (app/lib/navChrome.js).
+ * Deliberately not a second navbar: the links a person goes looking for at
+ * the bottom of a page, and nothing else. Hidden inside immersive
+ * takeovers, which own the whole screen and ship their own way out
+ * (app/lib/navChrome.js).
  */
 
 import Link from 'next/link';
@@ -21,13 +19,19 @@ import { usePathname } from 'next/navigation';
 import { isImmersiveRoute } from '@/app/lib/navChrome';
 import { SUPPORT_EMAIL } from '@/app/lib/brand';
 
-const LINKS = [
-  { href: '/about', label: 'About' },
-  { href: '/lost-and-found', label: 'Lost & Found' },
+const DO_LINKS = [
+  { href: '/report/new', label: 'Report a lost pet' },
+  { href: '/report/found', label: 'Report a found pet' },
+  { href: '/lost-and-found', label: 'Browse Lost & Found' },
+  { href: '/rescue-forces/search', label: 'Find your Rescue Force' },
+];
+
+const EXPLORE_LINKS = [
+  { href: '/care', label: 'Pet care & Health Book' },
   { href: '/shelters', label: 'Shelters' },
-  { href: '/privacy', label: 'Privacy' },
-  { href: '/legal/terms', label: 'Terms' },
-  { href: '/contact', label: 'Contact' },
+  { href: '/for-shelters', label: 'For shelters & rescues' },
+  { href: '/hub', label: 'Rescue Hub' },
+  { href: '/about', label: 'About' },
 ];
 
 export default function SiteFooter() {
@@ -35,26 +39,61 @@ export default function SiteFooter() {
   if (isImmersiveRoute(pathname)) return null;
 
   return (
-    <footer className="border-t border-midnight-200 bg-white">
+    <footer className="bg-midnight-950 border-t border-midnight-800">
       {/* pb clears the fixed mobile tab bar, as <main> does */}
-      <div className="max-w-5xl mx-auto px-4 py-8 pb-24 lg:pb-8">
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 mb-4">
-          {LINKS.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="text-sm text-midnight-600 hover:text-midnight-900 no-underline"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+      <div className="max-w-5xl mx-auto px-4 py-10 pb-24 lg:pb-10">
+        <div className="grid sm:grid-cols-3 gap-8 text-sm">
+          <div>
+            <p className="font-extrabold text-white text-lg mb-2">
+              Reunite<span className="text-flash-400">Pets</span>
+            </p>
+            <p className="text-midnight-400 leading-relaxed">
+              Coordinated search and rescue for lost pets, powered by
+              neighbors. Free to use.
+            </p>
+          </div>
+          <nav aria-label="Do something">
+            <p className="font-bold text-midnight-200 mb-3">Do something</p>
+            <ul className="space-y-2 text-midnight-400">
+              {DO_LINKS.map(({ href, label }) => (
+                <li key={href}>
+                  <Link href={href} className="hover:text-flash-300 transition-colors">
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <nav aria-label="Explore">
+            <p className="font-bold text-midnight-200 mb-3">Explore</p>
+            <ul className="space-y-2 text-midnight-400">
+              {EXPLORE_LINKS.map(({ href, label }) => (
+                <li key={href}>
+                  <Link href={href} className="hover:text-flash-300 transition-colors">
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-midnight-500">
-          <span className="font-semibold text-midnight-700">ReunitePets</span>
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-midnight-900">
-            {SUPPORT_EMAIL}
-          </a>
+        <div className="border-t border-midnight-800 mt-8 pt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-midnight-500">
+          <span>&copy; {new Date().getFullYear()} ReunitePets.org</span>
+          <span className="flex flex-wrap gap-4">
+            <Link href="/privacy" className="hover:text-midnight-300 transition-colors">
+              Privacy
+            </Link>
+            <Link href="/legal/terms" className="hover:text-midnight-300 transition-colors">
+              Terms
+            </Link>
+            <Link href="/contact" className="hover:text-midnight-300 transition-colors">
+              Contact
+            </Link>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-midnight-300 transition-colors">
+              {SUPPORT_EMAIL}
+            </a>
+          </span>
         </div>
       </div>
     </footer>

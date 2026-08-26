@@ -672,41 +672,10 @@ function FooterCta() {
           </Link>
         </div>
 
-        <div className="border-t border-midnight-800 pt-8 grid sm:grid-cols-3 gap-8 text-sm">
-          <div>
-            <p className="font-extrabold text-white text-lg mb-2">Reunite<span className="text-flash-400">Pets</span></p>
-            <p className="text-midnight-400 leading-relaxed">
-              Coordinated search and rescue for lost pets, powered by neighbors. Free to use.
-            </p>
-          </div>
-          <div>
-            <p className="font-bold text-midnight-200 mb-3">Do something</p>
-            <ul className="space-y-2 text-midnight-400">
-              <li><Link href="/report/new" className="hover:text-flash-300 transition-colors">Report a lost pet</Link></li>
-              <li><Link href="/report/found" className="hover:text-flash-300 transition-colors">Report a found pet</Link></li>
-              <li><Link href="/lost-and-found" className="hover:text-flash-300 transition-colors">Browse Lost &amp; Found</Link></li>
-              <li><Link href="/rescue-forces/search" className="hover:text-flash-300 transition-colors">Find your Rescue Force</Link></li>
-            </ul>
-          </div>
-          <div>
-            <p className="font-bold text-midnight-200 mb-3">Explore</p>
-            <ul className="space-y-2 text-midnight-400">
-              <li><Link href="/lost-and-found" className="hover:text-flash-300 transition-colors">Active missions</Link></li>
-              <li><Link href="/shelters" className="hover:text-flash-300 transition-colors">Shelters</Link></li>
-              <li><Link href="/for-shelters" className="hover:text-flash-300 transition-colors">For shelters &amp; rescues</Link></li>
-              <li><Link href="/hub" className="hover:text-flash-300 transition-colors">Rescue Hub</Link></li>
-              <li><Link href="/about" className="hover:text-flash-300 transition-colors">About</Link></li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-midnight-800 mt-8 pt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-midnight-500">
-          <span>&copy; {new Date().getFullYear()} ReunitePets.org</span>
-          <span className="flex gap-4">
-            <Link href="/privacy" className="hover:text-midnight-300 transition-colors">Privacy</Link>
-            <Link href="/legal/terms" className="hover:text-midnight-300 transition-colors">Terms</Link>
-            <Link href="/contact" className="hover:text-midnight-300 transition-colors">Contact</Link>
-          </span>
-        </div>
+        {/* The link columns and legal row that used to sit here moved into
+            the global SiteFooter (app/components/SiteFooter.js), which
+            renders directly below - the homepage was showing two stacked
+            footers with different link sets. */}
       </div>
     </section>
   );
