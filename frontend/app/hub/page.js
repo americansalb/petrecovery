@@ -182,13 +182,22 @@ export default function HubPage() {
         {/* Quick Stats Bar */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-3 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4 text-sm">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2 text-slate-600">
-                <Activity size={16} className="text-green-500" />
-                <span><strong className="text-slate-800">{online.totalOnline || 0}</strong> Online</span>
-                <span className="text-slate-400">({online.membersOnline} members, {online.guestsOnline} guests)</span>
+            {/* Presence only speaks when someone is actually here; "0 Online"
+                advertises emptiness at launch. */}
+            {(online.totalOnline || 0) > 0 ? (
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2 text-slate-600">
+                  <Activity size={16} className="text-green-500" />
+                  <span><strong className="text-slate-800">{online.totalOnline}</strong> Online</span>
+                  <span className="text-slate-400">({online.membersOnline} members, {online.guestsOnline} guests)</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2 text-slate-600">
+                <MessageSquare size={16} className="text-slate-400" />
+                <span>Neighbors helping neighbors find their pets</span>
+              </div>
+            )}
             <div className="flex items-center gap-4 text-slate-500">
               <span><strong>{stats?.totalThreads || 0}</strong> Threads</span>
               <span><strong>{stats?.totalPosts || 0}</strong> Posts</span>
@@ -290,9 +299,12 @@ export default function HubPage() {
           })}
         </div>
 
-        {/* Bottom Section: Who's Online + Forum Stats */}
-        <div className="grid md:grid-cols-2 gap-6 mt-6">
+        {/* Bottom Section: Who's Online + Forum Stats. The presence card
+            hides entirely while nobody is online - an empty roster with a
+            role legend is forum furniture with nothing to say. */}
+        <div className={`grid ${(online.totalOnline || 0) > 0 ? 'md:grid-cols-2' : ''} gap-6 mt-6`}>
           {/* Who's Online */}
+          {(online.totalOnline || 0) > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div className="bg-slate-700 px-4 py-2">
               <h3 className="text-white font-semibold flex items-center gap-2">
@@ -343,6 +355,7 @@ export default function HubPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Forum Statistics */}
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
