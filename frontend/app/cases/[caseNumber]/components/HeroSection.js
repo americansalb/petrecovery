@@ -16,6 +16,7 @@
 
 import { motion } from 'framer-motion';
 import { Clock, MapPin, AlertTriangle, Gift } from 'lucide-react';
+import { looksLikeCoordinates, PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
 
 // Calculate urgency level based on time elapsed
 const getUrgencyConfig = (lastSeenAt) => {
@@ -94,9 +95,11 @@ export default function HeroSection({ caseData }) {
   const timeMissing = formatTimeMissing(caseData.lastSeenAt);
   const petEmoji = getPetEmoji(caseData.petSpecies);
 
-  // Extract city from address
+  // Extract city from address. A pin-only report stores raw coordinates
+  // as its address; splitting that produced LAST SEEN: 30.2992 on the
+  // public poster, so coordinate-shaped strings never reach the reader.
   const getCity = (address) => {
-    if (!address) return '';
+    if (!address || looksLikeCoordinates(address)) return '';
     const parts = address.split(',');
     if (parts.length >= 2) {
       return parts[parts.length - 2]?.trim() || '';
@@ -105,6 +108,12 @@ export default function HeroSection({ caseData }) {
   };
 
   const city = getCity(caseData.lastSeenAddress);
+  const lastSeenPlace =
+    city ||
+    (looksLikeCoordinates(caseData.lastSeenAddress)
+      ? PIN_ONLY_LABEL
+      : caseData.lastSeenAddress) ||
+    'Unknown';
 
   return (
     <section className="bg-gradient-to-b from-midnight-50 to-white">
@@ -182,9 +191,10 @@ export default function HeroSection({ caseData }) {
               Help Find <span className="text-midnight-700">{petName}</span>
             </h1>
 
-            {/* Identifying Tags */}
+            {/* Identifying Tags. A breed recorded as 'Unknown' is not a
+                word for a chip. */}
             <div className="flex flex-wrap gap-2 mb-6">
-              {caseData.petBreed && (
+              {caseData.petBreed && caseData.petBreed.toLowerCase() !== 'unknown' && (
                 <span className="px-4 py-2 bg-midnight-100 text-midnight-700 rounded-full text-sm font-medium">
                   {caseData.petBreed}
                 </span>
@@ -210,7 +220,7 @@ export default function HeroSection({ caseData }) {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-midnight-500 uppercase tracking-wide font-medium">Last Seen</p>
-                  <p className="font-semibold text-midnight-900 truncate">{city || caseData.lastSeenAddress || 'Unknown'}</p>
+                  <p className="font-semibold text-midnight-900 truncate">{lastSeenPlace}</p>
                 </div>
               </div>
 

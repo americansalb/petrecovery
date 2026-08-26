@@ -11,6 +11,7 @@ import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { looksLikeCoordinates, PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
 
 // Simple map component without GPS dependencies
 function SimpleMap({ center, lastSeen, sightings = [], petSpecies = 'DOG', hoursElapsed = 24 }) {
@@ -211,7 +212,9 @@ export default function MapPreview({
           <div className="min-w-0">
             <h2 className="font-bold text-midnight-900 text-lg">Search Area</h2>
             {lastSeenAddress && (
-              <p className="text-sm text-midnight-500 mt-0.5 line-clamp-2">{lastSeenAddress}</p>
+              <p className="text-sm text-midnight-500 mt-0.5 line-clamp-2">
+                {looksLikeCoordinates(lastSeenAddress) ? PIN_ONLY_LABEL : lastSeenAddress}
+              </p>
             )}
           </div>
           {sightingsCount > 0 && (

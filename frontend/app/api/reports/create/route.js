@@ -8,6 +8,8 @@ import { seedActivation, enqueueCascade } from '@/app/lib/cascade/runCascade';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { logEvent } from '@/lib/logging';
+import { describePet } from '@/app/lib/species';
+import { looksLikeCoordinates, reverseGeocodeLabel } from '@/app/lib/maps/reverseLabel';
 import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
@@ -86,6 +88,18 @@ export async function POST(request) {
         { error: 'Missing required fields. Please provide at least an email or phone number.' },
         { status: 400 }
       );
+    }
+
+    // A pin-only report arrives with raw "lat, lng" as its address: all
+    // three client geocoders failed, or the reporter tapped "use my
+    // location" with no network for the reverse lookup. Resolve a human
+    // label here, before the transaction and its time budget; if the
+    // geocoder is down the coordinates stay stored, and the display layer
+    // knows not to print them.
+    let resolvedLastSeenAddress = lastSeenAddress;
+    if (looksLikeCoordinates(lastSeenAddress) && Array.isArray(center)) {
+      const label = await reverseGeocodeLabel(Number(center[0]), Number(center[1]));
+      if (label) resolvedLastSeenAddress = label;
     }
 
     let accountCreated = false;
@@ -250,9 +264,15 @@ export async function POST(request) {
       const lastSeenAt = calculateLastSeenTime(timeElapsed);
       const petSizeValue = size || 'MEDIUM';
 
-      // Build pet description including indoor/outdoor status for cats
+      // Build pet description including indoor/outdoor status for cats.
+      // describePet keeps the enum out of prose ("Dark Brown Dog", never
+      // "Dark Brown DOG"), and a breed recorded as 'Unknown' is not a word
+      // for a poster.
       const petTypeNormalized = (petType || 'OTHER').toUpperCase();
-      let petDescription = distinctiveMarks || `${color} ${petType || 'pet'}${breed ? ` - ${breed}` : ''}`;
+      const knownBreed = breed && breed.toLowerCase() !== 'unknown' ? breed : null;
+      let petDescription =
+        distinctiveMarks ||
+        describePet({ species: petTypeNormalized, breed: knownBreed, color });
       if (petTypeNormalized === 'CAT' && isIndoorCat !== undefined && isIndoorCat !== null) {
         const indoorStatus = isIndoorCat ? 'Indoor cat' : 'Outdoor access cat';
         petDescription = `${indoorStatus}. ${petDescription}`;
@@ -277,7 +297,7 @@ export async function POST(request) {
           lastSeenAt,
           lastSeenLatitude: center[0],
           lastSeenLongitude: center[1],
-          lastSeenAddress,
+          lastSeenAddress: resolvedLastSeenAddress,
           searchRadius: radiusMiles,
           // Guard on null, not truthiness: a valid 0.0 coordinate (equator /
           // prime meridian) is falsy and `0 || null` would drop it.
