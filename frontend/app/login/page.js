@@ -17,7 +17,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Mail, Lock, ArrowLeft } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
-import { LOGO_ICON } from '@/lib/brandAssets';
+import BrandLogo from '@/app/components/BrandLogo';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -80,7 +80,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-midnight-900 font-bold text-2xl">
-            <img src={LOGO_ICON} alt="ReunitePets" className="h-14 w-auto" />
+            <BrandLogo alt="" className="h-14 w-auto" />
             ReunitePets
           </Link>
         </div>

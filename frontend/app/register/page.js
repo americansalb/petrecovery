@@ -21,7 +21,7 @@ import {
   Eye, EyeOff, ShieldCheck, MailCheck, X,
 } from 'lucide-react';
 import { Button, cn } from '@/components/ui';
-import { LOGO_ICON } from '@/lib/brandAssets';
+import BrandLogo from '@/app/components/BrandLogo';
 import { captchaHeaders } from '@/app/lib/captchaClient';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -182,7 +182,7 @@ export default function RegisterPage() {
       <main role="main" aria-labelledby="register-heading" className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-6">
-          <img src={LOGO_ICON} alt="" className="w-9 h-9" />
+          <BrandLogo alt="" className="w-9 h-9" />
           <span className="text-xl font-bold text-midnight-900">Reunite<span className="text-flash-600">Pets</span></span>
         </div>
 
