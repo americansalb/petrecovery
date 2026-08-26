@@ -13,6 +13,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { formatLocationSlug } from '@/app/lib/utils';
+import { caseStatusLabel } from '@/app/lib/caseStatus';
 
 /**
  * SEO Landing Page for Location-based Lost Pet Searches
@@ -44,7 +45,10 @@ export default function LocationLandingPage() {
       const [openRes, reunitedRes, squadsRes] = await Promise.all([
         fetch(`/api/public/missions?city=${city}&state=${state}&limit=6`),
         fetch(`/api/public/missions?city=${city}&state=${state}&status=REUNITED&limit=1`),
-        fetch(`/api/rescue-forces?state=${state}&limit=4`),
+        // The forces API requires a city (state-only answered 400, so this
+        // section said "No rescue forces" on every city page, including
+        // ones that have one).
+        fetch(`/api/rescue-forces?search=${city}&state=${state}&limit=4`),
       ]);
 
       let activeMissions = 0;
@@ -64,7 +68,12 @@ export default function LocationLandingPage() {
 
       if (squadsRes.ok) {
         const data = await squadsRes.json();
-        setSquads(data.squads || []);
+        // The forces API answers per-city rows with the squad nested
+        // inside; this page reads a flat list.
+        const fromCities = (data.cities || [])
+          .filter((c) => c.exists && c.squad)
+          .map((c) => c.squad);
+        setSquads(fromCities.length ? fromCities : data.squads || []);
       }
 
       // These are counted, not invented. They used to be Math.random(), which
@@ -266,7 +275,7 @@ export default function LocationLandingPage() {
             color: '#0f172a',
             marginBottom: '1.5rem',
           }}>
-            Rescue Forces in {location.state}
+            Rescue Forces in {location.city}
           </h2>
 
           {squads.length === 0 ? (
@@ -409,7 +418,7 @@ function MissionCard({ missionData }) {
             fontSize: '0.75rem',
             fontWeight: 600,
           }}>
-            {missionData.status}
+            {caseStatusLabel(missionData.status)}
           </span>
           <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
             <Clock size={12} style={{ display: 'inline', marginRight: '4px' }} />
@@ -458,7 +467,7 @@ function SquadCard({ squad }) {
         color: '#64748b',
         fontSize: '0.85rem',
       }}>
-        <span>{squad._count?.members || 0} members</span>
+        <span>{squad.memberCount ?? squad._count?.members ?? 0} members</span>
         <span>{squad.successfulReunions || 0} reunions</span>
       </div>
     </Link>

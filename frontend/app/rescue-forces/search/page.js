@@ -535,9 +535,15 @@ export default function RescueSquadSearchPage() {
                     {/* Squad Header */}
                     <div className="flex justify-between items-center flex-wrap gap-4">
                       <div className="flex-1">
+                        {/* A city with no force used to title itself
+                            "[City] Rescue Force" - identical to the real
+                            force above it when two same-named cities were
+                            in range, reading as a duplicate listing. */}
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="text-lg font-bold text-midnight-900">
-                            {item.city} Rescue Force
+                            {item.exists
+                              ? item.squad?.name || `${item.city} Rescue Force`
+                              : `Start a Rescue Force in ${item.city}, ${item.state}`}
                           </h3>
                           {item.exists && <Badge variant="success">Active</Badge>}
                         </div>
@@ -561,7 +567,7 @@ export default function RescueSquadSearchPage() {
                             View Rescue Force
                           </Button>
                         ) : (
-                          <Button variant="success" onClick={() => handleJoin(item.squad.id)}>
+                          <Button onClick={() => handleJoin(item.squad.id)}>
                             Join Rescue Force
                           </Button>
                         )

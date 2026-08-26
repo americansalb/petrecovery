@@ -115,9 +115,10 @@ export async function GET(request) {
       userState = citiesForZip[0].state_id;
       allCitiesInZip = citiesForZip.map(c => c.city);
     } else {
-      // US city name search - use cities library
+      // US city name search - use cities library. The caller's state (the
+      // city pages send one) disambiguates same-named cities.
       const cityName = searchTerm.trim();
-      const cityData = getCityByName(cityName);
+      const cityData = getCityByName(cityName, passedState);
 
       if (!cityData) {
         await logEvent({
@@ -137,10 +138,13 @@ export async function GET(request) {
         return NextResponse.json({ error: 'Invalid city name' }, { status: 400 });
       }
 
-      // Check if a squad exists for this city
+      // Check if a squad exists for this city - in THIS state. Matching on
+      // the bare name centered an "Austin, AR" search on the Austin, TX
+      // squad's coordinates, which then read "0.0 miles away".
       const existingSquad = await prisma.rescueForce.findFirst({
         where: {
-          city: { equals: cityName, mode: 'insensitive' },
+          city: { equals: cityData.city, mode: 'insensitive' },
+          state: { equals: cityData.state_id, mode: 'insensitive' },
           isActive: true
         }
       });

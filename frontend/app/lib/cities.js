@@ -165,8 +165,16 @@ export function getCityByName(cityName, stateId = null) {
     );
   }
 
-  // Without state, return first match
-  return allCitiesData.find(c => normalizeForSearch(c.city) === normalizedInput);
+  // Without a state, prefer the largest match rather than dataset order:
+  // ZIP count is the size proxy this dataset has. Plain "Austin" used to
+  // resolve to Austin, AR (one ZIP) instead of Austin, TX because the
+  // Arkansas row happened to sort first.
+  let best = null;
+  for (const c of allCitiesData) {
+    if (normalizeForSearch(c.city) !== normalizedInput) continue;
+    if (!best || (c.zips?.length || 0) > (best.zips?.length || 0)) best = c;
+  }
+  return best;
 }
 
 /**
