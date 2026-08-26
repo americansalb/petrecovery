@@ -1,46 +1,69 @@
 'use client';
 
+/**
+ * /patrol/join - sign up to watch a neighborhood for lost pets.
+ *
+ * Three steps: pick the zone (zip or geolocation, then drag the pin and set
+ * the radius), choose how alerts arrive, agree to the safety rules. Guests
+ * create an account inline; the POST /api/patrol/join contract is unchanged
+ * (zipCode, centerLat/Lng, radiusMiles, notifications{text,email,push}).
+ */
+
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { theme } from '../../lib/theme';
+import {
+  MapPin, Bell, ShieldCheck, Loader2, Check, ChevronLeft, Navigation,
+} from 'lucide-react';
 import { captchaHeaders } from '@/app/lib/captchaClient';
-import { USER_AGENT } from '@/app/lib/brand';
+
+const STEPS = [
+  { id: 'zone', label: 'Your zone' },
+  { id: 'alerts', label: 'Alerts' },
+  { id: 'agree', label: 'Agreement' },
+];
+
+const inputClass =
+  'w-full px-4 py-3 rounded-xl border-2 border-midnight-200 text-midnight-900 ' +
+  'placeholder:text-midnight-400 focus:outline-none focus:border-flash-400 transition-colors';
+
+const primaryBtn =
+  'inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-flash-400 ' +
+  'text-midnight-900 font-bold enabled:hover:bg-flash-500 disabled:bg-midnight-200 ' +
+  'disabled:text-midnight-500 disabled:cursor-not-allowed transition-colors';
+
+const quietBtn =
+  'inline-flex items-center gap-1.5 px-4 py-3 rounded-xl text-midnight-600 font-medium ' +
+  'hover:text-midnight-900 hover:bg-midnight-100 transition-colors';
 
 export default function JoinPatrol() {
   const { data: session, status } = useSession();
-  const router = useRouter();
-  const [step, setStep] = useState(1);
+
+  const [step, setStep] = useState(0);
   const [zipCode, setZipCode] = useState('');
-  const [center, setCenter] = useState(null);
+  const [zoneLabel, setZoneLabel] = useState('');
+  const [center, setCenter] = useState(null); // [lat, lng]
   const [radiusMiles, setRadiusMiles] = useState(5);
-  const [notifications, setNotifications] = useState({
-    text: true,
-    email: true,
-    push: true,
-  });
+  const [locating, setLocating] = useState(false);
+  const [notifications, setNotifications] = useState({ text: true, email: true, push: true });
   const [agreedToWaiver, setAgreedToWaiver] = useState(false);
+  const [accountInfo, setAccountInfo] = useState({
+    firstName: '', phone: '', email: '', password: '', confirmPassword: '',
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [verifyEmail, setVerifyEmail] = useState(null); // email awaiting verification
   const [alreadyMember, setAlreadyMember] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
-  const [accountInfo, setAccountInfo] = useState({
-    firstName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-  });
 
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
   const circleRef = useRef(null);
 
-  // Check if user is already a patrol member (only for authenticated users)
+  // People who already patrol get their settings, not a second signup.
   useEffect(() => {
     async function checkPatrolStatus() {
       if (status === 'authenticated' && session?.user) {
@@ -48,9 +71,7 @@ export default function JoinPatrol() {
           const res = await fetch('/api/profile');
           if (res.ok) {
             const data = await res.json();
-            if (data.patrolProfile) {
-              setAlreadyMember(true);
-            }
+            if (data.patrolProfile) setAlreadyMember(true);
           }
         } catch (err) {
           console.error('Error checking patrol status:', err);
@@ -58,17 +79,39 @@ export default function JoinPatrol() {
       }
       setCheckingStatus(false);
     }
-
-    if (status !== 'loading') {
-      checkPatrolStatus();
-    }
+    if (status !== 'loading') checkPatrolStatus();
   }, [status, session]);
 
-  // Initialize map only once when we first reach step 3 with a center
+  // The zone draft survives leaving the page (signing in, verifying an
+  // email). Restored on return, cleared on success.
   useEffect(() => {
-    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 3) {
-      // Clean up map if we're leaving step 3
-      if (step !== 3 && mapInstanceRef.current) {
+    try {
+      const saved = localStorage.getItem('patrolZoneDraft');
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (Array.isArray(d.center) && Number.isFinite(d.center[0])) setCenter(d.center);
+        if (typeof d.zipCode === 'string') setZipCode(d.zipCode);
+        if (typeof d.zoneLabel === 'string') setZoneLabel(d.zoneLabel);
+        if (Number.isFinite(d.radiusMiles)) setRadiusMiles(d.radiusMiles);
+        if (d.notifications) setNotifications((n) => ({ ...n, ...d.notifications }));
+      }
+    } catch { /* no draft */ }
+  }, []);
+
+  useEffect(() => {
+    if (!center) return;
+    try {
+      localStorage.setItem(
+        'patrolZoneDraft',
+        JSON.stringify({ zipCode, center, zoneLabel, radiusMiles, notifications })
+      );
+    } catch { /* storage full/blocked - non-fatal */ }
+  }, [zipCode, center, zoneLabel, radiusMiles, notifications]);
+
+  // Map lives on the zone step once a center exists.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !mapRef.current || !center || step !== 0) {
+      if ((step !== 0 || !center) && mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
         markerRef.current = null;
@@ -76,52 +119,47 @@ export default function JoinPatrol() {
       }
       return;
     }
-
-    // Don't recreate if map already exists
     if (mapInstanceRef.current) return;
 
-    import('leaflet').then((L) => {
-      // Create map
-      const map = L.map(mapRef.current).setView(center, 12);
-      mapInstanceRef.current = map;
-
-      // Add tile layer
+    let cancelled = false;
+    import('leaflet').then((mod) => {
+      if (cancelled || !mapRef.current || mapInstanceRef.current) return;
+      const L = mod.default || mod;
+      const map = L.map(mapRef.current, { zoomControl: true }).setView(center, 12);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
         maxZoom: 19,
       }).addTo(map);
 
-      // Create draggable marker
-      const marker = L.marker(center, { draggable: true }).addTo(map);
-      markerRef.current = marker;
-
-      // Create radius circle
-      const circle = L.circle(center, {
-        color: '#0ea5e9',
-        fillColor: '#0ea5e9',
-        fillOpacity: 0.2,
-        radius: radiusMiles * 1609.34, // Convert miles to meters
+      const marker = L.marker(center, {
+        draggable: true,
+        icon: L.divIcon({
+          className: '',
+          html: '<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:#facc15;border:3px solid #020617;transform:rotate(-45deg);"></div>',
+          iconSize: [26, 26],
+          iconAnchor: [13, 24],
+        }),
       }).addTo(map);
-      circleRef.current = circle;
+      const circle = L.circle(center, {
+        radius: radiusMiles * 1609.34,
+        color: '#020617',
+        weight: 2,
+        fillColor: '#facc15',
+        fillOpacity: 0.12,
+      }).addTo(map);
 
-      // Handle marker drag
-      marker.on('dragend', function (e) {
+      marker.on('dragend', (e) => {
         const pos = e.target.getLatLng();
         setCenter([pos.lat, pos.lng]);
       });
+
+      mapInstanceRef.current = map;
+      markerRef.current = marker;
+      circleRef.current = circle;
     });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, center === null, checkingStatus]);
 
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-        markerRef.current = null;
-        circleRef.current = null;
-      }
-    };
-  }, [step]);
-
-  // Update marker and circle position when center changes
   useEffect(() => {
     if (markerRef.current && circleRef.current && center) {
       markerRef.current.setLatLng(center);
@@ -129,67 +167,84 @@ export default function JoinPatrol() {
     }
   }, [center]);
 
-  // Update circle radius when slider changes
   useEffect(() => {
-    if (circleRef.current) {
-      circleRef.current.setRadius(radiusMiles * 1609.34);
-    }
+    if (circleRef.current) circleRef.current.setRadius(radiusMiles * 1609.34);
   }, [radiusMiles]);
 
-  const geocodeZipCode = async () => {
+  const geocodeZip = async () => {
     setError(null);
-
-    if (!zipCode || zipCode.length !== 5) {
-      setError('Please enter a valid 5-digit zip code');
+    if (!/^\d{5}$/.test(zipCode)) {
+      setError('Enter a 5-digit ZIP code.');
       return;
     }
-
+    setLocating(true);
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=US&format=json&limit=1`,
-        {
-          headers: {
-            'User-Agent': USER_AGENT
-          }
-        }
+      const res = await fetch(
+        `/api/geocode?q=${encodeURIComponent(zipCode + ' USA')}&limit=1&addressdetails=1&countrycodes=us`
       );
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        const lat = parseFloat(data[0].lat);
-        const lon = parseFloat(data[0].lon);
-        setCenter([lat, lon]);
-        setStep(3);
+      const data = res.ok ? await res.json() : [];
+      if (Array.isArray(data) && data.length > 0) {
+        const a = data[0].address || {};
+        setCenter([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+        setZoneLabel([a.city || a.town || a.village || a.suburb, a.state].filter(Boolean).join(', '));
       } else {
-        setError('Could not find that zip code. Please try again.');
+        setError("Couldn't place that ZIP code on the map. Check the number, or use your location instead.");
       }
-    } catch (err) {
-      setError('Error finding zip code. Please try again.');
-      console.error('Geocoding error:', err);
+    } catch {
+      setError("The map lookup isn't responding. Use your location instead, or try again in a minute.");
+    } finally {
+      setLocating(false);
     }
+  };
+
+  const useMyLocation = () => {
+    setError(null);
+    if (!navigator.geolocation) {
+      setError("This browser can't share your location. Enter your ZIP code instead.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const c = [pos.coords.latitude, pos.coords.longitude];
+        setCenter(c);
+        setZoneLabel('Your current location');
+        // The join API stores the zone by ZIP as well - pull it from a
+        // reverse lookup so the person doesn't have to type it.
+        try {
+          const res = await fetch(`/api/geocode?lat=${c[0]}&lon=${c[1]}&addressdetails=1`);
+          if (res.ok) {
+            const data = await res.json();
+            const a = data?.address || {};
+            if (/^\d{5}/.test(a.postcode || '')) setZipCode(a.postcode.slice(0, 5));
+            const label = [a.suburb || a.neighbourhood || a.city || a.town, a.state].filter(Boolean).join(', ');
+            if (label) setZoneLabel(label);
+          }
+        } catch { /* the map pin is set; zip can be typed */ }
+        setLocating(false);
+      },
+      () => {
+        setError("Couldn't get your location. Enter your ZIP code instead.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
-
     try {
-      // If user is not authenticated, create account first
       if (status !== 'authenticated') {
-        // Validate account info
         if (!accountInfo.firstName || !accountInfo.email || !accountInfo.password) {
-          throw new Error('Please fill in all required account fields');
+          throw new Error('Fill in your name, email, and a password to create the account.');
         }
-
         if (accountInfo.password !== accountInfo.confirmPassword) {
-          throw new Error('Passwords do not match');
+          throw new Error('The two passwords do not match.');
         }
-
         if (accountInfo.password.length < 8) {
-          throw new Error('Password must be at least 8 characters');
+          throw new Error('The password needs at least 8 characters.');
         }
-
-        // Create account
         const registerRes = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('register')) },
@@ -200,31 +255,27 @@ export default function JoinPatrol() {
             phone: accountInfo.phone,
           }),
         });
-
         const registerData = await registerRes.json();
+        if (!registerRes.ok) throw new Error(registerData.error || 'Could not create the account.');
 
-        if (!registerRes.ok) {
-          throw new Error(registerData.error || 'Failed to create account');
-        }
-
-        // Auto sign in
         const signInResult = await signIn('credentials', {
           redirect: false,
           email: accountInfo.email,
           password: accountInfo.password,
         });
-
         if (signInResult?.error) {
-          throw new Error('Account created but failed to sign in. Please try logging in.');
+          // New accounts can't sign in until the email is verified. The
+          // zone draft is already saved on this device, so hand off to
+          // verification instead of showing a dead-end error.
+          setVerifyEmail(accountInfo.email);
+          setIsSubmitting(false);
+          return;
         }
       }
 
-      // Now create patrol profile
       const response = await fetch('/api/patrol/join', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           zipCode,
           centerLat: center[0],
@@ -233,13 +284,9 @@ export default function JoinPatrol() {
           notifications,
         }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to join patrol');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'Could not save your patrol zone.');
+      try { localStorage.removeItem('patrolZoneDraft'); } catch { /* non-fatal */ }
       setSuccess(true);
     } catch (err) {
       setError(err.message);
@@ -250,128 +297,48 @@ export default function JoinPatrol() {
 
   if (checkingStatus) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #f3f3f3',
-            borderTop: '4px solid #0ea5e9',
-            borderRadius: '50%',
-            margin: '0 auto 1rem',
-            animation: 'spin 1s linear infinite',
-          }} />
-          <style jsx>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-          <p style={{ color: theme.colors.gray[600] }}>Loading...</p>
-        </div>
+      <div className="min-h-[60vh] flex items-center justify-center bg-midnight-50">
+        <Loader2 size={32} className="animate-spin text-midnight-400" />
       </div>
     );
   }
 
   if (alreadyMember) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
-      }}>
-        <div style={{
-          maxWidth: '600px',
-          backgroundColor: 'white',
-          borderRadius: theme.radius.xl,
-          padding: '3rem 2rem',
-          textAlign: 'center',
-          boxShadow: theme.shadows.lg,
-        }}>
-          <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🦸</div>
-          <h1 style={{
-            fontSize: '2.5rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: theme.colors.gray[900],
-          }}>
-            You're Already a Patrol Member!
-          </h1>
-          <p style={{
-            fontSize: '1.2rem',
-            color: theme.colors.gray[600],
-            marginBottom: '2rem',
-          }}>
-            You're already part of the community helping reunite lost pets with their families.
+      <div className="min-h-[70vh] bg-midnight-50 flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-card p-8 text-center">
+          <span className="w-14 h-14 mx-auto rounded-full bg-flash-100 flex items-center justify-center mb-4">
+            <ShieldCheck size={28} className="text-midnight-900" />
+          </span>
+          <h1 className="text-2xl font-bold text-midnight-900 mb-2">You already patrol</h1>
+          <p className="text-midnight-600 mb-6">
+            This account has a patrol zone. Alerts for missing pets inside it go to you already.
           </p>
-          <div style={{
-            background: '#dbeafe',
-            border: '2px solid #0ea5e9',
-            borderRadius: theme.radius.lg,
-            padding: '1.5rem',
-            marginBottom: '2rem',
-          }}>
-            <p style={{
-              margin: 0,
-              color: '#075985',
-              fontSize: '1rem',
-              fontWeight: '600',
-            }}>
-              💡 Manage your patrol settings or view the full pet database from your dashboard
-            </p>
+          <div className="flex flex-col gap-2">
+            <Link href="/dashboard" className={primaryBtn}>Go to my dashboard</Link>
+            <Link href="/profile" className={quietBtn + ' justify-center'}>Change my patrol settings</Link>
           </div>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link
-              href="/dashboard"
-              style={{
-                padding: '1rem 2rem',
-                background: '#0ea5e9',
-                color: 'white',
-                borderRadius: theme.radius.lg,
-                textDecoration: 'none',
-                fontWeight: '700',
-                boxShadow: theme.shadows.sm,
-              }}
-            >
-              Go to Dashboard
-            </Link>
-            <Link
-              href="/database"
-              style={{
-                padding: '1rem 2rem',
-                background: '#10b981',
-                color: 'white',
-                borderRadius: theme.radius.lg,
-                textDecoration: 'none',
-                fontWeight: '700',
-                boxShadow: theme.shadows.sm,
-              }}
-            >
-              View Database
-            </Link>
-            <Link
-              href="/profile"
-              style={{
-                padding: '1rem 2rem',
-                background: '#f1f5f9',
-                color: theme.colors.gray[700],
-                borderRadius: theme.radius.lg,
-                textDecoration: 'none',
-                fontWeight: '700',
-              }}
-            >
-              Settings
-            </Link>
-          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (verifyEmail) {
+    return (
+      <div className="min-h-[70vh] bg-midnight-50 flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-card p-8 text-center">
+          <span className="w-14 h-14 mx-auto rounded-full bg-flash-100 flex items-center justify-center mb-4">
+            <Bell size={28} className="text-midnight-900" />
+          </span>
+          <h1 className="text-2xl font-bold text-midnight-900 mb-2">Check your email</h1>
+          <p className="text-midnight-600 mb-6">
+            Your account is created and a verification link is on its way to{' '}
+            <strong className="text-midnight-900">{verifyEmail}</strong>. Your patrol zone is saved on
+            this device: verify, sign in, and finish from this page with one tap.
+          </p>
+          <Link href="/login?callbackUrl=/patrol/join" className={primaryBtn}>
+            I verified - sign me in
+          </Link>
         </div>
       </div>
     );
@@ -379,958 +346,268 @@ export default function JoinPatrol() {
 
   if (success) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem',
-        background: theme.gradients.hope,
-      }}>
-        <div style={{
-          maxWidth: '600px',
-          backgroundColor: 'white',
-          borderRadius: theme.radius.xl,
-          padding: '3rem 2rem',
-          textAlign: 'center',
-          boxShadow: theme.shadows.lg,
-        }}>
-          <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🎉</div>
-          <h1 style={{
-            fontSize: '2.5rem',
-            fontWeight: '800',
-            marginBottom: '1rem',
-            color: theme.colors.gray[900]
-          }}>
-            Welcome to Pet Patrol!
-          </h1>
-          <p style={{
-            marginBottom: '1rem',
-            color: theme.colors.gray[700],
-            lineHeight: '1.6',
-            fontSize: '1.1rem',
-          }}>
-            You're now part of a community of heroes helping reunite lost pets with their families.
+      <div className="min-h-[70vh] bg-midnight-50 flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-card p-8 text-center">
+          <span className="w-14 h-14 mx-auto rounded-full bg-flash-400 flex items-center justify-center mb-4">
+            <Check size={28} strokeWidth={3} className="text-midnight-900" />
+          </span>
+          <h1 className="text-2xl font-bold text-midnight-900 mb-2">Your zone is active</h1>
+          <p className="text-midnight-600 mb-6">
+            When a pet is reported missing within {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'} of
+            your pin, you get an alert. Keep an eye out on your normal walks and drives, and report any
+            sighting from the alert itself.
           </p>
-          <div style={{
-            background: '#f0fdf4',
-            border: '2px solid #10b981',
-            borderRadius: theme.radius.lg,
-            padding: '1.5rem',
-            marginBottom: '2rem',
-            textAlign: 'left',
-          }}>
-            <h3 style={{
-              fontSize: '1.1rem',
-              fontWeight: '700',
-              marginBottom: '0.75rem',
-              color: '#065f46',
-            }}>
-              What happens next:
-            </h3>
-            <ul style={{
-              margin: 0,
-              paddingLeft: '1.5rem',
-              color: theme.colors.gray[700],
-              lineHeight: '1.8',
-            }}>
-              <li>You'll receive alerts when pets go missing in your {radiusMiles}-mile patrol zone</li>
-              <li>Watch for lost pets during your daily routine</li>
-              <li>If you spot a lost pet, report the sighting to help reunite families</li>
-            </ul>
-          </div>
-          <Link href="/dashboard" style={{
-            display: 'inline-block',
-            background: theme.gradients.ocean,
-            color: 'white',
-            padding: '1.25rem 2.5rem',
-            borderRadius: theme.radius.lg,
-            textDecoration: 'none',
-            fontWeight: '700',
-            fontSize: '1.1rem',
-            boxShadow: theme.shadows.md,
-          }}>
-            Go to Dashboard →
-          </Link>
+          <Link href="/dashboard" className={primaryBtn}>Go to my dashboard</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(to bottom, #ffffff 0%, #f8fafc 100%)',
-      fontFamily: theme.fonts.sans,
-    }}>
-      {/* Header */}
-      <div style={{
-        background: '#0f172a', // midnight-900
-        padding: '1.5rem 2rem',
-        boxShadow: theme.shadows.sm,
-        borderBottom: '1px solid #1e293b',
-      }}>
-        <div style={{
-          maxWidth: '900px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <Link
-            href="/"
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: '800',
-              color: 'white',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
-          >
-            <span style={{ color: '#fbbf24' }}>←</span> Reunite<span style={{ color: '#fbbf24' }}>Pets</span>
-          </Link>
+    <div className="min-h-screen bg-midnight-50">
+      <div className="max-w-xl mx-auto px-4 py-8 sm:py-12">
+        {/* Title */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-midnight-900">Pet Patrol</h1>
+          <p className="text-midnight-600 mt-2">
+            Pick the area you already move through every day. When a pet goes missing inside it,
+            you get an alert with the photo and the spot it was last seen.
+          </p>
         </div>
-      </div>
 
-      <div style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        padding: '3rem 2rem',
-      }}>
-        {/* Progress Bar */}
-        {step > 1 && step < 6 && (
-          <div style={{
-            display: 'flex',
-            gap: '0.5rem',
-            marginBottom: '2rem',
-          }}>
-            {[2, 3, 4, 5].map((s) => (
-              <div
-                key={s}
-                style={{
-                  flex: 1,
-                  height: '6px',
-                  backgroundColor: step >= s ? '#0ea5e9' : '#e5e7eb',
-                  borderRadius: '3px',
-                }}
-              />
-            ))}
-          </div>
-        )}
+        {/* Step dots */}
+        <div className="flex items-center justify-center gap-2 mb-8" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+          {STEPS.map((s, i) => (
+            <div key={s.id} className="flex items-center gap-2">
+              <span
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                  i < step ? 'bg-midnight-900 text-white'
+                  : i === step ? 'bg-flash-400 text-midnight-900'
+                  : 'bg-midnight-200 text-midnight-500'
+                }`}
+              >
+                {i < step ? <Check size={16} strokeWidth={3} /> : i + 1}
+              </span>
+              <span className={`text-sm font-medium hidden sm:inline ${i === step ? 'text-midnight-900' : 'text-midnight-400'}`}>
+                {s.label}
+              </span>
+              {i < STEPS.length - 1 && <span className="w-6 h-px bg-midnight-200" />}
+            </div>
+          ))}
+        </div>
 
-        {/* Error Display */}
-        {error && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            border: '2px solid #fca5a5',
-            color: '#991b1b',
-            padding: '1rem',
-            borderRadius: theme.radius.lg,
-            marginBottom: '1.5rem',
-            fontWeight: '600',
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* Step 1: Hero / Intro */}
-        {step === 1 && (
-          <div style={{ textAlign: 'center', maxWidth: '700px', margin: '0 auto', position: 'relative' }}>
-            <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🦸</div>
-            <h1 style={{
-              fontSize: '3rem',
-              fontWeight: '900',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-              lineHeight: '1.1',
-            }}>
-              Become a Patrol Hero
-            </h1>
-            <p style={{
-              fontSize: '1.3rem',
-              color: theme.colors.gray[600],
-              marginBottom: '2.5rem',
-              lineHeight: '1.6',
-            }}>
-              Help reunite lost pets with their families in your neighborhood
-            </p>
-
-            <div style={{
-              background: 'white',
-              borderRadius: theme.radius.xl,
-              padding: '2.5rem',
-              marginBottom: '2rem',
-              textAlign: 'left',
-              boxShadow: theme.shadows.md,
-            }}>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: '800',
-                marginBottom: '1.5rem',
-                color: theme.colors.gray[900],
-              }}>
-                How It Works:
+        <div className="bg-white rounded-3xl shadow-card p-6 sm:p-8">
+          {/* Step 1: zone */}
+          {step === 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-midnight-900 mb-1 flex items-center gap-2">
+                <MapPin size={20} /> Where you patrol
               </h2>
-              <div style={{ marginBottom: '1.5rem' }}>
-                {[
-                  { emoji: '📍', title: 'Set Your Patrol Zone', desc: 'Choose your area with a customizable radius on the map' },
-                  { emoji: '🔔', title: 'Receive Instant Alerts', desc: 'Get notified when pets go missing in your zone' },
-                  { emoji: '👀', title: 'Keep an Eye Out', desc: 'Watch during your daily walks, commutes, and errands' },
-                  { emoji: '❤️', title: 'Help Reunite Families', desc: 'Report sightings to bring lost pets home' },
-                ].map((item, i) => (
-                  <div key={i} style={{
-                    display: 'flex',
-                    gap: '1rem',
-                    marginBottom: '1.5rem',
-                    alignItems: 'flex-start',
-                  }}>
-                    <div style={{
-                      fontSize: '2rem',
-                      flexShrink: 0,
-                    }}>
-                      {item.emoji}
-                    </div>
-                    <div>
-                      <div style={{
-                        fontWeight: '700',
-                        fontSize: '1.1rem',
-                        marginBottom: '0.25rem',
-                        color: theme.colors.gray[900],
-                      }}>
-                        {item.title}
-                      </div>
-                      <div style={{
-                        color: theme.colors.gray[600],
-                        lineHeight: '1.5',
-                      }}>
-                        {item.desc}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={() => setStep(2)}
-              style={{
-                padding: '1.5rem 3rem',
-                background: theme.gradients.ocean,
-                color: 'white',
-                border: 'none',
-                borderRadius: theme.radius.lg,
-                fontSize: '1.25rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                boxShadow: theme.shadows.md,
-              }}
-            >
-              Get Started →
-            </button>
-
-            <p style={{
-              marginTop: '1.5rem',
-              color: theme.colors.gray[500],
-              fontSize: '0.95rem',
-            }}>
-              Takes less than 2 minutes
-            </p>
-          </div>
-        )}
-
-        {/* Step 2: Zip Code */}
-        {step === 2 && (
-          <div style={{
-            background: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '3rem 2rem',
-            maxWidth: '600px',
-            margin: '0 auto',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-            }}>
-              Where's Your Patrol Zone?
-            </h2>
-            <p style={{
-              fontSize: '1.05rem',
-              color: theme.colors.gray[600],
-              marginBottom: '2rem',
-            }}>
-              Enter your zip code to set the center of your patrol area
-            </p>
-
-            <label style={{
-              display: 'block',
-              marginBottom: '0.5rem',
-              fontWeight: '700',
-              color: theme.colors.gray[700],
-            }}>
-              Zip Code
-            </label>
-            <input
-              type="text"
-              value={zipCode}
-              onChange={(e) => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
-              placeholder="60601"
-              maxLength={5}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: theme.radius.lg,
-                fontSize: '1.25rem',
-                marginBottom: '2rem',
-                fontWeight: '600',
-                textAlign: 'center',
-                letterSpacing: '0.1em',
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  geocodeZipCode();
-                }
-              }}
-            />
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setStep(1)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={geocodeZipCode}
-                disabled={zipCode.length !== 5}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: zipCode.length === 5 ? theme.gradients.ocean : '#cbd5e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: zipCode.length === 5 ? 'pointer' : 'not-allowed',
-                }}
-              >
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Map with Draggable Center & Radius */}
-        {step === 3 && center && (
-          <div style={{
-            background: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '2rem',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-            }}>
-              Customize Your Patrol Zone
-            </h2>
-            <p style={{
-              fontSize: '1.05rem',
-              color: theme.colors.gray[600],
-              marginBottom: '2rem',
-            }}>
-              Drag the marker to adjust your patrol zone center, and use the slider to change the radius
-            </p>
-
-            {/* Map */}
-            <div style={{
-              borderRadius: theme.radius.lg,
-              overflow: 'hidden',
-              marginBottom: '2rem',
-              height: '450px',
-              boxShadow: theme.shadows.md,
-            }}>
-              <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
-            </div>
-
-            {/* Radius Slider */}
-            <div style={{
-              background: '#f8fafc',
-              padding: '1.5rem',
-              borderRadius: theme.radius.lg,
-              marginBottom: '2rem',
-            }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '1rem',
-                fontWeight: '700',
-                fontSize: '1.1rem',
-                color: theme.colors.gray[900],
-              }}>
-                Patrol Radius: <span style={{ color: '#0ea5e9' }}>{radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}</span>
-              </label>
-              <input
-                type="range"
-                min="0.25"
-                max="25"
-                step="0.25"
-                value={radiusMiles}
-                onChange={(e) => setRadiusMiles(parseFloat(e.target.value))}
-                style={{
-                  width: '100%',
-                  height: '8px',
-                  cursor: 'pointer',
-                }}
-              />
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginTop: '0.5rem',
-                fontSize: '0.9rem',
-                color: theme.colors.gray[500],
-              }}>
-                <span>0.25 miles</span>
-                <span>25 miles</span>
-              </div>
-            </div>
-
-            <div style={{
-              background: '#dbeafe',
-              border: '2px solid #0ea5e9',
-              borderRadius: theme.radius.lg,
-              padding: '1rem',
-              marginBottom: '2rem',
-            }}>
-              <p style={{
-                margin: 0,
-                color: '#075985',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-              }}>
-                💡 Tip: You can drag the blue marker anywhere on the map to change your patrol zone center
+              <p className="text-midnight-600 text-sm mb-5">
+                Start from your ZIP code, then drag the pin and set how far around it you can keep an eye on.
               </p>
-            </div>
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => {
-                  setStep(2);
-                  setCenter(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') geocodeZip(); }}
+                  placeholder="ZIP code"
+                  className={inputClass + ' flex-1'}
+                  aria-label="ZIP code"
+                />
+                <button type="button" onClick={geocodeZip} disabled={locating} className={primaryBtn}>
+                  {locating ? <Loader2 size={18} className="animate-spin" /> : 'Find it'}
+                </button>
+              </div>
+              <button type="button" onClick={useMyLocation} disabled={locating} className={quietBtn + ' mt-2 text-sm'}>
+                <Navigation size={15} /> Use my location instead
               </button>
-              <button
-                onClick={() => setStep(4)}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: theme.gradients.ocean,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                Continue →
-              </button>
+
+              {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+              {center && (
+                <div className="mt-5">
+                  {zoneLabel && (
+                    <p className="text-sm font-medium text-midnight-900 mb-2">{zoneLabel}</p>
+                  )}
+                  <div ref={mapRef} className="h-64 rounded-2xl overflow-hidden border border-midnight-200" />
+                  <p className="text-xs text-midnight-500 mt-2">Drag the pin to the middle of your area.</p>
+
+                  <label className="block mt-4 text-sm font-medium text-midnight-900">
+                    Radius: {radiusMiles} {radiusMiles === 1 ? 'mile' : 'miles'}
+                    <input
+                      type="range"
+                      min={1}
+                      max={25}
+                      step={1}
+                      value={radiusMiles}
+                      onChange={(e) => setRadiusMiles(Number(e.target.value))}
+                      className="w-full mt-2 accent-flash-400"
+                    />
+                  </label>
+                  <div className="flex justify-between text-xs text-midnight-400">
+                    <span>1 mile</span><span>25 miles</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={() => { setError(null); setStep(1); }}
+                  disabled={!center || !/^\d{5}$/.test(zipCode)}
+                  className={primaryBtn}
+                >
+                  Continue
+                </button>
+              </div>
+              {!center ? (
+                <p className="text-xs text-midnight-500 text-right mt-2">Place your zone on the map to continue.</p>
+              ) : !/^\d{5}$/.test(zipCode) ? (
+                <p className="text-xs text-midnight-500 text-right mt-2">Add your ZIP code above to continue.</p>
+              ) : null}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Step 4: Notifications */}
-        {step === 4 && (
-          <div style={{
-            background: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '3rem 2rem',
-            maxWidth: '700px',
-            margin: '0 auto',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-            }}>
-              How Should We Alert You?
-            </h2>
-            <p style={{
-              fontSize: '1.05rem',
-              color: theme.colors.gray[600],
-              marginBottom: '2rem',
-            }}>
-              Choose how you want to receive alerts for lost pets in your patrol zone
-            </p>
+          {/* Step 2: alerts */}
+          {step === 1 && (
+            <div>
+              <h2 className="text-xl font-bold text-midnight-900 mb-1 flex items-center gap-2">
+                <Bell size={20} /> How alerts reach you
+              </h2>
+              <p className="text-midnight-600 text-sm mb-5">
+                When a pet is reported missing inside your zone, we send the photo and last-seen spot.
+              </p>
 
-            <div style={{ marginBottom: '2rem' }}>
               {[
-                { key: 'text', emoji: '💬', label: 'Text Messages (SMS)', desc: 'Get instant SMS alerts on your phone' },
-                { key: 'email', emoji: '📧', label: 'Email', desc: 'Receive detailed alerts in your inbox' },
-                { key: 'push', emoji: '🔔', label: 'Push Notifications', desc: 'Get browser/app notifications' },
-              ].map((option) => (
+                { key: 'text', label: 'Text message', desc: 'A text to the phone number on your account.' },
+                { key: 'email', label: 'Email', desc: 'The full report in your inbox.' },
+                { key: 'push', label: 'Push notification', desc: 'On this device, when the app is installed.' },
+              ].map((opt) => (
                 <label
-                  key={option.key}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '1.5rem',
-                    marginBottom: '1rem',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: theme.radius.lg,
-                    cursor: 'pointer',
-                    backgroundColor: notifications[option.key] ? '#eff6ff' : 'white',
-                    borderColor: notifications[option.key] ? '#0ea5e9' : '#e5e7eb',
-                    gap: '1rem',
-                  }}
+                  key={opt.key}
+                  className="flex items-start gap-3 p-4 rounded-xl border-2 border-midnight-100 hover:border-midnight-300 cursor-pointer mb-3 transition-colors"
                 >
                   <input
                     type="checkbox"
-                    checked={notifications[option.key]}
-                    onChange={(e) => setNotifications({
-                      ...notifications,
-                      [option.key]: e.target.checked
-                    })}
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
+                    checked={notifications[opt.key]}
+                    onChange={(e) => setNotifications((n) => ({ ...n, [opt.key]: e.target.checked }))}
+                    className="mt-1 w-4 h-4 accent-flash-400"
                   />
-                  <div style={{ fontSize: '2rem', flexShrink: 0 }}>
-                    {option.emoji}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontWeight: '700',
-                      fontSize: '1.1rem',
-                      marginBottom: '0.25rem',
-                      color: theme.colors.gray[900],
-                    }}>
-                      {option.label}
-                    </div>
-                    <div style={{
-                      fontSize: '0.95rem',
-                      color: theme.colors.gray[600]
-                    }}>
-                      {option.desc}
-                    </div>
-                  </div>
+                  <span>
+                    <span className="block font-semibold text-midnight-900">{opt.label}</span>
+                    <span className="block text-sm text-midnight-500">{opt.desc}</span>
+                  </span>
                 </label>
               ))}
-            </div>
 
-            <div style={{
-              background: '#f0fdf4',
-              border: '2px solid #10b981',
-              borderRadius: theme.radius.lg,
-              padding: '1rem',
-              marginBottom: '2rem',
-            }}>
-              <p style={{
-                margin: 0,
-                color: '#065f46',
-                fontSize: '0.95rem',
-                fontWeight: '600',
-              }}>
-                ✓ All notification methods are enabled by default for the fastest alerts
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setStep(3)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setStep(5)}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: theme.gradients.ocean,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 5: Liability Waiver */}
-        {step === 5 && (
-          <div style={{
-            background: 'white',
-            borderRadius: theme.radius.xl,
-            padding: '3rem 2rem',
-            maxWidth: '800px',
-            margin: '0 auto',
-            boxShadow: theme.shadows.lg,
-          }}>
-            <h2 style={{
-              fontSize: '2rem',
-              fontWeight: '800',
-              marginBottom: '1rem',
-              color: theme.colors.gray[900],
-            }}>
-              Safety Guidelines & Agreement
-            </h2>
-            <p style={{
-              fontSize: '1.05rem',
-              color: theme.colors.gray[600],
-              marginBottom: '2rem',
-            }}>
-              Please review and agree to these important safety guidelines
-            </p>
-
-            <div style={{
-              background: '#fef3c7',
-              border: '2px solid #fbbf24',
-              borderRadius: theme.radius.lg,
-              padding: '1.5rem',
-              marginBottom: '2rem',
-            }}>
-              <h3 style={{
-                fontSize: '1.3rem',
-                fontWeight: '800',
-                marginBottom: '1rem',
-                color: '#92400e',
-              }}>
-                ⚠️ Safety First
-              </h3>
-              <ul style={{
-                margin: 0,
-                paddingLeft: '1.5rem',
-                color: '#78350f',
-                lineHeight: '1.8',
-                fontWeight: '500',
-              }}>
-                <li><strong>Do not approach</strong> animals that may attack humans or harbor disease</li>
-                <li><strong>Contact animal control or owners</strong> when appropriate-never take direct action with aggressive animals</li>
-                <li><strong>Never enter private property</strong> without permission</li>
-                <li><strong>Report sightings only</strong>-you are not expected to capture or chase animals</li>
-                <li><strong>Your safety comes first</strong>-if you feel unsafe, do not engage</li>
-              </ul>
-            </div>
-
-            <div style={{
-              background: '#f8fafc',
-              border: '2px solid #cbd5e1',
-              borderRadius: theme.radius.lg,
-              padding: '1.5rem',
-              marginBottom: '2rem',
-              maxHeight: '300px',
-              overflowY: 'auto',
-            }}>
-              <h4 style={{
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                marginBottom: '1rem',
-                color: theme.colors.gray[900],
-              }}>
-                Liability Waiver
-              </h4>
-              <p style={{
-                fontSize: '0.9rem',
-                color: theme.colors.gray[700],
-                lineHeight: '1.7',
-                margin: 0,
-              }}>
-                By joining the ReunitePets Patrol, you acknowledge and agree that:
-                <br /><br />
-                <strong>1. Voluntary Participation:</strong> Your participation in the ReunitePets Patrol program is entirely voluntary. You are not required to take any action beyond reporting sightings of lost pets.
-                <br /><br />
-                <strong>2. No Guarantee of Safety:</strong> ReunitePets.org makes no guarantees regarding your safety while participating in patrol activities. You assume all risks associated with looking for, observing, or reporting lost pets.
-                <br /><br />
-                <strong>3. Release of Liability:</strong> You release, waive, discharge, and covenant not to sue ReunitePets.org, its officers, employees, and agents from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to any loss, damage, or injury that may be sustained by you while participating in the patrol program.
-                <br /><br />
-                <strong>4. Assumption of Risk:</strong> You acknowledge that participation in the patrol program involves inherent risks including, but not limited to, animal bites, scratches, disease transmission, property disputes, and traffic hazards. You expressly assume all such risks.
-                <br /><br />
-                <strong>5. Compliance with Laws:</strong> You agree to comply with all local, state, and federal laws while participating in the patrol program, including trespassing and animal control laws.
-                <br /><br />
-                <strong>6. Indemnification:</strong> You agree to indemnify and hold harmless ReunitePets.org from any claims, damages, or expenses arising from your participation in the patrol program.
-              </p>
-            </div>
-
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                padding: '1.5rem',
-                border: '2px solid #e5e7eb',
-                borderRadius: theme.radius.lg,
-                marginBottom: '2rem',
-                cursor: 'pointer',
-                backgroundColor: agreedToWaiver ? '#eff6ff' : 'white',
-                borderColor: agreedToWaiver ? '#0ea5e9' : '#e5e7eb',
-                gap: '1rem',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={agreedToWaiver}
-                onChange={(e) => setAgreedToWaiver(e.target.checked)}
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  marginTop: '0.25rem',
-                }}
-              />
-              <div style={{
-                fontSize: '1rem',
-                color: theme.colors.gray[800],
-                lineHeight: '1.6',
-                fontWeight: '600',
-              }}>
-                I have read and agree to the safety guidelines and liability waiver. I understand that I will not approach animals that may attack humans or harbor disease, and I will notify animal control or owners when appropriate.
+              <div className="flex justify-between mt-6">
+                <button type="button" onClick={() => setStep(0)} className={quietBtn}>
+                  <ChevronLeft size={16} /> Back
+                </button>
+                <button type="button" onClick={() => { setError(null); setStep(2); }} className={primaryBtn}>
+                  Continue
+                </button>
               </div>
-            </label>
+            </div>
+          )}
 
-            {/* Account Creation for Non-Authenticated Users */}
-            {status !== 'authenticated' && (
-              <div style={{
-                background: '#f0fdf4',
-                border: '2px solid #10b981',
-                borderRadius: theme.radius.lg,
-                padding: '2rem',
-                marginBottom: '2rem',
-              }}>
-                <h3 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '800',
-                  marginBottom: '0.5rem',
-                  color: theme.colors.gray[900],
-                }}>
-                  Create Your Account
-                </h3>
-                <p style={{
-                  fontSize: '1rem',
-                  color: theme.colors.gray[600],
-                  marginBottom: '1.5rem',
-                }}>
-                  We'll create your ReunitePets account to complete your patrol signup
+          {/* Step 3: safety rules, waiver, account, submit */}
+          {step === 2 && (
+            <div>
+              <h2 className="text-xl font-bold text-midnight-900 mb-1 flex items-center gap-2">
+                <ShieldCheck size={20} /> The rules, then you&apos;re in
+              </h2>
+              <p className="text-midnight-600 text-sm mb-5">
+                Patrol means watching and reporting. It never means catching.
+              </p>
+
+              <div className="bg-flash-50 border border-flash-200 rounded-xl p-4 mb-4">
+                <p className="font-semibold text-midnight-900 mb-2">Safety rules</p>
+                <ul className="text-sm text-midnight-700 space-y-1.5 list-disc pl-5">
+                  <li>Do not approach animals that may attack humans or harbor disease.</li>
+                  <li>Contact animal control or owners when appropriate. Never take direct action with aggressive animals.</li>
+                  <li>Never enter private property without permission.</li>
+                  <li>Report sightings only. You are not expected to capture or chase animals.</li>
+                  <li>Your safety comes first. If you feel unsafe, do not engage.</li>
+                </ul>
+              </div>
+
+              <div className="border border-midnight-200 rounded-xl p-4 mb-4 max-h-64 overflow-y-auto text-sm text-midnight-600">
+                <p className="font-semibold text-midnight-900 mb-2">Liability waiver</p>
+                <p>
+                  By joining the ReunitePets Patrol, you acknowledge and agree that:
+                  <br /><br />
+                  <strong>1. Voluntary Participation:</strong> Your participation in the ReunitePets Patrol program is entirely voluntary. You are not required to take any action beyond reporting sightings of lost pets.
+                  <br /><br />
+                  <strong>2. No Guarantee of Safety:</strong> ReunitePets.org makes no guarantees regarding your safety while participating in patrol activities. You assume all risks associated with looking for, observing, or reporting lost pets.
+                  <br /><br />
+                  <strong>3. Release of Liability:</strong> You release, waive, discharge, and covenant not to sue ReunitePets.org, its officers, employees, and agents from any and all liability, claims, demands, actions, and causes of action whatsoever arising out of or related to any loss, damage, or injury that may be sustained by you while participating in the patrol program.
+                  <br /><br />
+                  <strong>4. Assumption of Risk:</strong> You acknowledge that participation in the patrol program involves inherent risks including, but not limited to, animal bites, scratches, disease transmission, property disputes, and traffic hazards. You expressly assume all such risks.
+                  <br /><br />
+                  <strong>5. Compliance with Laws:</strong> You agree to comply with all local, state, and federal laws while participating in the patrol program, including trespassing and animal control laws.
+                  <br /><br />
+                  <strong>6. Indemnification:</strong> You agree to indemnify and hold harmless ReunitePets.org from any claims, damages, or expenses arising from your participation in the patrol program.
                 </p>
-
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '700',
-                    fontSize: '0.9rem',
-                    color: theme.colors.gray[700],
-                  }}>
-                    First Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={accountInfo.firstName}
-                    onChange={(e) => setAccountInfo({ ...accountInfo, firstName: e.target.value })}
-                    placeholder="Jane"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: theme.radius.md,
-                      fontSize: '1rem',
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '700',
-                    fontSize: '0.9rem',
-                    color: theme.colors.gray[700],
-                  }}>
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    value={accountInfo.email}
-                    onChange={(e) => setAccountInfo({ ...accountInfo, email: e.target.value })}
-                    placeholder="you@example.com"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: theme.radius.md,
-                      fontSize: '1rem',
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '700',
-                    fontSize: '0.9rem',
-                    color: theme.colors.gray[700],
-                  }}>
-                    Phone Number (Optional)
-                  </label>
-                  <input
-                    type="tel"
-                    value={accountInfo.phone}
-                    onChange={(e) => setAccountInfo({ ...accountInfo, phone: e.target.value })}
-                    placeholder="555-0100"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: theme.radius.md,
-                      fontSize: '1rem',
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '700',
-                    fontSize: '0.9rem',
-                    color: theme.colors.gray[700],
-                  }}>
-                    Password * (minimum 8 characters)
-                  </label>
-                  <input
-                    type="password"
-                    value={accountInfo.password}
-                    onChange={(e) => setAccountInfo({ ...accountInfo, password: e.target.value })}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: theme.radius.md,
-                      fontSize: '1rem',
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '0' }}>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '0.5rem',
-                    fontWeight: '700',
-                    fontSize: '0.9rem',
-                    color: theme.colors.gray[700],
-                  }}>
-                    Confirm Password *
-                  </label>
-                  <input
-                    type="password"
-                    value={accountInfo.confirmPassword}
-                    onChange={(e) => setAccountInfo({ ...accountInfo, confirmPassword: e.target.value })}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: theme.radius.md,
-                      fontSize: '1rem',
-                    }}
-                  />
-                </div>
               </div>
-            )}
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button
-                onClick={() => setStep(4)}
-                style={{
-                  flex: 1,
-                  padding: '1rem',
-                  background: '#f1f5f9',
-                  color: theme.colors.gray[700],
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                }}
-              >
-                ← Back
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!agreedToWaiver || isSubmitting}
-                style={{
-                  flex: 2,
-                  padding: '1rem',
-                  background: agreedToWaiver && !isSubmitting ? theme.gradients.forest : '#cbd5e1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: theme.radius.lg,
-                  fontSize: '1.1rem',
-                  fontWeight: '700',
-                  cursor: agreedToWaiver && !isSubmitting ? 'pointer' : 'not-allowed',
-                }}
-              >
-                {isSubmitting
-                  ? 'Processing...'
-                  : status !== 'authenticated'
-                    ? 'Create Account & Join Patrol 🎉'
-                    : 'Join Patrol 🎉'}
-              </button>
+              <label className="flex items-start gap-3 mb-6 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToWaiver}
+                  onChange={(e) => setAgreedToWaiver(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-flash-400"
+                />
+                <span className="text-sm text-midnight-700">
+                  I have read the safety rules and the waiver, and I agree to both.
+                </span>
+              </label>
+
+              {status !== 'authenticated' && (
+                <div className="border-t border-midnight-100 pt-5 mb-6">
+                  <p className="font-semibold text-midnight-900 mb-1">Create your account</p>
+                  <p className="text-sm text-midnight-500 mb-4">
+                    Alerts need somewhere to go. Free, no card.{' '}
+                    <Link href="/login?callbackUrl=/patrol/join" className="font-semibold text-midnight-900 hover:text-flash-600">
+                      Already have one? Sign in
+                    </Link>
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input className={inputClass} placeholder="First name" value={accountInfo.firstName}
+                      onChange={(e) => setAccountInfo((a) => ({ ...a, firstName: e.target.value }))} aria-label="First name" />
+                    <input className={inputClass} placeholder="Phone (for text alerts)" type="tel" value={accountInfo.phone}
+                      onChange={(e) => setAccountInfo((a) => ({ ...a, phone: e.target.value }))} aria-label="Phone" />
+                    <input className={inputClass + ' sm:col-span-2'} placeholder="Email" type="email" value={accountInfo.email}
+                      onChange={(e) => setAccountInfo((a) => ({ ...a, email: e.target.value }))} aria-label="Email" />
+                    <input className={inputClass} placeholder="Password (8+ characters)" type="password" value={accountInfo.password}
+                      onChange={(e) => setAccountInfo((a) => ({ ...a, password: e.target.value }))} aria-label="Password" />
+                    <input className={inputClass} placeholder="Confirm password" type="password" value={accountInfo.confirmPassword}
+                      onChange={(e) => setAccountInfo((a) => ({ ...a, confirmPassword: e.target.value }))} aria-label="Confirm password" />
+                  </div>
+                </div>
+              )}
+
+              {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+
+              <div className="flex justify-between">
+                <button type="button" onClick={() => setStep(1)} className={quietBtn}>
+                  <ChevronLeft size={16} /> Back
+                </button>
+                <button type="button" onClick={handleSubmit} disabled={!agreedToWaiver || isSubmitting} className={primaryBtn}>
+                  {isSubmitting ? (<><Loader2 size={18} className="animate-spin" /> Joining...</>) : 'Join the patrol'}
+                </button>
+              </div>
+              {!agreedToWaiver && (
+                <p className="text-xs text-midnight-500 text-right mt-2">Tick the agreement box to join.</p>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
