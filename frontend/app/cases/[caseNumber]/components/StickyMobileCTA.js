@@ -19,6 +19,7 @@ export default function StickyMobileCTA({
 }) {
   const [isVisible, setIsVisible] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [bannerOnScreen, setBannerOnScreen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -35,9 +36,23 @@ export default function StickyMobileCTA({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // The page body already carries a full-width I've Seen button. While that
+  // one is on screen, this bar yields - two identical yellow CTAs stacked on
+  // a phone read as a glitch.
+  useEffect(() => {
+    const banner = document.getElementById('inline-sighting-cta');
+    if (!banner || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setBannerOnScreen(entry.isIntersecting),
+      { threshold: 0.3 }
+    );
+    observer.observe(banner);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <AnimatePresence>
-      {isVisible && (
+      {isVisible && !bannerOnScreen && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

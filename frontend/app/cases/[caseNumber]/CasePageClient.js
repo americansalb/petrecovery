@@ -290,6 +290,7 @@ export default function CasePageClient() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               onClick={() => setShowSightingModal(true)}
+              id="inline-sighting-cta"
               className="w-full bg-flash-400 hover:bg-flash-500 text-midnight-900 rounded-2xl p-5 shadow-xl shadow-flash-400/30 transition group"
             >
               <div className="flex items-center justify-center gap-4">

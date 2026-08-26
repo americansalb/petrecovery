@@ -35,11 +35,12 @@ export default function SocialProofBar({
   latestActivity = null // { type: 'sighting'|'share'|'search', message: string, time: Date }
 }) {
   const stats = [
-    { icon: Eye, value: viewCount, label: viewCount === 1 ? 'View' : 'Views', color: 'text-slate-600' },
-    { icon: Share2, value: shareCount, label: shareCount === 1 ? 'Share' : 'Shares', color: 'text-blue-600' },
-    { icon: Users, value: activeSearchers, label: 'Searching', color: 'text-purple-600' },
-    { icon: MapPin, value: sightingsCount, label: sightingsCount === 1 ? 'Sighting' : 'Sightings', color: 'text-amber-600' },
+    { icon: Eye, value: viewCount, label: viewCount === 1 ? 'View' : 'Views', color: 'text-midnight-500' },
+    { icon: Share2, value: shareCount, label: shareCount === 1 ? 'Share' : 'Shares', color: 'text-midnight-500' },
+    { icon: Users, value: activeSearchers, label: 'Searching', color: 'text-midnight-500' },
+    { icon: MapPin, value: sightingsCount, label: sightingsCount === 1 ? 'Sighting' : 'Sightings', color: 'text-flash-600' },
   ];
+  const nothingYet = viewCount + shareCount + activeSearchers + sightingsCount === 0;
 
   return (
     <motion.div
@@ -48,7 +49,16 @@ export default function SocialProofBar({
       transition={{ delay: 0.2 }}
       className="bg-white rounded-2xl shadow-md border border-midnight-100 overflow-hidden"
     >
-      {/* Stats Grid - 2x2 on mobile, 4 columns on desktop */}
+      {/* A fresh case has nothing to count. One honest line beats a wall of
+          four zeros. */}
+      {nothingYet ? (
+        <div className="py-4 px-4 text-center">
+          <p className="text-sm text-midnight-600">
+            <span className="font-semibold text-midnight-900">Just posted.</span>{' '}
+            Be the first to share this case or report a sighting.
+          </p>
+        </div>
+      ) : (
       <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-midnight-100">
         {stats.map((stat, index) => (
           <div
@@ -65,6 +75,7 @@ export default function SocialProofBar({
           </div>
         ))}
       </div>
+      )}
 
       {/* Activity Ticker */}
       {latestActivity && (
