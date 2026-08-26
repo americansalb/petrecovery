@@ -17,10 +17,13 @@ export default function AlertDetailPage() {
   const [activeTab, setActiveTab] = useState('details'); // details, sightings, updates
 
   useEffect(() => {
+    // The server component already routes signed-out visitors to the public
+    // case page; this only fires when a session expires after mount. Keep
+    // the way back to this exact alert.
     if (status === 'unauthenticated') {
-      router.push('/login');
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/alerts/${alertId}`)}`);
     }
-  }, [status, router]);
+  }, [status, router, alertId]);
 
   useEffect(() => {
     const fetchAlert = async () => {
