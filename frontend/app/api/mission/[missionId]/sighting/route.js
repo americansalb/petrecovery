@@ -15,6 +15,7 @@ import {
   standDownContainment,
   handleConflictingSightings,
 } from '@/app/lib/missionControl/sightingResponse';
+import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
 
 export async function GET(request, { params }) {
   try {
@@ -76,10 +77,9 @@ export async function POST(request, { params }) {
     const body = await request.json();
     const { action, volunteerId, ...data } = body;
 
-    const mission = await prisma.missionControl.findUnique({
-      where: { caseId: missionId },
-      select: { id: true }
-    });
+    // Find-or-create: an open case accepts sightings even if nobody has
+    // opened its Mission Control board yet.
+    const mission = await ensureMissionControl(missionId);
 
     if (!mission) {
       return NextResponse.json(

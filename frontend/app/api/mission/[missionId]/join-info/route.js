@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { missionWhere } from '@/app/lib/shareMetadata';
+import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
 
 export async function GET(request, { params }) {
   try {
@@ -19,6 +20,7 @@ export async function GET(request, { params }) {
       where: missionWhere(params.missionId),
       select: {
         id: true,
+        status: true,
         caseNumber: true,
         petName: true,
         petSpecies: true,
@@ -48,9 +50,19 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Mission not found' }, { status: 404 });
     }
 
-    const mc = mission.missionControl;
+    // A wizard-created case has no MissionControl row, but an open case is
+    // a live search: create the row now rather than telling the volunteer
+    // the search ended (the old fallback did exactly that).
+    let mc = mission.missionControl;
+    if (!mc) {
+      const created = await ensureMissionControl(mission.id);
+      if (created) mc = { ...created, zones: [], activeVolunteers: [] };
+    }
+    const mode =
+      mc?.mode || (mission.status === 'REUNITED' ? 'RESOLVED' : 'CLOSED');
+
     return NextResponse.json({
-      mode: mc?.mode || 'INACTIVE',
+      mode,
       pet: {
         name: mission.petName,
         species: mission.petSpecies,

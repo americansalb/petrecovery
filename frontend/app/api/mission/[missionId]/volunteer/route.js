@@ -16,6 +16,8 @@ import {
   checkIn,
   checkOut,
 } from '@/app/lib/missionControl/volunteerOps';
+import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
+import { missionWhere } from '@/app/lib/shareMetadata';
 
 export async function POST(request, { params }) {
   try {
@@ -23,15 +25,24 @@ export async function POST(request, { params }) {
     const body = await request.json();
     const { action, deviceId, location, name, ...data } = body;
 
-    // Get mission ID from case
-    const mission = await prisma.missionControl.findUnique({
-      where: { caseId: missionId },
-      select: { id: true, mode: true }
+    // Share links carry either the case id or the case number; resolve
+    // first, then find-or-create the MissionControl row - an open case is
+    // joinable even if nobody has opened its board yet.
+    const caseRow = await prisma.case.findFirst({
+      where: missionWhere(missionId),
+      select: { id: true },
     });
+    if (!caseRow) {
+      return NextResponse.json(
+        { error: 'No search matches this link' },
+        { status: 404 }
+      );
+    }
 
+    const mission = await ensureMissionControl(caseRow.id);
     if (!mission) {
       return NextResponse.json(
-        { error: 'No active mission for this case' },
+        { error: 'This search is no longer active' },
         { status: 404 }
       );
     }
