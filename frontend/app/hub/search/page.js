@@ -147,7 +147,8 @@ function SearchContent() {
         ) : (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              Found {pagination?.totalCount || results.length} results for "{query}"
+              Found {pagination?.totalCount || results.length}{' '}
+              {(pagination?.totalCount || results.length) === 1 ? 'result' : 'results'} for "{query}"
             </p>
 
             <div className="space-y-4">

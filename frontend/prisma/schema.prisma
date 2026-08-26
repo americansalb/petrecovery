@@ -124,6 +124,10 @@ model User {
   averageResponseTime Float? // Minutes
   deviceId            String? // For guest volunteers
 
+  // Hub authorship (back-relations for ForumThread.author / ForumPost.author)
+  forumThreads ForumThread[] @relation("ForumThreadAuthor")
+  forumPosts   ForumPost[]   @relation("ForumPostAuthor")
+
   @@index([email])
   @@index([rescueLevel])
 }
@@ -4443,8 +4447,11 @@ model ForumThread {
   categoryId String
   category   ForumCategory @relation(fields: [categoryId], references: [id])
 
-  // Author
+  // Author. The categories and search routes select this relation; it was
+  // never declared, so both threw. Account deletion anonymizes User rows
+  // rather than removing them, so the foreign key holds.
   authorId String
+  author   User   @relation("ForumThreadAuthor", fields: [authorId], references: [id])
 
   // Content (first post is stored here for efficiency)
   content     String  @db.Text
@@ -4459,11 +4466,15 @@ model ForumThread {
   latitude    Float?
   longitude   Float?
 
-  // Status flags
+  // Status flags. isHidden is a reversible moderator action; isDeleted is
+  // removal. Every hub route filters on isDeleted - it was missing here,
+  // which made every one of those queries throw and rendered the whole
+  // forum empty.
   isPinned     Boolean @default(false)
   isLocked     Boolean @default(false)
   isSolved     Boolean @default(false)
   isHidden     Boolean @default(false)
+  isDeleted    Boolean @default(false)
   hiddenReason String?
   hiddenBy     String?
 
@@ -4507,8 +4518,9 @@ model ForumPost {
   threadId String
   thread   ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
-  // Author
+  // Author (see ForumThread.author for why this relation exists)
   authorId String
+  author   User   @relation("ForumPostAuthor", fields: [authorId], references: [id])
 
   // Reply hierarchy (optional nesting)
   replyToId String?
@@ -4524,8 +4536,10 @@ model ForumPost {
   embeddedShelterId String?
   imageUrls         String  @default("[]") // JSON array
 
-  // Status
+  // Status. isDeleted mirrors ForumThread: the mod tools and search
+  // filter on it, and it was missing from the schema.
   isHidden     Boolean @default(false)
+  isDeleted    Boolean @default(false)
   hiddenReason String?
   hiddenBy     String?
   isSolution   Boolean @default(false) // Marked as answer

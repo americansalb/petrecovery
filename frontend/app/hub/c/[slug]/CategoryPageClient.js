@@ -173,7 +173,7 @@ export default function CategoryPage({ params }) {
           </div>
 
           <div className="text-sm text-slate-500">
-            {pagination.total} threads
+            {pagination.total} {pagination.total === 1 ? 'thread' : 'threads'}
           </div>
         </div>
 
