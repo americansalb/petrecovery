@@ -89,34 +89,8 @@ export default function AdvicePage() {
       background: 'linear-gradient(to bottom, #f8fafc 0%, #eef2f7 100%)',
       fontFamily: theme.fonts.sans,
     }}>
-      {/* Header */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
-        padding: '1.5rem 2rem',
-        boxShadow: theme.shadows.sm,
-      }}>
-        <div style={{
-          maxWidth: '900px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <Link
-            href="/"
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: '800',
-              color: '#0f172a',
-              textDecoration: 'none',
-            }}
-          >
-            ← ReunitePets
-          </Link>
-        </div>
-      </div>
-
+      {/* The global navbar handles navigation; a second brand bar here used
+          to exit the wizard mid-question. */}
       <div style={{
         maxWidth: '900px',
         margin: '0 auto',
