@@ -69,7 +69,7 @@ function getTimeElapsedCategory(lastSeenAt) {
 }
 
 function MissionShellContent() {
-  const { data: session } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
   const { instrument, resolving: instrumentResolving } = useInstrument();
 
@@ -538,6 +538,48 @@ function MissionShellContent() {
   }, [activeMission, coverage.coverage, coverageData.totalSearchers, team, sightings]);
 
   // ----- Gate states (after every hook) -----
+
+  // A share link opened without an account used to sit on the spinner
+  // forever: fetchMission bails when there is no session and loading never
+  // clears. Guests get real doors instead - sign in, or the no-account
+  // join flow, which takes sightings too.
+  if (authStatus === 'unauthenticated') {
+    const target =
+      typeof window !== 'undefined'
+        ? window.location.pathname + window.location.search
+        : '/mission-control';
+    return (
+      <div className="h-[100dvh] flex items-center justify-center bg-slate-950 px-4">
+        <div className="text-center max-w-md w-full">
+          <div className="w-16 h-16 rounded-2xl bg-flash-400 flex items-center justify-center mx-auto mb-5">
+            <MapPin size={30} className="text-midnight-950" />
+          </div>
+          <h1 className="text-2xl font-bold text-white mb-2">
+            This search board needs an account
+          </h1>
+          <p className="text-slate-400 mb-6">
+            Mission Control is where the search team coordinates. Sign in to
+            open it{missionId ? ', or help right now without an account' : ''}.
+          </p>
+          <a
+            href={`/login?callbackUrl=${encodeURIComponent(target)}`}
+            className="block w-full py-3.5 bg-flash-400 text-midnight-950 rounded-xl font-bold hover:bg-flash-300 transition mb-3"
+          >
+            Sign in
+          </a>
+          {missionId && (
+            <a
+              href={`/join/${missionId}`}
+              className="block w-full py-3.5 bg-white/5 border border-white/15 text-slate-200 rounded-xl font-semibold hover:bg-white/10 transition"
+            >
+              Report a sighting or join the search
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="h-[100dvh] flex items-center justify-center bg-slate-950">
