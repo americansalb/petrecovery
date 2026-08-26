@@ -13,6 +13,7 @@
  * Uses Leaflet for mapping (lighter than Google Maps, free)
  */
 
+import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { TOUCH_TARGETS, COLORS } from '@/app/lib/missionControl/accessibility';
 
@@ -60,27 +61,26 @@ export default function MissionMap({
     return [40.7128, -74.0060]; // Default NYC
   }, [mission, zones]);
 
-  // Load Leaflet dynamically (client-side only)
+  // Load Leaflet dynamically (client-side only). The bundled package
+  // replaces the old unpkg script tag; the effects below still read
+  // window.L, so mirror what that script did and set the global.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Check if already loaded
     if (window.L) {
       setMapLoaded(true);
       return;
     }
 
-    // Load CSS
-    const cssLink = document.createElement('link');
-    cssLink.rel = 'stylesheet';
-    cssLink.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(cssLink);
-
-    // Load JS
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    script.onload = () => setMapLoaded(true);
-    document.body.appendChild(script);
+    let cancelled = false;
+    import('leaflet').then((mod) => {
+      if (cancelled) return;
+      window.L = mod.default || mod;
+      setMapLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Initialize map

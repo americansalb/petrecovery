@@ -56,12 +56,8 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
-      <head>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-          crossOrigin=""
-        />
-      </head>
+      {/* Leaflet's CSS ships inside each map component's own chunk (imported
+          from node_modules), so text-only pages load no map assets at all. */}
       <body className="m-0 p-0 font-sans antialiased bg-midnight-50 text-midnight-900">
         <SessionProvider>
           <ModeProvider>

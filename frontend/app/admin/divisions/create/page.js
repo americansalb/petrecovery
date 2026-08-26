@@ -1,9 +1,14 @@
 'use client';
 
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-draw/dist/leaflet.draw.css';
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 export default function AdminCreateDivisionPage() {
   const { data: session } = useSession();
@@ -82,38 +87,20 @@ export default function AdminCreateDivisionPage() {
     if (typeof window === 'undefined') return;
     if (mapInstanceRef.current) return; // Already loaded
 
-    // Inject CSS manually for reliable loading
-    if (!document.getElementById('leaflet-css')) {
-      const leafletCSS = document.createElement('link');
-      leafletCSS.id = 'leaflet-css';
-      leafletCSS.rel = 'stylesheet';
-      leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(leafletCSS);
-    }
-
-    if (!document.getElementById('leaflet-draw-css')) {
-      const drawCSS = document.createElement('link');
-      drawCSS.id = 'leaflet-draw-css';
-      drawCSS.rel = 'stylesheet';
-      drawCSS.href = 'https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css';
-      document.head.appendChild(drawCSS);
-    }
-
-    // Load Leaflet and Leaflet Draw
+    // Load Leaflet and Leaflet Draw (both CSS files are static imports above)
     const L = (await import('leaflet')).default;
 
     // Fix Leaflet icon paths for webpack
     delete L.Icon.Default.prototype._getIconUrl;
     L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconRetinaUrl: markerIcon2x.src,
+      iconUrl: markerIcon.src,
+      shadowUrl: markerShadow.src,
     });
 
+    // leaflet-draw's browser bundle extends the global L
+    window.L = L;
     await import('leaflet-draw');
-
-    // Wait a bit for CSS to load
-    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Initialize map centered on the ZIP location
     const map = L.map(mapRef.current).setView([centerLat, centerLng], 13);

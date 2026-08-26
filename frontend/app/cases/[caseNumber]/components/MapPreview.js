@@ -7,6 +7,7 @@
  * Shows: last seen marker, sighting markers, search radius circles.
  */
 
+import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
