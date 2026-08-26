@@ -167,6 +167,14 @@ const nextConfig = {
         destination: '/report/new',
         permanent: true,
       },
+      // The Sarama story lives on one page now; the old purple standalone
+      // promised UI (tip pop-ups, a Mission Command Center) that no longer
+      // exists, so the page was folded into /about.
+      {
+        source: '/about-sarama',
+        destination: '/about',
+        permanent: true,
+      },
       // One add-a-pet wizard: the guest-first Health Book flow at /care/start
       // absorbed the old members-only 9-step wizard.
       {
