@@ -21,6 +21,7 @@ import WizardShell from '../../components/report/WizardShell';
 import StepScreen from '../../components/report/StepScreen';
 import OptionCardGrid from '../../components/report/OptionCardGrid';
 import LocationPicker from '../../components/report/LocationPicker';
+import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import PhotoStep from '../../components/report/PhotoStep';
 import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
@@ -388,7 +389,14 @@ export default function ReportLostPet() {
       const opt = LOST_TIME_OPTIONS.find((o) => o.value === timeElapsed);
       if (opt) items.push({ icon: Clock, text: `Missing since: ${opt.label.toLowerCase()}` });
     }
-    if (location?.address) items.push({ icon: MapPin, text: location.address });
+    if (location?.address) {
+      // A pin-only spot stores raw coordinates; the reporter's summary
+      // should say what they did, not print latitude at them.
+      items.push({
+        icon: MapPin,
+        text: looksLikeCoordinates(location.address) ? 'Pinned on the map' : location.address,
+      });
+    }
     if (photos.length > 0) items.push({ icon: Camera, text: `${photos.length} photo${photos.length > 1 ? 's' : ''} added` });
     return items;
   }, [species, petName, timeElapsed, location, photos]);
@@ -685,7 +693,10 @@ export default function ReportLostPet() {
                 id: 'where',
                 icon: MapPin,
                 label: 'Last seen',
-                value: location ? location.city || location.address : '',
+                value: location
+                  ? location.city ||
+                    (looksLikeCoordinates(location.address) ? 'Pinned on the map' : location.address)
+                  : '',
               },
               {
                 id: 'when',

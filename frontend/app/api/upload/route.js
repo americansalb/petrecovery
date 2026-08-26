@@ -111,9 +111,12 @@ export async function POST(request) {
   try {
     // Check configuration
     if (!BUNNY_STORAGE_ZONE || !BUNNY_API_KEY || !BUNNY_CDN_URL) {
+      // The person reading this error is an owner mid-report, not an
+      // operator. Ops-speak ("contact administrator") belongs in the log
+      // line above, which already carries it.
       console.error('[UPLOAD] Bunny.net configuration missing');
       return NextResponse.json(
-        { error: 'Image upload not configured. Please contact administrator.' },
+        { error: "Photos can't be saved right now." },
         { status: 503 }
       );
     }

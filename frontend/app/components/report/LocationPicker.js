@@ -17,6 +17,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, Navigation, MapPin } from 'lucide-react';
 import { searchAutocomplete, getPlaceFromAutocomplete } from '@/app/lib/maps/appleMapKit';
+import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 
 async function reverseGeocode(lat, lon) {
   try {
@@ -114,6 +115,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   const [isSearching, setIsSearching] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [locateError, setLocateError] = useState(null);
+  const [noResults, setNoResults] = useState(false);
   const [savedOffer, setSavedOffer] = useState(null); // last confirmed spot, applied only on tap
 
   const mapRef = useRef(null);
@@ -270,6 +272,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   const runSearch = (q) => {
     setQuery(q);
     setLocateError(null);
+    setNoResults(false);
     if (!q.trim() || q.length < 2) {
       setResults([]);
       return;
@@ -277,6 +280,11 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     searchTimeoutRef.current = setTimeout(async () => {
       setIsSearching(true);
+      // An empty answer used to render NOTHING - no message, no spinner,
+      // an unchanged panel - whether the address had no matches or every
+      // geocoder was unreachable. A person in a panic reads that as "the
+      // app is broken". Say so, and point at the by-hand path.
+      let found = [];
       try {
         const near = value ? { lat: value.lat, lng: value.lng } : null;
         const [photonResults, nominatimResults, appleResults] = await Promise.allSettled([
@@ -304,11 +312,13 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
             }
           }
         }
-        setResults(merged.slice(0, 8));
+        found = merged.slice(0, 8);
       } catch (err) {
         console.error('Search error:', err);
-        setResults(await searchWithNominatim(q).catch(() => []));
+        found = await searchWithNominatim(q).catch(() => []);
       } finally {
+        setResults(found);
+        setNoResults(found.length === 0);
         setIsSearching(false);
       }
     }, 250);
@@ -317,6 +327,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
   const selectResult = async (result) => {
     setResults([]);
     setQuery('');
+    setNoResults(false);
     setIsSearching(true);
     try {
       let { latitude: lat, longitude: lng } = result;
@@ -394,6 +405,15 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
         )}
       </div>
 
+      {noResults && !isSearching && query.trim().length >= 2 && (
+        <p className="shrink-0 -mt-1 text-sm text-midnight-600">
+          No matches for that search. Try a cross-street or a nearby landmark,
+          {value
+            ? ' or tap the map to move the pin yourself.'
+            : " or tap 'Use my location' below and drag the pin to the spot."}
+        </p>
+      )}
+
       {/* Map / empty state */}
       <div className="relative z-10 flex-1 min-h-[240px] rounded-2xl overflow-hidden border border-midnight-100 shadow-card">
         <div ref={mapRef} className="absolute inset-0" />
@@ -459,7 +479,9 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
             <MapPin size={16} style={{ color: mapHex }} />
           </span>
           <p className="text-sm text-midnight-700 truncate">
-            {value.address || `${value.lat.toFixed(4)}, ${value.lng.toFixed(4)}`}
+            {value.address && !looksLikeCoordinates(value.address)
+              ? value.address
+              : 'Pinned on the map - drag the pin to adjust'}
           </p>
         </div>
       )}

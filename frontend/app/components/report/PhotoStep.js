@@ -133,7 +133,12 @@ export default function PhotoStep({
         const data = await response.json();
         if (data.url) uploaded.push(data.url);
       } catch (err) {
-        setError(`Couldn't upload ${file.name}: ${err.message}`);
+        // Keep the message about what to DO. The wizard's skip link is
+        // right below, and a photo can always be added later.
+        const why = (err.message || "That photo didn't save").replace(/\.?\s*$/, '.');
+        setError(
+          `${why} Try again, or skip for now - you can add a photo from your case page any time.`
+        );
       }
     }
     setUploading(false);
