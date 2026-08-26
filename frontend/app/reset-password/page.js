@@ -299,7 +299,7 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   return (
     <div className="min-h-[calc(100dvh-8rem)] lg:min-h-[calc(100dvh-4rem)]" style={{
-      background: 'linear-gradient(to bottom, #dbeafe, #bfdbfe)',
+      background: 'linear-gradient(to bottom, #f1f5f9, #e2e8f0)',
       padding: '1rem',
       fontFamily: 'system-ui, -apple-system, sans-serif',
       display: 'flex',

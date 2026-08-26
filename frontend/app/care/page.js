@@ -93,7 +93,7 @@ export default function CareLandingPage() {
         <div className="flex items-center justify-center gap-4 mt-8 flex-wrap">
           <Link
             href="/care/start"
-            className="inline-flex items-center gap-2 rounded-full bg-care-teal text-white text-sm font-medium px-6 py-3 hover:bg-care-tealDark transition-colors"
+            className="inline-flex items-center gap-2 rounded-full bg-flash-400 text-midnight-950 text-sm font-medium px-6 py-3 hover:bg-flash-300 transition-colors"
           >
             Start free <ArrowRight size={16} />
           </Link>
