@@ -64,8 +64,8 @@ export default function OfflinePage() {
               alignItems: 'center',
               gap: '0.5rem',
               padding: '0.75rem 1.5rem',
-              background: '#4f46e5',
-              color: 'white',
+              background: '#facc15',
+              color: '#020617',
               border: 'none',
               borderRadius: '10px',
               fontWeight: 600,
@@ -111,6 +111,9 @@ export default function OfflinePage() {
           }}>
             What you can do offline:
           </h3>
+          {/* Only what actually works offline today. The offline sighting
+              queue is not wired; promising a sync that will not happen
+              loses a real sighting. */}
           <ul style={{
             textAlign: 'left',
             color: '#64748b',
@@ -118,10 +121,12 @@ export default function OfflinePage() {
             margin: 0,
             paddingLeft: '1.25rem',
           }}>
-            <li style={{ marginBottom: '0.5rem' }}>View previously loaded cases</li>
-            <li style={{ marginBottom: '0.5rem' }}>Draft sighting reports (syncs when online)</li>
-            <li style={{ marginBottom: '0.5rem' }}>View cached squad information</li>
-            <li>Access saved search areas</li>
+            <li style={{ marginBottom: '0.5rem' }}>View pages you already loaded</li>
+            <li style={{ marginBottom: '0.5rem' }}>
+              Write down what you saw - the spot, the time, which way the pet
+              was headed - and report it the moment you are back online
+            </li>
+            <li>Call the owner directly if their number is on the flyer</li>
           </ul>
         </div>
       </div>

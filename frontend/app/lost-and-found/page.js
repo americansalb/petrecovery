@@ -111,10 +111,16 @@ function LostAndFoundContent() {
   const countLine = useMemo(() => {
     if (loading || !pagination) return null;
     const n = pagination.totalCount;
+    // With a search active the count describes the MATCHES, not the
+    // neighborhood: "0 pets missing right now" under a nonsense query
+    // read as good news that wasn't true.
+    if (debouncedQ) {
+      return `${n} ${n === 1 ? 'match' : 'matches'} for "${debouncedQ}"`;
+    }
     if (tab === 'reunited') return `${n} ${n === 1 ? 'pet' : 'pets'} brought home`;
     if (tab === 'found') return `${n} found ${n === 1 ? 'pet' : 'pets'} waiting to be claimed`;
     return `${n} ${n === 1 ? 'pet' : 'pets'} missing right now`;
-  }, [loading, pagination, tab]);
+  }, [loading, pagination, tab, debouncedQ]);
 
   return (
     <div className="min-h-screen bg-midnight-50">
