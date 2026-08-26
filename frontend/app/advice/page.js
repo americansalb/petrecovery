@@ -51,16 +51,16 @@ export default function AdvicePage() {
 
   const handleCopyToClipboard = () => {
     let text = '🚨 PET RECOVERY ACTION PLAN 🚨\n\n';
-    text += '⚠️ IMMEDIATE ACTIONS:\n';
+    text += 'Do these first:\n';
     advice.priority.forEach((action, i) => {
       text += `${i + 1}. ${action}\n`;
     });
-    text += '\n✅ CHECKLIST:\n';
+    text += '\nChecklist:\n';
     advice.checklist.forEach((item, i) => {
       text += `☐ ${item}\n`;
     });
     if (advice.tips && advice.tips.length > 0) {
-      text += '\n❌ AVOID THESE MISTAKES:\n';
+      text += '\nCommon mistakes:\n';
       advice.tips.forEach((tip, i) => {
         text += `• ${tip}\n`;
       });
@@ -340,19 +340,19 @@ export default function AdvicePage() {
               borderRadius: theme.radius.xl,
               padding: '2rem',
               marginBottom: '1.5rem',
-              border: `3px solid ${theme.colors.status.active}`,
+              border: '3px solid #facc15',
               boxShadow: theme.shadows.lg,
             }}>
               <h2 style={{
                 fontSize: '1.75rem',
                 fontWeight: '800',
-                color: theme.colors.status.active,
+                color: '#0f172a',
                 marginBottom: '1.5rem',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
               }}>
-                ⚠️ IMMEDIATE ACTIONS
+                Do these first
               </h2>
               <ol style={{
                 marginLeft: '1.5rem',
@@ -361,7 +361,7 @@ export default function AdvicePage() {
                 color: theme.colors.gray[800],
               }}>
                 {advice.priority.map((action, index) => (
-                  <li key={index} style={{ marginBottom: '1rem', fontWeight: '600' }}>
+                  <li key={index} style={{ marginBottom: '1rem' }}>
                     {action}
                   </li>
                 ))}
@@ -380,10 +380,10 @@ export default function AdvicePage() {
                 <h2 style={{
                   fontSize: '1.75rem',
                   fontWeight: '800',
-                  color: theme.colors.patrol.primary,
+                  color: '#0f172a',
                   marginBottom: '1.5rem',
                 }}>
-                  ✅ CHECKLIST
+                  Checklist
                 </h2>
                 <div style={{
                   fontSize: '1.05rem',
@@ -426,10 +426,10 @@ export default function AdvicePage() {
                 <h2 style={{
                   fontSize: '1.75rem',
                   fontWeight: '800',
-                  color: theme.colors.warning,
+                  color: '#0f172a',
                   marginBottom: '1.5rem',
                 }}>
-                  ❌ AVOID THESE MISTAKES
+                  Common mistakes
                 </h2>
                 <ul style={{
                   marginLeft: '1.5rem',
@@ -448,20 +448,19 @@ export default function AdvicePage() {
 
             {/* Reassurance */}
             <div style={{
-              background: theme.gradients.hope,
+              background: '#f8fafc',
               borderRadius: theme.radius.xl,
               padding: '2rem',
               marginBottom: '2rem',
-              textAlign: 'center',
-              color: 'white',
-              boxShadow: theme.shadows.lg,
+              textAlign: 'left',
+              color: '#334155',
+              border: '1px solid #e2e8f0',
             }}>
               <p style={{
-                fontSize: '1.25rem',
-                fontWeight: '600',
-                lineHeight: '1.6',
+                fontSize: '1.05rem',
+                lineHeight: '1.7',
               }}>
-                💙 {advice.reassurance}
+                {advice.reassurance}
               </p>
             </div>
 
@@ -474,8 +473,8 @@ export default function AdvicePage() {
                 href="/report/new"
                 style={{
                   padding: '1.5rem',
-                  background: '#dc2626',
-                  color: 'white',
+                  background: '#facc15',
+                  color: '#0f172a',
                   border: 'none',
                   borderRadius: theme.radius.lg,
                   fontSize: '1.2rem',
@@ -483,10 +482,10 @@ export default function AdvicePage() {
                   textDecoration: 'none',
                   display: 'block',
                   textAlign: 'center',
-                  boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
                 }}
               >
-                🚨 Report Lost Pet & Alert Community
+                Report your pet lost
               </Link>
 
               <button
@@ -519,7 +518,7 @@ export default function AdvicePage() {
                   cursor: 'pointer',
                 }}
               >
-                🔄 Start Over
+                Start over
               </button>
             </div>
           </div>
