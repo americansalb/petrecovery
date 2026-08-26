@@ -10,6 +10,7 @@
  * to match where /api/reports/create writes data.
  */
 
+import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
@@ -143,7 +144,7 @@ export async function GET(request, { params }) {
     // Format is typically "123 Main St, City, ST 12345"
     let city = 'Unknown';
     let state = 'XX';
-    if (missionData.lastSeenAddress) {
+    if (missionData.lastSeenAddress && !looksLikeCoordinates(missionData.lastSeenAddress)) {
       const parts = missionData.lastSeenAddress.split(',');
       if (parts.length >= 2) {
         city = parts[parts.length - 2]?.trim() || 'Unknown';

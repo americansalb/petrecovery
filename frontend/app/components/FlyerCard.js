@@ -12,6 +12,7 @@
 
 import Link from 'next/link';
 import { MapPin, Phone } from 'lucide-react';
+import { looksLikeCoordinates, PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
 
 function speciesEmoji(species) {
   switch ((species || '').toUpperCase()) {
@@ -21,6 +22,23 @@ function speciesEmoji(species) {
     case 'RABBIT': return '🐇';
     default: return '🐾';
   }
+}
+
+// Construction-paper tint for photo-less flyers, keyed by species, so a
+// row of them reads as different flyers instead of one grey wall.
+function speciesTint(species) {
+  switch ((species || '').toUpperCase()) {
+    case 'DOG': return 'bg-amber-50';
+    case 'CAT': return 'bg-orange-50';
+    case 'BIRD': return 'bg-sky-50';
+    case 'RABBIT': return 'bg-rose-50';
+    default: return 'bg-flash-50';
+  }
+}
+
+// "Unknown" is a database value, not something to print on a poster.
+function known(value) {
+  return value && !/^unknown/i.test(value) ? value : null;
 }
 
 function stampFor(c) {
@@ -54,6 +72,11 @@ export default function FlyerCard({ c, index = 0 }) {
   const reunited = c.status === 'REUNITED' || c.resolution === 'REUNITED';
   const stamp = stampFor(c);
   const tilt = ['-rotate-[0.8deg]', 'rotate-[0.6deg]', '-rotate-[0.4deg]', 'rotate-[0.9deg]'][index % 4];
+  const species = known(c.petSpecies);
+  const headline = known(c.petName) || (species ? species.toLowerCase() : 'pet');
+  const traits = [known(c.petBreed), known(c.petColor)].filter(Boolean).join(' · ')
+    || (known(c.petName) && species ? species.toLowerCase() : '');
+  const tabText = c.reportType === 'FOUND' ? 'YOURS?' : 'SEEN ME?';
 
   return (
     <Link
@@ -68,7 +91,10 @@ export default function FlyerCard({ c, index = 0 }) {
         {c.petPhotoUrl ? (
           <img src={c.petPhotoUrl} alt={c.petName} loading="lazy" className={`w-full h-full object-cover ${reunited ? '' : 'group-hover:scale-[1.03] transition-transform duration-300'}`} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-6xl">{speciesEmoji(c.petSpecies)}</div>
+          <div className={`w-full h-full flex flex-col items-center justify-center gap-1.5 ${speciesTint(c.petSpecies)}`}>
+            <span className="text-5xl" aria-hidden="true">{speciesEmoji(c.petSpecies)}</span>
+            <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-midnight-400">No photo yet</span>
+          </div>
         )}
         {/* Rubber stamp */}
         <span className={`absolute top-3 right-3 px-2.5 py-1 border-[3px] ${stamp.classes} bg-white/85 backdrop-blur-[2px] font-black text-xs tracking-[0.15em] uppercase -rotate-6`}>
@@ -84,14 +110,20 @@ export default function FlyerCard({ c, index = 0 }) {
       {/* Poster body */}
       <div className="px-4 pt-3 pb-2 text-center">
         <h3 className="font-black uppercase tracking-tight text-2xl leading-none text-midnight-950 truncate">
-          {c.petName || 'Unknown'}
+          {headline}
         </h3>
-        <p className="text-[11px] font-semibold text-midnight-500 mt-1 truncate uppercase tracking-wide">
-          {[c.petBreed, c.petColor].filter(Boolean).join(' · ') || c.petSpecies}
-        </p>
+        {traits && (
+          <p className="text-[11px] font-semibold text-midnight-500 mt-1 truncate uppercase tracking-wide">
+            {traits}
+          </p>
+        )}
         <p className="flex items-center justify-center gap-1 text-xs text-midnight-600 mt-1.5 truncate">
           <MapPin size={11} className="text-midnight-400 shrink-0" />
-          {c.city && c.city !== 'Unknown' ? `${c.city}, ${c.state}` : c.lastSeenAddress || 'Location unknown'}
+          {c.city && c.city !== 'Unknown'
+            ? `${c.city}, ${c.state}`
+            : c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress)
+              ? c.lastSeenAddress
+              : PIN_ONLY_LABEL}
         </p>
       </div>
 
@@ -103,7 +135,7 @@ export default function FlyerCard({ c, index = 0 }) {
             className={`flex-1 text-center py-1.5 text-[8px] font-bold text-midnight-400 border-l border-dashed border-midnight-200 first:border-l-0 ${i % 2 ? 'rotate-1' : '-rotate-1'} ${i === 3 && !reunited ? 'opacity-0' : ''}`}
           >
             <Phone size={8} className="inline mr-0.5 -mt-px" />
-            {c.caseNumber?.split('-').pop() || 'SEEN?'}
+            {tabText}
           </span>
         ))}
       </div>
