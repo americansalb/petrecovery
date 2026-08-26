@@ -15,7 +15,7 @@ export default function AboutPage() {
             className="h-32 w-auto mx-auto mb-6"
           />
           <h1 className="text-4xl md:text-5xl font-black mb-4">Meet Sarama</h1>
-          <p className="text-xl text-white/90">Our guide and guardian</p>
+          <p className="text-xl text-white/90">(suh-RUH-mah) - our guide and guardian</p>
         </div>
       </div>
 
@@ -28,7 +28,7 @@ export default function AboutPage() {
 
           <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">Her Ancient Origins</h2>
           <p className="text-gray-700 leading-relaxed mb-6">
-            Her name carries deep meaning. In the <strong>Rig Veda</strong>, one of humanity's oldest sacred texts from the <strong>Sanatana Dharma</strong> tradition, Sarama is the divine dog: loyal, swift, and tireless.
+            Her name carries deep meaning. In Sanskrit, Sarama (सरमा) means &quot;the fleet one.&quot; In the <strong>Rig Veda</strong>, one of humanity's oldest sacred texts from the <strong>Sanatana Dharma</strong> tradition, she is the divine dog: loyal, swift, and tireless.
           </p>
           <p className="text-gray-700 leading-relaxed mb-6">
             When the Panis (spirits of darkness) stole the sacred cattle and hid them in a mountain cave, it was Sarama who tracked them across impossible distances, found what was lost, and led the way to reunion.

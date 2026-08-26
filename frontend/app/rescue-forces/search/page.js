@@ -8,7 +8,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, ArrowLeft, Shield } from 'lucide-react';
+import { Search, MapPin, Users, ChevronDown, ChevronRight, Plus, Shield } from 'lucide-react';
 import { Button, Card, Badge } from '@/components/ui';
 
 export default function RescueSquadSearchPage() {
@@ -372,15 +372,6 @@ export default function RescueSquadSearchPage() {
   return (
     <div className="min-h-screen bg-midnight-50 py-8 px-4">
       <div className="max-w-3xl mx-auto">
-        {/* Back Button */}
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="mb-6 flex items-center gap-2 text-midnight-600 hover:text-midnight-900 font-medium transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </button>
-
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-midnight-900 rounded-2xl mb-4">
             <Shield className="w-8 h-8 text-flash-400" />
