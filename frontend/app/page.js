@@ -22,6 +22,7 @@ import {
   CheckCircle2, Pill, MessagesSquare, PawPrint, Megaphone, Clock, Building2,
 } from 'lucide-react';
 import { cn } from '@/components/ui';
+import { looksLikeCoordinates, PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
 import { SARAMA_AVATAR_PNG, SARAMA_NAME, SARAMA_TAGLINE } from '@/lib/brandAssets';
 
 const BrowseMap = dynamic(() => import('@/app/lost-and-found/BrowseMap'), { ssr: false });
@@ -449,27 +450,41 @@ function ActiveMissions({ missions, loading }) {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {missions.slice(0, 6).map((m) => (
+            {missions.slice(0, 6).map((m) => {
+              const sp = (m.petSpecies || '').toUpperCase();
+              // Muted per-species tints keep a run of photo-less cards from
+              // stacking into one grey wall on the mobile homepage.
+              const tint = {
+                DOG: 'bg-amber-900/40 text-amber-200/80',
+                CAT: 'bg-orange-900/40 text-orange-200/80',
+                BIRD: 'bg-sky-900/40 text-sky-200/80',
+                RABBIT: 'bg-rose-900/40 text-rose-200/80',
+              }[sp] || 'bg-midnight-700 text-midnight-300';
+              const name = m.petName && !/^unknown/i.test(m.petName)
+                ? m.petName
+                : (sp ? sp.charAt(0) + sp.slice(1).toLowerCase() : 'Pet');
+              return (
               <Link
                 key={m.caseNumber}
                 href={`/cases/${m.caseNumber}`}
                 className="group bg-midnight-800 hover:bg-midnight-700 border border-midnight-700 rounded-2xl overflow-hidden transition-colors"
               >
-                <div className="h-36 bg-midnight-700 flex items-center justify-center overflow-hidden">
+                <div className={`h-36 flex items-center justify-center overflow-hidden ${m.petPhotoUrl ? 'bg-midnight-700' : tint}`}>
                   {m.petPhotoUrl ? (
                     <img src={m.petPhotoUrl} alt={m.petName} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform" />
                   ) : (
-                    <SpeciesIcon species={m.petSpecies} size={56} className="text-midnight-300" />
+                    <SpeciesIcon species={m.petSpecies} size={56} className="text-current" />
                   )}
                 </div>
                 <div className="p-4">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <p className="font-bold text-white truncate">{m.petName}</p>
+                    <p className="font-bold text-white truncate">{name}</p>
                     <span className="text-[11px] font-bold uppercase tracking-wide text-rose-300 bg-rose-500/15 border border-rose-400/20 px-2 py-0.5 rounded-full whitespace-nowrap">Missing</span>
                   </div>
                   <p className="text-midnight-300 text-sm truncate">
                     <MapPin className="inline w-3.5 h-3.5 -mt-0.5 mr-1" />
-                    {[m.city, m.state].filter(Boolean).join(', ') || m.lastSeenAddress || 'Location on file'}
+                    {[m.city, m.state].filter(Boolean).join(', ')
+                      || (m.lastSeenAddress && !looksLikeCoordinates(m.lastSeenAddress) ? m.lastSeenAddress : PIN_ONLY_LABEL)}
                   </p>
                   <p className="text-midnight-400 text-xs mt-1.5">
                     <Clock className="inline w-3 h-3 -mt-0.5 mr-1" />
@@ -477,7 +492,8 @@ function ActiveMissions({ missions, loading }) {
                   </p>
                 </div>
               </Link>
-            ))}
+              );
+            })}
             {/* Fill sparse grids with an invitation instead of a void */}
             {missions.length < 3 && (
               <Link

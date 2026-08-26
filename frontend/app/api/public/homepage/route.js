@@ -11,6 +11,7 @@
  * No authentication required.
  */
 
+import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { withRateLimit, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
@@ -178,7 +179,7 @@ export async function GET(request) {
     const tickerReunions = recentReunions.map((reunion) => {
       let city = 'Unknown';
       let state = '';
-      if (reunion.case?.lastSeenAddress) {
+      if (reunion.case?.lastSeenAddress && !looksLikeCoordinates(reunion.case.lastSeenAddress)) {
         const parts = reunion.case.lastSeenAddress.split(',');
         if (parts.length >= 2) {
           city = parts[parts.length - 2]?.trim() || 'Unknown';
@@ -204,7 +205,7 @@ export async function GET(request) {
     const casesNeedingHelp = activeCases.map((caseItem) => {
       let city = 'Unknown';
       let state = '';
-      if (caseItem.lastSeenAddress) {
+      if (caseItem.lastSeenAddress && !looksLikeCoordinates(caseItem.lastSeenAddress)) {
         const parts = caseItem.lastSeenAddress.split(',');
         if (parts.length >= 2) {
           city = parts[parts.length - 2]?.trim() || 'Unknown';

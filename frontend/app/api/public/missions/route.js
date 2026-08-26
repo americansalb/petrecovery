@@ -8,6 +8,7 @@
  * NO AUTHENTICATION REQUIRED (public endpoints)
  */
 
+import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
@@ -154,7 +155,7 @@ export async function GET(request) {
     const cases = casesRaw.map(caseItem => {
       let city = 'Unknown';
       let state = 'XX';
-      if (caseItem.lastSeenAddress) {
+      if (caseItem.lastSeenAddress && !looksLikeCoordinates(caseItem.lastSeenAddress)) {
         const parts = caseItem.lastSeenAddress.split(',');
         if (parts.length >= 2) {
           city = parts[parts.length - 2]?.trim() || 'Unknown';
