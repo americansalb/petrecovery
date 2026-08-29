@@ -1,0 +1,267 @@
+/**
+ * Letter content for the /rasuwa tool: templates, delivery links, and the
+ * facts the letters cite. Everything factual is sourced from the families'
+ * August 29, 2026 letter to the U.S. Secretary of State; FACTS_DATE is
+ * stamped on every generated letter so staleness is visible.
+ *
+ * Organizers update THIS FILE (and missing-people.json) as the situation
+ * changes; the UI in RasuwaLetterTool.js reads from here and never
+ * hardcodes copy about the flood.
+ */
+
+export const FACTS_DATE = 'August 29, 2026';
+
+/** Official fallback links when the bundled directory is not enough. */
+export const US_LINKS = {
+  houseFinder: 'https://www.house.gov/representatives/find-your-representative',
+  senateContacts: 'https://www.senate.gov/senators/senators-contact.htm',
+  embassyKathmandu: 'https://np.usembassy.gov',
+  stateDept: 'https://travel.state.gov',
+};
+
+/**
+ * Guidance for families outside the United States. Official domains only;
+ * no phone numbers here because we cannot keep them verified.
+ */
+export const COUNTRY_GUIDES = [
+  {
+    country: 'Australia',
+    findRep: { label: 'Find your federal MP or senator (aph.gov.au)', url: 'https://www.aph.gov.au/Senators_and_Members' },
+    consular: { label: 'DFAT consular services (Smartraveller)', url: 'https://www.smartraveller.gov.au/consular-services' },
+  },
+  {
+    country: 'Canada',
+    findRep: { label: 'Find your Member of Parliament (ourcommons.ca)', url: 'https://www.ourcommons.ca/members/en' },
+    consular: { label: 'Global Affairs Canada emergency assistance', url: 'https://travel.gc.ca/assistance/emergency-assistance' },
+  },
+  {
+    country: 'United Kingdom',
+    findRep: { label: 'Find your MP (parliament.uk)', url: 'https://members.parliament.uk/FindYourMP' },
+    consular: { label: 'Foreign, Commonwealth and Development Office', url: 'https://www.gov.uk/government/organisations/foreign-commonwealth-development-office' },
+  },
+  {
+    country: 'Singapore',
+    findRep: { label: 'Members of Parliament (parliament.gov.sg)', url: 'https://www.parliament.gov.sg/mps/list-of-current-mps' },
+    consular: { label: 'Ministry of Foreign Affairs Singapore', url: 'https://www.mfa.gov.sg' },
+  },
+  {
+    country: 'India',
+    findRep: { label: 'Members of the Lok Sabha (sansad.in)', url: 'https://sansad.in/ls/members' },
+    consular: { label: 'Ministry of External Affairs', url: 'https://www.mea.gov.in' },
+  },
+  {
+    country: 'France',
+    findRep: { label: 'Find your deputy (assemblee-nationale.fr)', url: 'https://www.assemblee-nationale.fr/dyn/vos-deputes' },
+    consular: { label: 'Ministere de l\'Europe et des Affaires etrangeres', url: 'https://www.diplomatie.gouv.fr' },
+  },
+  {
+    country: 'South Africa',
+    findRep: { label: 'Parliament of South Africa', url: 'https://www.parliament.gov.za' },
+    consular: { label: 'Department of International Relations and Cooperation', url: 'https://www.dirco.gov.za' },
+  },
+  {
+    country: 'Another country',
+    findRep: null,
+    consular: null,
+    note: 'Write to your national parliament member and your foreign ministry, and ask your embassy or consulate responsible for Nepal to open a case.',
+  },
+];
+
+/**
+ * The family coordinating the joint letter, as published in that letter.
+ * Assembled at runtime so the address is not sitting in the page source
+ * for scrapers.
+ */
+const COORD_EMAIL_PARTS = ['bhumika', '877', '@', 'gmail', '.com'];
+const COORD_PHONE_PARTS = ['630', '306', '1983'];
+export const COORDINATOR_NAME = 'the family of Poonam Thakkar';
+export function coordinatorEmail() {
+  return COORD_EMAIL_PARTS.join('');
+}
+export function coordinatorPhone() {
+  return COORD_PHONE_PARTS.join('-');
+}
+
+/** One-paragraph condensation of the joint letter's seven requests. */
+const SEVEN_ASKS =
+  'high-altitude military helicopters offered to Nepal, as the United States provided after the 2015 earthquake; ' +
+  'search and rescue drones, ground radar that detects breathing under debris, equipment to locate mobile phones, and temporary cellular coverage over the valley; ' +
+  'satellite imagery of the corridor from Rasuwagadhi to Trishuli Bazar and Devighat, shared with the Nepal Army officers coordinating the search; ' +
+  'a U.S. urban search and rescue team staged in Kathmandu; ' +
+  'a named consular liaison and a daily update for each family, with officers at the Kathmandu hospitals and at the forward base in Rasuwa; ' +
+  'consular coordination with China at the Gyirong border and with the other governments whose people were in the same tour groups; ' +
+  'and funding on the scale of the disaster.';
+
+const FLOOD_SENTENCE =
+  'the flash flood that came down the Bhotekoshi and Trishuli valleys in Nepal\'s Rasuwa district on the morning of Wednesday, August 26';
+
+const SITUATION_US =
+  'The State Department has said that 90 Americans remain unaccounted for and that five have been rescued. ' +
+  'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, and China reports 558 missing on its side of the border. ' +
+  'Helicopters have not been able to land in parts of the upper valley. ' +
+  `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, and one disaster response adviser.`;
+
+const SITUATION_INTL =
+  'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, and China reports 558 missing on its side of the border. ' +
+  'The missing include pilgrims, guides, and workers from Nepal, India, the United States, and more than two dozen other countries. ' +
+  'Helicopters have not been able to land in parts of the upper valley.';
+
+const JOINT_LETTER_SENTENCE =
+  `On August 29, 1,189 family members and friends of 57 missing people, my family among them, wrote to the United States Secretary of State asking for seven actions: ${SEVEN_ASKS}`;
+
+/** "[your street address]" style gap markers keep an incomplete letter obviously incomplete. */
+const ph = (value, label) => (value && String(value).trim()) || `[${label}]`;
+
+function longDate() {
+  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function personIntro(person) {
+  const home = person.home && person.home.trim() ? `, of ${person.home.trim()}` : '';
+  return `${ph(person.name, 'name of your missing family member')}${home}`;
+}
+
+function lastSeenSentence(person) {
+  const name = ph(person.name, 'name');
+  const place = ph(person.lastSeenPlace, 'last known location');
+  const when = person.lastSeenWhen && person.lastSeenWhen.trim() ? ` on ${person.lastSeenWhen.trim()}` : '';
+  const op = person.operator && person.operator.trim() ? `, traveling with ${person.operator.trim()}` : '';
+  return `${name} was last seen at ${place}${when}${op}.`;
+}
+
+export function buildSubject({ writer, person }) {
+  const name = ph(person.name, 'name');
+  if (writer.inUS) {
+    const city = ph(writer.city, 'your city');
+    const state = ph(writer.state, 'ST');
+    return `Constituent in ${city}, ${state}: ${name}, missing in the Rasuwa flood in Nepal. Casework request.`;
+  }
+  return `${name}, missing in the Rasuwa flood in Nepal. Request for consular action.`;
+}
+
+export function recipientTitle(recipient) {
+  return recipient.chamber === 'sen' ? 'Senator' : 'Representative';
+}
+
+export function recipientLastName(recipient) {
+  const parts = recipient.name.trim().split(/\s+/);
+  const last = parts[parts.length - 1];
+  // "Jr.", "III" style suffixes: take the token before them
+  if (/^(Jr\.?|Sr\.?|II|III|IV)$/i.test(last) && parts.length > 1) {
+    return parts[parts.length - 2].replace(/,$/, '');
+  }
+  return last;
+}
+
+export function recipientAddressLines(recipient) {
+  if (recipient.chamber === 'sen') {
+    return [`The Honorable ${recipient.name}`, 'United States Senate', 'Washington, DC 20510'];
+  }
+  return [`The Honorable ${recipient.name}`, 'United States House of Representatives', 'Washington, DC 20515'];
+}
+
+/**
+ * The full letter body for one recipient.
+ * recipient: a member from congress-directory.json, or { chamber: 'intl' }
+ * for families writing outside the United States.
+ */
+export function buildLetterBody({ recipient, writer, person }) {
+  const name = ph(person.name, 'name');
+  const relationship = ph(writer.relationship, 'relationship');
+  const writerName = ph(writer.name, 'your name');
+  const phone = ph(writer.phone, 'your phone number');
+  const email = writer.email && writer.email.trim() ? ` and ${writer.email.trim()}` : '';
+  const details = person.details && person.details.trim() ? `\n\n${person.details.trim()}` : '';
+  const isUSPerson = person.country === 'United States';
+
+  if (recipient.chamber === 'intl') {
+    const country = person.country || '[country]';
+    return (
+      `${longDate()}\n\n` +
+      `To: [name and office of your Member of Parliament or consular officer]\n\n` +
+      `Re: ${buildSubject({ writer, person })}\n\n` +
+      `Dear [name]:\n\n` +
+      `I am writing about my ${relationship}, ${personIntro(person)}, who has been unaccounted for since ${FLOOD_SENTENCE}.\n\n` +
+      `${lastSeenSentence(person)}${details}\n\n` +
+      `${SITUATION_INTL} ${JOINT_LETTER_SENTENCE}\n\n` +
+      `I ask you to do three things:\n\n` +
+      `1. Tell me what our government has done to date for ${name} and for the other nationals of ${country} missing in Rasuwa, and press for the same technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
+      `2. Open a case file for ${name} and give me a named point of contact with a daily update.\n\n` +
+      `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
+      `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
+      `Respectfully,\n\n` +
+      `${writerName}\n` +
+      `(Facts as of ${FACTS_DATE}.)`
+    );
+  }
+
+  const title = recipientTitle(recipient);
+  const lastName = recipientLastName(recipient);
+  const street = ph(writer.street, 'your street address');
+  const city = ph(writer.city, 'city');
+  const state = ph(writer.state, 'state');
+  const zip = ph(writer.zip, 'ZIP');
+
+  const firstPara = isUSPerson
+    ? `I am your constituent. I live at ${street}, ${city}, ${state} ${zip}. I am writing about my ${relationship}, ${personIntro(person)}, one of the Americans unaccounted for since ${FLOOD_SENTENCE}.`
+    : `I am your constituent. I live at ${street}, ${city}, ${state} ${zip}. I am writing about my ${relationship}, ${personIntro(person)}, a national of ${person.country || '[country]'} unaccounted for since ${FLOOD_SENTENCE}. My family is in your district and we need your help.`;
+
+  const askTwo = isUSPerson
+    ? `2. Open a casework file for ${name}. Send me your office's privacy release form and I will return it signed the same day.`
+    : `2. Open a congressional inquiry for ${name}, and ask the State Department to coordinate with the government of ${person.country || '[country]'} on the case.`;
+
+  return (
+    `${recipientAddressLines(recipient).join('\n')}\n\n` +
+    `${longDate()}\n\n` +
+    `Re: ${buildSubject({ writer, person })}\n\n` +
+    `Dear ${title} ${lastName}:\n\n` +
+    `${firstPara}\n\n` +
+    `${lastSeenSentence(person)}${details}\n\n` +
+    `${SITUATION_US}\n\n` +
+    `${JOINT_LETTER_SENTENCE}\n\n` +
+    `I ask you to do three things:\n\n` +
+    `1. Contact the State Department's Bureau of Consular Affairs today in support of the seven requests in the families' August 29 letter, and ask what the Department has done on each one.\n\n` +
+    `${askTwo}\n\n` +
+    `3. Have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
+    `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
+    `Respectfully,\n\n` +
+    `${writerName}\n` +
+    `${street}\n` +
+    `${city}, ${state} ${zip}\n` +
+    `(Facts as of ${FACTS_DATE}.)`
+  );
+}
+
+/** A 30 second script for calling the DC and district offices. */
+export function buildPhoneScript({ recipient, writer, person }) {
+  const name = ph(person.name, 'name');
+  const title = recipient && recipient.chamber !== 'intl' ? `${recipientTitle(recipient)} ${recipientLastName(recipient)}` : 'your office';
+  return (
+    `Hello, my name is ${ph(writer.name, 'your name')}. I am a constituent in ${ph(writer.city, 'your city')}. ` +
+    `My ${ph(writer.relationship, 'relationship')}, ${name}, is unaccounted for in the August 26 flood in Nepal's Rasuwa district. ` +
+    `I am asking ${title} to do two things: press the State Department to act on the families' August 29 letter, and open a casework file for ${name}. ` +
+    `Please send me the office's privacy release form today. ` +
+    `My number is ${ph(writer.phone, 'your phone number')}. Which caseworker will handle this?`
+  );
+}
+
+/**
+ * Mailto content for sending the person's entry to the coordinating family,
+ * so the consolidated roster and the letters stay in step.
+ */
+export function buildRosterShare({ writer, person }) {
+  const name = ph(person.name, 'name');
+  const subject = `Roster entry: ${name} (${ph(person.lastSeenPlace, 'last known location')})`;
+  const body =
+    `Missing person: ${name}\n` +
+    `Nationality: ${person.country || ''}\n` +
+    `Home: ${person.home || ''}\n` +
+    `Last seen: ${person.lastSeenPlace || ''}${person.lastSeenWhen ? `, ${person.lastSeenWhen}` : ''}\n` +
+    `Traveling with: ${person.operator || ''}\n` +
+    (person.details && person.details.trim() ? `Details: ${person.details.trim()}\n` : '') +
+    `\nSigned by: ${ph(writer.name, 'your name')} (${ph(writer.relationship, 'relationship')})\n` +
+    `Phone: ${writer.phone || ''}\n` +
+    `Email: ${writer.email || ''}\n\n` +
+    `I consent to this entry and my contact information appearing in the families' letters to governments asking for rescue.\n`;
+  return { subject, body };
+}

@@ -208,6 +208,13 @@ const nextConfig = {
         destination: '/lost-and-found',
         permanent: true,
       },
+      // Easy-to-say alias for the Rasuwa flood letter tool, shared by
+      // phone and word of mouth
+      {
+        source: '/nepal',
+        destination: '/rasuwa',
+        permanent: false,
+      },
       // The legacy communities section predates Rescue Forces, which ARE
       // the communities now
       {
