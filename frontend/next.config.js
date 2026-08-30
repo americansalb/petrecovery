@@ -134,6 +134,20 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
+        // rescueourfamily.org is the families' own domain for the Rasuwa
+        // flood letter tool: its root serves /rasuwa directly (URL stays
+        // on their domain). The rest of the app is not meant for that
+        // host. Requires the domain to be attached to this deployment.
+        {
+          source: '/',
+          has: [{ type: 'host', value: 'rescueourfamily.org' }],
+          destination: '/rasuwa',
+        },
+        {
+          source: '/',
+          has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
+          destination: '/rasuwa',
+        },
         // Serve sitemap from API
         {
           source: '/sitemap.xml',
@@ -208,10 +222,16 @@ const nextConfig = {
         destination: '/lost-and-found',
         permanent: true,
       },
-      // Easy-to-say alias for the Rasuwa flood letter tool, shared by
-      // phone and word of mouth
+      // Easy-to-say aliases for the Rasuwa flood letter tool, shared by
+      // phone and word of mouth (/action is the path printed on
+      // rescueourfamily.org materials; it works on every host)
       {
         source: '/nepal',
+        destination: '/rasuwa',
+        permanent: false,
+      },
+      {
+        source: '/action',
         destination: '/rasuwa',
         permanent: false,
       },

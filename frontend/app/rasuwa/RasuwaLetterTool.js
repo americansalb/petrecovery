@@ -21,6 +21,7 @@ import {
   COORDINATOR_NAME,
   COUNTRY_GUIDES,
   FACTS_DATE,
+  ROSTER_FORM_URL,
   US_LINKS,
   buildLetterBody,
   buildPhoneScript,
@@ -617,6 +618,15 @@ export default function RasuwaLetterTool() {
             </button>
             <span className="text-sm text-slate-600">Or call {coordinatorPhone()} (any hour).</span>
           </div>
+          {ROSTER_FORM_URL && (
+            <p className="mt-3 text-sm text-slate-600">
+              Not on the roster yet?{' '}
+              <a className="underline" href={ROSTER_FORM_URL} target="_blank" rel="noopener noreferrer">
+                Fill out the family roster form
+              </a>{' '}
+              as well.
+            </p>
+          )}
         </StepCard>
 
         <section className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">

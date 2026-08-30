@@ -11,6 +11,14 @@
 
 export const FACTS_DATE = 'August 29, 2026';
 
+/**
+ * The coalition's roster form (the Google Form web app that was the
+ * rescueourfamily.org front page). Paste its script.google.com or
+ * forms.gle URL here and the tool links it from the roster step;
+ * leave empty to hide the link.
+ */
+export const ROSTER_FORM_URL = '';
+
 /** Official fallback links when the bundled directory is not enough. */
 export const US_LINKS = {
   houseFinder: 'https://www.house.gov/representatives/find-your-representative',
