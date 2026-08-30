@@ -17,7 +17,8 @@ export const FACTS_DATE = 'August 29, 2026';
  * forms.gle URL here and the tool links it from the roster step;
  * leave empty to hide the link.
  */
-export const ROSTER_FORM_URL = '';
+export const ROSTER_FORM_URL =
+  'https://script.google.com/macros/s/AKfycbxO42Y7iQE8WURRQLx2IN9UwEpbBA7GDQrqUNkA2zyRcbROgdCn6So1ljXoPsXXWlny/exec';
 
 /** Official fallback links when the bundled directory is not enough. */
 export const US_LINKS = {
