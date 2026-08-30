@@ -620,9 +620,9 @@ export default function RasuwaLetterTool() {
           </div>
           {ROSTER_FORM_URL && (
             <p className="mt-3 text-sm text-slate-600">
-              Not on the roster yet?{' '}
+              Not counted in the joint letter yet?{' '}
               <Link className="underline" href="/rasuwa/form">
-                Fill out the family roster form
+                Sign the families&apos; letter
               </Link>{' '}
               as well.
             </p>

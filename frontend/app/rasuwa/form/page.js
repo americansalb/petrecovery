@@ -13,14 +13,14 @@
 import Link from 'next/link';
 import { ROSTER_FORM_URL } from '../letterData';
 
-export const metadata = { title: 'Family roster form' };
+export const metadata = { title: 'Sign the families\' letter' };
 
 export default function RosterFormPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white px-4 py-4">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
-          <h1 className="text-lg font-bold">Family roster form</h1>
+          <h1 className="text-lg font-bold">Sign the families&apos; letter</h1>
           <Link
             href="/rasuwa"
             className="shrink-0 rounded-md bg-blue-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-900"
@@ -29,8 +29,8 @@ export default function RosterFormPage() {
           </Link>
         </div>
         <p className="mx-auto mt-2 w-full max-w-3xl text-sm text-slate-600">
-          Fill out the form below first. Then press Write to Congress to send letters to your
-          senators and representative.
+          Sign below first (one minute). Then press Write to Congress to send your own letters
+          to your senators and representative.
         </p>
       </header>
       {ROSTER_FORM_URL ? (
@@ -43,7 +43,7 @@ export default function RosterFormPage() {
           </p>
           <iframe
             src={ROSTER_FORM_URL}
-            title="Family roster form"
+            title="Sign the families' letter"
             className="h-[85vh] w-full border-0 bg-white sm:rounded-lg sm:border sm:border-slate-200"
           />
         </div>
