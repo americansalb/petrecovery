@@ -121,9 +121,11 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=(self)',
           },
           {
-            // Allow Apple Maps to render PlaceDetail component
+            // Allow Apple Maps to render PlaceDetail, and the Google
+            // roster form (Forms or Apps Script; the script iframe
+            // serves from *.googleusercontent.com) on /rasuwa/form
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com; frame-ancestors 'self'",
+            value: "frame-src 'self' https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com https://docs.google.com https://script.google.com https://*.googleusercontent.com; frame-ancestors 'self'",
           },
         ],
       },
@@ -207,6 +209,50 @@ const nextConfig = {
         source: '/database',
         destination: '/lost-and-found',
         permanent: true,
+      },
+      // Easy-to-say aliases for the Rasuwa flood letter tool, shared by
+      // phone and word of mouth (/action is the path printed on
+      // rescueourfamily.org materials; it works on every host)
+      {
+        source: '/nepal',
+        destination: '/rasuwa',
+        permanent: false,
+      },
+      {
+        source: '/action',
+        destination: '/rasuwa',
+        permanent: false,
+      },
+      // rescueourfamily.org is the families' own domain: its root and
+      // /form land on the sign page. REDIRECTS, not rewrites: the
+      // global chrome hides by the browser-visible pathname
+      // (navChrome.js reads usePathname), so the visible path must be
+      // the real /rasuwa one or the pet-site navbar hydrates around
+      // the form. Takes effect when the domain is attached to this
+      // deployment.
+      {
+        source: '/',
+        has: [{ type: 'host', value: 'rescueourfamily.org' }],
+        destination: '/rasuwa/form',
+        permanent: false,
+      },
+      {
+        source: '/',
+        has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
+        destination: '/rasuwa/form',
+        permanent: false,
+      },
+      {
+        source: '/form',
+        has: [{ type: 'host', value: 'rescueourfamily.org' }],
+        destination: '/rasuwa/form',
+        permanent: false,
+      },
+      {
+        source: '/form',
+        has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
+        destination: '/rasuwa/form',
+        permanent: false,
       },
       // The legacy communities section predates Rescue Forces, which ARE
       // the communities now

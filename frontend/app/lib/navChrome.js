@@ -18,8 +18,11 @@
  * Full-screen takeovers that ship their own chrome (MissionHeader, the
  * shelter portal's sidebar shell). /my-shelter is the hat-gated shelter
  * workspace: same account system, its own world (docs/PERMISSIONS.md).
+ * /rasuwa is the letter tool for families of people missing in the 2026
+ * Rasuwa (Nepal) flood: a crisis page for a non-pet audience, so it
+ * carries none of the pet-site chrome; its footer links back to /.
  */
-export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter'];
+export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter', '/rasuwa'];
 
 /** True inside an immersive takeover: no global chrome at all. */
 export function isImmersiveRoute(pathname) {
