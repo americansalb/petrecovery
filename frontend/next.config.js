@@ -136,19 +136,21 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
-        // rescueourfamily.org is the families' own domain for the Rasuwa
-        // flood letter tool: its root serves /rasuwa directly (URL stays
-        // on their domain). The rest of the app is not meant for that
-        // host. Requires the domain to be attached to this deployment.
+        // rescueourfamily.org is the families' own domain. Its ROOT is
+        // the roster form: that is the link already circulating and the
+        // thing people were told to submit, so it must stay first. The
+        // letter tool lives at /action (redirect below). The rest of
+        // the app is not meant for that host. Requires the domain to be
+        // attached to this deployment.
         {
           source: '/',
           has: [{ type: 'host', value: 'rescueourfamily.org' }],
-          destination: '/rasuwa',
+          destination: '/rasuwa/form',
         },
         {
           source: '/',
           has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
-          destination: '/rasuwa',
+          destination: '/rasuwa/form',
         },
         {
           source: '/form',

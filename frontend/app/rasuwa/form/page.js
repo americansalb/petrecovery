@@ -19,12 +19,19 @@ export default function RosterFormPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white px-4 py-4">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
           <h1 className="text-lg font-bold">Family roster form</h1>
-          <Link href="/rasuwa" className="text-sm font-semibold text-blue-800 underline">
+          <Link
+            href="/rasuwa"
+            className="shrink-0 rounded-md bg-blue-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-900"
+          >
             Write to Congress
           </Link>
         </div>
+        <p className="mx-auto mt-2 w-full max-w-3xl text-sm text-slate-600">
+          Fill out the form below first. Then press Write to Congress to send letters to your
+          senators and representative.
+        </p>
       </header>
       {ROSTER_FORM_URL ? (
         <div className="mx-auto w-full max-w-3xl flex-1 sm:px-4 sm:py-4">
