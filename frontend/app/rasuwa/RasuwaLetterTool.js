@@ -621,9 +621,9 @@ export default function RasuwaLetterTool() {
           {ROSTER_FORM_URL && (
             <p className="mt-3 text-sm text-slate-600">
               Not on the roster yet?{' '}
-              <a className="underline" href={ROSTER_FORM_URL} target="_blank" rel="noopener noreferrer">
+              <Link className="underline" href="/rasuwa/form">
                 Fill out the family roster form
-              </a>{' '}
+              </Link>{' '}
               as well.
             </p>
           )}

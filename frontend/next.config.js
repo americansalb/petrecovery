@@ -121,9 +121,11 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=(self)',
           },
           {
-            // Allow Apple Maps to render PlaceDetail component
+            // Allow Apple Maps to render PlaceDetail, and the Google
+            // roster form (Forms or Apps Script; the script iframe
+            // serves from *.googleusercontent.com) on /rasuwa/form
             key: 'Content-Security-Policy',
-            value: "frame-src 'self' https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com; frame-ancestors 'self'",
+            value: "frame-src 'self' https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com https://docs.google.com https://script.google.com https://*.googleusercontent.com; frame-ancestors 'self'",
           },
         ],
       },
@@ -147,6 +149,16 @@ const nextConfig = {
           source: '/',
           has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
           destination: '/rasuwa',
+        },
+        {
+          source: '/form',
+          has: [{ type: 'host', value: 'rescueourfamily.org' }],
+          destination: '/rasuwa/form',
+        },
+        {
+          source: '/form',
+          has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
+          destination: '/rasuwa/form',
         },
         // Serve sitemap from API
         {

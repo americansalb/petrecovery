@@ -148,7 +148,11 @@ function addSecurityHeaders(response) {
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https: http:",
       "connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:* https://*.apple-mapkit.com https://*.ls.apple.com",
-      "frame-src 'self' https://www.google.com https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com",
+      // docs.google.com / script.google.com / *.googleusercontent.com:
+      // the embedded family roster form on /rasuwa/form (Google Forms
+      // and Apps Script web apps; script iframes serve from
+      // googleusercontent)
+      "frame-src 'self' https://www.google.com https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com https://docs.google.com https://script.google.com https://*.googleusercontent.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
