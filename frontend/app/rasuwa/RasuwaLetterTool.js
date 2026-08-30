@@ -101,8 +101,25 @@ export default function RasuwaLetterTool() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState('');
 
-  const setP = (patch) => setPerson((p) => ({ ...p, ...patch }));
-  const setW = (patch) => setWriter((w) => ({ ...w, ...patch }));
+  // Any change to the person or writer invalidates hand-edited letter
+  // text: a kept override would freeze the previous person's details
+  // into the letter and the PDF.
+  const clearOverrides = () => setOverrides((o) => (Object.keys(o).length ? {} : o));
+  const setP = (patch) => {
+    setPerson((p) => ({ ...p, ...patch }));
+    clearOverrides();
+  };
+  const setW = (patch) => {
+    setWriter((w) => ({ ...w, ...patch }));
+    clearOverrides();
+  };
+  const emptyLookup = { status: 'idle', error: '', state: '', district: null, matchedAddress: '' };
+  // Street, city, and ZIP feed the district lookup; editing them after
+  // a successful lookup invalidates the representative it found.
+  const setAddressField = (patch) => {
+    setW(patch);
+    setLookup((l) => (l.status === 'idle' ? l : emptyLookup));
+  };
 
   function pickPerson(value) {
     if (value === '' || value === 'other') {
@@ -126,7 +143,13 @@ export default function RasuwaLetterTool() {
     setLookup({ status: 'busy', error: '', state: '', district: null, matchedAddress: '' });
     setManualRep('');
     try {
-      const res = await fetch(`/api/rasuwa/district?address=${encodeURIComponent(address)}`);
+      // POST body, not a query string: the address must not ride in
+      // request URLs that edge and access logs keep.
+      const res = await fetch('/api/rasuwa/district', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setLookup({ status: 'error', error: data.error || 'The lookup failed. Pick your state by hand below.', state: '', district: null, matchedAddress: '' });
@@ -326,21 +349,21 @@ export default function RasuwaLetterTool() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <Field label="Street address (offices check that writers are constituents; it also finds your district)">
-                    <input className={inputCls} value={writer.street} onChange={(e) => setW({ street: e.target.value })} autoComplete="street-address" placeholder="Street address" />
+                    <input className={inputCls} value={writer.street} onChange={(e) => setAddressField({ street: e.target.value })} autoComplete="street-address" placeholder="Street address" />
                   </Field>
                 </div>
                 <Field label="City">
-                  <input className={inputCls} value={writer.city} onChange={(e) => setW({ city: e.target.value })} autoComplete="address-level2" />
+                  <input className={inputCls} value={writer.city} onChange={(e) => setAddressField({ city: e.target.value })} autoComplete="address-level2" />
                 </Field>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="State">
-                    <select className={inputCls} value={writer.state} onChange={(e) => { setW({ state: e.target.value }); setLookup({ status: 'idle', error: '', state: '', district: null, matchedAddress: '' }); setManualRep(''); }}>
+                    <select className={inputCls} value={writer.state} onChange={(e) => { setAddressField({ state: e.target.value }); setManualRep(''); }}>
                       <option value="">State</option>
                       {STATE_OPTIONS.map((s) => <option key={s.code} value={s.code}>{s.code}</option>)}
                     </select>
                   </Field>
                   <Field label="ZIP">
-                    <input className={inputCls} value={writer.zip} onChange={(e) => setW({ zip: e.target.value })} autoComplete="postal-code" inputMode="numeric" />
+                    <input className={inputCls} value={writer.zip} onChange={(e) => setAddressField({ zip: e.target.value })} autoComplete="postal-code" inputMode="numeric" />
                   </Field>
                 </div>
               </div>

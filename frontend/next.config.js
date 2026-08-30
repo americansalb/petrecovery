@@ -136,32 +136,6 @@ const nextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
-        // rescueourfamily.org is the families' own domain. Its ROOT is
-        // the roster form: that is the link already circulating and the
-        // thing people were told to submit, so it must stay first. The
-        // letter tool lives at /action (redirect below). The rest of
-        // the app is not meant for that host. Requires the domain to be
-        // attached to this deployment.
-        {
-          source: '/',
-          has: [{ type: 'host', value: 'rescueourfamily.org' }],
-          destination: '/rasuwa/form',
-        },
-        {
-          source: '/',
-          has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
-          destination: '/rasuwa/form',
-        },
-        {
-          source: '/form',
-          has: [{ type: 'host', value: 'rescueourfamily.org' }],
-          destination: '/rasuwa/form',
-        },
-        {
-          source: '/form',
-          has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
-          destination: '/rasuwa/form',
-        },
         // Serve sitemap from API
         {
           source: '/sitemap.xml',
@@ -247,6 +221,37 @@ const nextConfig = {
       {
         source: '/action',
         destination: '/rasuwa',
+        permanent: false,
+      },
+      // rescueourfamily.org is the families' own domain: its root and
+      // /form land on the sign page. REDIRECTS, not rewrites: the
+      // global chrome hides by the browser-visible pathname
+      // (navChrome.js reads usePathname), so the visible path must be
+      // the real /rasuwa one or the pet-site navbar hydrates around
+      // the form. Takes effect when the domain is attached to this
+      // deployment.
+      {
+        source: '/',
+        has: [{ type: 'host', value: 'rescueourfamily.org' }],
+        destination: '/rasuwa/form',
+        permanent: false,
+      },
+      {
+        source: '/',
+        has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
+        destination: '/rasuwa/form',
+        permanent: false,
+      },
+      {
+        source: '/form',
+        has: [{ type: 'host', value: 'rescueourfamily.org' }],
+        destination: '/rasuwa/form',
+        permanent: false,
+      },
+      {
+        source: '/form',
+        has: [{ type: 'host', value: 'www.rescueourfamily.org' }],
+        destination: '/rasuwa/form',
         permanent: false,
       },
       // The legacy communities section predates Rescue Forces, which ARE

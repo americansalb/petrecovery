@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 /**
- * GET /api/rasuwa/district?address=...
+ * POST /api/rasuwa/district  { address: "..." }
  *
  * Resolves a U.S. street address to a state + congressional district for
  * the /rasuwa letter tool, via the Census Bureau geocoder (public domain,
@@ -9,7 +9,8 @@ import { NextResponse } from 'next/server';
  * call it directly; this proxy exists only for that. The address is
  * forwarded to census.gov and returned to the caller. It is not logged
  * and not stored; keep it that way, the callers are families of missing
- * people entering home addresses.
+ * people entering home addresses. POST with the address in the body on
+ * purpose: query strings end up in edge and access logs, bodies do not.
  *
  * Rate limited in middleware.js ('/api/rasuwa/district').
  */
@@ -30,9 +31,14 @@ const FIPS_TO_STATE = {
   '72': 'PR', '78': 'VI',
 };
 
-export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const address = (searchParams.get('address') || '').trim().slice(0, 250);
+export async function POST(request) {
+  let address = '';
+  try {
+    const body = await request.json();
+    address = String(body.address || '').trim().slice(0, 250);
+  } catch {
+    // fall through to the length check below
+  }
   if (address.length < 8) {
     return NextResponse.json({ error: 'Enter a full street address, city, state, and ZIP.' }, { status: 400 });
   }
