@@ -191,6 +191,21 @@ export async function middleware(request) {
     return NextResponse.redirect(url, 301);
   }
 
+  // rescueourfamily.org is the families' own domain: browsers and link
+  // scanners fetch /favicon.ico and /apple-touch-icon*.png directly at
+  // the domain root, and those must never answer with pet-site branding.
+  // The rasuwa pages set their own icon links; this covers the bare
+  // requests. The matcher below deliberately does NOT exclude
+  // favicon.ico so this branch can see it.
+  if (host === 'rescueourfamily.org' || host === 'www.rescueourfamily.org') {
+    if (pathname === '/favicon.ico') {
+      return NextResponse.rewrite(new URL('/rasuwa/favicon.ico', request.url));
+    }
+    if (/^\/apple-touch-icon(-precomposed)?\.png$/.test(pathname)) {
+      return NextResponse.rewrite(new URL('/rasuwa/apple-icon-180.png', request.url));
+    }
+  }
+
   const clientIp = getClientIp(request);
 
   // FAST PATH: Immediately reject obvious bot probes and invalid paths
@@ -365,9 +380,11 @@ export const config = {
      * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
      * - public folder
+     * favicon.ico is NOT excluded: the rescueourfamily.org branch above
+     * rewrites it per host, and the static-extension fast path passes
+     * it through untouched everywhere else.
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    '/((?!_next/static|_next/image|public/).*)',
   ],
 };
