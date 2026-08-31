@@ -207,12 +207,14 @@ export function jointLetterSentence(signers) {
  */
 /**
  * Bumped whenever the generated letter wording changes in a way every
- * letter must carry (v2: the consent paragraph). Drafts store the
- * version they were edited under; restoring hand edits from an older
- * template rebuilds the letters and says so, instead of silently
- * sending the old wording (review finding on PR #223).
+ * letter must carry (v2: the consent paragraph; v3: the August 31
+ * facts and the Foreign Ministry's technical-support opening). Drafts
+ * store the version they were edited under; restoring hand edits from
+ * an older template rebuilds the letters and says so, instead of
+ * silently sending the old wording (review findings on PR #223 and
+ * PR #225).
  */
-export const LETTER_TEMPLATE_VERSION = 2;
+export const LETTER_TEMPLATE_VERSION = 3;
 
 const ACCESS_PARAGRAPH =
   'If any of this is said to be waiting on the Government of Nepal\'s consent, obtaining that consent is part of what I am asking for. ' +
