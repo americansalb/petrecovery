@@ -574,3 +574,10 @@ running app with Playwright plus unit tests before pushing.
   technical support. That line now leads the consent paragraph and
   the call comeback. A test pins the new facts so the frozen August
   29 figures cannot slip back.
+- **Everyone listed equally, alphabetically (founder rule, same day:
+  no nationality hierarchy, nobody first, Poonam included):** the
+  wizard's person picker dropped its United States and Other
+  nationalities groups for one flat A-to-Z list with uniform
+  "name, country" labels, and the team board's coverage wall sorts
+  the same way. Pick values and the board's write-for-them links keep
+  their original indexes, so saved drafts and shared links hold.
