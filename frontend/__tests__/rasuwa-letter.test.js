@@ -137,6 +137,19 @@ describe('letter builders', () => {
     expect(share.body).toContain('consent');
   });
 
+  test('every letter asks for Nepal\'s consent to be obtained and answered on the record', () => {
+    const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'Bartlett', state: 'IL', zip: '60103', country: '' };
+    const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
+    const sen = { chamber: 'sen', bioguide: 'X1', name: 'Test Senator', party: 'I', state: 'IL', phone: '202-555-0000', offices: [] };
+    const mp = { chamber: 'mp', bioguide: 'mp', name: 'Test MP', riding: 'Testing', party: '', email: '', url: '', offices: [] };
+    for (const recipient of [sen, mp, { chamber: 'intl', bioguide: 'intl', name: '' }]) {
+      const body = buildLetterBody({ recipient, writer, person });
+      expect(body).toContain('Government of Nepal');
+      expect(body).toContain('on the record');
+      expect(body).toContain('2015 earthquake');
+    }
+  });
+
   test('typed countries find their guide, any case; unknown ones get the generic door', () => {
     expect(findCountryGuide('france').country).toBe('France');
     expect(findCountryGuide('  AUSTRALIA ').country).toBe('Australia');

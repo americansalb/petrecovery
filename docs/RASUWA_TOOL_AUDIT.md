@@ -533,3 +533,14 @@ running app with Playwright plus unit tests before pushing.
   pick-list. This also closes a letter bug: a hand-entered person from
   an unlisted country used to force the literal word "Other" into the
   letter as their nationality; letters now carry the country as typed.
+- **The letters counter the consent excuse (founder direction, same
+  day: offices tell families "Nepal's military is not letting foreign
+  teams in"; the campaign presses each writer's own government to
+  obtain Nepal's consent):** every letter now carries a consent
+  paragraph asking that each offer be made formally, in writing, at a
+  senior level, that families be told what was offered, to whom, and
+  on what date, and that any refusal by Nepal go on the record, citing
+  Nepal's acceptance of American military helicopters and
+  international rescue teams after the 2015 earthquake. The delivery
+  step adds a prepared comeback box with a copyable question for the
+  moment a staffer repeats the excuse on a call.

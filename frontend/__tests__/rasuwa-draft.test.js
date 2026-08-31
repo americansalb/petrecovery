@@ -149,6 +149,26 @@ describe('snapshot and restore round trip', () => {
     expect(junkOffices.canada.mp.offices).toEqual([{ type: 'legislature', phone: '1 613 555' }]);
   });
 
+  test('hand edits from an older letter template restore rebuilt, and say so', () => {
+    const state = typedState();
+    // A snapshot taken today carries the current template version, so
+    // edits round trip untouched.
+    const fresh = restoreDraft(snapshotDraft(state));
+    expect(fresh.overrides).toEqual(state.overrides);
+    expect(fresh.templateOutdated).toBe(false);
+    // A stored draft from before versioning (or an older version) with
+    // hand edits restores with the edits dropped and the flag up.
+    const old = { ...snapshotDraft(state), templateVersion: undefined };
+    const back = restoreDraft(old);
+    expect(back.overrides).toEqual({});
+    expect(back.templateOutdated).toBe(true);
+    const older = { ...snapshotDraft(state), templateVersion: 1 };
+    expect(restoreDraft(older).overrides).toEqual({});
+    // No hand edits means nothing was lost and no notice is owed.
+    const clean = { ...snapshotDraft(emptyState()), templateVersion: 1 };
+    expect(restoreDraft(clean).templateOutdated).toBe(false);
+  });
+
   test('drafts saved on the old nine-step layout land on the merged screens', () => {
     expect(restoreDraft({ step: 'details' }).step).toBe('person');
     expect(restoreDraft({ step: 'where' }).step).toBe('you');

@@ -15,6 +15,7 @@
  */
 
 import { clearDraft, loadDraft, saveDraft } from '@/app/components/report/wizardDraft';
+import { LETTER_TEMPLATE_VERSION } from './letterData';
 
 export const DRAFT_KEY = 'rasuwaLetterDraft';
 
@@ -52,6 +53,7 @@ export function snapshotDraft({ person, writer, lookup, manualRep, overrides, st
     canada: canada && typeof canada === 'object' ? canada : EMPTY_CANADA,
     done: done && typeof done === 'object' ? done : EMPTY_DONE,
     savedLetterHash: text(savedLetterHash),
+    templateVersion: LETTER_TEMPLATE_VERSION,
     pendingTally: Array.isArray(pendingTally) ? pendingTally.filter((a) => typeof a === 'string').slice(0, 6) : [],
     // Only a completed lookup is worth restoring; busy and error states
     // would come back stale and confusing.
@@ -86,6 +88,9 @@ export function draftHasContent(d) {
  */
 export function restoreDraft(d) {
   const src = d && typeof d === 'object' ? d : {};
+  const hasOverrides =
+    src.overrides && typeof src.overrides === 'object' && Object.keys(src.overrides).length > 0;
+  const outdated = Boolean(hasOverrides && src.templateVersion !== LETTER_TEMPLATE_VERSION);
   const lookup =
     src.lookup && src.lookup.status === 'done' && text(src.lookup.state)
       ? { ...EMPTY_LOOKUP, ...src.lookup }
@@ -129,7 +134,12 @@ export function restoreDraft(d) {
     canada,
     lookup,
     manualRep: text(src.manualRep),
-    overrides: src.overrides && typeof src.overrides === 'object' ? src.overrides : {},
+    // Hand-edited letters from an older letter template restore as
+    // regenerated text, never silently: the edits were made against
+    // wording the campaign has since changed, and the wizard shows the
+    // same rebuild notice it shows when a detail change replaces edits.
+    overrides: hasOverrides && !outdated ? src.overrides : {},
+    templateOutdated: outdated,
     done: {
       letters: Boolean(rawDone.letters),
       entry: Boolean(rawDone.entry),
