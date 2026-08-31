@@ -138,6 +138,17 @@ describe('snapshot and restore round trip', () => {
     expect(typeof back.step).toBe('string');
   });
 
+  test('an MP saved without offices restores to the full shape, never a crash', () => {
+    const back = restoreDraft({ canada: { mp: { name: 'Example MP' } } });
+    expect(back.canada.mp.name).toBe('Example MP');
+    expect(back.canada.mp.offices).toEqual([]);
+    expect(back.canada.mp.riding).toBe('');
+    const junkOffices = restoreDraft({
+      canada: { mp: { name: 'X', offices: [null, 'str', { type: 'constituency' }, { type: 'legislature', phone: '1 613 555' }] } },
+    });
+    expect(junkOffices.canada.mp.offices).toEqual([{ type: 'legislature', phone: '1 613 555' }]);
+  });
+
   test('pre-wizard drafts map their old inUS answer onto where', () => {
     expect(restoreDraft({ writer: { inUS: false, country: 'Canada' } }).where).toBe('ca');
     expect(restoreDraft({ writer: { inUS: false, country: 'Australia' } }).where).toBe('intl');

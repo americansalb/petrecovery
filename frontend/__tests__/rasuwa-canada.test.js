@@ -49,6 +49,16 @@ describe('normalizePostalCode', () => {
       expect(normalizePostalCode(bad)).toBeNull();
     }
   });
+
+  test('rejects letters Canada Post never uses', () => {
+    for (const bad of ['D1A 1A1', 'F1A 1A1', 'W1A 1A1', 'Z1A 1A1', 'K1U 0A6', 'K1A 0O6']) {
+      expect(normalizePostalCode(bad)).toBeNull();
+    }
+    // W and Z are fine after the first position; X leads in the north.
+    expect(normalizePostalCode('V6W 1A1')).toBe('V6W1A1');
+    expect(normalizePostalCode('X0A 0H0')).toBe('X0A0H0');
+    expect(normalizePostalCode('T6Z 1A1')).toBe('T6Z1A1');
+  });
 });
 
 describe('parseMpResponse', () => {

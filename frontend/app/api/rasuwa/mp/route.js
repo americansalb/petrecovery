@@ -21,6 +21,20 @@ export const dynamic = 'force-dynamic';
 
 const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
 
+// Server-wide upstream budget, on top of the per-visitor middleware
+// limit: every caller shares this server's one egress IP, and Represent
+// allows 60 calls a minute from it. A room of separate visitor IPs
+// could otherwise add up past that and get the whole server blocked
+// (per process; a burst across many instances can still exceed the
+// ceiling, but each instance stays well under it).
+const UPSTREAM_BUDGET_PER_MINUTE = 45;
+const upstreamCalls = [];
+function upstreamBudgetLeft() {
+  const cutoff = Date.now() - 60000;
+  while (upstreamCalls.length && upstreamCalls[0] < cutoff) upstreamCalls.shift();
+  return upstreamCalls.length < UPSTREAM_BUDGET_PER_MINUTE;
+}
+
 async function fetchRepresent(code) {
   const res = await fetch(`https://represent.opennorth.ca/postcodes/${code}/`, {
     signal: AbortSignal.timeout(7000),
@@ -48,11 +62,20 @@ export async function POST(request) {
     );
   }
 
+  if (!upstreamBudgetLeft()) {
+    return NextResponse.json(
+      { error: 'A lot of people are looking up MPs right now. Wait a minute and try again, or enter your MP by hand below.' },
+      { status: 429, headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' } }
+    );
+  }
+
   let result;
   try {
+    upstreamCalls.push(Date.now());
     try {
       result = await fetchRepresent(code);
     } catch {
+      upstreamCalls.push(Date.now());
       result = await fetchRepresent(code);
     }
   } catch {

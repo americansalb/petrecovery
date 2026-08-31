@@ -11,10 +11,15 @@
  * flow, never a dead end.
  */
 
-/** "k1a 0a6" -> "K1A0A6"; null when it is not a Canadian postal code. */
+/**
+ * "k1a 0a6" -> "K1A0A6"; null when it is not a Canadian postal code.
+ * Canada Post never uses D, F, I, O, Q, or U in any letter position,
+ * and W and Z never lead, so structurally impossible codes fail here
+ * instead of making a pointless upstream call.
+ */
 export function normalizePostalCode(raw) {
   const compact = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-  return /^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(compact) ? compact : null;
+  return /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\d[ABCEGHJ-NPRSTV-Z]\d$/.test(compact) ? compact : null;
 }
 
 const text = (v) => (typeof v === 'string' ? v.trim() : '');

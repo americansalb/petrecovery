@@ -85,11 +85,25 @@ export function restoreDraft(d) {
       ? { ...EMPTY_LOOKUP, ...src.lookup }
       : EMPTY_LOOKUP;
   const rawCanada = src.canada && typeof src.canada === 'object' ? src.canada : {};
-  const canada = {
-    ...EMPTY_CANADA,
-    ...rawCanada,
-    mp: rawCanada.mp && typeof rawCanada.mp === 'object' && text(rawCanada.mp.name) ? rawCanada.mp : null,
-  };
+  // The MP object is normalized to its full shape: a draft that stored
+  // one without offices (older or mangled) must restore to something
+  // the members step can render, never crash it.
+  const rawMp = rawCanada.mp && typeof rawCanada.mp === 'object' && text(rawCanada.mp.name) ? rawCanada.mp : null;
+  const mp = rawMp
+    ? {
+        name: text(rawMp.name),
+        party: text(rawMp.party),
+        riding: text(rawMp.riding),
+        email: text(rawMp.email),
+        url: text(rawMp.url),
+        offices: Array.isArray(rawMp.offices)
+          ? rawMp.offices
+              .filter((o) => o && typeof o === 'object' && text(o.phone))
+              .map((o) => ({ type: text(o.type), phone: text(o.phone) }))
+          : [],
+      }
+    : null;
+  const canada = { ...EMPTY_CANADA, ...rawCanada, mp };
   let where = WHERE_VALUES.includes(src.where) ? src.where : '';
   // Drafts from before the wizard stored only writer.inUS; map the old
   // non-US path so nobody re-answers a question they already answered.
