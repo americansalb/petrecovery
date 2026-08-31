@@ -390,6 +390,11 @@ export default function RasuwaWizard() {
   const overridesRef = useRef(overrides);
   overridesRef.current = overrides;
   const clearOverrides = () => {
+    // A detail change rebuilds the letters, so the per-recipient Sent
+    // marks stop describing them too (review finding: a new person or
+    // a different MP kept the old mark under the same key). Hand edits
+    // additionally get the visible notice.
+    setSent((sf) => (Object.keys(sf).length ? EMPTY_SENT : sf));
     if (!Object.keys(overridesRef.current).length) return;
     setOverrides({});
     setEditsCleared('details');
