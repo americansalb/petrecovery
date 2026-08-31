@@ -107,10 +107,12 @@ describe('buildCoverage', () => {
       claims: [{ personKey: 'anil grover', claimedBy: 'Samira' }],
     });
     expect(coverage.totals).toEqual({ people: 3, withLetters: 1, needSomeone: 1 });
-    const [poonam, anil, vyshnavy] = coverage.people;
-    expect(poonam).toMatchObject({ letters: 2, claimants: [], needsSomeone: false });
-    expect(anil).toMatchObject({ letters: 0, claimants: ['Samira'], needsSomeone: false });
-    expect(vyshnavy).toMatchObject({ letters: 0, claimants: [], needsSomeone: true });
+    // One flat alphabetical wall: no nationality grouping, nobody first.
+    expect(coverage.people.map((p) => p.name)).toEqual(['Anil Grover', 'Poonam Thakkar', 'Vyshnavy Culan']);
+    const byName = (n) => coverage.people.find((p) => p.name === n);
+    expect(byName('Poonam Thakkar')).toMatchObject({ letters: 2, claimants: [], needsSomeone: false });
+    expect(byName('Anil Grover')).toMatchObject({ letters: 0, claimants: ['Samira'], needsSomeone: false });
+    expect(byName('Vyshnavy Culan')).toMatchObject({ letters: 0, claimants: [], needsSomeone: true });
     expect(coverage.others).toEqual([{ personName: 'Someone Not Listed', records: 1 }]);
   });
 
@@ -125,7 +127,7 @@ describe('buildCoverage', () => {
         null,
       ],
     });
-    expect(coverage.people[1].claimants).toEqual(['Samira']);
+    expect(coverage.people.find((p) => p.name === 'Anil Grover').claimants).toEqual(['Samira']);
     expect(coverage.others).toEqual([]);
   });
 

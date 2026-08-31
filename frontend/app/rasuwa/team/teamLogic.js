@@ -127,12 +127,17 @@ export function buildCoverage({ people = [], letterCounts = [], claims = [] } = 
     };
   });
 
+  // One flat alphabetical wall: no nationality grouping, nobody first
+  // (founder rule, 2026-08-31).
+  covered.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+
   const others = [];
   for (const row of letterCounts) {
     const key = normalizePersonKey(row?.personName);
     if (!key || listedKeys.has(key)) continue;
     others.push({ personName: text(row?.personName), records: Number(row?.records) || 0 });
   }
+  others.sort((a, b) => a.personName.localeCompare(b.personName, 'en', { sensitivity: 'base' }));
 
   return {
     people: covered,

@@ -68,6 +68,13 @@ import {
 const MEMBERS = directory.members;
 const PEOPLE = missingPeople.people;
 
+// The picker lists every missing person in one flat alphabetical list
+// (founder rule, 2026-08-31: no grouping by nationality, nobody first).
+// Option values stay the PEOPLE index so picks and ?for= links hold.
+const PEOPLE_ALPHA = PEOPLE.map((p, i) => ({ p, i })).sort((a, b) =>
+  a.p.name.localeCompare(b.p.name, 'en', { sensitivity: 'base' })
+);
+
 // The House also seats delegates for these; any area US_STATES already
 // carries (it includes DC) is deduped or the picker lists it twice.
 const EXTRA_AREAS = [
@@ -723,20 +730,9 @@ export default function RasuwaWizard() {
           <Field label="Pick from the letter's list, or add someone">
             <select className={inputCls} value={person.pick} onChange={(e) => pickPerson(e.target.value)}>
               <option value="">Choose a name...</option>
-              <optgroup label="United States">
-                {PEOPLE.map((p, i) =>
-                  p.country === 'United States' ? (
-                    <option key={p.num} value={i}>{p.name} ({p.lastSeenPlace})</option>
-                  ) : null
-                )}
-              </optgroup>
-              <optgroup label="Other nationalities">
-                {PEOPLE.map((p, i) =>
-                  p.country !== 'United States' ? (
-                    <option key={p.num} value={i}>{p.name}, {p.country} ({p.lastSeenPlace})</option>
-                  ) : null
-                )}
-              </optgroup>
+              {PEOPLE_ALPHA.map(({ p, i }) => (
+                <option key={p.num} value={i}>{p.name}, {p.country}</option>
+              ))}
               <option value="other">Someone not on the list</option>
             </select>
           </Field>
