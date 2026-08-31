@@ -30,6 +30,9 @@ const RATE_LIMIT_CONFIG = {
   // put a whole room of families behind one venue IP, and each lookup is
   // one cheap, un-stored Census call (see app/api/rasuwa/district).
   '/api/rasuwa/district': { windowMs: 60000, maxRequests: 60 },
+  // Cheap and server-cached; a room of phones loading the sign page
+  // must not 429 the signer counter.
+  '/api/rasuwa/roster-count': { windowMs: 60000, maxRequests: 120 },
   '/api/admin/bulk': { windowMs: 60000, maxRequests: 5 },
   // Lenient: Frequently accessed endpoints
   '/api/dashboard': { windowMs: 60000, maxRequests: 30 },

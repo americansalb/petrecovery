@@ -21,6 +21,7 @@
 import Link from 'next/link';
 import { buildShareMetadata } from '@/app/lib/shareMetadata';
 import { ROSTER_FORM_URL } from '../letterData';
+import SignerCount from '../SignerCount';
 
 export const metadata = buildShareMetadata({
   title: 'Sign the families\' letter',
@@ -45,11 +46,11 @@ export default function RosterFormPage() {
           </Link>
         </div>
         <p className="mx-auto mt-2 w-full max-w-3xl text-sm text-slate-600">
-          On August 29, 1,189 family members and friends of 57 people missing in the Rasuwa
-          flood in Nepal wrote to the U.S. Secretary of State asking for seven rescue actions.
-          The form below, kept by the coordinating family, adds your name and your missing
-          family member to that roster. It takes about a minute. Then press Write to Congress
-          to send your own letters to your senators and representative.
+          On August 29, the family members and friends of 57 people missing in the Rasuwa
+          flood in Nepal wrote to the U.S. Secretary of State asking for seven rescue actions.{' '}
+          <SignerCount /> The form below, kept by the coordinating family, adds your name and
+          your missing family member to that roster. It takes about a minute. Then press
+          Write to Congress to send your own letters to your senators and representative.
         </p>
       </header>
       {ROSTER_FORM_URL ? (
