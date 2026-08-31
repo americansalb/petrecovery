@@ -50,6 +50,7 @@ import {
   saveRasuwaDraft,
 } from './letterDraft';
 import {
+  ACCESS_COMEBACK,
   CANADA_LINKS,
   COUNTRY_GUIDES,
   FACTS_DATE,
@@ -1290,6 +1291,19 @@ export default function RasuwaWizard() {
             <li>Ask your country&apos;s embassy responsible for Nepal to add your family member to its list of the missing.</li>
           </ol>
         )}
+
+        <div className="mt-6 rounded-2xl border-2 border-blue-200 bg-blue-50 p-4">
+          <p className="font-bold text-midnight-900">{ACCESS_COMEBACK.title}</p>
+          <p className="mt-2 rounded-xl bg-white border border-blue-200 p-3 text-sm text-midnight-800">
+            &quot;{ACCESS_COMEBACK.ask}&quot;
+          </p>
+          <div className="mt-2">
+            <button type="button" className={linkBtnCls} onClick={() => copyText('comeback', ACCESS_COMEBACK.ask)}>
+              {copied === 'comeback' ? 'Copied' : 'Copy the question'}
+            </button>
+          </div>
+          <p className="mt-2 text-sm text-midnight-600 leading-relaxed">{ACCESS_COMEBACK.note}</p>
+        </div>
       </StepScreen>
     );
   } else if (step === 'roster') {

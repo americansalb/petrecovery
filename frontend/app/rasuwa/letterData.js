@@ -175,6 +175,30 @@ const LETTER_POINTER = `The letter and the list of the missing: ${JOINT_LETTER_P
 const JOINT_LETTER_SENTENCE =
   `On August 29, ${SIGNERS_AUG29.toLocaleString('en-US')} family members and friends of 57 missing people, my family among them, wrote to the United States Secretary of State asking for seven actions: ${SEVEN_ASKS}`;
 
+/**
+ * The consent counter (founder direction, 2026-08-31): offices deflect
+ * families with "Nepal is not letting foreign teams in." Consent is a
+ * diplomatic product, not weather, so every letter asks for the offer
+ * to be made formally and for Nepal's answer to be on the record, and
+ * the call script carries a prepared comeback. The 2015 reference is
+ * the same one the joint letter itself uses.
+ */
+const ACCESS_PARAGRAPH =
+  'If any of this is said to be waiting on the Government of Nepal\'s consent, obtaining that consent is part of what I am asking for. ' +
+  'Press for each offer to be made formally, in writing, at a senior level; for the families to be told what was offered, to whom, and on what date; ' +
+  'and if Nepal declines, for that refusal to be on the record. ' +
+  'Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake.';
+
+/** Rendered on the delivery step under the phone script, for every path. */
+export const ACCESS_COMEBACK = {
+  title: 'If they say "Nepal is not accepting foreign help"',
+  ask: 'What did our government formally offer, to whom in Nepal\'s government, on what date, and what was Nepal\'s answer?',
+  note:
+    'A staffer repeating a general line cannot answer that. Ask them to find out and call you back. ' +
+    'If Nepal has refused a formal offer, the families should be told so, on the record. ' +
+    'Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake.',
+};
+
 /** "[your street address]" style gap markers keep an incomplete letter obviously incomplete. */
 const ph = (value, label) => (value && String(value).trim()) || `[${label}]`;
 
@@ -291,6 +315,7 @@ export function buildLetterBody({ recipient, writer, person }) {
       `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for ${name} and for the other Canadians missing in Rasuwa, and press for the technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
       `${askTwo}\n\n` +
       `3. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
+      `${ACCESS_PARAGRAPH}\n\n` +
       `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
       `Respectfully,\n\n` +
       `${writerName}\n` +
@@ -312,6 +337,7 @@ export function buildLetterBody({ recipient, writer, person }) {
       `1. Tell me what our government has done to date for ${name} and for the other nationals of ${country} missing in Rasuwa, and press for the same technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
       `2. Open a case file for ${name} and give me a named point of contact with a daily update.\n\n` +
       `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
+      `${ACCESS_PARAGRAPH}\n\n` +
       `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
       `Respectfully,\n\n` +
       `${writerName}\n` +
@@ -347,6 +373,7 @@ export function buildLetterBody({ recipient, writer, person }) {
     `1. Contact the State Department's Bureau of Consular Affairs today in support of the seven requests in the families' August 29 letter, and ask what the Department has done on each one.\n\n` +
     `${askTwo}\n\n` +
     `3. Have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
+    `${ACCESS_PARAGRAPH}\n\n` +
     `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
     `Respectfully,\n\n` +
     `${writerName}\n` +
