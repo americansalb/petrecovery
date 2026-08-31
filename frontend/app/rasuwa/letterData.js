@@ -12,6 +12,16 @@
 export const FACTS_DATE = 'August 29, 2026';
 
 /**
+ * Signatures on the joint letter AS SENT on August 29. The generated
+ * letters cite this number because they quote that letter, a dated
+ * document an office can verify; it does not change as the roster
+ * grows. The landing pages show the LIVE roster count instead, served
+ * by /api/rasuwa/roster-count with this as the floor.
+ */
+export const SIGNERS_AUG29 = 1189;
+
+
+/**
  * The coalition's roster form (the Google Form web app that was the
  * rescueourfamily.org front page). Paste its script.google.com or
  * forms.gle URL here and the tool links it from the roster step;
@@ -19,6 +29,25 @@ export const FACTS_DATE = 'August 29, 2026';
  */
 export const ROSTER_FORM_URL =
   'https://script.google.com/macros/s/AKfycbxO42Y7iQE8WURRQLx2IN9UwEpbBA7GDQrqUNkA2zyRcbROgdCn6So1ljXoPsXXWlny/exec';
+
+/**
+ * Where the live signer count comes from: a URL that answers with the
+ * current roster size, either as a bare number ("2345") or as JSON
+ * ({"count": 2345}). Defaults to asking the roster web app with
+ * ?count=1; until the organizers add the handler below to their Apps
+ * Script doGet, that returns the form's HTML, the parser rejects it,
+ * and the pages show "More than 1,189" from the floor. Paste into the
+ * script, redeploy the web app, and the count goes live with no site
+ * deploy:
+ *
+ *   if (e && e.parameter && e.parameter.count) {
+ *     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+ *     return ContentService
+ *       .createTextOutput(JSON.stringify({ count: sheet.getLastRow() - 1 }))
+ *       .setMimeType(ContentService.MimeType.JSON);
+ *   }
+ */
+export const ROSTER_COUNT_URL = ROSTER_FORM_URL ? `${ROSTER_FORM_URL}?count=1` : '';
 
 /** Official fallback links when the bundled directory is not enough. */
 export const US_LINKS = {
@@ -116,7 +145,7 @@ const SITUATION_INTL =
   'Helicopters have not been able to land in parts of the upper valley.';
 
 const JOINT_LETTER_SENTENCE =
-  `On August 29, 1,189 family members and friends of 57 missing people, my family among them, wrote to the United States Secretary of State asking for seven actions: ${SEVEN_ASKS}`;
+  `On August 29, ${SIGNERS_AUG29.toLocaleString('en-US')} family members and friends of 57 missing people, my family among them, wrote to the United States Secretary of State asking for seven actions: ${SEVEN_ASKS}`;
 
 /** "[your street address]" style gap markers keep an incomplete letter obviously incomplete. */
 const ph = (value, label) => (value && String(value).trim()) || `[${label}]`;
@@ -152,12 +181,29 @@ export function recipientTitle(recipient) {
   return recipient.chamber === 'sen' ? 'Senator' : 'Representative';
 }
 
+/**
+ * Compound surnames the token rules below cannot infer. Keyed by
+ * bioguide; review when the directory is refreshed for a new Congress.
+ */
+const SURNAME_OVERRIDES = {
+  B001303: 'Blunt Rochester',
+  W000797: 'Wasserman Schultz',
+};
+
+/** Surname particles that belong with the last token ("Van Hollen"). */
+const SURNAME_PARTICLES = new Set(['Van', 'Vander', 'De', 'Del', 'Della', 'Der', 'La', 'Da', 'Ter', 'St.', 'Saint']);
+
 export function recipientLastName(recipient) {
+  const override = recipient.bioguide && SURNAME_OVERRIDES[recipient.bioguide];
+  if (override) return override;
   const parts = recipient.name.trim().split(/\s+/);
-  const last = parts[parts.length - 1];
+  let i = parts.length - 1;
   // "Jr.", "III" style suffixes: take the token before them
-  if (/^(Jr\.?|Sr\.?|II|III|IV)$/i.test(last) && parts.length > 1) {
-    return parts[parts.length - 2].replace(/,$/, '');
+  if (/^(Jr\.?|Sr\.?|II|III|IV)$/i.test(parts[i]) && i > 0) i--;
+  let last = parts[i].replace(/,$/, '');
+  while (i > 0 && SURNAME_PARTICLES.has(parts[i - 1].replace(/,$/, ''))) {
+    i--;
+    last = `${parts[i].replace(/,$/, '')} ${last}`;
   }
   return last;
 }

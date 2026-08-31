@@ -6,17 +6,35 @@
  * only network call is the district lookup (api/rasuwa/district), which
  * forwards the entered address to the Census geocoder and stores nothing.
  *
+ * Entries are kept as a draft in this browser tab (letterDraft.js): the
+ * flow tells people to switch apps to call offices, phones discard
+ * backgrounded tabs, and without a draft they come back to an empty
+ * form. The draft dies with the tab; restoring it is an explicit choice.
+ *
  * Flow: pick or enter the missing person, enter your own details, find
  * your members of Congress (or your country's contacts), then copy the
  * letter into each office's contact form, call with the script, and
  * download the PDF for printing and faxing.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { US_STATES } from '@/app/lib/states';
 import directory from './congress-directory.json';
 import missingPeople from './missing-people.json';
+import { findUnprintableChars } from './pdfText';
+import SignerCount from './SignerCount';
+import {
+  EMPTY_LOOKUP,
+  EMPTY_PERSON,
+  EMPTY_WRITER,
+  clearRasuwaDraft,
+  describeDraft,
+  draftHasContent,
+  loadRasuwaDraft,
+  restoreDraft,
+  saveRasuwaDraft,
+} from './letterDraft';
 import {
   COORDINATOR_NAME,
   COUNTRY_GUIDES,
@@ -36,7 +54,8 @@ import {
 const MEMBERS = directory.members;
 const PEOPLE = missingPeople.people;
 
-// US_STATES covers the 50 states; the House also seats delegates for these.
+// The House also seats delegates for these; any area US_STATES already
+// carries (it includes DC) is deduped or the picker lists it twice.
 const EXTRA_AREAS = [
   { code: 'DC', name: 'District of Columbia' },
   { code: 'AS', name: 'American Samoa' },
@@ -45,7 +64,10 @@ const EXTRA_AREAS = [
   { code: 'PR', name: 'Puerto Rico' },
   { code: 'VI', name: 'U.S. Virgin Islands' },
 ];
-const STATE_OPTIONS = [...US_STATES, ...EXTRA_AREAS];
+const STATE_OPTIONS = [
+  ...US_STATES,
+  ...EXTRA_AREAS.filter((a) => !US_STATES.some((s) => s.code === a.code)),
+];
 
 const NATIONALITIES = [
   'United States', 'Australia', 'Canada', 'United Kingdom', 'Singapore',
@@ -84,27 +106,89 @@ function StepCard({ number, title, children }) {
 }
 
 export default function RasuwaLetterTool() {
-  const [person, setPerson] = useState({
-    pick: '', name: '', country: 'United States', home: '',
-    lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '',
-  });
-  const [writer, setWriter] = useState({
-    name: '', relationship: '', phone: '', email: '',
-    inUS: true, street: '', city: '', state: '', zip: '',
-    country: 'Australia',
-  });
-  const [lookup, setLookup] = useState({ status: 'idle', error: '', state: '', district: null, matchedAddress: '' });
+  const [person, setPerson] = useState(EMPTY_PERSON);
+  const [writer, setWriter] = useState(EMPTY_WRITER);
+  const [lookup, setLookup] = useState(EMPTY_LOOKUP);
   const [manualRep, setManualRep] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
   const [overrides, setOverrides] = useState({});
   const [copied, setCopied] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState('');
+  // The native share sheet (send the letter to yourself over WhatsApp,
+  // mail, notes) exists mostly on phones; detected after mount so the
+  // server render stays stable.
+  const [canShare, setCanShare] = useState(false);
+  useEffect(() => {
+    setCanShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
+  // A draft found at mount, waiting on the person's continue-or-fresh
+  // choice. While it waits, autosave pauses so the empty form cannot
+  // overwrite it.
+  const [pendingDraft, setPendingDraft] = useState(null);
+
+  useEffect(() => {
+    const d = loadRasuwaDraft();
+    if (draftHasContent(d)) setPendingDraft(d);
+  }, []);
+
+  // Save on every meaningful change. Typing while the restore banner is
+  // up counts as choosing to start fresh: the banner goes away and the
+  // new entries take over the draft slot.
+  useEffect(() => {
+    const state = { person, writer, lookup, manualRep, overrides };
+    if (!draftHasContent(state)) return;
+    if (pendingDraft) {
+      setPendingDraft(null);
+      return;
+    }
+    saveRasuwaDraft(state);
+  }, [person, writer, lookup, manualRep, overrides, pendingDraft]);
+
+  function resumeDraft() {
+    const d = restoreDraft(pendingDraft);
+    setPerson(d.person);
+    setWriter(d.writer);
+    setLookup(d.lookup);
+    setManualRep(d.manualRep);
+    setOverrides(d.overrides);
+    setEditsCleared(false);
+    setPendingDraft(null);
+  }
+
+  function startFresh() {
+    clearRasuwaDraft();
+    setPendingDraft(null);
+  }
+
+  function clearEverything() {
+    if (!window.confirm('Clear everything you typed on this page?')) return;
+    setPerson(EMPTY_PERSON);
+    setWriter(EMPTY_WRITER);
+    setLookup(EMPTY_LOOKUP);
+    setManualRep('');
+    setOverrides({});
+    setActiveIdx(0);
+    setEditsCleared(false);
+    setPendingDraft(null);
+    clearRasuwaDraft();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  const dirty = draftHasContent({ person, writer, lookup, manualRep, overrides });
 
   // Any change to the person or writer invalidates hand-edited letter
   // text: a kept override would freeze the previous person's details
-  // into the letter and the PDF.
-  const clearOverrides = () => setOverrides((o) => (Object.keys(o).length ? {} : o));
+  // into the letter and the PDF. Never silently: editsCleared puts a
+  // notice above the letter saying the hand edits were replaced.
+  const [editsCleared, setEditsCleared] = useState(false);
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
+  const clearOverrides = () => {
+    if (!Object.keys(overridesRef.current).length) return;
+    setOverrides({});
+    setEditsCleared(true);
+  };
   const setP = (patch) => {
     setPerson((p) => ({ ...p, ...patch }));
     clearOverrides();
@@ -113,17 +197,18 @@ export default function RasuwaLetterTool() {
     setWriter((w) => ({ ...w, ...patch }));
     clearOverrides();
   };
-  const emptyLookup = { status: 'idle', error: '', state: '', district: null, matchedAddress: '' };
   // Street, city, and ZIP feed the district lookup; editing them after
-  // a successful lookup invalidates the representative it found.
+  // a successful lookup invalidates the representative it found, and
+  // editing them mid-lookup invalidates the response still in flight.
   const setAddressField = (patch) => {
     setW(patch);
-    setLookup((l) => (l.status === 'idle' ? l : emptyLookup));
+    lookupSeq.current++;
+    setLookup((l) => (l.status === 'idle' ? l : EMPTY_LOOKUP));
   };
 
   function pickPerson(value) {
     if (value === '' || value === 'other') {
-      setP({ pick: value, name: '', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' });
+      setP({ ...EMPTY_PERSON, pick: value });
       return;
     }
     const entry = PEOPLE[Number(value)];
@@ -136,11 +221,20 @@ export default function RasuwaLetterTool() {
     }
   }
 
+  // Editing the address mid-lookup resets the state; a response landing
+  // after that must not resurrect itself. Each lookup takes a sequence
+  // number and only the latest one may apply its result.
+  const lookupSeq = useRef(0);
+
   async function findDistrict() {
+    const seq = ++lookupSeq.current;
+    const applyLookup = (next) => {
+      if (lookupSeq.current === seq) setLookup(next);
+    };
     const address = [writer.street, writer.city, [writer.state, writer.zip].filter(Boolean).join(' ')]
       .filter(Boolean)
       .join(', ');
-    setLookup({ status: 'busy', error: '', state: '', district: null, matchedAddress: '' });
+    setLookup({ ...EMPTY_LOOKUP, status: 'busy' });
     setManualRep('');
     try {
       // POST body, not a query string: the address must not ride in
@@ -150,15 +244,26 @@ export default function RasuwaLetterTool() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setLookup({ status: 'error', error: data.error || 'The lookup failed. Pick your state by hand below.', state: '', district: null, matchedAddress: '' });
+      if (res.status === 429) {
+        applyLookup({
+          ...EMPTY_LOOKUP,
+          status: 'error',
+          error: 'A lot of people are using this right now. Wait a minute and press "Find my district" again, or pick your state and district by hand below.',
+        });
         return;
       }
-      setLookup({ status: 'done', error: '', state: data.state, district: data.district, matchedAddress: data.matchedAddress });
-      if (!writer.state) setW({ state: data.state });
+      const data = await res.json();
+      if (!res.ok) {
+        applyLookup({ ...EMPTY_LOOKUP, status: 'error', error: data.error || 'The lookup failed. Pick your state by hand below.' });
+        return;
+      }
+      applyLookup({ status: 'done', error: '', state: data.state, district: data.district, matchedAddress: data.matchedAddress });
+      // The letter and its subject line say which state the writer lives
+      // in; they must match the members the lookup found (a hand-picked
+      // state can disagree with where the address really is).
+      if (lookupSeq.current === seq && writer.state !== data.state) setW({ state: data.state });
     } catch {
-      setLookup({ status: 'error', error: 'The lookup failed. Pick your state by hand below.', state: '', district: null, matchedAddress: '' });
+      applyLookup({ ...EMPTY_LOOKUP, status: 'error', error: 'The lookup failed. Pick your state by hand below.' });
     }
   }
 
@@ -193,6 +298,31 @@ export default function RasuwaLetterTool() {
   const active = letters[Math.min(activeIdx, Math.max(letters.length - 1, 0))] || null;
   const activeBody = active ? overrides[active.key] ?? active.body : '';
   const activeEdited = active ? overrides[active.key] != null && overrides[active.key] !== active.body : false;
+  const unprintable = findUnprintableChars(letters.map((l) => overrides[l.key] ?? l.body).join('\n'));
+
+  // The letter marks gaps in [brackets], but a person pasting into a
+  // webform may not scan for them; name what is still blank out loud.
+  const stillBlank = [];
+  if (!person.name.trim()) stillBlank.push("the missing person's name");
+  if (!person.lastSeenPlace.trim()) stillBlank.push('their last known location');
+  if (!writer.name.trim()) stillBlank.push('your name');
+  if (!writer.relationship.trim()) stillBlank.push('your relationship to them');
+  if (!writer.phone.trim()) stillBlank.push('your phone number');
+  if (writer.inUS && !(writer.street.trim() && writer.city.trim() && writer.state && writer.zip.trim())) {
+    stillBlank.push('your address');
+  }
+
+  // One script works on every call, so it never names the wrong office
+  // while the person dials down the list in step 3.
+  const phoneScript = buildPhoneScript({ recipient: null, writer, person });
+
+  async function shareActiveLetter() {
+    try {
+      await navigator.share({ title: subject, text: `${subject}\n\n${activeBody}` });
+    } catch {
+      // the person closed the share sheet; nothing to do
+    }
+  }
 
   async function copyText(key, text) {
     try {
@@ -249,21 +379,46 @@ export default function RasuwaLetterTool() {
             Missing in the Rasuwa flood: write to your representatives
           </h1>
           <p className="mt-3 text-slate-700">
-            On August 29, 1,189 family members and friends of 57 missing people wrote to the
-            U.S. Secretary of State asking for seven rescue actions. This page turns that letter
-            into your own: one letter to each of your members of Congress with your loved
-            one&apos;s details, the phone numbers to call, and the forms to submit it through.
-            It takes about ten minutes.
+            On August 29, the family members and friends of 57 missing people wrote to the
+            U.S. Secretary of State asking for seven rescue actions. <SignerCount /> This page
+            turns that letter into your own: one letter to each of your members of Congress
+            with your loved one&apos;s details, the phone numbers to call, and the forms to
+            submit it through. It takes about ten minutes.
           </p>
-          <p className="mt-3 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
-            What you type here stays on your device. This page has no database and saves
-            nothing. The one exception: when you press &quot;Find my district&quot;, the address you
-            entered goes to the U.S. Census geocoder to identify your congressional district.
-          </p>
+          <div className="mt-3 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
+            <p>
+              What you type here stays on your device. This page has no database. Your entries
+              are kept in this browser tab so a phone call or an accidental reload does not wipe
+              them; close the tab and they are gone. The one exception: when you press &quot;Find my
+              district&quot;, the address you entered goes to the U.S. Census geocoder to identify
+              your congressional district.
+            </p>
+            {dirty && (
+              <button type="button" className="mt-2 font-medium underline" onClick={clearEverything}>
+                Clear everything I typed
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+        {pendingDraft && (
+          <section className="rounded-lg border border-blue-300 bg-blue-50 p-5 shadow-sm">
+            <p className="font-bold text-slate-900">Pick up where you left off?</p>
+            <p className="mt-1 text-sm text-slate-700">
+              This tab still has {describeDraft(pendingDraft)}. Continue with it, or start fresh.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button type="button" className={buttonCls} onClick={resumeDraft}>
+                Continue where I left off
+              </button>
+              <button type="button" className={buttonLightCls} onClick={startFresh}>
+                Start fresh
+              </button>
+            </div>
+          </section>
+        )}
         <StepCard number={1} title="Who is missing">
           <div className="space-y-4">
             <Field label="Pick from the letter's list, or add someone">
@@ -358,8 +513,8 @@ export default function RasuwaLetterTool() {
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="State">
                     <select className={inputCls} value={writer.state} onChange={(e) => { setAddressField({ state: e.target.value }); setManualRep(''); }}>
-                      <option value="">State</option>
-                      {STATE_OPTIONS.map((s) => <option key={s.code} value={s.code}>{s.code}</option>)}
+                      <option value="">Choose your state...</option>
+                      {STATE_OPTIONS.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
                     </select>
                   </Field>
                   <Field label="ZIP">
@@ -392,7 +547,7 @@ export default function RasuwaLetterTool() {
                 {lookup.status === 'done' && (
                   <span className="text-sm text-slate-600">
                     {lookup.matchedAddress}: district {lookup.district === 0 ? 'at large' : lookup.district}, {lookup.state}.{' '}
-                    <button type="button" className="underline" onClick={() => setLookup({ status: 'idle', error: '', state: '', district: null, matchedAddress: '' })}>
+                    <button type="button" className="underline" onClick={() => setLookup(EMPTY_LOOKUP)}>
                       Wrong? Pick by hand
                     </button>
                   </span>
@@ -480,6 +635,17 @@ export default function RasuwaLetterTool() {
             <p className="text-sm text-slate-600">Pick your members of Congress in step 3 and the letters appear here.</p>
           ) : (
             <div className="space-y-4">
+              {editsCleared && (
+                <div className="flex items-start justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p>
+                    You changed a detail above, so the letters were rebuilt to match. Your hand
+                    edits to the letter text were replaced.
+                  </p>
+                  <button type="button" className="shrink-0 font-semibold underline" onClick={() => setEditsCleared(false)}>
+                    OK
+                  </button>
+                </div>
+              )}
               {letters.length > 1 && (
                 <div className="flex flex-wrap gap-2">
                   {letters.map((l, i) => (
@@ -525,25 +691,47 @@ export default function RasuwaLetterTool() {
                           Reset to generated text
                         </button>
                       )}
-                      <button type="button" className="text-sm font-semibold text-blue-800 underline" onClick={() => copyText('letter', activeBody)}>
-                        {copied === 'letter' ? 'Copied' : 'Copy letter'}
+                      <button type="button" className="text-sm font-semibold text-blue-800 underline" onClick={() => copyText(`letter-${active.key}`, activeBody)}>
+                        {copied === `letter-${active.key}` ? 'Copied' : 'Copy letter'}
                       </button>
                     </span>
                   </div>
                   <textarea
                     className={`${inputCls} min-h-[380px] font-mono text-sm leading-relaxed`}
                     value={activeBody}
-                    onChange={(e) => setOverrides((o) => ({ ...o, [active.key]: e.target.value }))}
+                    onChange={(e) => {
+                      setEditsCleared(false);
+                      setOverrides((o) => ({ ...o, [active.key]: e.target.value }));
+                    }}
                   />
                 </div>
               )}
 
+              {stillBlank.length > 0 && (
+                <p className="text-sm text-amber-800">
+                  Still blank: {stillBlank.join(', ')}. The letter marks each gap in [brackets].
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <button type="button" className={buttonCls} onClick={downloadPdf} disabled={pdfBusy}>
                   {pdfBusy ? 'Building PDF...' : `Download PDF (${letters.length === 1 ? '1 letter' : `all ${letters.length} letters`})`}
                 </button>
+                {canShare && active && (
+                  <button type="button" className={buttonLightCls} onClick={shareActiveLetter}>
+                    Share this letter
+                  </button>
+                )}
                 <span className="text-sm text-slate-600">For printing, faxing, and office visits.</span>
               </div>
+              <p className="text-sm text-slate-500">
+                Nothing downloaded? Open this page in Safari or Chrome, or use &quot;Copy letter&quot; above.
+              </p>
+              {unprintable.length > 0 && (
+                <p className="text-sm text-amber-800">
+                  The PDF cannot print these characters: {unprintable.join(' ')}. They will look
+                  wrong on paper. The letter on this page and &quot;Copy letter&quot; are not affected.
+                </p>
+              )}
               {pdfError && <p className="text-sm text-red-700">{pdfError}</p>}
             </div>
           )}
@@ -555,14 +743,14 @@ export default function RasuwaLetterTool() {
               <li>
                 <span className="font-semibold">Call first.</span> Calls are logged the same day.
                 Call the DC number and one district office for each member (numbers in step 3).
-                Read this script:
+                The same script works on every call:
                 <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
-                  {buildPhoneScript({ recipient: active ? active.recipient : null, writer, person })}
+                  {phoneScript}
                   <div className="mt-2">
                     <button
                       type="button"
                       className="text-sm font-semibold text-blue-800 underline"
-                      onClick={() => copyText('script', buildPhoneScript({ recipient: active ? active.recipient : null, writer, person }))}
+                      onClick={() => copyText('script', phoneScript)}
                     >
                       {copied === 'script' ? 'Copied' : 'Copy script'}
                     </button>
@@ -592,6 +780,12 @@ export default function RasuwaLetterTool() {
                     </li>
                   ))}
                 </ul>
+                {recipients.some((m) => !m.contactForm) && (
+                  <p className="mt-2 text-sm text-slate-600">
+                    On a member&apos;s site, look for a button that says Contact, Email, or Share
+                    Your Opinion.
+                  </p>
+                )}
               </li>
               <li>
                 <span className="font-semibold">Ask for the privacy release form.</span> An office
@@ -639,8 +833,24 @@ export default function RasuwaLetterTool() {
             <button type="button" className={buttonLightCls} onClick={shareWithCoordinator}>
               Email my entry to the coordinating family
             </button>
-            <span className="text-sm text-slate-600">Or call {coordinatorPhone()} (any hour).</span>
+            <button
+              type="button"
+              className={buttonLightCls}
+              onClick={() => {
+                const { subject: shareSubject, body } = buildRosterShare({ writer, person });
+                copyText('entry', `Subject: ${shareSubject}\n\n${body}`);
+              }}
+            >
+              {copied === 'entry' ? 'Copied' : 'Copy my entry'}
+            </button>
+            <span className="text-sm text-slate-600">
+              Or call <a className="underline" href={`tel:${coordinatorPhone()}`}>{coordinatorPhone()}</a> (any hour).
+            </span>
           </div>
+          <p className="mt-2 text-sm text-slate-600">
+            If the email button does nothing in this browser, press &quot;Copy my entry&quot; and paste
+            it into a message to {coordinatorEmail()}.
+          </p>
           {ROSTER_FORM_URL && (
             <p className="mt-3 text-sm text-slate-600">
               Not counted in the joint letter yet?{' '}
@@ -662,11 +872,15 @@ export default function RasuwaLetterTool() {
           </p>
           <p className="mt-3">
             Corrections and updates: email {COORDINATOR_NAME} at{' '}
-            <button type="button" className="underline" onClick={() => { window.location.href = `mailto:${coordinatorEmail()}`; }}>
-              this address
-            </button>.
+            <a className="underline" href={`mailto:${coordinatorEmail()}`}>{coordinatorEmail()}</a>.
             This page is hosted by <Link href="/" className="underline">ReunitePets</Link>.
           </p>
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <button type="button" className={buttonLightCls} onClick={clearEverything}>
+              Start over for the next family
+            </button>
+            <span className="ml-3 text-sm text-slate-600">Clears everything typed on this page.</span>
+          </div>
         </section>
       </main>
     </div>

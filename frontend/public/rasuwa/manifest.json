@@ -1,0 +1,13 @@
+{
+  "name": "Rescue Our Family",
+  "short_name": "RescueOurFamily",
+  "description": "For families of people missing in the August 26 Rasuwa flood in Nepal: sign the families' letter and write to your representatives.",
+  "start_url": "/rasuwa",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    { "src": "/rasuwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/rasuwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

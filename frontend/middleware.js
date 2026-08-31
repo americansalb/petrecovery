@@ -26,7 +26,13 @@ const RATE_LIMIT_CONFIG = {
   '/api/auth/forgot-password': { windowMs: 60000, maxRequests: 5 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
   '/api/geocode': { windowMs: 60000, maxRequests: 10 },
-  '/api/rasuwa/district': { windowMs: 60000, maxRequests: 15 },
+  // Higher than the other strict routes on purpose: letter-writing events
+  // put a whole room of families behind one venue IP, and each lookup is
+  // one cheap, un-stored Census call (see app/api/rasuwa/district).
+  '/api/rasuwa/district': { windowMs: 60000, maxRequests: 60 },
+  // Cheap and server-cached; a room of phones loading the sign page
+  // must not 429 the signer counter.
+  '/api/rasuwa/roster-count': { windowMs: 60000, maxRequests: 120 },
   '/api/admin/bulk': { windowMs: 60000, maxRequests: 5 },
   // Lenient: Frequently accessed endpoints
   '/api/dashboard': { windowMs: 60000, maxRequests: 30 },
@@ -186,6 +192,40 @@ export async function middleware(request) {
     url.host = 'www.reunitepets.org';
     url.port = '';
     return NextResponse.redirect(url, 301);
+  }
+
+  // rescueourfamily.org is the families' own domain: browsers and link
+  // scanners fetch /favicon.ico and /apple-touch-icon*.png directly at
+  // the domain root, and those must never answer with pet-site branding.
+  // The rasuwa pages set their own icon links; this covers the bare
+  // requests. The matcher below deliberately does NOT exclude
+  // favicon.ico so this branch can see it.
+  if (host === 'rescueourfamily.org' || host === 'www.rescueourfamily.org') {
+    if (pathname === '/favicon.ico') {
+      return NextResponse.rewrite(new URL('/rasuwa/favicon.ico', request.url));
+    }
+    if (/^\/apple-touch-icon(-precomposed)?\.png$/.test(pathname)) {
+      return NextResponse.rewrite(new URL('/rasuwa/apple-icon-180.png', request.url));
+    }
+    // The family domain shows the family pages and nothing else: any
+    // pet-site route served under rescueourfamily.org would carry pet
+    // chrome and the pet favicon. Assets, the rasuwa API, the tool's
+    // aliases, and robots pass; every other path lands on the sign
+    // page. (/ and /form are already redirected in next.config.js,
+    // which runs before middleware.)
+    const familyAllowed =
+      pathname.startsWith('/rasuwa') ||
+      pathname.startsWith('/api/rasuwa') ||
+      pathname.startsWith('/_next') ||
+      pathname === '/nepal' ||
+      pathname === '/action' ||
+      pathname === '/robots.txt';
+    if (!familyAllowed) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/rasuwa/form';
+      url.search = '';
+      return NextResponse.redirect(url, 307);
+    }
   }
 
   const clientIp = getClientIp(request);
@@ -362,9 +402,11 @@ export const config = {
      * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
      * - public folder
+     * favicon.ico is NOT excluded: the rescueourfamily.org branch above
+     * rewrites it per host, and the static-extension fast path passes
+     * it through untouched everywhere else.
      */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    '/((?!_next/static|_next/image|public/).*)',
   ],
 };

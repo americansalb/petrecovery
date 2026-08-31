@@ -137,6 +137,15 @@ describe('letter builders', () => {
     expect(coordinatorPhone()).toMatch(/^\d{3}-\d{3}-\d{4}$/);
   });
 
+  test('surnames keep their particles, compounds, and suffix handling', () => {
+    expect(recipientLastName({ name: 'Richard J. Durbin' })).toBe('Durbin');
+    expect(recipientLastName({ name: 'Chris Van Hollen' })).toBe('Van Hollen');
+    expect(recipientLastName({ name: 'Monica De La Cruz' })).toBe('De La Cruz');
+    expect(recipientLastName({ name: 'Sanford D. Bishop, Jr.' })).toBe('Bishop');
+    expect(recipientLastName({ bioguide: 'B001303', name: 'Lisa Blunt Rochester' })).toBe('Blunt Rochester');
+    expect(recipientLastName({ bioguide: 'W000797', name: 'Debbie Wasserman Schultz' })).toBe('Wasserman Schultz');
+  });
+
   test('no em dashes anywhere in generated text (house copy rule)', () => {
     const body = buildLetterBody({ recipient: senator, writer, person });
     const script = buildPhoneScript({ recipient: senator, writer, person });
