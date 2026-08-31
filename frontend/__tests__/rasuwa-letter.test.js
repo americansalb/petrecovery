@@ -15,8 +15,6 @@ const {
   buildPhoneScript,
   buildRosterShare,
   buildSubject,
-  coordinatorEmail,
-  coordinatorPhone,
   recipientLastName,
 } = require('@/app/rasuwa/letterData');
 
@@ -138,9 +136,9 @@ describe('letter builders', () => {
     expect(share.body).toContain('consent');
   });
 
-  test('coordinator contact assembles', () => {
-    expect(coordinatorEmail()).toMatch(/^[^@\s]+@[^@\s]+\.[a-z]+$/);
-    expect(coordinatorPhone()).toMatch(/^\d{3}-\d{3}-\d{4}$/);
+  test('no personal contact details anywhere in the module', () => {
+    const source = require('fs').readFileSync(require.resolve('@/app/rasuwa/letterData'), 'utf8');
+    expect(source).not.toMatch(/bhumika|306-1983|gmail\.com/i);
   });
 
   test('surnames keep their particles, compounds, and suffix handling', () => {

@@ -231,6 +231,13 @@ const nextConfig = {
         destination: '/rasuwa/letter',
         permanent: false,
       },
+      // The family task force board's short address, shared in the
+      // group chats; it works on every host.
+      {
+        source: '/team',
+        destination: '/rasuwa/team',
+        permanent: false,
+      },
       // rescueourfamily.org is the families' own domain: its root and
       // /form land on the sign page. REDIRECTS, not rewrites: the
       // global chrome hides by the browser-visible pathname

@@ -5669,3 +5669,51 @@ model RasuwaLetterRecord {
 
   @@index([personName, createdAt])
 }
+
+/// The family task force board (rescueourfamily.org/team): posts are
+/// the board's updates (kind "update", shown pinned at the top) and
+/// messages (kind "message", the running conversation). Access is a
+/// shared code, not an account; author is the name the person typed.
+model RasuwaTeamPost {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  author    String
+  body      String
+  kind      String   @default("message")
+
+  @@index([kind, createdAt])
+}
+
+/// One thing that needs doing, claimable by anyone on the board:
+/// OPEN -> CLAIMED (one name holds it) -> DONE, reopenable. Claims
+/// move atomically (conditional update on the current status) so two
+/// people tapping "I'll do it" cannot both hold the same need.
+model RasuwaTeamNeed {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  title     String
+  detail    String    @default("")
+  createdBy String    @default("")
+  status    String    @default("OPEN")
+  claimedBy String    @default("")
+  claimedAt DateTime?
+  doneBy    String    @default("")
+  doneAt    DateTime?
+
+  @@index([status, createdAt])
+}
+
+/// "I'll write for this person": a team member's standing claim on one
+/// of the missing, so the coverage wall can show who is spoken for and
+/// who has nobody yet. personKey is the normalized name from
+/// missing-people.json (teamLogic.js normalizePersonKey).
+model RasuwaPersonClaim {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  personKey String
+  claimedBy String
+
+  @@unique([personKey, claimedBy])
+  @@index([personKey])
+}
