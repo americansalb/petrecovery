@@ -31,6 +31,19 @@ const FIPS_TO_STATE = {
   '72': 'PR', '78': 'VI',
 };
 
+// Every response, errors included, carries no-store: nothing about a
+// family's lookup belongs in any cache.
+const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
+
+async function fetchCensus(params) {
+  const res = await fetch(
+    `https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?${params.toString()}`,
+    { signal: AbortSignal.timeout(7000), cache: 'no-store' }
+  );
+  if (!res.ok) throw new Error(`census status ${res.status}`);
+  return res.json();
+}
+
 export async function POST(request) {
   let address = '';
   try {
@@ -40,7 +53,7 @@ export async function POST(request) {
     // fall through to the length check below
   }
   if (address.length < 8) {
-    return NextResponse.json({ error: 'Enter a full street address, city, state, and ZIP.' }, { status: 400 });
+    return NextResponse.json({ error: 'Enter a full street address, city, state, and ZIP.' }, { status: 400, ...NO_STORE });
   }
 
   const params = new URLSearchParams({
@@ -51,18 +64,19 @@ export async function POST(request) {
     format: 'json',
   });
 
+  // One retry: the Census geocoder is a single upstream with occasional
+  // slow or dropped responses, and the caller is a family mid-task.
   let data;
   try {
-    const res = await fetch(
-      `https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?${params.toString()}`,
-      { signal: AbortSignal.timeout(10000), cache: 'no-store' }
-    );
-    if (!res.ok) throw new Error(`census status ${res.status}`);
-    data = await res.json();
+    try {
+      data = await fetchCensus(params);
+    } catch {
+      data = await fetchCensus(params);
+    }
   } catch {
     return NextResponse.json(
       { error: 'The district lookup did not respond. Pick your state and district by hand below.' },
-      { status: 502 }
+      { status: 502, ...NO_STORE }
     );
   }
 
@@ -70,7 +84,7 @@ export async function POST(request) {
   if (!match) {
     return NextResponse.json(
       { error: 'No match for that address. Check the spelling and ZIP, or pick your state by hand below.' },
-      { status: 404 }
+      { status: 404, ...NO_STORE }
     );
   }
 
@@ -82,7 +96,7 @@ export async function POST(request) {
   if (!cd || !state) {
     return NextResponse.json(
       { error: 'That address did not resolve to a congressional district. Pick your state by hand below.' },
-      { status: 404 }
+      { status: 404, ...NO_STORE }
     );
   }
 

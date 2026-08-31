@@ -26,7 +26,10 @@ const RATE_LIMIT_CONFIG = {
   '/api/auth/forgot-password': { windowMs: 60000, maxRequests: 5 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
   '/api/geocode': { windowMs: 60000, maxRequests: 10 },
-  '/api/rasuwa/district': { windowMs: 60000, maxRequests: 15 },
+  // Higher than the other strict routes on purpose: letter-writing events
+  // put a whole room of families behind one venue IP, and each lookup is
+  // one cheap, un-stored Census call (see app/api/rasuwa/district).
+  '/api/rasuwa/district': { windowMs: 60000, maxRequests: 60 },
   '/api/admin/bulk': { windowMs: 60000, maxRequests: 5 },
   // Lenient: Frequently accessed endpoints
   '/api/dashboard': { windowMs: 60000, maxRequests: 30 },

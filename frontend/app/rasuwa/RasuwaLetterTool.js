@@ -17,7 +17,7 @@
  * download the PDF for printing and faxing.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { US_STATES } from '@/app/lib/states';
 import directory from './congress-directory.json';
@@ -175,9 +175,11 @@ export default function RasuwaLetterTool() {
     clearOverrides();
   };
   // Street, city, and ZIP feed the district lookup; editing them after
-  // a successful lookup invalidates the representative it found.
+  // a successful lookup invalidates the representative it found, and
+  // editing them mid-lookup invalidates the response still in flight.
   const setAddressField = (patch) => {
     setW(patch);
+    lookupSeq.current++;
     setLookup((l) => (l.status === 'idle' ? l : EMPTY_LOOKUP));
   };
 
@@ -196,11 +198,20 @@ export default function RasuwaLetterTool() {
     }
   }
 
+  // Editing the address mid-lookup resets the state; a response landing
+  // after that must not resurrect itself. Each lookup takes a sequence
+  // number and only the latest one may apply its result.
+  const lookupSeq = useRef(0);
+
   async function findDistrict() {
+    const seq = ++lookupSeq.current;
+    const applyLookup = (next) => {
+      if (lookupSeq.current === seq) setLookup(next);
+    };
     const address = [writer.street, writer.city, [writer.state, writer.zip].filter(Boolean).join(' ')]
       .filter(Boolean)
       .join(', ');
-    setLookup({ status: 'busy', error: '', state: '', district: null, matchedAddress: '' });
+    setLookup({ ...EMPTY_LOOKUP, status: 'busy' });
     setManualRep('');
     try {
       // POST body, not a query string: the address must not ride in
@@ -210,15 +221,26 @@ export default function RasuwaLetterTool() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setLookup({ status: 'error', error: data.error || 'The lookup failed. Pick your state by hand below.', state: '', district: null, matchedAddress: '' });
+      if (res.status === 429) {
+        applyLookup({
+          ...EMPTY_LOOKUP,
+          status: 'error',
+          error: 'A lot of people are using this right now. Wait a minute and press "Find my district" again, or pick your state and district by hand below.',
+        });
         return;
       }
-      setLookup({ status: 'done', error: '', state: data.state, district: data.district, matchedAddress: data.matchedAddress });
-      if (!writer.state) setW({ state: data.state });
+      const data = await res.json();
+      if (!res.ok) {
+        applyLookup({ ...EMPTY_LOOKUP, status: 'error', error: data.error || 'The lookup failed. Pick your state by hand below.' });
+        return;
+      }
+      applyLookup({ status: 'done', error: '', state: data.state, district: data.district, matchedAddress: data.matchedAddress });
+      // The letter and its subject line say which state the writer lives
+      // in; they must match the members the lookup found (a hand-picked
+      // state can disagree with where the address really is).
+      if (lookupSeq.current === seq && writer.state !== data.state) setW({ state: data.state });
     } catch {
-      setLookup({ status: 'error', error: 'The lookup failed. Pick your state by hand below.', state: '', district: null, matchedAddress: '' });
+      applyLookup({ ...EMPTY_LOOKUP, status: 'error', error: 'The lookup failed. Pick your state by hand below.' });
     }
   }
 
