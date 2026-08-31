@@ -154,6 +154,19 @@ const SITUATION_INTL =
   'The missing include pilgrims, guides, and workers from Nepal, India, the United States, and more than two dozen other countries. ' +
   'Helicopters have not been able to land in parts of the upper valley.';
 
+/**
+ * The live joint-letter document the coordinating family keeps updated
+ * (the letter to the Secretary of State plus the list of the missing
+ * and their signers). /rasuwa/letter mirrors it on the family domain,
+ * refreshing every few minutes, and /letter redirects there on every
+ * host; the generated letters cite that stable address so an office
+ * can verify the campaign at its source.
+ */
+export const JOINT_LETTER_DOC_ID = '19p4njE4Zt6cSOlg-F8oG2pn4d_tV7xiIjbX7RfI1dio';
+export const JOINT_LETTER_DOC_URL = `https://docs.google.com/document/d/${JOINT_LETTER_DOC_ID}/edit`;
+export const JOINT_LETTER_PAGE = 'rescueourfamily.org/letter';
+const LETTER_POINTER = `The letter and the list of the missing: ${JOINT_LETTER_PAGE}`;
+
 const JOINT_LETTER_SENTENCE =
   `On August 29, ${SIGNERS_AUG29.toLocaleString('en-US')} family members and friends of 57 missing people, my family among them, wrote to the United States Secretary of State asking for seven actions: ${SEVEN_ASKS}`;
 
@@ -268,7 +281,7 @@ export function buildLetterBody({ recipient, writer, person }) {
       `Dear ${mpName}:\n\n` +
       `I am your constituent in ${riding}. I am writing about my ${relationship}, ${personIntro(person)}, ${personLine}.\n\n` +
       `${lastSeenSentence(person)}${details}\n\n` +
-      `${SITUATION_INTL} ${JOINT_LETTER_SENTENCE}\n\n` +
+      `${SITUATION_INTL} ${JOINT_LETTER_SENTENCE} ${LETTER_POINTER}.\n\n` +
       `I ask you to do three things:\n\n` +
       `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for ${name} and for the other Canadians missing in Rasuwa, and press for the technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
       `${askTwo}\n\n` +
@@ -289,7 +302,7 @@ export function buildLetterBody({ recipient, writer, person }) {
       `Dear [name]:\n\n` +
       `I am writing about my ${relationship}, ${personIntro(person)}, who has been unaccounted for since ${FLOOD_SENTENCE}.\n\n` +
       `${lastSeenSentence(person)}${details}\n\n` +
-      `${SITUATION_INTL} ${JOINT_LETTER_SENTENCE}\n\n` +
+      `${SITUATION_INTL} ${JOINT_LETTER_SENTENCE} ${LETTER_POINTER}.\n\n` +
       `I ask you to do three things:\n\n` +
       `1. Tell me what our government has done to date for ${name} and for the other nationals of ${country} missing in Rasuwa, and press for the same technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
       `2. Open a case file for ${name} and give me a named point of contact with a daily update.\n\n` +
@@ -324,7 +337,7 @@ export function buildLetterBody({ recipient, writer, person }) {
     `${firstPara}\n\n` +
     `${lastSeenSentence(person)}${details}\n\n` +
     `${SITUATION_US}\n\n` +
-    `${JOINT_LETTER_SENTENCE}\n\n` +
+    `${JOINT_LETTER_SENTENCE} ${LETTER_POINTER}.\n\n` +
     `I ask you to do three things:\n\n` +
     `1. Contact the State Department's Bureau of Consular Affairs today in support of the seven requests in the families' August 29 letter, and ask what the Department has done on each one.\n\n` +
     `${askTwo}\n\n` +
@@ -366,7 +379,7 @@ export function buildPhoneScript({ recipient, writer, person }) {
  */
 export function buildRosterShare({ writer, person }) {
   const name = ph(person.name, 'name');
-  const subject = `Roster entry: ${name} (${ph(person.lastSeenPlace, 'last known location')})`;
+  const subject = `Families' letter entry: ${name} (${ph(person.lastSeenPlace, 'last known location')})`;
   const body =
     `Missing person: ${name}\n` +
     `Nationality: ${person.country || ''}\n` +

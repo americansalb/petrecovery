@@ -34,9 +34,11 @@ import missingPeople from './missing-people.json';
 import RasuwaWizardShell from './RasuwaWizardShell';
 import SignerCount from './SignerCount';
 import { findUnprintableChars } from './pdfText';
+import { buildLetterRecordPayload, hashLetters } from './letterRecord';
 import { normalizePostalCode } from './mpLookup';
 import {
   EMPTY_CANADA,
+  EMPTY_DONE,
   EMPTY_LOOKUP,
   EMPTY_PERSON,
   EMPTY_WRITER,
@@ -159,9 +161,9 @@ const STEP_META = {
     sidebarCopy: 'Calls are logged the same day. Then the letter, by the channel each office actually reads.',
   },
   roster: {
-    label: 'The shared roster',
-    sidebarTitle: 'One roster, one voice.',
-    sidebarCopy: 'Search coordinators and consular officers work from the consolidated roster the coordinating family keeps.',
+    label: 'Finish and be counted',
+    sidebarTitle: 'Every family counts here.',
+    sidebarCopy: 'Check off what you finished and watch the shared count move. The families\' letter is the one document coordinators and consular officers work from.',
   },
 };
 
@@ -196,6 +198,99 @@ export default function RasuwaWizard() {
     setCanShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
   }, []);
 
+  // ── The collective count: finish boxes and the shared tally ────────
+  // Checking a box adds one, anonymously, and the number on screen
+  // moves; restoring a draft restores the checkmarks without counting
+  // them again.
+  const [done, setDone] = useState(EMPTY_DONE);
+  const [tally, setTally] = useState(null); // { letters_done, entry_sent, letter_signed }
+  // Checked boxes whose +1 has not reached the server yet. Kept in the
+  // tab draft and retried, so a rate limit, an outage, or a dead
+  // connection never loses a family's count while the page claims
+  // otherwise.
+  const [pendingTally, setPendingTally] = useState([]);
+  const pendingTallyRef = useRef(pendingTally);
+  pendingTallyRef.current = pendingTally;
+
+  const TALLY_ACTIONS = ['letters_done', 'entry_sent', 'letter_signed'];
+  async function flushTally(actions) {
+    for (const action of actions) {
+      if (!TALLY_ACTIONS.includes(action)) {
+        setPendingTally((p) => p.filter((a) => a !== action));
+        continue;
+      }
+      try {
+        const res = await fetch('/api/rasuwa/tally', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.counts) setTally(data.counts);
+          setPendingTally((p) => p.filter((a) => a !== action));
+        }
+      } catch {
+        // still pending; retried on the next visit to the finish step
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (step !== 'roster') return;
+    let stop = false;
+    fetch('/api/rasuwa/tally')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!stop && data && data.counts) setTally(data.counts);
+      })
+      .catch(() => {
+        // the boxes still work; the numbers just stay hidden
+      });
+    flushTally(pendingTallyRef.current);
+    return () => {
+      stop = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // ── The families' record of generated letters ──────────────────────
+  // Founder instruction: every missing person deserves a letter on
+  // record. When the person moves from composing to delivering, one
+  // copy of the finished letters is saved (the page says so); the
+  // content hash keeps reloads and draft restores from recording the
+  // same letters twice.
+  const [savedLetterHash, setSavedLetterHash] = useState('');
+  const recordLettersRef = useRef(null);
+  useEffect(() => {
+    if (step !== 'deliver') return;
+    const record = recordLettersRef.current;
+    if (!record) return;
+    const { hash, payload } = record;
+    if (!payload || hash === savedLetterHash) return;
+    fetch('/api/rasuwa/letters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => {
+        if (res.ok) setSavedLetterHash(hash);
+      })
+      .catch(() => {
+        // records are best-effort; the wizard never blocks on them
+      });
+  }, [step, savedLetterHash]);
+
+  const DONE_ACTIONS = { letters: 'letters_done', entry: 'entry_sent', signed: 'letter_signed' };
+  function markDone(key) {
+    if (done[key]) return;
+    setDone((d) => ({ ...d, [key]: true }));
+    const action = DONE_ACTIONS[key];
+    setTally((t) => (t ? { ...t, [action]: (t[action] || 0) + 1 } : t));
+    setPendingTally((p) => (p.includes(action) ? p : [...p, action]));
+    flushTally([action]);
+  }
+
   // ── Drafts: save on every meaningful change; explicit restore ──────
   useEffect(() => {
     const d = loadRasuwaDraft();
@@ -203,14 +298,14 @@ export default function RasuwaWizard() {
   }, []);
 
   useEffect(() => {
-    const state = { person, writer, canada, lookup, manualRep, overrides, step, where };
+    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingTally };
     if (!draftHasContent(state)) return;
     if (pendingDraft) {
       setPendingDraft(null);
       return;
     }
     saveRasuwaDraft(state);
-  }, [person, writer, canada, lookup, manualRep, overrides, step, where, pendingDraft]);
+  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingTally, pendingDraft]);
 
   function resumeDraft() {
     const d = restoreDraft(pendingDraft);
@@ -221,6 +316,9 @@ export default function RasuwaWizard() {
     setManualRep(d.manualRep);
     setOverrides(d.overrides);
     setWhere(d.where);
+    setDone(d.done);
+    setSavedLetterHash(d.savedLetterHash);
+    setPendingTally(d.pendingTally);
     setStep(stepIdsFor(d.where).includes(d.step) ? d.step : 'person');
     setEditsCleared(false);
     setPendingDraft(null);
@@ -241,6 +339,9 @@ export default function RasuwaWizard() {
     setOverrides({});
     setActiveIdx(0);
     setWhere('');
+    setDone(EMPTY_DONE);
+    setSavedLetterHash('');
+    setPendingTally([]);
     setEditsCleared(false);
     setCaManual(false);
     setMpStatus({ busy: false, error: '' });
@@ -458,6 +559,24 @@ export default function RasuwaWizard() {
   const unprintable = findUnprintableChars(letters.map((l) => overrides[l.key] ?? l.body).join('\n'));
   const guide = COUNTRY_GUIDES.find((g) => g.country === writer.country) || COUNTRY_GUIDES[COUNTRY_GUIDES.length - 1];
 
+  // The letter writes itself in the sidebar as fields fill in; before a
+  // real recipient exists a generic consular letter carries the preview,
+  // so the person sees their words landing from the first step.
+  const previewBody = active
+    ? activeBody
+    : buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
+  const sidebarPreview =
+    step !== 'letters' && (person.name.trim() || writer.name.trim()) ? previewBody : undefined;
+
+  // Kept current every render so the deliver-step effect above records
+  // exactly the letters the person finished with, hand edits included.
+  recordLettersRef.current = letters.length
+    ? {
+        hash: hashLetters(letters.map((l) => overrides[l.key] ?? l.body)),
+        payload: buildLetterRecordPayload({ person, where, subject, letters, overrides }),
+      }
+    : null;
+
   const stillBlank = [];
   if (!person.lastSeenPlace.trim()) stillBlank.push('their last known location');
   if (where === 'ca' && !caRecipient.name.trim()) stillBlank.push("your MP's name");
@@ -590,8 +709,11 @@ export default function RasuwaWizard() {
             </Field>
           </div>
           <p className="text-sm text-midnight-400">
-            What you type stays on your device, kept only in this browser tab so a phone call
-            or a reload does not wipe it. Close the tab and it is gone.
+            What you type stays on your device while you work, kept only in this browser tab
+            so a phone call or a reload does not wipe it. The lookups send only your address
+            or postal code to find your representatives. When your letters are finished, one
+            copy is saved for the families&apos; records, so the campaign can show every missing
+            person has letters going out.
           </p>
         </div>
       </StepScreen>
@@ -907,7 +1029,7 @@ export default function RasuwaWizard() {
         stepKey="letters"
         variant="rasuwa"
         question={letters.length > 1 ? 'Your letters are ready' : 'Your letter is ready'}
-        hint="Edit anything; whatever is in [brackets] still needs filling in. Hand edits are kept unless you change a detail in an earlier step."
+        hint="Edit anything; whatever is in [brackets] still needs filling in. Hand edits are kept unless you change a detail in an earlier step. When you continue, one copy is saved for the families' records."
         primary={{ label: 'Continue: get it to them', onClick: goNext, disabled: letters.length === 0 }}
         wide
       >
@@ -1027,7 +1149,7 @@ export default function RasuwaWizard() {
         variant="rasuwa"
         question="Get it to them"
         hint="Calls are logged the same day; the letter follows by the channel each office actually reads."
-        primary={{ label: 'One last thing: the shared roster', onClick: goNext }}
+        primary={{ label: 'One last step: finish and be counted', onClick: goNext }}
         wide
       >
         {where === 'us' && (
@@ -1155,26 +1277,31 @@ export default function RasuwaWizard() {
       </StepScreen>
     );
   } else if (step === 'roster') {
-    screen = (
-      <StepScreen
-        stepKey="roster"
-        variant="rasuwa"
-        question="Add them to the shared roster"
-        hint={`One consolidated roster is what search coordinators and consular officers ask for. The joint letter is coordinated by ${COORDINATOR_NAME}.`}
-        primary={{ label: 'Finish: start over for the next family', onClick: clearEverything, tone: 'post' }}
-      >
-        <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-3">
+    const doneItems = [
+      {
+        key: 'letters',
+        action: 'letters_done',
+        label: 'My letters are on their way',
+        sub: 'Submitted through the contact forms, emailed, or in the mail.',
+        extra: null,
+      },
+      {
+        key: 'entry',
+        action: 'entry_sent',
+        label: `I sent our entry to ${COORDINATOR_NAME}`,
+        sub: 'So the families\' letter and the list of the missing stay complete.',
+        extra: (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-2xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900"
+              className="inline-flex items-center justify-center rounded-xl bg-blue-800 px-3 py-2 text-sm font-bold text-white hover:bg-blue-900"
               onClick={shareWithCoordinator}
             >
-              Email my entry to the coordinating family
+              Email my entry
             </button>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-2xl border-2 border-midnight-200 bg-white px-4 py-2.5 text-sm font-bold text-midnight-700 hover:bg-midnight-100"
+              className="inline-flex items-center justify-center rounded-xl border-2 border-midnight-200 bg-white px-3 py-2 text-sm font-bold text-midnight-700 hover:bg-midnight-100"
               onClick={() => {
                 const { subject: shareSubject, body } = buildRosterShare({ writer, person });
                 copyText('entry', `Subject: ${shareSubject}\n\n${body}`);
@@ -1182,16 +1309,79 @@ export default function RasuwaWizard() {
             >
               {copied === 'entry' ? 'Copied' : 'Copy my entry'}
             </button>
+            <span className="text-xs text-midnight-400">
+              To {coordinatorEmail()}, or call{' '}
+              <a className="underline" href={`tel:${coordinatorPhone()}`}>{coordinatorPhone()}</a> (any hour).
+            </span>
           </div>
+        ),
+      },
+      {
+        key: 'signed',
+        action: 'letter_signed',
+        label: 'We signed the families\' letter',
+        sub: (
+          <>
+            Not signed yet?{' '}
+            <Link className="underline" href="/rasuwa/form">Sign it here</Link>, then check the box.
+          </>
+        ),
+        extra: null,
+      },
+    ];
+    screen = (
+      <StepScreen
+        stepKey="roster"
+        variant="rasuwa"
+        question="Check off what you finished"
+        hint="Each box adds one to the shared count, so every family can see this working. Nothing about you or your family member is stored; the count is the only thing that moves."
+        primary={{ label: 'Finish: start over for the next family', onClick: clearEverything, tone: 'post' }}
+      >
+        <div className="space-y-5">
+          <div className="space-y-3">
+            {doneItems.map((item) => (
+              <div
+                key={item.key}
+                className={`rounded-2xl border-2 p-4 transition-colors ${
+                  done[item.key] ? 'border-blue-700 bg-blue-50' : 'border-midnight-100 bg-white'
+                }`}
+              >
+                <label className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={done[item.key]}
+                    onChange={() => markDone(item.key)}
+                    disabled={done[item.key]}
+                    className="mt-1 h-5 w-5 accent-blue-800"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold text-midnight-900">{item.label}</span>
+                    <span className="block text-sm text-midnight-500">{item.sub}</span>
+                  </span>
+                  {tally && (
+                    <span className="shrink-0 text-right">
+                      <span className="block text-xl font-extrabold tabular-nums text-blue-800">
+                        {(tally[item.action] || 0).toLocaleString('en-US')}
+                      </span>
+                      <span className="block text-[0.65rem] font-semibold uppercase tracking-wide text-midnight-400">
+                        families
+                      </span>
+                    </span>
+                  )}
+                </label>
+                {item.extra}
+              </div>
+            ))}
+          </div>
+
           <p className="text-sm text-midnight-500">
-            If the email button does nothing in this browser, press &quot;Copy my entry&quot; and paste
-            it into a message to {coordinatorEmail()}. Or call{' '}
-            <a className="underline" href={`tel:${coordinatorPhone()}`}>{coordinatorPhone()}</a> (any hour).
+            <SignerCount />{' '}
+            <Link className="underline" href="/rasuwa/letter">
+              Read the live letter and the list of the missing
+            </Link>
+            ; it updates as the coordinating family adds entries.
           </p>
-          <p className="text-sm text-midnight-500">
-            Not counted in the joint letter yet?{' '}
-            <Link className="underline" href="/rasuwa/form">Sign the families&apos; letter</Link> as well.
-          </p>
+
           <p className="text-xs text-midnight-400 leading-relaxed">
             Facts in the letters are as of {FACTS_DATE}, from the families&apos; letter to the
             Secretary of State. Member data comes from public-domain datasets (Congress updated{' '}
@@ -1208,7 +1398,7 @@ export default function RasuwaWizard() {
   }
 
   return (
-    <RasuwaWizardShell steps={steps} activeStepId={step} summary={summary} onBack={goBack}>
+    <RasuwaWizardShell steps={steps} activeStepId={step} summary={summary} preview={sidebarPreview} onBack={goBack}>
       {screen}
     </RasuwaWizardShell>
   );

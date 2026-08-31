@@ -160,6 +160,30 @@ describe('snapshot and restore round trip', () => {
     s.where = 'ca';
     expect(draftHasContent(s)).toBe(true);
   });
+
+  test('finish boxes round trip as booleans and default off', () => {
+    const state = typedState();
+    state.done = { letters: true, entry: 'yes', signed: 0 };
+    const back = restoreDraft(snapshotDraft(state));
+    expect(back.done).toEqual({ letters: true, entry: true, signed: false });
+    expect(restoreDraft({}).done).toEqual({ letters: false, entry: false, signed: false });
+  });
+
+  test('the saved-letters hash rides the draft so restores never re-record', () => {
+    const state = typedState();
+    state.savedLetterHash = 'abc123';
+    expect(restoreDraft(snapshotDraft(state)).savedLetterHash).toBe('abc123');
+    expect(restoreDraft({}).savedLetterHash).toBe('');
+  });
+
+  test('unsent tally increments ride the draft, sanitized and capped', () => {
+    const state = typedState();
+    state.pendingTally = ['letters_done', 'entry_sent'];
+    expect(restoreDraft(snapshotDraft(state)).pendingTally).toEqual(['letters_done', 'entry_sent']);
+    expect(restoreDraft({ pendingTally: [42, null, 'a', 'b', 'c', 'd', 'e', 'f', 'g'] }).pendingTally)
+      .toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+    expect(restoreDraft({}).pendingTally).toEqual([]);
+  });
 });
 
 describe('describeDraft (restore banner phrase)', () => {

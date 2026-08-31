@@ -34,12 +34,15 @@ export const EMPTY_LOOKUP = { status: 'idle', error: '', state: '', district: nu
 /** The Canadian slice: postal code, the found MP, or a hand-entered one. */
 export const EMPTY_CANADA = { postal: '', mp: null, manualName: '', manualRiding: '', manualEmail: '' };
 
+/** The finish boxes on the last step; restoring must never re-count them. */
+export const EMPTY_DONE = { letters: false, entry: false, signed: false };
+
 export const WHERE_VALUES = ['us', 'ca', 'intl'];
 
 const text = (v) => (typeof v === 'string' ? v : '');
 
 /** The saved shape: what the person typed or chose, plus where they are in the wizard. */
-export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada }) {
+export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, savedLetterHash, pendingTally }) {
   return {
     v: 2,
     step: text(step),
@@ -47,6 +50,9 @@ export function snapshotDraft({ person, writer, lookup, manualRep, overrides, st
     person,
     writer,
     canada: canada && typeof canada === 'object' ? canada : EMPTY_CANADA,
+    done: done && typeof done === 'object' ? done : EMPTY_DONE,
+    savedLetterHash: text(savedLetterHash),
+    pendingTally: Array.isArray(pendingTally) ? pendingTally.filter((a) => typeof a === 'string').slice(0, 6) : [],
     // Only a completed lookup is worth restoring; busy and error states
     // would come back stale and confusing.
     lookup: lookup && lookup.status === 'done' ? lookup : null,
@@ -110,6 +116,7 @@ export function restoreDraft(d) {
   if (!where && src.writer && typeof src.writer === 'object' && src.writer.inUS === false) {
     where = src.writer.country === 'Canada' ? 'ca' : 'intl';
   }
+  const rawDone = src.done && typeof src.done === 'object' ? src.done : {};
   return {
     step: text(src.step),
     where,
@@ -119,6 +126,19 @@ export function restoreDraft(d) {
     lookup,
     manualRep: text(src.manualRep),
     overrides: src.overrides && typeof src.overrides === 'object' ? src.overrides : {},
+    done: {
+      letters: Boolean(rawDone.letters),
+      entry: Boolean(rawDone.entry),
+      signed: Boolean(rawDone.signed),
+    },
+    // Which letters were already saved to the families' record, so a
+    // restored draft does not record the same letters twice.
+    savedLetterHash: text(src.savedLetterHash),
+    // Checked finish boxes whose +1 has not reached the server yet; the
+    // wizard retries these so a failed request never loses a count.
+    pendingTally: Array.isArray(src.pendingTally)
+      ? src.pendingTally.filter((a) => typeof a === 'string').slice(0, 6)
+      : [],
   };
 }
 

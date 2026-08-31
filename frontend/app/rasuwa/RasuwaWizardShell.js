@@ -20,6 +20,7 @@ export default function RasuwaWizardShell({
   steps = [], // [{ id, label, sidebarTitle, sidebarCopy }]
   activeStepId,
   summary = [], // [{ text }]
+  preview, // letter text shown live in the sidebar while it is built
   onBack, // undefined hides the back button
   children,
 }) {
@@ -100,6 +101,17 @@ export default function RasuwaWizardShell({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {preview && (
+            <div className="mt-5 rounded-2xl bg-white border border-white/10 overflow-hidden">
+              <p className="px-4 pt-3 pb-2 text-[0.7rem] font-bold uppercase tracking-[0.15em] text-blue-900">
+                Letter preview, live
+              </p>
+              <pre className="max-h-64 overflow-y-auto px-4 pb-4 whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-slate-700">
+                {preview}
+              </pre>
             </div>
           )}
         </div>
