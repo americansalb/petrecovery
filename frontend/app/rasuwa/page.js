@@ -1,17 +1,22 @@
 /**
- * /rasuwa: the letter tool for families of people missing in the
+ * /rasuwa: the letter wizard for families of people missing in the
  * August 26, 2026 Rasuwa (Nepal) flood. Immersive route: no pet-site
- * chrome (registered in app/lib/navChrome.js); the page ships its own
- * way back to the ReunitePets home page in the footer.
+ * chrome (registered in app/lib/navChrome.js); the wizard shell ships
+ * its own way out (the close X links home, and drafts persist so
+ * leaving loses nothing).
  *
- * Server wrapper only; the whole tool is client-side on purpose. What a
- * family types stays in the browser, this route has no database behind
- * it, and the one network call (the district lookup) is documented in
- * api/rasuwa/district/route.js.
+ * Server wrapper only; the whole wizard is client-side on purpose. What
+ * a family types stays in the browser; the network calls (district
+ * lookup, MP lookup, signer count) are documented in their routes under
+ * api/rasuwa/.
  */
 
-import RasuwaLetterTool from './RasuwaLetterTool';
+import RasuwaWizard from './RasuwaWizard';
 
 export default function RasuwaPage() {
-  return <RasuwaLetterTool />;
+  return (
+    <div className="h-screen supports-[height:100dvh]:h-[100dvh]">
+      <RasuwaWizard />
+    </div>
+  );
 }

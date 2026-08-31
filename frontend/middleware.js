@@ -33,6 +33,10 @@ const RATE_LIMIT_CONFIG = {
   // Cheap and server-cached; a room of phones loading the sign page
   // must not 429 the signer counter.
   '/api/rasuwa/roster-count': { windowMs: 60000, maxRequests: 120 },
+  // The upstream (Represent) allows 60/min from our one egress IP, so
+  // the per-visitor cap stays low enough that a busy room cannot get
+  // this server blocked for every Canadian at once.
+  '/api/rasuwa/mp': { windowMs: 60000, maxRequests: 20 },
   '/api/admin/bulk': { windowMs: 60000, maxRequests: 5 },
   // Lenient: Frequently accessed endpoints
   '/api/dashboard': { windowMs: 60000, maxRequests: 30 },

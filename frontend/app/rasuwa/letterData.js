@@ -58,6 +58,21 @@ export const US_LINKS = {
 };
 
 /**
+ * Canada gets a first-class path (many of the missing are Canadian
+ * citizens): MPs do consular casework through Global Affairs Canada,
+ * every MP has a public email, and mail to the House of Commons needs
+ * no postage from within Canada. The emergency line and address are
+ * long-standing public constants.
+ */
+export const CANADA_LINKS = {
+  findMp: { label: 'Find your Member of Parliament (ourcommons.ca)', url: 'https://www.ourcommons.ca/members/en' },
+  consular: { label: 'Global Affairs Canada emergency assistance', url: 'https://travel.gc.ca/assistance/emergency-assistance' },
+  globalAffairsPhone: '+1-613-996-8885',
+  globalAffairsEmail: 'sos@international.gc.ca',
+  freePost: 'House of Commons, Ottawa, Ontario, K1A 0A6 (no postage needed when mailing from Canada)',
+};
+
+/**
  * Guidance for families outside the United States. Official domains only;
  * no phone numbers here because we cannot keep them verified.
  */
@@ -66,11 +81,6 @@ export const COUNTRY_GUIDES = [
     country: 'Australia',
     findRep: { label: 'Find your federal MP or senator (aph.gov.au)', url: 'https://www.aph.gov.au/Senators_and_Members' },
     consular: { label: 'DFAT consular services (Smartraveller)', url: 'https://www.smartraveller.gov.au/consular-services' },
-  },
-  {
-    country: 'Canada',
-    findRep: { label: 'Find your Member of Parliament (ourcommons.ca)', url: 'https://www.ourcommons.ca/members/en' },
-    consular: { label: 'Global Affairs Canada emergency assistance', url: 'https://travel.gc.ca/assistance/emergency-assistance' },
   },
   {
     country: 'United Kingdom',
@@ -167,8 +177,12 @@ function lastSeenSentence(person) {
   return `${name} was last seen at ${place}${when}${op}.`;
 }
 
-export function buildSubject({ writer, person }) {
+export function buildSubject({ writer, person, recipient }) {
   const name = ph(person.name, 'name');
+  if (recipient && recipient.chamber === 'mp') {
+    const riding = recipient.riding && recipient.riding.trim() ? recipient.riding.trim() : '[your riding]';
+    return `Constituent in ${riding}: ${name}, missing in the Rasuwa flood in Nepal. Request for consular action.`;
+  }
   if (writer.inUS) {
     const city = ph(writer.city, 'your city');
     const state = ph(writer.state, 'ST');
@@ -178,6 +192,7 @@ export function buildSubject({ writer, person }) {
 }
 
 export function recipientTitle(recipient) {
+  if (recipient.chamber === 'mp') return 'MP';
   return recipient.chamber === 'sen' ? 'Senator' : 'Representative';
 }
 
@@ -209,6 +224,13 @@ export function recipientLastName(recipient) {
 }
 
 export function recipientAddressLines(recipient) {
+  if (recipient.chamber === 'mp') {
+    const nm = recipient.name && recipient.name.trim() ? `${recipient.name.trim()}, M.P.` : "[your MP's name], M.P.";
+    const riding = recipient.riding && recipient.riding.trim()
+      ? `Member of Parliament for ${recipient.riding.trim()}`
+      : 'Member of Parliament';
+    return [nm, riding, 'House of Commons', 'Ottawa, Ontario K1A 0A6'];
+  }
   if (recipient.chamber === 'sen') {
     return [`The Honorable ${recipient.name}`, 'United States Senate', 'Washington, DC 20510'];
   }
@@ -228,6 +250,35 @@ export function buildLetterBody({ recipient, writer, person }) {
   const email = writer.email && writer.email.trim() ? ` and ${writer.email.trim()}` : '';
   const details = person.details && person.details.trim() ? `\n\n${person.details.trim()}` : '';
   const isUSPerson = person.country === 'United States';
+
+  if (recipient.chamber === 'mp') {
+    const mpName = ph(recipient.name, "your MP's name");
+    const riding = recipient.riding && recipient.riding.trim() ? recipient.riding.trim() : '[your riding]';
+    const isCanadian = person.country === 'Canada';
+    const personLine = isCanadian
+      ? `one of the Canadians unaccounted for since ${FLOOD_SENTENCE}`
+      : `a national of ${person.country || '[country]'} unaccounted for since ${FLOOD_SENTENCE}`;
+    const askTwo = isCanadian
+      ? `2. Ask Global Affairs Canada to open a case file for ${name} and give me a named consular contact with an update every day until ${name} is accounted for.`
+      : `2. Ask Global Affairs Canada to open a case file for ${name} and to coordinate with the government of ${person.country || '[country]'} on the case.`;
+    return (
+      `${recipientAddressLines(recipient).join('\n')}\n\n` +
+      `${longDate()}\n\n` +
+      `Re: ${buildSubject({ writer, person, recipient })}\n\n` +
+      `Dear ${mpName}:\n\n` +
+      `I am your constituent in ${riding}. I am writing about my ${relationship}, ${personIntro(person)}, ${personLine}.\n\n` +
+      `${lastSeenSentence(person)}${details}\n\n` +
+      `${SITUATION_INTL} ${JOINT_LETTER_SENTENCE}\n\n` +
+      `I ask you to do three things:\n\n` +
+      `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for ${name} and for the other Canadians missing in Rasuwa, and press for the technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
+      `${askTwo}\n\n` +
+      `3. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
+      `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
+      `Respectfully,\n\n` +
+      `${writerName}\n` +
+      `(Facts as of ${FACTS_DATE}.)`
+    );
+  }
 
   if (recipient.chamber === 'intl') {
     const country = person.country || '[country]';
@@ -290,6 +341,15 @@ export function buildLetterBody({ recipient, writer, person }) {
 /** A 30 second script for calling the DC and district offices. */
 export function buildPhoneScript({ recipient, writer, person }) {
   const name = ph(person.name, 'name');
+  if (recipient && recipient.chamber === 'mp') {
+    const riding = recipient.riding && recipient.riding.trim() ? ` in ${recipient.riding.trim()}` : '';
+    return (
+      `Hello, my name is ${ph(writer.name, 'your name')}. I am a constituent${riding}. ` +
+      `My ${ph(writer.relationship, 'relationship')}, ${name}, is unaccounted for in the August 26 flood in Nepal's Rasuwa district. ` +
+      `I am asking the MP to do two things: press Global Affairs Canada to act for the families of the missing, and ask Global Affairs to open a case file for ${name}. ` +
+      `My number is ${ph(writer.phone, 'your phone number')}. Which staff member will handle this?`
+    );
+  }
   const title = recipient && recipient.chamber !== 'intl' ? `${recipientTitle(recipient)} ${recipientLastName(recipient)}` : 'your office';
   return (
     `Hello, my name is ${ph(writer.name, 'your name')}. I am a constituent in ${ph(writer.city, 'your city')}. ` +

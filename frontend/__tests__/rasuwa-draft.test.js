@@ -114,6 +114,41 @@ describe('snapshot and restore round trip', () => {
     expect(back.person.country).toBe(EMPTY_PERSON.country);
     expect(back.writer).toEqual(EMPTY_WRITER);
   });
+
+  test('wizard position and the Canadian slice round trip', () => {
+    const state = typedState();
+    state.step = 'letters';
+    state.where = 'ca';
+    state.canada = {
+      postal: 'K1A 0A6',
+      mp: { name: 'Anita Vandenbeld', riding: 'Ottawa West--Nepean', email: 'a@parl.gc.ca', party: 'Liberal', url: '', offices: [] },
+      manualName: '', manualRiding: '', manualEmail: '',
+    };
+    const back = restoreDraft(snapshotDraft(state));
+    expect(back.step).toBe('letters');
+    expect(back.where).toBe('ca');
+    expect(back.canada.postal).toBe('K1A 0A6');
+    expect(back.canada.mp.name).toBe('Anita Vandenbeld');
+  });
+
+  test('a junk canada slice and unknown where restore to safe defaults', () => {
+    const back = restoreDraft({ where: 'moon', step: 42, canada: { mp: 'oops', postal: 9 } });
+    expect(back.where).toBe('');
+    expect(back.canada.mp).toBeNull();
+    expect(typeof back.step).toBe('string');
+  });
+
+  test('pre-wizard drafts map their old inUS answer onto where', () => {
+    expect(restoreDraft({ writer: { inUS: false, country: 'Canada' } }).where).toBe('ca');
+    expect(restoreDraft({ writer: { inUS: false, country: 'Australia' } }).where).toBe('intl');
+    expect(restoreDraft({ writer: { inUS: true } }).where).toBe('');
+  });
+
+  test('choosing where alone counts as a draft worth restoring', () => {
+    const s = emptyState();
+    s.where = 'ca';
+    expect(draftHasContent(s)).toBe(true);
+  });
 });
 
 describe('describeDraft (restore banner phrase)', () => {
