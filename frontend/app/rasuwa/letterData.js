@@ -115,20 +115,10 @@ export const COUNTRY_GUIDES = [
   },
 ];
 
-/**
- * The family coordinating the joint letter, as published in that letter.
- * Assembled at runtime so the address is not sitting in the page source
- * for scrapers.
- */
-const COORD_EMAIL_PARTS = ['bhumika', '877', '@', 'gmail', '.com'];
-const COORD_PHONE_PARTS = ['630', '306', '1983'];
-export const COORDINATOR_NAME = 'the family of Poonam Thakkar';
-export function coordinatorEmail() {
-  return COORD_EMAIL_PARTS.join('');
-}
-export function coordinatorPhone() {
-  return COORD_PHONE_PARTS.join('-');
-}
+// No personal contact details on the site (founder instruction,
+// 2026-08-31: the coordinator's own email and phone came down). List
+// corrections and new entries go through the family form on
+// /rasuwa/form; the live letter page shows the result.
 
 /** One-paragraph condensation of the joint letter's seven requests. */
 const SEVEN_ASKS =

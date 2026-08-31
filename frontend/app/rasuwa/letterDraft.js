@@ -117,8 +117,12 @@ export function restoreDraft(d) {
     where = src.writer.country === 'Canada' ? 'ca' : 'intl';
   }
   const rawDone = src.done && typeof src.done === 'object' ? src.done : {};
+  // The wizard merged steps (nine screens became six); drafts saved on
+  // the old step land on the merged screen that now holds their fields.
+  const OLD_STEPS = { details: 'person', where: 'you', usAddress: 'reps', caPostal: 'reps', members: 'reps' };
+  const savedStep = text(src.step);
   return {
-    step: text(src.step),
+    step: OLD_STEPS[savedStep] || savedStep,
     where,
     person: { ...EMPTY_PERSON, ...(src.person && typeof src.person === 'object' ? src.person : {}) },
     writer: { ...EMPTY_WRITER, ...(src.writer && typeof src.writer === 'object' ? src.writer : {}) },

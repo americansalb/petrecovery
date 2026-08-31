@@ -149,6 +149,15 @@ describe('snapshot and restore round trip', () => {
     expect(junkOffices.canada.mp.offices).toEqual([{ type: 'legislature', phone: '1 613 555' }]);
   });
 
+  test('drafts saved on the old nine-step layout land on the merged screens', () => {
+    expect(restoreDraft({ step: 'details' }).step).toBe('person');
+    expect(restoreDraft({ step: 'where' }).step).toBe('you');
+    expect(restoreDraft({ step: 'usAddress' }).step).toBe('reps');
+    expect(restoreDraft({ step: 'caPostal' }).step).toBe('reps');
+    expect(restoreDraft({ step: 'members' }).step).toBe('reps');
+    expect(restoreDraft({ step: 'letters' }).step).toBe('letters');
+  });
+
   test('pre-wizard drafts map their old inUS answer onto where', () => {
     expect(restoreDraft({ writer: { inUS: false, country: 'Canada' } }).where).toBe('ca');
     expect(restoreDraft({ writer: { inUS: false, country: 'Australia' } }).where).toBe('intl');

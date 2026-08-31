@@ -51,7 +51,6 @@ import {
 } from './letterDraft';
 import {
   CANADA_LINKS,
-  COORDINATOR_NAME,
   COUNTRY_GUIDES,
   FACTS_DATE,
   US_LINKS,
@@ -59,8 +58,6 @@ import {
   buildPhoneScript,
   buildRosterShare,
   buildSubject,
-  coordinatorEmail,
-  coordinatorPhone,
   recipientLastName,
   recipientTitle,
 } from './letterData';
@@ -113,37 +110,17 @@ const STEP_META = {
   person: {
     label: 'Who is missing',
     sidebarTitle: 'Start with your loved one.',
-    sidebarCopy: 'Pick them from the letter\'s list, or add someone who is not on it yet. Their details go into every letter.',
-  },
-  details: {
-    label: 'Their details',
-    sidebarTitle: 'What the search should know.',
-    sidebarCopy: 'Where they were last seen and who they were traveling with helps offices ask the right questions. Everything here is optional.',
-  },
-  where: {
-    label: 'Where you live',
-    sidebarTitle: 'Your government, your letter.',
-    sidebarCopy: 'Where you live decides who your letter goes to and how it gets delivered.',
+    sidebarCopy: 'Pick them from the letter\'s list and everything about them fills in. Their details go into every letter; anything you leave blank just shows as a bracket.',
   },
   you: {
     label: 'About you',
     sidebarTitle: 'Offices reply to people.',
-    sidebarCopy: 'Your name, relationship, and phone number go into the letter so a caseworker can reach you.',
+    sidebarCopy: 'Where you live decides who your letter goes to. Your name, relationship, and phone go into it so a caseworker can reach you.',
   },
-  usAddress: {
-    label: 'Your address',
-    sidebarTitle: 'Offices check for constituents.',
-    sidebarCopy: 'Your address finds your congressional district and shows the office you live there. It goes into the letter and nowhere else.',
-  },
-  caPostal: {
-    label: 'Your postal code',
-    sidebarTitle: 'Your MP works for your riding.',
-    sidebarCopy: 'Your postal code finds your Member of Parliament. It is used for the lookup and nothing else.',
-  },
-  members: {
+  reps: {
     label: 'Your representatives',
     sidebarTitle: 'The people who can move this.',
-    sidebarCopy: 'These offices do casework for constituents: they can press for action and open a file for your family member.',
+    sidebarCopy: 'These offices do casework for constituents: they can press for action and open a file for your family member. The lookup uses your address for nothing else.',
   },
   country: {
     label: 'Your country',
@@ -167,10 +144,14 @@ const STEP_META = {
   },
 };
 
-const BASE_STEPS = ['person', 'details', 'where', 'you'];
+// Six screens, not nine (founder feedback, 2026-08-31: too many steps).
+// The person's details ride the first screen, where-you-live opens the
+// about-you screen, and the address or postal lookup shares a screen
+// with the representatives it finds.
+const BASE_STEPS = ['person', 'you'];
 const TAIL_STEPS = {
-  us: ['usAddress', 'members', 'letters', 'deliver', 'roster'],
-  ca: ['caPostal', 'members', 'letters', 'deliver', 'roster'],
+  us: ['reps', 'letters', 'deliver', 'roster'],
+  ca: ['reps', 'letters', 'deliver', 'roster'],
   intl: ['country', 'letters', 'deliver', 'roster'],
   '': ['letters', 'deliver', 'roster'],
 };
@@ -434,7 +415,6 @@ export default function RasuwaWizard() {
       setWriter((w) => ({ ...w, inUS: value === 'us' }));
       clearOverrides();
     }
-    goTo('you');
   }
 
   // ── United States: district lookup ─────────────────────────────────
@@ -479,19 +459,18 @@ export default function RasuwaWizard() {
     }
   }
 
-  async function findDistrictAndAdvance() {
+  async function runDistrictLookup() {
     setUsBusy(true);
     try {
       await findDistrict();
     } finally {
       setUsBusy(false);
     }
-    goTo('members');
   }
 
   // ── Canada: MP lookup ──────────────────────────────────────────────
   const mpSeq = useRef(0);
-  async function findMpAndAdvance() {
+  async function runMpLookup() {
     const seq = ++mpSeq.current;
     setMpStatus({ busy: true, error: '' });
     try {
@@ -515,7 +494,6 @@ export default function RasuwaWizard() {
       setMpStatus({ busy: false, error: '' });
       setCaManual(false);
       setC({ mp: data.mp });
-      goTo('members');
     } catch {
       if (mpSeq.current === seq) {
         setMpStatus({ busy: false, error: 'The MP lookup did not respond. Enter your MP by hand.' });
@@ -528,7 +506,6 @@ export default function RasuwaWizard() {
     setMpStatus({ busy: false, error: '' });
     setCaManual(true);
     setC({ mp: null });
-    goTo('members');
   }
 
   // ── Recipients and letters ─────────────────────────────────────────
@@ -651,11 +628,6 @@ export default function RasuwaWizard() {
     }
   }
 
-  function shareWithCoordinator() {
-    const { subject: shareSubject, body } = buildRosterShare({ writer, person });
-    window.location.href = `mailto:${coordinatorEmail()}?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(body)}`;
-  }
-
   const phoneScript = buildPhoneScript({
     recipient: where === 'ca' ? caRecipient : null,
     writer,
@@ -685,6 +657,11 @@ export default function RasuwaWizard() {
       </RasuwaWizardShell>
     );
   }
+
+  // Every step after the first offers the same big Back button in the
+  // footer, next to Continue (founder feedback: the small header back
+  // was too easy to miss).
+  const backAction = goBack ? { label: 'Back', onClick: goBack } : undefined;
 
   // ── Steps ──────────────────────────────────────────────────────────
   let screen = null;
@@ -730,6 +707,38 @@ export default function RasuwaWizard() {
               </select>
             </Field>
           </div>
+          {person.name.trim() !== '' && (
+            <div>
+              <p className="font-bold text-midnight-900">What should the search know?</p>
+              <p className="mb-3 mt-0.5 text-sm text-midnight-500">
+                All optional. Picked names arrive filled in; anything blank shows as a [bracket] in the letter.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Home city (as you want it in the letter)">
+                  <input className={inputCls} value={person.home} onChange={(e) => setP({ home: e.target.value })} placeholder="Bartlett, Illinois" />
+                </Field>
+                <Field label="Traveling with (tour operator)">
+                  <input className={inputCls} value={person.operator} onChange={(e) => setP({ operator: e.target.value })} placeholder="Tour operator or group" />
+                </Field>
+                <Field label="Last known location">
+                  <input className={inputCls} value={person.lastSeenPlace} onChange={(e) => setP({ lastSeenPlace: e.target.value })} placeholder="Hotel Kailash, Timure" />
+                </Field>
+                <Field label="Last seen (date and time, Nepal time)">
+                  <input className={inputCls} value={person.lastSeenWhen} onChange={(e) => setP({ lastSeenWhen: e.target.value })} placeholder="August 26, 8:20 AM" />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="Anything else (optional)">
+                    <textarea
+                      className={`${inputCls} min-h-[90px]`}
+                      value={person.details}
+                      onChange={(e) => setP({ details: e.target.value })}
+                      placeholder="Last phone contact, medical needs, who they were with"
+                    />
+                  </Field>
+                </div>
+              </div>
+            </div>
+          )}
           <p className="text-sm text-midnight-400">
             What you type stays on your device while you work, kept only in this browser tab
             so a phone call or a reload does not wipe it. The lookups send only your address
@@ -740,169 +749,99 @@ export default function RasuwaWizard() {
         </div>
       </StepScreen>
     );
-  } else if (step === 'details') {
-    screen = (
-      <StepScreen
-        stepKey="details"
-        variant="rasuwa"
-        eyebrow={person.name.trim() || 'Their details'}
-        question="What should the search know?"
-        hint="Everything here is optional; anything you skip shows as a [bracket] in the letter, and you can keep going."
-        primary={{ label: 'Continue', onClick: goNext }}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Home city (as you want it in the letter)">
-            <input className={inputCls} value={person.home} onChange={(e) => setP({ home: e.target.value })} placeholder="Bartlett, Illinois" />
-          </Field>
-          <Field label="Traveling with (tour operator)">
-            <input className={inputCls} value={person.operator} onChange={(e) => setP({ operator: e.target.value })} placeholder="Tour operator or group" />
-          </Field>
-          <Field label="Last known location">
-            <input className={inputCls} value={person.lastSeenPlace} onChange={(e) => setP({ lastSeenPlace: e.target.value })} placeholder="Hotel Kailash, Timure" />
-          </Field>
-          <Field label="Last seen (date and time, Nepal time)">
-            <input className={inputCls} value={person.lastSeenWhen} onChange={(e) => setP({ lastSeenWhen: e.target.value })} placeholder="August 26, 8:20 AM" />
-          </Field>
-          <div className="sm:col-span-2">
-            <Field label="Anything else (optional)">
-              <textarea
-                className={`${inputCls} min-h-[90px]`}
-                value={person.details}
-                onChange={(e) => setP({ details: e.target.value })}
-                placeholder="Last phone contact, medical needs, who they were with"
-              />
-            </Field>
-          </div>
-        </div>
-      </StepScreen>
-    );
-  } else if (step === 'where') {
-    screen = (
-      <StepScreen
-        stepKey="where"
-        variant="rasuwa"
-        question="Where do you live?"
-        hint="Where you live decides who your letter goes to."
-      >
-        <OptionCardGrid options={WHERE_OPTIONS} value={where} onSelect={pickWhere} columns={1} variant="rasuwa" />
-      </StepScreen>
-    );
   } else if (step === 'you') {
     const youOk = writer.name.trim() && writer.relationship.trim() && isValidPhone(writer.phone);
     screen = (
       <StepScreen
         stepKey="you"
         variant="rasuwa"
-        question="How can a caseworker reach you?"
-        hint="Your name, relationship, and phone go into the letter; offices call back."
-        primary={{ label: 'Continue', onClick: goNext, disabled: !youOk }}
+        question="Where do you live?"
+        hint="Where you live decides who your letter goes to."
+        primary={{ label: 'Continue', onClick: goNext, disabled: !where || !youOk }}
+        secondary={backAction}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Your name">
-            <input className={inputCls} value={writer.name} onChange={(e) => setW({ name: e.target.value })} autoComplete="name" />
-          </Field>
-          <Field label="Your relationship to them">
-            <input className={inputCls} value={writer.relationship} onChange={(e) => setW({ relationship: e.target.value })} placeholder="mother, brother, cousin, friend" />
-          </Field>
-          <Field label="Your phone">
-            <input className={inputCls} value={writer.phone} onChange={(e) => setW({ phone: e.target.value })} autoComplete="tel" inputMode="tel" />
-          </Field>
-          <Field label="Your email (optional)">
-            <input className={inputCls} value={writer.email} onChange={(e) => setW({ email: e.target.value })} autoComplete="email" inputMode="email" />
-          </Field>
+        <div className="space-y-6">
+          <OptionCardGrid options={WHERE_OPTIONS} value={where} onSelect={pickWhere} columns={1} variant="rasuwa" />
+          {where && (
+            <div>
+              <p className="font-bold text-midnight-900">How can a caseworker reach you?</p>
+              <p className="mb-3 mt-0.5 text-sm text-midnight-500">
+                Your name, relationship, and phone go into the letter; offices call back.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Your name">
+                  <input className={inputCls} value={writer.name} onChange={(e) => setW({ name: e.target.value })} autoComplete="name" />
+                </Field>
+                <Field label="Your relationship to them">
+                  <input className={inputCls} value={writer.relationship} onChange={(e) => setW({ relationship: e.target.value })} placeholder="mother, brother, cousin, friend" />
+                </Field>
+                <Field label="Your phone">
+                  <input className={inputCls} value={writer.phone} onChange={(e) => setW({ phone: e.target.value })} autoComplete="tel" inputMode="tel" />
+                </Field>
+                <Field label="Your email (optional)">
+                  <input className={inputCls} value={writer.email} onChange={(e) => setW({ email: e.target.value })} autoComplete="email" inputMode="email" />
+                </Field>
+              </div>
+            </div>
+          )}
         </div>
       </StepScreen>
     );
-  } else if (step === 'usAddress') {
+  } else if (step === 'reps' && where === 'us') {
     const addressOk = writer.street.trim() && writer.city.trim() && writer.state && writer.zip.trim();
     screen = (
       <StepScreen
-        stepKey="usAddress"
+        stepKey="reps-us"
         variant="rasuwa"
-        question="What is your U.S. address?"
-        hint="Offices check that writers are constituents; the address also finds your congressional district. It goes into the letter and nowhere else."
-        primary={{
-          label: 'Find my members of Congress',
-          onClick: findDistrictAndAdvance,
-          disabled: !addressOk,
-          loading: usBusy,
-          loadingLabel: 'Looking up your district…',
-        }}
-        skip={{ label: 'Skip the lookup and pick my district by hand', onClick: () => goTo('members') }}
-      >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Field label="Street address">
-              <input className={inputCls} value={writer.street} onChange={(e) => setAddressField({ street: e.target.value })} autoComplete="street-address" placeholder="Street address" />
-            </Field>
-          </div>
-          <Field label="City">
-            <input className={inputCls} value={writer.city} onChange={(e) => setAddressField({ city: e.target.value })} autoComplete="address-level2" />
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="State">
-              <select className={inputCls} value={writer.state} onChange={(e) => { setAddressField({ state: e.target.value }); setManualRep(''); }}>
-                <option value="">Choose...</option>
-                {STATE_OPTIONS.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
-              </select>
-            </Field>
-            <Field label="ZIP">
-              <input className={inputCls} value={writer.zip} onChange={(e) => setAddressField({ zip: e.target.value })} autoComplete="postal-code" inputMode="numeric" />
-            </Field>
-          </div>
-        </div>
-      </StepScreen>
-    );
-  } else if (step === 'caPostal') {
-    const postalOk = Boolean(normalizePostalCode(canada.postal));
-    screen = (
-      <StepScreen
-        stepKey="caPostal"
-        variant="rasuwa"
-        question="What is your postal code?"
-        hint="It finds your Member of Parliament. MPs do consular casework for their constituents through Global Affairs Canada."
-        error={mpStatus.error}
-        primary={{
-          label: 'Find my MP',
-          onClick: findMpAndAdvance,
-          disabled: !postalOk,
-          loading: mpStatus.busy,
-          loadingLabel: 'Finding your MP…',
-        }}
-        skip={{ label: 'Enter my MP by hand instead', onClick: enterMpByHand }}
-      >
-        <div className="max-w-xs">
-          <Field label="Postal code">
-            <input
-              className={inputCls}
-              value={canada.postal}
-              onChange={(e) => setC({ postal: e.target.value, mp: null })}
-              autoComplete="postal-code"
-              placeholder="K1A 0A6"
-            />
-          </Field>
-        </div>
-      </StepScreen>
-    );
-  } else if (step === 'members' && where === 'us') {
-    screen = (
-      <StepScreen
-        stepKey="members-us"
-        variant="rasuwa"
-        question="Your members of Congress"
-        hint={
-          lookup.status === 'done'
-            ? `${lookup.matchedAddress}: district ${lookup.district === 0 ? 'at large' : lookup.district}, ${lookup.state}.`
-            : 'Your two senators appear from your state; pick your House district by hand if the lookup could not find it.'
-        }
+        question="Who are your members of Congress?"
+        hint="Your address finds your congressional district and shows offices you live there. It goes into the letter and nowhere else."
         error={lookup.status === 'error' ? lookup.error : undefined}
         primary={{ label: 'Continue to your letters', onClick: goNext, disabled: recipients.length === 0 }}
+        secondary={backAction}
         wide
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Field label="Street address">
+                <input className={inputCls} value={writer.street} onChange={(e) => setAddressField({ street: e.target.value })} autoComplete="street-address" placeholder="Street address" />
+              </Field>
+            </div>
+            <Field label="City">
+              <input className={inputCls} value={writer.city} onChange={(e) => setAddressField({ city: e.target.value })} autoComplete="address-level2" />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="State">
+                <select className={inputCls} value={writer.state} onChange={(e) => { setAddressField({ state: e.target.value }); setManualRep(''); }}>
+                  <option value="">Choose...</option>
+                  {STATE_OPTIONS.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
+                </select>
+              </Field>
+              <Field label="ZIP">
+                <input className={inputCls} value={writer.zip} onChange={(e) => setAddressField({ zip: e.target.value })} autoComplete="postal-code" inputMode="numeric" />
+              </Field>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-2xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 disabled:opacity-50"
+              onClick={runDistrictLookup}
+              disabled={!addressOk || usBusy}
+            >
+              {usBusy ? 'Looking up your district...' : 'Find my members of Congress'}
+            </button>
+            {lookup.status === 'done' && (
+              <span className="text-sm font-semibold text-green-700">
+                {lookup.matchedAddress}: district {lookup.district === 0 ? 'at large' : lookup.district}, {lookup.state}.
+              </span>
+            )}
+          </div>
+
           {lookup.status !== 'done' && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Your representative (by district)">
+              <Field label="Or pick your district by hand">
                 <select className={inputCls} value={manualRep} onChange={(e) => setManualRep(e.target.value)} disabled={!stateInUse}>
                   <option value="">{stateInUse ? 'Pick your district...' : 'Pick your state first'}</option>
                   {stateReps.map((m) => (
@@ -942,8 +881,9 @@ export default function RasuwaWizard() {
             </ul>
           ) : (
             <p className="text-sm text-midnight-500">
-              Pick your state and district and your two senators and representative appear here.
-              Territories seat a House delegate and no senators.
+              Enter your address and press the button, or pick your state and district by hand;
+              your two senators and representative appear here. Territories seat a House
+              delegate and no senators.
             </p>
           )}
           {senators.length === 0 && stateInUse && (
@@ -954,18 +894,49 @@ export default function RasuwaWizard() {
         </div>
       </StepScreen>
     );
-  } else if (step === 'members' && where === 'ca') {
-    const showManual = caManual || !canada.mp;
+  } else if (step === 'reps' && where === 'ca') {
+    const postalOk = Boolean(normalizePostalCode(canada.postal));
+    const showManual = caManual || Boolean(canada.manualName || canada.manualRiding || canada.manualEmail);
     screen = (
       <StepScreen
-        stepKey="members-ca"
+        stepKey="reps-ca"
         variant="rasuwa"
-        question="Your Member of Parliament"
-        hint="Your MP's office opens consular cases with Global Affairs Canada for constituents."
+        question="Who is your Member of Parliament?"
+        hint="Your postal code finds your MP; it is used for the lookup and nothing else. MPs do consular casework for their constituents through Global Affairs Canada."
+        error={mpStatus.error}
         primary={{ label: 'Continue to your letter', onClick: goNext }}
+        secondary={backAction}
         wide
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-40">
+              <Field label="Postal code">
+                <input
+                  className={inputCls}
+                  value={canada.postal}
+                  onChange={(e) => setC({ postal: e.target.value, mp: null })}
+                  autoComplete="postal-code"
+                  placeholder="K1A 0A6"
+                />
+              </Field>
+            </div>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-2xl bg-blue-800 px-4 py-3 text-sm font-bold text-white hover:bg-blue-900 disabled:opacity-50"
+              onClick={runMpLookup}
+              disabled={!postalOk || mpStatus.busy}
+            >
+              {mpStatus.busy ? 'Finding your MP...' : 'Find my MP'}
+            </button>
+          </div>
+
+          {!showManual && !canada.mp && (
+            <button type="button" className={linkBtnCls} onClick={enterMpByHand}>
+              Enter my MP by hand instead
+            </button>
+          )}
+
           {canada.mp && (
             <div className="rounded-2xl border-2 border-midnight-100 bg-white p-4">
               <p className="font-bold text-midnight-900">
@@ -1022,6 +993,7 @@ export default function RasuwaWizard() {
         question="Which country do you live in?"
         hint="The letter below is written for a Member of Parliament or consular officer; these links find yours."
         primary={{ label: 'Continue to your letter', onClick: goNext }}
+        secondary={backAction}
       >
         <div className="space-y-4">
           <Field label="Your country">
@@ -1053,6 +1025,7 @@ export default function RasuwaWizard() {
         question={letters.length > 1 ? 'Your letters are ready' : 'Your letter is ready'}
         hint="Edit anything; whatever is in [brackets] still needs filling in. Hand edits are kept unless you change a detail in an earlier step. When you continue, one copy is saved for the families' records."
         primary={{ label: 'Continue: get it to them', onClick: goNext, disabled: letters.length === 0 }}
+        secondary={backAction}
         wide
       >
         <div className="space-y-4">
@@ -1172,6 +1145,7 @@ export default function RasuwaWizard() {
         question="Get it to them"
         hint="Calls are logged the same day; the letter follows by the channel each office actually reads."
         primary={{ label: 'One last step: finish and be counted', onClick: goNext }}
+        secondary={backAction}
         wide
       >
         {where === 'us' && (
@@ -1310,17 +1284,18 @@ export default function RasuwaWizard() {
       {
         key: 'entry',
         action: 'entry_sent',
-        label: `I sent our entry to ${COORDINATOR_NAME}`,
-        sub: 'So the families\' letter and the list of the missing stay complete.',
+        label: 'Our entry is on the families\' list',
+        sub: 'The list of the missing grows through the family form; entries there reach the coordinating families.',
         extra: (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
+            <a
               className="inline-flex items-center justify-center rounded-xl bg-blue-800 px-3 py-2 text-sm font-bold text-white hover:bg-blue-900"
-              onClick={shareWithCoordinator}
+              href="/rasuwa/form"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              Email my entry
-            </button>
+              Open the family form
+            </a>
             <button
               type="button"
               className="inline-flex items-center justify-center rounded-xl border-2 border-midnight-200 bg-white px-3 py-2 text-sm font-bold text-midnight-700 hover:bg-midnight-100"
@@ -1332,8 +1307,7 @@ export default function RasuwaWizard() {
               {copied === 'entry' ? 'Copied' : 'Copy my entry'}
             </button>
             <span className="text-xs text-midnight-400">
-              To {coordinatorEmail()}, or call{' '}
-              <a className="underline" href={`tel:${coordinatorPhone()}`}>{coordinatorPhone()}</a> (any hour).
+              The copy button gives your entry as text, ready to paste into the form or the group chat.
             </span>
           </div>
         ),
@@ -1358,6 +1332,7 @@ export default function RasuwaWizard() {
         question="Check off what you finished"
         hint="Each box adds one to the shared count, so every family can see this working. Nothing about you or your family member is stored; the count is the only thing that moves."
         primary={{ label: 'Finish: start over for the next family', onClick: clearEverything, tone: 'post' }}
+        secondary={backAction}
       >
         <div className="space-y-5">
           <div className="space-y-3">
@@ -1410,8 +1385,8 @@ export default function RasuwaWizard() {
             {directory.updated}). Also useful:{' '}
             <a className="underline" href={US_LINKS.embassyKathmandu} target="_blank" rel="noopener noreferrer">the U.S. Embassy in Kathmandu</a>{' '}
             and <a className="underline" href={US_LINKS.stateDept} target="_blank" rel="noopener noreferrer">travel.state.gov</a>.
-            Corrections: email {COORDINATOR_NAME} at{' '}
-            <a className="underline" href={`mailto:${coordinatorEmail()}`}>{coordinatorEmail()}</a>.
+            Corrections to the list go through the{' '}
+            <Link className="underline" href="/rasuwa/form">family form</Link>.
             Hosted by <Link href="/" className="underline">ReunitePets</Link>.
           </p>
         </div>
@@ -1420,7 +1395,14 @@ export default function RasuwaWizard() {
   }
 
   return (
-    <RasuwaWizardShell steps={steps} activeStepId={step} summary={summary} preview={sidebarPreview} onBack={goBack}>
+    <RasuwaWizardShell
+      steps={steps}
+      activeStepId={step}
+      summary={summary}
+      preview={sidebarPreview}
+      onBack={goBack}
+      onStepSelect={goTo}
+    >
       {screen}
     </RasuwaWizardShell>
   );

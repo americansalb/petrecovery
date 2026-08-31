@@ -22,6 +22,7 @@ export default function RasuwaWizardShell({
   summary = [], // [{ text }]
   preview, // letter text shown live in the sidebar while it is built
   onBack, // undefined hides the back button
+  onStepSelect, // jump back to a completed step from the checklist
   children,
 }) {
   const activeIndex = Math.max(0, steps.findIndex((s) => s.id === activeStepId));
@@ -55,8 +56,8 @@ export default function RasuwaWizardShell({
           {steps.map((step, i) => {
             const done = i < activeIndex;
             const current = i === activeIndex;
-            return (
-              <div key={step.id} className="flex items-center gap-3.5">
+            const row = (
+              <>
                 <span
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
                     current
@@ -75,6 +76,23 @@ export default function RasuwaWizardShell({
                 >
                   {step.label}
                 </span>
+              </>
+            );
+            // Finished steps are doors, not just checkmarks: anything
+            // already answered can be revisited with one click.
+            return done && onStepSelect ? (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => onStepSelect(step.id)}
+                className="flex w-full items-center gap-3.5 rounded-lg -mx-1.5 px-1.5 py-0.5 hover:bg-white/10 transition-colors text-left"
+                title={`Go back to ${step.label}`}
+              >
+                {row}
+              </button>
+            ) : (
+              <div key={step.id} className="flex items-center gap-3.5 py-0.5">
+                {row}
               </div>
             );
           })}

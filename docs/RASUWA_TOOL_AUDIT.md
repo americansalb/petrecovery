@@ -507,3 +507,19 @@ running app with Playwright plus unit tests before pushing.
   sends, per-visit unread) and deliberately not their UI. After
   deploy: set `RASUWA_TEAM_CODE` in the environment and drop the code
   in the family group chat.
+- **The wizard slimmed to six screens (founder feedback, same day:
+  "way too many steps", "going backward is not easy enough", and the
+  coordinator's personal email and phone had to come off the site):**
+  nine screens became six. The missing person's details ride the first
+  screen and arrive filled when a name is picked; choosing where you
+  live opens the about-you fields on the same screen; the address or
+  postal lookup now shares a screen with the representatives it finds,
+  so a failed lookup and its hand-entry fallback are one view, not a
+  dead end between steps. Every screen after the first has a big Back
+  button in the footer next to Continue, and finished steps in the
+  sidebar checklist are clickable doors back. bhumika877@gmail.com and
+  630-306-1983 are gone from the site: the finish step's entry card
+  opens the family form instead, corrections route through the form,
+  and a test now fails the build if a personal address returns.
+  Drafts saved mid-pass on the old nine-step layout land on the merged
+  screen that holds their fields.
