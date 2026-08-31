@@ -679,7 +679,7 @@ export default function RasuwaWizard() {
         eyebrow="Missing in the Rasuwa flood"
         question="Who are you writing for?"
         hint={<span><SignerCount /> This wizard turns that letter into your own, for your missing family member. It takes about ten minutes.</span>}
-        primary={{ label: 'Continue', onClick: goNext, disabled: !person.name.trim() }}
+        primary={{ label: 'Continue', onClick: goNext, disabled: !person.name.trim() || !person.country.trim() }}
       >
         <div className="space-y-5">
           <Field label="Pick from the letter's list, or add someone">
@@ -1004,7 +1004,7 @@ export default function RasuwaWizard() {
         variant="rasuwa"
         question="Which country do you live in?"
         hint="The letter below is written for a Member of Parliament or consular officer; these links find yours."
-        primary={{ label: 'Continue to your letter', onClick: goNext }}
+        primary={{ label: 'Continue to your letter', onClick: goNext, disabled: !writer.country.trim() }}
         secondary={backAction}
       >
         <div className="space-y-4">
