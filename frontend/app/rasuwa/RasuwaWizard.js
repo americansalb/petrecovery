@@ -53,6 +53,7 @@ import {
   CANADA_LINKS,
   COUNTRY_GUIDES,
   FACTS_DATE,
+  findCountryGuide,
   US_LINKS,
   buildLetterBody,
   buildPhoneScript,
@@ -80,9 +81,13 @@ const STATE_OPTIONS = [
   ...EXTRA_AREAS.filter((a) => !US_STATES.some((s) => s.code === a.code)),
 ];
 
-const NATIONALITIES = [
+// Suggestions only: both country fields are free text, because a
+// pick-list without your country reads as a form you cannot fill in
+// (founder feedback, 2026-08-31), and a literal "Other" was landing in
+// letters as the person's nationality.
+const NATIONALITY_SUGGESTIONS = [
   'United States', 'Canada', 'Australia', 'United Kingdom', 'Singapore',
-  'France', 'South Africa', 'India', 'Nepal', 'Other',
+  'France', 'South Africa', 'India', 'Nepal',
 ];
 
 const WHERE_OPTIONS = [
@@ -556,7 +561,7 @@ export default function RasuwaWizard() {
   const activeEdited = active ? overrides[active.key] != null && overrides[active.key] !== active.body : false;
   const subject = buildSubject({ writer, person, recipient: active ? active.recipient : recipients[0] });
   const unprintable = findUnprintableChars(letters.map((l) => overrides[l.key] ?? l.body).join('\n'));
-  const guide = COUNTRY_GUIDES.find((g) => g.country === writer.country) || COUNTRY_GUIDES[COUNTRY_GUIDES.length - 1];
+  const guide = findCountryGuide(writer.country);
 
   // The letter writes itself in the sidebar as fields fill in; before a
   // real recipient exists a generic consular letter carries the preview,
@@ -701,10 +706,17 @@ export default function RasuwaWizard() {
             <Field label="Their full name">
               <input className={inputCls} value={person.name} onChange={(e) => setP({ name: e.target.value })} placeholder="Name of your missing family member" />
             </Field>
-            <Field label="Nationality">
-              <select className={inputCls} value={person.country} onChange={(e) => setP({ country: e.target.value })}>
-                {NATIONALITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+            <Field label="Nationality (their country)">
+              <input
+                className={inputCls}
+                value={person.country}
+                onChange={(e) => setP({ country: e.target.value })}
+                list="rasuwa-nationalities"
+                placeholder="Type any country"
+              />
+              <datalist id="rasuwa-nationalities">
+                {NATIONALITY_SUGGESTIONS.map((c) => <option key={c} value={c} />)}
+              </datalist>
             </Field>
           </div>
           {person.name.trim() !== '' && (
@@ -997,9 +1009,17 @@ export default function RasuwaWizard() {
       >
         <div className="space-y-4">
           <Field label="Your country">
-            <select className={inputCls} value={writer.country} onChange={(e) => setW({ country: e.target.value })}>
-              {COUNTRY_GUIDES.map((g) => <option key={g.country} value={g.country}>{g.country}</option>)}
-            </select>
+            <input
+              className={inputCls}
+              value={writer.country}
+              onChange={(e) => setW({ country: e.target.value })}
+              list="rasuwa-countries"
+              placeholder="Type any country"
+              autoComplete="country-name"
+            />
+            <datalist id="rasuwa-countries">
+              {COUNTRY_GUIDES.slice(0, -1).map((g) => <option key={g.country} value={g.country} />)}
+            </datalist>
           </Field>
           <ul className="space-y-2 text-midnight-700">
             {guide.findRep && (

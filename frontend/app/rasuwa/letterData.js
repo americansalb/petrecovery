@@ -115,6 +115,21 @@ export const COUNTRY_GUIDES = [
   },
 ];
 
+/**
+ * The guide for a typed country name: matched case-insensitively so
+ * "france" finds France, with the generic last entry for every country
+ * the list does not cover. The country fields are free text (founder
+ * feedback, 2026-08-31: a pick-list without your country reads as a
+ * form you cannot fill in), so this must accept anything.
+ */
+export function findCountryGuide(value) {
+  const wanted = String(value || '').trim().toLowerCase();
+  return (
+    COUNTRY_GUIDES.find((g) => g.country.toLowerCase() === wanted) ||
+    COUNTRY_GUIDES[COUNTRY_GUIDES.length - 1]
+  );
+}
+
 // No personal contact details on the site (founder instruction,
 // 2026-08-31: the coordinator's own email and phone came down). List
 // corrections and new entries go through the family form on

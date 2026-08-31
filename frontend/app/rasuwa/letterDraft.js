@@ -26,7 +26,7 @@ export const EMPTY_PERSON = {
 export const EMPTY_WRITER = {
   name: '', relationship: '', phone: '', email: '',
   inUS: true, street: '', city: '', state: '', zip: '',
-  country: 'Australia',
+  country: '',
 };
 
 export const EMPTY_LOOKUP = { status: 'idle', error: '', state: '', district: null, matchedAddress: '' };
