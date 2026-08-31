@@ -152,12 +152,29 @@ export function recipientTitle(recipient) {
   return recipient.chamber === 'sen' ? 'Senator' : 'Representative';
 }
 
+/**
+ * Compound surnames the token rules below cannot infer. Keyed by
+ * bioguide; review when the directory is refreshed for a new Congress.
+ */
+const SURNAME_OVERRIDES = {
+  B001303: 'Blunt Rochester',
+  W000797: 'Wasserman Schultz',
+};
+
+/** Surname particles that belong with the last token ("Van Hollen"). */
+const SURNAME_PARTICLES = new Set(['Van', 'Vander', 'De', 'Del', 'Della', 'Der', 'La', 'Da', 'Ter', 'St.', 'Saint']);
+
 export function recipientLastName(recipient) {
+  const override = recipient.bioguide && SURNAME_OVERRIDES[recipient.bioguide];
+  if (override) return override;
   const parts = recipient.name.trim().split(/\s+/);
-  const last = parts[parts.length - 1];
+  let i = parts.length - 1;
   // "Jr.", "III" style suffixes: take the token before them
-  if (/^(Jr\.?|Sr\.?|II|III|IV)$/i.test(last) && parts.length > 1) {
-    return parts[parts.length - 2].replace(/,$/, '');
+  if (/^(Jr\.?|Sr\.?|II|III|IV)$/i.test(parts[i]) && i > 0) i--;
+  let last = parts[i].replace(/,$/, '');
+  while (i > 0 && SURNAME_PARTICLES.has(parts[i - 1].replace(/,$/, ''))) {
+    i--;
+    last = `${parts[i].replace(/,$/, '')} ${last}`;
   }
   return last;
 }

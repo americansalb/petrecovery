@@ -110,6 +110,13 @@ export default function RasuwaLetterTool() {
   const [copied, setCopied] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState('');
+  // The native share sheet (send the letter to yourself over WhatsApp,
+  // mail, notes) exists mostly on phones; detected after mount so the
+  // server render stays stable.
+  const [canShare, setCanShare] = useState(false);
+  useEffect(() => {
+    setCanShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
   // A draft found at mount, waiting on the person's continue-or-fresh
   // choice. While it waits, autosave pauses so the empty form cannot
   // overwrite it.
@@ -160,6 +167,7 @@ export default function RasuwaLetterTool() {
     setEditsCleared(false);
     setPendingDraft(null);
     clearRasuwaDraft();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   const dirty = draftHasContent({ person, writer, lookup, manualRep, overrides });
@@ -286,6 +294,30 @@ export default function RasuwaLetterTool() {
   const activeBody = active ? overrides[active.key] ?? active.body : '';
   const activeEdited = active ? overrides[active.key] != null && overrides[active.key] !== active.body : false;
   const unprintable = findUnprintableChars(letters.map((l) => overrides[l.key] ?? l.body).join('\n'));
+
+  // The letter marks gaps in [brackets], but a person pasting into a
+  // webform may not scan for them; name what is still blank out loud.
+  const stillBlank = [];
+  if (!person.name.trim()) stillBlank.push("the missing person's name");
+  if (!person.lastSeenPlace.trim()) stillBlank.push('their last known location');
+  if (!writer.name.trim()) stillBlank.push('your name');
+  if (!writer.relationship.trim()) stillBlank.push('your relationship to them');
+  if (!writer.phone.trim()) stillBlank.push('your phone number');
+  if (writer.inUS && !(writer.street.trim() && writer.city.trim() && writer.state && writer.zip.trim())) {
+    stillBlank.push('your address');
+  }
+
+  // One script works on every call, so it never names the wrong office
+  // while the person dials down the list in step 3.
+  const phoneScript = buildPhoneScript({ recipient: null, writer, person });
+
+  async function shareActiveLetter() {
+    try {
+      await navigator.share({ title: subject, text: `${subject}\n\n${activeBody}` });
+    } catch {
+      // the person closed the share sheet; nothing to do
+    }
+  }
 
   async function copyText(key, text) {
     try {
@@ -476,8 +508,8 @@ export default function RasuwaLetterTool() {
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="State">
                     <select className={inputCls} value={writer.state} onChange={(e) => { setAddressField({ state: e.target.value }); setManualRep(''); }}>
-                      <option value="">State</option>
-                      {STATE_OPTIONS.map((s) => <option key={s.code} value={s.code}>{s.code}</option>)}
+                      <option value="">Choose your state...</option>
+                      {STATE_OPTIONS.map((s) => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
                     </select>
                   </Field>
                   <Field label="ZIP">
@@ -654,8 +686,8 @@ export default function RasuwaLetterTool() {
                           Reset to generated text
                         </button>
                       )}
-                      <button type="button" className="text-sm font-semibold text-blue-800 underline" onClick={() => copyText('letter', activeBody)}>
-                        {copied === 'letter' ? 'Copied' : 'Copy letter'}
+                      <button type="button" className="text-sm font-semibold text-blue-800 underline" onClick={() => copyText(`letter-${active.key}`, activeBody)}>
+                        {copied === `letter-${active.key}` ? 'Copied' : 'Copy letter'}
                       </button>
                     </span>
                   </div>
@@ -670,12 +702,25 @@ export default function RasuwaLetterTool() {
                 </div>
               )}
 
+              {stillBlank.length > 0 && (
+                <p className="text-sm text-amber-800">
+                  Still blank: {stillBlank.join(', ')}. The letter marks each gap in [brackets].
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <button type="button" className={buttonCls} onClick={downloadPdf} disabled={pdfBusy}>
                   {pdfBusy ? 'Building PDF...' : `Download PDF (${letters.length === 1 ? '1 letter' : `all ${letters.length} letters`})`}
                 </button>
+                {canShare && active && (
+                  <button type="button" className={buttonLightCls} onClick={shareActiveLetter}>
+                    Share this letter
+                  </button>
+                )}
                 <span className="text-sm text-slate-600">For printing, faxing, and office visits.</span>
               </div>
+              <p className="text-sm text-slate-500">
+                Nothing downloaded? Open this page in Safari or Chrome, or use &quot;Copy letter&quot; above.
+              </p>
               {unprintable.length > 0 && (
                 <p className="text-sm text-amber-800">
                   The PDF cannot print these characters: {unprintable.join(' ')}. They will look
@@ -693,14 +738,14 @@ export default function RasuwaLetterTool() {
               <li>
                 <span className="font-semibold">Call first.</span> Calls are logged the same day.
                 Call the DC number and one district office for each member (numbers in step 3).
-                Read this script:
+                The same script works on every call:
                 <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
-                  {buildPhoneScript({ recipient: active ? active.recipient : null, writer, person })}
+                  {phoneScript}
                   <div className="mt-2">
                     <button
                       type="button"
                       className="text-sm font-semibold text-blue-800 underline"
-                      onClick={() => copyText('script', buildPhoneScript({ recipient: active ? active.recipient : null, writer, person }))}
+                      onClick={() => copyText('script', phoneScript)}
                     >
                       {copied === 'script' ? 'Copied' : 'Copy script'}
                     </button>
@@ -777,8 +822,24 @@ export default function RasuwaLetterTool() {
             <button type="button" className={buttonLightCls} onClick={shareWithCoordinator}>
               Email my entry to the coordinating family
             </button>
-            <span className="text-sm text-slate-600">Or call {coordinatorPhone()} (any hour).</span>
+            <button
+              type="button"
+              className={buttonLightCls}
+              onClick={() => {
+                const { subject: shareSubject, body } = buildRosterShare({ writer, person });
+                copyText('entry', `Subject: ${shareSubject}\n\n${body}`);
+              }}
+            >
+              {copied === 'entry' ? 'Copied' : 'Copy my entry'}
+            </button>
+            <span className="text-sm text-slate-600">
+              Or call <a className="underline" href={`tel:${coordinatorPhone()}`}>{coordinatorPhone()}</a> (any hour).
+            </span>
           </div>
+          <p className="mt-2 text-sm text-slate-600">
+            If the email button does nothing in this browser, press &quot;Copy my entry&quot; and paste
+            it into a message to {coordinatorEmail()}.
+          </p>
           {ROSTER_FORM_URL && (
             <p className="mt-3 text-sm text-slate-600">
               Not counted in the joint letter yet?{' '}
@@ -800,11 +861,15 @@ export default function RasuwaLetterTool() {
           </p>
           <p className="mt-3">
             Corrections and updates: email {COORDINATOR_NAME} at{' '}
-            <button type="button" className="underline" onClick={() => { window.location.href = `mailto:${coordinatorEmail()}`; }}>
-              this address
-            </button>.
+            <a className="underline" href={`mailto:${coordinatorEmail()}`}>{coordinatorEmail()}</a>.
             This page is hosted by <Link href="/" className="underline">ReunitePets</Link>.
           </p>
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <button type="button" className={buttonLightCls} onClick={clearEverything}>
+              Start over for the next family
+            </button>
+            <span className="ml-3 text-sm text-slate-600">Clears everything typed on this page.</span>
+          </div>
         </section>
       </main>
     </div>
