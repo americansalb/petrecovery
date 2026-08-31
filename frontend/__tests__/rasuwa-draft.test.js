@@ -160,6 +160,14 @@ describe('snapshot and restore round trip', () => {
     s.where = 'ca';
     expect(draftHasContent(s)).toBe(true);
   });
+
+  test('finish boxes round trip as booleans and default off', () => {
+    const state = typedState();
+    state.done = { letters: true, entry: 'yes', signed: 0 };
+    const back = restoreDraft(snapshotDraft(state));
+    expect(back.done).toEqual({ letters: true, entry: true, signed: false });
+    expect(restoreDraft({}).done).toEqual({ letters: false, entry: false, signed: false });
+  });
 });
 
 describe('describeDraft (restore banner phrase)', () => {

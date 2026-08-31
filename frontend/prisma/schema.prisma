@@ -5641,3 +5641,13 @@ model RateLimitCounter {
 
   @@index([updatedAt])
 }
+
+/// The Rasuwa letter wizard's collective tally: how many families
+/// pressed "done" on each finishing action (letters sent, entry
+/// emailed, letter signed). Counts only, incremented anonymously;
+/// nothing a family typed is ever stored (that promise is on the page).
+model RasuwaTally {
+  action    String   @id
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}

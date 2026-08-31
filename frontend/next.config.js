@@ -223,6 +223,14 @@ const nextConfig = {
         destination: '/rasuwa',
         permanent: false,
       },
+      // The generated letters print rescueourfamily.org/letter as the
+      // stable address of the live families' letter; it works on every
+      // host.
+      {
+        source: '/letter',
+        destination: '/rasuwa/letter',
+        permanent: false,
+      },
       // rescueourfamily.org is the families' own domain: its root and
       // /form land on the sign page. REDIRECTS, not rewrites: the
       // global chrome hides by the browser-visible pathname

@@ -122,6 +122,7 @@ describe('the MP letter', () => {
     expect(body).toContain(person.lastSeenPlace);
     expect(body).not.toContain('undefined');
     expect(body).not.toContain('State Department');
+    expect(body).toContain('rescueourfamily.org/letter');
   });
 
   test('a non-Canadian national letter asks for coordination with their government', () => {

@@ -102,6 +102,12 @@ describe('letter builders', () => {
     }
   });
 
+  test('every letter points at the live families\' letter on the family domain', () => {
+    for (const recipient of [senator, rep, { chamber: 'intl' }]) {
+      expect(buildLetterBody({ recipient, writer, person })).toContain('rescueourfamily.org/letter');
+    }
+  });
+
   test('salutation matches the chamber', () => {
     expect(buildLetterBody({ recipient: senator, writer, person })).toContain(`Dear Senator ${recipientLastName(senator)}:`);
     expect(buildLetterBody({ recipient: rep, writer, person })).toContain(`Dear Representative ${recipientLastName(rep)}:`);

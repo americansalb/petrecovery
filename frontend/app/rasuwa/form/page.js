@@ -38,17 +38,25 @@ export default function RosterFormPage() {
       <header className="border-b border-slate-200 bg-white px-4 py-4">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
           <h1 className="text-lg font-bold">Sign the families&apos; letter</h1>
-          <Link
-            href="/rasuwa"
-            className="shrink-0 rounded-md bg-blue-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-900"
-          >
-            Write to Congress
-          </Link>
+          <span className="flex gap-2">
+            <Link
+              href="/rasuwa/letter"
+              className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+            >
+              Read the letter
+            </Link>
+            <Link
+              href="/rasuwa"
+              className="shrink-0 rounded-md bg-blue-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-900"
+            >
+              Write to Congress
+            </Link>
+          </span>
         </div>
         <p className="mx-auto mt-2 w-full max-w-3xl text-sm text-slate-600">
           <SignerCount /> The letter asks for seven rescue actions; it was delivered on
           August 29 and keeps gathering names. The form below, kept by the coordinating
-          family, adds your name and your missing family member to its roster. It takes about
+          family, adds your name and your missing family member to the letter. It takes about
           a minute. Then press Write to Congress to send your own letters to your senators
           and representative.
         </p>
@@ -65,7 +73,7 @@ export default function RosterFormPage() {
             >
               open the form in its own tab
             </a>{' '}
-            and sign there. Same form, same roster.
+            and sign there. Same form, same letter.
           </p>
           <iframe
             src={ROSTER_FORM_URL}
