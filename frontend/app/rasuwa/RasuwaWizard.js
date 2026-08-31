@@ -292,9 +292,30 @@ export default function RasuwaWizard() {
   }
 
   // ── Drafts: save on every meaningful change; explicit restore ──────
+  // The team board's coverage wall links here as /rasuwa?for=<num> so
+  // "write for them" starts with that person already picked. A saved
+  // draft still comes first: the prompt shows, and the prefill applies
+  // only if the person chooses to start fresh.
+  const prefillIdxRef = useRef(-1);
+  const applyPrefill = () => {
+    const entry = PEOPLE[prefillIdxRef.current];
+    if (!entry) return;
+    setPerson({
+      pick: String(prefillIdxRef.current), name: entry.name, country: entry.country,
+      home: entry.home, lastSeenPlace: entry.lastSeenPlace, lastSeenWhen: entry.lastSeenWhen,
+      operator: entry.operator, details: '',
+    });
+  };
   useEffect(() => {
+    const forNum = Number(new URLSearchParams(window.location.search).get('for'));
+    prefillIdxRef.current = Number.isFinite(forNum) ? PEOPLE.findIndex((p) => p.num === forNum) : -1;
     const d = loadRasuwaDraft();
-    if (draftHasContent(d)) setPendingDraft(d);
+    if (draftHasContent(d)) {
+      setPendingDraft(d);
+      return;
+    }
+    applyPrefill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -327,6 +348,7 @@ export default function RasuwaWizard() {
   function startFresh() {
     clearRasuwaDraft();
     setPendingDraft(null);
+    applyPrefill();
   }
 
   function clearEverything() {

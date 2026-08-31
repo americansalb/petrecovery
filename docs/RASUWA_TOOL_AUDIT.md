@@ -478,3 +478,32 @@ running app with Playwright plus unit tests before pushing.
   handler documented in `letterData.js` into the roster's Apps Script.
   The generated letters still cite 1,189 on purpose: they quote the
   letter as sent, a dated document an office can verify.
+- **The live letter, the finish step, and the record (PR #220):**
+  `rescueourfamily.org/letter` mirrors the coordinating family's
+  Google Doc (ISR, five-minute cache, clean fallback link); every
+  generated letter cites that stable address. The confusing last step
+  became three finish boxes feeding an anonymous shared tally
+  (`RasuwaTally`), with a retry queue in the tab draft so an outage
+  never loses a family's +1. Every finished pass saves one capped copy
+  of its letters to the families' record (`RasuwaLetterRecord`,
+  write-only API, admin read with per-person coverage). The letter
+  writes itself in the sidebar from the first field typed. "Roster"
+  left all user-facing copy.
+- **The family task force board (founder request, same day):**
+  `rescueourfamily.org/team` (alias `/team`) is the coordination space
+  the group chats cannot be: pinned updates, a needs board where
+  anyone taps "I'll do it" (atomic claims; a second tap on a taken
+  need answers with who has it), the coverage wall joining the letter
+  record to the list of the missing with standing "I'll write for
+  them" claims and one-tap handoff into the wizard
+  (`/rasuwa?for=<num>`), and a running conversation. Access is one
+  shared code (`RASUWA_TEAM_CODE`, HMAC cookie, durable rate limit on
+  guesses, rotating the code logs everyone out) plus a typed name; no
+  accounts. The board polls one endpoint every eight seconds, shows
+  "new since your last visit," and is noindexed. Site admins get
+  remove buttons through the existing admin session. Studied
+  mission control and the Lurie committee site first; borrowed their
+  mechanics (single-payload board, claim state machines, optimistic
+  sends, per-visit unread) and deliberately not their UI. After
+  deploy: set `RASUWA_TEAM_CODE` in the environment and drop the code
+  in the family group chat.

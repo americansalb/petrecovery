@@ -212,6 +212,14 @@ Static segment card in `app/hub/layout.js`.
 |---|---|---|---|---|
 | `/rasuwa` (aliases `/nepal` + `/action`, next.config redirects; rescueourfamily.org's root and /form REDIRECT to /rasuwa/form, the embedded sign-the-letter page, once that domain is attached to the deployment. Redirects, not rewrites: chrome hides by visible pathname) | Letter tool for families of people missing in the Aug 26, 2026 Rasuwa (Nepal) flood: pick/enter the missing person (57 prefills from the families' Aug 29 letter in `missing-people.json`), enter constituent details, find members of Congress (bundled `congress-directory.json`, refreshed via `scripts/build-congress-directory.js`; district via `/api/rasuwa/district`), generate per-recipient letters + phone script + client-side react-pdf PDF. Deliberately stateless: no DB models, entries never leave the browser (the district lookup address goes to the Census geocoder only). Immersive route (non-pet audience); footer links back to `/` | server layout/page + client tool | public | — |
 | `/api/rasuwa/district` | Census geocoder proxy (no CORS upstream): address → `{state, district}`. No logging, no storage; rate-limited in middleware | route handler | public | — |
+| `/rasuwa/form` | Sign-the-letter page (embedded Google Form) with context, live signer count, own share card; rescueourfamily.org's default landing | server + client embed | public | — |
+| `/rasuwa/letter` (alias `/letter`) | Live mirror of the families' letter Google Doc (ISR 5 min, `jointLetter.js`); the stable address cited in every generated letter | server (ISR) | public | — |
+| `/rasuwa/team` (alias `/team`) | Family task force board: pinned updates, needs with atomic "I'll do it" claims, letter coverage wall (letter record × `missing-people.json` + person claims, `?for=<num>` handoff into the wizard), running conversation. Gate: shared code `RASUWA_TEAM_CODE` → HMAC cookie (`teamAuth.js`), typed name, no accounts; 8s single-endpoint poll; noindex; admin remove via `/api/admin/rasuwa-team` | server shell + client board | shared code | — |
+| `/api/rasuwa/mp` | Represent (opennorth) proxy: postal code → MP; per-IP + server-wide upstream budget | route handler | public | — |
+| `/api/rasuwa/roster-count` | Live signer count (10-min cache) | route handler | public | — |
+| `/api/rasuwa/tally` | Anonymous finish-box counters (`RasuwaTally`) | route handler | public | — |
+| `/api/rasuwa/letters` | Write-only record of generated letters (`RasuwaLetterRecord`); read via `/api/admin/rasuwa-letters` | route handler | public write | — |
+| `/api/rasuwa/team/*` | Board APIs: `join` (code → cookie; durable rate limit), `board` (one read: updates+messages+needs+coverage), `posts`, `needs`, `needs/[id]` (claim/release/done/reopen, conditional updates, 409 carries the row), `people` (person claims) | route handlers | board cookie | — |
 
 ### Admin
 
