@@ -13,6 +13,7 @@ const {
   FACTS_DATE,
   buildLetterBody,
   findCountryGuide,
+  jointLetterSentence,
   buildPhoneScript,
   buildRosterShare,
   buildSubject,
@@ -164,6 +165,18 @@ describe('letter builders', () => {
     const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
     expect(body).toContain('nationals of Germany');
     expect(body).not.toContain('Other');
+  });
+
+  test('the live signature count rides the letter only when genuinely larger', () => {
+    expect(jointLetterSentence(2500)).toContain('more than 2,500');
+    expect(jointLetterSentence(2500)).toContain('On August 29, 1,189');
+    for (const stale of [null, undefined, 0, 1189, 900, 'junk']) {
+      expect(jointLetterSentence(stale)).not.toContain('as of today');
+    }
+    const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'B', state: 'IL', zip: '60103', country: '' };
+    const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
+    const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person, signers: 3100 });
+    expect(body).toContain('more than 3,100');
   });
 
   test('no personal contact details anywhere in the module', () => {

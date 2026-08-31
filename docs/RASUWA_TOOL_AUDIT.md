@@ -544,3 +544,20 @@ running app with Playwright plus unit tests before pushing.
   international rescue teams after the 2015 earthquake. The delivery
   step adds a prepared comeback box with a copyable question for the
   moment a staffer repeats the excuse on a call.
+- **The letters page became the send page (founder feedback, same
+  day: the copy button and the send link were on different screens,
+  calling was suggested before emailing, the flow felt unorganized,
+  and the PDF bundled all letters):** the deliver step is gone; five
+  screens now. The send screen lists one card per office: the
+  recipient's name, Copy the letter, Open the contact form (or an
+  email button for Canadian MPs, ministry links internationally), a
+  copyable subject line, an edit expander, and a Sent checkmark with
+  an N-of-M tracker that rides the draft. Calling moved below the
+  cards as "Sent? A call makes it count," with the script, the
+  per-member numbers, the privacy-release ask, and the consent
+  comeback in one place; paper, fax, and PDFs sit behind a toggle,
+  one PDF per office. Fix-a-detail links jump to any earlier answer
+  from the send screen. The letters also cite the live signature
+  count on top of the dated August 29 delivery whenever the counter
+  reports a larger number; the casualty figures still await the
+  founder's current numbers (letterData.js is the one file to edit).
