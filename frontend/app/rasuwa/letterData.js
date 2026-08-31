@@ -9,7 +9,7 @@
  * hardcodes copy about the flood.
  */
 
-export const FACTS_DATE = 'August 29, 2026';
+export const FACTS_DATE = 'August 31, 2026';
 
 /**
  * Signatures on the joint letter AS SENT on August 29. The generated
@@ -148,16 +148,22 @@ const SEVEN_ASKS =
 const FLOOD_SENTENCE =
   'the flash flood that came down the Bhotekoshi and Trishuli valleys in Nepal\'s Rasuwa district on the morning of Wednesday, August 26';
 
+// Figures sourced 2026-08-31: the State Department's August 30 briefing
+// (about 85 Americans unaccounted for, nine evacuated), wire reporting
+// of the combined toll, and the families' August 31 letter (rescue
+// totals, the barrier lakes, Nepal's Foreign Ministry stance, the UK
+// pledge). Organizers: update these two paragraphs and FACTS_DATE
+// together whenever the situation moves.
 const SITUATION_US =
-  'The State Department has said that 90 Americans remain unaccounted for and that five have been rescued. ' +
-  'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, and China reports 558 missing on its side of the border. ' +
-  'Helicopters have not been able to land in parts of the upper valley. ' +
-  `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, and one disaster response adviser.`;
+  'The State Department said on August 30 that approximately 85 Americans remain unaccounted for and that nine have been evacuated. ' +
+  'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley, rescue work has been interrupted by overflowing barrier lakes, and authorities report a combined death toll above 900 with thousands still listed as missing on both sides of the border. ' +
+  'Nepal\'s Foreign Ministry has said it does not need foreign search and rescue teams at this time but is open to targeted technical support. ' +
+  `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, and one disaster response adviser, while the United Kingdom has pledged 5 million pounds and is sending emergency responders and consular staff to the region.`;
 
 const SITUATION_INTL =
-  'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, and China reports 558 missing on its side of the border. ' +
+  'Authorities report a combined death toll above 900, with thousands still listed as missing on both sides of the Nepal-China border. ' +
   'The missing include pilgrims, guides, and workers from Nepal, India, the United States, and more than two dozen other countries. ' +
-  'Helicopters have not been able to land in parts of the upper valley.';
+  'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley, and Nepal\'s Foreign Ministry has said it does not need foreign search and rescue teams at this time but is open to targeted technical support.';
 
 /**
  * The live joint-letter document the coordinating family keeps updated
@@ -210,9 +216,9 @@ export const LETTER_TEMPLATE_VERSION = 2;
 
 const ACCESS_PARAGRAPH =
   'If any of this is said to be waiting on the Government of Nepal\'s consent, obtaining that consent is part of what I am asking for. ' +
+  'Nepal\'s Foreign Ministry has said it is open to targeted technical support, and Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake. ' +
   'Press for each offer to be made formally, in writing, at a senior level; for the families to be told what was offered, to whom, and on what date; ' +
-  'and if Nepal declines, for that refusal to be on the record. ' +
-  'Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake.';
+  'and if Nepal declines, for that refusal to be on the record.';
 
 /** Rendered on the delivery step under the phone script, for every path. */
 export const ACCESS_COMEBACK = {
@@ -220,8 +226,8 @@ export const ACCESS_COMEBACK = {
   ask: 'What did our government formally offer, to whom in Nepal\'s government, on what date, and what was Nepal\'s answer?',
   note:
     'A staffer repeating a general line cannot answer that. Ask them to find out and call you back. ' +
-    'If Nepal has refused a formal offer, the families should be told so, on the record. ' +
-    'Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake.',
+    'Nepal\'s Foreign Ministry has said it is open to targeted technical support, and Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake. ' +
+    'If a formal offer has been refused, the families should be told so, on the record.',
 };
 
 /** "[your street address]" style gap markers keep an incomplete letter obviously incomplete. */

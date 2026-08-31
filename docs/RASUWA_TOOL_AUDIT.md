@@ -561,3 +561,16 @@ running app with Playwright plus unit tests before pushing.
   count on top of the dated August 29 delivery whenever the counter
   reports a larger number; the casualty figures still await the
   founder's current numbers (letterData.js is the one file to edit).
+- **The letter facts moved to August 31 (founder: "still outdated
+  info in the letters"):** sourced from the families' live letter
+  (read through the founder's Drive connection; now dated August 31,
+  addressed to Secretary Rubio) and current reporting: the State
+  Department's August 30 briefing (about 85 Americans unaccounted
+  for, nine evacuated), a combined death toll above 900 with
+  thousands still listed as missing, more than 3,700 rescued by
+  Nepali crews, the barrier lakes interrupting rescue work, the
+  United Kingdom's pledge, and the fact that reshapes the consent
+  argument: Nepal's Foreign Ministry says it is open to targeted
+  technical support. That line now leads the consent paragraph and
+  the call comeback. A test pins the new facts so the frozen August
+  29 figures cannot slip back.
