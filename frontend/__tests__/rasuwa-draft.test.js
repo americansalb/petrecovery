@@ -164,6 +164,10 @@ describe('snapshot and restore round trip', () => {
     expect(back.templateOutdated).toBe(true);
     const older = { ...snapshotDraft(state), templateVersion: 1 };
     expect(restoreDraft(older).overrides).toEqual({});
+    // v2 predates the August 31 facts; its hand edits rebuild too.
+    const v2 = { ...snapshotDraft(state), templateVersion: 2 };
+    expect(restoreDraft(v2).overrides).toEqual({});
+    expect(restoreDraft(v2).templateOutdated).toBe(true);
     // No hand edits means nothing was lost and no notice is owed.
     const clean = { ...snapshotDraft(emptyState()), templateVersion: 1 };
     expect(restoreDraft(clean).templateOutdated).toBe(false);

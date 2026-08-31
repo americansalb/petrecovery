@@ -179,6 +179,21 @@ describe('letter builders', () => {
     expect(body).toContain('more than 3,100');
   });
 
+  test('letters carry the August 31 facts, not the frozen August 29 ones', () => {
+    const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'B', state: 'IL', zip: '60103', country: '' };
+    const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
+    const sen = { chamber: 'sen', bioguide: 'X1', name: 'Test Senator', party: 'I', state: 'IL', phone: '202-555-0000', offices: [] };
+    const body = buildLetterBody({ recipient: sen, writer, person });
+    expect(body).toContain('approximately 85 Americans');
+    expect(body).toContain('open to targeted technical support');
+    expect(body).toContain('August 31, 2026');
+    expect(body).not.toContain('579 deaths');
+    expect(body).not.toContain('90 Americans');
+    const intl = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
+    expect(intl).toContain('combined death toll above 900');
+    expect(intl).toContain('open to targeted technical support');
+  });
+
   test('no personal contact details anywhere in the module', () => {
     const source = require('fs').readFileSync(require.resolve('@/app/rasuwa/letterData'), 'utf8');
     expect(source).not.toMatch(/bhumika|306-1983|gmail\.com/i);
