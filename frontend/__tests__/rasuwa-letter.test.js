@@ -12,6 +12,7 @@ const missingPeople = require('@/app/rasuwa/missing-people.json');
 const {
   FACTS_DATE,
   buildLetterBody,
+  findCountryGuide,
   buildPhoneScript,
   buildRosterShare,
   buildSubject,
@@ -134,6 +135,22 @@ describe('letter builders', () => {
     const share = buildRosterShare({ writer, person });
     expect(share.subject).toContain(person.name);
     expect(share.body).toContain('consent');
+  });
+
+  test('typed countries find their guide, any case; unknown ones get the generic door', () => {
+    expect(findCountryGuide('france').country).toBe('France');
+    expect(findCountryGuide('  AUSTRALIA ').country).toBe('Australia');
+    expect(findCountryGuide('Germany').country).toBe('Another country');
+    expect(findCountryGuide('').country).toBe('Another country');
+    expect(findCountryGuide(null).country).toBe('Another country');
+  });
+
+  test('a hand-typed nationality lands in the letter as written, never as "Other"', () => {
+    const writer = { name: 'A Writer', relationship: 'brother', phone: '555', email: '', inUS: false, country: 'Germany' };
+    const person = { name: 'Test Person', country: 'Germany', home: 'Berlin', lastSeenPlace: 'Timure', lastSeenWhen: '', operator: '', details: '' };
+    const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
+    expect(body).toContain('nationals of Germany');
+    expect(body).not.toContain('Other');
   });
 
   test('no personal contact details anywhere in the module', () => {

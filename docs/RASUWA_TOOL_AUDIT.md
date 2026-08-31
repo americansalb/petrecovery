@@ -523,3 +523,13 @@ running app with Playwright plus unit tests before pushing.
   and a test now fails the build if a personal address returns.
   Drafts saved mid-pass on the old nine-step layout land on the merged
   screen that holds their fields.
+- **Country fields type anything now (founder screenshot, same day:
+  the country step's pick-list could not hold most countries, so
+  people "cannot fill it in"):** both the step-1 nationality field and
+  the international country step are free-text inputs with
+  suggestions. Typed countries match their link guides
+  case-insensitively ("france" finds France); anything uncovered gets
+  the generic parliament-and-consulate guidance instead of a dead
+  pick-list. This also closes a letter bug: a hand-entered person from
+  an unlisted country used to force the literal word "Other" into the
+  letter as their nationality; letters now carry the country as typed.
