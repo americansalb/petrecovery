@@ -168,6 +168,13 @@ describe('snapshot and restore round trip', () => {
     expect(back.done).toEqual({ letters: true, entry: true, signed: false });
     expect(restoreDraft({}).done).toEqual({ letters: false, entry: false, signed: false });
   });
+
+  test('the saved-letters hash rides the draft so restores never re-record', () => {
+    const state = typedState();
+    state.savedLetterHash = 'abc123';
+    expect(restoreDraft(snapshotDraft(state)).savedLetterHash).toBe('abc123');
+    expect(restoreDraft({}).savedLetterHash).toBe('');
+  });
 });
 
 describe('describeDraft (restore banner phrase)', () => {

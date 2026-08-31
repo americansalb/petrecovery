@@ -34,6 +34,7 @@ import missingPeople from './missing-people.json';
 import RasuwaWizardShell from './RasuwaWizardShell';
 import SignerCount from './SignerCount';
 import { findUnprintableChars } from './pdfText';
+import { buildLetterRecordPayload, hashLetters } from './letterRecord';
 import { normalizePostalCode } from './mpLookup';
 import {
   EMPTY_CANADA,
@@ -220,6 +221,33 @@ export default function RasuwaWizard() {
     };
   }, [step]);
 
+  // ── The families' record of generated letters ──────────────────────
+  // Founder instruction: every missing person deserves a letter on
+  // record. When the person moves from composing to delivering, one
+  // copy of the finished letters is saved (the page says so); the
+  // content hash keeps reloads and draft restores from recording the
+  // same letters twice.
+  const [savedLetterHash, setSavedLetterHash] = useState('');
+  const recordLettersRef = useRef(null);
+  useEffect(() => {
+    if (step !== 'deliver') return;
+    const record = recordLettersRef.current;
+    if (!record) return;
+    const { hash, payload } = record;
+    if (!payload || hash === savedLetterHash) return;
+    fetch('/api/rasuwa/letters', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => {
+        if (res.ok) setSavedLetterHash(hash);
+      })
+      .catch(() => {
+        // records are best-effort; the wizard never blocks on them
+      });
+  }, [step, savedLetterHash]);
+
   const DONE_ACTIONS = { letters: 'letters_done', entry: 'entry_sent', signed: 'letter_signed' };
   function markDone(key) {
     if (done[key]) return;
@@ -247,14 +275,14 @@ export default function RasuwaWizard() {
   }, []);
 
   useEffect(() => {
-    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done };
+    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash };
     if (!draftHasContent(state)) return;
     if (pendingDraft) {
       setPendingDraft(null);
       return;
     }
     saveRasuwaDraft(state);
-  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, pendingDraft]);
+  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingDraft]);
 
   function resumeDraft() {
     const d = restoreDraft(pendingDraft);
@@ -266,6 +294,7 @@ export default function RasuwaWizard() {
     setOverrides(d.overrides);
     setWhere(d.where);
     setDone(d.done);
+    setSavedLetterHash(d.savedLetterHash);
     setStep(stepIdsFor(d.where).includes(d.step) ? d.step : 'person');
     setEditsCleared(false);
     setPendingDraft(null);
@@ -287,6 +316,7 @@ export default function RasuwaWizard() {
     setActiveIdx(0);
     setWhere('');
     setDone(EMPTY_DONE);
+    setSavedLetterHash('');
     setEditsCleared(false);
     setCaManual(false);
     setMpStatus({ busy: false, error: '' });
@@ -513,6 +543,15 @@ export default function RasuwaWizard() {
   const sidebarPreview =
     step !== 'letters' && (person.name.trim() || writer.name.trim()) ? previewBody : undefined;
 
+  // Kept current every render so the deliver-step effect above records
+  // exactly the letters the person finished with, hand edits included.
+  recordLettersRef.current = letters.length
+    ? {
+        hash: hashLetters(letters.map((l) => overrides[l.key] ?? l.body)),
+        payload: buildLetterRecordPayload({ person, where, subject, letters, overrides }),
+      }
+    : null;
+
   const stillBlank = [];
   if (!person.lastSeenPlace.trim()) stillBlank.push('their last known location');
   if (where === 'ca' && !caRecipient.name.trim()) stillBlank.push("your MP's name");
@@ -645,10 +684,11 @@ export default function RasuwaWizard() {
             </Field>
           </div>
           <p className="text-sm text-midnight-400">
-            What you type stays on your device, kept only in this browser tab so a phone call
-            or a reload does not wipe it. Close the tab and it is gone. The lookups send only
-            your address or postal code to find your representatives, and the finish boxes at
-            the end add one to a shared count. Nothing you type is stored by this site.
+            What you type stays on your device while you work, kept only in this browser tab
+            so a phone call or a reload does not wipe it. The lookups send only your address
+            or postal code to find your representatives. When your letters are finished, one
+            copy is saved for the families&apos; records, so the campaign can show every missing
+            person has letters going out.
           </p>
         </div>
       </StepScreen>
@@ -964,7 +1004,7 @@ export default function RasuwaWizard() {
         stepKey="letters"
         variant="rasuwa"
         question={letters.length > 1 ? 'Your letters are ready' : 'Your letter is ready'}
-        hint="Edit anything; whatever is in [brackets] still needs filling in. Hand edits are kept unless you change a detail in an earlier step."
+        hint="Edit anything; whatever is in [brackets] still needs filling in. Hand edits are kept unless you change a detail in an earlier step. When you continue, one copy is saved for the families' records."
         primary={{ label: 'Continue: get it to them', onClick: goNext, disabled: letters.length === 0 }}
         wide
       >

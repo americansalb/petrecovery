@@ -42,7 +42,7 @@ export const WHERE_VALUES = ['us', 'ca', 'intl'];
 const text = (v) => (typeof v === 'string' ? v : '');
 
 /** The saved shape: what the person typed or chose, plus where they are in the wizard. */
-export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done }) {
+export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, savedLetterHash }) {
   return {
     v: 2,
     step: text(step),
@@ -51,6 +51,7 @@ export function snapshotDraft({ person, writer, lookup, manualRep, overrides, st
     writer,
     canada: canada && typeof canada === 'object' ? canada : EMPTY_CANADA,
     done: done && typeof done === 'object' ? done : EMPTY_DONE,
+    savedLetterHash: text(savedLetterHash),
     // Only a completed lookup is worth restoring; busy and error states
     // would come back stale and confusing.
     lookup: lookup && lookup.status === 'done' ? lookup : null,
@@ -129,6 +130,9 @@ export function restoreDraft(d) {
       entry: Boolean(rawDone.entry),
       signed: Boolean(rawDone.signed),
     },
+    // Which letters were already saved to the families' record, so a
+    // restored draft does not record the same letters twice.
+    savedLetterHash: text(src.savedLetterHash),
   };
 }
 

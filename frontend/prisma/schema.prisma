@@ -5651,3 +5651,21 @@ model RasuwaTally {
   count     Int      @default(0)
   updatedAt DateTime @updatedAt
 }
+
+/// The families' record of generated letters (founder instruction,
+/// 2026-08-31: every missing person deserves a letter on record). One
+/// row per finished wizard pass: whose letters, where the writer lives,
+/// who they address, and the letter texts as generated. Saved when the
+/// person moves from composing to delivering; the wizard says so
+/// plainly. Write-only from the public API; read via /api/admin only.
+model RasuwaLetterRecord {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  personName String
+  where      String
+  recipients String
+  subject    String
+  letters    Json
+
+  @@index([personName, createdAt])
+}

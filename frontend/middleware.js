@@ -40,6 +40,9 @@ const RATE_LIMIT_CONFIG = {
   // Anonymous finish-box counter; enough for a person, small enough
   // that button-mashing cannot inflate the shared count much.
   '/api/rasuwa/tally': { windowMs: 60000, maxRequests: 20 },
+  // One record per finished pass; a shared device at an event finishes
+  // a handful of families an hour, not dozens a minute.
+  '/api/rasuwa/letters': { windowMs: 60000, maxRequests: 10 },
   '/api/admin/bulk': { windowMs: 60000, maxRequests: 5 },
   // Lenient: Frequently accessed endpoints
   '/api/dashboard': { windowMs: 60000, maxRequests: 30 },
