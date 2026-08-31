@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { US_STATES } from '@/app/lib/states';
 import directory from './congress-directory.json';
 import missingPeople from './missing-people.json';
+import { findUnprintableChars } from './pdfText';
 import {
   EMPTY_LOOKUP,
   EMPTY_PERSON,
@@ -252,6 +253,7 @@ export default function RasuwaLetterTool() {
   const active = letters[Math.min(activeIdx, Math.max(letters.length - 1, 0))] || null;
   const activeBody = active ? overrides[active.key] ?? active.body : '';
   const activeEdited = active ? overrides[active.key] != null && overrides[active.key] !== active.body : false;
+  const unprintable = findUnprintableChars(letters.map((l) => overrides[l.key] ?? l.body).join('\n'));
 
   async function copyText(key, text) {
     try {
@@ -628,6 +630,12 @@ export default function RasuwaLetterTool() {
                 </button>
                 <span className="text-sm text-slate-600">For printing, faxing, and office visits.</span>
               </div>
+              {unprintable.length > 0 && (
+                <p className="text-sm text-amber-800">
+                  The PDF cannot print these characters: {unprintable.join(' ')}. They will look
+                  wrong on paper. The letter on this page and &quot;Copy letter&quot; are not affected.
+                </p>
+              )}
               {pdfError && <p className="text-sm text-red-700">{pdfError}</p>}
             </div>
           )}
