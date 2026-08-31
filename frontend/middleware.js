@@ -207,6 +207,25 @@ export async function middleware(request) {
     if (/^\/apple-touch-icon(-precomposed)?\.png$/.test(pathname)) {
       return NextResponse.rewrite(new URL('/rasuwa/apple-icon-180.png', request.url));
     }
+    // The family domain shows the family pages and nothing else: any
+    // pet-site route served under rescueourfamily.org would carry pet
+    // chrome and the pet favicon. Assets, the rasuwa API, the tool's
+    // aliases, and robots pass; every other path lands on the sign
+    // page. (/ and /form are already redirected in next.config.js,
+    // which runs before middleware.)
+    const familyAllowed =
+      pathname.startsWith('/rasuwa') ||
+      pathname.startsWith('/api/rasuwa') ||
+      pathname.startsWith('/_next') ||
+      pathname === '/nepal' ||
+      pathname === '/action' ||
+      pathname === '/robots.txt';
+    if (!familyAllowed) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/rasuwa/form';
+      url.search = '';
+      return NextResponse.redirect(url, 307);
+    }
   }
 
   const clientIp = getClientIp(request);
