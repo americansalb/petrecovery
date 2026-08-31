@@ -53,7 +53,8 @@ import {
 const MEMBERS = directory.members;
 const PEOPLE = missingPeople.people;
 
-// US_STATES covers the 50 states; the House also seats delegates for these.
+// The House also seats delegates for these; any area US_STATES already
+// carries (it includes DC) is deduped or the picker lists it twice.
 const EXTRA_AREAS = [
   { code: 'DC', name: 'District of Columbia' },
   { code: 'AS', name: 'American Samoa' },
@@ -62,7 +63,10 @@ const EXTRA_AREAS = [
   { code: 'PR', name: 'Puerto Rico' },
   { code: 'VI', name: 'U.S. Virgin Islands' },
 ];
-const STATE_OPTIONS = [...US_STATES, ...EXTRA_AREAS];
+const STATE_OPTIONS = [
+  ...US_STATES,
+  ...EXTRA_AREAS.filter((a) => !US_STATES.some((s) => s.code === a.code)),
+];
 
 const NATIONALITIES = [
   'United States', 'Australia', 'Canada', 'United Kingdom', 'Singapore',
@@ -775,6 +779,12 @@ export default function RasuwaLetterTool() {
                     </li>
                   ))}
                 </ul>
+                {recipients.some((m) => !m.contactForm) && (
+                  <p className="mt-2 text-sm text-slate-600">
+                    On a member&apos;s site, look for a button that says Contact, Email, or Share
+                    Your Opinion.
+                  </p>
+                )}
               </li>
               <li>
                 <span className="font-semibold">Ask for the privacy release form.</span> An office

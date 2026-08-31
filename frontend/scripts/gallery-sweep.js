@@ -73,6 +73,8 @@ const PUB = [
   ['pub-33-communities-legacy', `/communities/${ID.forceId}`],
   ['pub-34-care', '/care'],
   ['pub-35-care-start', '/care/start'],
+  ['pub-36-rasuwa', '/rasuwa'],
+  ['pub-37-rasuwa-form', '/rasuwa/form'],
 ];
 
 const AUTH = [

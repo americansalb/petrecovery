@@ -83,6 +83,8 @@ Notes:
 | pub-33-communities-legacy.png | `/communities/cmr4cj06y000urdvlagzaski8` | `/rescue-forces/search` | redirects |
 | pub-34-care.png | `/care` | `/care` |  |
 | pub-35-care-start.png | `/care/start` | `/care/start` | the one add-a-pet wizard (guest-first) |
+| pub-36-rasuwa.png | `/rasuwa` | `/rasuwa` | Rasuwa flood letter tool (immersive, no chrome) |
+| pub-37-rasuwa-form.png | `/rasuwa/form` | `/rasuwa/form` | families' sign page (rescueourfamily.org front page); the Google form iframe is blank in the sandbox |
 
 ## Admin session
 

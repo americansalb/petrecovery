@@ -4,11 +4,22 @@
  * unitedstates/congress-legislators dataset, for the /rasuwa letter tool.
  *
  *   node scripts/build-congress-directory.js
+ *   node scripts/build-congress-directory.js --skip-probe   # dataset only
  *
  * Run it when membership changes (elections, resignations, new contact
  * forms), review the diff, and commit the refreshed JSON. The tool
  * bundles this file so the page needs no lookup service at runtime.
  * Validation below fails loudly rather than shipping a short directory.
+ *
+ * The probe step: the upstream dataset carries contact_form for most
+ * senators but almost no House members (435 of 437 were empty), which
+ * left step 5 of the tool pointing at member homepages. House sites are
+ * near-uniform about serving the constituent form at /contact, so for
+ * members without one the script probes {url}/contact and records it
+ * when the response looks like a real contact page (HTTP 200 and the
+ * final URL still on a contact path, so soft-404 redirects to the
+ * homepage do not count). It is a heuristic: review the diff before
+ * committing, and spot-check a few links.
  */
 
 const fs = require('fs');
@@ -33,6 +44,52 @@ async function getJson(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url} responded ${res.status}`);
   return res.json();
+}
+
+/**
+ * True when {siteUrl}/contact answers like a real contact page: HTTP 200
+ * with the final URL (after redirects) still on a contact-ish path. A
+ * soft 404 that redirects to the homepage fails the path check.
+ */
+async function probeContactPage(siteUrl) {
+  const base = siteUrl.replace(/\/+$/, '');
+  const candidate = `${base}/contact`;
+  try {
+    const res = await fetch(candidate, {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8000),
+      headers: { 'user-agent': 'reunitepets-rasuwa-directory-build (contact page check)' },
+    });
+    if (!res.ok) return null;
+    const finalPath = new URL(res.url || candidate).pathname.toLowerCase();
+    return finalPath.includes('contact') ? candidate : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Fill missing contactForm links by probing {url}/contact, a few at a time. */
+async function probeMissingContactForms(members) {
+  const targets = members.filter((m) => !m.contactForm && m.url);
+  let found = 0;
+  let done = 0;
+  const CONCURRENCY = 8;
+  const queue = [...targets];
+  async function worker() {
+    for (;;) {
+      const m = queue.shift();
+      if (!m) return;
+      const hit = await probeContactPage(m.url);
+      if (hit) {
+        m.contactForm = hit;
+        found++;
+      }
+      done++;
+      if (done % 50 === 0) console.log(`  probed ${done}/${targets.length} (${found} found)`);
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  console.log(`Contact-page probe: ${found} of ${targets.length} members without a dataset link now have one.`);
 }
 
 async function main() {
@@ -64,6 +121,10 @@ async function main() {
       offices,
     };
   });
+
+  if (!process.argv.includes('--skip-probe')) {
+    await probeMissingContactForms(members);
+  }
 
   members.sort((a, b) =>
     a.state.localeCompare(b.state) ||

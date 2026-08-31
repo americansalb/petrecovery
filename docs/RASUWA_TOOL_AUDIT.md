@@ -408,14 +408,48 @@ is.
 
 ## Fix log
 
-- **H1 fixed (2026-08-31).** Entries now persist as a tab-scoped draft
-  (`app/rasuwa/letterDraft.js`, storage via the report wizards'
-  `wizardDraft` helper). On return the tool offers an explicit
-  "Pick up where you left off?" choice, never a silent prefill; typing
-  past the banner starts fresh and takes over the draft slot. The privacy
-  note now states the tab-scoped keeping honestly and a
-  "Clear everything I typed" button wipes state and draft (with confirm).
-  Verified: 27 unit tests on the draft logic, full suite green (729),
-  production build green, and a 12-check Playwright run in the real app
-  covering save, reload, restore (including a hand-edited letter),
-  start fresh, clear, and typing-dismisses-banner.
+All fixed 2026-08-31, one commit per finding, each verified in the
+running app with Playwright plus unit tests before pushing.
+
+- **H1: tab-scoped draft with explicit restore.**
+  `app/rasuwa/letterDraft.js` on the report wizards' `wizardDraft`
+  storage; "Pick up where you left off?" on return, never a silent
+  prefill; honest privacy wording; confirm-guarded clear.
+- **H5: the PDF prints every name.** Vendored Noto Serif and Noto Serif
+  Devanagari (OFL, `public/rasuwa/fonts`), per-script runs in
+  `pdfText.js`, hyphenation off. For scripts the fonts lack, a warning
+  above the download button names the characters, generated from the
+  font files themselves (`scripts/build-rasuwa-pdf-coverage.js`).
+  Proven by downloading a PDF in a real browser with a Devanagari plus
+  diacritic name and rendering it: conjuncts shaped correctly.
+- **H3 and lookup hygiene:** 60 lookups per minute per IP, a human 429
+  message, one Census retry, no-store on every response, a sequence
+  guard so a slow response cannot resurrect a corrected address, and
+  the writer's state syncs to the lookup result (M3).
+- **H2: the rebuild notice.** When a detail change replaces hand-edited
+  letters, a notice above the letter says so; OK or editing again
+  dismisses it.
+- **H4 (code side) and M12:** the sign page explains the letter before
+  asking for a name, and the open-in-its-own-tab fallback is prominent
+  and covers errors. The organizer action stands: prefer a plain
+  Google Form over the Apps Script web app (30 simultaneous executions
+  cap), and test a live submission.
+- **M11:** both pages share a dedicated card image
+  (`scripts/build-rasuwa-share-image.js`); the sign page carries its
+  own title and description. No more pet-logo unfurls.
+- **UX pass (M2, M4-M10):** full state names in the picker, copy-entry
+  fallback beside the mailto button with the coordinator address
+  visible and the phone tappable, a standing download hint plus the
+  native share sheet where available, a live "Still blank:" line, a
+  start-over button for shared devices, per-letter copied indicators,
+  particle and compound surnames (Van Hollen, De La Cruz, Blunt
+  Rochester), and a phone script that is right on every call.
+- **M1 (tooling):** `build-congress-directory.js` now probes
+  `{url}/contact` for members without a dataset contact form (soft-404
+  guarded, `--skip-probe` to disable). The audit sandbox cannot reach
+  house.gov, so an organizer runs the refresh and reviews the diff;
+  meanwhile step 5 tells people what button to look for on a member's
+  site.
+- **Found along the way:** the state picker listed DC twice
+  (`US_STATES` already carries it); deduped. `/rasuwa` and
+  `/rasuwa/form` are in the screenshot gallery and sweep script now.
