@@ -453,3 +453,14 @@ running app with Playwright plus unit tests before pushing.
 - **Found along the way:** the state picker listed DC twice
   (`US_STATES` already carries it); deduped. `/rasuwa` and
   `/rasuwa/form` are in the screenshot gallery and sweep script now.
+- **Founder follow-ups (same day):** rescueourfamily.org tabs carried
+  the ReunitePets dog favicon; the family domain and the /rasuwa pages
+  now have their own mark, manifest, and host-aware /favicon.ico
+  (`scripts/build-rasuwa-icons.js`). And the landing pages' signer
+  count was frozen at the August 29 figure; both pages now show the
+  live roster size via `/api/rasuwa/roster-count` (ten-minute cache,
+  validated, "More than 1,189" floor when the source is unreachable).
+  The count goes fully live once an organizer pastes the three-line
+  handler documented in `letterData.js` into the roster's Apps Script.
+  The generated letters still cite 1,189 on purpose: they quote the
+  letter as sent, a dated document an office can verify.
