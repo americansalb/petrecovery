@@ -140,6 +140,7 @@ export default function RasuwaLetterTool() {
     setLookup(d.lookup);
     setManualRep(d.manualRep);
     setOverrides(d.overrides);
+    setEditsCleared(false);
     setPendingDraft(null);
   }
 
@@ -156,6 +157,7 @@ export default function RasuwaLetterTool() {
     setManualRep('');
     setOverrides({});
     setActiveIdx(0);
+    setEditsCleared(false);
     setPendingDraft(null);
     clearRasuwaDraft();
   }
@@ -164,8 +166,16 @@ export default function RasuwaLetterTool() {
 
   // Any change to the person or writer invalidates hand-edited letter
   // text: a kept override would freeze the previous person's details
-  // into the letter and the PDF.
-  const clearOverrides = () => setOverrides((o) => (Object.keys(o).length ? {} : o));
+  // into the letter and the PDF. Never silently: editsCleared puts a
+  // notice above the letter saying the hand edits were replaced.
+  const [editsCleared, setEditsCleared] = useState(false);
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
+  const clearOverrides = () => {
+    if (!Object.keys(overridesRef.current).length) return;
+    setOverrides({});
+    setEditsCleared(true);
+  };
   const setP = (patch) => {
     setPerson((p) => ({ ...p, ...patch }));
     clearOverrides();
@@ -588,6 +598,17 @@ export default function RasuwaLetterTool() {
             <p className="text-sm text-slate-600">Pick your members of Congress in step 3 and the letters appear here.</p>
           ) : (
             <div className="space-y-4">
+              {editsCleared && (
+                <div className="flex items-start justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p>
+                    You changed a detail above, so the letters were rebuilt to match. Your hand
+                    edits to the letter text were replaced.
+                  </p>
+                  <button type="button" className="shrink-0 font-semibold underline" onClick={() => setEditsCleared(false)}>
+                    OK
+                  </button>
+                </div>
+              )}
               {letters.length > 1 && (
                 <div className="flex flex-wrap gap-2">
                   {letters.map((l, i) => (
@@ -641,7 +662,10 @@ export default function RasuwaLetterTool() {
                   <textarea
                     className={`${inputCls} min-h-[380px] font-mono text-sm leading-relaxed`}
                     value={activeBody}
-                    onChange={(e) => setOverrides((o) => ({ ...o, [active.key]: e.target.value }))}
+                    onChange={(e) => {
+                      setEditsCleared(false);
+                      setOverrides((o) => ({ ...o, [active.key]: e.target.value }));
+                    }}
                   />
                 </div>
               )}
