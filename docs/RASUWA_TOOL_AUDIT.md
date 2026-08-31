@@ -405,3 +405,17 @@ Nothing here requires changing the architecture, the privacy posture, or
 the copy voice. The tool's bones are right; the work is making the last
 mile (deliver, call, print, sign) as forgiving as the first mile already
 is.
+
+## Fix log
+
+- **H1 fixed (2026-08-31).** Entries now persist as a tab-scoped draft
+  (`app/rasuwa/letterDraft.js`, storage via the report wizards'
+  `wizardDraft` helper). On return the tool offers an explicit
+  "Pick up where you left off?" choice, never a silent prefill; typing
+  past the banner starts fresh and takes over the draft slot. The privacy
+  note now states the tab-scoped keeping honestly and a
+  "Clear everything I typed" button wipes state and draft (with confirm).
+  Verified: 27 unit tests on the draft logic, full suite green (729),
+  production build green, and a 12-check Playwright run in the real app
+  covering save, reload, restore (including a hand-edited letter),
+  start fresh, clear, and typing-dismisses-banner.

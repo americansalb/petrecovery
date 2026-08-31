@@ -6,17 +6,33 @@
  * only network call is the district lookup (api/rasuwa/district), which
  * forwards the entered address to the Census geocoder and stores nothing.
  *
+ * Entries are kept as a draft in this browser tab (letterDraft.js): the
+ * flow tells people to switch apps to call offices, phones discard
+ * backgrounded tabs, and without a draft they come back to an empty
+ * form. The draft dies with the tab; restoring it is an explicit choice.
+ *
  * Flow: pick or enter the missing person, enter your own details, find
  * your members of Congress (or your country's contacts), then copy the
  * letter into each office's contact form, call with the script, and
  * download the PDF for printing and faxing.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { US_STATES } from '@/app/lib/states';
 import directory from './congress-directory.json';
 import missingPeople from './missing-people.json';
+import {
+  EMPTY_LOOKUP,
+  EMPTY_PERSON,
+  EMPTY_WRITER,
+  clearRasuwaDraft,
+  describeDraft,
+  draftHasContent,
+  loadRasuwaDraft,
+  restoreDraft,
+  saveRasuwaDraft,
+} from './letterDraft';
 import {
   COORDINATOR_NAME,
   COUNTRY_GUIDES,
@@ -84,22 +100,66 @@ function StepCard({ number, title, children }) {
 }
 
 export default function RasuwaLetterTool() {
-  const [person, setPerson] = useState({
-    pick: '', name: '', country: 'United States', home: '',
-    lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '',
-  });
-  const [writer, setWriter] = useState({
-    name: '', relationship: '', phone: '', email: '',
-    inUS: true, street: '', city: '', state: '', zip: '',
-    country: 'Australia',
-  });
-  const [lookup, setLookup] = useState({ status: 'idle', error: '', state: '', district: null, matchedAddress: '' });
+  const [person, setPerson] = useState(EMPTY_PERSON);
+  const [writer, setWriter] = useState(EMPTY_WRITER);
+  const [lookup, setLookup] = useState(EMPTY_LOOKUP);
   const [manualRep, setManualRep] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
   const [overrides, setOverrides] = useState({});
   const [copied, setCopied] = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pdfError, setPdfError] = useState('');
+  // A draft found at mount, waiting on the person's continue-or-fresh
+  // choice. While it waits, autosave pauses so the empty form cannot
+  // overwrite it.
+  const [pendingDraft, setPendingDraft] = useState(null);
+
+  useEffect(() => {
+    const d = loadRasuwaDraft();
+    if (draftHasContent(d)) setPendingDraft(d);
+  }, []);
+
+  // Save on every meaningful change. Typing while the restore banner is
+  // up counts as choosing to start fresh: the banner goes away and the
+  // new entries take over the draft slot.
+  useEffect(() => {
+    const state = { person, writer, lookup, manualRep, overrides };
+    if (!draftHasContent(state)) return;
+    if (pendingDraft) {
+      setPendingDraft(null);
+      return;
+    }
+    saveRasuwaDraft(state);
+  }, [person, writer, lookup, manualRep, overrides, pendingDraft]);
+
+  function resumeDraft() {
+    const d = restoreDraft(pendingDraft);
+    setPerson(d.person);
+    setWriter(d.writer);
+    setLookup(d.lookup);
+    setManualRep(d.manualRep);
+    setOverrides(d.overrides);
+    setPendingDraft(null);
+  }
+
+  function startFresh() {
+    clearRasuwaDraft();
+    setPendingDraft(null);
+  }
+
+  function clearEverything() {
+    if (!window.confirm('Clear everything you typed on this page?')) return;
+    setPerson(EMPTY_PERSON);
+    setWriter(EMPTY_WRITER);
+    setLookup(EMPTY_LOOKUP);
+    setManualRep('');
+    setOverrides({});
+    setActiveIdx(0);
+    setPendingDraft(null);
+    clearRasuwaDraft();
+  }
+
+  const dirty = draftHasContent({ person, writer, lookup, manualRep, overrides });
 
   // Any change to the person or writer invalidates hand-edited letter
   // text: a kept override would freeze the previous person's details
@@ -113,17 +173,16 @@ export default function RasuwaLetterTool() {
     setWriter((w) => ({ ...w, ...patch }));
     clearOverrides();
   };
-  const emptyLookup = { status: 'idle', error: '', state: '', district: null, matchedAddress: '' };
   // Street, city, and ZIP feed the district lookup; editing them after
   // a successful lookup invalidates the representative it found.
   const setAddressField = (patch) => {
     setW(patch);
-    setLookup((l) => (l.status === 'idle' ? l : emptyLookup));
+    setLookup((l) => (l.status === 'idle' ? l : EMPTY_LOOKUP));
   };
 
   function pickPerson(value) {
     if (value === '' || value === 'other') {
-      setP({ pick: value, name: '', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' });
+      setP({ ...EMPTY_PERSON, pick: value });
       return;
     }
     const entry = PEOPLE[Number(value)];
@@ -255,15 +314,40 @@ export default function RasuwaLetterTool() {
             one&apos;s details, the phone numbers to call, and the forms to submit it through.
             It takes about ten minutes.
           </p>
-          <p className="mt-3 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
-            What you type here stays on your device. This page has no database and saves
-            nothing. The one exception: when you press &quot;Find my district&quot;, the address you
-            entered goes to the U.S. Census geocoder to identify your congressional district.
-          </p>
+          <div className="mt-3 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
+            <p>
+              What you type here stays on your device. This page has no database. Your entries
+              are kept in this browser tab so a phone call or an accidental reload does not wipe
+              them; close the tab and they are gone. The one exception: when you press &quot;Find my
+              district&quot;, the address you entered goes to the U.S. Census geocoder to identify
+              your congressional district.
+            </p>
+            {dirty && (
+              <button type="button" className="mt-2 font-medium underline" onClick={clearEverything}>
+                Clear everything I typed
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+        {pendingDraft && (
+          <section className="rounded-lg border border-blue-300 bg-blue-50 p-5 shadow-sm">
+            <p className="font-bold text-slate-900">Pick up where you left off?</p>
+            <p className="mt-1 text-sm text-slate-700">
+              This tab still has {describeDraft(pendingDraft)}. Continue with it, or start fresh.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button type="button" className={buttonCls} onClick={resumeDraft}>
+                Continue where I left off
+              </button>
+              <button type="button" className={buttonLightCls} onClick={startFresh}>
+                Start fresh
+              </button>
+            </div>
+          </section>
+        )}
         <StepCard number={1} title="Who is missing">
           <div className="space-y-4">
             <Field label="Pick from the letter's list, or add someone">
@@ -392,7 +476,7 @@ export default function RasuwaLetterTool() {
                 {lookup.status === 'done' && (
                   <span className="text-sm text-slate-600">
                     {lookup.matchedAddress}: district {lookup.district === 0 ? 'at large' : lookup.district}, {lookup.state}.{' '}
-                    <button type="button" className="underline" onClick={() => setLookup({ status: 'idle', error: '', state: '', district: null, matchedAddress: '' })}>
+                    <button type="button" className="underline" onClick={() => setLookup(EMPTY_LOOKUP)}>
                       Wrong? Pick by hand
                     </button>
                   </span>
