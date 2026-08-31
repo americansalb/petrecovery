@@ -175,6 +175,7 @@ describe('snapshot and restore round trip', () => {
     expect(restoreDraft({ step: 'usAddress' }).step).toBe('reps');
     expect(restoreDraft({ step: 'caPostal' }).step).toBe('reps');
     expect(restoreDraft({ step: 'members' }).step).toBe('reps');
+    expect(restoreDraft({ step: 'deliver' }).step).toBe('letters');
     expect(restoreDraft({ step: 'letters' }).step).toBe('letters');
   });
 
@@ -196,6 +197,15 @@ describe('snapshot and restore round trip', () => {
     const back = restoreDraft(snapshotDraft(state));
     expect(back.done).toEqual({ letters: true, entry: true, signed: false });
     expect(restoreDraft({}).done).toEqual({ letters: false, entry: false, signed: false });
+  });
+
+  test('per-recipient sent marks round trip as booleans and junk collapses', () => {
+    const state = typedState();
+    state.sent = { S000148: true, D000563: 'yes' };
+    const back = restoreDraft(snapshotDraft(state));
+    expect(back.sent).toEqual({ S000148: true, D000563: true });
+    expect(restoreDraft({}).sent).toEqual({});
+    expect(restoreDraft({ sent: 'junk' }).sent).toEqual({});
   });
 
   test('the saved-letters hash rides the draft so restores never re-record', () => {

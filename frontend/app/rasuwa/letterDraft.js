@@ -35,6 +35,9 @@ export const EMPTY_LOOKUP = { status: 'idle', error: '', state: '', district: nu
 /** The Canadian slice: postal code, the found MP, or a hand-entered one. */
 export const EMPTY_CANADA = { postal: '', mp: null, manualName: '', manualRiding: '', manualEmail: '' };
 
+/** Per-recipient "Sent" marks on the send step, keyed by recipient. */
+export const EMPTY_SENT = {};
+
 /** The finish boxes on the last step; restoring must never re-count them. */
 export const EMPTY_DONE = { letters: false, entry: false, signed: false };
 
@@ -43,7 +46,7 @@ export const WHERE_VALUES = ['us', 'ca', 'intl'];
 const text = (v) => (typeof v === 'string' ? v : '');
 
 /** The saved shape: what the person typed or chose, plus where they are in the wizard. */
-export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, savedLetterHash, pendingTally }) {
+export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, sent, savedLetterHash, pendingTally }) {
   return {
     v: 2,
     step: text(step),
@@ -52,6 +55,7 @@ export function snapshotDraft({ person, writer, lookup, manualRep, overrides, st
     writer,
     canada: canada && typeof canada === 'object' ? canada : EMPTY_CANADA,
     done: done && typeof done === 'object' ? done : EMPTY_DONE,
+    sent: sent && typeof sent === 'object' ? sent : EMPTY_SENT,
     savedLetterHash: text(savedLetterHash),
     templateVersion: LETTER_TEMPLATE_VERSION,
     pendingTally: Array.isArray(pendingTally) ? pendingTally.filter((a) => typeof a === 'string').slice(0, 6) : [],
@@ -124,7 +128,7 @@ export function restoreDraft(d) {
   const rawDone = src.done && typeof src.done === 'object' ? src.done : {};
   // The wizard merged steps (nine screens became six); drafts saved on
   // the old step land on the merged screen that now holds their fields.
-  const OLD_STEPS = { details: 'person', where: 'you', usAddress: 'reps', caPostal: 'reps', members: 'reps' };
+  const OLD_STEPS = { details: 'person', where: 'you', usAddress: 'reps', caPostal: 'reps', members: 'reps', deliver: 'letters' };
   const savedStep = text(src.step);
   return {
     step: OLD_STEPS[savedStep] || savedStep,
@@ -145,6 +149,17 @@ export function restoreDraft(d) {
       entry: Boolean(rawDone.entry),
       signed: Boolean(rawDone.signed),
     },
+    // Which recipients this person already marked as sent, keyed by the
+    // recipient key; junk collapses to booleans and unknown shapes to {}.
+    sent:
+      src.sent && typeof src.sent === 'object'
+        ? Object.fromEntries(
+            Object.entries(src.sent)
+              .filter(([k]) => typeof k === 'string')
+              .slice(0, 8)
+              .map(([k, v]) => [k, Boolean(v)])
+          )
+        : {},
     // Which letters were already saved to the families' record, so a
     // restored draft does not record the same letters twice.
     savedLetterHash: text(src.savedLetterHash),

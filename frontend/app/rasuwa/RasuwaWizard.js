@@ -23,7 +23,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Globe2, Landmark, Leaf } from 'lucide-react';
+import { ExternalLink, Globe2, Landmark, Leaf } from 'lucide-react';
 import DraftPrompt from '@/app/components/report/DraftPrompt';
 import OptionCardGrid from '@/app/components/report/OptionCardGrid';
 import StepScreen from '@/app/components/report/StepScreen';
@@ -41,6 +41,7 @@ import {
   EMPTY_DONE,
   EMPTY_LOOKUP,
   EMPTY_PERSON,
+  EMPTY_SENT,
   EMPTY_WRITER,
   clearRasuwaDraft,
   describeDraft,
@@ -134,14 +135,9 @@ const STEP_META = {
     sidebarCopy: 'The letter is written for a Member of Parliament or consular officer; these links find yours.',
   },
   letters: {
-    label: 'Your letters',
+    label: 'Send your letters',
     sidebarTitle: 'Ready to send.',
-    sidebarCopy: 'One letter per office, built from what you entered. Edit anything; the brackets mark what is still blank.',
-  },
-  deliver: {
-    label: 'Get it to them',
-    sidebarTitle: 'Delivered beats drafted.',
-    sidebarCopy: 'Calls are logged the same day. Then the letter, by the channel each office actually reads.',
+    sidebarCopy: 'Each office has its own copy button and send link, right beside the letter. Work down the list; after sending, the call script makes it count.',
   },
   roster: {
     label: 'Finish and be counted',
@@ -156,10 +152,10 @@ const STEP_META = {
 // with the representatives it finds.
 const BASE_STEPS = ['person', 'you'];
 const TAIL_STEPS = {
-  us: ['reps', 'letters', 'deliver', 'roster'],
-  ca: ['reps', 'letters', 'deliver', 'roster'],
-  intl: ['country', 'letters', 'deliver', 'roster'],
-  '': ['letters', 'deliver', 'roster'],
+  us: ['reps', 'letters', 'roster'],
+  ca: ['reps', 'letters', 'roster'],
+  intl: ['country', 'letters', 'roster'],
+  '': ['letters', 'roster'],
 };
 const stepIdsFor = (where) => [...BASE_STEPS, ...TAIL_STEPS[where] ?? TAIL_STEPS['']];
 
@@ -171,10 +167,13 @@ export default function RasuwaWizard() {
   const [canada, setCanada] = useState(EMPTY_CANADA);
   const [lookup, setLookup] = useState(EMPTY_LOOKUP);
   const [manualRep, setManualRep] = useState('');
-  const [activeIdx, setActiveIdx] = useState(0);
+  // Which recipients are marked sent, and which letter is open to edit.
+  const [sent, setSent] = useState(EMPTY_SENT);
+  const [openLetter, setOpenLetter] = useState('');
+  const [showPaper, setShowPaper] = useState(false);
   const [overrides, setOverrides] = useState({});
   const [copied, setCopied] = useState('');
-  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState('');
   const [pdfError, setPdfError] = useState('');
   const [mpStatus, setMpStatus] = useState({ busy: false, error: '' });
   const [caManual, setCaManual] = useState(false);
@@ -183,6 +182,27 @@ export default function RasuwaWizard() {
 
   useEffect(() => {
     setCanShare(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+  }, []);
+
+  // The live signature count, so the letters do not read as frozen at
+  // the August 29 figure. One fetch; letters fall back to the dated
+  // sentence whenever the count is unavailable or not yet larger.
+  const [liveSigners, setLiveSigners] = useState(null);
+  useEffect(() => {
+    let stop = false;
+    fetch('/api/rasuwa/roster-count')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!stop && data && data.live && Number.isFinite(Number(data.count))) {
+          setLiveSigners(Number(data.count));
+        }
+      })
+      .catch(() => {
+        // the dated sentence stands
+      });
+    return () => {
+      stop = true;
+    };
   }, []);
 
   // ── The collective count: finish boxes and the shared tally ────────
@@ -250,7 +270,7 @@ export default function RasuwaWizard() {
   const [savedLetterHash, setSavedLetterHash] = useState('');
   const recordLettersRef = useRef(null);
   useEffect(() => {
-    if (step !== 'deliver') return;
+    if (step !== 'roster') return;
     const record = recordLettersRef.current;
     if (!record) return;
     const { hash, payload } = record;
@@ -306,14 +326,14 @@ export default function RasuwaWizard() {
   }, []);
 
   useEffect(() => {
-    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingTally };
+    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, sent, savedLetterHash, pendingTally };
     if (!draftHasContent(state)) return;
     if (pendingDraft) {
       setPendingDraft(null);
       return;
     }
     saveRasuwaDraft(state);
-  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingTally, pendingDraft]);
+  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, sent, savedLetterHash, pendingTally, pendingDraft]);
 
   function resumeDraft() {
     const d = restoreDraft(pendingDraft);
@@ -325,6 +345,7 @@ export default function RasuwaWizard() {
     setOverrides(d.overrides);
     setWhere(d.where);
     setDone(d.done);
+    setSent(d.sent);
     setSavedLetterHash(d.savedLetterHash);
     setPendingTally(d.pendingTally);
     setStep(stepIdsFor(d.where).includes(d.step) ? d.step : 'person');
@@ -346,9 +367,11 @@ export default function RasuwaWizard() {
     setLookup(EMPTY_LOOKUP);
     setManualRep('');
     setOverrides({});
-    setActiveIdx(0);
     setWhere('');
     setDone(EMPTY_DONE);
+    setSent(EMPTY_SENT);
+    setOpenLetter('');
+    setShowPaper(false);
     setSavedLetterHash('');
     setPendingTally([]);
     setEditsCleared('');
@@ -367,6 +390,11 @@ export default function RasuwaWizard() {
   const overridesRef = useRef(overrides);
   overridesRef.current = overrides;
   const clearOverrides = () => {
+    // A detail change rebuilds the letters, so the per-recipient Sent
+    // marks stop describing them too (review finding: a new person or
+    // a different MP kept the old mark under the same key). Hand edits
+    // additionally get the visible notice.
+    setSent((sf) => (Object.keys(sf).length ? EMPTY_SENT : sf));
     if (!Object.keys(overridesRef.current).length) return;
     setOverrides({});
     setEditsCleared('details');
@@ -557,21 +585,20 @@ export default function RasuwaWizard() {
   const letters = recipients.map((recipient) => ({
     recipient,
     key: recipient.bioguide,
-    body: buildLetterBody({ recipient, writer, person }),
+    body: buildLetterBody({ recipient, writer, person, signers: liveSigners }),
   }));
-  const active = letters[Math.min(activeIdx, Math.max(letters.length - 1, 0))] || null;
-  const activeBody = active ? overrides[active.key] ?? active.body : '';
-  const activeEdited = active ? overrides[active.key] != null && overrides[active.key] !== active.body : false;
-  const subject = buildSubject({ writer, person, recipient: active ? active.recipient : recipients[0] });
+  const firstLetter = letters[0] || null;
+  const firstBody = firstLetter ? overrides[firstLetter.key] ?? firstLetter.body : '';
+  const subject = buildSubject({ writer, person, recipient: firstLetter ? firstLetter.recipient : recipients[0] });
   const unprintable = findUnprintableChars(letters.map((l) => overrides[l.key] ?? l.body).join('\n'));
   const guide = findCountryGuide(writer.country);
 
   // The letter writes itself in the sidebar as fields fill in; before a
   // real recipient exists a generic consular letter carries the preview,
   // so the person sees their words landing from the first step.
-  const previewBody = active
-    ? activeBody
-    : buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
+  const previewBody = firstLetter
+    ? firstBody
+    : buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person, signers: liveSigners });
   const sidebarPreview =
     step !== 'letters' && (person.name.trim() || writer.name.trim()) ? previewBody : undefined;
 
@@ -604,33 +631,41 @@ export default function RasuwaWizard() {
     setTimeout(() => setCopied((c) => (c === key ? '' : c)), 2000);
   }
 
-  async function downloadPdf() {
-    setPdfBusy(true);
+  // One PDF per recipient (founder feedback: each office gets its own
+  // letter, so each gets its own file, sendable one at a time).
+  async function downloadPdf(letter) {
+    setPdfBusy(letter.key);
     setPdfError('');
     try {
       const { buildLetterPdfBlob } = await import('./LetterPdf');
       const blob = await buildLetterPdfBlob({
-        letters: letters.map((l) => ({ body: overrides[l.key] ?? l.body })),
+        letters: [{ body: overrides[letter.key] ?? letter.body }],
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const slug = (person.name || 'family').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'family';
+      const slugOf = (v, fallback) =>
+        (v || fallback).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || fallback;
+      const personSlug = slugOf(person.name, 'family');
+      const whoSlug =
+        letter.recipient.chamber === 'intl'
+          ? 'parliament'
+          : slugOf(recipientLastName(letter.recipient), 'office');
       a.href = url;
-      a.download = `rasuwa-letters-${slug}.pdf`;
+      a.download = `rasuwa-letter-${personSlug}-${whoSlug}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch {
-      setPdfError('The PDF could not be built in this browser. Use "Copy letter" and paste into a document instead.');
+      setPdfError('The PDF could not be built in this browser. Use "Copy the letter" and paste into a document instead.');
     } finally {
-      setPdfBusy(false);
+      setPdfBusy('');
     }
   }
 
-  async function shareActiveLetter() {
+  async function shareLetter(body) {
     try {
-      await navigator.share({ title: subject, text: `${subject}\n\n${activeBody}` });
+      await navigator.share({ title: subject, text: `${subject}\n\n${body}` });
     } catch {
       // the person closed the share sheet; nothing to do
     }
@@ -1041,13 +1076,19 @@ export default function RasuwaWizard() {
       </StepScreen>
     );
   } else if (step === 'letters') {
+    const sentCount = letters.filter((l) => sent[l.key]).length;
+    const guideLinks = [guide.findRep, guide.consular].filter(Boolean);
     screen = (
       <StepScreen
         stepKey="letters"
         variant="rasuwa"
-        question={letters.length > 1 ? 'Your letters are ready' : 'Your letter is ready'}
-        hint="Edit anything; whatever is in [brackets] still needs filling in. Hand edits are kept unless you change a detail in an earlier step. When you continue, one copy is saved for the families' records."
-        primary={{ label: 'Continue: get it to them', onClick: goNext, disabled: letters.length === 0 }}
+        question={letters.length > 1 ? 'Send your letters' : 'Send your letter'}
+        hint={
+          letters.length > 1
+            ? `One letter per office, with its buttons beside it: copy the letter, open their form, paste, submit, mark it sent. Do all ${letters.length}.`
+            : 'Copy the letter, open the channel beside it, paste, send.'
+        }
+        primary={{ label: 'One last step: finish and be counted', onClick: goNext, disabled: letters.length === 0 }}
         secondary={backAction}
         wide
       >
@@ -1065,250 +1106,287 @@ export default function RasuwaWizard() {
             </div>
           )}
 
-          {letters.length > 1 && (
-            <div className="flex flex-wrap gap-2">
-              {letters.map((l, i) => (
-                <button
-                  key={l.key}
-                  type="button"
-                  onClick={() => setActiveIdx(i)}
-                  className={`rounded-full border-2 px-3 py-1 text-sm font-semibold ${
-                    i === (active ? letters.indexOf(active) : 0)
-                      ? 'border-blue-800 bg-blue-800 text-white'
-                      : 'border-midnight-200 bg-white text-midnight-700 hover:bg-midnight-100'
-                  }`}
-                >
-                  {recipientTitle(l.recipient)} {recipientLastName(l.recipient)}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <span className={labelCls}>Subject line (use it on every form, email, and fax)</span>
-              <button type="button" className={linkBtnCls} onClick={() => copyText('subject', subject)}>
-                {copied === 'subject' ? 'Copied' : 'Copy subject'}
-              </button>
-            </div>
-            <p className="rounded-2xl border-2 border-midnight-100 bg-midnight-100/40 p-3 text-sm text-midnight-800">{subject}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {letters.length > 1 ? (
+              <p className="text-sm font-semibold text-midnight-600 tabular-nums">
+                {sentCount} of {letters.length} sent
+              </p>
+            ) : <span />}
+            <p className="text-sm text-midnight-500">
+              Fix a detail:{' '}
+              <button type="button" className="underline" onClick={() => goTo('person')}>who is missing</button>
+              {' | '}
+              <button type="button" className="underline" onClick={() => goTo('you')}>about you</button>
+              {stepIds.includes('reps') && (
+                <>
+                  {' | '}
+                  <button type="button" className="underline" onClick={() => goTo('reps')}>your representatives</button>
+                </>
+              )}
+              {stepIds.includes('country') && (
+                <>
+                  {' | '}
+                  <button type="button" className="underline" onClick={() => goTo('country')}>your country</button>
+                </>
+              )}
+            </p>
           </div>
 
-          {active && (
-            <div>
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <span className={labelCls}>
-                  Letter{active.recipient.chamber !== 'intl' && active.recipient.name ? ` to ${recipientTitle(active.recipient)} ${recipientLastName(active.recipient)}` : ''}
-                </span>
-                <span className="flex gap-3">
-                  {activeEdited && (
-                    <button
-                      type="button"
-                      className="text-sm text-midnight-500 underline"
-                      onClick={() => setOverrides((o) => { const n = { ...o }; delete n[active.key]; return n; })}
+          {letters.map((l, i) => {
+            const m = l.recipient;
+            const body = overrides[l.key] ?? l.body;
+            const edited = overrides[l.key] != null && overrides[l.key] !== l.body;
+            const isMp = m.chamber === 'mp';
+            const isIntl = m.chamber === 'intl';
+            const isSent = Boolean(sent[l.key]);
+            const formHref = !isMp && !isIntl ? m.contactForm || m.url || US_LINKS.houseFinder : '';
+            const formLabel = !isMp && !isIntl
+              ? m.contactForm ? 'Open the contact form' : m.url ? 'Open their site (use Contact)' : 'Find their contact page'
+              : '';
+            const cardName = isIntl
+              ? 'Your Member of Parliament or consular officer'
+              : `${recipientTitle(m)} ${m.name || "[your MP's name]"}`;
+            const cardSub = isIntl
+              ? 'Find them with the links below, then paste the letter.'
+              : isMp
+                ? m.riding ? `Member of Parliament for ${m.riding}` : 'Member of Parliament'
+                : `${m.party}, ${m.state}${m.chamber === 'rep' ? `-${m.district === 0 ? 'AL' : m.district}` : ''}`;
+            return (
+              <article
+                key={l.key}
+                className={`rounded-2xl border-2 p-4 transition-colors ${isSent ? 'border-green-300 bg-green-50/60' : 'border-midnight-100 bg-white'}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-midnight-900">
+                      {letters.length > 1 ? `${i + 1}. ` : ''}{cardName}
+                    </p>
+                    <p className="text-sm text-midnight-500 mt-0.5">{cardSub}</p>
+                  </div>
+                  <label className={`flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border-2 px-3 py-1.5 text-sm font-semibold ${isSent ? 'border-green-400 bg-green-100 text-green-800' : 'border-midnight-200 text-midnight-600'}`}>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-green-700"
+                      checked={isSent}
+                      onChange={() => setSent((sf) => ({ ...sf, [l.key]: !sf[l.key] }))}
+                    />
+                    Sent
+                  </label>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900"
+                    onClick={() => copyText(`letter-${l.key}`, body)}
+                  >
+                    {copied === `letter-${l.key}` ? 'Copied' : 'Copy the letter'}
+                  </button>
+                  {formHref && (
+                    <a
+                      className="inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-blue-800 bg-white px-4 py-2 text-sm font-bold text-blue-800 hover:bg-blue-50"
+                      href={formHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      Reset to generated text
+                      {formLabel}
+                      <ExternalLink size={14} />
+                    </a>
+                  )}
+                  {isMp && (
+                    m.email ? (
+                      <a
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-blue-800 bg-white px-4 py-2 text-sm font-bold text-blue-800 hover:bg-blue-50"
+                        href={`mailto:${m.email}?subject=${encodeURIComponent(subject)}`}
+                      >
+                        Open an email to your MP
+                      </a>
+                    ) : (
+                      <a
+                        className="inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-blue-800 bg-white px-4 py-2 text-sm font-bold text-blue-800 hover:bg-blue-50"
+                        href={CANADA_LINKS.findMp.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Find your MP and their email
+                        <ExternalLink size={14} />
+                      </a>
+                    )
+                  )}
+                  {canShare && (
+                    <button type="button" className={linkBtnCls} onClick={() => shareLetter(body)}>
+                      Share
                     </button>
                   )}
-                  <button type="button" className={linkBtnCls} onClick={() => copyText(`letter-${active.key}`, activeBody)}>
-                    {copied === `letter-${active.key}` ? 'Copied' : 'Copy letter'}
+                </div>
+
+                <p className="mt-2.5 text-xs text-midnight-500">
+                  {isMp ? 'Email subject' : isIntl ? 'Subject' : 'The form asks for a subject'}:{' '}
+                  <button type="button" className="font-semibold text-blue-800 underline" onClick={() => copyText(`subject-${l.key}`, subject)}>
+                    {copied === `subject-${l.key}` ? 'Copied' : 'copy the subject line'}
                   </button>
-                </span>
-              </div>
-              <textarea
-                className={`${inputCls} min-h-[340px] font-mono text-sm leading-relaxed`}
-                value={activeBody}
-                onChange={(e) => {
-                  setEditsCleared('');
-                  setOverrides((o) => ({ ...o, [active.key]: e.target.value }));
-                }}
-              />
-            </div>
-          )}
+                </p>
+
+                {isIntl && guideLinks.length > 0 && (
+                  <p className="mt-2 text-sm text-midnight-600">
+                    {guideLinks.map((link, gi) => (
+                      <span key={link.url}>
+                        {gi > 0 && ' | '}
+                        <a className="underline" href={link.url} target="_blank" rel="noopener noreferrer">{link.label}</a>
+                      </span>
+                    ))}
+                  </p>
+                )}
+
+                <div className="mt-2.5">
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-midnight-500 underline underline-offset-2"
+                    onClick={() => setOpenLetter((k) => (k === l.key ? '' : l.key))}
+                  >
+                    {openLetter === l.key ? 'Hide the letter' : edited ? 'Read or edit the letter (edited)' : 'Read or edit the letter'}
+                  </button>
+                  {openLetter === l.key && (
+                    <div className="mt-2">
+                      {edited && (
+                        <button
+                          type="button"
+                          className="mb-1 text-sm text-midnight-500 underline"
+                          onClick={() => setOverrides((o) => { const n = { ...o }; delete n[l.key]; return n; })}
+                        >
+                          Reset to generated text
+                        </button>
+                      )}
+                      <textarea
+                        className={`${inputCls} min-h-[300px] font-mono text-sm leading-relaxed`}
+                        value={body}
+                        onChange={(e) => {
+                          setEditsCleared('');
+                          setOverrides((o) => ({ ...o, [l.key]: e.target.value }));
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
 
           {stillBlank.length > 0 && (
             <p className="text-sm text-amber-800">
               Still blank: {stillBlank.join(', ')}. The letter marks each gap in [brackets].
             </p>
           )}
-          <div className="flex flex-wrap items-center gap-3">
+
+          <div className="rounded-2xl border-2 border-midnight-100 bg-white p-4 space-y-3">
+            <p className="font-bold text-midnight-900">Sent? A call makes it count.</p>
+            {where === 'us' && (
+              <>
+                <p className="text-sm text-midnight-600">
+                  Offices log constituent calls the same day. Call the DC number for each member; the same script works on every call. On the call, ask for the office&apos;s privacy release form: an office cannot ask the State Department about a specific person until you sign it. Return it the same day, and if a staffer gives you a direct email address, send the letter there too.
+                </p>
+                <ul className="text-sm text-midnight-600 space-y-0.5">
+                  {recipients.map((m) => (
+                    <li key={`call-${m.bioguide}`}>
+                      {recipientTitle(m)} {recipientLastName(m)}: <a className="underline" href={`tel:${m.phone}`}>{m.phone}</a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {where === 'ca' && (
+              <p className="text-sm text-midnight-600">
+                Call your MP&apos;s constituency office (numbers on the representatives step), and call Global Affairs Canada yourself too: the Emergency Watch and Response Centre takes family calls any hour at{' '}
+                <a className="underline" href={`tel:${CANADA_LINKS.globalAffairsPhone}`}>{CANADA_LINKS.globalAffairsPhone}</a>{' '}
+                (collect calls accepted) or {CANADA_LINKS.globalAffairsEmail}. Ask for a case file and a named contact for {person.name.trim() || 'your family member'}.
+              </p>
+            )}
+            {where === 'intl' && (
+              <p className="text-sm text-midnight-600">
+                Call your foreign ministry&apos;s consular emergency line, ask for a case file and a named contact, and ask your country&apos;s embassy responsible for Nepal to add {person.name.trim() || 'your family member'} to its list of the missing.
+              </p>
+            )}
+            {(where === 'us' || where === 'ca') && (
+              <div className="rounded-xl border-2 border-midnight-100 bg-midnight-100/40 p-3 text-sm">
+                {phoneScript}
+                <div className="mt-2">
+                  <button type="button" className={linkBtnCls} onClick={() => copyText('script', phoneScript)}>
+                    {copied === 'script' ? 'Copied' : 'Copy script'}
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-3">
+              <p className="text-sm font-bold text-midnight-900">{ACCESS_COMEBACK.title}</p>
+              <p className="mt-1.5 rounded-lg bg-white border border-blue-200 p-2.5 text-sm text-midnight-800">
+                &quot;{ACCESS_COMEBACK.ask}&quot;
+              </p>
+              <div className="mt-1.5">
+                <button type="button" className={linkBtnCls} onClick={() => copyText('comeback', ACCESS_COMEBACK.ask)}>
+                  {copied === 'comeback' ? 'Copied' : 'Copy the question'}
+                </button>
+              </div>
+              <p className="mt-1.5 text-sm text-midnight-600 leading-relaxed">{ACCESS_COMEBACK.note}</p>
+            </div>
+          </div>
+
+          <div>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-2xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 disabled:opacity-50"
-              onClick={downloadPdf}
-              disabled={pdfBusy}
+              className="text-sm font-semibold text-midnight-500 underline underline-offset-2"
+              onClick={() => setShowPaper((v) => !v)}
             >
-              {pdfBusy ? 'Building PDF...' : `Download PDF (${letters.length === 1 ? '1 letter' : `all ${letters.length} letters`})`}
+              {showPaper ? 'Hide paper, fax, and PDF' : 'Prefer paper, fax, or a PDF?'}
             </button>
-            {canShare && active && (
-              <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-2xl border-2 border-midnight-200 bg-white px-4 py-2.5 text-sm font-bold text-midnight-700 hover:bg-midnight-100"
-                onClick={shareActiveLetter}
-              >
-                Share this letter
-              </button>
-            )}
-            <span className="text-sm text-midnight-500">For printing, faxing, and office visits.</span>
-          </div>
-          <p className="text-sm text-midnight-400">
-            Nothing downloaded? Open this page in Safari or Chrome, or use &quot;Copy letter&quot; above.
-          </p>
-          {unprintable.length > 0 && (
-            <p className="text-sm text-amber-800">
-              The PDF cannot print these characters: {unprintable.join(' ')}. They will look wrong
-              on paper. The letter on this page and &quot;Copy letter&quot; are not affected.
-            </p>
-          )}
-          {pdfError && <p className="text-sm text-red-700">{pdfError}</p>}
-        </div>
-      </StepScreen>
-    );
-  } else if (step === 'deliver') {
-    screen = (
-      <StepScreen
-        stepKey="deliver"
-        variant="rasuwa"
-        question="Get it to them"
-        hint="Calls are logged the same day; the letter follows by the channel each office actually reads."
-        primary={{ label: 'One last step: finish and be counted', onClick: goNext }}
-        secondary={backAction}
-        wide
-      >
-        {where === 'us' && (
-          <ol className="list-decimal space-y-4 pl-5 text-midnight-700">
-            <li>
-              <span className="font-semibold">Call first.</span> Call the DC number and one
-              district office for each member (numbers on the previous step). The same script
-              works on every call:
-              <div className="mt-2 rounded-2xl border-2 border-midnight-100 bg-midnight-100/40 p-3 text-sm">
-                {phoneScript}
-                <div className="mt-2">
-                  <button type="button" className={linkBtnCls} onClick={() => copyText('script', phoneScript)}>
-                    {copied === 'script' ? 'Copied' : 'Copy script'}
-                  </button>
+            {showPaper && (
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {letters.map((l) => (
+                    <button
+                      key={`pdf-${l.key}`}
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-2xl bg-blue-800 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-900 disabled:opacity-50"
+                      onClick={() => downloadPdf(l)}
+                      disabled={Boolean(pdfBusy)}
+                    >
+                      {pdfBusy === l.key
+                        ? 'Building PDF...'
+                        : l.recipient.chamber === 'intl'
+                          ? 'Download the letter as a PDF'
+                          : `PDF: ${recipientTitle(l.recipient)} ${recipientLastName(l.recipient)}`}
+                    </button>
+                  ))}
+                  <span className="text-sm text-midnight-500">One file per office.</span>
                 </div>
-              </div>
-            </li>
-            <li>
-              <span className="font-semibold">Submit the letter through each contact form.</span>{' '}
-              Congressional offices take constituent mail through webforms, not public email
-              addresses. Paste the subject line and the letter.
-              <ul className="mt-2 space-y-1 text-sm">
-                {recipients.map((m) => (
-                  <li key={`form-${m.bioguide}`}>
-                    {m.contactForm ? (
-                      <a className="underline" href={m.contactForm} target="_blank" rel="noopener noreferrer">
-                        Contact form: {recipientTitle(m)} {recipientLastName(m)}
-                      </a>
-                    ) : m.url ? (
-                      <a className="underline" href={m.url} target="_blank" rel="noopener noreferrer">
-                        Official site of {recipientTitle(m)} {recipientLastName(m)} (use its Contact page)
-                      </a>
-                    ) : (
-                      <a className="underline" href={US_LINKS.houseFinder} target="_blank" rel="noopener noreferrer">
-                        Find the contact page via house.gov
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {recipients.some((m) => !m.contactForm) && (
-                <p className="mt-2 text-sm text-midnight-500">
-                  On a member&apos;s site, look for a button that says Contact, Email, or Share Your Opinion.
+                <p className="text-sm text-midnight-400">
+                  Nothing downloaded? Open this page in Safari or Chrome, or use &quot;Copy the letter&quot; above.
                 </p>
-              )}
-            </li>
-            <li>
-              <span className="font-semibold">Ask for the privacy release form.</span> An office
-              cannot ask the State Department about a specific person until you sign its
-              Privacy Act release. Ask for it on the call, return it the same day.
-            </li>
-            <li>
-              <span className="font-semibold">Print or fax the PDF.</span> Offices still process fax.
-              {recipients.some((m) => m.offices && m.offices.some((o) => o.fax)) && (
-                <ul className="mt-2 space-y-1 text-sm">
-                  {recipients.map((m) =>
-                    (m.offices || []).filter((o) => o.fax).slice(0, 2).map((o) => (
-                      <li key={`fax-${m.bioguide}-${o.fax}`}>
-                        {recipientTitle(m)} {recipientLastName(m)}, {o.city} office fax: {o.fax}
-                      </li>
-                    ))
-                  )}
-                </ul>
-              )}
-            </li>
-            <li>
-              <span className="font-semibold">If a staffer gives you a direct email address,</span>{' '}
-              send the letter there too: same subject line, letter in the body, PDF attached.
-            </li>
-          </ol>
-        )}
-
-        {where === 'ca' && (
-          <ol className="list-decimal space-y-4 pl-5 text-midnight-700">
-            <li>
-              <span className="font-semibold">Email your MP.</span> Canadian MPs take constituent
-              email directly{caRecipient.email ? <>: <span className="font-medium">{caRecipient.email}</span></> : ' (the address is on their ourcommons.ca page)'}.
-              Press &quot;Copy letter&quot; on the previous step, open a new email, paste the letter,
-              and use the subject line above it.
-              {caRecipient.email && (
-                <div className="mt-2">
-                  <a
-                    className={linkBtnCls}
-                    href={`mailto:${caRecipient.email}?subject=${encodeURIComponent(subject)}`}
-                  >
-                    Open an email to {caRecipient.name || 'your MP'}
-                  </a>
-                </div>
-              )}
-            </li>
-            <li>
-              <span className="font-semibold">Call the constituency office.</span> Numbers are on
-              the MP step. The script:
-              <div className="mt-2 rounded-2xl border-2 border-midnight-100 bg-midnight-100/40 p-3 text-sm">
-                {phoneScript}
-                <div className="mt-2">
-                  <button type="button" className={linkBtnCls} onClick={() => copyText('script', phoneScript)}>
-                    {copied === 'script' ? 'Copied' : 'Copy script'}
-                  </button>
-                </div>
+                {where === 'us' && recipients.some((m) => m.offices && m.offices.some((o) => o.fax)) && (
+                  <ul className="text-sm text-midnight-600 space-y-0.5">
+                    {recipients.map((m) =>
+                      (m.offices || []).filter((o) => o.fax).slice(0, 2).map((o) => (
+                        <li key={`fax-${m.bioguide}-${o.fax}`}>
+                          {recipientTitle(m)} {recipientLastName(m)}, {o.city} office fax: {o.fax}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                )}
+                {where === 'ca' && (
+                  <p className="text-sm text-midnight-600">
+                    Print the PDF and post it, postage-free, to {CANADA_LINKS.freePost}.
+                  </p>
+                )}
+                {unprintable.length > 0 && (
+                  <p className="text-sm text-amber-800">
+                    The PDF cannot print these characters: {unprintable.join(' ')}. They will look wrong
+                    on paper. The letters on this page and &quot;Copy the letter&quot; are not affected.
+                  </p>
+                )}
+                {pdfError && <p className="text-sm text-red-700">{pdfError}</p>}
               </div>
-            </li>
-            <li>
-              <span className="font-semibold">Mail the printed letter, postage-free.</span>{' '}
-              Print the PDF and post it to {CANADA_LINKS.freePost}.
-            </li>
-            <li>
-              <span className="font-semibold">Call Global Affairs Canada yourself too.</span>{' '}
-              The Emergency Watch and Response Centre takes family calls any hour:{' '}
-              <a className="underline" href={`tel:${CANADA_LINKS.globalAffairsPhone}`}>{CANADA_LINKS.globalAffairsPhone}</a>{' '}
-              (collect calls accepted) or {CANADA_LINKS.globalAffairsEmail}. Ask for a case
-              file and a named contact for {person.name.trim() || 'your family member'}.
-            </li>
-          </ol>
-        )}
-
-        {where === 'intl' && (
-          <ol className="list-decimal space-y-3 pl-5 text-midnight-700">
-            <li>Call your foreign ministry&apos;s consular emergency line and ask for a case file and a named contact (links on the country step).</li>
-            <li>Send the letter to your Member of Parliament through the official finder, with the subject line above it.</li>
-            <li>Download the PDF and attach it wherever attachments are accepted.</li>
-            <li>Ask your country&apos;s embassy responsible for Nepal to add your family member to its list of the missing.</li>
-          </ol>
-        )}
-
-        <div className="mt-6 rounded-2xl border-2 border-blue-200 bg-blue-50 p-4">
-          <p className="font-bold text-midnight-900">{ACCESS_COMEBACK.title}</p>
-          <p className="mt-2 rounded-xl bg-white border border-blue-200 p-3 text-sm text-midnight-800">
-            &quot;{ACCESS_COMEBACK.ask}&quot;
-          </p>
-          <div className="mt-2">
-            <button type="button" className={linkBtnCls} onClick={() => copyText('comeback', ACCESS_COMEBACK.ask)}>
-              {copied === 'comeback' ? 'Copied' : 'Copy the question'}
-            </button>
+            )}
           </div>
-          <p className="mt-2 text-sm text-midnight-600 leading-relaxed">{ACCESS_COMEBACK.note}</p>
         </div>
       </StepScreen>
     );
