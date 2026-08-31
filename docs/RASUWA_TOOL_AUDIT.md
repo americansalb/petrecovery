@@ -453,6 +453,20 @@ running app with Playwright plus unit tests before pushing.
 - **Found along the way:** the state picker listed DC twice
   (`US_STATES` already carries it); deduped. `/rasuwa` and
   `/rasuwa/form` are in the screenshot gallery and sweep script now.
+- **The wizard rebuild (founder request, same day):** the single-page
+  tool became a step wizard in the report wizards' shape (their
+  StepScreen, OptionCardGrid, and DraftPrompt with a civic-blue theme;
+  a rasuwa-branded shell with checklist, progress, and a live summary).
+  Required fields gate each step, so a letter can no longer go out
+  missing the writer's name or phone. Canada is a first-class path:
+  postal code to MP (Represent API proxy at `api/rasuwa/mp`, hand
+  entry as the fallback), a constituent letter routed through Global
+  Affairs Canada, and delivery by MP email, constituency call,
+  postage-free House of Commons mail, and the 24/7 consular line.
+  Landing copy now leads with the living signer count. Verified with
+  747 tests, a green production build, and a 20-check Playwright run
+  across all three paths; the live Represent call needs one real
+  postal-code check after deploy.
 - **Founder follow-ups (same day):** rescueourfamily.org tabs carried
   the ReunitePets dog favicon; the family domain and the /rasuwa pages
   now have their own mark, manifest, and host-aware /favicon.ico
