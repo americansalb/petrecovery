@@ -1,19 +1,35 @@
 /**
  * /rasuwa/form: shows the coalition's Google roster form inside the
- * families' own domain (rescueourfamily.org/form via host rewrite) so
- * visitors never land on a raw script.google.com URL. The form itself
- * is unchanged and keeps collecting to the same spreadsheet; paste its
- * URL into ROSTER_FORM_URL in ../letterData.js to turn this page on.
+ * families' own domain (rescueourfamily.org redirects its root and /form
+ * here) so visitors never land on a raw script.google.com URL. The form
+ * itself is unchanged and keeps collecting to the same spreadsheet;
+ * paste its URL into ROSTER_FORM_URL in ../letterData.js to turn this
+ * page on.
  *
- * A plain Google Form embeds as-is. An Apps Script web app must be
- * deployed with HtmlService.XFrameOptionsMode.ALLOWALL or the iframe
- * stays blank; the fallback link above the frame covers that case.
+ * A plain Google Form embeds as-is and scales to any number of signers.
+ * An Apps Script web app must be deployed with
+ * HtmlService.XFrameOptionsMode.ALLOWALL or the iframe stays blank, and
+ * Google caps such apps at 30 simultaneous executions, so a burst of
+ * signers can see a Google error inside the frame. Both are why the
+ * open-in-its-own-tab fallback stays prominent, and why organizers
+ * should prefer a plain Google Form here when they can.
+ *
+ * This page is the front door of rescueourfamily.org: it has its own
+ * share card, and it says what the letter is before asking for a name.
  */
 
 import Link from 'next/link';
+import { buildShareMetadata } from '@/app/lib/shareMetadata';
 import { ROSTER_FORM_URL } from '../letterData';
 
-export const metadata = { title: 'Sign the families\' letter' };
+export const metadata = buildShareMetadata({
+  title: 'Sign the families\' letter',
+  description:
+    'For families of people missing in the August 26 Rasuwa flood in Nepal. Add your name and your missing family member to the families\' joint letter, then write to your own representatives.',
+  image: '/rasuwa-share.png',
+  imageAlt: 'Missing in the Rasuwa flood: write to your representatives. rescueourfamily.org',
+  index: true,
+});
 
 export default function RosterFormPage() {
   return (
@@ -29,17 +45,26 @@ export default function RosterFormPage() {
           </Link>
         </div>
         <p className="mx-auto mt-2 w-full max-w-3xl text-sm text-slate-600">
-          Sign below first (one minute). Then press Write to Congress to send your own letters
-          to your senators and representative.
+          On August 29, 1,189 family members and friends of 57 people missing in the Rasuwa
+          flood in Nepal wrote to the U.S. Secretary of State asking for seven rescue actions.
+          The form below, kept by the coordinating family, adds your name and your missing
+          family member to that roster. It takes about a minute. Then press Write to Congress
+          to send your own letters to your senators and representative.
         </p>
       </header>
       {ROSTER_FORM_URL ? (
         <div className="mx-auto w-full max-w-3xl flex-1 sm:px-4 sm:py-4">
-          <p className="px-4 py-2 text-sm text-slate-600 sm:px-0">
-            If the form does not load below,{' '}
-            <a className="underline" href={ROSTER_FORM_URL} target="_blank" rel="noopener noreferrer">
-              open it in its own tab
-            </a>.
+          <p className="px-4 py-3 text-sm text-slate-700 sm:px-0">
+            If the form does not load below, or shows an error,{' '}
+            <a
+              className="font-semibold text-blue-800 underline"
+              href={ROSTER_FORM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              open the form in its own tab
+            </a>{' '}
+            and sign there. Same form, same roster.
           </p>
           <iframe
             src={ROSTER_FORM_URL}
