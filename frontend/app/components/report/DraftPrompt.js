@@ -10,7 +10,7 @@
 import { History } from 'lucide-react';
 import { WIZARD_THEMES } from './wizardTheme';
 
-export default function DraftPrompt({ variant = 'lost', summary, onResume, onStartFresh }) {
+export default function DraftPrompt({ variant = 'lost', summary, onResume, onStartFresh, resumeLabel = 'Resume my report' }) {
   const theme = WIZARD_THEMES[variant];
 
   return (
@@ -31,7 +31,7 @@ export default function DraftPrompt({ variant = 'lost', summary, onResume, onSta
             style={{ outline: 'none' }} /* beats the global :focus-visible rule */
             className="w-full py-3.5 rounded-2xl font-bold bg-midnight-900 text-white shadow-lg hover:bg-midnight-800 transition-all focus-visible:ring-2 focus-visible:ring-flash-400 focus-visible:ring-offset-2"
           >
-            Resume my report
+            {resumeLabel}
           </button>
           <button
             type="button"

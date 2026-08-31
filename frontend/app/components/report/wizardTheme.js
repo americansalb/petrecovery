@@ -1,6 +1,8 @@
 /**
  * Shared constants + variant theming for the report wizards
- * (/report/new and /report/found).
+ * (/report/new and /report/found) and the Rasuwa letter wizard
+ * (/rasuwa), which reuses StepScreen, OptionCardGrid, and DraftPrompt
+ * with its own civic-blue variant.
  *
  * Every Tailwind class lives here as a literal string so the JIT scanner
  * picks it up - never build class names dynamically from these values.
@@ -26,6 +28,21 @@ export const WIZARD_THEMES = {
     // Focus is the flash brand accent on BOTH variants - a red focus border
     // on the lost flow reads as a validation error.
     focusRing: 'focus:border-flash-400 focus:ring-2 focus:ring-flash-100',
+  },
+  rasuwa: {
+    stamp: 'RASUWA',
+    stampChip: 'bg-blue-800 text-white',
+    stampOutline: 'border-blue-800 text-blue-800',
+    accentText: 'text-blue-800',
+    accentBg: 'bg-blue-800',
+    softBg: 'bg-blue-50',
+    softBorder: 'border-blue-200',
+    selectedCard: 'border-blue-700 bg-blue-50 ring-1 ring-blue-700',
+    postCta: 'bg-blue-800 text-white shadow-lg shadow-blue-200 hover:bg-blue-900',
+    progressFill: 'bg-blue-800',
+    posterGrad: 'bg-gradient-to-br from-blue-800 to-blue-500',
+    mapHex: '#1e40af',
+    focusRing: 'focus:border-blue-600 focus:ring-2 focus:ring-blue-100',
   },
   found: {
     stamp: 'FOUND',

@@ -31,14 +31,22 @@ export const EMPTY_WRITER = {
 
 export const EMPTY_LOOKUP = { status: 'idle', error: '', state: '', district: null, matchedAddress: '' };
 
+/** The Canadian slice: postal code, the found MP, or a hand-entered one. */
+export const EMPTY_CANADA = { postal: '', mp: null, manualName: '', manualRiding: '', manualEmail: '' };
+
+export const WHERE_VALUES = ['us', 'ca', 'intl'];
+
 const text = (v) => (typeof v === 'string' ? v : '');
 
-/** The saved shape: only what the person typed or chose, never UI state. */
-export function snapshotDraft({ person, writer, lookup, manualRep, overrides }) {
+/** The saved shape: what the person typed or chose, plus where they are in the wizard. */
+export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada }) {
   return {
-    v: 1,
+    v: 2,
+    step: text(step),
+    where: WHERE_VALUES.includes(where) ? where : '',
     person,
     writer,
+    canada: canada && typeof canada === 'object' ? canada : EMPTY_CANADA,
     // Only a completed lookup is worth restoring; busy and error states
     // would come back stale and confusing.
     lookup: lookup && lookup.status === 'done' ? lookup : null,
@@ -52,14 +60,17 @@ export function draftHasContent(d) {
   if (!d || typeof d !== 'object') return false;
   const p = d.person || {};
   const w = d.writer || {};
+  const c = d.canada || {};
   const typed = [
     p.pick, p.name, p.home, p.lastSeenPlace, p.lastSeenWhen, p.operator, p.details,
     w.name, w.relationship, w.phone, w.email, w.street, w.city, w.state, w.zip,
+    c.postal, c.manualName, c.manualRiding, c.manualEmail,
     d.manualRep,
   ].some((v) => text(v).trim() !== '');
   const edited = d.overrides && typeof d.overrides === 'object' && Object.keys(d.overrides).length > 0;
-  const looked = Boolean(d.lookup && d.lookup.status === 'done');
-  return typed || edited || looked;
+  const looked = Boolean(d.lookup && d.lookup.status === 'done') || Boolean(c.mp && c.mp.name);
+  const placed = WHERE_VALUES.includes(d.where);
+  return typed || edited || looked || placed;
 }
 
 /**
@@ -73,9 +84,38 @@ export function restoreDraft(d) {
     src.lookup && src.lookup.status === 'done' && text(src.lookup.state)
       ? { ...EMPTY_LOOKUP, ...src.lookup }
       : EMPTY_LOOKUP;
+  const rawCanada = src.canada && typeof src.canada === 'object' ? src.canada : {};
+  // The MP object is normalized to its full shape: a draft that stored
+  // one without offices (older or mangled) must restore to something
+  // the members step can render, never crash it.
+  const rawMp = rawCanada.mp && typeof rawCanada.mp === 'object' && text(rawCanada.mp.name) ? rawCanada.mp : null;
+  const mp = rawMp
+    ? {
+        name: text(rawMp.name),
+        party: text(rawMp.party),
+        riding: text(rawMp.riding),
+        email: text(rawMp.email),
+        url: text(rawMp.url),
+        offices: Array.isArray(rawMp.offices)
+          ? rawMp.offices
+              .filter((o) => o && typeof o === 'object' && text(o.phone))
+              .map((o) => ({ type: text(o.type), phone: text(o.phone) }))
+          : [],
+      }
+    : null;
+  const canada = { ...EMPTY_CANADA, ...rawCanada, mp };
+  let where = WHERE_VALUES.includes(src.where) ? src.where : '';
+  // Drafts from before the wizard stored only writer.inUS; map the old
+  // non-US path so nobody re-answers a question they already answered.
+  if (!where && src.writer && typeof src.writer === 'object' && src.writer.inUS === false) {
+    where = src.writer.country === 'Canada' ? 'ca' : 'intl';
+  }
   return {
+    step: text(src.step),
+    where,
     person: { ...EMPTY_PERSON, ...(src.person && typeof src.person === 'object' ? src.person : {}) },
     writer: { ...EMPTY_WRITER, ...(src.writer && typeof src.writer === 'object' ? src.writer : {}) },
+    canada,
     lookup,
     manualRep: text(src.manualRep),
     overrides: src.overrides && typeof src.overrides === 'object' ? src.overrides : {},
