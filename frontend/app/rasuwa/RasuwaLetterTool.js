@@ -379,11 +379,10 @@ export default function RasuwaLetterTool() {
             Missing in the Rasuwa flood: write to your representatives
           </h1>
           <p className="mt-3 text-slate-700">
-            On August 29, the family members and friends of 57 missing people wrote to the
-            U.S. Secretary of State asking for seven rescue actions. <SignerCount /> This page
-            turns that letter into your own: one letter to each of your members of Congress
-            with your loved one&apos;s details, the phone numbers to call, and the forms to
-            submit it through. It takes about ten minutes.
+            <SignerCount /> The letter asks for seven rescue actions; it was delivered on
+            August 29 and keeps gathering names. This page turns it into your own: one letter
+            to each of your members of Congress with your loved one&apos;s details, the phone
+            numbers to call, and the forms to submit it through. It takes about ten minutes.
           </p>
           <div className="mt-3 rounded-md bg-slate-100 p-3 text-sm text-slate-700">
             <p>

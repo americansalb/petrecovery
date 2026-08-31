@@ -45,12 +45,13 @@ export function parseRosterCount(raw) {
 }
 
 /**
- * The sentence the landing pages show. live=false means the number is
- * the August 29 floor, so it reads "More than".
+ * The lead sentence on the landing pages. It fronts the living campaign,
+ * not the delivery date: the roster keeps growing and the pages must
+ * read that way. live=false means the number is the August 29 floor, so
+ * it reads "More than".
  */
 export function signerCountSentence({ count, live }) {
   const n = (live && count ? count : SIGNERS_AUG29).toLocaleString('en-US');
-  return live && count
-    ? `${n} family members and friends have signed the families' letter so far.`
-    : `More than ${n} family members and friends have signed the families' letter so far.`;
+  const who = `family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State.`;
+  return live && count ? `${n} ${who}` : `More than ${n} ${who}`;
 }

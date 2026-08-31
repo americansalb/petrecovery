@@ -33,10 +33,10 @@ describe('parseRosterCount', () => {
 describe('signerCountSentence', () => {
   test('the floor reads as a floor, a live count reads as the count', () => {
     expect(signerCountSentence({ count: null, live: false })).toBe(
-      "More than 1,189 family members and friends have signed the families' letter so far."
+      "More than 1,189 family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State."
     );
     expect(signerCountSentence({ count: 2345, live: true })).toBe(
-      "2,345 family members and friends have signed the families' letter so far."
+      "2,345 family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State."
     );
   });
 });
