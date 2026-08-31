@@ -183,6 +183,15 @@ const JOINT_LETTER_SENTENCE =
  * the call script carries a prepared comeback. The 2015 reference is
  * the same one the joint letter itself uses.
  */
+/**
+ * Bumped whenever the generated letter wording changes in a way every
+ * letter must carry (v2: the consent paragraph). Drafts store the
+ * version they were edited under; restoring hand edits from an older
+ * template rebuilds the letters and says so, instead of silently
+ * sending the old wording (review finding on PR #223).
+ */
+export const LETTER_TEMPLATE_VERSION = 2;
+
 const ACCESS_PARAGRAPH =
   'If any of this is said to be waiting on the Government of Nepal\'s consent, obtaining that consent is part of what I am asking for. ' +
   'Press for each offer to be made formally, in writing, at a senior level; for the families to be told what was offered, to whom, and on what date; ' +

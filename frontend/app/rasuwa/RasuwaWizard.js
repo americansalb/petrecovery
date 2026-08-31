@@ -328,7 +328,7 @@ export default function RasuwaWizard() {
     setSavedLetterHash(d.savedLetterHash);
     setPendingTally(d.pendingTally);
     setStep(stepIdsFor(d.where).includes(d.step) ? d.step : 'person');
-    setEditsCleared(false);
+    setEditsCleared(d.templateOutdated ? 'template' : '');
     setPendingDraft(null);
   }
 
@@ -351,7 +351,7 @@ export default function RasuwaWizard() {
     setDone(EMPTY_DONE);
     setSavedLetterHash('');
     setPendingTally([]);
-    setEditsCleared(false);
+    setEditsCleared('');
     setCaManual(false);
     setMpStatus({ busy: false, error: '' });
     setPendingDraft(null);
@@ -361,13 +361,15 @@ export default function RasuwaWizard() {
 
   // ── Field setters: any detail change invalidates hand-edited letters,
   // never silently (editsCleared puts a notice above the letter). ─────
-  const [editsCleared, setEditsCleared] = useState(false);
+  // '' | 'details' | 'template': why hand edits were replaced, so the
+  // notice above the letter tells the truth about what happened.
+  const [editsCleared, setEditsCleared] = useState('');
   const overridesRef = useRef(overrides);
   overridesRef.current = overrides;
   const clearOverrides = () => {
     if (!Object.keys(overridesRef.current).length) return;
     setOverrides({});
-    setEditsCleared(true);
+    setEditsCleared('details');
   };
   const setP = (patch) => {
     setPerson((p) => ({ ...p, ...patch }));
@@ -1052,8 +1054,12 @@ export default function RasuwaWizard() {
         <div className="space-y-4">
           {editsCleared && (
             <div className="flex items-start justify-between gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <p>You changed a detail, so the letters were rebuilt to match. Your hand edits to the letter text were replaced.</p>
-              <button type="button" className="shrink-0 font-semibold underline" onClick={() => setEditsCleared(false)}>
+              <p>
+                {editsCleared === 'template'
+                  ? 'The campaign updated the letter wording since you last edited, so the letters were rebuilt. Your hand edits to the letter text were replaced.'
+                  : 'You changed a detail, so the letters were rebuilt to match. Your hand edits to the letter text were replaced.'}
+              </p>
+              <button type="button" className="shrink-0 font-semibold underline" onClick={() => setEditsCleared('')}>
                 OK
               </button>
             </div>
@@ -1113,7 +1119,7 @@ export default function RasuwaWizard() {
                 className={`${inputCls} min-h-[340px] font-mono text-sm leading-relaxed`}
                 value={activeBody}
                 onChange={(e) => {
-                  setEditsCleared(false);
+                  setEditsCleared('');
                   setOverrides((o) => ({ ...o, [active.key]: e.target.value }));
                 }}
               />
