@@ -42,7 +42,7 @@ export const WHERE_VALUES = ['us', 'ca', 'intl'];
 const text = (v) => (typeof v === 'string' ? v : '');
 
 /** The saved shape: what the person typed or chose, plus where they are in the wizard. */
-export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, savedLetterHash }) {
+export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, savedLetterHash, pendingTally }) {
   return {
     v: 2,
     step: text(step),
@@ -52,6 +52,7 @@ export function snapshotDraft({ person, writer, lookup, manualRep, overrides, st
     canada: canada && typeof canada === 'object' ? canada : EMPTY_CANADA,
     done: done && typeof done === 'object' ? done : EMPTY_DONE,
     savedLetterHash: text(savedLetterHash),
+    pendingTally: Array.isArray(pendingTally) ? pendingTally.filter((a) => typeof a === 'string').slice(0, 6) : [],
     // Only a completed lookup is worth restoring; busy and error states
     // would come back stale and confusing.
     lookup: lookup && lookup.status === 'done' ? lookup : null,
@@ -133,6 +134,11 @@ export function restoreDraft(d) {
     // Which letters were already saved to the families' record, so a
     // restored draft does not record the same letters twice.
     savedLetterHash: text(src.savedLetterHash),
+    // Checked finish boxes whose +1 has not reached the server yet; the
+    // wizard retries these so a failed request never loses a count.
+    pendingTally: Array.isArray(src.pendingTally)
+      ? src.pendingTally.filter((a) => typeof a === 'string').slice(0, 6)
+      : [],
   };
 }
 

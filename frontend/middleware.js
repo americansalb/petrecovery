@@ -37,9 +37,11 @@ const RATE_LIMIT_CONFIG = {
   // the per-visitor cap stays low enough that a busy room cannot get
   // this server blocked for every Canadian at once.
   '/api/rasuwa/mp': { windowMs: 60000, maxRequests: 20 },
-  // Anonymous finish-box counter; enough for a person, small enough
-  // that button-mashing cannot inflate the shared count much.
-  '/api/rasuwa/tally': { windowMs: 60000, maxRequests: 20 },
+  // Anonymous finish-box counter. One completed wizard is one read plus
+  // up to three writes, and a letter-writing event is a room of
+  // families behind one venue IP; the limit must clear the room, not
+  // just one person.
+  '/api/rasuwa/tally': { windowMs: 60000, maxRequests: 120 },
   // One record per finished pass; a shared device at an event finishes
   // a handful of families an hour, not dozens a minute.
   '/api/rasuwa/letters': { windowMs: 60000, maxRequests: 10 },

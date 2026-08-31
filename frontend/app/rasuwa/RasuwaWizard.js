@@ -204,6 +204,37 @@ export default function RasuwaWizard() {
   // them again.
   const [done, setDone] = useState(EMPTY_DONE);
   const [tally, setTally] = useState(null); // { letters_done, entry_sent, letter_signed }
+  // Checked boxes whose +1 has not reached the server yet. Kept in the
+  // tab draft and retried, so a rate limit, an outage, or a dead
+  // connection never loses a family's count while the page claims
+  // otherwise.
+  const [pendingTally, setPendingTally] = useState([]);
+  const pendingTallyRef = useRef(pendingTally);
+  pendingTallyRef.current = pendingTally;
+
+  const TALLY_ACTIONS = ['letters_done', 'entry_sent', 'letter_signed'];
+  async function flushTally(actions) {
+    for (const action of actions) {
+      if (!TALLY_ACTIONS.includes(action)) {
+        setPendingTally((p) => p.filter((a) => a !== action));
+        continue;
+      }
+      try {
+        const res = await fetch('/api/rasuwa/tally', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.counts) setTally(data.counts);
+          setPendingTally((p) => p.filter((a) => a !== action));
+        }
+      } catch {
+        // still pending; retried on the next visit to the finish step
+      }
+    }
+  }
 
   useEffect(() => {
     if (step !== 'roster') return;
@@ -216,9 +247,11 @@ export default function RasuwaWizard() {
       .catch(() => {
         // the boxes still work; the numbers just stay hidden
       });
+    flushTally(pendingTallyRef.current);
     return () => {
       stop = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   // ── The families' record of generated letters ──────────────────────
@@ -254,18 +287,8 @@ export default function RasuwaWizard() {
     setDone((d) => ({ ...d, [key]: true }));
     const action = DONE_ACTIONS[key];
     setTally((t) => (t ? { ...t, [action]: (t[action] || 0) + 1 } : t));
-    fetch('/api/rasuwa/tally', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && data.counts) setTally(data.counts);
-      })
-      .catch(() => {
-        // the optimistic number stands; the server catches up next load
-      });
+    setPendingTally((p) => (p.includes(action) ? p : [...p, action]));
+    flushTally([action]);
   }
 
   // ── Drafts: save on every meaningful change; explicit restore ──────
@@ -275,14 +298,14 @@ export default function RasuwaWizard() {
   }, []);
 
   useEffect(() => {
-    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash };
+    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingTally };
     if (!draftHasContent(state)) return;
     if (pendingDraft) {
       setPendingDraft(null);
       return;
     }
     saveRasuwaDraft(state);
-  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingDraft]);
+  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, savedLetterHash, pendingTally, pendingDraft]);
 
   function resumeDraft() {
     const d = restoreDraft(pendingDraft);
@@ -295,6 +318,7 @@ export default function RasuwaWizard() {
     setWhere(d.where);
     setDone(d.done);
     setSavedLetterHash(d.savedLetterHash);
+    setPendingTally(d.pendingTally);
     setStep(stepIdsFor(d.where).includes(d.step) ? d.step : 'person');
     setEditsCleared(false);
     setPendingDraft(null);
@@ -317,6 +341,7 @@ export default function RasuwaWizard() {
     setWhere('');
     setDone(EMPTY_DONE);
     setSavedLetterHash('');
+    setPendingTally([]);
     setEditsCleared(false);
     setCaManual(false);
     setMpStatus({ busy: false, error: '' });

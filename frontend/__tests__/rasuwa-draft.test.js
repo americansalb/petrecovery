@@ -175,6 +175,15 @@ describe('snapshot and restore round trip', () => {
     expect(restoreDraft(snapshotDraft(state)).savedLetterHash).toBe('abc123');
     expect(restoreDraft({}).savedLetterHash).toBe('');
   });
+
+  test('unsent tally increments ride the draft, sanitized and capped', () => {
+    const state = typedState();
+    state.pendingTally = ['letters_done', 'entry_sent'];
+    expect(restoreDraft(snapshotDraft(state)).pendingTally).toEqual(['letters_done', 'entry_sent']);
+    expect(restoreDraft({ pendingTally: [42, null, 'a', 'b', 'c', 'd', 'e', 'f', 'g'] }).pendingTally)
+      .toEqual(['a', 'b', 'c', 'd', 'e', 'f']);
+    expect(restoreDraft({}).pendingTally).toEqual([]);
+  });
 });
 
 describe('describeDraft (restore banner phrase)', () => {
