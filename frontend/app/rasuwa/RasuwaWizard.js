@@ -1073,6 +1073,27 @@ export default function RasuwaWizard() {
     );
   } else if (step === 'letters') {
     const sentCount = letters.filter((l) => sent[l.key]).length;
+    const allSent = letters.length > 0 && sentCount === letters.length;
+    // The screen always points at exactly one next action: the first
+    // unsent card wears the Next up mark, marking a card sent walks the
+    // mark (and the viewport) down the list, and only when every letter
+    // is sent does the finish button take the loud tone (founder
+    // feedback, 2026-08-31: the navigation must say what to do next).
+    const nextKey = letters.find((l) => !sent[l.key])?.key || '';
+    const markSent = (key) => {
+      setSent((sf) => {
+        const nf = { ...sf, [key]: !sf[key] };
+        if (nf[key]) {
+          const follow = letters.find((l) => l.key !== key && !nf[l.key]);
+          if (follow) {
+            setTimeout(() => {
+              document.getElementById(`send-card-${follow.key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 80);
+          }
+        }
+        return nf;
+      });
+    };
     const guideLinks = [guide.findRep, guide.consular].filter(Boolean);
     screen = (
       <StepScreen
@@ -1084,7 +1105,11 @@ export default function RasuwaWizard() {
             ? `One letter per office, with its buttons beside it: copy the letter, open their form, paste, submit, mark it sent. Do all ${letters.length}.`
             : 'Copy the letter, open the channel beside it, paste, send.'
         }
-        primary={{ label: 'One last step: finish and be counted', onClick: goNext, disabled: letters.length === 0 }}
+        primary={
+          allSent
+            ? { label: 'All sent. Finish and be counted', onClick: goNext, tone: 'post' }
+            : { label: 'One last step: finish and be counted', onClick: goNext, disabled: letters.length === 0 }
+        }
         secondary={backAction}
         wide
       >
@@ -1147,14 +1172,27 @@ export default function RasuwaWizard() {
               : isMp
                 ? m.riding ? `Member of Parliament for ${m.riding}` : 'Member of Parliament'
                 : `${m.party}, ${m.state}${m.chamber === 'rep' ? `-${m.district === 0 ? 'AL' : m.district}` : ''}`;
+            const isNext = !isSent && l.key === nextKey && letters.length > 1;
             return (
               <article
                 key={l.key}
-                className={`rounded-2xl border-2 p-4 transition-colors ${isSent ? 'border-green-300 bg-green-50/60' : 'border-midnight-100 bg-white'}`}
+                id={`send-card-${l.key}`}
+                className={`rounded-2xl border-2 p-4 transition-colors ${
+                  isSent
+                    ? 'border-green-300 bg-green-50/60'
+                    : isNext
+                      ? 'border-blue-700 ring-2 ring-blue-200 bg-white'
+                      : 'border-midnight-100 bg-white'
+                }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-bold text-midnight-900">
+                      {isNext && (
+                        <span className="mr-2 inline-block rounded-full bg-blue-800 px-2 py-0.5 align-middle text-[0.65rem] font-black uppercase tracking-wide text-white">
+                          Next up
+                        </span>
+                      )}
                       {letters.length > 1 ? `${i + 1}. ` : ''}{cardName}
                     </p>
                     <p className="text-sm text-midnight-500 mt-0.5">{cardSub}</p>
@@ -1164,7 +1202,7 @@ export default function RasuwaWizard() {
                       type="checkbox"
                       className="h-4 w-4 accent-green-700"
                       checked={isSent}
-                      onChange={() => setSent((sf) => ({ ...sf, [l.key]: !sf[l.key] }))}
+                      onChange={() => markSent(l.key)}
                     />
                     Sent
                   </label>

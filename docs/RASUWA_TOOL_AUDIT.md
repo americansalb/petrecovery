@@ -581,3 +581,11 @@ running app with Playwright plus unit tests before pushing.
   "name, country" labels, and the team board's coverage wall sorts
   the same way. Pick values and the board's write-for-them links keep
   their original indexes, so saved drafts and shared links hold.
+- **The send screen always points at the next action (founder
+  feedback, same day: "the navigation doesn't grab my attention, I
+  don't know what to do next"):** the first unsent card wears a Next
+  up mark with a blue ring; marking a card sent walks the mark and
+  the viewport to the following card; and the finish button stays in
+  its quiet tone until every letter is marked sent, then flips loud
+  ("All sent. Finish and be counted"), so the biggest button on
+  screen never says leave while the job says send.
