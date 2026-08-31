@@ -81,6 +81,9 @@ not build them.
 ### Other conventions
 
 - Tests: `cd frontend && npm test` (Jest, node env). CI runs on `pet_main`.
+- Merge policy (founder instruction, 2026-08-31: "always merge"): when a
+  branch's work is complete and CI is green, merge its pull request into
+  `pet_main` without waiting for a second go-ahead.
 - Dev DB: local Postgres via `DATABASE_URL` in `frontend/.env` /
   `.env.local`; `frontend/prisma/seed-sample-data.js` creates a local admin
   (`admin@localdev.test`) and demo entities for every page.
