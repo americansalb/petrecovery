@@ -278,6 +278,22 @@ export default function RasuwaWizard() {
   const recordLettersRef = useRef(null);
   useEffect(() => {
     if (step !== 'roster') return;
+    // The checklist lets people jump ahead, so reaching this step no
+    // longer proves a finished pass. Only a complete one goes on the
+    // record (review finding: a forward jump must never save a generic
+    // unreviewed letter into the public counts). These are the same
+    // requirements the step gates ask for along the ordinary path;
+    // recipients is read here at run time, after the render defined it.
+    const passComplete =
+      person.name.trim() !== '' &&
+      person.country.trim() !== '' &&
+      where !== '' &&
+      writer.name.trim() !== '' &&
+      writer.relationship.trim() !== '' &&
+      isValidPhone(writer.phone) &&
+      (where !== 'us' || recipients.length > 0) &&
+      (where !== 'intl' || writer.country.trim() !== '');
+    if (!passComplete) return;
     const record = recordLettersRef.current;
     if (!record) return;
     const { hash, payload } = record;
@@ -293,6 +309,11 @@ export default function RasuwaWizard() {
       .catch(() => {
         // records are best-effort; the wizard never blocks on them
       });
+    // The gate's inputs are read at run time on purpose: recipients is
+    // declared below this effect (deps would hit its TDZ during
+    // render), and the values only matter at the moment the step
+    // changes to roster.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, savedLetterHash]);
 
   const DONE_ACTIONS = { letters: 'letters_done', entry: 'entry_sent', signed: 'letter_signed' };
