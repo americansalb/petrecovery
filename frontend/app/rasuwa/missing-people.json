@@ -1,15 +1,28 @@
 {
- "source": "Signatory list of the August 29, 2026 families' letter to the U.S. Secretary of State",
- "updated": "2026-08-29",
+ "source": "Signatory list of the families' letter to the U.S. Secretary of State (live document, rescueourfamily.org/letter)",
+ "updated": "2026-08-31",
+ "numbering": "num is a stable identifier for ?for= prefill links, kept for a person across regenerations (matched by name or aka); new people take the next free number. It does not track the letter's own entry numbers.",
  "people": [
   {
    "num": 1,
-   "name": "Poonam Thakkar",
+   "name": "Poonam Dilipkumar Thakkar",
    "country": "United States",
    "home": "Bartlett, Illinois",
    "lastSeenPlace": "Hotel Kailash, Timure",
    "lastSeenWhen": "August 26",
-   "operator": "Himalayan Glacier Adventure and Travel"
+   "operator": "Himalayan Glacier Adventure and Travel",
+   "aka": [
+    "Poonam Thakkar"
+   ]
+  },
+  {
+   "num": 58,
+   "name": "Acharna Sudesh",
+   "country": "United States",
+   "home": "Murphy",
+   "lastSeenPlace": "Rasuwagadhi border crossing or Hotel Kailash, Timure",
+   "lastSeenWhen": "August 25, 4:18 PM",
+   "operator": "Kailash Journeys or Himalayan Glacier Adventure and Travel"
   },
   {
    "num": 2,
@@ -19,6 +32,15 @@
    "lastSeenPlace": "Hotel Kailash, Timure",
    "lastSeenWhen": "August 26, 8:20 AM",
    "operator": "Himalayan Glacier Adventure and Travel"
+  },
+  {
+   "num": 59,
+   "name": "Alka Malhotra",
+   "country": "United States",
+   "home": "San Diego, California",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "August 25, 3:30 AM",
+   "operator": "Kailash Journeys"
   },
   {
    "num": 3,
@@ -36,7 +58,7 @@
    "home": "Murphy, Texas",
    "lastSeenPlace": "Rasuwagadhi border crossing or Hotel Kailash, Timure",
    "lastSeenWhen": "August 25, 4:18 PM",
-   "operator": "Kailash Journeys"
+   "operator": "Kailash Journeys or Himalayan Glacier Adventure and Travel"
   },
   {
    "num": 5,
@@ -66,6 +88,15 @@
    "operator": "The Trekkers' Society"
   },
   {
+   "num": 60,
+   "name": "Gaurav Menon",
+   "country": "United States",
+   "home": "",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "August 25, 3:30 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
    "num": 8,
    "name": "Hanumantha Rao Unnava",
    "country": "United States",
@@ -73,6 +104,15 @@
    "lastSeenPlace": "Hotel Kailash, Timure",
    "lastSeenWhen": "August 26, 6:15 AM",
    "operator": "Himalayan Glacier Adventure and Travel"
+  },
+  {
+   "num": 61,
+   "name": "Harshawardhan Rodge",
+   "country": "United States",
+   "home": "Missouri city",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "August 26, 8:40 AM",
+   "operator": "Fishtail Tours and Travel"
   },
   {
    "num": 9,
@@ -120,6 +160,15 @@
    "operator": "The Trekkers' Society"
   },
   {
+   "num": 62,
+   "name": "Latha Samala",
+   "country": "United States",
+   "home": "Glen Allen",
+   "lastSeenPlace": "Kerung / Gyirong, Tibet side",
+   "lastSeenWhen": "",
+   "operator": "Himalayan Glacier Adventure and Travel"
+  },
+  {
    "num": 14,
    "name": "Laxminath Gopisetty",
    "country": "United States",
@@ -135,6 +184,24 @@
    "home": "Plano, TX",
    "lastSeenPlace": "Kerung / Gyirong, Tibet side",
    "lastSeenWhen": "August 26, 9:00 AM",
+   "operator": "The Trekkers' Society"
+  },
+  {
+   "num": 63,
+   "name": "Menon Gaurav",
+   "country": "United States",
+   "home": "",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "",
+   "operator": "Himalayan Glacier Adventure and Travel"
+  },
+  {
+   "num": 64,
+   "name": "Mukti Chandrakant Belahal",
+   "country": "United States",
+   "home": "Princeton Junction, NJ",
+   "lastSeenPlace": "Kerung / Gyirong, Tibet side",
+   "lastSeenWhen": "August 25, 10:57 PM",
    "operator": "The Trekkers' Society"
   },
   {
@@ -156,6 +223,24 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
+   "num": 65,
+   "name": "Pankaj Misra",
+   "country": "United States",
+   "home": "Bloomfield, CT",
+   "lastSeenPlace": "Timure or Hotel Kailash, Timure",
+   "lastSeenWhen": "August 26, 8:11 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
+   "num": 66,
+   "name": "Poonam Misra",
+   "country": "United States",
+   "home": "Kendall Park, NJ",
+   "lastSeenPlace": "Timure or Hotel Kailash, Timure",
+   "lastSeenWhen": "August 26, 8:11 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
    "num": 18,
    "name": "Rachana Thapa",
    "country": "United States",
@@ -171,6 +256,15 @@
    "home": "Murphy, Texas",
    "lastSeenPlace": "Rasuwagadhi border crossing or Hotel Kailash, Timure",
    "lastSeenWhen": "August 25, 4:18 PM",
+   "operator": "Kailash Journeys or Himalayan Glacier Adventure and Travel"
+  },
+  {
+   "num": 67,
+   "name": "Ragini Misra",
+   "country": "United States",
+   "home": "Bloomfield, CT",
+   "lastSeenPlace": "Timure or Hotel Kailash, Timure",
+   "lastSeenWhen": "August 26, 8:11 AM",
    "operator": "Kailash Journeys"
   },
   {
@@ -237,6 +331,15 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
+   "num": 68,
+   "name": "Sridevi Vejella",
+   "country": "United States",
+   "home": "10 Hyacinth Ln, Monroe Township, NJ",
+   "lastSeenPlace": "Kerung / Gyirong, Tibet side",
+   "lastSeenWhen": "August 25, 10:00 AM",
+   "operator": "The Trekkers' Society"
+  },
+  {
    "num": 27,
    "name": "Sudhindra Yapalparvi",
    "country": "United States",
@@ -273,6 +376,15 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
+   "num": 69,
+   "name": "Venkatakrishna Bangalore",
+   "country": "United States",
+   "home": "Woodbridge, VA",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "August 25, 5:45 AM",
+   "operator": "Classic Vacations Nepal"
+  },
+  {
    "num": 31,
    "name": "Venus Rajnikant Patel",
    "country": "United States",
@@ -291,6 +403,15 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
+   "num": 70,
+   "name": "Anal Kar",
+   "country": "United Kingdom",
+   "home": "Kolkata, West Bengal",
+   "lastSeenPlace": "Timure",
+   "lastSeenWhen": "August 26, 8:26 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
    "num": 33,
    "name": "Anil Grover",
    "country": "Canada",
@@ -298,6 +419,24 @@
    "lastSeenPlace": "Kerung / Gyirong, Tibet side",
    "lastSeenWhen": "August 26, 6:55 AM",
    "operator": "The Trekkers' Society"
+  },
+  {
+   "num": 71,
+   "name": "Ankit Ranjan",
+   "country": "United Kingdom",
+   "home": "London",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "August 26, 8:00 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
+   "num": 72,
+   "name": "Ankita Chandra",
+   "country": "United Kingdom",
+   "home": "London",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "August 26, 8:00 AM",
+   "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
    "num": 34,
@@ -309,6 +448,15 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
+   "num": 73,
+   "name": "Bavika Ramjee",
+   "country": "South Africa",
+   "home": "East London",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "August 26, 9:00 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
    "num": 35,
    "name": "Bharat Mangwani",
    "country": "Australia",
@@ -316,6 +464,15 @@
    "lastSeenPlace": "Rasuwagadhi border crossing",
    "lastSeenWhen": "August 26, 9:00 AM",
    "operator": "The Trekkers' Society"
+  },
+  {
+   "num": 74,
+   "name": "Bhavinkumar Rajnikant Raval",
+   "country": "Australia",
+   "home": "Brisbane, Queensland",
+   "lastSeenPlace": "Syabrubesi",
+   "lastSeenWhen": "August 26, 5:15 AM",
+   "operator": "Kailash Journeys"
   },
   {
    "num": 36,
@@ -399,12 +556,30 @@
    "operator": "Classic Vacations Nepal"
   },
   {
+   "num": 75,
+   "name": "Nelly Maya Chhetri",
+   "country": "United Kingdom",
+   "home": "Nepal",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "August 26",
+   "operator": "Kailash Journeys"
+  },
+  {
    "num": 45,
    "name": "Padma Jaggubhai Patel",
    "country": "Canada",
    "home": "Toronto",
    "lastSeenPlace": "Hotel Kailash, Timure",
    "lastSeenWhen": "August 26, 9:00 AM",
+   "operator": "Himalayan Glacier Adventure and Travel"
+  },
+  {
+   "num": 76,
+   "name": "Raghu Ranjan",
+   "country": "Nepal",
+   "home": "Dallas, Texas",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "August 26",
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
@@ -444,6 +619,33 @@
    "operator": "The Trekkers' Society"
   },
   {
+   "num": 77,
+   "name": "Sandeep Mohapatra",
+   "country": "Australia",
+   "home": "Melbourne",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "",
+   "operator": "Kailash Journeys"
+  },
+  {
+   "num": 78,
+   "name": "Sanjukta Kar",
+   "country": "United Kingdom",
+   "home": "Kolkata, West Bengal",
+   "lastSeenPlace": "Timure",
+   "lastSeenWhen": "August 26, 8:26 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
+   "num": 79,
+   "name": "Shamila Sri Rangathan",
+   "country": "United Kingdom",
+   "home": "London",
+   "lastSeenPlace": "Nepali immigration checkpoint",
+   "lastSeenWhen": "",
+   "operator": "Kailash Journeys"
+  },
+  {
    "num": 50,
    "name": "Shubakshi Rawla",
    "country": "Singapore",
@@ -460,6 +662,15 @@
    "lastSeenPlace": "Hotel Kailash, Timure",
    "lastSeenWhen": "August 26, 6:47 AM",
    "operator": "Himalayan Glacier Adventure and Travel"
+  },
+  {
+   "num": 80,
+   "name": "Sidharthi Kumari Sahu",
+   "country": "Australia",
+   "home": "Melbourne",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "",
+   "operator": "Kailash Journeys"
   },
   {
    "num": 52,
@@ -494,7 +705,7 @@
    "country": "Australia",
    "home": "Sydney",
    "lastSeenPlace": "Kerung / Gyirong, Tibet side",
-   "lastSeenWhen": "August 26, 9:05 AM",
+   "lastSeenWhen": "August 25, 9:05 AM",
    "operator": "The Trekkers' Society"
   },
   {
@@ -514,6 +725,15 @@
    "lastSeenPlace": "Kerung / Gyirong, Tibet side",
    "lastSeenWhen": "August 26, 9:05 AM",
    "operator": "The Trekkers' Society"
+  },
+  {
+   "num": 81,
+   "name": "Yashika Basnet",
+   "country": "United Kingdom",
+   "home": "",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "August 26",
+   "operator": "Kailash Journeys"
   }
  ]
 }

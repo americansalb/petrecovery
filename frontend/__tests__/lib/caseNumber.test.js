@@ -53,9 +53,12 @@ describe('buildCaseNumber', () => {
 
   it('does not repeat across a burst, unlike the timestamp it replaced', () => {
     // The old generator produced ONE value for every call inside the same
-    // millisecond window; this is the regression that matters.
+    // millisecond window, so a regression collapses this set to a handful.
+    // The allowance below covers the honest generator's birthday odds:
+    // 2000 draws from 30^6 collide once in roughly 365 runs, and that is
+    // not a bug (withCaseNumberRetry absorbs real-world collisions).
     const seen = new Set(Array.from({ length: 2000 }, () => buildCaseNumber({ cityName: 'Austin' })));
-    expect(seen.size).toBe(2000);
+    expect(seen.size).toBeGreaterThan(1990);
   });
 });
 

@@ -192,8 +192,8 @@ export default function RasuwaWizard() {
   }, []);
 
   // The live signature count, so the letters do not read as frozen at
-  // the August 29 figure. One fetch; letters fall back to the dated
-  // sentence whenever the count is unavailable or not yet larger.
+  // a printed figure. One fetch; letters fall back to the letter's own
+  // floor whenever the count is unavailable or not yet larger.
   const [liveSigners, setLiveSigners] = useState(null);
   useEffect(() => {
     let stop = false;
