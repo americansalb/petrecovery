@@ -10,6 +10,8 @@
  * hardcodes copy about the flood.
  */
 
+import missingPeople from './missing-people.json';
+
 export const FACTS_DATE = 'August 31, 2026';
 
 /**
@@ -77,44 +79,65 @@ export const CANADA_LINKS = {
 };
 
 /**
- * Guidance for families outside the United States. Official domains only;
- * no phone numbers here because we cannot keep them verified.
+ * Guidance for families outside the United States, one entry per
+ * nationality on the families' list plus countries where signers
+ * live. Official domains only; no phone numbers here because we
+ * cannot keep them verified. `ministry` is the plain name the letters
+ * and the call guidance use ("Ask the Ministry of External Affairs
+ * what our government has done"); `home: true` marks Nepal, whose own
+ * government runs the search, so its letters ask for the offered help
+ * to be accepted instead of pressing a foreign ministry.
  */
 export const COUNTRY_GUIDES = [
   {
     country: 'Australia',
     findRep: { label: 'Find your federal MP or senator (aph.gov.au)', url: 'https://www.aph.gov.au/Senators_and_Members' },
     consular: { label: 'DFAT consular services (Smartraveller)', url: 'https://www.smartraveller.gov.au/consular-services' },
+    ministry: 'the Department of Foreign Affairs and Trade',
   },
   {
     country: 'United Kingdom',
     findRep: { label: 'Find your MP (parliament.uk)', url: 'https://members.parliament.uk/FindYourMP' },
     consular: { label: 'Foreign, Commonwealth and Development Office', url: 'https://www.gov.uk/government/organisations/foreign-commonwealth-development-office' },
+    ministry: 'the Foreign, Commonwealth and Development Office',
   },
   {
     country: 'Singapore',
     findRep: { label: 'Members of Parliament (parliament.gov.sg)', url: 'https://www.parliament.gov.sg/mps/list-of-current-mps' },
     consular: { label: 'Ministry of Foreign Affairs Singapore', url: 'https://www.mfa.gov.sg' },
+    ministry: 'the Ministry of Foreign Affairs',
   },
   {
     country: 'India',
     findRep: { label: 'Members of the Lok Sabha (sansad.in)', url: 'https://sansad.in/ls/members' },
     consular: { label: 'Ministry of External Affairs', url: 'https://www.mea.gov.in' },
+    ministry: 'the Ministry of External Affairs',
   },
   {
     country: 'France',
     findRep: { label: 'Find your deputy (assemblee-nationale.fr)', url: 'https://www.assemblee-nationale.fr/dyn/vos-deputes' },
     consular: { label: 'Ministere de l\'Europe et des Affaires etrangeres', url: 'https://www.diplomatie.gouv.fr' },
+    ministry: 'the Ministry for Europe and Foreign Affairs',
   },
   {
     country: 'South Africa',
     findRep: { label: 'Parliament of South Africa', url: 'https://www.parliament.gov.za' },
     consular: { label: 'Department of International Relations and Cooperation', url: 'https://www.dirco.gov.za' },
+    ministry: 'the Department of International Relations and Cooperation',
+  },
+  {
+    country: 'Nepal',
+    findRep: { label: 'House of Representatives of Nepal (hr.parliament.gov.np)', url: 'https://hr.parliament.gov.np' },
+    consular: { label: 'Ministry of Foreign Affairs, Nepal', url: 'https://mofa.gov.np' },
+    ministry: 'the Ministry of Foreign Affairs',
+    home: true,
+    note: 'Nepal\'s own army and disaster authority run the search. Ask your representative to press for the offered international technical support to be accepted and for a named contact for your family.',
   },
   {
     country: 'Another country',
     findRep: null,
     consular: null,
+    ministry: '',
     note: 'Write to your national parliament member and your foreign ministry, and ask your embassy or consulate responsible for Nepal to open a case.',
   },
 ];
@@ -132,6 +155,25 @@ export function findCountryGuide(value) {
     COUNTRY_GUIDES.find((g) => g.country.toLowerCase() === wanted) ||
     COUNTRY_GUIDES[COUNTRY_GUIDES.length - 1]
   );
+}
+
+/**
+ * How many people of one nationality are on the families' list, so a
+ * letter can say "and for the other 15 nationals of Australia on the
+ * families' list". Typed country names fold to the list's; a country
+ * with nobody on the list counts zero and the letters drop the clause.
+ */
+const NATIONALS_BY_COUNTRY = (() => {
+  const counts = new Map();
+  for (const p of missingPeople.people) {
+    const key = String(p.country || '').trim().toLowerCase();
+    if (key) counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  return counts;
+})();
+
+export function nationalsOnList(country) {
+  return NATIONALS_BY_COUNTRY.get(String(country || '').trim().toLowerCase()) || 0;
 }
 
 // No personal contact details on the site (founder instruction,
@@ -216,18 +258,30 @@ export function jointLetterSentence(signers) {
  * letter must carry (v2: the consent paragraph; v3: the August 31
  * facts and the Foreign Ministry's technical-support opening; v4: the
  * living joint-letter framing with the current signer and missing
- * counts and the letter's own casualty figures). Drafts store the
- * version they were edited under; restoring hand edits from an older
- * template rebuilds the letters and says so, instead of silently
- * sending the old wording (review findings on PR #223 and PR #225).
+ * counts and the letter's own casualty figures; v5: named foreign
+ * ministries, the nationals-on-the-list counts, and the Nepal
+ * home-country variant). Drafts store the version they were edited
+ * under; restoring hand edits from an older template rebuilds the
+ * letters and says so, instead of silently sending the old wording
+ * (review findings on PR #223 and PR #225).
  */
-export const LETTER_TEMPLATE_VERSION = 4;
+export const LETTER_TEMPLATE_VERSION = 5;
 
 const ACCESS_PARAGRAPH =
   'If any of this is said to be waiting on the Government of Nepal\'s consent, obtaining that consent is part of what I am asking for. ' +
   'Nepal\'s Foreign Ministry has said it is open to targeted technical support, and Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake. ' +
   'Press for each offer to be made formally, in writing, at a senior level; for the families to be told what was offered, to whom, and on what date; ' +
   'and if Nepal declines, for that refusal to be on the record.';
+
+/**
+ * The consent counter reversed, for writers inside Nepal: their own
+ * government runs the search and holds the answer, so the letter asks
+ * for the offers on the table to be accepted rather than pressing a
+ * foreign ministry to press Nepal.
+ */
+const HOME_COUNTRY_PARAGRAPH =
+  'Nepal\'s Foreign Ministry has said the country does not need foreign search and rescue teams at this time but is open to targeted technical support, and foreign governments have offered exactly that. ' +
+  'I am asking for those offers to be accepted quickly and specifically, for the equipment and crews to reach the valley, and for families to be told what was offered, what was accepted, and when it will arrive.';
 
 /** Rendered on the delivery step under the phone script, for every path. */
 export const ACCESS_COMEBACK = {
@@ -337,9 +391,15 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     const mpName = ph(recipient.name, "your MP's name");
     const riding = recipient.riding && recipient.riding.trim() ? recipient.riding.trim() : '[your riding]';
     const isCanadian = person.country === 'Canada';
+    // The country's stake, from the families' list itself.
+    const mpListCount = nationalsOnList(person.country);
     const personLine = isCanadian
-      ? `one of the Canadians unaccounted for since ${FLOOD_SENTENCE}`
-      : `a national of ${person.country || '[country]'} unaccounted for since ${FLOOD_SENTENCE}`;
+      ? (mpListCount >= 2
+          ? `one of the ${mpListCount} Canadians on the families' list, unaccounted for since ${FLOOD_SENTENCE}`
+          : `one of the Canadians unaccounted for since ${FLOOD_SENTENCE}`)
+      : (mpListCount >= 2
+          ? `a national of ${person.country || '[country]'}, one of the ${mpListCount} on the families' list, unaccounted for since ${FLOOD_SENTENCE}`
+          : `a national of ${person.country || '[country]'} unaccounted for since ${FLOOD_SENTENCE}`);
     const askTwo = isCanadian
       ? `2. Ask Global Affairs Canada to open a case file for ${name} and give me a named consular contact with an update every day until ${name} is accounted for.`
       : `2. Ask Global Affairs Canada to open a case file for ${name} and to coordinate with the government of ${person.country || '[country]'} on the case.`;
@@ -365,6 +425,23 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
 
   if (recipient.chamber === 'intl') {
     const country = person.country || '[country]';
+    // The writer addresses their own government, so the ministry and
+    // the home-country variant follow where the writer lives; the
+    // nationals count follows the missing person's country.
+    const guide = findCountryGuide(writer.country || person.country);
+    const ministry = guide.ministry || 'our foreign ministry';
+    const intlListCount = nationalsOnList(person.country);
+    const othersOnList =
+      intlListCount >= 2
+        ? ` and for the other ${intlListCount === 2 ? 'national' : `${intlListCount - 1} nationals`} of ${country} on the families' list`
+        : '';
+    const asks = guide.home
+      ? `1. Ask the officers coordinating the search what has been done to find ${name}${othersOnList}, and press for the international technical support that has been offered, helicopters, search drones, ground radar, satellite imagery, and search teams, to be accepted and put to work in the valley.\n\n` +
+        `2. Give me a named point of contact with an update every day until ${name} is accounted for.\n\n` +
+        `3. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
+      : `1. Ask ${ministry} what our government has done to date for ${name}${othersOnList}, and press for the same technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
+        `2. Open a case file for ${name} and give me a named point of contact with a daily update.\n\n` +
+        `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
     return (
       `${longDate()}\n\n` +
       `To: [name and office of your Member of Parliament or consular officer]\n\n` +
@@ -374,10 +451,8 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       `${lastSeenSentence(person)}${details}\n\n` +
       `${SITUATION_INTL} ${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
       `I ask you to do three things:\n\n` +
-      `1. Tell me what our government has done to date for ${name} and for the other nationals of ${country} missing in Rasuwa, and press for the same technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
-      `2. Open a case file for ${name} and give me a named point of contact with a daily update.\n\n` +
-      `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
-      `${ACCESS_PARAGRAPH}\n\n` +
+      `${asks}\n\n` +
+      `${guide.home ? HOME_COUNTRY_PARAGRAPH : ACCESS_PARAGRAPH}\n\n` +
       `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
       `Respectfully,\n\n` +
       `${writerName}\n` +

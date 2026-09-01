@@ -116,7 +116,7 @@ describe('the MP letter', () => {
   test('a Canadian citizen letter routes the asks through Global Affairs', () => {
     const body = buildLetterBody({ recipient: MP, writer, person });
     expect(body).toContain('I am your constituent in Ottawa West--Nepean');
-    expect(body).toContain('one of the Canadians unaccounted for');
+    expect(body).toContain("one of the 8 Canadians on the families' list, unaccounted for");
     expect(body).toContain("Global Affairs Canada's Emergency Watch and Response Centre");
     expect(body).toContain('open a case file for Test Missing');
     expect(body).toContain(person.lastSeenPlace);

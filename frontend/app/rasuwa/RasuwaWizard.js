@@ -1363,7 +1363,9 @@ export default function RasuwaWizard() {
             )}
             {where === 'intl' && (
               <p className="text-sm text-midnight-600">
-                Call your foreign ministry&apos;s consular emergency line, ask for a case file and a named contact, and ask your country&apos;s embassy responsible for Nepal to add {person.name.trim() || 'your family member'} to its list of the missing.
+                {guide.home
+                  ? `Call your representative's office with the same details, and ask who in the search coordination takes family reports for ${person.name.trim() || 'your family member'}.`
+                  : `Call the consular emergency line at ${guide.ministry || 'your foreign ministry'}, ask for a case file and a named contact, and ask your country's embassy responsible for Nepal to add ${person.name.trim() || 'your family member'} to its list of the missing.`}
               </p>
             )}
             {(where === 'us' || where === 'ca') && (
