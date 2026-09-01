@@ -8,6 +8,7 @@
 
 const {
   TEAM_CAPS,
+  aggregateRecipientCounts,
   buildCoverage,
   coverageForPublic,
   cleanTeamName,
@@ -139,6 +140,30 @@ describe('buildCoverage', () => {
   });
 });
 
+describe('aggregateRecipientCounts (which offices, each separately)', () => {
+  test('counts records per person and letters per office, with real titles', () => {
+    const rows = [
+      { personName: 'Poonam Thakkar', recipients: 'sen Richard J. Durbin; sen Tammy Duckworth; rep Raja Krishnamoorthi' },
+      { personName: 'POONAM THAKKAR', recipients: 'sen Richard J. Durbin; rep Jonathan L. Jackson' },
+      { personName: 'Anil Grover', recipients: 'mp Anita Vandenbeld' },
+      { personName: 'Vyshnavy Culan', recipients: 'parliament or consular officer' },
+      { personName: '', recipients: 'sen Nobody' },
+      null,
+    ];
+    const { letterCounts, officesByKey } = aggregateRecipientCounts(rows);
+    expect(letterCounts.find((c) => c.personName === 'Poonam Thakkar').records).toBe(2);
+    expect(officesByKey['poonam thakkar']).toEqual([
+      { name: 'Senator Richard J. Durbin', count: 2 },
+      { name: 'Representative Jonathan L. Jackson', count: 1 },
+      { name: 'Representative Raja Krishnamoorthi', count: 1 },
+      { name: 'Senator Tammy Duckworth', count: 1 },
+    ]);
+    expect(officesByKey['anil grover']).toEqual([{ name: 'MP Anita Vandenbeld', count: 1 }]);
+    expect(officesByKey['vyshnavy culan']).toEqual([{ name: 'parliament or consular officer', count: 1 }]);
+    expect(aggregateRecipientCounts(null).letterCounts).toEqual([]);
+  });
+});
+
 describe('coverageForPublic (the chart everyone can see)', () => {
   test('keeps counts, never team members\' names', () => {
     const coverage = buildCoverage({
@@ -149,9 +174,9 @@ describe('coverageForPublic (the chart everyone can see)', () => {
         { personKey: 'anil grover', claimedBy: 'Ravi' },
       ],
     });
-    const pub = coverageForPublic(coverage);
+    const pub = coverageForPublic(coverage, { 'anil grover': [{ name: 'MP Anita Vandenbeld', count: 3 }] });
     expect(pub.people).toEqual([
-      { num: 2, name: 'Anil Grover', country: 'Canada', letters: 3, writing: 2, needsSomeone: false },
+      { num: 2, name: 'Anil Grover', country: 'Canada', letters: 3, writing: 2, needsSomeone: false, offices: [{ name: 'MP Anita Vandenbeld', count: 3 }] },
     ]);
     expect(JSON.stringify(pub)).not.toMatch(/Samira|Ravi|home|claimants/);
     expect(pub.totals.people).toBe(1);

@@ -59,6 +59,18 @@ export default function ProgressChart() {
             <span className="min-w-0 flex-1">
               <span className="block font-semibold text-slate-900">{p.name}</span>
               <span className="block text-xs text-slate-500">{p.country}</span>
+              {p.offices && p.offices.length > 0 && (
+                <span className="mt-1.5 flex flex-wrap gap-1.5">
+                  {p.offices.map((o) => (
+                    <span
+                      key={o.name}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium tabular-nums text-slate-600"
+                    >
+                      {o.name}{o.count > 1 ? ` ×${o.count}` : ''}
+                    </span>
+                  ))}
+                </span>
+              )}
             </span>
             <span className="flex items-center gap-2 text-xs">
               {p.letters > 0 ? (

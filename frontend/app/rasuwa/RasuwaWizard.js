@@ -785,6 +785,11 @@ export default function RasuwaWizard() {
               </div>
             </div>
           )}
+          <p className="text-sm text-midnight-500">
+            <Link className="underline" href="/rasuwa/progress">
+              See the chart: who has letters and who has nobody yet
+            </Link>
+          </p>
           <p className="text-sm text-midnight-400">
             What you type stays on your device while you work, kept only in this browser tab
             so a phone call or a reload does not wipe it. The lookups send only your address

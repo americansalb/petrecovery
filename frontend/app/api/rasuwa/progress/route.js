@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import missingPeople from '@/app/rasuwa/missing-people.json';
-import { buildCoverage, coverageForPublic } from '@/app/rasuwa/team/teamLogic';
+import { aggregateRecipientCounts, buildCoverage, coverageForPublic } from '@/app/rasuwa/team/teamLogic';
 
 /**
  * GET /api/rasuwa/progress - the public chart: every missing person,
@@ -22,18 +22,19 @@ export async function GET() {
   const now = Date.now();
   if (!cache.body || now - cache.at > TTL_MS) {
     try {
-      const [letterCounts, claims] = await Promise.all([
-        prisma.rasuwaLetterRecord.groupBy({ by: ['personName'], _count: { personName: true } }),
+      const [rows, claims] = await Promise.all([
+        prisma.rasuwaLetterRecord.findMany({
+          select: { personName: true, recipients: true },
+          take: 5000,
+        }),
         prisma.rasuwaPersonClaim.findMany({ take: 1000 }),
       ]);
+      const { letterCounts, officesByKey } = aggregateRecipientCounts(rows);
       cache = {
         at: now,
         body: coverageForPublic(
-          buildCoverage({
-            people: missingPeople.people,
-            letterCounts: letterCounts.map((c) => ({ personName: c.personName, records: c._count.personName })),
-            claims,
-          })
+          buildCoverage({ people: missingPeople.people, letterCounts, claims }),
+          officesByKey
         ),
       };
     } catch {

@@ -35,6 +35,12 @@ export default async function JointLetterPage() {
           <h1 className="text-lg font-bold">The families&apos; letter</h1>
           <span className="flex gap-2">
             <Link
+              href="/rasuwa/progress"
+              className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+            >
+              The chart
+            </Link>
+            <Link
               href="/rasuwa/form"
               className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-100"
             >

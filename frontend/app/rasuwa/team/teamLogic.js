@@ -151,11 +151,47 @@ export function buildCoverage({ people = [], letterCounts = [], claims = [] } = 
 }
 
 /**
+ * Per-office tallies from the letter record's recipients strings
+ * ("sen Richard J. Durbin; rep Jonathan L. Jackson"): which offices
+ * have letters for each person, each counted separately. Chamber codes
+ * become the titles people know; junk rows fall away.
+ */
+const CHAMBER_TITLES = { sen: 'Senator', rep: 'Representative', mp: 'MP' };
+
+export function aggregateRecipientCounts(rows) {
+  const letterCounts = new Map();
+  const offices = new Map();
+  for (const row of rows || []) {
+    const personName = text(row?.personName);
+    const key = normalizePersonKey(personName);
+    if (!key) continue;
+    if (!letterCounts.has(key)) letterCounts.set(key, { personName, records: 0 });
+    letterCounts.get(key).records += 1;
+    if (!offices.has(key)) offices.set(key, new Map());
+    const perOffice = offices.get(key);
+    for (const entry of text(row?.recipients).split(';')) {
+      const raw = entry.trim();
+      if (!raw) continue;
+      const m = raw.match(/^(sen|rep|mp)\s+(.+)$/);
+      const label = m ? `${CHAMBER_TITLES[m[1]]} ${m[2]}` : raw;
+      perOffice.set(label, (perOffice.get(label) || 0) + 1);
+    }
+  }
+  const officesByKey = {};
+  for (const [key, perOffice] of offices) {
+    officesByKey[key] = [...perOffice.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }
+  return { letterCounts: [...letterCounts.values()], officesByKey };
+}
+
+/**
  * The public face of the coverage wall (/rasuwa/progress): the same
  * per-person letter counts, but claimant names reduced to a count.
  * Team members' names stay inside the code-gated board.
  */
-export function coverageForPublic(coverage) {
+export function coverageForPublic(coverage, officesByKey = {}) {
   const src = coverage && typeof coverage === 'object' ? coverage : {};
   return {
     people: (src.people || []).map((p) => ({
@@ -165,6 +201,7 @@ export function coverageForPublic(coverage) {
       letters: Number(p.letters) || 0,
       writing: Array.isArray(p.claimants) ? p.claimants.length : 0,
       needsSomeone: Boolean(p.needsSomeone),
+      offices: Array.isArray(officesByKey[p.key]) ? officesByKey[p.key] : [],
     })),
     totals: src.totals || { people: 0, withLetters: 0, needSomeone: 0 },
   };
