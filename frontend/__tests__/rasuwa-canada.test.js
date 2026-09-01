@@ -117,6 +117,8 @@ describe('the MP letter', () => {
     const body = buildLetterBody({ recipient: MP, writer, person });
     expect(body).toContain('I am your constituent in Ottawa West--Nepean');
     expect(body).toContain('one of the Canadians unaccounted for');
+    // "Test Missing" is hand-typed, not a list entry: no membership claim.
+    expect(body).not.toContain("on the families' list");
     expect(body).toContain("Global Affairs Canada's Emergency Watch and Response Centre");
     expect(body).toContain('open a case file for Test Missing');
     expect(body).toContain(person.lastSeenPlace);

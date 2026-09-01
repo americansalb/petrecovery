@@ -14,6 +14,8 @@ const {
   buildLetterBody,
   findCountryGuide,
   jointLetterSentence,
+  nationalsOnList,
+  onFamiliesList,
   buildPhoneScript,
   buildRosterShare,
   buildSubject,
@@ -173,12 +175,92 @@ describe('letter builders', () => {
     expect(findCountryGuide(null).country).toBe('Another country');
   });
 
+  test('every nationality on the families\' list has its own guide with a named ministry', () => {
+    const listCountries = [...new Set(missingPeople.people.map((p) => p.country))];
+    for (const country of listCountries) {
+      const guide = findCountryGuide(country);
+      if (country === 'United States' || country === 'Canada') continue; // first-class paths
+      expect(guide.country).toBe(country);
+      expect(guide.ministry).toBeTruthy();
+      expect(guide.findRep.url).toMatch(/^https:\/\//);
+      expect(guide.consular.url).toMatch(/^https:\/\//);
+    }
+    expect(findCountryGuide('nepal').home).toBe(true);
+  });
+
+  test('nationalsOnList counts the list, any case, zero for strangers', () => {
+    expect(nationalsOnList(' AUSTRALIA ')).toBe(16);
+    expect(nationalsOnList('United States')).toBe(43);
+    expect(nationalsOnList('Germany')).toBe(0);
+    expect(nationalsOnList(null)).toBe(0);
+  });
+
+  test('onFamiliesList knows current names, earlier printed names, and strangers', () => {
+    expect(onFamiliesList('Poonam Dilipkumar Thakkar')).toBe(true);
+    expect(onFamiliesList('  poonam thakkar ')).toBe(true); // aka, folded
+    expect(onFamiliesList('Test Person')).toBe(false);
+    expect(onFamiliesList('')).toBe(false);
+  });
+
+  test('international letters name the writer country\'s ministry and its stake on the list', () => {
+    const writer = { name: 'A Writer', relationship: 'brother', phone: '555', email: '', inUS: false, country: 'Australia' };
+    const listed = missingPeople.people.find((p) => p.country === 'Australia');
+    const onList = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person: { ...listed, details: '' } });
+    expect(onList).toContain('Ask the Department of Foreign Affairs and Trade what our government has done');
+    expect(onList).toContain('the other 15 nationals of Australia on the families\' list');
+    // A hand-added person is real but not on the list: no "other",
+    // no membership claim, the full count stands (review finding on
+    // PR #229).
+    const person = { name: 'Test Person', country: 'Australia', home: '', lastSeenPlace: 'Timure', lastSeenWhen: '', operator: '', details: '' };
+    const added = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
+    expect(added).toContain('and for the 16 nationals of Australia on the families\' list');
+    expect(added).not.toContain('the other 15');
+    // A country with nobody on the list falls back and drops the clause.
+    const de = buildLetterBody({
+      recipient: { chamber: 'intl', bioguide: 'intl', name: '' },
+      writer: { ...writer, country: 'Germany' },
+      person: { ...person, country: 'Germany' },
+    });
+    expect(de).toContain('Ask our foreign ministry what our government has done');
+    expect(de).not.toContain('on the families\' list');
+  });
+
+  test('MP letters claim the list only for people on it', () => {
+    const writer = { name: 'A Writer', relationship: 'sister', phone: '555', email: '', inUS: false, country: 'Canada' };
+    const mp = { chamber: 'mp', bioguide: 'mp', name: 'Test MP', riding: 'Testing', party: '', email: '', url: '', offices: [] };
+    const listed = missingPeople.people.find((p) => p.country === 'Canada');
+    const onList = buildLetterBody({ recipient: mp, writer, person: { ...listed, details: '' } });
+    expect(onList).toContain('one of the 8 Canadians on the families\' list');
+    const added = buildLetterBody({
+      recipient: mp,
+      writer,
+      person: { name: 'Test Person', country: 'Canada', home: '', lastSeenPlace: 'Timure', lastSeenWhen: '', operator: '', details: '' },
+    });
+    expect(added).toContain('one of the Canadians unaccounted for');
+    expect(added).not.toContain('on the families\' list');
+  });
+
+  test('a writer in Nepal asks their own government to accept the offers', () => {
+    const writer = { name: 'A Writer', relationship: 'brother', phone: '555', email: '', inUS: false, country: 'Nepal' };
+    const person = { name: 'Test Person', country: 'Nepal', home: '', lastSeenPlace: 'Timure', lastSeenWhen: '', operator: '', details: '' };
+    const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
+    expect(body).toContain('to be accepted and put to work in the valley');
+    expect(body).toContain('what was offered, what was accepted, and when it will arrive');
+    // The consent-pressing frame makes no sense addressed to Nepal itself.
+    expect(body).not.toContain('If any of this is said to be waiting');
+    expect(body).not.toContain('Open a case file');
+    expect(body).toContain('rescueourfamily.org/letter');
+    expect(body).not.toMatch(/—|–/);
+  });
+
   test('a hand-typed nationality lands in the letter as written, never as "Other"', () => {
     const writer = { name: 'A Writer', relationship: 'brother', phone: '555', email: '', inUS: false, country: 'Germany' };
     const person = { name: 'Test Person', country: 'Germany', home: 'Berlin', lastSeenPlace: 'Timure', lastSeenWhen: '', operator: '', details: '' };
     const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
-    expect(body).toContain('nationals of Germany');
+    // Germany has nobody on the list, so no count clause renders, and
+    // the typed country never collapses to "Other" or a placeholder.
     expect(body).not.toContain('Other');
+    expect(body).not.toContain('[country]');
   });
 
   test('the letter sentence leads with the living letter and takes a larger live count', () => {

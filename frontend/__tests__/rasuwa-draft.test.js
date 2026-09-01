@@ -172,6 +172,10 @@ describe('snapshot and restore round trip', () => {
     const v3 = { ...snapshotDraft(state), templateVersion: 3 };
     expect(restoreDraft(v3).overrides).toEqual({});
     expect(restoreDraft(v3).templateOutdated).toBe(true);
+    // v4 predates the named ministries and list counts; same rebuild.
+    const v4 = { ...snapshotDraft(state), templateVersion: 4 };
+    expect(restoreDraft(v4).overrides).toEqual({});
+    expect(restoreDraft(v4).templateOutdated).toBe(true);
     // No hand edits means nothing was lost and no notice is owed.
     const clean = { ...snapshotDraft(emptyState()), templateVersion: 1 };
     expect(restoreDraft(clean).templateOutdated).toBe(false);

@@ -52,6 +52,7 @@ import {
 } from './letterDraft';
 import {
   ACCESS_COMEBACK,
+  HOME_COMEBACK,
   CANADA_LINKS,
   COUNTRY_GUIDES,
   FACTS_DATE,
@@ -704,6 +705,10 @@ export default function RasuwaWizard() {
     writer,
     person,
   });
+
+  // Writers inside Nepal ask their own government about accepting the
+  // offered help; the consent comeback reads backwards for them.
+  const comeback = where === 'intl' && guide.home ? HOME_COMEBACK : ACCESS_COMEBACK;
 
   // ── Sidebar summary ────────────────────────────────────────────────
   const summary = [];
@@ -1363,7 +1368,9 @@ export default function RasuwaWizard() {
             )}
             {where === 'intl' && (
               <p className="text-sm text-midnight-600">
-                Call your foreign ministry&apos;s consular emergency line, ask for a case file and a named contact, and ask your country&apos;s embassy responsible for Nepal to add {person.name.trim() || 'your family member'} to its list of the missing.
+                {guide.home
+                  ? `Call your representative's office with the same details, and ask who in the search coordination takes family reports for ${person.name.trim() || 'your family member'}.`
+                  : `Call the consular emergency line at ${guide.ministry || 'your foreign ministry'}, ask for a case file and a named contact, and ask your country's embassy responsible for Nepal to add ${person.name.trim() || 'your family member'} to its list of the missing.`}
               </p>
             )}
             {(where === 'us' || where === 'ca') && (
@@ -1377,16 +1384,16 @@ export default function RasuwaWizard() {
               </div>
             )}
             <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-3">
-              <p className="text-sm font-bold text-midnight-900">{ACCESS_COMEBACK.title}</p>
+              <p className="text-sm font-bold text-midnight-900">{comeback.title}</p>
               <p className="mt-1.5 rounded-lg bg-white border border-blue-200 p-2.5 text-sm text-midnight-800">
-                &quot;{ACCESS_COMEBACK.ask}&quot;
+                &quot;{comeback.ask}&quot;
               </p>
               <div className="mt-1.5">
-                <button type="button" className={linkBtnCls} onClick={() => copyText('comeback', ACCESS_COMEBACK.ask)}>
+                <button type="button" className={linkBtnCls} onClick={() => copyText('comeback', comeback.ask)}>
                   {copied === 'comeback' ? 'Copied' : 'Copy the question'}
                 </button>
               </div>
-              <p className="mt-1.5 text-sm text-midnight-600 leading-relaxed">{ACCESS_COMEBACK.note}</p>
+              <p className="mt-1.5 text-sm text-midnight-600 leading-relaxed">{comeback.note}</p>
             </div>
           </div>
 
