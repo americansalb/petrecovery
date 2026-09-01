@@ -51,6 +51,8 @@ const RATE_LIMIT_CONFIG = {
   // this cap just keeps the noise down without locking out a venue of
   // families joining at once). The board is one polled read every few
   // seconds for everyone in the room, so it gets tally-class headroom.
+  // The public chart: one cached read a minute per visitor.
+  '/api/rasuwa/progress': { windowMs: 60000, maxRequests: 60 },
   '/api/rasuwa/team/join': { windowMs: 60000, maxRequests: 30 },
   '/api/rasuwa/team/board': { windowMs: 60000, maxRequests: 240 },
   '/api/rasuwa/team': { windowMs: 60000, maxRequests: 120 },
