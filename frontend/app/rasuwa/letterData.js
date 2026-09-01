@@ -11,6 +11,7 @@
  */
 
 import missingPeople from './missing-people.json';
+import { normalizePersonKey } from './team/teamLogic';
 
 export const FACTS_DATE = 'August 31, 2026';
 
@@ -176,6 +177,26 @@ export function nationalsOnList(country) {
   return NATIONALS_BY_COUNTRY.get(String(country || '').trim().toLowerCase()) || 0;
 }
 
+/**
+ * Whether a name is one of the people on the families' list, under a
+ * current or earlier printed name. Letters claim "on the families'
+ * list" only for people actually on it: someone a writer adds by hand
+ * is real but not yet listed, so their letter must not fold them into
+ * the list's count (review finding on PR #229).
+ */
+const LISTED_NAME_KEYS = (() => {
+  const keys = new Set();
+  for (const p of missingPeople.people) {
+    keys.add(normalizePersonKey(p.name));
+    for (const alias of Array.isArray(p.aka) ? p.aka : []) keys.add(normalizePersonKey(alias));
+  }
+  return keys;
+})();
+
+export function onFamiliesList(name) {
+  return LISTED_NAME_KEYS.has(normalizePersonKey(name));
+}
+
 // No personal contact details on the site (founder instruction,
 // 2026-08-31: the coordinator's own email and phone came down). List
 // corrections and new entries go through the family form on
@@ -282,6 +303,19 @@ const ACCESS_PARAGRAPH =
 const HOME_COUNTRY_PARAGRAPH =
   'Nepal\'s Foreign Ministry has said the country does not need foreign search and rescue teams at this time but is open to targeted technical support, and foreign governments have offered exactly that. ' +
   'I am asking for those offers to be accepted quickly and specifically, for the equipment and crews to reach the valley, and for families to be told what was offered, what was accepted, and when it will arrive.';
+
+/**
+ * The prepared question for callers inside Nepal, where the consent
+ * comeback would read backwards: their government holds the answer
+ * about accepting the offered help, not about offering it.
+ */
+export const HOME_COMEBACK = {
+  title: 'If they say "the offers are being reviewed"',
+  ask: 'Which offers of technical support has the government received, which have been accepted, and when does each reach the valley?',
+  note:
+    'A specific list with dates is an answer a family can hold on to. ' +
+    'Ask the office to find out and call you back with it.',
+};
 
 /** Rendered on the delivery step under the phone script, for every path. */
 export const ACCESS_COMEBACK = {
@@ -391,13 +425,15 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     const mpName = ph(recipient.name, "your MP's name");
     const riding = recipient.riding && recipient.riding.trim() ? recipient.riding.trim() : '[your riding]';
     const isCanadian = person.country === 'Canada';
-    // The country's stake, from the families' list itself.
+    // The country's stake, from the families' list itself; membership
+    // is claimed only for people actually on the list.
     const mpListCount = nationalsOnList(person.country);
+    const mpListed = onFamiliesList(person.name);
     const personLine = isCanadian
-      ? (mpListCount >= 2
+      ? (mpListed && mpListCount >= 2
           ? `one of the ${mpListCount} Canadians on the families' list, unaccounted for since ${FLOOD_SENTENCE}`
           : `one of the Canadians unaccounted for since ${FLOOD_SENTENCE}`)
-      : (mpListCount >= 2
+      : (mpListed && mpListCount >= 2
           ? `a national of ${person.country || '[country]'}, one of the ${mpListCount} on the families' list, unaccounted for since ${FLOOD_SENTENCE}`
           : `a national of ${person.country || '[country]'} unaccounted for since ${FLOOD_SENTENCE}`);
     const askTwo = isCanadian
@@ -431,10 +467,15 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     const guide = findCountryGuide(writer.country || person.country);
     const ministry = guide.ministry || 'our foreign ministry';
     const intlListCount = nationalsOnList(person.country);
-    const othersOnList =
-      intlListCount >= 2
-        ? ` and for the other ${intlListCount === 2 ? 'national' : `${intlListCount - 1} nationals`} of ${country} on the families' list`
-        : '';
+    // "the other 15" only when this person is one of the 16; someone
+    // added by hand is in addition to the list's count.
+    const othersOnList = onFamiliesList(person.name)
+      ? (intlListCount >= 2
+          ? ` and for the other ${intlListCount === 2 ? 'national' : `${intlListCount - 1} nationals`} of ${country} on the families' list`
+          : '')
+      : (intlListCount >= 2
+          ? ` and for the ${intlListCount} nationals of ${country} on the families' list`
+          : '');
     const asks = guide.home
       ? `1. Ask the officers coordinating the search what has been done to find ${name}${othersOnList}, and press for the international technical support that has been offered, helicopters, search drones, ground radar, satellite imagery, and search teams, to be accepted and put to work in the valley.\n\n` +
         `2. Give me a named point of contact with an update every day until ${name} is accounted for.\n\n` +
