@@ -59,7 +59,21 @@ describe('missing people (from the live letter)', () => {
   test('all 81 entries are present, 43 American', () => {
     expect(people).toHaveLength(81);
     expect(people.filter((p) => p.country === 'United States')).toHaveLength(43);
-    expect(people.map((p) => p.num)).toEqual([...Array(81)].map((_, i) => i + 1));
+    expect(people.map((p) => p.num).sort((a, b) => a - b)).toEqual(
+      [...Array(81)].map((_, i) => i + 1)
+    );
+  });
+
+  test('num is a stable link id: published numbers survive regeneration', () => {
+    // ?for= links already shared in the group chats carry these
+    // numbers; a regeneration must never hand them to someone else
+    // (review finding on PR #228). Anchors from the August 29 list:
+    const byName = (n) => people.find((p) => p.name === n);
+    expect(byName('Poonam Dilipkumar Thakkar').num).toBe(1); // via aka "Poonam Thakkar"
+    expect(byName('Akanksha Patel').num).toBe(2);
+    expect(byName('Vyshnavy Culan').num).toBe(57);
+    // People added after August 29 number from 58 up.
+    expect(byName('Acharna Sudesh').num).toBeGreaterThanOrEqual(58);
   });
 
   test('every entry names the person, a location, and a tour group', () => {

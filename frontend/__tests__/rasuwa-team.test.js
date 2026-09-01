@@ -10,6 +10,7 @@ const {
   TEAM_CAPS,
   aggregateRecipientCounts,
   buildCoverage,
+  personKeySets,
   coverageForPublic,
   cleanTeamName,
   cleanTeamNeed,
@@ -137,6 +138,20 @@ describe('buildCoverage', () => {
     const coverage = buildCoverage({ people });
     expect(coverage.totals.needSomeone).toBe(3);
     expect(buildCoverage({}).totals.people).toBe(0);
+  });
+
+  test('any printed name resolves to the person and their whole key set', () => {
+    const sets = personKeySets([
+      { num: 1, name: 'Poonam Dilipkumar Thakkar', aka: ['Poonam Thakkar'] },
+      { num: 2, name: 'Anil Grover' },
+    ]);
+    const expected = { canonical: 'poonam dilipkumar thakkar', keys: ['poonam dilipkumar thakkar', 'poonam thakkar'] };
+    // Claim by either name, release clears both: the set is the unit.
+    expect(sets.get('poonam dilipkumar thakkar')).toEqual(expected);
+    expect(sets.get('poonam thakkar')).toEqual(expected);
+    expect(sets.get('anil grover')).toEqual({ canonical: 'anil grover', keys: ['anil grover'] });
+    expect(sets.get('nobody listed')).toBeUndefined();
+    expect(personKeySets(null).size).toBe(0);
   });
 
   test('letters and claims recorded under an earlier printed name still count', () => {

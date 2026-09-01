@@ -84,6 +84,28 @@ export function normalizePersonKey(name) {
 }
 
 /**
+ * Every key that means one listed person: the canonical name key plus
+ * any earlier printed names (`aka`), looked up by any of them. Claim
+ * and release must act on the whole set, or a claim stored under an
+ * old name becomes unreleasable after a rename (review finding on
+ * PR #228).
+ */
+export function personKeySets(people) {
+  const byAnyKey = new Map();
+  for (const p of people || []) {
+    const canonical = normalizePersonKey(p?.name);
+    if (!canonical) continue;
+    const keys = [canonical];
+    for (const alias of Array.isArray(p?.aka) ? p.aka : []) {
+      const k = normalizePersonKey(alias);
+      if (k && !keys.includes(k)) keys.push(k);
+    }
+    for (const k of keys) byAnyKey.set(k, { canonical, keys });
+  }
+  return byAnyKey;
+}
+
+/**
  * The coverage wall: every person on the list of the missing, with how
  * many letters the record holds for them and who on the board has said
  * "I'll write for them". Letters recorded under names not on the list

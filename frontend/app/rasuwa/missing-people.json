@@ -1,6 +1,7 @@
 {
  "source": "Signatory list of the families' letter to the U.S. Secretary of State (live document, rescueourfamily.org/letter)",
  "updated": "2026-08-31",
+ "numbering": "num is a stable identifier for ?for= prefill links, kept for a person across regenerations (matched by name or aka); new people take the next free number. It does not track the letter's own entry numbers.",
  "people": [
   {
    "num": 1,
@@ -15,7 +16,7 @@
    ]
   },
   {
-   "num": 2,
+   "num": 58,
    "name": "Acharna Sudesh",
    "country": "United States",
    "home": "Murphy",
@@ -24,7 +25,7 @@
    "operator": "Kailash Journeys or Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 3,
+   "num": 2,
    "name": "Akanksha Patel",
    "country": "United States",
    "home": "Midlothian, VA",
@@ -33,7 +34,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 4,
+   "num": 59,
    "name": "Alka Malhotra",
    "country": "United States",
    "home": "San Diego, California",
@@ -42,7 +43,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 5,
+   "num": 3,
    "name": "Anil Goel",
    "country": "United States",
    "home": "Centreville, Virginia",
@@ -51,7 +52,7 @@
    "operator": "Classic Vacations Nepal"
   },
   {
-   "num": 6,
+   "num": 4,
    "name": "Archana Suresh",
    "country": "United States",
    "home": "Murphy, Texas",
@@ -60,7 +61,7 @@
    "operator": "Kailash Journeys or Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 7,
+   "num": 5,
    "name": "Bina Parikh",
    "country": "United States",
    "home": "Glen Oaks, NY",
@@ -69,7 +70,7 @@
    "operator": "Dream Tibet Travel and Tour Agency"
   },
   {
-   "num": 8,
+   "num": 6,
    "name": "Daya Ganesh Bale",
    "country": "United States",
    "home": "East Brunswick, NJ",
@@ -78,7 +79,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 9,
+   "num": 7,
    "name": "Deepak Ahuja",
    "country": "United States",
    "home": "Plano, TX",
@@ -87,7 +88,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 10,
+   "num": 60,
    "name": "Gaurav Menon",
    "country": "United States",
    "home": "",
@@ -96,7 +97,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 11,
+   "num": 8,
    "name": "Hanumantha Rao Unnava",
    "country": "United States",
    "home": "Woodland, CA",
@@ -105,7 +106,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 12,
+   "num": 61,
    "name": "Harshawardhan Rodge",
    "country": "United States",
    "home": "Missouri city",
@@ -114,7 +115,7 @@
    "operator": "Fishtail Tours and Travel"
   },
   {
-   "num": 13,
+   "num": 9,
    "name": "Ishan Patel",
    "country": "United States",
    "home": "Canton, Michigan",
@@ -123,7 +124,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 14,
+   "num": 10,
    "name": "Jiwan Jyoti",
    "country": "United States",
    "home": "",
@@ -132,7 +133,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 15,
+   "num": 11,
    "name": "Kesava Rao Tadipatri",
    "country": "United States",
    "home": "Mesa, Arizona",
@@ -141,7 +142,7 @@
    "operator": "DG SIR DOT"
   },
   {
-   "num": 16,
+   "num": 12,
    "name": "Kirti Kumar Acharya",
    "country": "United States",
    "home": "Miami, Florida",
@@ -150,7 +151,7 @@
    "operator": "Classic Vacations Nepal"
   },
   {
-   "num": 17,
+   "num": 13,
    "name": "Krishnakumar Raghavan",
    "country": "United States",
    "home": "Columbus, NJ",
@@ -159,7 +160,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 18,
+   "num": 62,
    "name": "Latha Samala",
    "country": "United States",
    "home": "Glen Allen",
@@ -168,7 +169,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 19,
+   "num": 14,
    "name": "Laxminath Gopisetty",
    "country": "United States",
    "home": "Aldie, VA",
@@ -177,7 +178,7 @@
    "operator": "Classic Vacations Nepal"
   },
   {
-   "num": 20,
+   "num": 15,
    "name": "Madhu Ahuja",
    "country": "United States",
    "home": "Plano, TX",
@@ -186,7 +187,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 21,
+   "num": 63,
    "name": "Menon Gaurav",
    "country": "United States",
    "home": "",
@@ -195,7 +196,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 22,
+   "num": 64,
    "name": "Mukti Chandrakant Belahal",
    "country": "United States",
    "home": "Princeton Junction, NJ",
@@ -204,7 +205,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 23,
+   "num": 16,
    "name": "Neelam Sharma",
    "country": "United States",
    "home": "Queens, New York",
@@ -213,7 +214,7 @@
    "operator": "Nepal Trekking Planners"
   },
   {
-   "num": 24,
+   "num": 17,
    "name": "Oleg Khatsenko",
    "country": "United States",
    "home": "San Diego, California",
@@ -222,7 +223,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 25,
+   "num": 65,
    "name": "Pankaj Misra",
    "country": "United States",
    "home": "Bloomfield, CT",
@@ -231,7 +232,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 26,
+   "num": 66,
    "name": "Poonam Misra",
    "country": "United States",
    "home": "Kendall Park, NJ",
@@ -240,7 +241,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 27,
+   "num": 18,
    "name": "Rachana Thapa",
    "country": "United States",
    "home": "Bel Air, Maryland",
@@ -249,7 +250,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 28,
+   "num": 19,
    "name": "Raghu Rajan",
    "country": "United States",
    "home": "Murphy, Texas",
@@ -258,7 +259,7 @@
    "operator": "Kailash Journeys or Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 29,
+   "num": 67,
    "name": "Ragini Misra",
    "country": "United States",
    "home": "Bloomfield, CT",
@@ -267,7 +268,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 30,
+   "num": 20,
    "name": "Rajyalakshmi Nimmagadda",
    "country": "United States",
    "home": "Somerville, MA",
@@ -276,7 +277,7 @@
    "operator": "The Trekkers' Society or Isha Foundation"
   },
   {
-   "num": 31,
+   "num": 21,
    "name": "Ramesh Sharma",
    "country": "United States",
    "home": "Queens, New York",
@@ -285,7 +286,7 @@
    "operator": "Nepal Trekking Planners"
   },
   {
-   "num": 32,
+   "num": 22,
    "name": "Rashi Shashidharan",
    "country": "United States",
    "home": "New York City, New York",
@@ -294,7 +295,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 33,
+   "num": 23,
    "name": "Rekha Shashidharan",
    "country": "United States",
    "home": "New York City, New York",
@@ -303,7 +304,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 34,
+   "num": 24,
    "name": "Sasi Kumar Atluri",
    "country": "United States",
    "home": "Somerville, MA",
@@ -312,7 +313,7 @@
    "operator": "The Trekkers' Society or Isha Foundation"
   },
   {
-   "num": 35,
+   "num": 25,
    "name": "Shilpa Patel",
    "country": "United States",
    "home": "Canton, Michigan",
@@ -321,7 +322,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 36,
+   "num": 26,
    "name": "Shital Chetan Chohan",
    "country": "United States",
    "home": "Knoxville, Tennessee",
@@ -330,7 +331,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 37,
+   "num": 68,
    "name": "Sridevi Vejella",
    "country": "United States",
    "home": "10 Hyacinth Ln, Monroe Township, NJ",
@@ -339,7 +340,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 38,
+   "num": 27,
    "name": "Sudhindra Yapalparvi",
    "country": "United States",
    "home": "Chantilly, VA",
@@ -348,7 +349,7 @@
    "operator": "Classic Vacations Nepal"
   },
   {
-   "num": 39,
+   "num": 28,
    "name": "Tejal Patel",
    "country": "United States",
    "home": "North Brunswick, NJ",
@@ -357,7 +358,7 @@
    "operator": "Nepal Trekking Planners"
   },
   {
-   "num": 40,
+   "num": 29,
    "name": "Vandana Chand",
    "country": "United States",
    "home": "Richmond, Virginia",
@@ -366,7 +367,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 41,
+   "num": 30,
    "name": "Vasundhara Unnava",
    "country": "United States",
    "home": "Woodland, CA",
@@ -375,7 +376,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 42,
+   "num": 69,
    "name": "Venkatakrishna Bangalore",
    "country": "United States",
    "home": "Woodbridge, VA",
@@ -384,7 +385,7 @@
    "operator": "Classic Vacations Nepal"
   },
   {
-   "num": 43,
+   "num": 31,
    "name": "Venus Rajnikant Patel",
    "country": "United States",
    "home": "West Chester, Ohio",
@@ -393,7 +394,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 44,
+   "num": 32,
    "name": "Aarush Muralitharan",
    "country": "Australia",
    "home": "Sydney, NSW, Australia",
@@ -402,7 +403,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 45,
+   "num": 70,
    "name": "Anal Kar",
    "country": "United Kingdom",
    "home": "Kolkata, West Bengal",
@@ -411,7 +412,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 46,
+   "num": 33,
    "name": "Anil Grover",
    "country": "Canada",
    "home": "Markham, Ontario",
@@ -420,7 +421,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 47,
+   "num": 71,
    "name": "Ankit Ranjan",
    "country": "United Kingdom",
    "home": "London",
@@ -429,7 +430,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 48,
+   "num": 72,
    "name": "Ankita Chandra",
    "country": "United Kingdom",
    "home": "London",
@@ -438,7 +439,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 49,
+   "num": 34,
    "name": "Ashwin Muralitharan",
    "country": "Australia",
    "home": "Sydney, NSW, Australia",
@@ -447,7 +448,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 50,
+   "num": 73,
    "name": "Bavika Ramjee",
    "country": "South Africa",
    "home": "East London",
@@ -456,7 +457,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 51,
+   "num": 35,
    "name": "Bharat Mangwani",
    "country": "Australia",
    "home": "Sydney",
@@ -465,7 +466,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 52,
+   "num": 74,
    "name": "Bhavinkumar Rajnikant Raval",
    "country": "Australia",
    "home": "Brisbane, Queensland",
@@ -474,7 +475,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 53,
+   "num": 36,
    "name": "Chandrasekaran Muralitharan",
    "country": "Australia",
    "home": "Sydney",
@@ -483,7 +484,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 54,
+   "num": 37,
    "name": "Dhaval Shah",
    "country": "Canada",
    "home": "",
@@ -492,7 +493,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 55,
+   "num": 38,
    "name": "Geetha Adinarayana Reddy",
    "country": "United Kingdom",
    "home": "London",
@@ -501,7 +502,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 56,
+   "num": 39,
    "name": "Gopi Krishna Naidu Agastya",
    "country": "Australia",
    "home": "Parramatta",
@@ -510,7 +511,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 57,
+   "num": 40,
    "name": "Himanshu Agarwal",
    "country": "Canada",
    "home": "Oakville, Ontario",
@@ -519,7 +520,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 58,
+   "num": 41,
    "name": "Jagdishbhai Umedbhai Patel",
    "country": "Canada",
    "home": "Toronto",
@@ -528,7 +529,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 59,
+   "num": 42,
    "name": "Karan Bhardwaj",
    "country": "Australia",
    "home": "Brisbane QLD",
@@ -537,7 +538,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 60,
+   "num": 43,
    "name": "Lakshmi Iyer",
    "country": "Australia",
    "home": "Sydney, NSW",
@@ -546,7 +547,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 61,
+   "num": 44,
    "name": "Mahendra Gupta",
    "country": "Canada",
    "home": "Toronto",
@@ -555,7 +556,7 @@
    "operator": "Classic Vacations Nepal"
   },
   {
-   "num": 62,
+   "num": 75,
    "name": "Nelly Maya Chhetri",
    "country": "United Kingdom",
    "home": "Nepal",
@@ -564,7 +565,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 63,
+   "num": 45,
    "name": "Padma Jaggubhai Patel",
    "country": "Canada",
    "home": "Toronto",
@@ -573,7 +574,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 64,
+   "num": 76,
    "name": "Raghu Ranjan",
    "country": "Nepal",
    "home": "Dallas, Texas",
@@ -582,7 +583,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 65,
+   "num": 46,
    "name": "Rajeswari Sharma",
    "country": "Australia",
    "home": "Sydney",
@@ -591,7 +592,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 66,
+   "num": 47,
    "name": "Rishab Iyer Sreedharan Iyer",
    "country": "Australia",
    "home": "Sydney, NSW",
@@ -600,7 +601,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 67,
+   "num": 48,
    "name": "Rudhra Sreedharan Iyer",
    "country": "Australia",
    "home": "Sydney, NSW",
@@ -609,7 +610,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 68,
+   "num": 49,
    "name": "Samira Grover",
    "country": "Canada",
    "home": "Markham, Ontario",
@@ -618,7 +619,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 69,
+   "num": 77,
    "name": "Sandeep Mohapatra",
    "country": "Australia",
    "home": "Melbourne",
@@ -627,7 +628,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 70,
+   "num": 78,
    "name": "Sanjukta Kar",
    "country": "United Kingdom",
    "home": "Kolkata, West Bengal",
@@ -636,7 +637,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 71,
+   "num": 79,
    "name": "Shamila Sri Rangathan",
    "country": "United Kingdom",
    "home": "London",
@@ -645,7 +646,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 72,
+   "num": 50,
    "name": "Shubakshi Rawla",
    "country": "Singapore",
    "home": "Vancouver",
@@ -654,7 +655,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 73,
+   "num": 51,
    "name": "Shylaja Muralitharan",
    "country": "Australia",
    "home": "Sydney NSW",
@@ -663,7 +664,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 74,
+   "num": 80,
    "name": "Sidharthi Kumari Sahu",
    "country": "Australia",
    "home": "Melbourne",
@@ -672,7 +673,7 @@
    "operator": "Kailash Journeys"
   },
   {
-   "num": 75,
+   "num": 52,
    "name": "Sreedharan Iyer",
    "country": "Australia",
    "home": "Sydney, NSW",
@@ -681,7 +682,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 76,
+   "num": 53,
    "name": "Sumit Rawla",
    "country": "Singapore",
    "home": "Coquitlam",
@@ -690,7 +691,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 77,
+   "num": 54,
    "name": "Terricia Govender",
    "country": "South Africa",
    "home": "Durban Isipingo Beach South Africa",
@@ -699,7 +700,7 @@
    "operator": "Isha Foundation"
   },
   {
-   "num": 78,
+   "num": 55,
    "name": "Uday Shivamurthy",
    "country": "Australia",
    "home": "Sydney",
@@ -708,7 +709,7 @@
    "operator": "The Trekkers' Society"
   },
   {
-   "num": 79,
+   "num": 56,
    "name": "Umeshkumar Patel",
    "country": "Canada",
    "home": "Midlothian, Virginia, USA",
@@ -717,7 +718,7 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
-   "num": 80,
+   "num": 57,
    "name": "Vyshnavy Culan",
    "country": "France",
    "home": "Paris",
