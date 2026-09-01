@@ -3,7 +3,7 @@
 /**
  * The one live sentence on the /rasuwa landing pages: how many people
  * have signed the families' letter so far. Renders the truthful floor
- * ("More than 1,189") immediately, for bots, no-JS, and any failure,
+ * ("More than 3,160") immediately, for bots, no-JS, and any failure,
  * and upgrades in place when /api/rasuwa/roster-count answers with a
  * live number. Never renders an error: the floor is always right.
  */

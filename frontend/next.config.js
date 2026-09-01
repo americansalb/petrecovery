@@ -238,6 +238,14 @@ const nextConfig = {
         destination: '/rasuwa/team',
         permanent: false,
       },
+      // The public progress chart's short address; without this,
+      // rescueourfamily.org/progress fell into the family domain's
+      // catch-all and landed on the form.
+      {
+        source: '/progress',
+        destination: '/rasuwa/progress',
+        permanent: false,
+      },
       // rescueourfamily.org is the families' own domain: its root and
       // /form land on the sign page. REDIRECTS, not rewrites: the
       // global chrome hides by the browser-visible pathname

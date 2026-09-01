@@ -600,3 +600,29 @@ running app with Playwright plus unit tests before pushing.
   refreshed each minute, every row handing off into the wizard with
   that person picked. Linked from the wizard's finish step; the Sent
   mark already sits on the same card as Copy the letter.
+- **The letters mirror the live joint letter (founder feedback,
+  2026-09-01, updated letter uploaded: "for like the 5th time,
+  outdated info"):** the generated letters no longer open with the
+  frozen delivery-day snapshot ("On August 29, 1,189 family members
+  and friends of 57 missing people"). They now lead with the living
+  document: "More than 3,160 family members and friends of 81
+  missing people ... first delivered on August 29 and updated since,"
+  with the count rising further whenever the live roster count is
+  larger. The situation paragraphs carry the letter's own figures (90
+  Americans unaccounted for and five rescued; 579 confirmed deaths;
+  1,924 listed missing in Nepal and 558 on China's side; the second
+  barrier lake), the "August 29 letter" references became "the
+  families' joint letter" so they cannot date themselves, the
+  template version bumped to v4 so stale hand-edited drafts rebuild
+  with the notice, and the roster-count floor moved to the letter's
+  printed 3,160. missing-people.json was regenerated from the
+  uploaded letter: 81 people (43 American), including everyone added
+  since August 29. Renamed entries keep their history: a person can
+  carry `aka` names from earlier printings, and letters or claims
+  recorded under those names still count for them on the chart and
+  the board (Poonam's letters recorded as "Poonam Thakkar" follow her
+  new "Poonam Dilipkumar Thakkar" entry).
+- **rescueourfamily.org/progress reaches the chart (founder report,
+  same day: it landed on the form):** /progress now redirects to
+  /rasuwa/progress on every host, like /letter and /team already did;
+  before, the family domain's catch-all sent it to the sign page.

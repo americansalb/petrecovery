@@ -1,8 +1,9 @@
 /**
  * Letter content for the /rasuwa tool: templates, delivery links, and the
  * facts the letters cite. Everything factual is sourced from the families'
- * August 29, 2026 letter to the U.S. Secretary of State; FACTS_DATE is
- * stamped on every generated letter so staleness is visible.
+ * live joint letter to the U.S. Secretary of State (the document behind
+ * rescueourfamily.org/letter); FACTS_DATE is stamped on every generated
+ * letter so staleness is visible.
  *
  * Organizers update THIS FILE (and missing-people.json) as the situation
  * changes; the UI in RasuwaLetterTool.js reads from here and never
@@ -12,13 +13,16 @@
 export const FACTS_DATE = 'August 31, 2026';
 
 /**
- * Signatures on the joint letter AS SENT on August 29. The generated
- * letters cite this number because they quote that letter, a dated
- * document an office can verify; it does not change as the roster
- * grows. The landing pages show the LIVE roster count instead, served
- * by /api/rasuwa/roster-count with this as the floor.
+ * The joint letter's own headline figures: how many people have signed
+ * and how many missing people they signed for, as the live letter
+ * showed them on FACTS_DATE. The letter is a living document, so the
+ * generated letters and the landing pages treat LETTER_SIGNERS as a
+ * floor ("More than 3,160"), which stays true as signatures keep
+ * arriving; /api/rasuwa/roster-count replaces it with the live roster
+ * count when the organizers' sheet answers.
  */
-export const SIGNERS_AUG29 = 1189;
+export const LETTER_SIGNERS = 3160;
+export const LETTER_MISSING = 81;
 
 
 /**
@@ -36,7 +40,7 @@ export const ROSTER_FORM_URL =
  * ({"count": 2345}). Defaults to asking the roster web app with
  * ?count=1; until the organizers add the handler below to their Apps
  * Script doGet, that returns the form's HTML, the parser rejects it,
- * and the pages show "More than 1,189" from the floor. Paste into the
+ * and the pages show "More than 3,160" from the floor. Paste into the
  * script, redeploy the web app, and the count goes live with no site
  * deploy:
  *
@@ -148,21 +152,22 @@ const SEVEN_ASKS =
 const FLOOD_SENTENCE =
   'the flash flood that came down the Bhotekoshi and Trishuli valleys in Nepal\'s Rasuwa district on the morning of Wednesday, August 26';
 
-// Figures sourced 2026-08-31: the State Department's August 30 briefing
-// (about 85 Americans unaccounted for, nine evacuated), wire reporting
-// of the combined toll, and the families' August 31 letter (rescue
-// totals, the barrier lakes, Nepal's Foreign Ministry stance, the UK
-// pledge). Organizers: update these two paragraphs and FACTS_DATE
-// together whenever the situation moves.
+// Figures sourced 2026-08-31 from the families' letter as it read that
+// day: the State Department's count of Americans, Nepal's disaster
+// authority and China's missing counts, the rescue total, the barrier
+// lakes, Nepal's Foreign Ministry stance, and the UK pledge.
+// Organizers: update these two paragraphs and FACTS_DATE together
+// whenever the situation moves.
 const SITUATION_US =
-  'The State Department said on August 30 that approximately 85 Americans remain unaccounted for and that nine have been evacuated. ' +
-  'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley, rescue work has been interrupted by overflowing barrier lakes, and authorities report a combined death toll above 900 with thousands still listed as missing on both sides of the border. ' +
+  'The State Department has said that 90 Americans remain unaccounted for and that five have been rescued. ' +
+  'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, China reports 558 missing on its side of the border, and Nepali crews have rescued more than 3,700 people. ' +
+  'Helicopters still cannot land in parts of the upper valley; rescue work was suspended when the barrier lake above the valley overflowed, has resumed under a flood alert, and a second lake has since formed. ' +
   'Nepal\'s Foreign Ministry has said it does not need foreign search and rescue teams at this time but is open to targeted technical support. ' +
   `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, and one disaster response adviser, while the United Kingdom has pledged 5 million pounds and is sending emergency responders and consular staff to the region.`;
 
 const SITUATION_INTL =
-  'Authorities report a combined death toll above 900, with thousands still listed as missing on both sides of the Nepal-China border. ' +
-  'The missing include pilgrims, guides, and workers from Nepal, India, the United States, and more than two dozen other countries. ' +
+  'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, and China reports 558 missing on its side of the border. ' +
+  'The missing include pilgrims, guides, and workers from Nepal, India, Australia, the United Kingdom, Singapore, the United States, and more than two dozen other countries. ' +
   'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley, and Nepal\'s Foreign Ministry has said it does not need foreign search and rescue teams at this time but is open to targeted technical support.';
 
 /**
@@ -178,23 +183,24 @@ export const JOINT_LETTER_DOC_URL = `https://docs.google.com/document/d/${JOINT_
 export const JOINT_LETTER_PAGE = 'rescueourfamily.org/letter';
 const LETTER_POINTER = `The letter and the list of the missing: ${JOINT_LETTER_PAGE}`;
 
-const JOINT_LETTER_SENTENCE =
-  `On August 29, ${SIGNERS_AUG29.toLocaleString('en-US')} family members and friends of 57 missing people, my family among them, wrote to the United States Secretary of State asking for seven actions: ${SEVEN_ASKS}`;
-
 /**
- * The joint-letter sentence, with the live signature count when the
- * wizard has one (founder direction, 2026-08-31: the letters must not
- * read as frozen at the August 29 figure). The dated 1,189 stays as
- * the verifiable delivery fact; the live number rides after it, only
- * when it is genuinely larger.
+ * The joint-letter sentence every generated letter carries. The joint
+ * letter is a living document, with signatures and names still
+ * arriving, so this leads with the current totals instead of a
+ * delivery-day snapshot that goes stale (founder feedback, 2026-09-01:
+ * the frozen "On August 29, 1,189..." figure kept reading as outdated).
+ * August 29 stays as the delivery fact an office can verify, and the
+ * count rises to the live roster number when the wizard has one that
+ * is larger than the letter's own floor.
  */
 export function jointLetterSentence(signers) {
   const live = Number(signers);
-  const growth =
-    Number.isFinite(live) && live > SIGNERS_AUG29
-      ? ` The letter has kept gathering signatures since; as of today more than ${live.toLocaleString('en-US')} family members and friends have signed.`
-      : '';
-  return `${JOINT_LETTER_SENTENCE}${growth}`;
+  const count = Number.isFinite(live) && live > LETTER_SIGNERS ? live : LETTER_SIGNERS;
+  return (
+    `More than ${count.toLocaleString('en-US')} family members and friends of ${LETTER_MISSING} missing people, ` +
+    'my family among them, have signed the families\' joint letter to the United States Secretary of State, ' +
+    `first delivered on August 29 and updated since as signatures keep arriving. It asks for seven actions: ${SEVEN_ASKS}`
+  );
 }
 
 /**
@@ -208,13 +214,14 @@ export function jointLetterSentence(signers) {
 /**
  * Bumped whenever the generated letter wording changes in a way every
  * letter must carry (v2: the consent paragraph; v3: the August 31
- * facts and the Foreign Ministry's technical-support opening). Drafts
- * store the version they were edited under; restoring hand edits from
- * an older template rebuilds the letters and says so, instead of
- * silently sending the old wording (review findings on PR #223 and
- * PR #225).
+ * facts and the Foreign Ministry's technical-support opening; v4: the
+ * living joint-letter framing with the current signer and missing
+ * counts and the letter's own casualty figures). Drafts store the
+ * version they were edited under; restoring hand edits from an older
+ * template rebuilds the letters and says so, instead of silently
+ * sending the old wording (review findings on PR #223 and PR #225).
  */
-export const LETTER_TEMPLATE_VERSION = 3;
+export const LETTER_TEMPLATE_VERSION = 4;
 
 const ACCESS_PARAGRAPH =
   'If any of this is said to be waiting on the Government of Nepal\'s consent, obtaining that consent is part of what I am asking for. ' +
@@ -403,7 +410,7 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     `${SITUATION_US}\n\n` +
     `${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
     `I ask you to do three things:\n\n` +
-    `1. Contact the State Department's Bureau of Consular Affairs today in support of the seven requests in the families' August 29 letter, and ask what the Department has done on each one.\n\n` +
+    `1. Contact the State Department's Bureau of Consular Affairs today in support of the seven requests in the families' joint letter, and ask what the Department has done on each one.\n\n` +
     `${askTwo}\n\n` +
     `3. Have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
     `${ACCESS_PARAGRAPH}\n\n` +
@@ -432,7 +439,7 @@ export function buildPhoneScript({ recipient, writer, person }) {
   return (
     `Hello, my name is ${ph(writer.name, 'your name')}. I am a constituent in ${ph(writer.city, 'your city')}. ` +
     `My ${ph(writer.relationship, 'relationship')}, ${name}, is unaccounted for in the August 26 flood in Nepal's Rasuwa district. ` +
-    `I am asking ${title} to do two things: press the State Department to act on the families' August 29 letter, and open a casework file for ${name}. ` +
+    `I am asking ${title} to do two things: press the State Department to act on the families' joint letter, and open a casework file for ${name}. ` +
     `Please send me the office's privacy release form today. ` +
     `My number is ${ph(writer.phone, 'your phone number')}. Which caseworker will handle this?`
   );

@@ -138,6 +138,27 @@ describe('buildCoverage', () => {
     expect(coverage.totals.needSomeone).toBe(3);
     expect(buildCoverage({}).totals.people).toBe(0);
   });
+
+  test('letters and claims recorded under an earlier printed name still count', () => {
+    // The live letter renames people as families correct entries;
+    // `aka` keeps the records they already earned attached.
+    const renamed = [
+      { num: 1, name: 'Poonam Dilipkumar Thakkar', country: 'United States', home: 'Bartlett, Illinois', aka: ['Poonam Thakkar'] },
+    ];
+    const coverage = buildCoverage({
+      people: renamed,
+      letterCounts: [
+        { personName: 'Poonam Thakkar', records: 2 },
+        { personName: 'Poonam Dilipkumar Thakkar', records: 1 },
+      ],
+      claims: [{ personKey: 'poonam thakkar', claimedBy: 'Samira' }],
+    });
+    const row = coverage.people[0];
+    expect(row).toMatchObject({ letters: 3, claimants: ['Samira'], needsSomeone: false });
+    expect(row.keys).toEqual(['poonam dilipkumar thakkar', 'poonam thakkar']);
+    // the old name is a listed key now, not an unlisted stray
+    expect(coverage.others).toEqual([]);
+  });
 });
 
 describe('aggregateRecipientCounts (which offices, each separately)', () => {
@@ -181,6 +202,21 @@ describe('coverageForPublic (the chart everyone can see)', () => {
     expect(JSON.stringify(pub)).not.toMatch(/Samira|Ravi|home|claimants/);
     expect(pub.totals.people).toBe(1);
     expect(coverageForPublic(null).people).toEqual([]);
+  });
+
+  test('office tallies recorded under an earlier printed name merge into the person', () => {
+    const coverage = buildCoverage({
+      people: [{ num: 1, name: 'Poonam Dilipkumar Thakkar', country: 'United States', aka: ['Poonam Thakkar'] }],
+      letterCounts: [{ personName: 'Poonam Thakkar', records: 1 }],
+    });
+    const pub = coverageForPublic(coverage, {
+      'poonam thakkar': [{ name: 'Senator Richard J. Durbin', count: 1 }],
+      'poonam dilipkumar thakkar': [{ name: 'Senator Richard J. Durbin', count: 1 }, { name: 'Senator Tammy Duckworth', count: 1 }],
+    });
+    expect(pub.people[0].offices).toEqual([
+      { name: 'Senator Richard J. Durbin', count: 2 },
+      { name: 'Senator Tammy Duckworth', count: 1 },
+    ]);
   });
 });
 

@@ -112,15 +112,30 @@ export function buildCoverage({ people = [], letterCounts = [], claims = [] } = 
   const listedKeys = new Set();
   const covered = people.map((p) => {
     const key = normalizePersonKey(p?.name);
-    listedKeys.add(key);
-    const letters = letterByKey.get(key) || 0;
-    const claimants = claimsByKey.get(key) || [];
+    // The live letter renames people as families correct entries
+    // ("Poonam Thakkar" became "Poonam Dilipkumar Thakkar"), so a
+    // person may carry `aka`: earlier printed names whose recorded
+    // letters and claims still belong to them.
+    const akaKeys = (Array.isArray(p?.aka) ? p.aka : [])
+      .map(normalizePersonKey)
+      .filter((k) => k && k !== key);
+    const keys = [key, ...akaKeys];
+    let letters = 0;
+    const claimants = [];
+    for (const k of keys) {
+      listedKeys.add(k);
+      letters += letterByKey.get(k) || 0;
+      for (const by of claimsByKey.get(k) || []) {
+        if (!claimants.includes(by)) claimants.push(by);
+      }
+    }
     return {
       num: p?.num ?? null,
       name: text(p?.name),
       country: text(p?.country),
       home: text(p?.home),
       key,
+      keys,
       letters,
       claimants,
       needsSomeone: letters === 0 && claimants.length === 0,
@@ -194,15 +209,28 @@ export function aggregateRecipientCounts(rows) {
 export function coverageForPublic(coverage, officesByKey = {}) {
   const src = coverage && typeof coverage === 'object' ? coverage : {};
   return {
-    people: (src.people || []).map((p) => ({
-      num: p.num ?? null,
-      name: text(p.name),
-      country: text(p.country),
-      letters: Number(p.letters) || 0,
-      writing: Array.isArray(p.claimants) ? p.claimants.length : 0,
-      needsSomeone: Boolean(p.needsSomeone),
-      offices: Array.isArray(officesByKey[p.key]) ? officesByKey[p.key] : [],
-    })),
+    people: (src.people || []).map((p) => {
+      // Offices recorded under any of the person's names (see `aka`
+      // in buildCoverage) merge into one per-office tally.
+      const merged = new Map();
+      for (const k of Array.isArray(p.keys) ? p.keys : [p.key]) {
+        for (const o of Array.isArray(officesByKey[k]) ? officesByKey[k] : []) {
+          merged.set(o.name, (merged.get(o.name) || 0) + (Number(o.count) || 0));
+        }
+      }
+      const offices = [...merged.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+      return {
+        num: p.num ?? null,
+        name: text(p.name),
+        country: text(p.country),
+        letters: Number(p.letters) || 0,
+        writing: Array.isArray(p.claimants) ? p.claimants.length : 0,
+        needsSomeone: Boolean(p.needsSomeone),
+        offices,
+      };
+    }),
     totals: src.totals || { people: 0, withLetters: 0, needSomeone: 0 },
   };
 }

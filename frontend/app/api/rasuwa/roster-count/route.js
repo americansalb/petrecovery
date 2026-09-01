@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ROSTER_COUNT_URL, SIGNERS_AUG29 } from '@/app/rasuwa/letterData';
+import { ROSTER_COUNT_URL, LETTER_SIGNERS } from '@/app/rasuwa/letterData';
 import { parseRosterCount } from '@/app/rasuwa/rosterCount';
 
 /**
@@ -7,9 +7,9 @@ import { parseRosterCount } from '@/app/rasuwa/rosterCount';
  *
  * The current signer count on the families' roster, for the /rasuwa
  * landing pages, so the number grows with the movement instead of
- * sitting frozen at the August 29 letter's 1,189. When the source is
- * unset, unreachable, or answers nonsense, this returns the August 29
- * floor with live=false and the pages say "More than 1,189".
+ * sitting frozen at a printed figure. When the source is unset,
+ * unreachable, or answers nonsense, this returns the letter's own
+ * floor with live=false and the pages say "More than 3,160".
  *
  * The upstream is the organizers' Apps Script roster app, which Google
  * caps at 30 simultaneous executions, so the count is cached in-process
@@ -50,7 +50,7 @@ export async function GET() {
   }
   const live = cache.count != null;
   return NextResponse.json(
-    { count: live ? cache.count : SIGNERS_AUG29, live },
+    { count: live ? cache.count : LETTER_SIGNERS, live },
     { headers: { 'Cache-Control': 'public, max-age=300' } }
   );
 }

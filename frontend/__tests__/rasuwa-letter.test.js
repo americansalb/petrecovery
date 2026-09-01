@@ -53,13 +53,13 @@ describe('congress directory (generated data)', () => {
   });
 });
 
-describe('missing people (from the Aug 29 letter)', () => {
+describe('missing people (from the live letter)', () => {
   const people = missingPeople.people;
 
-  test('all 57 entries are present, 31 American', () => {
-    expect(people).toHaveLength(57);
-    expect(people.filter((p) => p.country === 'United States')).toHaveLength(31);
-    expect(people.map((p) => p.num)).toEqual([...Array(57)].map((_, i) => i + 1));
+  test('all 81 entries are present, 43 American', () => {
+    expect(people).toHaveLength(81);
+    expect(people.filter((p) => p.country === 'United States')).toHaveLength(43);
+    expect(people.map((p) => p.num)).toEqual([...Array(81)].map((_, i) => i + 1));
   });
 
   test('every entry names the person, a location, and a tour group', () => {
@@ -167,30 +167,39 @@ describe('letter builders', () => {
     expect(body).not.toContain('Other');
   });
 
-  test('the live signature count rides the letter only when genuinely larger', () => {
-    expect(jointLetterSentence(2500)).toContain('more than 2,500');
-    expect(jointLetterSentence(2500)).toContain('On August 29, 1,189');
-    for (const stale of [null, undefined, 0, 1189, 900, 'junk']) {
-      expect(jointLetterSentence(stale)).not.toContain('as of today');
+  test('the letter sentence leads with the living letter and takes a larger live count', () => {
+    // The floor is the letter's own printed totals, never a frozen
+    // delivery-day snapshot (founder feedback, 2026-09-01).
+    for (const stale of [null, undefined, 0, 1189, 3160, 'junk']) {
+      const sentence = jointLetterSentence(stale);
+      expect(sentence).toContain('More than 3,160 family members and friends of 81 missing people');
+      expect(sentence).toContain('first delivered on August 29');
+      expect(sentence).not.toContain('On August 29, 1,189');
     }
+    expect(jointLetterSentence(4200)).toContain('More than 4,200 family members and friends of 81 missing people');
+    expect(jointLetterSentence(4200)).not.toContain('3,160');
     const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'B', state: 'IL', zip: '60103', country: '' };
     const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
-    const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person, signers: 3100 });
-    expect(body).toContain('more than 3,100');
+    const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person, signers: 4200 });
+    expect(body).toContain('More than 4,200');
   });
 
-  test('letters carry the August 31 facts, not the frozen August 29 ones', () => {
+  test('letters carry the live letter\'s figures, not the superseded ones', () => {
     const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'B', state: 'IL', zip: '60103', country: '' };
     const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
     const sen = { chamber: 'sen', bioguide: 'X1', name: 'Test Senator', party: 'I', state: 'IL', phone: '202-555-0000', offices: [] };
     const body = buildLetterBody({ recipient: sen, writer, person });
-    expect(body).toContain('approximately 85 Americans');
+    expect(body).toContain('90 Americans remain unaccounted for');
+    expect(body).toContain('579 deaths');
+    expect(body).toContain('1,924 people missing');
     expect(body).toContain('open to targeted technical support');
     expect(body).toContain('August 31, 2026');
-    expect(body).not.toContain('579 deaths');
-    expect(body).not.toContain('90 Americans');
+    expect(body).not.toContain('approximately 85');
+    expect(body).not.toContain('above 900');
+    expect(body).not.toContain('August 29 letter');
     const intl = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
-    expect(intl).toContain('combined death toll above 900');
+    expect(intl).toContain('579 deaths');
+    expect(intl).toContain('1,924 people missing');
     expect(intl).toContain('open to targeted technical support');
   });
 

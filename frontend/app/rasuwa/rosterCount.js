@@ -1,21 +1,22 @@
 /**
  * The live signer count for the /rasuwa landing pages.
  *
- * The joint letter was sent on August 29 with SIGNERS_AUG29 signatures,
- * and the roster has kept growing since; a landing page frozen at the
- * sent number undersells the movement. The count comes from the
- * organizers' roster (see ROSTER_COUNT_URL in letterData.js) through
- * /api/rasuwa/roster-count; when the live source is missing or answers
- * nonsense, the pages say "More than 1,189", which stays true.
+ * The joint letter is a living document whose roster keeps growing; a
+ * landing page frozen at an old number undersells the movement. The
+ * count comes from the organizers' roster (see ROSTER_COUNT_URL in
+ * letterData.js) through /api/rasuwa/roster-count; when the live
+ * source is missing or answers nonsense, the pages say "More than
+ * 3,160" from LETTER_SIGNERS, the letter's own printed total, which
+ * stays true.
  *
  * Pure logic lives here so it is testable and shared by the API route
  * and the SignerCount client component.
  */
 
-import { SIGNERS_AUG29 } from './letterData';
+import { LETTER_SIGNERS } from './letterData';
 
-// A live count below the sent letter's signatures or absurdly high is
-// a misconfigured source, not news; the floor stays truthful.
+// A live count below the letter's own printed total or absurdly high
+// is a misconfigured source, not news; the floor stays truthful.
 const MAX_BELIEVABLE = 5000000;
 
 /**
@@ -40,18 +41,18 @@ export function parseRosterCount(raw) {
     }
   }
   if (value === null || !Number.isInteger(value)) return null;
-  if (value < SIGNERS_AUG29 || value > MAX_BELIEVABLE) return null;
+  if (value < LETTER_SIGNERS || value > MAX_BELIEVABLE) return null;
   return value;
 }
 
 /**
  * The lead sentence on the landing pages. It fronts the living campaign,
  * not the delivery date: the roster keeps growing and the pages must
- * read that way. live=false means the number is the August 29 floor, so
- * it reads "More than".
+ * read that way. live=false means the number is the letter's printed
+ * floor, so it reads "More than".
  */
 export function signerCountSentence({ count, live }) {
-  const n = (live && count ? count : SIGNERS_AUG29).toLocaleString('en-US');
+  const n = (live && count ? count : LETTER_SIGNERS).toLocaleString('en-US');
   const who = `family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State.`;
   return live && count ? `${n} ${who}` : `More than ${n} ${who}`;
 }
