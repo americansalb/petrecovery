@@ -1525,10 +1525,14 @@ export default function RasuwaWizard() {
 
           <p className="text-sm text-midnight-500">
             <SignerCount />{' '}
-            <Link className="underline" href="/rasuwa/letter">
-              Read the live letter and the list of the missing
+            <Link className="underline" href="/rasuwa/progress">
+              See the chart: letters for every missing person
             </Link>
-            ; it updates as the coordinating family adds entries.
+            , and{' '}
+            <Link className="underline" href="/rasuwa/letter">
+              read the live letter and the list of the missing
+            </Link>
+            ; both update as the campaign moves.
           </p>
 
           <p className="text-xs text-midnight-400 leading-relaxed">

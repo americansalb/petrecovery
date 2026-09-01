@@ -150,6 +150,26 @@ export function buildCoverage({ people = [], letterCounts = [], claims = [] } = 
   };
 }
 
+/**
+ * The public face of the coverage wall (/rasuwa/progress): the same
+ * per-person letter counts, but claimant names reduced to a count.
+ * Team members' names stay inside the code-gated board.
+ */
+export function coverageForPublic(coverage) {
+  const src = coverage && typeof coverage === 'object' ? coverage : {};
+  return {
+    people: (src.people || []).map((p) => ({
+      num: p.num ?? null,
+      name: text(p.name),
+      country: text(p.country),
+      letters: Number(p.letters) || 0,
+      writing: Array.isArray(p.claimants) ? p.claimants.length : 0,
+      needsSomeone: Boolean(p.needsSomeone),
+    })),
+    totals: src.totals || { people: 0, withLetters: 0, needSomeone: 0 },
+  };
+}
+
 /** "just now", "4 min ago", "2 h ago", "Aug 30" for board timestamps. */
 export function timeAgo(iso, now = Date.now()) {
   const then = new Date(iso).getTime();

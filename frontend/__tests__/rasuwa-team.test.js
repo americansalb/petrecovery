@@ -9,6 +9,7 @@
 const {
   TEAM_CAPS,
   buildCoverage,
+  coverageForPublic,
   cleanTeamName,
   cleanTeamNeed,
   cleanTeamPost,
@@ -135,6 +136,26 @@ describe('buildCoverage', () => {
     const coverage = buildCoverage({ people });
     expect(coverage.totals.needSomeone).toBe(3);
     expect(buildCoverage({}).totals.people).toBe(0);
+  });
+});
+
+describe('coverageForPublic (the chart everyone can see)', () => {
+  test('keeps counts, never team members\' names', () => {
+    const coverage = buildCoverage({
+      people: [{ num: 2, name: 'Anil Grover', country: 'Canada', home: 'Markham' }],
+      letterCounts: [{ personName: 'Anil Grover', records: 3 }],
+      claims: [
+        { personKey: 'anil grover', claimedBy: 'Samira' },
+        { personKey: 'anil grover', claimedBy: 'Ravi' },
+      ],
+    });
+    const pub = coverageForPublic(coverage);
+    expect(pub.people).toEqual([
+      { num: 2, name: 'Anil Grover', country: 'Canada', letters: 3, writing: 2, needsSomeone: false },
+    ]);
+    expect(JSON.stringify(pub)).not.toMatch(/Samira|Ravi|home|claimants/);
+    expect(pub.totals.people).toBe(1);
+    expect(coverageForPublic(null).people).toEqual([]);
   });
 });
 

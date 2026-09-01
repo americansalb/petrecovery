@@ -589,3 +589,14 @@ running app with Playwright plus unit tests before pushing.
   its quiet tone until every letter is marked sent, then flips loud
   ("All sent. Finish and be counted"), so the biggest button on
   screen never says leave while the job says send.
+- **Click anywhere in the sequence, and the public chart (founder
+  feedback, same day):** every step in the wizard's checklist is a
+  door now, forward included, and the mobile progress dots are
+  tappable with a real hit area; screens ahead render safely with
+  whatever is filled in. And the chart everyone kept asking for is
+  public at /rasuwa/progress: every missing person, alphabetical,
+  with the letters on record for them and how many people are writing
+  (counts only; team members' names stay behind the board's code),
+  refreshed each minute, every row handing off into the wizard with
+  that person picked. Linked from the wizard's finish step; the Sent
+  mark already sits on the same card as Copy the letter.

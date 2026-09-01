@@ -22,7 +22,7 @@ export default function RasuwaWizardShell({
   summary = [], // [{ text }]
   preview, // letter text shown live in the sidebar while it is built
   onBack, // undefined hides the back button
-  onStepSelect, // jump back to a completed step from the checklist
+  onStepSelect, // jump to any step from the checklist or the dots
   children,
 }) {
   const activeIndex = Math.max(0, steps.findIndex((s) => s.id === activeStepId));
@@ -78,15 +78,17 @@ export default function RasuwaWizardShell({
                 </span>
               </>
             );
-            // Finished steps are doors, not just checkmarks: anything
-            // already answered can be revisited with one click.
-            return done && onStepSelect ? (
+            // Every step is a door (founder rule, 2026-08-31: click
+            // anywhere in the sequence). Screens ahead render safely
+            // with whatever is filled in so far; nothing is lost by
+            // jumping around.
+            return onStepSelect ? (
               <button
                 key={step.id}
                 type="button"
                 onClick={() => onStepSelect(step.id)}
                 className="flex w-full items-center gap-3.5 rounded-lg -mx-1.5 px-1.5 py-0.5 hover:bg-white/10 transition-colors text-left"
-                title={`Go back to ${step.label}`}
+                title={`Go to ${step.label}`}
               >
                 {row}
               </button>
@@ -165,19 +167,33 @@ export default function RasuwaWizardShell({
             <span className="px-2 py-0.5 rounded text-[0.6rem] font-black tracking-[0.18em] uppercase bg-blue-800 text-white">
               Rasuwa
             </span>
-            <div className="flex gap-1" aria-hidden="true">
-              {steps.map((step, i) => (
-                <span
-                  key={step.id}
-                  className={`h-1 rounded-full transition-all duration-300 ${
-                    i === activeIndex
-                      ? 'w-6 bg-blue-800'
-                      : i < activeIndex
-                        ? 'w-2.5 bg-blue-800 opacity-40'
-                        : 'w-2.5 bg-midnight-200'
-                  }`}
-                />
-              ))}
+            <div className="flex gap-1">
+              {steps.map((step, i) => {
+                const seg = (
+                  <span
+                    className={`block h-1 rounded-full transition-all duration-300 ${
+                      i === activeIndex
+                        ? 'w-6 bg-blue-800'
+                        : i < activeIndex
+                          ? 'w-2.5 bg-blue-800 opacity-40'
+                          : 'w-2.5 bg-midnight-200'
+                    }`}
+                  />
+                );
+                return onStepSelect ? (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => onStepSelect(step.id)}
+                    className="py-2 -my-2"
+                    aria-label={`Go to step ${i + 1}: ${step.label}`}
+                  >
+                    {seg}
+                  </button>
+                ) : (
+                  <span key={step.id} aria-hidden="true">{seg}</span>
+                );
+              })}
             </div>
           </div>
 
