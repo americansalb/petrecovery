@@ -96,7 +96,13 @@ export default function ProgressChart() {
           <li key={p.key || p.name} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <span className="min-w-0 flex-1">
               <span className="block font-semibold text-slate-900">{p.name}</span>
-              <span className="block text-xs text-slate-500">{p.country}</span>
+              <span className="block text-xs text-slate-500">
+                {p.country}
+                {' · '}
+                <Link className="underline hover:text-slate-700" href={`/rasuwa/correction?for=${p.num}`}>
+                  Report a mistake
+                </Link>
+              </span>
               {p.offices && p.offices.length > 0 && (
                 <span className="mt-1.5 flex flex-wrap gap-1.5">
                   {p.offices.map((o) => (

@@ -23,7 +23,7 @@ export default function CorrectionPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white px-4 py-4">
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
+        <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3">
           <h1 className="text-lg font-bold">Report a mistake</h1>
           <span className="flex gap-2">
             <Link
