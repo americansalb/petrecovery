@@ -719,3 +719,20 @@ running app with Playwright plus unit tests before pushing.
   the wizard person step (with the picked person carried into
   ?for=num), the sign page, the letter page's header, and the
   progress chart.
+- **The Foreign Minister's CNN interview goes into every letter
+  (founder input, 2026-09-02: transcript of the Anderson Cooper
+  interview):** template v8. Both situation paragraphs, the
+  access paragraph, and the phone comeback now say that in a
+  televised CNN interview the Foreign Minister said engineering
+  analysis shows air pockets deep inside the blocked tunnels and
+  that he is very hopeful many people could still be alive in
+  them; that Nepal never announced it would refuse foreign support
+  and takes it in the areas where the need is greatest; and that by
+  the second day of the disaster Nepal knew it needed tunnel rescue
+  support and began reaching out, with Indian and Chinese teams
+  arriving by the third. Facts date moved to September 2, 2026. A
+  review round tightened the day-two claim to exactly what the
+  transcript supports: the need was known and outreach began, not
+  that a request was placed that day. The August 29 statement stays
+  the dated anchor for the standing request list; the Nepal
+  home-country variant is unchanged (PR #234).
