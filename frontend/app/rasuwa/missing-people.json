@@ -1,6 +1,6 @@
 {
  "source": "Signatory list of the families' letter to the U.S. Secretary of State (live document, rescueourfamily.org/letter)",
- "updated": "2026-08-31",
+ "updated": "2026-09-01",
  "numbering": "num is a stable identifier for ?for= prefill links, kept for a person across regenerations (matched by name or aka); new people take the next free number. It does not track the letter's own entry numbers.",
  "people": [
   {
@@ -169,13 +169,22 @@
    "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
+   "num": 82,
+   "name": "Laximanth Gopisetti",
+   "country": "United States",
+   "home": "Ashburn, VA",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "August 26, 8:37 AM",
+   "operator": "Kailash Journeys"
+  },
+  {
    "num": 14,
    "name": "Laxminath Gopisetty",
    "country": "United States",
    "home": "Aldie, VA",
    "lastSeenPlace": "Hotel Kailash, Timure",
    "lastSeenWhen": "August 26, 8:30 AM",
-   "operator": "Classic Vacations Nepal"
+   "operator": "Himalayan Glacier Adventure and Travel or Classic Vacations Nepal"
   },
   {
    "num": 15,
@@ -239,6 +248,15 @@
    "lastSeenPlace": "Timure or Hotel Kailash, Timure",
    "lastSeenWhen": "August 26, 8:11 AM",
    "operator": "Kailash Journeys"
+  },
+  {
+   "num": 83,
+   "name": "Press Laximanth Gopisetty",
+   "country": "United States",
+   "home": "Aldie",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "",
+   "operator": "Himalayan Glacier Adventure and Travel"
   },
   {
    "num": 18,
@@ -340,6 +358,15 @@
    "operator": "The Trekkers' Society"
   },
   {
+   "num": 84,
+   "name": "Srinivas Sudhir Rangu",
+   "country": "United States",
+   "home": "Aldie, Virginia",
+   "lastSeenPlace": "Hotel Kailash, Timure",
+   "lastSeenWhen": "August 26, 8:30 AM",
+   "operator": "Himalayan Glacier Adventure and Travel or Classic Vacations Nepal"
+  },
+  {
    "num": 27,
    "name": "Sudhindra Yapalparvi",
    "country": "United States",
@@ -385,6 +412,15 @@
    "operator": "Classic Vacations Nepal"
   },
   {
+   "num": 85,
+   "name": "Venkataraman Balasubramanayam",
+   "country": "United States",
+   "home": "Austin, Texas",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "August 26, morning",
+   "operator": "Classic Vacations Nepal"
+  },
+  {
    "num": 31,
    "name": "Venus Rajnikant Patel",
    "country": "United States",
@@ -392,6 +428,15 @@
    "lastSeenPlace": "Hotel Kailash, Timure",
    "lastSeenWhen": "August 26, 8:00 AM",
    "operator": "Himalayan Glacier Adventure and Travel"
+  },
+  {
+   "num": 86,
+   "name": "Vivek Srivastav",
+   "country": "United States",
+   "home": "Suwanee, GA",
+   "lastSeenPlace": "Rasuwagadhi border crossing",
+   "lastSeenWhen": "August 26, 8:30 AM",
+   "operator": "Classic Vacations Nepal"
   },
   {
    "num": 32,

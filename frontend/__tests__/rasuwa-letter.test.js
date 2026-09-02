@@ -58,11 +58,11 @@ describe('congress directory (generated data)', () => {
 describe('missing people (from the live letter)', () => {
   const people = missingPeople.people;
 
-  test('all 81 entries are present, 43 American', () => {
-    expect(people).toHaveLength(81);
-    expect(people.filter((p) => p.country === 'United States')).toHaveLength(43);
+  test('all 86 entries are present, 48 American', () => {
+    expect(people).toHaveLength(86);
+    expect(people.filter((p) => p.country === 'United States')).toHaveLength(48);
     expect(people.map((p) => p.num).sort((a, b) => a - b)).toEqual(
-      [...Array(81)].map((_, i) => i + 1)
+      [...Array(86)].map((_, i) => i + 1)
     );
   });
 
@@ -154,17 +154,23 @@ describe('letter builders', () => {
     expect(share.body).toContain('consent');
   });
 
-  test('every letter asks for Nepal\'s consent to be obtained and answered on the record', () => {
+  test('every letter answers "Nepal has not asked" with the public request, on the record', () => {
     const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'Bartlett', state: 'IL', zip: '60103', country: '' };
     const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
     const sen = { chamber: 'sen', bioguide: 'X1', name: 'Test Senator', party: 'I', state: 'IL', phone: '202-555-0000', offices: [] };
     const mp = { chamber: 'mp', bioguide: 'mp', name: 'Test MP', riding: 'Testing', party: '', email: '', url: '', offices: [] };
-    for (const recipient of [sen, mp, { chamber: 'intl', bioguide: 'intl', name: '' }]) {
+    const intl = { chamber: 'intl', bioguide: 'intl', name: '' };
+    for (const recipient of [sen, mp, intl]) {
       const body = buildLetterBody({ recipient, writer, person });
-      expect(body).toContain('Government of Nepal');
+      expect(body).toContain('that request has been made');
+      expect(body).toContain('tunnel rescue specialists');
       expect(body).toContain('on the record');
-      expect(body).toContain('2015 earthquake');
+      expect(body).toContain('2015 earthquake'); // via the joint letter's asks
     }
+    // Each letter asks the writer's own government to answer the list.
+    expect(buildLetterBody({ recipient: sen, writer, person })).toContain('Ask what the United States has offered');
+    expect(buildLetterBody({ recipient: mp, writer, person })).toContain('Ask what Canada has offered');
+    expect(buildLetterBody({ recipient: intl, writer, person })).toContain('Ask what our government has offered');
   });
 
   test('typed countries find their guide, any case; unknown ones get the generic door', () => {
@@ -190,7 +196,7 @@ describe('letter builders', () => {
 
   test('nationalsOnList counts the list, any case, zero for strangers', () => {
     expect(nationalsOnList(' AUSTRALIA ')).toBe(16);
-    expect(nationalsOnList('United States')).toBe(43);
+    expect(nationalsOnList('United States')).toBe(48);
     expect(nationalsOnList('Germany')).toBe(0);
     expect(nationalsOnList(null)).toBe(0);
   });
@@ -244,8 +250,8 @@ describe('letter builders', () => {
     const writer = { name: 'A Writer', relationship: 'brother', phone: '555', email: '', inUS: false, country: 'Nepal' };
     const person = { name: 'Test Person', country: 'Nepal', home: '', lastSeenPlace: 'Timure', lastSeenWhen: '', operator: '', details: '' };
     const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
-    expect(body).toContain('to be accepted and put to work in the valley');
-    expect(body).toContain('what was offered, what was accepted, and when it will arrive');
+    expect(body).toContain('to reach the valley and be put to work');
+    expect(body).toContain('what was requested, what has arrived, and what is still missing');
     // The consent-pressing frame makes no sense addressed to Nepal itself.
     expect(body).not.toContain('If any of this is said to be waiting');
     expect(body).not.toContain('Open a case file');
@@ -266,14 +272,14 @@ describe('letter builders', () => {
   test('the letter sentence leads with the living letter and takes a larger live count', () => {
     // The floor is the letter's own printed totals, never a frozen
     // delivery-day snapshot (founder feedback, 2026-09-01).
-    for (const stale of [null, undefined, 0, 1189, 3160, 'junk']) {
+    for (const stale of [null, undefined, 0, 1189, 3373, 'junk']) {
       const sentence = jointLetterSentence(stale);
-      expect(sentence).toContain('More than 3,160 family members and friends of 81 missing people');
+      expect(sentence).toContain('More than 3,373 family members and friends of 86 missing people');
       expect(sentence).toContain('first delivered on August 29');
       expect(sentence).not.toContain('On August 29, 1,189');
     }
-    expect(jointLetterSentence(4200)).toContain('More than 4,200 family members and friends of 81 missing people');
-    expect(jointLetterSentence(4200)).not.toContain('3,160');
+    expect(jointLetterSentence(4200)).toContain('More than 4,200 family members and friends of 86 missing people');
+    expect(jointLetterSentence(4200)).not.toContain('3,373');
     const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'B', state: 'IL', zip: '60103', country: '' };
     const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
     const body = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person, signers: 4200 });
@@ -288,15 +294,21 @@ describe('letter builders', () => {
     expect(body).toContain('90 Americans remain unaccounted for');
     expect(body).toContain('579 deaths');
     expect(body).toContain('1,924 people missing');
-    expect(body).toContain('open to targeted technical support');
-    expect(body).toContain('August 31, 2026');
+    expect(body).toContain('requesting targeted technical support');
+    expect(body).toContain('heavy-lift cargo drones');
+    expect(body).toContain('$3.6 million');
+    expect(body).toContain('September 1, 2026');
     expect(body).not.toContain('approximately 85');
     expect(body).not.toContain('above 900');
     expect(body).not.toContain('August 29 letter');
+    // The superseded "not asking" era lines must be gone.
+    expect(body).not.toContain('does not need foreign search and rescue teams');
+    expect(body).not.toContain('is open to targeted technical support');
     const intl = buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person });
     expect(intl).toContain('579 deaths');
     expect(intl).toContain('1,924 people missing');
-    expect(intl).toContain('open to targeted technical support');
+    expect(intl).toContain('requesting targeted technical support');
+    expect(intl).not.toContain('does not need foreign search and rescue teams');
   });
 
   test('no personal contact details anywhere in the module', () => {

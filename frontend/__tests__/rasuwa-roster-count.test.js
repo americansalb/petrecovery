@@ -12,9 +12,9 @@ const missingPeople = require('@/app/rasuwa/missing-people.json');
 
 describe('parseRosterCount', () => {
   test('accepts a bare number and JSON count, number or numeric string', () => {
-    expect(parseRosterCount('3345')).toBe(3345);
-    expect(parseRosterCount(' {"count": 3345} ')).toBe(3345);
-    expect(parseRosterCount('{"count": "3345"}')).toBe(3345);
+    expect(parseRosterCount('3500')).toBe(3500);
+    expect(parseRosterCount(' {"count": 3500} ')).toBe(3500);
+    expect(parseRosterCount('{"count": "3500"}')).toBe(3500);
     expect(parseRosterCount(String(LETTER_SIGNERS))).toBe(LETTER_SIGNERS);
   });
 
@@ -22,10 +22,11 @@ describe('parseRosterCount', () => {
     expect(parseRosterCount('<html><body>the form</body></html>')).toBeNull(); // Apps Script without the handler
     expect(parseRosterCount('{"count": 12}')).toBeNull(); // below the letter's own total
     expect(parseRosterCount('{"count": 1189}')).toBeNull(); // an older printing's figure
+    expect(parseRosterCount('{"count": 3160}')).toBeNull(); // the previous floor
     expect(parseRosterCount('{"count": 999999999}')).toBeNull(); // absurd
-    expect(parseRosterCount('{"rows": 3345}')).toBeNull();
+    expect(parseRosterCount('{"rows": 3500}')).toBeNull();
     expect(parseRosterCount('12.5')).toBeNull();
-    expect(parseRosterCount('-3345')).toBeNull();
+    expect(parseRosterCount('-3500')).toBeNull();
     expect(parseRosterCount('')).toBeNull();
     expect(parseRosterCount(null)).toBeNull();
   });
@@ -34,10 +35,10 @@ describe('parseRosterCount', () => {
 describe('signerCountSentence', () => {
   test('the floor reads as a floor, a live count reads as the count', () => {
     expect(signerCountSentence({ count: null, live: false })).toBe(
-      "More than 3,160 family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State."
+      "More than 3,373 family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State."
     );
-    expect(signerCountSentence({ count: 3345, live: true })).toBe(
-      "3,345 family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State."
+    expect(signerCountSentence({ count: 3500, live: true })).toBe(
+      "3,500 family members and friends of the people missing in the Rasuwa flood have signed the families' letter to the U.S. Secretary of State."
     );
   });
 });
@@ -50,6 +51,6 @@ describe('the letters cite the living letter', () => {
     };
     const senator = directory.members.find((m) => m.chamber === 'sen' && m.state === 'IL');
     const body = buildLetterBody({ recipient: senator, writer, person: missingPeople.people[0] });
-    expect(body).toContain('More than 3,160 family members and friends of 81 missing people');
+    expect(body).toContain('More than 3,373 family members and friends of 86 missing people');
   });
 });
