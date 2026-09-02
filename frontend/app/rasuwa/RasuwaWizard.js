@@ -1393,7 +1393,7 @@ export default function RasuwaWizard() {
                 <p className="text-sm text-midnight-600">
                   {forAll
                     ? 'Offices log constituent calls the same day. Call the DC number for each member; the same script works on every call, and a staffer can put your support for the families\' requests on the record. If they give you a direct email address, send the letter there too.'
-                    : 'Offices log constituent calls the same day. Call the DC number for each member; the same script works on every call. On the call, ask for the office\'s privacy release form: an office cannot ask the State Department about a specific person until you sign it. Return it the same day, and if a staffer gives you a direct email address, send the letter there too.'}
+                    : `Offices log constituent calls the same day. Call the DC number for each member; the same script works on every call. On the call, ask for the office's privacy release form: an office cannot ask the State Department about a specific person until you sign it. Return it the same day, and if a staffer gives you a direct email address, send the letter there too. Separately, any police department can act today: ask your local police to open a missing person case for ${person.name.trim() || 'your family member'} and send an emergency disclosure request to Google and their phone carrier for their last known location.`}
                 </p>
                 <ul className="text-sm text-midnight-600 space-y-0.5">
                   {recipients.map((m) => (

@@ -357,6 +357,33 @@ describe('letter builders', () => {
     expect(np).not.toContain('If any of this is said to be waiting');
   });
 
+  test('every letter asks for emergency disclosure requests for last known locations', () => {
+    const writer = { name: 'W', relationship: 'cousin', phone: '555', email: '', inUS: true, street: '1 Main St', city: 'Bartlett', state: 'IL', zip: '60103', country: '' };
+    const person = { name: 'P', country: 'United States', home: '', lastSeenPlace: '', lastSeenWhen: '', operator: '', details: '' };
+    const sen = { chamber: 'sen', bioguide: 'X1', name: 'Test Senator', party: 'I', state: 'IL', phone: '202-555-0000', offices: [] };
+    const mp = { chamber: 'mp', bioguide: 'mp', name: 'Test MP', riding: 'Testing', party: '', email: '', url: '', offices: [] };
+    const intl = { chamber: 'intl', bioguide: 'intl', name: '' };
+    for (const recipient of [sen, mp, intl]) {
+      for (const p of [person, null]) {
+        const body = buildLetterBody({ recipient, writer, person: p });
+        expect(body).toContain('emergency disclosure requests');
+        expect(body).toContain('last known device location');
+        expect(body).toContain('Google, Apple, Meta, and the phone carrier');
+        expect(body).toContain('I ask you to do four things:');
+        expect(body).not.toContain('three things');
+      }
+    }
+    // The right agency per path: FBI for US letters, RCMP for Canada.
+    expect(buildLetterBody({ recipient: sen, writer, person })).toContain('18 U.S.C. 2702');
+    expect(buildLetterBody({ recipient: sen, writer, person })).toContain('Federal Bureau of Investigation');
+    expect(buildLetterBody({ recipient: sen, writer, person: null })).toContain('the FBI and the Department of Justice');
+    expect(buildLetterBody({ recipient: mp, writer, person })).toContain('RCMP');
+    // Writers in Nepal ask Nepal Police, and never "our national police".
+    const np = buildLetterBody({ recipient: intl, writer: { ...writer, inUS: false, country: 'Nepal' }, person });
+    expect(np).toContain('Nepal Police');
+    expect(np).not.toContain('our national police');
+  });
+
   test('no personal contact details anywhere in the module', () => {
     const source = require('fs').readFileSync(require.resolve('@/app/rasuwa/letterData'), 'utf8');
     expect(source).not.toMatch(/bhumika|306-1983|gmail\.com/i);
