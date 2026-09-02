@@ -13,7 +13,7 @@
 import missingPeople from './missing-people.json';
 import { normalizePersonKey } from './team/teamLogic';
 
-export const FACTS_DATE = 'September 1, 2026';
+export const FACTS_DATE = 'September 2, 2026';
 
 /**
  * The joint letter's own headline figures: how many people have signed
@@ -235,11 +235,14 @@ const NEPAL_REQUESTS =
  */
 const EDR_PROVIDERS = 'Google, Apple, Meta, and the phone carriers';
 
-// Figures sourced 2026-09-01: the families' letter as it read that day
-// (the counts of Americans, Nepal's disaster authority and China's
-// missing counts, the rescue total, the barrier lakes), Nepal's
+// Figures sourced 2026-09-02: the families' letter as it read on
+// September 1 (the counts of Americans, Nepal's disaster authority and
+// China's missing counts, the rescue total, the barrier lakes), Nepal's
 // Foreign Minister's public statements of August 29 through
-// September 1 with the reported arrivals of foreign specialist teams,
+// September 1 and his September 1 CNN interview (air pockets in the
+// blocked tunnels, no refusal of foreign support ever announced, the
+// tunnel-rescue need known by day two with outreach begun and teams
+// arriving by day three),
 // and the Department's announced assistance. Organizers: update these
 // paragraphs and FACTS_DATE together whenever the situation moves.
 const SITUATION_US =
@@ -247,14 +250,18 @@ const SITUATION_US =
   'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, China reports 558 missing on its side of the border, and Nepali crews have rescued more than 3,700 people. ' +
   'Helicopters still cannot land in parts of the upper valley; rescue work was suspended when the barrier lake above the valley overflowed, has resumed under a flood alert, and a second lake has since formed. ' +
   `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support for specific needs: ${NEPAL_REQUESTS}. ` +
-  'Specialist teams from India and China are already working alongside the Nepal Army, and Australia and South Korea have sent experts. ' +
+  'In a televised CNN interview, the Foreign Minister said engineering analysis shows air pockets deep inside the blocked tunnels and that he is very hopeful many people could still be alive in them. ' +
+  'He said Nepal never announced it would refuse foreign support and takes it in the areas where the need is greatest: by the second day of the disaster Nepal knew it needed tunnel rescue support and began reaching out, and the Indian and Chinese teams now working alongside the Nepal Army were arriving by the third. ' +
+  'Australia and South Korea have sent experts. ' +
   `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, one disaster response adviser, and $3.6 million in emergency humanitarian assistance, with no American search team or technical unit reported in the valley.`;
 
 const SITUATION_INTL =
   'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, and China reports 558 missing on its side of the border. ' +
   'The missing include pilgrims, guides, and workers from Nepal, India, Australia, the United Kingdom, Singapore, the United States, and more than two dozen other countries. ' +
   'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley. ' +
-  `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support for specific needs: ${NEPAL_REQUESTS}. Specialist teams from India and China are already on the ground.`;
+  `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support for specific needs: ${NEPAL_REQUESTS}. ` +
+  'In a televised CNN interview, the Foreign Minister said engineering analysis shows air pockets deep inside the blocked tunnels and that he is very hopeful many people could still be alive in them. ' +
+  'He said Nepal never announced it would refuse foreign support: by the second day of the disaster Nepal knew it needed tunnel rescue support and began reaching out, and the Indian and Chinese teams now on the ground were arriving by the third.';
 
 /**
  * The live joint-letter document the coordinating family keeps updated
@@ -316,18 +323,21 @@ export const GENERAL_RECORD_NAME = 'All the missing';
  * home-country variant; v6: Nepal's public request for technical
  * support replaces the consent-obtaining framing, with the
  * September 1 letter totals; v7: the emergency-disclosure ask for
- * last known device locations). Drafts store the version they were
+ * last known device locations; v8: the Foreign Minister's televised
+ * CNN interview: air pockets in the blocked tunnels, no refusal of
+ * foreign support ever announced, the tunnel-rescue need known by day
+ * two and teams arriving by day three). Drafts store the version they were
  * edited under; restoring hand edits from an older template rebuilds
  * the letters and says so, instead of silently sending the old
  * wording (review findings on PR #223 and PR #225).
  */
-export const LETTER_TEMPLATE_VERSION = 7;
+export const LETTER_TEMPLATE_VERSION = 8;
 
 function accessParagraph(government) {
   return (
     'If any of this is said to be waiting on a request from the Government of Nepal, that request has been made. ' +
     `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support: ${NEPAL_REQUESTS}. ` +
-    'Specialist teams from India and China are already working alongside the Nepal Army. ' +
+    'In a televised CNN interview he went further: Nepal never announced it would refuse foreign support; by the second day of the disaster it knew it needed tunnel rescue support and began reaching out, and the Indian and Chinese teams now working alongside the Nepal Army were arriving by the third. ' +
     `Ask what ${government} has offered against each item on Nepal's list, on what date, and when each arrives; and if the answer is nothing, the families should be told so, on the record.`
   );
 }
@@ -358,8 +368,9 @@ export const HOME_COMEBACK = {
 export const ACCESS_COMEBACK = {
   title: 'If they say "Nepal has not asked for assistance"',
   ask:
-    'Nepal\'s Foreign Minister said publicly on August 29 that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support: tunnel rescue specialists, bridge restoration, DNA and forensic experts, and heavy-lift cargo drones. ' +
-    'India and China have specialist teams on the ground. What have we offered against that list, and when does it arrive?',
+    'Nepal\'s Foreign Minister has said, on August 29 and again in a televised CNN interview, that Nepal never announced it would refuse foreign support and takes it where the need is greatest. ' +
+    'By the second day of the disaster Nepal knew it needed tunnel rescue support and began reaching out, Indian and Chinese teams were arriving by the third, and the standing public request is: tunnel rescue specialists, bridge restoration, DNA and forensic experts, and heavy-lift cargo drones. ' +
+    'The Minister also said air pockets deep in the blocked tunnels could be keeping many people alive. What have we offered against Nepal\'s list, and when does it arrive?',
   note:
     'A staffer repeating an old line cannot answer that. Ask them to find out and call you back. ' +
     'If an offer has been made, the families should be told what and when; if none has, that is the answer, on the record.',
