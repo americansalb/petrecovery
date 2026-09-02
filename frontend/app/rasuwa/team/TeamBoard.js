@@ -3,10 +3,11 @@
 /**
  * The family task force board. One shared code opens it (teamAuth.js);
  * a typed name signs everything, like a sign-in sheet at a family
- * meeting. Four sections, one polled read:
+ * meeting. Five sections, one polled read:
  *
- *   Updates   - posts that stay at the top for everyone
- *   Needs     - things to do, claimable ("I'll do it") and markable done
+ *   Updates     - posts that stay at the top for everyone
+ *   Needs       - things to do, claimable ("I'll do it") and markable done
+ *   Corrections - public "review this detail" requests from the site
  *   People    - the coverage wall: every missing person, their letters
  *               on record, and who has said they will write for them
  *   Talk      - the running conversation
@@ -256,6 +257,32 @@ export default function TeamBoard() {
     }
   }
 
+  async function actOnCorrection(correction, action) {
+    const { status, data } = await api(`corrections/${correction.id}`, { action, name });
+    if (status === 401) {
+      setPhase('gate');
+      return;
+    }
+    if (data && data.correction) {
+      setBoard((b) =>
+        b
+          ? {
+              ...b,
+              corrections: (b.corrections || []).map((c) =>
+                c.id === data.correction.id ? data.correction : c
+              ),
+            }
+          : b
+      );
+    } else if (status === 404) {
+      setBoard((b) =>
+        b ? { ...b, corrections: (b.corrections || []).filter((c) => c.id !== correction.id) } : b
+      );
+    } else {
+      say((data && data.error) || 'That did not save. Try again.');
+    }
+  }
+
   async function actOnPerson(person, action) {
     // Optimistic: the wall updates under the tap, the next poll confirms.
     setBoard((b) => {
@@ -346,6 +373,11 @@ export default function TeamBoard() {
           onAct={actOnNeed}
           isAdmin={isAdmin}
           onRemove={(id) => adminRemove('need', id)}
+        />
+        <CorrectionsSection
+          corrections={board?.corrections || []}
+          myName={name}
+          onAct={actOnCorrection}
         />
         <CoverageSection coverage={board?.coverage} myName={name} onAct={actOnPerson} />
         <TalkSection
@@ -451,6 +483,7 @@ function BoardHeader({ name, onChangeName, board, fresh }) {
   useEffect(() => setDraft(name), [name]);
 
   const openNeeds = (board?.needs || []).filter((n) => n.status !== 'DONE').length;
+  const openCorrections = (board?.corrections || []).filter((c) => c.status !== 'DONE').length;
   const needSomeone = board?.coverage?.totals?.needSomeone ?? 0;
 
   const chip = (href, label, count, freshCount = 0) => (
@@ -516,6 +549,7 @@ function BoardHeader({ name, onChangeName, board, fresh }) {
         <div className="flex items-center gap-2 pb-2.5 -mx-1 px-1 overflow-x-auto">
           {chip('#updates', 'Updates', board?.updates?.length || 0, fresh?.updates)}
           {chip('#needs', 'Needs doing', openNeeds)}
+          {chip('#corrections', 'Corrections', openCorrections)}
           {chip('#people', 'The people', needSomeone)}
           {chip('#talk', 'Talk', 0, fresh?.talk)}
         </div>
@@ -1029,6 +1063,66 @@ function TalkSection({ messages, myName, onSend, isAdmin, onRemove }) {
             <Send size={16} />
           </button>
         </form>
+      </div>
+    </section>
+  );
+}
+
+// ── Corrections ──────────────────────────────────────────────────────
+// Public "please review this" requests from the site (the wizard, the
+// letter page, the chart). The site never edits the list from these:
+// fix the letter document at its source, then mark the request
+// handled here, and the next regeneration follows the letter.
+function CorrectionsSection({ corrections, myName, onAct }) {
+  const [showDone, setShowDone] = useState(false);
+  const open = corrections.filter((c) => c.status !== 'DONE');
+  const done = corrections.filter((c) => c.status === 'DONE');
+  const card = (c) => (
+    <article
+      key={c.id}
+      className={`rounded-2xl border p-4 ${c.status === 'DONE' ? 'bg-slate-50 border-slate-200' : 'bg-white border-amber-300'}`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-slate-900">{c.personName || 'The letter overall'}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{c.message}</p>
+          {c.contact && <p className="mt-1.5 text-xs text-slate-500">Reach them: {c.contact}</p>}
+          <p className="mt-1.5 text-xs text-slate-400">
+            {timeAgo(c.createdAt)}
+            {c.status === 'DONE' && c.handledBy ? ` · handled by ${c.handledBy}` : ''}
+          </p>
+        </div>
+        <button
+          type="button"
+          className={ghostBtn}
+          disabled={!myName}
+          onClick={() => onAct(c, c.status === 'DONE' ? 'reopen' : 'done')}
+        >
+          {c.status === 'DONE' ? 'Reopen' : 'Mark handled'}
+        </button>
+      </div>
+    </article>
+  );
+  return (
+    <section>
+      <SectionHead
+        id="corrections"
+        title="Correction requests"
+        sub="Anyone on the site can report a mistake in a person's details. Fix the letter document at its source, then mark the request handled; the site follows the letter."
+      />
+      <div className="mt-4 space-y-3">
+        {open.length === 0 && <p className="text-sm text-slate-500">Nothing waiting for review.</p>}
+        {open.map(card)}
+        {done.length > 0 && (
+          <button
+            type="button"
+            className="text-sm font-semibold text-blue-800 underline"
+            onClick={() => setShowDone((v) => !v)}
+          >
+            {showDone ? 'Hide handled' : `Show ${done.length} handled`}
+          </button>
+        )}
+        {showDone && done.map(card)}
       </div>
     </section>
   );

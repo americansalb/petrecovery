@@ -54,6 +54,12 @@ export default function ProgressChart() {
           ? ` ${totals.needSomeone} have nobody writing yet.`
           : ' Every person has someone.'}
       </p>
+      <p className="mt-1 text-sm text-slate-500">
+        See a mistake in someone&apos;s details?{' '}
+        <Link className="font-semibold text-blue-800 underline" href="/rasuwa/correction">
+          Ask for a correction
+        </Link>
+      </p>
       <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-slate-900">For all of the missing</span>

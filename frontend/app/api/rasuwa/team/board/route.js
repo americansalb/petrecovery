@@ -24,7 +24,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'join' }, { status: 401, ...NO_STORE });
   }
   try {
-    const [updates, messagesDesc, needs, letterCounts, claims] = await Promise.all([
+    const [updates, messagesDesc, needs, corrections, letterCounts, claims] = await Promise.all([
       prisma.rasuwaTeamPost.findMany({
         where: { kind: 'update' },
         orderBy: { createdAt: 'desc' },
@@ -36,6 +36,7 @@ export async function GET(request) {
         take: 100,
       }),
       prisma.rasuwaTeamNeed.findMany({ orderBy: { createdAt: 'desc' }, take: 200 }),
+      prisma.rasuwaCorrection.findMany({ orderBy: { createdAt: 'desc' }, take: 200 }),
       prisma.rasuwaLetterRecord.groupBy({ by: ['personName'], _count: { personName: true } }),
       prisma.rasuwaPersonClaim.findMany({ orderBy: { createdAt: 'asc' }, take: 1000 }),
     ]);
@@ -44,6 +45,7 @@ export async function GET(request) {
         updates,
         messages: messagesDesc.reverse(),
         needs,
+        corrections,
         coverage: buildCoverage({
           people: missingPeople.people,
           letterCounts: letterCounts.map((c) => ({
