@@ -164,6 +164,7 @@ describe('letter builders', () => {
       const body = buildLetterBody({ recipient, writer, person });
       expect(body).toContain('that request has been made');
       expect(body).toContain('tunnel rescue specialists');
+      expect(body).toContain('never announced it would refuse foreign support');
       expect(body).toContain('on the record');
       expect(body).toContain('2015 earthquake'); // via the joint letter's asks
     }
@@ -296,8 +297,10 @@ describe('letter builders', () => {
     expect(body).toContain('1,924 people missing');
     expect(body).toContain('requesting targeted technical support');
     expect(body).toContain('heavy-lift cargo drones');
+    expect(body).toContain('air pockets deep inside the blocked tunnels');
+    expect(body).toContain('could still be alive');
     expect(body).toContain('$3.6 million');
-    expect(body).toContain('September 1, 2026');
+    expect(body).toContain('September 2, 2026');
     expect(body).not.toContain('approximately 85');
     expect(body).not.toContain('above 900');
     expect(body).not.toContain('August 29 letter');
@@ -308,6 +311,7 @@ describe('letter builders', () => {
     expect(intl).toContain('579 deaths');
     expect(intl).toContain('1,924 people missing');
     expect(intl).toContain('requesting targeted technical support');
+    expect(intl).toContain('air pockets deep inside the blocked tunnels');
     expect(intl).not.toContain('does not need foreign search and rescue teams');
   });
 
