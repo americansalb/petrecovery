@@ -241,7 +241,8 @@ const EDR_PROVIDERS = 'Google, Apple, Meta, and the phone carriers';
 // Foreign Minister's public statements of August 29 through
 // September 1 and his September 1 CNN interview (air pockets in the
 // blocked tunnels, no refusal of foreign support ever announced, the
-// day-two request for tunnel rescue help and day-three team arrivals),
+// tunnel-rescue need known by day two with outreach begun and teams
+// arriving by day three),
 // and the Department's announced assistance. Organizers: update these
 // paragraphs and FACTS_DATE together whenever the situation moves.
 const SITUATION_US =
@@ -250,7 +251,7 @@ const SITUATION_US =
   'Helicopters still cannot land in parts of the upper valley; rescue work was suspended when the barrier lake above the valley overflowed, has resumed under a flood alert, and a second lake has since formed. ' +
   `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support for specific needs: ${NEPAL_REQUESTS}. ` +
   'In a televised CNN interview, the Foreign Minister said engineering analysis shows air pockets deep inside the blocked tunnels and that he is very hopeful many people could still be alive in them. ' +
-  'He said Nepal never announced it would refuse foreign support and takes it in the areas where the need is greatest: Nepal asked for tunnel rescue capability on the second day of the disaster, and the Indian and Chinese teams now working alongside the Nepal Army were arriving by the third. ' +
+  'He said Nepal never announced it would refuse foreign support and takes it in the areas where the need is greatest: by the second day of the disaster Nepal knew it needed tunnel rescue support and began reaching out, and the Indian and Chinese teams now working alongside the Nepal Army were arriving by the third. ' +
   'Australia and South Korea have sent experts. ' +
   `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, one disaster response adviser, and $3.6 million in emergency humanitarian assistance, with no American search team or technical unit reported in the valley.`;
 
@@ -260,7 +261,7 @@ const SITUATION_INTL =
   'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley. ' +
   `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support for specific needs: ${NEPAL_REQUESTS}. ` +
   'In a televised CNN interview, the Foreign Minister said engineering analysis shows air pockets deep inside the blocked tunnels and that he is very hopeful many people could still be alive in them. ' +
-  'He said Nepal never announced it would refuse foreign support: Nepal asked for tunnel rescue capability on the second day of the disaster, and the Indian and Chinese teams now on the ground were arriving by the third.';
+  'He said Nepal never announced it would refuse foreign support: by the second day of the disaster Nepal knew it needed tunnel rescue support and began reaching out, and the Indian and Chinese teams now on the ground were arriving by the third.';
 
 /**
  * The live joint-letter document the coordinating family keeps updated
@@ -324,8 +325,8 @@ export const GENERAL_RECORD_NAME = 'All the missing';
  * September 1 letter totals; v7: the emergency-disclosure ask for
  * last known device locations; v8: the Foreign Minister's televised
  * CNN interview: air pockets in the blocked tunnels, no refusal of
- * foreign support ever announced, the day-two request and day-three
- * team arrivals). Drafts store the version they were
+ * foreign support ever announced, the tunnel-rescue need known by day
+ * two and teams arriving by day three). Drafts store the version they were
  * edited under; restoring hand edits from an older template rebuilds
  * the letters and says so, instead of silently sending the old
  * wording (review findings on PR #223 and PR #225).
@@ -336,7 +337,7 @@ function accessParagraph(government) {
   return (
     'If any of this is said to be waiting on a request from the Government of Nepal, that request has been made. ' +
     `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support: ${NEPAL_REQUESTS}. ` +
-    'In a televised CNN interview he went further: Nepal never announced it would refuse foreign support, it asked for tunnel rescue capability on the second day of the disaster, and the Indian and Chinese teams now working alongside the Nepal Army were arriving by the third. ' +
+    'In a televised CNN interview he went further: Nepal never announced it would refuse foreign support; by the second day of the disaster it knew it needed tunnel rescue support and began reaching out, and the Indian and Chinese teams now working alongside the Nepal Army were arriving by the third. ' +
     `Ask what ${government} has offered against each item on Nepal's list, on what date, and when each arrives; and if the answer is nothing, the families should be told so, on the record.`
   );
 }
@@ -368,7 +369,7 @@ export const ACCESS_COMEBACK = {
   title: 'If they say "Nepal has not asked for assistance"',
   ask:
     'Nepal\'s Foreign Minister has said, on August 29 and again in a televised CNN interview, that Nepal never announced it would refuse foreign support and takes it where the need is greatest. ' +
-    'Nepal asked for tunnel rescue capability on the second day of the disaster, Indian and Chinese teams were arriving by the third, and the standing public request is: tunnel rescue specialists, bridge restoration, DNA and forensic experts, and heavy-lift cargo drones. ' +
+    'By the second day of the disaster Nepal knew it needed tunnel rescue support and began reaching out, Indian and Chinese teams were arriving by the third, and the standing public request is: tunnel rescue specialists, bridge restoration, DNA and forensic experts, and heavy-lift cargo drones. ' +
     'The Minister also said air pockets deep in the blocked tunnels could be keeping many people alive. What have we offered against Nepal\'s list, and when does it arrive?',
   note:
     'A staffer repeating an old line cannot answer that. Ask them to find out and call you back. ' +
