@@ -53,9 +53,12 @@ export default function ProgressChart() {
       {summary ? (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {/* Records are composed letters; the site never claims a
+                letter was delivered, so the band says "addressed",
+                not "written to" (review finding on PR #235). */}
             {[
               [summary.letters, 'Letters on record'],
-              [summary.offices, 'Offices written to'],
+              [summary.offices, 'Offices addressed'],
               [summary.last24h, 'Letters in the last 24 hours'],
               [`${totals.withLetters} of ${totals.people}`, 'People with letters'],
             ].map(([value, label]) => (

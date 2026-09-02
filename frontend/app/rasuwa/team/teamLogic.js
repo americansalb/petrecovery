@@ -112,7 +112,7 @@ export function personKeySets(people) {
  * are kept visible in `others` rather than silently dropped.
  *
  * people:       missing-people.json's people array
- * letterCounts: [{ personName, records }] from the letter record
+ * letterCounts: [{ personName, records, letters }] from the letter record
  * claims:       [{ personKey, claimedBy }]
  */
 export function buildCoverage({ people = [], letterCounts = [], claims = [] } = {}) {
@@ -120,7 +120,11 @@ export function buildCoverage({ people = [], letterCounts = [], claims = [] } = 
   for (const row of letterCounts) {
     const key = normalizePersonKey(row?.personName);
     if (!key) continue;
-    letterByKey.set(key, (letterByKey.get(key) || 0) + (Number(row?.records) || 0));
+    // Prefer the per-letter count; callers that only have record
+    // counts (one row per finished pass) still work with records
+    // standing in.
+    const count = Number(row?.letters ?? row?.records) || 0;
+    letterByKey.set(key, (letterByKey.get(key) || 0) + count);
   }
   const claimsByKey = new Map();
   for (const claim of claims) {
@@ -219,11 +223,17 @@ export function aggregateRecipientCounts(rows) {
     const personName = text(row?.personName);
     const key = normalizePersonKey(personName);
     if (!key) continue;
-    if (!letterCounts.has(key)) letterCounts.set(key, { personName, records: 0 });
-    letterCounts.get(key).records += 1;
+    if (!letterCounts.has(key)) letterCounts.set(key, { personName, records: 0, letters: 0 });
+    const counts = letterCounts.get(key);
+    counts.records += 1;
     if (!offices.has(key)) offices.set(key, new Map());
     const perOffice = offices.get(key);
     for (const label of recipientLabels(row?.recipients)) {
+      // One recipient entry is one letter: the same unit the summary
+      // band, the per-person rows, and the board all count, so a US
+      // pass addressed to three offices shows as three letters
+      // everywhere (review finding on PR #235).
+      counts.letters += 1;
       perOffice.set(label, (perOffice.get(label) || 0) + 1);
     }
   }

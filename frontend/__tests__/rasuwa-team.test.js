@@ -189,6 +189,8 @@ describe('aggregateRecipientCounts (which offices, each separately)', () => {
     ];
     const { letterCounts, officesByKey } = aggregateRecipientCounts(rows);
     expect(letterCounts.find((c) => c.personName === 'Poonam Thakkar').records).toBe(2);
+    // Two passes, five recipient entries: five letters.
+    expect(letterCounts.find((c) => c.personName === 'Poonam Thakkar').letters).toBe(5);
     expect(officesByKey['poonam thakkar']).toEqual([
       { name: 'Senator Richard J. Durbin', count: 2 },
       { name: 'Representative Jonathan L. Jackson', count: 1 },
@@ -198,6 +200,27 @@ describe('aggregateRecipientCounts (which offices, each separately)', () => {
     expect(officesByKey['anil grover']).toEqual([{ name: 'MP Anita Vandenbeld', count: 1 }]);
     expect(officesByKey['vyshnavy culan']).toEqual([{ name: 'parliament or consular officer', count: 1 }]);
     expect(aggregateRecipientCounts(null).letterCounts).toEqual([]);
+  });
+
+  test('one definition of a letter: recipient entries, on rows and in coverage', () => {
+    const { letterCounts } = aggregateRecipientCounts([
+      { personName: 'A Person', recipients: 'sen X; sen Y; rep Z' },
+      { personName: 'A Person', recipients: 'sen X' },
+    ]);
+    expect(letterCounts).toEqual([{ personName: 'A Person', records: 2, letters: 4 }]);
+    const cov = buildCoverage({
+      people: [{ num: 1, name: 'A Person', country: 'United States' }],
+      letterCounts,
+      claims: [],
+    });
+    expect(cov.people[0].letters).toBe(4);
+    // Callers holding only record counts still work: records stand in.
+    const fallback = buildCoverage({
+      people: [{ num: 1, name: 'A Person', country: 'United States' }],
+      letterCounts: [{ personName: 'A Person', records: 2 }],
+      claims: [],
+    });
+    expect(fallback.people[0].letters).toBe(2);
   });
 });
 

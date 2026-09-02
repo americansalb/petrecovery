@@ -745,7 +745,7 @@ running app with Playwright plus unit tests before pushing.
 - **Collective numbers on the progress chart (founder ask,
   2026-09-02: a better summary of all the letters):** the top of
   /rasuwa/progress is now a four-tile band: letters on record,
-  offices written to, letters in the last 24 hours, and people with
+  offices addressed, letters in the last 24 hours, and people with
   letters out of the whole list, with a "Most letters so far" row
   naming the offices hearing from us most. Every recipient entry in
   a record counts as one letter to one office; international
@@ -754,4 +754,11 @@ running app with Playwright plus unit tests before pushing.
   the most-written list, so the office count is a floor, never an
   overclaim. Stored spelling variants of one office ("sen X",
   "Sen. X") now fold into a single count, which also cleaned up the
-  per-person office chips.
+  per-person office chips. A review round tightened three things:
+  the per-person rows, the general card, and the team board now
+  count the same unit as the band (recipient entries, so a US pass
+  to three offices is three letters everywhere); the record queries
+  read newest first so the 24-hour number stays exact past the
+  row cap and lifetime numbers are floors; and the band says
+  "Offices addressed" because a record is a composed letter, not a
+  confirmed delivery.

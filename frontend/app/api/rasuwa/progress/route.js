@@ -30,8 +30,13 @@ export async function GET() {
   if (!cache.body || now - cache.at > TTL_MS) {
     try {
       const [rows, claims] = await Promise.all([
+        // Newest records first, so when the table outgrows the cap the
+        // last-24-hours number stays exact and the lifetime numbers
+        // become floors, which is how this site states every count
+        // (review finding on PR #235).
         prisma.rasuwaLetterRecord.findMany({
           select: { personName: true, recipients: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
           take: 5000,
         }),
         prisma.rasuwaPersonClaim.findMany({ take: 1000 }),
@@ -47,7 +52,7 @@ export async function GET() {
       const generalKey = normalizePersonKey(GENERAL_RECORD_NAME);
       const generalCount = letterCounts.find((c) => normalizePersonKey(c.personName) === generalKey);
       body.general = {
-        letters: generalCount ? generalCount.records : 0,
+        letters: generalCount ? generalCount.letters : 0,
         offices: officesByKey[generalKey] || [],
       };
       // The collective numbers across every record: total letters,
