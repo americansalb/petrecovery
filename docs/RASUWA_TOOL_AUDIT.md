@@ -675,3 +675,17 @@ running app with Playwright plus unit tests before pushing.
   Americans), with five newly added people joining the picker, the
   board, and the chart under stable numbers. Template v6, so older
   hand-edited drafts rebuild with the notice.
+- **Write one letter for everyone (founder ask, 2026-09-02: person
+  should be optional; some people want to write for all the missing
+  in general):** the first step now offers "All of the missing"
+  beside "One missing person". Choosing it hides the person fields
+  and the relationship question, and the letters speak for the whole
+  list: "I am writing about the Americans missing since the flash
+  flood... The families' list holds 86 missing people, 48 of them
+  American", with the same Nepal-request demands and no casework
+  asks, no "my family among them", and no personal-entry box on the
+  finish step. Works on every path (US, Canada, other countries,
+  Nepal). General passes are recorded under "All the missing", and
+  the chart shows them as their own card above the per-person rows
+  with a "Write for everyone" door (/rasuwa?for=all links straight
+  into the mode). Switching between modes keeps everything typed.
