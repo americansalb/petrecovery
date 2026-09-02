@@ -142,7 +142,7 @@ const STEP_META = {
   reps: {
     label: 'Your representatives',
     sidebarTitle: 'The people who can move this.',
-    sidebarCopy: 'These offices do casework for constituents: they can press for action and open a file for your family member. The lookup uses your address for nothing else.',
+    sidebarCopy: 'These offices answer to constituents: they can press for action and open files for the families. The lookup uses your address for nothing else.',
   },
   country: {
     label: 'Your country',
@@ -1391,7 +1391,9 @@ export default function RasuwaWizard() {
             {where === 'us' && (
               <>
                 <p className="text-sm text-midnight-600">
-                  Offices log constituent calls the same day. Call the DC number for each member; the same script works on every call. On the call, ask for the office&apos;s privacy release form: an office cannot ask the State Department about a specific person until you sign it. Return it the same day, and if a staffer gives you a direct email address, send the letter there too.
+                  {forAll
+                    ? 'Offices log constituent calls the same day. Call the DC number for each member; the same script works on every call, and a staffer can put your support for the families\' requests on the record. If they give you a direct email address, send the letter there too.'
+                    : 'Offices log constituent calls the same day. Call the DC number for each member; the same script works on every call. On the call, ask for the office\'s privacy release form: an office cannot ask the State Department about a specific person until you sign it. Return it the same day, and if a staffer gives you a direct email address, send the letter there too.'}
                 </p>
                 <ul className="text-sm text-midnight-600 space-y-0.5">
                   {recipients.map((m) => (
@@ -1406,14 +1408,21 @@ export default function RasuwaWizard() {
               <p className="text-sm text-midnight-600">
                 Call your MP&apos;s constituency office (numbers on the representatives step), and call Global Affairs Canada yourself too: the Emergency Watch and Response Centre takes family calls any hour at{' '}
                 <a className="underline" href={`tel:${CANADA_LINKS.globalAffairsPhone}`}>{CANADA_LINKS.globalAffairsPhone}</a>{' '}
-                (collect calls accepted) or {CANADA_LINKS.globalAffairsEmail}. Ask for a case file and a named contact for {person.name.trim() || 'your family member'}.
+                (collect calls accepted) or {CANADA_LINKS.globalAffairsEmail}.{' '}
+                {forAll
+                  ? 'Ask what Canada has offered against Nepal\'s public request for technical support and for a named contact for every Canadian family.'
+                  : `Ask for a case file and a named contact for ${person.name.trim() || 'your family member'}.`}
               </p>
             )}
             {where === 'intl' && (
               <p className="text-sm text-midnight-600">
                 {guide.home
-                  ? `Call your representative's office with the same details, and ask who in the search coordination takes family reports for ${person.name.trim() || 'your family member'}.`
-                  : `Call the consular emergency line at ${guide.ministry || 'your foreign ministry'}, ask for a case file and a named contact, and ask your country's embassy responsible for Nepal to add ${person.name.trim() || 'your family member'} to its list of the missing.`}
+                  ? (forAll
+                      ? 'Call your representative\'s office with the same details, and ask when the requested equipment and crews reach the valley.'
+                      : `Call your representative's office with the same details, and ask who in the search coordination takes family reports for ${person.name.trim() || 'your family member'}.`)
+                  : (forAll
+                      ? `Call the consular emergency line at ${guide.ministry || 'your foreign ministry'} and ask what our government has offered against Nepal's public request for technical support, and when it arrives.`
+                      : `Call the consular emergency line at ${guide.ministry || 'your foreign ministry'}, ask for a case file and a named contact, and ask your country's embassy responsible for Nepal to add ${person.name.trim() || 'your family member'} to its list of the missing.`)}
               </p>
             )}
             {(where === 'us' || where === 'ca') && (
