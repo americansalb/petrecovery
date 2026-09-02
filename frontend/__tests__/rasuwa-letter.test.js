@@ -311,6 +311,52 @@ describe('letter builders', () => {
     expect(intl).not.toContain('does not need foreign search and rescue teams');
   });
 
+  test('general letters stand for everyone on the list (person optional)', () => {
+    const writer = { name: 'A Supporter', relationship: '', phone: '555-000-0000', email: '', inUS: true, street: '1 Main St', city: 'Bartlett', state: 'IL', zip: '60103', country: '' };
+    const sen = directory.members.find((m) => m.chamber === 'sen' && m.state === 'IL');
+    const body = buildLetterBody({ recipient: sen, writer, person: null });
+    expect(body).toContain('the Americans missing since');
+    expect(body).toContain('86 missing people, 48 of them American');
+    expect(body).toContain('that request has been made');
+    expect(body).not.toContain('my family among them');
+    expect(body).not.toContain('casework file');
+    expect(body).not.toContain('privacy release');
+    expect(body).not.toContain('[');
+    expect(body).not.toContain('undefined');
+    expect(body).not.toMatch(/—|–/);
+    expect(buildSubject({ writer, person: null })).toBe(
+      'Constituent in Bartlett, IL: the Americans missing in the Rasuwa flood in Nepal. Request for action.'
+    );
+    const script = buildPhoneScript({ recipient: sen, writer, person: null });
+    expect(script).toContain('the Americans missing');
+    expect(script).not.toContain('privacy release');
+    expect(jointLetterSentence(null, { mine: false })).not.toContain('my family among them');
+  });
+
+  test('general MP and international letters carry their own stakes', () => {
+    const writer = { name: 'A Supporter', relationship: '', phone: '555', email: '', inUS: false, country: 'Canada' };
+    const mp = { chamber: 'mp', bioguide: 'mp', name: 'Test MP', riding: 'Testing', party: '', email: '', url: '', offices: [] };
+    const ca = buildLetterBody({ recipient: mp, writer, person: null });
+    expect(ca).toContain('86 missing people, 8 of them Canadian');
+    expect(ca).toContain('every Canadian family a named consular contact');
+    expect(ca).not.toContain('my family among them');
+    const au = buildLetterBody({
+      recipient: { chamber: 'intl', bioguide: 'intl', name: '' },
+      writer: { ...writer, country: 'Australia' },
+      person: null,
+    });
+    expect(au).toContain('Ask the Department of Foreign Affairs and Trade');
+    expect(au).toContain('16 of them are nationals of Australia');
+    expect(au).toContain('that request has been made');
+    const np = buildLetterBody({
+      recipient: { chamber: 'intl', bioguide: 'intl', name: '' },
+      writer: { ...writer, country: 'Nepal' },
+      person: null,
+    });
+    expect(np).toContain('to reach the valley and be put to work');
+    expect(np).not.toContain('If any of this is said to be waiting');
+  });
+
   test('no personal contact details anywhere in the module', () => {
     const source = require('fs').readFileSync(require.resolve('@/app/rasuwa/letterData'), 'utf8');
     expect(source).not.toMatch(/bhumika|306-1983|gmail\.com/i);

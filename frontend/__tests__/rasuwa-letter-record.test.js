@@ -57,3 +57,15 @@ describe('buildLetterRecordPayload', () => {
     expect(intl.letters[0].recipient).toBe('parliament or consular officer');
   });
 });
+
+describe('general letters in the record', () => {
+  const letters = [{ recipient: { chamber: 'sen', name: 'Test Senator' }, key: 'X1', body: 'B' }];
+
+  test('a general pass files under the shared name; a blank person still cannot', () => {
+    const { GENERAL_RECORD_NAME } = require('@/app/rasuwa/letterData');
+    const general = buildLetterRecordPayload({ person: null, where: 'us', subject: 'S', letters, overrides: {} });
+    expect(general.personName).toBe(GENERAL_RECORD_NAME);
+    const blank = buildLetterRecordPayload({ person: { name: '' }, where: 'us', subject: 'S', letters, overrides: {} });
+    expect(blank.personName).toBe('');
+  });
+});

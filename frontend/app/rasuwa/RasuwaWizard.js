@@ -23,7 +23,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, Globe2, Landmark, Leaf } from 'lucide-react';
+import { ExternalLink, Globe2, Landmark, Leaf, UserRound, Users } from 'lucide-react';
 import DraftPrompt from '@/app/components/report/DraftPrompt';
 import OptionCardGrid from '@/app/components/report/OptionCardGrid';
 import StepScreen from '@/app/components/report/StepScreen';
@@ -100,6 +100,13 @@ const NATIONALITY_SUGGESTIONS = [
   'France', 'South Africa', 'India', 'Nepal',
 ];
 
+// Person is optional (founder direction, 2026-09-02): some writers
+// stand for everyone on the list rather than one family member.
+const FOR_OPTIONS = [
+  { value: 'one', label: 'One missing person', sublabel: 'Their details go into every letter', icon: UserRound },
+  { value: 'all', label: 'All of the missing', sublabel: `Everyone on the families' list of ${PEOPLE.length}, no one person named`, icon: Users },
+];
+
 const WHERE_OPTIONS = [
   { value: 'us', label: 'United States', sublabel: 'Your two senators and your House representative', icon: Landmark },
   { value: 'ca', label: 'Canada', sublabel: 'Your Member of Parliament and Global Affairs', icon: Leaf },
@@ -125,7 +132,7 @@ const STEP_META = {
   person: {
     label: 'Who is missing',
     sidebarTitle: 'Start with your loved one.',
-    sidebarCopy: 'Pick them from the letter\'s list and everything about them fills in. Their details go into every letter; anything you leave blank just shows as a bracket.',
+    sidebarCopy: 'Pick them from the letter\'s list and everything about them fills in, or write for all of the missing at once. Anything you leave blank just shows as a bracket.',
   },
   you: {
     label: 'About you',
@@ -170,6 +177,9 @@ const stepIdsFor = (where) => [...BASE_STEPS, ...TAIL_STEPS[where] ?? TAIL_STEPS
 export default function RasuwaWizard() {
   const [step, setStep] = useState('person');
   const [where, setWhere] = useState('');
+  // Writing for everyone on the list instead of one person; the person
+  // fields keep their values so switching back loses nothing.
+  const [forAll, setForAll] = useState(false);
   const [person, setPerson] = useState(EMPTY_PERSON);
   const [writer, setWriter] = useState(EMPTY_WRITER);
   const [canada, setCanada] = useState(EMPTY_CANADA);
@@ -286,11 +296,10 @@ export default function RasuwaWizard() {
     // requirements the step gates ask for along the ordinary path;
     // recipients is read here at run time, after the render defined it.
     const passComplete =
-      person.name.trim() !== '' &&
-      person.country.trim() !== '' &&
+      (forAll || (person.name.trim() !== '' && person.country.trim() !== '')) &&
       where !== '' &&
       writer.name.trim() !== '' &&
-      writer.relationship.trim() !== '' &&
+      (forAll || writer.relationship.trim() !== '') &&
       isValidPhone(writer.phone) &&
       (where !== 'us' || recipients.length > 0) &&
       (where !== 'intl' || writer.country.trim() !== '');
@@ -333,7 +342,12 @@ export default function RasuwaWizard() {
   // draft still comes first: the prompt shows, and the prefill applies
   // only if the person chooses to start fresh.
   const prefillIdxRef = useRef(-1);
+  const prefillAllRef = useRef(false);
   const applyPrefill = () => {
+    if (prefillAllRef.current) {
+      setForAll(true);
+      return;
+    }
     const entry = PEOPLE[prefillIdxRef.current];
     if (!entry) return;
     setPerson({
@@ -343,7 +357,9 @@ export default function RasuwaWizard() {
     });
   };
   useEffect(() => {
-    const forNum = Number(new URLSearchParams(window.location.search).get('for'));
+    const forParam = new URLSearchParams(window.location.search).get('for');
+    prefillAllRef.current = forParam === 'all';
+    const forNum = Number(forParam);
     prefillIdxRef.current = Number.isFinite(forNum) ? PEOPLE.findIndex((p) => p.num === forNum) : -1;
     const d = loadRasuwaDraft();
     if (draftHasContent(d)) {
@@ -355,14 +371,14 @@ export default function RasuwaWizard() {
   }, []);
 
   useEffect(() => {
-    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, sent, savedLetterHash, pendingTally };
+    const state = { person, writer, canada, lookup, manualRep, overrides, step, where, done, sent, savedLetterHash, pendingTally, forAll };
     if (!draftHasContent(state)) return;
     if (pendingDraft) {
       setPendingDraft(null);
       return;
     }
     saveRasuwaDraft(state);
-  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, sent, savedLetterHash, pendingTally, pendingDraft]);
+  }, [person, writer, canada, lookup, manualRep, overrides, step, where, done, sent, savedLetterHash, pendingTally, forAll, pendingDraft]);
 
   function resumeDraft() {
     const d = restoreDraft(pendingDraft);
@@ -373,6 +389,7 @@ export default function RasuwaWizard() {
     setManualRep(d.manualRep);
     setOverrides(d.overrides);
     setWhere(d.where);
+    setForAll(d.forAll);
     setDone(d.done);
     setSent(d.sent);
     setSavedLetterHash(d.savedLetterHash);
@@ -397,6 +414,7 @@ export default function RasuwaWizard() {
     setManualRep('');
     setOverrides({});
     setWhere('');
+    setForAll(false);
     setDone(EMPTY_DONE);
     setSent(EMPTY_SENT);
     setOpenLetter('');
@@ -611,14 +629,16 @@ export default function RasuwaWizard() {
           ? [{ chamber: 'intl', bioguide: 'intl', name: '' }]
           : [];
 
+  // null person = the general letter, for everyone on the list.
+  const letterPerson = forAll ? null : person;
   const letters = recipients.map((recipient) => ({
     recipient,
     key: recipient.bioguide,
-    body: buildLetterBody({ recipient, writer, person, signers: liveSigners }),
+    body: buildLetterBody({ recipient, writer, person: letterPerson, signers: liveSigners }),
   }));
   const firstLetter = letters[0] || null;
   const firstBody = firstLetter ? overrides[firstLetter.key] ?? firstLetter.body : '';
-  const subject = buildSubject({ writer, person, recipient: firstLetter ? firstLetter.recipient : recipients[0] });
+  const subject = buildSubject({ writer, person: letterPerson, recipient: firstLetter ? firstLetter.recipient : recipients[0] });
   const unprintable = findUnprintableChars(letters.map((l) => overrides[l.key] ?? l.body).join('\n'));
   const guide = findCountryGuide(writer.country);
 
@@ -627,21 +647,21 @@ export default function RasuwaWizard() {
   // so the person sees their words landing from the first step.
   const previewBody = firstLetter
     ? firstBody
-    : buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person, signers: liveSigners });
+    : buildLetterBody({ recipient: { chamber: 'intl', bioguide: 'intl', name: '' }, writer, person: letterPerson, signers: liveSigners });
   const sidebarPreview =
-    step !== 'letters' && (person.name.trim() || writer.name.trim()) ? previewBody : undefined;
+    step !== 'letters' && (forAll || person.name.trim() || writer.name.trim()) ? previewBody : undefined;
 
   // Kept current every render so the deliver-step effect above records
   // exactly the letters the person finished with, hand edits included.
   recordLettersRef.current = letters.length
     ? {
         hash: hashLetters(letters.map((l) => overrides[l.key] ?? l.body)),
-        payload: buildLetterRecordPayload({ person, where, subject, letters, overrides }),
+        payload: buildLetterRecordPayload({ person: letterPerson, where, subject, letters, overrides }),
       }
     : null;
 
   const stillBlank = [];
-  if (!person.lastSeenPlace.trim()) stillBlank.push('their last known location');
+  if (!forAll && !person.lastSeenPlace.trim()) stillBlank.push('their last known location');
   if (where === 'ca' && !caRecipient.name.trim()) stillBlank.push("your MP's name");
 
   // ── Copy, share, PDF, roster ───────────────────────────────────────
@@ -674,7 +694,7 @@ export default function RasuwaWizard() {
       const a = document.createElement('a');
       const slugOf = (v, fallback) =>
         (v || fallback).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || fallback;
-      const personSlug = slugOf(person.name, 'family');
+      const personSlug = forAll ? 'all-the-missing' : slugOf(person.name, 'family');
       const whoSlug =
         letter.recipient.chamber === 'intl'
           ? 'parliament'
@@ -703,7 +723,7 @@ export default function RasuwaWizard() {
   const phoneScript = buildPhoneScript({
     recipient: where === 'ca' ? caRecipient : null,
     writer,
-    person,
+    person: letterPerson,
   });
 
   // Writers inside Nepal ask their own government about accepting the
@@ -712,7 +732,8 @@ export default function RasuwaWizard() {
 
   // ── Sidebar summary ────────────────────────────────────────────────
   const summary = [];
-  if (person.name.trim()) summary.push({ text: person.name.trim() });
+  if (forAll) summary.push({ text: 'All of the missing' });
+  else if (person.name.trim()) summary.push({ text: person.name.trim() });
   if (where) summary.push({ text: WHERE_OPTIONS.find((o) => o.value === where)?.label || '' });
   if (where === 'us' && recipients.length) {
     summary.push({ text: recipients.map((m) => `${recipientTitle(m)} ${recipientLastName(m)}`).join(', ') });
@@ -743,16 +764,31 @@ export default function RasuwaWizard() {
   let screen = null;
 
   if (step === 'person') {
+    const pickFor = (value) => {
+      const next = value === 'all';
+      if (next !== forAll) {
+        setForAll(next);
+        clearOverrides();
+      }
+    };
     screen = (
       <StepScreen
         stepKey="person"
         variant="rasuwa"
         eyebrow="Missing in the Rasuwa flood"
         question="Who are you writing for?"
-        hint={<span><SignerCount /> This wizard turns that letter into your own, for your missing family member. It takes about ten minutes.</span>}
-        primary={{ label: 'Continue', onClick: goNext, disabled: !person.name.trim() || !person.country.trim() }}
+        hint={<span><SignerCount /> This wizard turns that letter into your own: for your missing family member, or for everyone on the list at once. It takes about ten minutes.</span>}
+        primary={{ label: 'Continue', onClick: goNext, disabled: forAll ? false : !person.name.trim() || !person.country.trim() }}
       >
         <div className="space-y-5">
+          <OptionCardGrid options={FOR_OPTIONS} value={forAll ? 'all' : 'one'} onSelect={pickFor} columns={1} variant="rasuwa" />
+          {forAll && (
+            <p className="text-sm text-midnight-600">
+              Your letters will speak for all {PEOPLE.length} people on the families&apos; list, with the
+              same demands, and no one person named. Press Continue.
+            </p>
+          )}
+          {!forAll && (
           <Field label="Pick from the letter's list, or add someone">
             <select className={inputCls} value={person.pick} onChange={(e) => pickPerson(e.target.value)}>
               <option value="">Choose a name...</option>
@@ -762,6 +798,8 @@ export default function RasuwaWizard() {
               <option value="other">Someone not on the list</option>
             </select>
           </Field>
+          )}
+          {!forAll && (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Their full name">
               <input className={inputCls} value={person.name} onChange={(e) => setP({ name: e.target.value })} placeholder="Name of your missing family member" />
@@ -779,7 +817,8 @@ export default function RasuwaWizard() {
               </datalist>
             </Field>
           </div>
-          {person.name.trim() !== '' && (
+          )}
+          {!forAll && person.name.trim() !== '' && (
             <div>
               <p className="font-bold text-midnight-900">What should the search know?</p>
               <p className="mb-3 mt-0.5 text-sm text-midnight-500">
@@ -827,7 +866,7 @@ export default function RasuwaWizard() {
       </StepScreen>
     );
   } else if (step === 'you') {
-    const youOk = writer.name.trim() && writer.relationship.trim() && isValidPhone(writer.phone);
+    const youOk = writer.name.trim() && (forAll || writer.relationship.trim()) && isValidPhone(writer.phone);
     screen = (
       <StepScreen
         stepKey="you"
@@ -841,17 +880,21 @@ export default function RasuwaWizard() {
           <OptionCardGrid options={WHERE_OPTIONS} value={where} onSelect={pickWhere} columns={1} variant="rasuwa" />
           {where && (
             <div>
-              <p className="font-bold text-midnight-900">How can a caseworker reach you?</p>
+              <p className="font-bold text-midnight-900">{forAll ? 'How can an office reach you?' : 'How can a caseworker reach you?'}</p>
               <p className="mb-3 mt-0.5 text-sm text-midnight-500">
-                Your name, relationship, and phone go into the letter; offices call back.
+                {forAll
+                  ? 'Your name and phone go into the letter; offices call back.'
+                  : 'Your name, relationship, and phone go into the letter; offices call back.'}
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Your name">
                   <input className={inputCls} value={writer.name} onChange={(e) => setW({ name: e.target.value })} autoComplete="name" />
                 </Field>
+                {!forAll && (
                 <Field label="Your relationship to them">
                   <input className={inputCls} value={writer.relationship} onChange={(e) => setW({ relationship: e.target.value })} placeholder="mother, brother, cousin, friend" />
                 </Field>
+                )}
                 <Field label="Your phone">
                   <input className={inputCls} value={writer.phone} onChange={(e) => setW({ phone: e.target.value })} autoComplete="tel" inputMode="tel" />
                 </Field>
@@ -1466,7 +1509,9 @@ export default function RasuwaWizard() {
         sub: 'Submitted through the contact forms, emailed, or in the mail.',
         extra: null,
       },
-      {
+      // A general letter has no one person to add to the list, so the
+      // entry box only shows when someone was named.
+      ...(forAll ? [] : [{
         key: 'entry',
         action: 'entry_sent',
         label: 'Our entry is on the families\' list',
@@ -1496,7 +1541,7 @@ export default function RasuwaWizard() {
             </span>
           </div>
         ),
-      },
+      }]),
       {
         key: 'signed',
         action: 'letter_signed',

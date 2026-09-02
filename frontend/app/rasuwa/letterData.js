@@ -265,17 +265,26 @@ const LETTER_POINTER = `The letter and the list of the missing: ${JOINT_LETTER_P
  * the frozen "On August 29, 1,189..." figure kept reading as outdated).
  * August 29 stays as the delivery fact an office can verify, and the
  * count rises to the live roster number when the wizard has one that
- * is larger than the letter's own floor.
+ * is larger than the letter's own floor. General letters (written for
+ * everyone on the list, not one family's person) drop "my family
+ * among them".
  */
-export function jointLetterSentence(signers) {
+export function jointLetterSentence(signers, { mine = true } = {}) {
   const live = Number(signers);
   const count = Number.isFinite(live) && live > LETTER_SIGNERS ? live : LETTER_SIGNERS;
   return (
     `More than ${count.toLocaleString('en-US')} family members and friends of ${LETTER_MISSING} missing people, ` +
-    'my family among them, have signed the families\' joint letter to the United States Secretary of State, ' +
+    `${mine ? 'my family among them, ' : ''}have signed the families' joint letter to the United States Secretary of State, ` +
     `first delivered on August 29 and updated since as signatures keep arriving. It asks for seven actions: ${SEVEN_ASKS}`
   );
 }
+
+/**
+ * How a general letter (no one person named) is recorded in the
+ * families' letter record, so the chart can count letters written for
+ * everyone alongside the per-person rows.
+ */
+export const GENERAL_RECORD_NAME = 'All the missing';
 
 /**
  * The no-excuse paragraph (founder direction, 2026-09-01: the State
@@ -363,7 +372,25 @@ function lastSeenSentence(person) {
   return `${name} was last seen at ${place}${when}${op}.`;
 }
 
+/**
+ * `person` is optional everywhere below (founder direction, 2026-09-02):
+ * some writers stand for everyone on the list rather than one family
+ * member. Passing null builds the general letter: the people missing,
+ * the list's counts, and the same demands, with no casework asks.
+ */
 export function buildSubject({ writer, person, recipient }) {
+  if (!person) {
+    if (recipient && recipient.chamber === 'mp') {
+      const riding = recipient.riding && recipient.riding.trim() ? recipient.riding.trim() : '[your riding]';
+      return `Constituent in ${riding}: the Canadians missing in the Rasuwa flood in Nepal. Request for action.`;
+    }
+    if (writer.inUS) {
+      const city = ph(writer.city, 'your city');
+      const state = ph(writer.state, 'ST');
+      return `Constituent in ${city}, ${state}: the Americans missing in the Rasuwa flood in Nepal. Request for action.`;
+    }
+    return 'The people missing in the Rasuwa flood in Nepal. Request for action.';
+  }
   const name = ph(person.name, 'name');
   if (recipient && recipient.chamber === 'mp') {
     const riding = recipient.riding && recipient.riding.trim() ? recipient.riding.trim() : '[your riding]';
@@ -429,6 +456,99 @@ export function recipientAddressLines(recipient) {
  * for families writing outside the United States.
  */
 export function buildLetterBody({ recipient, writer, person, signers }) {
+  // No person means a general letter: the writer stands for everyone
+  // on the families' list. Same facts, same demands, no casework asks.
+  if (!person) {
+    const writerName = ph(writer.name, 'your name');
+    const phone = ph(writer.phone, 'your phone number');
+    const email = writer.email && writer.email.trim() ? ` and ${writer.email.trim()}` : '';
+    const reach = `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.`;
+
+    if (recipient.chamber === 'mp') {
+      const mpName = ph(recipient.name, "your MP's name");
+      const riding = recipient.riding && recipient.riding.trim() ? recipient.riding.trim() : '[your riding]';
+      const caCount = nationalsOnList('Canada');
+      return (
+        `${recipientAddressLines(recipient).join('\n')}\n\n` +
+        `${longDate()}\n\n` +
+        `Re: ${buildSubject({ writer, person: null, recipient })}\n\n` +
+        `Dear ${mpName}:\n\n` +
+        `I am your constituent in ${riding}. I am writing about the Canadians missing since ${FLOOD_SENTENCE}. The families' list holds ${LETTER_MISSING} missing people, ${caCount} of them Canadian.\n\n` +
+        `${SITUATION_INTL} ${jointLetterSentence(signers, { mine: false })} ${LETTER_POINTER}.\n\n` +
+        `I ask you to do three things:\n\n` +
+        `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for the Canadians missing in Rasuwa, and press for Canada to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
+        `2. Ask Global Affairs Canada to give every Canadian family a named consular contact with a daily update until their person is accounted for.\n\n` +
+        `3. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
+        `${accessParagraph('Canada')}\n\n` +
+        `${reach}\n\n` +
+        `Respectfully,\n\n` +
+        `${writerName}\n` +
+        `(Facts as of ${FACTS_DATE}.)`
+      );
+    }
+
+    if (recipient.chamber === 'intl') {
+      const guide = findCountryGuide(writer.country);
+      const ministry = guide.ministry || 'our foreign ministry';
+      const wc = String(writer.country || '').trim();
+      const wcCount = nationalsOnList(wc);
+      const stake =
+        wc && wcCount >= 1
+          ? ` ${wcCount === 1 ? 'One of them is a national' : `${wcCount} of them are nationals`} of ${wc}.`
+          : '';
+      const asks = guide.home
+        ? `1. Ask the officers coordinating the search what has been done for the missing, and press for the requested international technical support, ${NEPAL_REQUESTS}, to reach the valley and be put to work.\n\n` +
+          `2. Press for every family to have a named point of contact with a daily update.\n\n` +
+          `3. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
+        : `1. Ask ${ministry} what our government has done for its nationals missing in Rasuwa, and press for our government to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
+          `2. Press for every affected family to have a named point of contact with a daily update.\n\n` +
+          `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
+      return (
+        `${longDate()}\n\n` +
+        `To: [name and office of your Member of Parliament or consular officer]\n\n` +
+        `Re: ${buildSubject({ writer, person: null })}\n\n` +
+        `Dear [name]:\n\n` +
+        `I am writing about the people missing since ${FLOOD_SENTENCE}. The families' list holds ${LETTER_MISSING} missing people from Nepal, India, and more than two dozen other countries.${stake}\n\n` +
+        `${SITUATION_INTL} ${jointLetterSentence(signers, { mine: false })} ${LETTER_POINTER}.\n\n` +
+        `I ask you to do three things:\n\n` +
+        `${asks}\n\n` +
+        `${guide.home ? HOME_COUNTRY_PARAGRAPH : accessParagraph('our government')}\n\n` +
+        `${reach}\n\n` +
+        `Respectfully,\n\n` +
+        `${writerName}\n` +
+        `(Facts as of ${FACTS_DATE}.)`
+      );
+    }
+
+    const title = recipientTitle(recipient);
+    const lastName = recipientLastName(recipient);
+    const street = ph(writer.street, 'your street address');
+    const city = ph(writer.city, 'city');
+    const state = ph(writer.state, 'state');
+    const zip = ph(writer.zip, 'ZIP');
+    const usCount = nationalsOnList('United States');
+    return (
+      `${recipientAddressLines(recipient).join('\n')}\n\n` +
+      `${longDate()}\n\n` +
+      `Re: ${buildSubject({ writer, person: null })}\n\n` +
+      `Dear ${title} ${lastName}:\n\n` +
+      `I am your constituent. I live at ${street}, ${city}, ${state} ${zip}. I am writing about the Americans missing since ${FLOOD_SENTENCE}. The families' list holds ${LETTER_MISSING} missing people, ${usCount} of them American.\n\n` +
+      `${SITUATION_US}\n\n` +
+      `${jointLetterSentence(signers, { mine: false })} ${LETTER_POINTER}.\n\n` +
+      `I ask you to do three things:\n\n` +
+      `1. Contact the State Department's Bureau of Consular Affairs today. Ask what the United States has offered against each item Nepal has publicly requested, ${NEPAL_REQUESTS}, and press for the seven actions in the families' joint letter.\n\n` +
+      `2. Press the Department for consular operations matched to the missing: a named liaison and a daily update for every family, officers at the Kathmandu hospitals and the forward base in Rasuwa, and disaster victim identification support.\n\n` +
+      `3. Tell me what the Department answers, and put your support for the families' requests on the record.\n\n` +
+      `${accessParagraph('the United States')}\n\n` +
+      `${reach}\n\n` +
+      `Respectfully,\n\n` +
+      `${writerName}\n` +
+      `${street}\n` +
+      `${city}, ${state} ${zip}\n` +
+      `(Facts as of ${FACTS_DATE}.)`
+    );
+  }
+
   const name = ph(person.name, 'name');
   const relationship = ph(writer.relationship, 'relationship');
   const writerName = ph(writer.name, 'your name');
@@ -557,6 +677,24 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
 
 /** A 30 second script for calling the DC and district offices. */
 export function buildPhoneScript({ recipient, writer, person }) {
+  if (!person) {
+    if (recipient && recipient.chamber === 'mp') {
+      const riding = recipient.riding && recipient.riding.trim() ? ` in ${recipient.riding.trim()}` : '';
+      return (
+        `Hello, my name is ${ph(writer.name, 'your name')}. I am a constituent${riding}. ` +
+        `I am calling about the Canadians missing in the August 26 flood in Nepal's Rasuwa district. ` +
+        `I am asking the MP to press Global Affairs Canada to act for the families and to answer Nepal's public request for technical support. ` +
+        `My number is ${ph(writer.phone, 'your phone number')}. Which staff member will handle this?`
+      );
+    }
+    const title = recipient && recipient.chamber !== 'intl' ? `${recipientTitle(recipient)} ${recipientLastName(recipient)}` : 'your office';
+    return (
+      `Hello, my name is ${ph(writer.name, 'your name')}. I am a constituent in ${ph(writer.city, 'your city')}. ` +
+      `I am calling about the Americans missing in the August 26 flood in Nepal's Rasuwa district. ` +
+      `I am asking ${title} to press the State Department to act on the families' joint letter and to answer Nepal's public request for technical support. ` +
+      `My number is ${ph(writer.phone, 'your phone number')}. Which staff member will handle this?`
+    );
+  }
   const name = ph(person.name, 'name');
   if (recipient && recipient.chamber === 'mp') {
     const riding = recipient.riding && recipient.riding.trim() ? ` in ${recipient.riding.trim()}` : '';
@@ -582,6 +720,7 @@ export function buildPhoneScript({ recipient, writer, person }) {
  * so the consolidated roster and the letters stay in step.
  */
 export function buildRosterShare({ writer, person }) {
+  person = person && typeof person === 'object' ? person : {};
   const name = ph(person.name, 'name');
   const subject = `Families' letter entry: ${name} (${ph(person.lastSeenPlace, 'last known location')})`;
   const body =

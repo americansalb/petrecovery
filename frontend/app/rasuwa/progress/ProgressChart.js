@@ -44,7 +44,8 @@ export default function ProgressChart() {
     );
   }
 
-  const { people, totals } = data;
+  const { people, totals, general } = data;
+  const generalLetters = general ? general.letters : 0;
   return (
     <div>
       <p className="text-lg font-bold text-slate-900">
@@ -53,7 +54,38 @@ export default function ProgressChart() {
           ? ` ${totals.needSomeone} have nobody writing yet.`
           : ' Every person has someone.'}
       </p>
-      <ul className="mt-5 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-slate-900">For all of the missing</span>
+          <span className="block text-xs text-slate-500">
+            One letter that stands for everyone on the list, no one person named.
+          </span>
+          {general && general.offices && general.offices.length > 0 && (
+            <span className="mt-1.5 flex flex-wrap gap-1.5">
+              {general.offices.map((o) => (
+                <span
+                  key={o.name}
+                  className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[11px] font-medium tabular-nums text-slate-600"
+                >
+                  {o.name}{o.count > 1 ? ` ×${o.count}` : ''}
+                </span>
+              ))}
+            </span>
+          )}
+        </span>
+        {generalLetters > 0 && (
+          <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-green-800">
+            {generalLetters} {generalLetters === 1 ? 'letter' : 'letters'}
+          </span>
+        )}
+        <Link
+          href="/rasuwa?for=all"
+          className="shrink-0 rounded-xl bg-blue-800 px-3 py-1.5 text-sm font-bold text-white hover:bg-blue-900"
+        >
+          Write for everyone
+        </Link>
+      </div>
+      <ul className="mt-3 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
         {people.map((p) => (
           <li key={p.key || p.name} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <span className="min-w-0 flex-1">

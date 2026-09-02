@@ -46,11 +46,14 @@ export const WHERE_VALUES = ['us', 'ca', 'intl'];
 const text = (v) => (typeof v === 'string' ? v : '');
 
 /** The saved shape: what the person typed or chose, plus where they are in the wizard. */
-export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, sent, savedLetterHash, pendingTally }) {
+export function snapshotDraft({ person, writer, lookup, manualRep, overrides, step, where, canada, done, sent, savedLetterHash, pendingTally, forAll }) {
   return {
     v: 2,
     step: text(step),
     where: WHERE_VALUES.includes(where) ? where : '',
+    // Writing for all of the missing instead of one person (the person
+    // fields stay saved so switching back loses nothing).
+    forAll: forAll === true,
     person,
     writer,
     canada: canada && typeof canada === 'object' ? canada : EMPTY_CANADA,
@@ -81,7 +84,7 @@ export function draftHasContent(d) {
   ].some((v) => text(v).trim() !== '');
   const edited = d.overrides && typeof d.overrides === 'object' && Object.keys(d.overrides).length > 0;
   const looked = Boolean(d.lookup && d.lookup.status === 'done') || Boolean(c.mp && c.mp.name);
-  const placed = WHERE_VALUES.includes(d.where);
+  const placed = WHERE_VALUES.includes(d.where) || d.forAll === true;
   return typed || edited || looked || placed;
 }
 
@@ -133,6 +136,7 @@ export function restoreDraft(d) {
   return {
     step: OLD_STEPS[savedStep] || savedStep,
     where,
+    forAll: src.forAll === true,
     person: { ...EMPTY_PERSON, ...(src.person && typeof src.person === 'object' ? src.person : {}) },
     writer: { ...EMPTY_WRITER, ...(src.writer && typeof src.writer === 'object' ? src.writer : {}) },
     canada,
@@ -173,6 +177,7 @@ export function restoreDraft(d) {
 
 /** One short phrase for the restore banner. */
 export function describeDraft(d) {
+  if (d?.forAll === true) return 'your letter for all of the missing';
   const person = text(d?.person?.name).trim();
   if (person) return `your letter about ${person}`;
   const writer = text(d?.writer?.name).trim();

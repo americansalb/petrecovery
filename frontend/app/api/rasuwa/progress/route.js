@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import missingPeople from '@/app/rasuwa/missing-people.json';
-import { aggregateRecipientCounts, buildCoverage, coverageForPublic } from '@/app/rasuwa/team/teamLogic';
+import { GENERAL_RECORD_NAME } from '@/app/rasuwa/letterData';
+import { aggregateRecipientCounts, buildCoverage, coverageForPublic, normalizePersonKey } from '@/app/rasuwa/team/teamLogic';
 
 /**
  * GET /api/rasuwa/progress - the public chart: every missing person,
@@ -30,13 +31,20 @@ export async function GET() {
         prisma.rasuwaPersonClaim.findMany({ take: 1000 }),
       ]);
       const { letterCounts, officesByKey } = aggregateRecipientCounts(rows);
-      cache = {
-        at: now,
-        body: coverageForPublic(
-          buildCoverage({ people: missingPeople.people, letterCounts, claims }),
-          officesByKey
-        ),
+      const body = coverageForPublic(
+        buildCoverage({ people: missingPeople.people, letterCounts, claims }),
+        officesByKey
+      );
+      // Letters written for everyone at once (no one person named) are
+      // recorded under a shared name; the chart shows them as their own
+      // count above the per-person rows.
+      const generalKey = normalizePersonKey(GENERAL_RECORD_NAME);
+      const generalCount = letterCounts.find((c) => normalizePersonKey(c.personName) === generalKey);
+      body.general = {
+        letters: generalCount ? generalCount.records : 0,
+        offices: officesByKey[generalKey] || [],
       };
+      cache = { at: now, body };
     } catch {
       if (!cache.body) {
         return NextResponse.json(

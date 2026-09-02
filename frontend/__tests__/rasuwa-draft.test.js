@@ -115,6 +115,15 @@ describe('snapshot and restore round trip', () => {
     expect(back.writer).toEqual(EMPTY_WRITER);
   });
 
+  test('the for-everyone choice round trips, counts as content, and names the banner', () => {
+    const state = { ...typedState(), forAll: true };
+    expect(restoreDraft(snapshotDraft(state)).forAll).toBe(true);
+    expect(restoreDraft(snapshotDraft(typedState())).forAll).toBe(false);
+    expect(restoreDraft({ forAll: 'yes' }).forAll).toBe(false);
+    expect(draftHasContent({ forAll: true })).toBe(true);
+    expect(describeDraft({ forAll: true })).toBe('your letter for all of the missing');
+  });
+
   test('wizard position and the Canadian slice round trip', () => {
     const state = typedState();
     state.step = 'letters';
