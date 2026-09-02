@@ -13,19 +13,19 @@
 import missingPeople from './missing-people.json';
 import { normalizePersonKey } from './team/teamLogic';
 
-export const FACTS_DATE = 'August 31, 2026';
+export const FACTS_DATE = 'September 1, 2026';
 
 /**
  * The joint letter's own headline figures: how many people have signed
  * and how many missing people they signed for, as the live letter
  * showed them on FACTS_DATE. The letter is a living document, so the
  * generated letters and the landing pages treat LETTER_SIGNERS as a
- * floor ("More than 3,160"), which stays true as signatures keep
+ * floor ("More than 3,373"), which stays true as signatures keep
  * arriving; /api/rasuwa/roster-count replaces it with the live roster
  * count when the organizers' sheet answers.
  */
-export const LETTER_SIGNERS = 3160;
-export const LETTER_MISSING = 81;
+export const LETTER_SIGNERS = 3373;
+export const LETTER_MISSING = 86;
 
 
 /**
@@ -43,7 +43,7 @@ export const ROSTER_FORM_URL =
  * ({"count": 2345}). Defaults to asking the roster web app with
  * ?count=1; until the organizers add the handler below to their Apps
  * Script doGet, that returns the form's HTML, the parser rejects it,
- * and the pages show "More than 3,160" from the floor. Paste into the
+ * and the pages show "More than 3,373" from the floor. Paste into the
  * script, redeploy the web app, and the count goes live with no site
  * deploy:
  *
@@ -132,7 +132,7 @@ export const COUNTRY_GUIDES = [
     consular: { label: 'Ministry of Foreign Affairs, Nepal', url: 'https://mofa.gov.np' },
     ministry: 'the Ministry of Foreign Affairs',
     home: true,
-    note: 'Nepal\'s own army and disaster authority run the search. Ask your representative to press for the offered international technical support to be accepted and for a named contact for your family.',
+    note: 'Nepal\'s own army and disaster authority run the search, and the government has asked partners for technical support. Ask your representative to press for the requested equipment and crews to reach the valley and for a named contact for your family.',
   },
   {
     country: 'Another country',
@@ -215,23 +215,34 @@ const SEVEN_ASKS =
 const FLOOD_SENTENCE =
   'the flash flood that came down the Bhotekoshi and Trishuli valleys in Nepal\'s Rasuwa district on the morning of Wednesday, August 26';
 
-// Figures sourced 2026-08-31 from the families' letter as it read that
-// day: the State Department's count of Americans, Nepal's disaster
-// authority and China's missing counts, the rescue total, the barrier
-// lakes, Nepal's Foreign Ministry stance, and the UK pledge.
-// Organizers: update these two paragraphs and FACTS_DATE together
-// whenever the situation moves.
+/**
+ * What Nepal has publicly asked its partners for (Foreign Minister
+ * Shisir Khanal's statements, August 29 through September 1): the
+ * list every letter and call now pins its ask to.
+ */
+const NEPAL_REQUESTS =
+  'tunnel rescue specialists, help restoring transport where bridges were destroyed, DNA testing and forensic experts, and heavy-lift cargo drones';
+
+// Figures sourced 2026-09-01: the families' letter as it read that day
+// (the counts of Americans, Nepal's disaster authority and China's
+// missing counts, the rescue total, the barrier lakes), Nepal's
+// Foreign Minister's public statements of August 29 through
+// September 1 with the reported arrivals of foreign specialist teams,
+// and the Department's announced assistance. Organizers: update these
+// paragraphs and FACTS_DATE together whenever the situation moves.
 const SITUATION_US =
   'The State Department has said that 90 Americans remain unaccounted for and that five have been rescued. ' +
   'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, China reports 558 missing on its side of the border, and Nepali crews have rescued more than 3,700 people. ' +
   'Helicopters still cannot land in parts of the upper valley; rescue work was suspended when the barrier lake above the valley overflowed, has resumed under a flood alert, and a second lake has since formed. ' +
-  'Nepal\'s Foreign Ministry has said it does not need foreign search and rescue teams at this time but is open to targeted technical support. ' +
-  `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, and one disaster response adviser, while the United Kingdom has pledged 5 million pounds and is sending emergency responders and consular staff to the region.`;
+  `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support for specific needs: ${NEPAL_REQUESTS}. ` +
+  'Specialist teams from India and China are already working alongside the Nepal Army, and Australia and South Korea have sent experts. ' +
+  `As of ${FACTS_DATE}, the announced United States response consisted of monitoring, a hotline, $500,000 in relief supplies, one disaster response adviser, and $3.6 million in emergency humanitarian assistance, with no American search team or technical unit reported in the valley.`;
 
 const SITUATION_INTL =
   'Nepal\'s disaster authority has confirmed 579 deaths and lists 1,924 people missing, and China reports 558 missing on its side of the border. ' +
   'The missing include pilgrims, guides, and workers from Nepal, India, Australia, the United Kingdom, Singapore, the United States, and more than two dozen other countries. ' +
-  'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley, and Nepal\'s Foreign Ministry has said it does not need foreign search and rescue teams at this time but is open to targeted technical support.';
+  'Nepali crews have rescued more than 3,700 people, but helicopters still cannot land in parts of the upper valley. ' +
+  `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support for specific needs: ${NEPAL_REQUESTS}. Specialist teams from India and China are already on the ground.`;
 
 /**
  * The live joint-letter document the coordinating family keeps updated
@@ -267,12 +278,12 @@ export function jointLetterSentence(signers) {
 }
 
 /**
- * The consent counter (founder direction, 2026-08-31): offices deflect
- * families with "Nepal is not letting foreign teams in." Consent is a
- * diplomatic product, not weather, so every letter asks for the offer
- * to be made formally and for Nepal's answer to be on the record, and
- * the call script carries a prepared comeback. The 2015 reference is
- * the same one the joint letter itself uses.
+ * The no-excuse paragraph (founder direction, 2026-09-01: the State
+ * Department was still telling families it could do nothing "because
+ * Nepal is not asking for assistance"). Nepal's request is now public
+ * and specific, so every letter pins its ask to that list and demands
+ * the government's offer against it be on the record. Supersedes the
+ * consent-obtaining framing from 2026-08-31.
  */
 /**
  * Bumped whenever the generated letter wording changes in a way every
@@ -281,28 +292,32 @@ export function jointLetterSentence(signers) {
  * living joint-letter framing with the current signer and missing
  * counts and the letter's own casualty figures; v5: named foreign
  * ministries, the nationals-on-the-list counts, and the Nepal
- * home-country variant). Drafts store the version they were edited
- * under; restoring hand edits from an older template rebuilds the
- * letters and says so, instead of silently sending the old wording
- * (review findings on PR #223 and PR #225).
+ * home-country variant; v6: Nepal's public request for technical
+ * support replaces the consent-obtaining framing, with the
+ * September 1 letter totals). Drafts store the version they were
+ * edited under; restoring hand edits from an older template rebuilds
+ * the letters and says so, instead of silently sending the old
+ * wording (review findings on PR #223 and PR #225).
  */
-export const LETTER_TEMPLATE_VERSION = 5;
+export const LETTER_TEMPLATE_VERSION = 6;
 
-const ACCESS_PARAGRAPH =
-  'If any of this is said to be waiting on the Government of Nepal\'s consent, obtaining that consent is part of what I am asking for. ' +
-  'Nepal\'s Foreign Ministry has said it is open to targeted technical support, and Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake. ' +
-  'Press for each offer to be made formally, in writing, at a senior level; for the families to be told what was offered, to whom, and on what date; ' +
-  'and if Nepal declines, for that refusal to be on the record.';
+function accessParagraph(government) {
+  return (
+    'If any of this is said to be waiting on a request from the Government of Nepal, that request has been made. ' +
+    `On August 29, Nepal's Foreign Minister said publicly that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support: ${NEPAL_REQUESTS}. ` +
+    'Specialist teams from India and China are already working alongside the Nepal Army. ' +
+    `Ask what ${government} has offered against each item on Nepal's list, on what date, and when each arrives; and if the answer is nothing, the families should be told so, on the record.`
+  );
+}
 
 /**
- * The consent counter reversed, for writers inside Nepal: their own
- * government runs the search and holds the answer, so the letter asks
- * for the offers on the table to be accepted rather than pressing a
- * foreign ministry to press Nepal.
+ * The same facts turned around, for writers inside Nepal: their own
+ * government made the request, so the letter presses for the asked-for
+ * help to reach the valley and for families to see the ledger.
  */
 const HOME_COUNTRY_PARAGRAPH =
-  'Nepal\'s Foreign Ministry has said the country does not need foreign search and rescue teams at this time but is open to targeted technical support, and foreign governments have offered exactly that. ' +
-  'I am asking for those offers to be accepted quickly and specifically, for the equipment and crews to reach the valley, and for families to be told what was offered, what was accepted, and when it will arrive.';
+  `Nepal's Foreign Ministry has asked friendly governments for targeted technical support, ${NEPAL_REQUESTS}, and specialist teams from India and China have begun arriving. ` +
+  'I am asking for the requested equipment and crews to reach the valley quickly, and for families to be told what was requested, what has arrived, and what is still missing.';
 
 /**
  * The prepared question for callers inside Nepal, where the consent
@@ -319,12 +334,13 @@ export const HOME_COMEBACK = {
 
 /** Rendered on the delivery step under the phone script, for every path. */
 export const ACCESS_COMEBACK = {
-  title: 'If they say "Nepal is not accepting foreign help"',
-  ask: 'What did our government formally offer, to whom in Nepal\'s government, on what date, and what was Nepal\'s answer?',
+  title: 'If they say "Nepal has not asked for assistance"',
+  ask:
+    'Nepal\'s Foreign Minister said publicly on August 29 that Nepal has not rejected foreign rescue assistance and is requesting targeted technical support: tunnel rescue specialists, bridge restoration, DNA and forensic experts, and heavy-lift cargo drones. ' +
+    'India and China have specialist teams on the ground. What have we offered against that list, and when does it arrive?',
   note:
-    'A staffer repeating a general line cannot answer that. Ask them to find out and call you back. ' +
-    'Nepal\'s Foreign Ministry has said it is open to targeted technical support, and Nepal accepted American military helicopters and international rescue teams after the 2015 earthquake. ' +
-    'If a formal offer has been refused, the families should be told so, on the record.',
+    'A staffer repeating an old line cannot answer that. Ask them to find out and call you back. ' +
+    'If an offer has been made, the families should be told what and when; if none has, that is the answer, on the record.',
 };
 
 /** "[your street address]" style gap markers keep an incomplete letter obviously incomplete. */
@@ -448,10 +464,10 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       `${lastSeenSentence(person)}${details}\n\n` +
       `${SITUATION_INTL} ${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
       `I ask you to do three things:\n\n` +
-      `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for ${name} and for the other Canadians missing in Rasuwa, and press for the technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
+      `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for ${name} and for the other Canadians missing in Rasuwa, and press for Canada to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
       `${askTwo}\n\n` +
       `3. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
-      `${ACCESS_PARAGRAPH}\n\n` +
+      `${accessParagraph('Canada')}\n\n` +
       `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
       `Respectfully,\n\n` +
       `${writerName}\n` +
@@ -477,10 +493,10 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
           ? ` and for the ${intlListCount} nationals of ${country} on the families' list`
           : '');
     const asks = guide.home
-      ? `1. Ask the officers coordinating the search what has been done to find ${name}${othersOnList}, and press for the international technical support that has been offered, helicopters, search drones, ground radar, satellite imagery, and search teams, to be accepted and put to work in the valley.\n\n` +
+      ? `1. Ask the officers coordinating the search what has been done to find ${name}${othersOnList}, and press for the requested international technical support, ${NEPAL_REQUESTS}, to reach the valley and be put to work.\n\n` +
         `2. Give me a named point of contact with an update every day until ${name} is accounted for.\n\n` +
         `3. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
-      : `1. Ask ${ministry} what our government has done to date for ${name}${othersOnList}, and press for the same technical support the families requested: helicopters, search drones, ground radar, satellite imagery, and search teams.\n\n` +
+      : `1. Ask ${ministry} what our government has done to date for ${name}${othersOnList}, and press for our government to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
         `2. Open a case file for ${name} and give me a named point of contact with a daily update.\n\n` +
         `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
     return (
@@ -493,7 +509,7 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       `${SITUATION_INTL} ${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
       `I ask you to do three things:\n\n` +
       `${asks}\n\n` +
-      `${guide.home ? HOME_COUNTRY_PARAGRAPH : ACCESS_PARAGRAPH}\n\n` +
+      `${guide.home ? HOME_COUNTRY_PARAGRAPH : accessParagraph('our government')}\n\n` +
       `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
       `Respectfully,\n\n` +
       `${writerName}\n` +
@@ -526,10 +542,10 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     `${SITUATION_US}\n\n` +
     `${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
     `I ask you to do three things:\n\n` +
-    `1. Contact the State Department's Bureau of Consular Affairs today in support of the seven requests in the families' joint letter, and ask what the Department has done on each one.\n\n` +
+    `1. Contact the State Department's Bureau of Consular Affairs today. Ask what the United States has offered against each item Nepal has publicly requested, ${NEPAL_REQUESTS}, and press for the seven actions in the families' joint letter.\n\n` +
     `${askTwo}\n\n` +
     `3. Have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
-    `${ACCESS_PARAGRAPH}\n\n` +
+    `${accessParagraph('the United States')}\n\n` +
     `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
     `Respectfully,\n\n` +
     `${writerName}\n` +

@@ -176,6 +176,10 @@ describe('snapshot and restore round trip', () => {
     const v4 = { ...snapshotDraft(state), templateVersion: 4 };
     expect(restoreDraft(v4).overrides).toEqual({});
     expect(restoreDraft(v4).templateOutdated).toBe(true);
+    // v5 predates Nepal's public request framing; same rebuild.
+    const v5 = { ...snapshotDraft(state), templateVersion: 5 };
+    expect(restoreDraft(v5).overrides).toEqual({});
+    expect(restoreDraft(v5).templateOutdated).toBe(true);
     // No hand edits means nothing was lost and no notice is owed.
     const clean = { ...snapshotDraft(emptyState()), templateVersion: 1 };
     expect(restoreDraft(clean).templateOutdated).toBe(false);

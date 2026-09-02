@@ -6,7 +6,7 @@
  * count comes from the organizers' roster (see ROSTER_COUNT_URL in
  * letterData.js) through /api/rasuwa/roster-count; when the live
  * source is missing or answers nonsense, the pages say "More than
- * 3,160" from LETTER_SIGNERS, the letter's own printed total, which
+ * 3,373" from LETTER_SIGNERS, the letter's own printed total, which
  * stays true.
  *
  * Pure logic lives here so it is testable and shared by the API route

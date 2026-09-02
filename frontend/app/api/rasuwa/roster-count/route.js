@@ -9,7 +9,7 @@ import { parseRosterCount } from '@/app/rasuwa/rosterCount';
  * landing pages, so the number grows with the movement instead of
  * sitting frozen at a printed figure. When the source is unset,
  * unreachable, or answers nonsense, this returns the letter's own
- * floor with live=false and the pages say "More than 3,160".
+ * floor with live=false and the pages say "More than 3,373".
  *
  * The upstream is the organizers' Apps Script roster app, which Google
  * caps at 30 simultaneous executions, so the count is cached in-process

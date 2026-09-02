@@ -652,3 +652,26 @@ running app with Playwright plus unit tests before pushing.
   Canadians on the families' list", "the other 15 nationals of
   Australia"). Template v5, so older hand-edited drafts rebuild with
   the notice.
+- **The no-ask excuse is gone from every letter (founder report,
+  2026-09-01: the State Department told a family member in Nepal it
+  could do nothing "because Nepal is not asking for assistance"):**
+  Nepal's request is now public, so the letters stopped asking for
+  consent to be obtained and started holding governments to the list.
+  On August 29 Nepal's Foreign Minister said publicly that Nepal has
+  not rejected foreign rescue assistance and is requesting targeted
+  technical support: tunnel rescue specialists, help restoring
+  transport where bridges were destroyed, DNA testing and forensic
+  experts, and heavy-lift cargo drones. Specialist teams from India
+  and China are working alongside the Nepal Army, and Australia and
+  South Korea have sent experts. Every letter now says the request
+  has been made and asks the writer's own government, by name, what
+  it has offered against each item and when it arrives, with a
+  nothing answer demanded on the record. The call comeback flipped
+  the same way ("If they say Nepal has not asked for assistance").
+  The situation paragraphs add the $3.6 million in announced US
+  humanitarian assistance alongside the absence of any American
+  search team in the valley. And the letter totals moved to the
+  September 1 printing: 3,373 signers for 86 missing people (48
+  Americans), with five newly added people joining the picker, the
+  board, and the chart under stable numbers. Template v6, so older
+  hand-edited drafts rebuild with the notice.

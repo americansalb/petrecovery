@@ -815,7 +815,7 @@ function NeedCard({ need, myName, onAct, isAdmin, onRemove }) {
 
 // ── The people ───────────────────────────────────────────────────────
 
-// The wall lists every missing person, but on a phone 81 cards would
+// The wall lists every missing person, but on a phone 86 cards would
 // push the conversation thousands of pixels down; it opens as a
 // preview and expands on request.
 const COVERAGE_PREVIEW = 6;
