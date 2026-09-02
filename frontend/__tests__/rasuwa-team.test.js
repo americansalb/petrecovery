@@ -17,6 +17,7 @@ const {
   cleanTeamPost,
   needView,
   normalizePersonKey,
+  summarizeRecords,
   timeAgo,
 } = require('@/app/rasuwa/team/teamLogic');
 
@@ -310,5 +311,70 @@ describe('cleanTeamName', () => {
     expect(cleanTeamName('  Asha   Rao  ')).toBe('Asha Rao');
     expect(cleanTeamName('X'.repeat(999))).toHaveLength(TEAM_CAPS.name);
     expect(cleanTeamName(42)).toBe('');
+  });
+});
+
+describe('summarizeRecords', () => {
+  test('collective numbers: letters, offices, the last day, most-written offices', () => {
+    const now = Date.now();
+    const hoursAgo = (h) => new Date(now - h * 3600 * 1000).toISOString();
+    const rows = [
+      { recipients: 'sen A; sen B; rep C', createdAt: hoursAgo(1) },
+      { recipients: 'sen A; rep C', createdAt: hoursAgo(30) },
+      { recipients: 'parliament or consular officer', createdAt: hoursAgo(2) },
+    ];
+    const s = summarizeRecords(rows, now);
+    expect(s.records).toBe(3);
+    expect(s.letters).toBe(6);
+    // Senator A, Senator B, Representative C, and the generic
+    // international label counted once: a floor, never an overclaim.
+    expect(s.offices).toBe(4);
+    expect(s.last24h).toBe(4);
+    // Ties break alphabetically; the generic label never makes the
+    // most-written list because nobody can call it.
+    expect(s.topOffices.map((o) => o.name)).toEqual(['Representative C', 'Senator A', 'Senator B']);
+    expect(s.topOffices[0].count).toBe(2);
+  });
+
+  test('at most six most-written offices, letters beyond them still counted', () => {
+    const now = Date.now();
+    const rows = Array.from({ length: 9 }, (_, i) => ({
+      recipients: `sen Office ${i}`,
+      createdAt: new Date(now).toISOString(),
+    }));
+    const s = summarizeRecords(rows, now);
+    expect(s.letters).toBe(9);
+    expect(s.offices).toBe(9);
+    expect(s.topOffices).toHaveLength(6);
+  });
+
+  test('stored spelling variants of one office fold into one count', () => {
+    const now = Date.now();
+    const at = new Date(now).toISOString();
+    const rows = [
+      { recipients: 'sen Richard J. Durbin', createdAt: at },
+      { recipients: 'Sen. Richard J. Durbin; MP Anita Vandenbeld', createdAt: at },
+      { recipients: 'mp Anita Vandenbeld', createdAt: at },
+    ];
+    const s = summarizeRecords(rows, now);
+    expect(s.offices).toBe(2);
+    expect(s.topOffices).toEqual([
+      { name: 'MP Anita Vandenbeld', count: 2 },
+      { name: 'Senator Richard J. Durbin', count: 2 },
+    ]);
+  });
+
+  test('junk rows do not break the totals', () => {
+    expect(summarizeRecords(null)).toEqual({
+      records: 0,
+      letters: 0,
+      offices: 0,
+      last24h: 0,
+      topOffices: [],
+    });
+    const s = summarizeRecords([{ recipients: null, createdAt: 'garbage' }, {}]);
+    expect(s.records).toBe(2);
+    expect(s.letters).toBe(0);
+    expect(s.last24h).toBe(0);
   });
 });

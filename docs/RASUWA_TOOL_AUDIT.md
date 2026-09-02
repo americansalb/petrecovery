@@ -736,3 +736,22 @@ running app with Playwright plus unit tests before pushing.
   that a request was placed that day. The August 29 statement stays
   the dated anchor for the standing request list; the Nepal
   home-country variant is unchanged (PR #234).
+- **Interview date corrected (founder correction, 2026-09-02):** the
+  CNN interview with Anderson Cooper was September 2, not
+  September 1. No generated letter ever carried a date for the
+  interview (August 29 stays the only dated anchor), so nothing
+  wrong reached an office; the date lived only in source comments,
+  now fixed, and in PR #234's description.
+- **Collective numbers on the progress chart (founder ask,
+  2026-09-02: a better summary of all the letters):** the top of
+  /rasuwa/progress is now a four-tile band: letters on record,
+  offices written to, letters in the last 24 hours, and people with
+  letters out of the whole list, with a "Most letters so far" row
+  naming the offices hearing from us most. Every recipient entry in
+  a record counts as one letter to one office; international
+  letters recorded under the generic parliament-or-consular label
+  count as letters and count once among offices but never appear in
+  the most-written list, so the office count is a floor, never an
+  overclaim. Stored spelling variants of one office ("sen X",
+  "Sen. X") now fold into a single count, which also cleaned up the
+  per-person office chips.

@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import missingPeople from '@/app/rasuwa/missing-people.json';
 import { GENERAL_RECORD_NAME } from '@/app/rasuwa/letterData';
-import { aggregateRecipientCounts, buildCoverage, coverageForPublic, normalizePersonKey } from '@/app/rasuwa/team/teamLogic';
+import {
+  aggregateRecipientCounts,
+  buildCoverage,
+  coverageForPublic,
+  normalizePersonKey,
+  summarizeRecords,
+} from '@/app/rasuwa/team/teamLogic';
 
 /**
  * GET /api/rasuwa/progress - the public chart: every missing person,
@@ -25,7 +31,7 @@ export async function GET() {
     try {
       const [rows, claims] = await Promise.all([
         prisma.rasuwaLetterRecord.findMany({
-          select: { personName: true, recipients: true },
+          select: { personName: true, recipients: true, createdAt: true },
           take: 5000,
         }),
         prisma.rasuwaPersonClaim.findMany({ take: 1000 }),
@@ -44,6 +50,9 @@ export async function GET() {
         letters: generalCount ? generalCount.records : 0,
         offices: officesByKey[generalKey] || [],
       };
+      // The collective numbers across every record: total letters,
+      // offices written to, the last day's pace, most-written offices.
+      body.summary = summarizeRecords(rows, now);
       cache = { at: now, body };
     } catch {
       if (!cache.body) {

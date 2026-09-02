@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * The public chart: every missing person, alphabetical, with the
- * letters written for them and how many people are writing. Refreshes
- * once a minute so a family watching sees the campaign move. Every row
- * hands off into the wizard with that person picked.
+ * The public chart: the campaign's collective numbers (letters on
+ * record, offices written to, the last day's pace, most-written
+ * offices), then every missing person, alphabetical, with the letters
+ * written for them and how many people are writing. Refreshes once a
+ * minute so a family watching sees the campaign move. Every row hands
+ * off into the wizard with that person picked.
  */
 
 import { useEffect, useState } from 'react';
@@ -44,16 +46,54 @@ export default function ProgressChart() {
     );
   }
 
-  const { people, totals, general } = data;
+  const { people, totals, general, summary } = data;
   const generalLetters = general ? general.letters : 0;
   return (
     <div>
-      <p className="text-lg font-bold text-slate-900">
-        {totals.withLetters} of {totals.people} people have letters on record.
-        {totals.needSomeone > 0
-          ? ` ${totals.needSomeone} have nobody writing yet.`
-          : ' Every person has someone.'}
-      </p>
+      {summary ? (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              [summary.letters, 'Letters on record'],
+              [summary.offices, 'Offices written to'],
+              [summary.last24h, 'Letters in the last 24 hours'],
+              [`${totals.withLetters} of ${totals.people}`, 'People with letters'],
+            ].map(([value, label]) => (
+              <div key={label} className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <span className="block text-2xl font-semibold text-slate-900">
+                  {typeof value === 'number' ? value.toLocaleString('en-US') : value}
+                </span>
+                <span className="block text-xs text-slate-500">{label}</span>
+              </div>
+            ))}
+          </div>
+          {summary.topOffices && summary.topOffices.length > 0 && (
+            <p className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
+              <span className="font-semibold text-slate-700">Most letters so far:</span>
+              {summary.topOffices.map((o) => (
+                <span
+                  key={o.name}
+                  className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium tabular-nums text-slate-600"
+                >
+                  {o.name}{o.count > 1 ? ` ×${o.count}` : ''}
+                </span>
+              ))}
+            </p>
+          )}
+          <p className="mt-3 text-sm font-semibold text-slate-800">
+            {totals.needSomeone > 0
+              ? `${totals.needSomeone} have nobody writing yet. Pick one below.`
+              : 'Every person has someone writing.'}
+          </p>
+        </>
+      ) : (
+        <p className="text-lg font-bold text-slate-900">
+          {totals.withLetters} of {totals.people} people have letters on record.
+          {totals.needSomeone > 0
+            ? ` ${totals.needSomeone} have nobody writing yet.`
+            : ' Every person has someone.'}
+        </p>
+      )}
       <p className="mt-1 text-sm text-slate-500">
         See a mistake in someone&apos;s details?{' '}
         <Link className="font-semibold text-blue-800 underline" href="/rasuwa/correction">
