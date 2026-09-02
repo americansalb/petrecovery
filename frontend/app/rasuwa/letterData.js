@@ -517,7 +517,7 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
           `4. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
         : `1. Ask ${ministry} what our government has done for its nationals missing in Rasuwa, and press for our government to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
           `2. Press for every affected family to have a named point of contact with a daily update.\n\n` +
-          `3. Ask our national police to open missing person cases and make emergency disclosure requests to ${EDR_PROVIDERS} for the last known device locations of the missing, shared with the search coordinators.\n\n` +
+          `3. Ask our national police to open missing person cases for our nationals missing in Rasuwa and to make emergency disclosure requests to ${EDR_PROVIDERS} for their last known device locations, shared with the search coordinators.\n\n` +
           `4. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
       return (
         `${longDate()}\n\n` +
