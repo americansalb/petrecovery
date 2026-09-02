@@ -189,6 +189,10 @@ describe('snapshot and restore round trip', () => {
     const v5 = { ...snapshotDraft(state), templateVersion: 5 };
     expect(restoreDraft(v5).overrides).toEqual({});
     expect(restoreDraft(v5).templateOutdated).toBe(true);
+    // v6 predates the emergency-disclosure ask; same rebuild.
+    const v6 = { ...snapshotDraft(state), templateVersion: 6 };
+    expect(restoreDraft(v6).overrides).toEqual({});
+    expect(restoreDraft(v6).templateOutdated).toBe(true);
     // No hand edits means nothing was lost and no notice is owed.
     const clean = { ...snapshotDraft(emptyState()), templateVersion: 1 };
     expect(restoreDraft(clean).templateOutdated).toBe(false);

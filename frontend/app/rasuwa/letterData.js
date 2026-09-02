@@ -223,6 +223,18 @@ const FLOOD_SENTENCE =
 const NEPAL_REQUESTS =
   'tunnel rescue specialists, help restoring transport where bridges were destroyed, DNA testing and forensic experts, and heavy-lift cargo drones';
 
+/**
+ * The emergency-disclosure ask (founder direction, 2026-09-02). Under
+ * 18 U.S.C. 2702, Google, Apple, Meta, and the phone carriers may hand
+ * a person's last known device location to a governmental entity in a
+ * danger-of-death emergency; the request must come from law
+ * enforcement (a sworn official, through the providers' law
+ * enforcement portals), which is why every letter asks for a missing
+ * person case to be opened first. Missing persons are a qualifying
+ * emergency in the providers' own policies.
+ */
+const EDR_PROVIDERS = 'Google, Apple, Meta, and the phone carriers';
+
 // Figures sourced 2026-09-01: the families' letter as it read that day
 // (the counts of Americans, Nepal's disaster authority and China's
 // missing counts, the rescue total, the barrier lakes), Nepal's
@@ -303,12 +315,13 @@ export const GENERAL_RECORD_NAME = 'All the missing';
  * ministries, the nationals-on-the-list counts, and the Nepal
  * home-country variant; v6: Nepal's public request for technical
  * support replaces the consent-obtaining framing, with the
- * September 1 letter totals). Drafts store the version they were
+ * September 1 letter totals; v7: the emergency-disclosure ask for
+ * last known device locations). Drafts store the version they were
  * edited under; restoring hand edits from an older template rebuilds
  * the letters and says so, instead of silently sending the old
  * wording (review findings on PR #223 and PR #225).
  */
-export const LETTER_TEMPLATE_VERSION = 6;
+export const LETTER_TEMPLATE_VERSION = 7;
 
 function accessParagraph(government) {
   return (
@@ -475,10 +488,11 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
         `Dear ${mpName}:\n\n` +
         `I am your constituent in ${riding}. I am writing about the Canadians missing since ${FLOOD_SENTENCE}. The families' list holds ${LETTER_MISSING} missing people, ${caCount} of them Canadian.\n\n` +
         `${SITUATION_INTL} ${jointLetterSentence(signers, { mine: false })} ${LETTER_POINTER}.\n\n` +
-        `I ask you to do three things:\n\n` +
+        `I ask you to do four things:\n\n` +
         `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for the Canadians missing in Rasuwa, and press for Canada to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
         `2. Ask Global Affairs Canada to give every Canadian family a named consular contact with a daily update until their person is accounted for.\n\n` +
-        `3. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
+        `3. Ask the RCMP to open missing person cases for the missing Canadians and to make emergency disclosure requests to ${EDR_PROVIDERS}, so that last known device locations reach the search coordinators.\n\n` +
+        `4. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
         `${accessParagraph('Canada')}\n\n` +
         `${reach}\n\n` +
         `Respectfully,\n\n` +
@@ -499,10 +513,12 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       const asks = guide.home
         ? `1. Ask the officers coordinating the search what has been done for the missing, and press for the requested international technical support, ${NEPAL_REQUESTS}, to reach the valley and be put to work.\n\n` +
           `2. Press for every family to have a named point of contact with a daily update.\n\n` +
-          `3. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
+          `3. Ask Nepal Police to make emergency disclosure requests to ${EDR_PROVIDERS} for the last known device locations of the missing, shared with the officers coordinating the search.\n\n` +
+          `4. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
         : `1. Ask ${ministry} what our government has done for its nationals missing in Rasuwa, and press for our government to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
           `2. Press for every affected family to have a named point of contact with a daily update.\n\n` +
-          `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
+          `3. Ask our national police to open missing person cases and make emergency disclosure requests to ${EDR_PROVIDERS} for the last known device locations of the missing, shared with the search coordinators.\n\n` +
+          `4. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
       return (
         `${longDate()}\n\n` +
         `To: [name and office of your Member of Parliament or consular officer]\n\n` +
@@ -510,7 +526,7 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
         `Dear [name]:\n\n` +
         `I am writing about the people missing since ${FLOOD_SENTENCE}. The families' list holds ${LETTER_MISSING} missing people from Nepal, India, and more than two dozen other countries.${stake}\n\n` +
         `${SITUATION_INTL} ${jointLetterSentence(signers, { mine: false })} ${LETTER_POINTER}.\n\n` +
-        `I ask you to do three things:\n\n` +
+        `I ask you to do four things:\n\n` +
         `${asks}\n\n` +
         `${guide.home ? HOME_COUNTRY_PARAGRAPH : accessParagraph('our government')}\n\n` +
         `${reach}\n\n` +
@@ -535,10 +551,11 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       `I am your constituent. I live at ${street}, ${city}, ${state} ${zip}. I am writing about the Americans missing since ${FLOOD_SENTENCE}. The families' list holds ${LETTER_MISSING} missing people, ${usCount} of them American.\n\n` +
       `${SITUATION_US}\n\n` +
       `${jointLetterSentence(signers, { mine: false })} ${LETTER_POINTER}.\n\n` +
-      `I ask you to do three things:\n\n` +
+      `I ask you to do four things:\n\n` +
       `1. Contact the State Department's Bureau of Consular Affairs today. Ask what the United States has offered against each item Nepal has publicly requested, ${NEPAL_REQUESTS}, and press for the seven actions in the families' joint letter.\n\n` +
       `2. Press the Department for consular operations matched to the missing: a named liaison and a daily update for every family, officers at the Kathmandu hospitals and the forward base in Rasuwa, and disaster victim identification support.\n\n` +
-      `3. Tell me what the Department answers, and put your support for the families' requests on the record.\n\n` +
+      `3. Press the FBI and the Department of Justice to open missing person cases for the missing Americans and to send emergency disclosure requests under 18 U.S.C. 2702 to ${EDR_PROVIDERS}, so that last known device locations reach the officers coordinating the search.\n\n` +
+      `4. Tell me what the Department answers, and put your support for the families' requests on the record.\n\n` +
       `${accessParagraph('the United States')}\n\n` +
       `${reach}\n\n` +
       `Respectfully,\n\n` +
@@ -583,10 +600,11 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       `I am your constituent in ${riding}. I am writing about my ${relationship}, ${personIntro(person)}, ${personLine}.\n\n` +
       `${lastSeenSentence(person)}${details}\n\n` +
       `${SITUATION_INTL} ${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
-      `I ask you to do three things:\n\n` +
+      `I ask you to do four things:\n\n` +
       `1. Contact Global Affairs Canada's Emergency Watch and Response Centre today, ask what Canada has done for ${name} and for the other Canadians missing in Rasuwa, and press for Canada to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
       `${askTwo}\n\n` +
-      `3. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
+      `3. Ask the RCMP or local police to open a missing person case for ${name} and to make emergency disclosure requests to ${EDR_PROVIDERS}, so that ${name}'s last known device location reaches the search coordinators.\n\n` +
+      `4. Press for consular coordination with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.\n\n` +
       `${accessParagraph('Canada')}\n\n` +
       `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
       `Respectfully,\n\n` +
@@ -615,10 +633,12 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     const asks = guide.home
       ? `1. Ask the officers coordinating the search what has been done to find ${name}${othersOnList}, and press for the requested international technical support, ${NEPAL_REQUESTS}, to reach the valley and be put to work.\n\n` +
         `2. Give me a named point of contact with an update every day until ${name} is accounted for.\n\n` +
-        `3. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
+        `3. Ask Nepal Police to make emergency disclosure requests to ${EDR_PROVIDERS} for ${name}'s last known device location, shared with the officers coordinating the search.\n\n` +
+        `4. Press for coordination with China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`
       : `1. Ask ${ministry} what our government has done to date for ${name}${othersOnList}, and press for our government to answer Nepal's public request for technical support: ${NEPAL_REQUESTS}.\n\n` +
         `2. Open a case file for ${name} and give me a named point of contact with a daily update.\n\n` +
-        `3. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
+        `3. Ask our national police to open a missing person case for ${name} and to make emergency disclosure requests to ${EDR_PROVIDERS} for ${name}'s last known device location, shared with the search coordinators.\n\n` +
+        `4. Coordinate with Nepal and China on search access at the Gyirong border and on shared lists of the rescued and the recovered.`;
     return (
       `${longDate()}\n\n` +
       `To: [name and office of your Member of Parliament or consular officer]\n\n` +
@@ -627,7 +647,7 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       `I am writing about my ${relationship}, ${personIntro(person)}, who has been unaccounted for since ${FLOOD_SENTENCE}.\n\n` +
       `${lastSeenSentence(person)}${details}\n\n` +
       `${SITUATION_INTL} ${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
-      `I ask you to do three things:\n\n` +
+      `I ask you to do four things:\n\n` +
       `${asks}\n\n` +
       `${guide.home ? HOME_COUNTRY_PARAGRAPH : accessParagraph('our government')}\n\n` +
       `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
@@ -661,10 +681,11 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     `${lastSeenSentence(person)}${details}\n\n` +
     `${SITUATION_US}\n\n` +
     `${jointLetterSentence(signers)} ${LETTER_POINTER}.\n\n` +
-    `I ask you to do three things:\n\n` +
+    `I ask you to do four things:\n\n` +
     `1. Contact the State Department's Bureau of Consular Affairs today. Ask what the United States has offered against each item Nepal has publicly requested, ${NEPAL_REQUESTS}, and press for the seven actions in the families' joint letter.\n\n` +
     `${askTwo}\n\n` +
-    `3. Have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
+    `3. Ask the Federal Bureau of Investigation to open a missing person case for ${name} and to send emergency disclosure requests under 18 U.S.C. 2702 to ${EDR_PROVIDERS}, so that ${name}'s last known device location reaches the officers coordinating the search.\n\n` +
+    `4. Have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
     `${accessParagraph('the United States')}\n\n` +
     `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
     `Respectfully,\n\n` +
