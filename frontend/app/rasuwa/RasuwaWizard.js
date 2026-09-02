@@ -854,6 +854,17 @@ export default function RasuwaWizard() {
             <Link className="underline" href="/rasuwa/progress">
               See the chart: who has letters and who has nobody yet
             </Link>
+            {' · '}
+            <Link
+              className="underline"
+              href={
+                person.pick && person.pick !== 'other' && PEOPLE[Number(person.pick)]
+                  ? `/rasuwa/correction?for=${PEOPLE[Number(person.pick)].num}`
+                  : '/rasuwa/correction'
+              }
+            >
+              See a mistake in these details? Ask for a correction
+            </Link>
           </p>
           <p className="text-sm text-midnight-400">
             What you type stays on your device while you work, kept only in this browser tab

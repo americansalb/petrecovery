@@ -45,6 +45,10 @@ const RATE_LIMIT_CONFIG = {
   // One record per finished pass; a shared device at an event finishes
   // a handful of families an hour, not dozens a minute.
   '/api/rasuwa/letters': { windowMs: 60000, maxRequests: 10 },
+  // Public correction requests: a family spots one or two mistakes,
+  // not dozens a minute; the cap keeps a script from papering the
+  // board while a real person never sees it.
+  '/api/rasuwa/corrections': { windowMs: 60000, maxRequests: 5 },
   // Task force board. Order matters: startsWith takes the first match,
   // so join and board sit above the catch-all team entry. Join is the
   // code gate (the durable limiter in the route is the real guard;

@@ -64,7 +64,10 @@ export default function RosterFormPage() {
           August 29 and keeps gathering names. The form below, kept by the coordinating
           family, adds your name and your missing family member to the letter. It takes about
           a minute. Then press Write to Congress to send your own letters to your senators
-          and representative.
+          and representative.{' '}
+          <Link className="font-semibold text-blue-800 underline" href="/rasuwa/correction">
+            See a mistake in the letter&apos;s details? Ask for a correction.
+          </Link>
         </p>
       </header>
       {ROSTER_FORM_URL ? (

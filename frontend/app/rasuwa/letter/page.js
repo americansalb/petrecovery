@@ -47,6 +47,12 @@ export default async function JointLetterPage() {
               Sign it
             </Link>
             <Link
+              href="/rasuwa/correction"
+              className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+            >
+              Report a mistake
+            </Link>
+            <Link
               href="/rasuwa"
               className="shrink-0 rounded-md bg-blue-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-900"
             >

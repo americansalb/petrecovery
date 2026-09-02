@@ -54,6 +54,12 @@ export default function ProgressChart() {
           ? ` ${totals.needSomeone} have nobody writing yet.`
           : ' Every person has someone.'}
       </p>
+      <p className="mt-1 text-sm text-slate-500">
+        See a mistake in someone&apos;s details?{' '}
+        <Link className="font-semibold text-blue-800 underline" href="/rasuwa/correction">
+          Ask for a correction
+        </Link>
+      </p>
       <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-slate-900">For all of the missing</span>
@@ -90,7 +96,13 @@ export default function ProgressChart() {
           <li key={p.key || p.name} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <span className="min-w-0 flex-1">
               <span className="block font-semibold text-slate-900">{p.name}</span>
-              <span className="block text-xs text-slate-500">{p.country}</span>
+              <span className="block text-xs text-slate-500">
+                {p.country}
+                {' · '}
+                <Link className="underline hover:text-slate-700" href={`/rasuwa/correction?for=${p.num}`}>
+                  Report a mistake
+                </Link>
+              </span>
               {p.offices && p.offices.length > 0 && (
                 <span className="mt-1.5 flex flex-wrap gap-1.5">
                   {p.offices.map((o) => (

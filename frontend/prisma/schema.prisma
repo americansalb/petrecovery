@@ -5717,3 +5717,20 @@ model RasuwaPersonClaim {
   @@unique([personKey, claimedBy])
   @@index([personKey])
 }
+
+/// A public "please review this" note about a missing person's details
+/// (spelling, location, operator, anything wrong). Submitted from the
+/// site with no account; the task force board lists open ones and
+/// marks them handled. The site never edits the list from these: the
+/// coordinating families correct the letter document itself.
+model RasuwaCorrection {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  personName String   @default("")
+  message    String
+  contact    String   @default("")
+  status     String   @default("OPEN")
+  handledBy  String   @default("")
+
+  @@index([status, createdAt])
+}
