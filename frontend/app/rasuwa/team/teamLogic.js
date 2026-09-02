@@ -112,7 +112,7 @@ export function personKeySets(people) {
  * are kept visible in `others` rather than silently dropped.
  *
  * people:       missing-people.json's people array
- * letterCounts: [{ personName, records }] from the letter record
+ * letterCounts: [{ personName, records, letters }] from the letter record
  * claims:       [{ personKey, claimedBy }]
  */
 export function buildCoverage({ people = [], letterCounts = [], claims = [] } = {}) {
@@ -120,7 +120,11 @@ export function buildCoverage({ people = [], letterCounts = [], claims = [] } = 
   for (const row of letterCounts) {
     const key = normalizePersonKey(row?.personName);
     if (!key) continue;
-    letterByKey.set(key, (letterByKey.get(key) || 0) + (Number(row?.records) || 0));
+    // Prefer the per-letter count; callers that only have record
+    // counts (one row per finished pass) still work with records
+    // standing in.
+    const count = Number(row?.letters ?? row?.records) || 0;
+    letterByKey.set(key, (letterByKey.get(key) || 0) + count);
   }
   const claimsByKey = new Map();
   for (const claim of claims) {
@@ -195,6 +199,23 @@ export function buildCoverage({ people = [], letterCounts = [], claims = [] } = 
  */
 const CHAMBER_TITLES = { sen: 'Senator', rep: 'Representative', mp: 'MP' };
 
+/**
+ * One readable office label per letter in a record's recipients
+ * string. Case-insensitive with an optional period so stored variants
+ * of the same office ("sen X", "Sen. X") fold into one count; a full
+ * word like "Senator X" is left as written.
+ */
+function recipientLabels(recipients) {
+  const labels = [];
+  for (const entry of text(recipients).split(';')) {
+    const raw = entry.trim();
+    if (!raw) continue;
+    const m = raw.match(/^(sen|rep|mp)\.?\s+(.+)$/i);
+    labels.push(m ? `${CHAMBER_TITLES[m[1].toLowerCase()]} ${m[2]}` : raw);
+  }
+  return labels;
+}
+
 export function aggregateRecipientCounts(rows) {
   const letterCounts = new Map();
   const offices = new Map();
@@ -202,15 +223,17 @@ export function aggregateRecipientCounts(rows) {
     const personName = text(row?.personName);
     const key = normalizePersonKey(personName);
     if (!key) continue;
-    if (!letterCounts.has(key)) letterCounts.set(key, { personName, records: 0 });
-    letterCounts.get(key).records += 1;
+    if (!letterCounts.has(key)) letterCounts.set(key, { personName, records: 0, letters: 0 });
+    const counts = letterCounts.get(key);
+    counts.records += 1;
     if (!offices.has(key)) offices.set(key, new Map());
     const perOffice = offices.get(key);
-    for (const entry of text(row?.recipients).split(';')) {
-      const raw = entry.trim();
-      if (!raw) continue;
-      const m = raw.match(/^(sen|rep|mp)\s+(.+)$/);
-      const label = m ? `${CHAMBER_TITLES[m[1]]} ${m[2]}` : raw;
+    for (const label of recipientLabels(row?.recipients)) {
+      // One recipient entry is one letter: the same unit the summary
+      // band, the per-person rows, and the board all count, so a US
+      // pass addressed to three offices shows as three letters
+      // everywhere (review finding on PR #235).
+      counts.letters += 1;
       perOffice.set(label, (perOffice.get(label) || 0) + 1);
     }
   }
@@ -221,6 +244,47 @@ export function aggregateRecipientCounts(rows) {
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   }
   return { letterCounts: [...letterCounts.values()], officesByKey };
+}
+
+/**
+ * The campaign's collective numbers for the public chart. Every
+ * recipient entry in a record is one letter to one office. Letters
+ * recorded under a generic label (international letters addressed to
+ * "parliament or consular officer") count as letters and count once
+ * among offices, but stay out of the most-written list, which only
+ * names offices a caller could actually ring. Distinct-office counts
+ * are therefore a floor, never an overclaim.
+ */
+const GENERIC_RECIPIENTS = new Set(['parliament or consular officer', 'recipient']);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function summarizeRecords(rows, now = Date.now()) {
+  const officeCounts = new Map();
+  let records = 0;
+  let letters = 0;
+  let last24h = 0;
+  for (const row of rows || []) {
+    records += 1;
+    const labels = recipientLabels(row?.recipients);
+    letters += labels.length;
+    const at = new Date(row?.createdAt ?? 0).getTime();
+    if (Number.isFinite(at) && now - at <= DAY_MS) last24h += labels.length;
+    for (const label of labels) {
+      officeCounts.set(label, (officeCounts.get(label) || 0) + 1);
+    }
+  }
+  const named = [];
+  for (const [name, count] of officeCounts) {
+    if (!GENERIC_RECIPIENTS.has(name)) named.push({ name, count });
+  }
+  named.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  return {
+    records,
+    letters,
+    offices: officeCounts.size,
+    last24h,
+    topOffices: named.slice(0, 6),
+  };
 }
 
 /**

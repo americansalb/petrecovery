@@ -217,7 +217,7 @@ const FLOOD_SENTENCE =
 
 /**
  * What Nepal has publicly asked its partners for (Foreign Minister
- * Shisir Khanal's statements, August 29 through September 1): the
+ * Shisir Khanal's statements, August 29 through September 2): the
  * list every letter and call now pins its ask to.
  */
 const NEPAL_REQUESTS =
@@ -239,10 +239,10 @@ const EDR_PROVIDERS = 'Google, Apple, Meta, and the phone carriers';
 // September 1 (the counts of Americans, Nepal's disaster authority and
 // China's missing counts, the rescue total, the barrier lakes), Nepal's
 // Foreign Minister's public statements of August 29 through
-// September 1 and his September 1 CNN interview (air pockets in the
-// blocked tunnels, no refusal of foreign support ever announced, the
-// tunnel-rescue need known by day two with outreach begun and teams
-// arriving by day three),
+// September 2 and his September 2 CNN interview with Anderson Cooper
+// (air pockets in the blocked tunnels, no refusal of foreign support
+// ever announced, the tunnel-rescue need known by day two with
+// outreach begun and teams arriving by day three),
 // and the Department's announced assistance. Organizers: update these
 // paragraphs and FACTS_DATE together whenever the situation moves.
 const SITUATION_US =

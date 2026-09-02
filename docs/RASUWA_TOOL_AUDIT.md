@@ -719,3 +719,46 @@ running app with Playwright plus unit tests before pushing.
   the wizard person step (with the picked person carried into
   ?for=num), the sign page, the letter page's header, and the
   progress chart.
+- **The Foreign Minister's CNN interview goes into every letter
+  (founder input, 2026-09-02: transcript of the Anderson Cooper
+  interview):** template v8. Both situation paragraphs, the
+  access paragraph, and the phone comeback now say that in a
+  televised CNN interview the Foreign Minister said engineering
+  analysis shows air pockets deep inside the blocked tunnels and
+  that he is very hopeful many people could still be alive in
+  them; that Nepal never announced it would refuse foreign support
+  and takes it in the areas where the need is greatest; and that by
+  the second day of the disaster Nepal knew it needed tunnel rescue
+  support and began reaching out, with Indian and Chinese teams
+  arriving by the third. Facts date moved to September 2, 2026. A
+  review round tightened the day-two claim to exactly what the
+  transcript supports: the need was known and outreach began, not
+  that a request was placed that day. The August 29 statement stays
+  the dated anchor for the standing request list; the Nepal
+  home-country variant is unchanged (PR #234).
+- **Interview date corrected (founder correction, 2026-09-02):** the
+  CNN interview with Anderson Cooper was September 2, not
+  September 1. No generated letter ever carried a date for the
+  interview (August 29 stays the only dated anchor), so nothing
+  wrong reached an office; the date lived only in source comments,
+  now fixed, and in PR #234's description.
+- **Collective numbers on the progress chart (founder ask,
+  2026-09-02: a better summary of all the letters):** the top of
+  /rasuwa/progress is now a four-tile band: letters on record,
+  offices addressed, letters in the last 24 hours, and people with
+  letters out of the whole list, with a "Most letters so far" row
+  naming the offices hearing from us most. Every recipient entry in
+  a record counts as one letter to one office; international
+  letters recorded under the generic parliament-or-consular label
+  count as letters and count once among offices but never appear in
+  the most-written list, so the office count is a floor, never an
+  overclaim. Stored spelling variants of one office ("sen X",
+  "Sen. X") now fold into a single count, which also cleaned up the
+  per-person office chips. A review round tightened three things:
+  the per-person rows, the general card, and the team board now
+  count the same unit as the band (recipient entries, so a US pass
+  to three offices is three letters everywhere); the record queries
+  read newest first so the 24-hour number stays exact past the
+  row cap and lifetime numbers are floors; and the band says
+  "Offices addressed" because a record is a composed letter, not a
+  confirmed delivery.

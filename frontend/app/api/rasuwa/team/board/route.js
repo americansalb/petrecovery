@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import missingPeople from '@/app/rasuwa/missing-people.json';
 import { hasTeamCookie } from '@/app/rasuwa/team/teamAuth';
-import { buildCoverage } from '@/app/rasuwa/team/teamLogic';
+import { aggregateRecipientCounts, buildCoverage } from '@/app/rasuwa/team/teamLogic';
 
 /**
  * GET /api/rasuwa/team/board - the whole board in one read, so the
@@ -24,7 +24,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'join' }, { status: 401, ...NO_STORE });
   }
   try {
-    const [updates, messagesDesc, needs, openCorrections, doneCorrections, letterCounts, claims] =
+    const [updates, messagesDesc, needs, openCorrections, doneCorrections, letterRows, claims] =
       await Promise.all([
         prisma.rasuwaTeamPost.findMany({
           where: { kind: 'update' },
@@ -50,7 +50,15 @@ export async function GET(request) {
           orderBy: { createdAt: 'desc' },
           take: 50,
         }),
-        prisma.rasuwaLetterRecord.groupBy({ by: ['personName'], _count: { personName: true } }),
+        // Same rows and counting as the public chart, so the wall and
+        // the chart never disagree on what a letter is: one recipient
+        // entry (review finding on PR #235). Newest first keeps the
+        // capped set the recent one.
+        prisma.rasuwaLetterRecord.findMany({
+          select: { personName: true, recipients: true },
+          orderBy: { createdAt: 'desc' },
+          take: 5000,
+        }),
         prisma.rasuwaPersonClaim.findMany({ orderBy: { createdAt: 'asc' }, take: 1000 }),
       ]);
     return NextResponse.json(
@@ -61,10 +69,7 @@ export async function GET(request) {
         corrections: [...openCorrections, ...doneCorrections],
         coverage: buildCoverage({
           people: missingPeople.people,
-          letterCounts: letterCounts.map((c) => ({
-            personName: c.personName,
-            records: c._count.personName,
-          })),
+          letterCounts: aggregateRecipientCounts(letterRows).letterCounts,
           claims,
         }),
       },
