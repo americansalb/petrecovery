@@ -372,7 +372,7 @@ describe('letter builders', () => {
         const body = buildLetterBody({ recipient, writer, person: p });
         expect(body).toContain('emergency disclosure requests');
         expect(body).toContain('last known device location');
-        expect(body).toContain('Google, Apple, Meta, and the phone carrier');
+        expect(body).toContain('Google, Apple, Samsung, Meta, and the phone carrier');
         expect(body).toContain('I ask you to do four things:');
         expect(body).not.toContain('three things');
       }
@@ -382,6 +382,19 @@ describe('letter builders', () => {
     expect(buildLetterBody({ recipient: sen, writer, person })).toContain('Federal Bureau of Investigation');
     expect(buildLetterBody({ recipient: sen, writer, person: null })).toContain('the FBI and the Department of Justice');
     expect(buildLetterBody({ recipient: mp, writer, person })).toContain('RCMP');
+    // US letters carry the memorandum's asks: preservation before
+    // process, the named federal lead, the search accounting, the
+    // meeting. Other countries' letters do not claim the US memo.
+    for (const p of [person, null]) {
+      const us = buildLetterBody({ recipient: sen, writer, person: p });
+      expect(us).toContain('preservation requests');
+      expect(us).toContain('September 2 briefing memorandum');
+      expect(us).toContain('one named federal official');
+      expect(us).toContain('location-by-location accounting');
+      expect(us).toContain('a meeting between the Secretary and the families');
+    }
+    expect(buildLetterBody({ recipient: mp, writer, person })).not.toContain('briefing memorandum');
+    expect(buildLetterBody({ recipient: intl, writer: { ...writer, inUS: false, country: 'Australia' }, person })).not.toContain('briefing memorandum');
     // Writers in Nepal ask Nepal Police, and never "our national police".
     const np = buildLetterBody({ recipient: intl, writer: { ...writer, inUS: false, country: 'Nepal' }, person });
     expect(np).toContain('Nepal Police');
