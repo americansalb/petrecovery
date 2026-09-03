@@ -225,15 +225,29 @@ const NEPAL_REQUESTS =
 
 /**
  * The emergency-disclosure ask (founder direction, 2026-09-02). Under
- * 18 U.S.C. 2702, Google, Apple, Meta, and the phone carriers may hand
- * a person's last known device location to a governmental entity in a
- * danger-of-death emergency; the request must come from law
- * enforcement (a sworn official, through the providers' law
- * enforcement portals), which is why every letter asks for a missing
- * person case to be opened first. Missing persons are a qualifying
- * emergency in the providers' own policies.
+ * 18 U.S.C. 2702, the providers may hand a person's last known device
+ * location to a governmental entity in a danger-of-death emergency;
+ * the request must come from law enforcement (a sworn official,
+ * through the providers' law enforcement portals), which is why every
+ * letter asks for a missing person case to be opened first. Missing
+ * persons are a qualifying emergency in the providers' own policies.
+ * The US letters also ask for preservation requests (18 U.S.C.
+ * 2703(f)) so provider-held records are not lost while legal process
+ * is pursued; Samsung is on the list per the families' September 2
+ * memorandum.
  */
-const EDR_PROVIDERS = 'Google, Apple, Meta, and the phone carriers';
+const EDR_PROVIDERS = 'Google, Apple, Samsung, Meta, and the phone carriers';
+
+/**
+ * The families' September 2 briefing memorandum to the Secretary of
+ * State (founder document, 2026-09-02): one interagency response with
+ * a named federal lead, FBI participation with preservation of
+ * provider records, a location-by-location search accounting, and a
+ * meeting with the families. Every US letter asks the office to back
+ * it; the memorandum itself carries the full detail.
+ */
+const MEMO_BACKING =
+  'Back the families\' September 2 briefing memorandum to Secretary Rubio: one named federal official leading the response across the State Department, the Embassy in Kathmandu, and the FBI, with written updates to every family; a location-by-location accounting of what has been searched, by what method, and what remains unsearched or inaccessible; and a meeting between the Secretary and the families.';
 
 // Figures sourced 2026-09-02: the families' letter as it read on
 // September 1 (the counts of Americans, Nepal's disaster authority and
@@ -326,12 +340,16 @@ export const GENERAL_RECORD_NAME = 'All the missing';
  * last known device locations; v8: the Foreign Minister's televised
  * CNN interview: air pockets in the blocked tunnels, no refusal of
  * foreign support ever announced, the tunnel-rescue need known by day
- * two and teams arriving by day three). Drafts store the version they were
+ * two and teams arriving by day three; v9: the families' September 2
+ * briefing memorandum: preservation requests and Samsung among the
+ * providers, and US letters back the named federal lead, the
+ * location-by-location search accounting, and the meeting with the
+ * families). Drafts store the version they were
  * edited under; restoring hand edits from an older template rebuilds
  * the letters and says so, instead of silently sending the old
  * wording (review findings on PR #223 and PR #225).
  */
-export const LETTER_TEMPLATE_VERSION = 8;
+export const LETTER_TEMPLATE_VERSION = 9;
 
 function accessParagraph(government) {
   return (
@@ -565,8 +583,8 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
       `I ask you to do four things:\n\n` +
       `1. Contact the State Department's Bureau of Consular Affairs today. Ask what the United States has offered against each item Nepal has publicly requested, ${NEPAL_REQUESTS}, and press for the seven actions in the families' joint letter.\n\n` +
       `2. Press the Department for consular operations matched to the missing: a named liaison and a daily update for every family, officers at the Kathmandu hospitals and the forward base in Rasuwa, and disaster victim identification support.\n\n` +
-      `3. Press the FBI and the Department of Justice to open missing person cases for the missing Americans and to send emergency disclosure requests under 18 U.S.C. 2702 to ${EDR_PROVIDERS}, so that last known device locations reach the officers coordinating the search.\n\n` +
-      `4. Tell me what the Department answers, and put your support for the families' requests on the record.\n\n` +
+      `3. Press the FBI and the Department of Justice to open missing person cases for the missing Americans, to send preservation requests now so provider-held records are not lost, and to send emergency disclosure requests under 18 U.S.C. 2702 to ${EDR_PROVIDERS}, so that last known device locations reach the officers coordinating the search.\n\n` +
+      `4. ${MEMO_BACKING} Tell me what the Department answers, and put your support for the families' requests on the record.\n\n` +
       `${accessParagraph('the United States')}\n\n` +
       `${reach}\n\n` +
       `Respectfully,\n\n` +
@@ -695,8 +713,8 @@ export function buildLetterBody({ recipient, writer, person, signers }) {
     `I ask you to do four things:\n\n` +
     `1. Contact the State Department's Bureau of Consular Affairs today. Ask what the United States has offered against each item Nepal has publicly requested, ${NEPAL_REQUESTS}, and press for the seven actions in the families' joint letter.\n\n` +
     `${askTwo}\n\n` +
-    `3. Ask the Federal Bureau of Investigation to open a missing person case for ${name} and to send emergency disclosure requests under 18 U.S.C. 2702 to ${EDR_PROVIDERS}, so that ${name}'s last known device location reaches the officers coordinating the search.\n\n` +
-    `4. Have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
+    `3. Ask the Federal Bureau of Investigation to open a missing person case for ${name}, to send preservation requests now so provider-held records are not lost, and to send emergency disclosure requests under 18 U.S.C. 2702 to ${EDR_PROVIDERS}, so that ${name}'s last known device location reaches the officers coordinating the search.\n\n` +
+    `4. ${MEMO_BACKING} And have a caseworker give me a named point of contact and an update every day until ${name} is accounted for.\n\n` +
     `${accessParagraph('the United States')}\n\n` +
     `I can be reached at ${phone}${email}. Time matters in a search. Please treat this as urgent.\n\n` +
     `Respectfully,\n\n` +

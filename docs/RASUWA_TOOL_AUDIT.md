@@ -762,3 +762,19 @@ running app with Playwright plus unit tests before pushing.
   row cap and lifetime numbers are floors; and the band says
   "Offices addressed" because a record is a composed letter, not a
   confirmed delivery.
+- **US letters back the families' September 2 memorandum (founder
+  document, 2026-09-02: the Bhote Koshi briefing memorandum to
+  Secretary Rubio):** template v9. The FBI ask in every US letter
+  now asks for preservation requests before the emergency
+  disclosure requests, so provider-held records are not lost while
+  legal process is pursued, and Samsung joins the provider list.
+  The fourth ask in US letters asks the office to back the
+  memorandum: one named federal official leading the response
+  across the State Department, the Embassy in Kathmandu, and the
+  FBI, with written updates to every family; a location-by-location
+  accounting of what has been searched, by what method, and what
+  remains unsearched or inaccessible; and a meeting between the
+  Secretary and the families. Canadian, international, and Nepal
+  letters are unchanged: the memorandum is a US-track document, and
+  their asks already press their own governments against Nepal's
+  request list with the same disclosure path.
