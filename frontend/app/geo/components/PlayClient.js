@@ -15,7 +15,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { configFromParams } from '@/app/lib/geo/modes';
 import { encodeShare } from '@/app/lib/geo/share';
 import { reducer, createInitialState, isFinished, totalScore, streakLength, buildSummary } from '../lib/gameState';
-import { loadGoogleMaps } from '../lib/googleMaps';
+import { loadGoogleMaps, onGoogleMapsAuthFailure } from '../lib/googleMaps';
 import { ensureLookAround } from '../lib/lookAround';
 import { recordGame, bestFor } from '../lib/storage';
 import GoogleStreetViewPane from './GoogleStreetViewPane';
@@ -153,6 +153,10 @@ export default function PlayClient() {
       alive = false;
     };
   }, [server, configured, isGoogle, providerInfo?.browserKey]);
+
+  // A key rejected after load (referrer, API not enabled) is reported in
+  // our words, with the exact line to add, instead of Google's overlay.
+  useEffect(() => onGoogleMapsAuthFailure((message) => setSdkError(message)), []);
 
   const startRound = useCallback(async () => {
     const s = stateRef.current;

@@ -12,6 +12,30 @@
 
 let loadPromise = null;
 let loadedKey = '';
+const authFailureListeners = new Set();
+
+/**
+ * Google calls window.gm_authFailure when the key is rejected after the
+ * script has loaded (wrong key, API not enabled, or the page's address
+ * missing from the key's website restrictions). Subscribers get a plain
+ * sentence that says what to fix. Returns an unsubscribe function.
+ */
+export function onGoogleMapsAuthFailure(listener) {
+  authFailureListeners.add(listener);
+  return () => authFailureListeners.delete(listener);
+}
+
+function installAuthFailureHook() {
+  if (typeof window === 'undefined' || window.__reunitepetsGeoAuthHook) return;
+  window.__reunitepetsGeoAuthHook = true;
+  window.gm_authFailure = () => {
+    const origin = window.location.origin;
+    const message =
+      `Google rejected the browser key for this address. In the Cloud Console, open the browser key, ` +
+      `add ${origin}/* under its website restrictions, make sure the Maps JavaScript API is enabled on it, then reload.`;
+    for (const listener of authFailureListeners) listener(message);
+  };
+}
 
 function bootstrap(key) {
   if (typeof window === 'undefined') return Promise.reject(new Error('Google Maps needs a browser'));
@@ -40,6 +64,7 @@ export function loadGoogleMaps(key) {
   if (!key) return Promise.reject(new Error('No Google Maps browser key'));
   if (loadPromise && loadedKey === key) return loadPromise;
   loadedKey = key;
+  installAuthFailureHook();
   loadPromise = bootstrap(key)
     .then(async (maps) => {
       const [core, streetView, mapsLib] = await Promise.all([
