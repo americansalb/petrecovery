@@ -8,11 +8,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Plus, RefreshCw, Users } from 'lucide-react';
+import { ArrowRight, History, Plus, RefreshCw, Users } from 'lucide-react';
 import { CONTINENTS, CONTINENT_ORDER, MODES, timeLabel } from '@/app/lib/geo/modes';
 import { MAX_PLAYERS, ROOM_MODES, ROOM_ROUND_OPTIONS, ROOM_TIME_OPTIONS, VARIANTS, describeRoomStatus, normalizeRoomCode } from '@/app/lib/geo/rooms';
-import { loadName, saveIdentity, saveName } from '../../lib/useRoom';
+import { listRecentRooms, loadName, saveIdentity, saveName } from '../../lib/useRoom';
 import { ensureProfile, profileHeaders } from '../../lib/profile';
+import { ago } from '../../lib/time';
 import SetupNotice from '../SetupNotice';
 
 function Field({ label, children }) {
@@ -36,10 +37,12 @@ export default function RoomBrowser() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [hydrated, setHydrated] = useState(false);
+  const [recent, setRecent] = useState([]);
 
   useEffect(() => {
     setHydrated(true);
     setName(loadName());
+    setRecent(listRecentRooms());
     let alive = true;
     fetch('/api/geo/config')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('config'))))
@@ -251,6 +254,33 @@ export default function RoomBrowser() {
                 </button>
               </div>
             </form>
+
+            {recent.length ? (
+              <section className="rounded-2xl border border-midnight-200 bg-white p-5">
+                <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+                  <History className="h-4 w-4" />
+                  Rooms you were in
+                </h2>
+                <ul className="mt-3 divide-y divide-midnight-100">
+                  {recent.slice(0, 6).map((r) => (
+                    <li key={r.code} className="flex items-center gap-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold">
+                          {r.roomName || 'Room'} <span className="font-mono text-xs text-midnight-500">{r.code}</span>
+                        </p>
+                        <p className="text-xs text-midnight-600">
+                          {ago(r.at)}
+                          {r.name ? `, as ${r.name}` : ''}
+                        </p>
+                      </div>
+                      <Link href={`/geo/room/${r.code}`} className="rounded-lg border border-midnight-300 px-3 py-1.5 text-sm font-semibold hover:bg-midnight-100">
+                        Return
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
             <section className="rounded-2xl border border-midnight-200 bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">

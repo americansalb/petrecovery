@@ -9,7 +9,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Check, Play, Trophy, Users } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { CalendarDays, Check, Medal, Play, Trophy, Users } from 'lucide-react';
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -25,7 +26,11 @@ import {
 } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
+import { VARIANTS } from '@/app/lib/geo/rooms';
 import { getHistory, getStats } from '../lib/storage';
+import { ensureProfile, loadProfileToken } from '../lib/profile';
+import { listRecentRooms, loadName } from '../lib/useRoom';
+import { ago } from '../lib/time';
 import SetupNotice from './SetupNotice';
 
 const SETTINGS_KEY = 'geo:lobby:v1';
@@ -45,6 +50,13 @@ function saveSettings(settings) {
   } catch {
     /* ignore */
   }
+}
+
+function ordinal(n) {
+  const v = Number(n) || 0;
+  const suffix = ['th', 'st', 'nd', 'rd'];
+  const mod = v % 100;
+  return `${v}${suffix[(mod - 20) % 10] || suffix[mod] || suffix[0]}`;
 }
 
 function Segmented({ options, value, onChange, label, format = (v) => String(v), disabled }) {
@@ -96,6 +108,9 @@ export default function GeoLobby() {
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
   const [restored, setRestored] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [recentRooms, setRecentRooms] = useState([]);
+  const { status: sessionStatus } = useSession();
 
   useEffect(() => {
     let alive = true;
@@ -105,6 +120,7 @@ export default function GeoLobby() {
       .catch(() => alive && setServerError('Could not load the game settings from the server.'));
     setStats(getStats());
     setHistory(getHistory().slice(0, 8));
+    setRecentRooms(listRecentRooms());
     const saved = loadSettings();
     if (saved) {
       const c = normalizeConfig(saved);
@@ -124,6 +140,21 @@ export default function GeoLobby() {
       alive = false;
     };
   }, []);
+
+  // Your rating: this browser gets a profile the first time it joins a
+  // room, and a signed-in account has one across devices. Nobody else
+  // needs a row for looking at the lobby.
+  useEffect(() => {
+    if (sessionStatus === 'loading') return undefined;
+    if (!loadProfileToken() && sessionStatus !== 'authenticated') return undefined;
+    let alive = true;
+    ensureProfile(loadName())
+      .then((p) => alive && setProfile(p))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [sessionStatus]);
 
   const config = useMemo(
     () =>
@@ -344,6 +375,78 @@ export default function GeoLobby() {
                   Rankings
                 </Link>
               </div>
+              {recentRooms.length ? (
+                <ul className="mt-4 space-y-1 border-t border-white/10 pt-3 text-sm" aria-label="Rooms you were in">
+                  {recentRooms.slice(0, 4).map((r) => (
+                    <li key={r.code}>
+                      <Link href={`/geo/room/${r.code}`} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1 hover:bg-white/10">
+                        <span className="truncate">
+                          {r.roomName || 'Room'} <span className="font-mono text-white/60">{r.code}</span>
+                        </span>
+                        <span className="shrink-0 text-xs text-white/60">{ago(r.at)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+
+            {/* Rating */}
+            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+                <Medal className="h-4 w-4" />
+                Your rating
+              </h2>
+              {profile ? (
+                <>
+                  <p className="mt-2 text-sm text-midnight-700">
+                    <span className="font-semibold text-midnight-900">{profile.name || 'Player'}</span>
+                    {profile.signedIn ? ', on your account' : ', in this browser'}
+                  </p>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    {['classic', 'duel'].map((ladder) => {
+                      const r = profile.ratings?.[ladder] || {};
+                      return (
+                        <div key={ladder}>
+                          <dt className="text-midnight-500">{VARIANTS[ladder]?.label || ladder}</dt>
+                          <dd className="text-lg font-bold tabular-nums">
+                            {r.value ?? 1500} <span className="text-xs font-semibold text-midnight-500">{r.tier || 'Silver'}</span>
+                          </dd>
+                          <dd className="text-xs text-midnight-500">
+                            {r.games || 0} rated {r.games === 1 ? 'game' : 'games'}
+                            {r.provisional ? ', provisional' : ''}
+                          </dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+                  {profile.recent?.length ? (
+                    <ul className="mt-3 divide-y divide-midnight-100 text-sm">
+                      {profile.recent.slice(0, 5).map((g) => (
+                        <li key={g.roomId} className="flex items-center justify-between gap-2 py-1.5">
+                          <span className="truncate text-midnight-700">
+                            {VARIANTS[g.ladder]?.label || g.ladder}, {ordinal(g.placement)} of {g.players}
+                          </span>
+                          <span className={`font-semibold tabular-nums ${g.delta >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                            {g.delta >= 0 ? '+' : ''}
+                            {g.delta}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-sm text-midnight-600">No rated games yet. A room counts once it finishes with two or more rated players.</p>
+                  )}
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-midnight-600">
+                  Rooms are rated. Finish one and your rating shows here and on the{' '}
+                  <Link href="/geo/leaderboard" className="underline">
+                    rankings
+                  </Link>
+                  .
+                </p>
+              )}
             </section>
 
             {/* Daily */}

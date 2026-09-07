@@ -10,18 +10,22 @@ but no data models.
 
 | Route | What | Chrome |
 |---|---|---|
-| `/geo` | Lobby: provider, mode, rules, daily challenge, local stats, how it works | game header |
+| `/geo` | Lobby: provider, mode, rules, daily challenge, your rating and recent rated games, rooms you were in, local stats, how it works | universal bar + game subtabs |
 | `/geo/play?...` | The game. Every setting is in the query string, so a link is a whole game | full screen; the X in the HUD returns to `/geo` |
-
-The whole `/geo` segment is an immersive takeover in `app/lib/navChrome.js`:
-it ships its own header and footer (`app/geo/layout.js`, with a ReunitePets
-link as the way back out) instead of the pet site's chrome, so it reads the
-same on reunitepets.org and on a domain of its own (see "Hosting on another
-domain").
-| `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | game header |
-| `/geo/rooms` | Multiplayer: open a room, join by code, or pick a public room | game header |
+| `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | universal bar + game subtabs |
+| `/geo/rooms` | Multiplayer: open a room, join by code, return to a room you were in, or pick a public room | universal bar + game subtabs |
 | `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
-| `/geo/leaderboard` | The ladders (classic, duel) and your own rating | game header |
+| `/geo/leaderboard` | The ladders (classic, duel) and your own rating | universal bar + game subtabs |
+
+Chrome follows the house rule in `app/lib/navChrome.js`: the lobby, the
+room browser, the rankings and the share page are ordinary pages under
+the universal ReunitePets bar (Dashboard, account menu and all), with the
+game's own subtabs below it (`app/geo/components/GeoHeader.js`: Play,
+Rooms, Rankings, Daily). Only a round or a room in progress
+(`/geo/play`, `/geo/room/<code>`) covers the screen, and each carries an
+X back out. On a build of the game's own site (`NEXT_PUBLIC_SITE=geo`,
+see "Hosting on another domain") there is no pet chrome at all and the
+same row is the site's header, with a ReunitePets link as the way out.
 
 API, all under `frontend/app/api/geo/`:
 
@@ -133,27 +137,47 @@ Tiers (Bronze to Grandmaster) are labels on the number, nothing more.
 
 ## Hosting on another domain
 
-The game is self-contained under `/geo` and `/api/geo` with its own tables
-and its own header, so the same deployment can serve it on a second domain:
+The game is self-contained under `/geo` and `/api/geo` with its own tables,
+so it can be a site of its own. The clean way is a second deployment of
+this repo (on Render: a second web service from the same repo and branch)
+that shares the database, built as the game site:
 
-1. Point the domain at the deployment (same host as reunitepets.org).
-2. Set `GEO_DOMAINS=whereonearth.example,www.whereonearth.example`. On
-   those hosts the middleware redirects `/` to `/geo`, the short paths
-   (`/play`, `/rooms`, `/room/<code>`, `/share`, `/leaderboard`, `/daily`)
-   into `/geo`, and anything that is not the game to the pet site.
+1. Create the service and point the domain at it.
+2. Copy the environment from the pet site (`DATABASE_URL`, the Google
+   keys, `GEO_TOKEN_SECRET` or `NEXTAUTH_SECRET`, the Apple token if the
+   Apple mode is on) and add:
+
+   ```
+   NEXT_PUBLIC_SITE=geo
+   NEXTAUTH_URL=https://whereonearth.example
+   NEXT_PUBLIC_GEO_SITE_NAME=Where on Earth        # optional, the header's name
+   NEXT_PUBLIC_GEO_HOME_URL=https://www.reunitepets.org   # optional, where its ReunitePets link goes
+   ```
+
+   `NEXT_PUBLIC_SITE=geo` is read at build time: that build has no pet
+   chrome anywhere, the game's header stands in its place, and the
+   middleware redirects `/` to `/geo`, the short paths (`/play`, `/rooms`,
+   `/room/<code>`, `/share`, `/leaderboard`, `/daily`) into `/geo`, and
+   anything that is not the game to the pet site. Rooms, ratings and
+   profiles are the same rows on both sites because the database is
+   shared.
 3. Add the domain to the Google browser key's website restrictions
    (`https://whereonearth.example/*` and the `www` form). Without this the
    map refuses to load on the new domain.
 4. For the Apple mode, make a MapKit token for the new origin and set it
    as `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`; the built-in token is locked to
    reunitepets.org.
-5. Optional: `NEXT_PUBLIC_GEO_SITE_NAME` renames the header,
-   `NEXT_PUBLIC_GEO_HOME_URL` changes where its ReunitePets link goes.
+
+Without a second deployment, the pet site can still answer on the game
+domain: point the domain at it and set
+`GEO_DOMAINS=whereonearth.example,www.whereonearth.example`. Those hosts
+get the same redirects as above, but the pages carry the pet site's bar,
+because one deployment is one site; the chrome is decided per build, not
+per host.
 
 Share cards and room links resolve against the host that served them
 (`app/lib/geo/server/siteBase.js`), so previews on the game domain point
-back to the game domain. A fully separate deployment of the repo also works:
-it needs the same environment plus its own database.
+back to the game domain.
 
 ## Setup
 
@@ -244,7 +268,7 @@ frontend/app/lib/geo/rooms.js    room rules (codes, names, duel maths, standings
 frontend/app/lib/geo/rating.js   Glicko ratings
 frontend/app/lib/geo/data/       countries-meta.json (generated)
 frontend/app/api/geo/            config, round, guess, og, rooms, rooms/[code], profile, leaderboard
-frontend/app/geo/                layout (own header/footer), lobby, play, share, rooms, room/[code], leaderboard, components, client libs
+frontend/app/geo/                layout (game subtabs, or the game site's header/footer), lobby, play, share, rooms, room/[code], leaderboard, components, client libs
 frontend/__tests__/geo/          unit tests; __tests__/api/geo-routes.test.js for the routes
 frontend/scripts/build-geo-countries.js
 frontend/scripts/geo-e2e/            mock metadata server, fake Maps SDK, browser run
