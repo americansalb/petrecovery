@@ -1,0 +1,584 @@
+/**
+ * Multiplayer rooms: everything that changes a room.
+ *
+ * All functions take a store (roomStore.js on Prisma, or the in-memory
+ * one for tests) and a clock, and return fresh state. Phase transitions
+ * are claimed with a version check, so when several players' polls
+ * notice a deadline at the same moment only one request reveals the
+ * round or builds the next one; the rest simply re-read.
+ *
+ * Nothing runs in the background: every request "ticks" the room first,
+ * which is enough because someone is always polling a live room.
+ *
+ * Server only.
+ */
+
+import { createHash, randomBytes } from 'node:crypto';
+import { haversineKm, scoreForDistance } from '../distance';
+import { randomSeedString } from '../random';
+import {
+  DUEL_START_HP,
+  FINAL_REVEAL_SECONDS,
+  GUESS_GRACE_MS,
+  LOADING_TIMEOUT_MS,
+  MAX_PLAYERS,
+  MAX_REACTIONS_KEPT,
+  ONLINE_WINDOW_MS,
+  PLAYER_COLORS,
+  REACTION_EMOJI,
+  REVEAL_SECONDS,
+  ROOM_LISTING_WINDOW_MS,
+  describeRoomMode,
+  duelDamages,
+  isGameOver,
+  normalizeRoomConfig,
+  pickColor,
+  rankGuesses,
+  roomCode,
+  roundMultiplier,
+  sanitizeName,
+  sanitizeRoomName,
+  sortStandings,
+} from '../rooms';
+import { findRoundImagery } from './game';
+import { applyRoomRatings, ratingsForRoom } from './profiles';
+
+export class RoomError extends Error {
+  constructor(code, message, status = 400) {
+    super(message || code);
+    this.name = 'RoomError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+const toMs = (value) => {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return Date.parse(value);
+  return null;
+};
+
+export function hashToken(token) {
+  return createHash('sha256').update(String(token)).digest('hex');
+}
+
+export function newPlayerToken() {
+  return randomBytes(24).toString('base64url');
+}
+
+const currentRound = (room) => room.rounds.find((r) => r.index === room.roundIndex) || null;
+const present = (room) => room.players.filter((p) => !p.leftAt);
+const hasGuess = (round, playerId) => Boolean(round?.guesses?.some((g) => g.playerId === playerId));
+const isOnline = (player, now) => now - toMs(player.lastSeenAt) < ONLINE_WINDOW_MS;
+
+async function loadRoom(store, code) {
+  const room = code ? await store.getRoomByCode(code) : null;
+  if (!room) throw new RoomError('not_found', 'No room with that code', 404);
+  return room;
+}
+
+function findPlayer(room, token) {
+  if (!token) return null;
+  const hash = hashToken(token);
+  return room.players.find((p) => p.tokenHash === hash && !p.leftAt) || null;
+}
+
+function requireHost(player) {
+  if (!player?.isHost) throw new RoomError('not_host', 'Only the host can do that', 403);
+}
+
+function uniqueName(name, players) {
+  const taken = new Set(players.map((p) => p.name.toLowerCase()));
+  if (!taken.has(name.toLowerCase())) return name;
+  for (let n = 2; n < 100; n++) {
+    const candidate = `${name.slice(0, 17)} ${n}`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  return `${name.slice(0, 15)} ${Math.floor(Math.random() * 1000)}`;
+}
+
+/** A plain bump: version + activity, no claim. */
+async function touchRoom(store, room, now, extra = {}) {
+  await store.updateRoom(room.id, { version: room.version + 1, lastActiveAt: new Date(now), ...extra });
+}
+
+// ---------------------------------------------------------------------------
+// Create, join, leave
+// ---------------------------------------------------------------------------
+
+export async function createRoom(store, { name, hostName, settings = {}, profileId = null, now = Date.now() }) {
+  const { config, variant, visibility } = normalizeRoomConfig(settings);
+  config.seed = randomSeedString();
+  let room = null;
+  for (let i = 0; i < 6 && !room; i++) {
+    const code = roomCode();
+    if (await store.getRoomByCode(code)) continue;
+    room = await store.createRoom({
+      code,
+      name: sanitizeRoomName(name),
+      visibility,
+      status: 'lobby',
+      phase: 'lobby',
+      variant,
+      config,
+      roundIndex: -1,
+      version: 1,
+      reactions: [],
+      retries: 0,
+      createdAt: new Date(now),
+      lastActiveAt: new Date(now),
+    });
+  }
+  if (!room) throw new RoomError('no_code', 'Could not allocate a room code, try again', 500);
+  const token = newPlayerToken();
+  const player = await store.createPlayer({
+    roomId: room.id,
+    tokenHash: hashToken(token),
+    name: sanitizeName(hostName, 'Host'),
+    color: pickColor(0),
+    isHost: true,
+    hp: DUEL_START_HP,
+    profileId: profileId || null,
+    joinedAt: new Date(now),
+    lastSeenAt: new Date(now),
+  });
+  const fresh = await store.getRoomByCode(room.code);
+  return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
+}
+
+export async function joinRoom(store, { code, name, profileId = null, now = Date.now() }) {
+  const room = await loadRoom(store, code);
+  if (room.status === 'finished') throw new RoomError('finished', 'This game is over', 409);
+  if (room.status === 'playing' && room.variant === 'duel') {
+    throw new RoomError('duel_in_progress', 'A duel is in progress. Ask the host for a rematch when it ends.', 409);
+  }
+  const players = present(room);
+  if (players.length >= MAX_PLAYERS) throw new RoomError('room_full', `This room is full (${MAX_PLAYERS} players)`, 409);
+  const used = new Set(players.map((p) => p.color));
+  const color = PLAYER_COLORS.find((c) => !used.has(c)) || pickColor(room.players.length);
+  const token = newPlayerToken();
+  const player = await store.createPlayer({
+    roomId: room.id,
+    tokenHash: hashToken(token),
+    name: uniqueName(sanitizeName(name), players),
+    color,
+    isHost: players.length === 0,
+    hp: DUEL_START_HP,
+    profileId: profileId || null,
+    joinedAt: new Date(now),
+    lastSeenAt: new Date(now),
+  });
+  await touchRoom(store, room, now);
+  const fresh = await store.getRoomByCode(code);
+  return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
+}
+
+async function leaveRoom(store, room, me, now) {
+  await store.updatePlayer(me.id, { leftAt: new Date(now), isHost: false });
+  if (me.isHost) {
+    const heir = present(room).find((p) => p.id !== me.id);
+    if (heir) await store.updatePlayer(heir.id, { isHost: true });
+  }
+  await touchRoom(store, room, now);
+}
+
+// ---------------------------------------------------------------------------
+// The clock: reveal on deadline, advance after the reveal, recover a stall
+// ---------------------------------------------------------------------------
+
+export async function tick(store, room, now, fetchImpl) {
+  if (room.phase === 'guessing') {
+    const round = currentRound(room);
+    const deadline = toMs(round?.deadline);
+    const online = present(room).filter((p) => !p.eliminated && isOnline(p, now));
+    const everyoneGuessed = online.length > 0 && online.every((p) => hasGuess(round, p.id));
+    if (!round || (deadline && now >= deadline) || everyoneGuessed) {
+      return revealRound(store, room, now);
+    }
+    return room;
+  }
+  if (room.phase === 'reveal' && room.phaseEndsAt && now >= toMs(room.phaseEndsAt)) {
+    return advanceRound(store, room, now, fetchImpl);
+  }
+  if (room.phase === 'loading' && room.phaseEndsAt && now >= toMs(room.phaseEndsAt)) {
+    // The request that claimed the build died mid-probe. Hand it back.
+    const fallbackPhase = room.roundIndex < 0 ? 'lobby' : 'reveal';
+    await store.updateRoom(room.id, {
+      phase: fallbackPhase,
+      status: room.roundIndex < 0 ? 'lobby' : 'playing',
+      phaseEndsAt: new Date(now),
+      lastError: 'The round took too long to build. Trying again.',
+      retries: (room.retries || 0) + 1,
+      version: room.version + 1,
+    });
+    return store.getRoomByCode(room.code);
+  }
+  return room;
+}
+
+/** Score everyone, apply damage, and open the reveal. Claimed by version. */
+async function revealRound(store, room, now) {
+  const round = currentRound(room);
+  if (!round) {
+    await store.updateRoom(room.id, { phase: 'reveal', phaseEndsAt: new Date(now), version: room.version + 1 }, { expectVersion: room.version });
+    return store.getRoomByCode(room.code);
+  }
+  const players = present(room).filter((p) => !p.eliminated);
+  const guesses = players.map((p) => {
+    const existing = round.guesses.find((g) => g.playerId === p.id);
+    return existing
+      ? { ...existing, player: p, isNew: false }
+      : { playerId: p.id, player: p, lat: null, lng: null, distanceKm: null, score: 0, damage: 0, timedOut: true, isNew: true };
+  });
+
+  const scoresById = Object.fromEntries(guesses.map((g) => [g.playerId, g.score || 0]));
+  const isDuel = room.variant === 'duel';
+  const { damages, best } = isDuel ? duelDamages(scoresById, round.index) : { damages: {}, best: Math.max(0, ...Object.values(scoresById)) };
+
+  const updates = players.map((p) => {
+    const score = scoresById[p.id] || 0;
+    const damage = isDuel ? damages[p.id] || 0 : 0;
+    const hp = isDuel ? Math.max(0, (p.hp ?? DUEL_START_HP) - damage) : p.hp;
+    return {
+      id: p.id,
+      data: {
+        score: (p.score || 0) + score,
+        roundWins: (p.roundWins || 0) + (score > 0 && score === best ? 1 : 0),
+        hp,
+        eliminated: isDuel ? hp <= 0 : false,
+      },
+      damage,
+    };
+  });
+
+  const after = present(room).map((p) => {
+    const u = updates.find((x) => x.id === p.id);
+    return u ? { ...p, ...u.data } : p;
+  });
+  const last = isGameOver({ variant: room.variant, roundIndex: room.roundIndex, roundsTotal: room.config.rounds, players: after });
+  const phaseEndsAt = new Date(now + (last ? FINAL_REVEAL_SECONDS : REVEAL_SECONDS) * 1000);
+
+  const claimed = await store.updateRoom(
+    room.id,
+    { phase: 'reveal', phaseEndsAt, lastActiveAt: new Date(now), version: room.version + 1 },
+    { expectVersion: room.version }
+  );
+  if (!claimed) return store.getRoomByCode(room.code);
+
+  for (const g of guesses) {
+    const u = updates.find((x) => x.id === g.playerId);
+    if (g.isNew) {
+      await store.upsertGuess({ roundId: round.id, playerId: g.playerId, lat: null, lng: null, distanceKm: null, score: 0, damage: u?.damage || 0, timedOut: true, submittedAt: new Date(now) });
+    } else if (isDuel) {
+      await store.upsertGuess({ roundId: round.id, playerId: g.playerId, damage: u?.damage || 0 });
+    }
+  }
+  for (const u of updates) await store.updatePlayer(u.id, u.data);
+  await store.updateRound(round.id, { revealedAt: new Date(now) });
+  return store.getRoomByCode(room.code);
+}
+
+/** After a reveal: finish, or claim the build of the next round. */
+async function advanceRound(store, room, now, fetchImpl) {
+  const over = isGameOver({ variant: room.variant, roundIndex: room.roundIndex, roundsTotal: room.config.rounds, players: room.players });
+  if (over) {
+    const claimed = await store.updateRoom(
+      room.id,
+      { status: 'finished', phase: 'finished', phaseEndsAt: null, lastActiveAt: new Date(now), version: room.version + 1 },
+      { expectVersion: room.version }
+    );
+    if (claimed) {
+      const finished = await store.getRoomByCode(room.code);
+      try {
+        await applyRoomRatings(store, finished, now);
+      } catch (error) {
+        console.error('[geo/rooms] rating failed', error?.message || error);
+      }
+    }
+    return store.getRoomByCode(room.code);
+  }
+  const claimed = await store.updateRoom(
+    room.id,
+    { status: 'playing', phase: 'loading', phaseEndsAt: new Date(now + LOADING_TIMEOUT_MS), lastActiveAt: new Date(now), version: room.version + 1 },
+    { expectVersion: room.version }
+  );
+  if (!claimed) return store.getRoomByCode(room.code);
+  return buildRound(store, await store.getRoomByCode(room.code), room.roundIndex + 1, now, fetchImpl);
+}
+
+/** Probe for imagery and open the guessing phase. Only the claimant calls this. */
+async function buildRound(store, room, index, now, fetchImpl) {
+  try {
+    const imagery = await findRoundImagery({ config: room.config, roundIndex: index, attempt: room.retries || 0, fetchImpl });
+    const deadline = new Date(now + room.config.time * 1000);
+    await store.createRound({
+      roomId: room.id,
+      index,
+      panoId: imagery.panoId,
+      heading: imagery.heading,
+      lat: imagery.lat,
+      lng: imagery.lng,
+      countryCode: imagery.country?.cca2 || null,
+      countryName: imagery.country?.name || null,
+      countryFlag: imagery.country?.flag || null,
+      city: imagery.city || null,
+      imageDate: imagery.date || null,
+      sizeKm: imagery.sizeKm,
+      stats: imagery.stats || null,
+      startedAt: new Date(now),
+      deadline,
+    });
+    const fresh = await store.getRoomById(room.id);
+    await store.updateRoom(room.id, {
+      status: 'playing',
+      phase: 'guessing',
+      roundIndex: index,
+      phaseEndsAt: deadline,
+      lastError: null,
+      lastActiveAt: new Date(now),
+      version: fresh.version + 1,
+    });
+  } catch (error) {
+    const fresh = await store.getRoomById(room.id);
+    const backToLobby = index === 0;
+    await store.updateRoom(room.id, {
+      status: backToLobby ? 'lobby' : 'playing',
+      phase: backToLobby ? 'lobby' : 'reveal',
+      // A reveal that is already over retries on the next poll.
+      phaseEndsAt: backToLobby ? null : new Date(now + 3000),
+      lastError: error?.message || 'Could not find imagery for the next round',
+      retries: (fresh.retries || 0) + 1,
+      lastActiveAt: new Date(now),
+      version: fresh.version + 1,
+    });
+  }
+  return store.getRoomByCode(room.code);
+}
+
+// ---------------------------------------------------------------------------
+// Player actions
+// ---------------------------------------------------------------------------
+
+async function startRoom(store, room, now, fetchImpl) {
+  if (room.status !== 'lobby') throw new RoomError('already_started', 'The game has already started', 409);
+  const claimed = await store.updateRoom(
+    room.id,
+    { status: 'playing', phase: 'loading', phaseEndsAt: new Date(now + LOADING_TIMEOUT_MS), lastActiveAt: new Date(now), version: room.version + 1 },
+    { expectVersion: room.version }
+  );
+  if (!claimed) throw new RoomError('busy', 'The room changed just now, try again', 409);
+  return buildRound(store, await store.getRoomByCode(room.code), 0, now, fetchImpl);
+}
+
+async function submitGuess(store, room, me, body, now) {
+  if (room.phase !== 'guessing') throw new RoomError('not_guessing', 'There is no round to guess right now', 409);
+  if (me.eliminated) throw new RoomError('eliminated', 'You are out of this duel', 403);
+  const round = currentRound(room);
+  if (!round) throw new RoomError('no_round', 'No round is open', 409);
+  if (hasGuess(round, me.id)) throw new RoomError('already_guessed', 'You already guessed this round', 409);
+  if (round.deadline && now > toMs(round.deadline) + GUESS_GRACE_MS) throw new RoomError('too_late', 'Time was up for this round', 409);
+  const lat = Number(body?.lat);
+  const lng = Number(body?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    throw new RoomError('bad_guess', 'A guess needs a latitude and a longitude', 400);
+  }
+  const distanceKm = haversineKm({ lat, lng }, { lat: round.lat, lng: round.lng });
+  const score = scoreForDistance(distanceKm, round.sizeKm);
+  await store.upsertGuess({ roundId: round.id, playerId: me.id, lat, lng, distanceKm, score, damage: 0, timedOut: false, submittedAt: new Date(now) });
+  await touchRoom(store, room, now);
+  return store.getRoomByCode(room.code);
+}
+
+async function react(store, room, me, emoji, now) {
+  if (!REACTION_EMOJI.includes(emoji)) throw new RoomError('bad_reaction', 'Pick one of the offered reactions', 400);
+  const reactions = [...(Array.isArray(room.reactions) ? room.reactions : []), { p: me.id, n: me.name, e: emoji, at: now }].slice(-MAX_REACTIONS_KEPT);
+  await touchRoom(store, room, now, { reactions });
+  return store.getRoomByCode(room.code);
+}
+
+async function rematch(store, room, me, now) {
+  if (room.status !== 'finished') throw new RoomError('not_finished', 'The game is still on', 409);
+  if (room.rematchCode) {
+    return { rematch: { code: room.rematchCode } };
+  }
+  const created = await createRoom(store, {
+    name: room.name,
+    hostName: me.name,
+    settings: { ...room.config, variant: room.variant, visibility: room.visibility },
+    profileId: me.profileId || null,
+    now,
+  });
+  await touchRoom(store, room, now, { rematchCode: created.room.code });
+  return { rematch: { code: created.room.code, token: created.token, playerId: created.player.id } };
+}
+
+/** One entry point for everything a joined player can do. */
+export async function roomAction(store, { code, token, action, body = {}, now = Date.now(), fetchImpl }) {
+  let room = await loadRoom(store, code);
+  room = await tick(store, room, now, fetchImpl);
+  const me = findPlayer(room, token);
+  if (!me) throw new RoomError('not_a_player', 'Join the room first', 401);
+  await store.updatePlayer(me.id, { lastSeenAt: new Date(now) });
+
+  let extra = null;
+  switch (action) {
+    case 'start':
+      requireHost(me);
+      room = await startRoom(store, room, now, fetchImpl);
+      break;
+    case 'guess':
+      room = await submitGuess(store, room, me, body, now);
+      room = await tick(store, room, now, fetchImpl);
+      break;
+    case 'next':
+      requireHost(me);
+      if (room.phase === 'guessing') room = await revealRound(store, room, now);
+      else if (room.phase === 'reveal') room = await advanceRound(store, room, now, fetchImpl);
+      else throw new RoomError('nothing_to_skip', 'Nothing to move on from right now', 409);
+      break;
+    case 'react':
+      room = await react(store, room, me, body?.emoji, now);
+      break;
+    case 'leave':
+      await leaveRoom(store, room, me, now);
+      room = await store.getRoomByCode(code);
+      break;
+    case 'rematch':
+      requireHost(me);
+      extra = await rematch(store, room, me, now);
+      room = await store.getRoomByCode(code);
+      break;
+    default:
+      throw new RoomError('unknown_action', `Unknown action: ${action}`, 400);
+  }
+  const meFresh = findPlayer(room, token);
+  return { state: serialize(room, meFresh, now, await ratingsForRoom(store, room)), ...(extra || {}) };
+}
+
+/** The room as one player sees it, after moving the clock. */
+export async function getRoomView(store, { code, token, now = Date.now(), fetchImpl }) {
+  let room = await loadRoom(store, code);
+  room = await tick(store, room, now, fetchImpl);
+  const me = findPlayer(room, token);
+  if (me && now - toMs(me.lastSeenAt) > 5000) {
+    await store.updatePlayer(me.id, { lastSeenAt: new Date(now) });
+    me.lastSeenAt = new Date(now);
+  }
+  return serialize(room, me, now, await ratingsForRoom(store, room));
+}
+
+export async function listRooms(store, { now = Date.now() } = {}) {
+  const rooms = await store.listPublicRooms({ since: now - ROOM_LISTING_WINDOW_MS });
+  return rooms.map((room) => ({
+    code: room.code,
+    name: room.name,
+    variant: room.variant,
+    status: room.status,
+    phase: room.phase,
+    roundIndex: room.roundIndex,
+    roundsTotal: room.config?.rounds || 0,
+    time: room.config?.time || 0,
+    mode: describeRoomMode(room.config),
+    players: present(room).length,
+    maxPlayers: MAX_PLAYERS,
+    createdAt: toMs(room.createdAt),
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// What the browser gets
+// ---------------------------------------------------------------------------
+
+function revealOf(round, room) {
+  return {
+    index: round.index,
+    answer: {
+      lat: round.lat,
+      lng: round.lng,
+      country: round.countryCode || round.countryName ? { code: round.countryCode || '', name: round.countryName || '', flag: round.countryFlag || '' } : null,
+      city: round.city || '',
+      date: round.imageDate || '',
+    },
+    sizeKm: round.sizeKm,
+    multiplier: room.variant === 'duel' ? roundMultiplier(round.index) : 1,
+    guesses: rankGuesses(
+      (round.guesses || []).map((g) => ({
+        playerId: g.playerId,
+        lat: g.lat,
+        lng: g.lng,
+        distanceKm: g.distanceKm,
+        score: g.score || 0,
+        damage: g.damage || 0,
+        timedOut: Boolean(g.timedOut),
+      }))
+    ),
+  };
+}
+
+export function serialize(room, me, now = Date.now(), ratings = {}) {
+  const current = currentRound(room);
+  const players = sortStandings(
+    present(room).map((p) => {
+      const rating = p.profileId ? ratings[p.profileId] || null : null;
+      const rated = Number.isFinite(p.ratingBefore) && Number.isFinite(p.ratingAfter);
+      return {
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        isHost: Boolean(p.isHost),
+        score: p.score || 0,
+        hp: p.hp ?? DUEL_START_HP,
+        eliminated: Boolean(p.eliminated),
+        roundWins: p.roundWins || 0,
+        online: isOnline(p, now),
+        guessed: room.phase === 'guessing' && hasGuess(current, p.id),
+        you: Boolean(me && me.id === p.id),
+        rated: Boolean(p.profileId),
+        rating: rating ? { value: rating.value, tier: rating.tier, provisional: rating.provisional, games: rating.games } : null,
+        ratingDelta: rated ? Math.round(p.ratingAfter - p.ratingBefore) : null,
+        ratingAfter: rated ? Math.round(p.ratingAfter) : null,
+        placement: p.placement || null,
+      };
+    }),
+    room.variant
+  );
+  const config = room.config || {};
+  return {
+    serverNow: now,
+    room: {
+      code: room.code,
+      name: room.name,
+      visibility: room.visibility,
+      status: room.status,
+      phase: room.phase,
+      variant: room.variant,
+      roundIndex: room.roundIndex,
+      roundsTotal: config.rounds || 0,
+      phaseEndsAt: toMs(room.phaseEndsAt),
+      version: room.version,
+      rematchCode: room.rematchCode || null,
+      lastError: room.lastError || null,
+      hostId: present(room).find((p) => p.isHost)?.id || null,
+      config: {
+        mode: config.mode,
+        region: config.region || '',
+        rounds: config.rounds,
+        time: config.time,
+        move: config.move,
+        pan: config.pan,
+        zoom: config.zoom,
+        radius: config.radius,
+      },
+    },
+    players,
+    me: me ? { id: me.id, name: me.name, color: me.color, isHost: Boolean(me.isHost), eliminated: Boolean(me.eliminated), score: me.score || 0, hp: me.hp ?? DUEL_START_HP } : null,
+    round:
+      current && room.phase === 'guessing'
+        ? { index: current.index, panoId: current.panoId, heading: current.heading, deadline: toMs(current.deadline), startedAt: toMs(current.startedAt), stats: current.stats || null }
+        : null,
+    reveal: current && (room.phase === 'reveal' || room.phase === 'finished') ? revealOf(current, room) : null,
+    history: room.rounds.filter((r) => r.revealedAt).map((r) => revealOf(r, room)),
+    reactions: (Array.isArray(room.reactions) ? room.reactions : []).slice(-12),
+  };
+}

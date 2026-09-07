@@ -1,0 +1,165 @@
+/**
+ * The room store contract, backed by plain objects. Used by the tests
+ * and handy for local hacking without a database. The Prisma store in
+ * roomStore.js implements the same methods.
+ *
+ * Methods return copies; readers must go through the store to change
+ * anything. updateRoom takes an optional expectVersion and returns false
+ * when the stored version differs, which is what makes phase transitions
+ * safe against two requests racing.
+ */
+
+export function createMemoryRoomStore() {
+  const rooms = new Map();
+  const players = new Map();
+  const rounds = new Map();
+  const guesses = new Map();
+  const profiles = new Map();
+  const ratings = new Map(); // key `${profileId}|${ladder}`
+  const results = new Map();
+  let seq = 0;
+  const id = (prefix) => `${prefix}_${++seq}`;
+
+  function compose(room) {
+    if (!room) return null;
+    const roomPlayers = [...players.values()]
+      .filter((p) => p.roomId === room.id)
+      .sort((a, b) => a.joinedAt - b.joinedAt)
+      .map((p) => ({ ...p }));
+    const roomRounds = [...rounds.values()]
+      .filter((r) => r.roomId === room.id)
+      .sort((a, b) => a.index - b.index)
+      .map((r) => ({ ...r, guesses: [...guesses.values()].filter((g) => g.roundId === r.id).map((g) => ({ ...g })) }));
+    return { ...room, players: roomPlayers, rounds: roomRounds };
+  }
+
+  return {
+    async getRoomByCode(code) {
+      return compose([...rooms.values()].find((r) => r.code === code));
+    },
+    async getRoomById(roomId) {
+      return compose(rooms.get(roomId));
+    },
+    async listPublicRooms({ since }) {
+      return [...rooms.values()]
+        .filter((r) => r.visibility === 'public' && r.status !== 'finished' && r.lastActiveAt >= since)
+        .sort((a, b) => b.lastActiveAt - a.lastActiveAt)
+        .map(compose);
+    },
+    async createRoom(data) {
+      const room = { id: id('room'), version: 1, roundIndex: -1, reactions: [], lastError: null, rematchCode: null, phaseEndsAt: null, ...data };
+      rooms.set(room.id, room);
+      return compose(room);
+    },
+    async updateRoom(roomId, data, { expectVersion } = {}) {
+      const room = rooms.get(roomId);
+      if (!room) return false;
+      if (expectVersion !== undefined && room.version !== expectVersion) return false;
+      Object.assign(room, data);
+      return true;
+    },
+    async createPlayer(data) {
+      const player = { id: id('player'), score: 0, hp: 6000, eliminated: false, roundWins: 0, isHost: false, leftAt: null, ...data };
+      players.set(player.id, player);
+      return { ...player };
+    },
+    async updatePlayer(playerId, data) {
+      const player = players.get(playerId);
+      if (!player) return null;
+      Object.assign(player, data);
+      return { ...player };
+    },
+    async createRound(data) {
+      const round = { id: id('round'), revealedAt: null, ...data };
+      rounds.set(round.id, round);
+      return { ...round, guesses: [] };
+    },
+    async updateRound(roundId, data) {
+      const round = rounds.get(roundId);
+      if (!round) return null;
+      Object.assign(round, data);
+      return { ...round };
+    },
+    async upsertGuess({ roundId, playerId, ...data }) {
+      const existing = [...guesses.values()].find((g) => g.roundId === roundId && g.playerId === playerId);
+      if (existing) {
+        Object.assign(existing, data);
+        return { ...existing };
+      }
+      const guess = { id: id('guess'), roundId, playerId, score: 0, damage: 0, timedOut: false, ...data };
+      guesses.set(guess.id, guess);
+      return { ...guess };
+    },
+    // Profiles and ratings
+    async getProfileByTokenHash(tokenHash) {
+      const p = [...profiles.values()].find((x) => x.tokenHash === tokenHash);
+      return p ? { ...p } : null;
+    },
+    async getProfileByUserId(userId) {
+      const p = [...profiles.values()].find((x) => x.userId && x.userId === userId);
+      return p ? { ...p } : null;
+    },
+    async getProfileById(profileId) {
+      const p = profiles.get(profileId);
+      return p ? { ...p } : null;
+    },
+    async createProfile(data) {
+      const profile = { id: id('profile'), userId: null, ...data };
+      profiles.set(profile.id, profile);
+      return { ...profile };
+    },
+    async updateProfile(profileId, data) {
+      const profile = profiles.get(profileId);
+      if (!profile) return null;
+      Object.assign(profile, data);
+      return { ...profile };
+    },
+    async getRatings(profileIds, ladder) {
+      return profileIds.map((pid) => ratings.get(`${pid}|${ladder}`)).filter(Boolean).map((r) => ({ ...r }));
+    },
+    async upsertRating(profileId, ladder, data) {
+      const key = `${profileId}|${ladder}`;
+      const existing = ratings.get(key) || { id: id('rating'), profileId, ladder };
+      Object.assign(existing, data);
+      ratings.set(key, existing);
+      return { ...existing };
+    },
+    async createMatchResult(data) {
+      const row = { id: id('result'), ...data };
+      results.set(row.id, row);
+      return { ...row };
+    },
+    async claimRoomRating(roomId, now) {
+      const room = rooms.get(roomId);
+      if (!room || room.ratedAt) return false;
+      room.ratedAt = new Date(now);
+      return true;
+    },
+    async listLeaderboard(ladder, { limit = 50, minGames = 0 } = {}) {
+      return [...ratings.values()]
+        .filter((r) => r.ladder === ladder && (r.games || 0) >= minGames)
+        .sort((a, b) => b.rating - a.rating)
+        .slice(0, limit)
+        .map((r) => ({ ...r, profile: { id: r.profileId, name: profiles.get(r.profileId)?.name || 'Player' } }));
+    },
+    async getRecentResults(profileId, limit = 10) {
+      return [...results.values()]
+        .filter((r) => r.profileId === profileId)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, limit)
+        .map((r) => ({ ...r }));
+    },
+    /** Test helper. */
+    _dump() {
+      return {
+        rooms: [...rooms.values()],
+        players: [...players.values()],
+        rounds: [...rounds.values()],
+        guesses: [...guesses.values()],
+        profiles: [...profiles.values()],
+        ratings: [...ratings.values()],
+        results: [...results.values()],
+      };
+    },
+  };
+}

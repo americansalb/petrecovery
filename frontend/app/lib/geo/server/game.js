@@ -18,6 +18,7 @@ import { countryAt, publicCountry } from './countries';
 import { createCandidateSource } from './sampler';
 import { findPanorama } from './streetview';
 import { openToken, sealToken } from './tokens';
+import { roundCacheKey } from './roundCache';
 
 export const APPLE_CANDIDATES_PER_ROUND = 12;
 /** Probes per attempt for Google rounds. */
@@ -58,7 +59,7 @@ function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm
  * Google: { provider, roundIndex, panoId, heading, token, stats }
  * Apple:  { provider, roundIndex, candidates: [{ lat, lng, token }] }
  */
-export async function createRound({ config: rawConfig, roundIndex = 0, attempt = 0, fetchImpl, now = Date.now(), env } = {}) {
+export async function createRound({ config: rawConfig, roundIndex = 0, attempt = 0, fetchImpl, now = Date.now(), env, cache } = {}) {
   const config = normalizeConfig(rawConfig);
   const { googleServerKey, tokenSecret } = getGeoServerConfig(env);
   if (!tokenSecret) {
@@ -89,10 +90,45 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
     return { provider: 'apple', roundIndex, candidates, sizeKm: source.sizeKm };
   }
 
+  const found = await resolveImagery({ source, config, roundIndex, attempt, googleServerKey, fetchImpl, cache, now });
+  const token = sealToken(
+    answerPayload({
+      provider: 'google',
+      config,
+      roundIndex,
+      lat: found.lat,
+      lng: found.lng,
+      country: found.country,
+      sizeKm: found.sizeKm,
+      panoId: found.panoId,
+      city: found.city,
+      date: found.date,
+    }),
+    { secret: tokenSecret, now }
+  );
+  return { provider: 'google', roundIndex, panoId: found.panoId, heading: found.heading, token, stats: found.stats, sizeKm: found.sizeKm };
+}
+
+/**
+ * Cached imagery for seeded games, probing on a miss. Retries (attempt > 0)
+ * skip the cache: they exist because the cached sequence had nothing.
+ */
+async function resolveImagery({ source, config, roundIndex, attempt, googleServerKey, fetchImpl, cache, now }) {
+  const key = cache && attempt === 0 ? roundCacheKey(config, roundIndex) : null;
+  if (key) {
+    const hit = await cache.get(key, now);
+    if (hit) return { ...hit, stats: { ...(hit.stats || {}), cached: true } };
+  }
+  const found = await probeForImagery({ source, config, roundIndex, googleServerKey, fetchImpl });
+  if (key) await cache.set(key, found, now);
+  return found;
+}
+
+/** Shared by solo rounds (sealed token) and room rounds (stored server-side). */
+async function probeForImagery({ source, config, roundIndex, googleServerKey, fetchImpl }) {
   if (!googleServerKey) {
     throw new GeoGameError('google_not_configured', 'Google Street View is not configured on this server');
   }
-
   const found = await findPanorama({ source, key: googleServerKey, fetchImpl, maxProbes: MAX_PROBES });
   if (!found.hit) {
     const upstream = found.error || {};
@@ -103,27 +139,34 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
         : `Street View lookup failed: ${upstream.message || upstream.code || 'unknown error'}`;
     throw new GeoGameError(code, message, { stats: found.stats, upstream: { code: upstream.code, message: upstream.message } });
   }
-
   const hit = found.hit;
   const country = countryAt(hit.lat, hit.lng) || found.candidate?.country || null;
   const headingRng = createRng(config.seed ? `${roundSeed(config.seed, roundIndex)}:heading` : undefined);
-  const heading = randomHeading(headingRng);
-  const token = sealToken(
-    answerPayload({
-      provider: 'google',
-      config,
-      roundIndex,
-      lat: hit.lat,
-      lng: hit.lng,
-      country,
-      sizeKm: source.sizeKm,
-      panoId: hit.panoId,
-      city: found.candidate?.city,
-      date: hit.date,
-    }),
-    { secret: tokenSecret, now }
-  );
-  return { provider: 'google', roundIndex, panoId: hit.panoId, heading, token, stats: found.stats, sizeKm: source.sizeKm };
+  return {
+    panoId: hit.panoId,
+    heading: randomHeading(headingRng),
+    lat: hit.lat,
+    lng: hit.lng,
+    country,
+    city: found.candidate?.city || '',
+    date: hit.date || '',
+    sizeKm: source.sizeKm,
+    stats: found.stats,
+  };
+}
+
+/**
+ * Imagery for a room round: same sampling and probing as a solo round,
+ * but the answer is returned to the caller (the room store keeps it)
+ * instead of being sealed into a token.
+ */
+export async function findRoundImagery({ config: rawConfig, roundIndex = 0, attempt = 0, fetchImpl, env, cache, now = Date.now() } = {}) {
+  const config = normalizeConfig(rawConfig);
+  const { googleServerKey } = getGeoServerConfig(env);
+  const source = createCandidateSource(config, roundIndex);
+  const skip = Math.max(0, Math.min(20, Math.floor(Number(attempt) || 0))) * MAX_PROBES;
+  for (let i = 0; i < skip; i++) if (!source.next()) break;
+  return resolveImagery({ source, config, roundIndex, attempt, googleServerKey, fetchImpl, cache, now });
 }
 
 /**

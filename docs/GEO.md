@@ -10,9 +10,18 @@ but no data models.
 
 | Route | What | Chrome |
 |---|---|---|
-| `/geo` | Lobby: provider, mode, rules, daily challenge, local stats, how it works | universal |
-| `/geo/play?...` | The game. Every setting is in the query string, so a link is a whole game | immersive (`app/lib/navChrome.js`); the X in the HUD returns to `/geo` |
-| `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | universal |
+| `/geo` | Lobby: provider, mode, rules, daily challenge, local stats, how it works | game header |
+| `/geo/play?...` | The game. Every setting is in the query string, so a link is a whole game | full screen; the X in the HUD returns to `/geo` |
+
+The whole `/geo` segment is an immersive takeover in `app/lib/navChrome.js`:
+it ships its own header and footer (`app/geo/layout.js`, with a ReunitePets
+link as the way back out) instead of the pet site's chrome, so it reads the
+same on reunitepets.org and on a domain of its own (see "Hosting on another
+domain").
+| `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | game header |
+| `/geo/rooms` | Multiplayer: open a room, join by code, or pick a public room | game header |
+| `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
+| `/geo/leaderboard` | The ladders (classic, duel) and your own rating | game header |
 
 API, all under `frontend/app/api/geo/`:
 
@@ -22,6 +31,10 @@ API, all under `frontend/app/api/geo/`:
 | `round` | POST `{ config, roundIndex, attempt }` | Finds imagery for a round and returns it with a sealed answer token. Google: a panorama id. Apple: a short list of coordinates to try. |
 | `guess` | POST `{ token, guess }` | Scores the guess against the token and reveals the answer. `guess` is `{lat,lng}`, `{countryCode}` for streaks, or `null` when the timer ran out. |
 | `og` | GET `?s=<code>` | The 1200x630 link-preview PNG for a share code (satori + resvg, same pipeline as the lost-pet social cards). |
+| `rooms` | GET / POST `{ name, hostName, settings }` | Public rooms active in the last 20 minutes / open a room (returns the host's player token). |
+| `rooms/:code` | GET / POST `{ action, ... }` | The room as you see it (`x-geo-player` header) / `join`, `start`, `guess`, `next`, `react`, `leave`, `rematch`. Every call moves the room's clock first. |
+| `profile` | POST `{ name }` | Who you are across rooms, for ratings; mints an anonymous token on first call (`x-geo-profile`), binds to the account when signed in. |
+| `leaderboard` | GET `?ladder=classic\|duel` | The ladder plus your own row. |
 
 Rate limits are in `frontend/middleware.js` next to the other API entries.
 
@@ -72,6 +85,75 @@ Seeds: every game gets one (the lobby generates it), the daily challenge
 uses `daily-YYYY-MM-DD` (UTC), and the summary offers a "Challenge a
 friend" link that replays the same places. A retry after "no imagery"
 skips ahead in the seeded sequence rather than repeating it.
+
+## Multiplayer rooms
+
+A room is a code, a name, fixed settings and a phase:
+`lobby -> loading -> guessing -> reveal -> ... -> finished`. Everyone plays
+the same rounds on the same server clock.
+
+- **State lives in Postgres** (`GeoRoom`, `GeoRoomPlayer`, `GeoRoomRound`,
+  `GeoRoomGuess`); the browser polls `/api/geo/rooms/:code` every 1.5 s
+  during a game and 3 s in the lobby. No background jobs: every request
+  ticks the room first (reveal at the deadline or when everyone online has
+  guessed, next round 12 s after the reveal, a stalled round build handed
+  back after 25 s). Transitions are claimed with a version check
+  (`updateMany` on `(id, version)`), so two polls that see the deadline at
+  once reveal it once. All of it is in `app/lib/geo/server/rooms.js`, tested
+  against `memoryRoomStore.js`.
+- **Players are anonymous**: a token per room (stored hashed), a name, a
+  colour. The host starts, can cut a round short or skip the reveal, and
+  hands the room on if they leave. Up to 12 players; late joiners are fine
+  in classic, not in a duel.
+- **Variants**: classic totals points; duel starts everyone at 6,000 HP and
+  each round the best guess deals the point gap as damage to everyone else,
+  times a multiplier that climbs every three rounds. Last one standing wins.
+- **The answer stays on the server** until the reveal; the reveal map shows
+  every pin in the player's colour. Reactions (six emoji) are broadcast
+  through the same poll.
+- **Rematch** opens a new room with the same settings and links it from the
+  old one; others follow with one click.
+
+## Ratings
+
+Finished rooms with two or more registered players are rated. The system is
+Glicko (`app/lib/geo/rating.js`): a rating and a deviation per ladder
+(classic, duel). A room is one rating period; every player is compared with
+every other player, the pair's result graded by margin (a rout counts more
+than a squeaker), and everyone updated from the pre-game numbers. Newcomers
+and long-absent players carry a large deviation, so they move fast and barely
+dent regulars. Quitting is a loss to everyone who stayed. Unregistered
+players are ignored entirely.
+
+Identity is a profile (`GeoProfile`): an anonymous token in the browser
+(hashed in the database), bound to a `User` the first time they play signed
+in, so the rating follows them across devices. `/geo/leaderboard` lists
+players with at least 3 rated games; ratings stay "provisional" until 5.
+Tiers (Bronze to Grandmaster) are labels on the number, nothing more.
+
+## Hosting on another domain
+
+The game is self-contained under `/geo` and `/api/geo` with its own tables
+and its own header, so the same deployment can serve it on a second domain:
+
+1. Point the domain at the deployment (same host as reunitepets.org).
+2. Set `GEO_DOMAINS=whereonearth.example,www.whereonearth.example`. On
+   those hosts the middleware redirects `/` to `/geo`, the short paths
+   (`/play`, `/rooms`, `/room/<code>`, `/share`, `/leaderboard`, `/daily`)
+   into `/geo`, and anything that is not the game to the pet site.
+3. Add the domain to the Google browser key's website restrictions
+   (`https://whereonearth.example/*` and the `www` form). Without this the
+   map refuses to load on the new domain.
+4. For the Apple mode, make a MapKit token for the new origin and set it
+   as `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`; the built-in token is locked to
+   reunitepets.org.
+5. Optional: `NEXT_PUBLIC_GEO_SITE_NAME` renames the header,
+   `NEXT_PUBLIC_GEO_HOME_URL` changes where its ReunitePets link goes.
+
+Share cards and room links resolve against the host that served them
+(`app/lib/geo/server/siteBase.js`), so previews on the game domain point
+back to the game domain. A fully separate deployment of the repo also works:
+it needs the same environment plus its own database.
 
 ## Setup
 
@@ -156,10 +238,13 @@ line is what the browser harness caught missing.
 
 ```
 frontend/app/lib/geo/            shared pure modules: random, distance, modes, coverage, share
-frontend/app/lib/geo/server/     server only: countries, sampler, streetview, tokens, game, config, ShareCard
+frontend/app/lib/geo/server/     server only: countries, sampler, streetview, tokens, game, config, ShareCard,
+                                 rooms + roomStore/memoryRoomStore, profiles, roundCache, siteBase
+frontend/app/lib/geo/rooms.js    room rules (codes, names, duel maths, standings)
+frontend/app/lib/geo/rating.js   Glicko ratings
 frontend/app/lib/geo/data/       countries-meta.json (generated)
-frontend/app/api/geo/            config, round, guess, og
-frontend/app/geo/                layout, lobby page, play page, share page, components, client libs
+frontend/app/api/geo/            config, round, guess, og, rooms, rooms/[code], profile, leaderboard
+frontend/app/geo/                layout (own header/footer), lobby, play, share, rooms, room/[code], leaderboard, components, client libs
 frontend/__tests__/geo/          unit tests; __tests__/api/geo-routes.test.js for the routes
 frontend/scripts/build-geo-countries.js
 frontend/scripts/geo-e2e/            mock metadata server, fake Maps SDK, browser run

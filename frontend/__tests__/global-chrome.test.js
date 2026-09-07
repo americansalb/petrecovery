@@ -44,7 +44,7 @@ const KNOWN_EXCEPTIONS = [
 ];
 
 /** Segments that ARE the immersive experiences - they own their chrome. */
-const IMMERSIVE_DIRS = ['mission-control', 'my-shelter', 'rasuwa', 'geo/play'];
+const IMMERSIVE_DIRS = ['mission-control', 'my-shelter', 'rasuwa', 'geo'];
 
 function walkChromeFiles(dir, rel = '') {
   const out = [];
@@ -73,12 +73,12 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     // the footer's ReunitePets link is its way back out
   });
 
-  test('the geo game is an immersive takeover while playing; its lobby and share page are not', () => {
-    expect(isImmersiveRoute('/geo/play')).toBe(true);
-    // the HUD's X (top-right) leads back to /geo
-    expect(isImmersiveRoute('/geo')).toBe(false);
-    expect(isImmersiveRoute('/geo/share')).toBe(false);
-    expect(isImmersiveRoute('/geo/player')).toBe(false);
+  test('the geo game is an immersive segment with its own header (app/geo/layout.js)', () => {
+    // its header carries the ReunitePets link back out; rounds and rooms carry an X
+    for (const route of ['/geo', '/geo/play', '/geo/rooms', '/geo/room/ABC123', '/geo/share', '/geo/leaderboard']) {
+      expect(isImmersiveRoute(route)).toBe(true);
+    }
+    expect(isImmersiveRoute('/geocode')).toBe(false);
   });
 
   test('the shelter portal is an immersive takeover; its onboarding is not', () => {
@@ -214,6 +214,6 @@ describe('nav components defer to the shared policy', () => {
   test('the immersive list stays deliberate - additions need a docs update', () => {
     // If this fails you added a takeover: update docs/APP_MAP.md §8.2 and
     // the IMMERSIVE_DIRS list above, then extend this expectation.
-    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', '/geo/play']);
+    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', '/geo']);
   });
 });

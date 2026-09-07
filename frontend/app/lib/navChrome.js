@@ -21,11 +21,13 @@
  * /rasuwa is the letter tool for families of people missing in the 2026
  * Rasuwa (Nepal) flood: a crisis page for a non-pet audience, so it
  * carries none of the pet-site chrome; its footer links back to /.
- * /geo/play is the Where on Earth game in progress (docs/GEO.md): the
- * imagery fills the viewport and the HUD's X leads back to /geo, which
- * keeps the universal chrome.
+ * /geo is Where on Earth, the street-level guessing game (docs/GEO.md):
+ * a game for a non-pet audience that can also be served on a domain of
+ * its own, so the whole segment ships its own header (app/geo/layout.js)
+ * with a ReunitePets link as the way back out. A round or a room in
+ * progress covers the screen and carries an X back to the game's lobby.
  */
-export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter', '/rasuwa', '/geo/play'];
+export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter', '/rasuwa', '/geo'];
 
 /** True inside an immersive takeover: no global chrome at all. */
 export function isImmersiveRoute(pathname) {

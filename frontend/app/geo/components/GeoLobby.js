@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Check, Play, Trophy } from 'lucide-react';
+import { CalendarDays, Check, Play, Trophy, Users } from 'lucide-react';
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -327,6 +327,25 @@ export default function GeoLobby() {
           </div>
 
           <aside className="space-y-6">
+            {/* Rooms */}
+            <section className="rounded-2xl border border-midnight-900 bg-midnight-900 p-5 text-white">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
+                <Users className="h-4 w-4" />
+                Play with friends
+              </h2>
+              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href="/geo/rooms" className="inline-flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500">
+                  <Users className="h-4 w-4" />
+                  Rooms
+                </Link>
+                <Link href="/geo/leaderboard" className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/10">
+                  <Trophy className="h-4 w-4" />
+                  Rankings
+                </Link>
+              </div>
+            </section>
+
             {/* Daily */}
             <section className="rounded-2xl border border-midnight-200 bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
