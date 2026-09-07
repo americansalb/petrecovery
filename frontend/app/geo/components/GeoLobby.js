@@ -31,6 +31,7 @@ import { getHistory, getStats } from '../lib/storage';
 import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile';
 import { listRecentRooms, loadName } from '../lib/useRoom';
 import { ago } from '../lib/time';
+import { untilText } from '@/app/lib/geo/meter';
 import SetupNotice from './SetupNotice';
 import PlayerName from './PlayerName';
 
@@ -112,6 +113,7 @@ export default function GeoLobby() {
   const [profile, setProfile] = useState(null);
   const [recentRooms, setRecentRooms] = useState([]);
   const [daily, setDaily] = useState(null);
+  const [cup, setCup] = useState(null);
   const { status: sessionStatus } = useSession();
 
   useEffect(() => {
@@ -126,6 +128,10 @@ export default function GeoLobby() {
     fetch('/api/geo/daily', { headers: profileHeaders(), cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('daily'))))
       .then((data) => alive && setDaily(data))
+      .catch(() => {});
+    fetch('/api/geo/cup', { headers: profileHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('cup'))))
+      .then((data) => alive && setCup(data))
       .catch(() => {});
     const saved = loadSettings();
     if (saved) {
@@ -519,6 +525,52 @@ export default function GeoLobby() {
                   {daily.board?.length ? (
                     <ol className="mt-2 space-y-0.5 text-sm">
                       {daily.board.slice(0, 5).map((row) => (
+                        <li key={row.profileId} className="flex items-center gap-2">
+                          <span className="w-5 tabular-nums text-midnight-400">{row.rank}</span>
+                          <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} className="flex-1 text-midnight-800" />
+                          <span className="font-semibold tabular-nums">{formatScore(row.total)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+
+            {/* Weekly cup */}
+            <section className="rounded-2xl border border-midnight-200 bg-white p-5" data-cup-board>
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+                <Trophy className="h-4 w-4" />
+                Weekly cup
+              </h2>
+              <p className="mt-2 text-sm text-midnight-700">
+                Ten places on a 60 second clock, the same for everyone this week. Free, outside your Google rounds.
+                {cup?.endsAt ? ` Ends ${untilText(cup.endsAt)}.` : ''}
+              </p>
+              <p className="mt-1 text-xs text-midnight-500">Prizes in points: 300, 200 and 100 for the top three, 50 for the rest of the top ten, 20 for finishing.</p>
+              <button
+                type="button"
+                onClick={() => start({ mode: 'cup', provider: 'google' })}
+                disabled={!server?.providers?.google?.configured}
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50"
+              >
+                <Play className="h-4 w-4" />
+                {cup?.you ? (cup.you.finished ? 'Play the ten again' : 'Finish the ten') : "Play this week's ten"}
+              </button>
+              {cup ? (
+                <div className="mt-4 border-t border-midnight-100 pt-3">
+                  <p className="text-sm text-midnight-700">
+                    {cup.you?.rank
+                      ? `You are ${ordinal(cup.you.rank)} of ${cup.finished} who finished this week.`
+                      : cup.you
+                        ? `Your ${cup.you.rounds} of ${cup.rounds} rounds are in.`
+                        : cup.finished
+                          ? `${cup.finished} finished this week's ten so far.`
+                          : 'Nobody has finished this week yet. Be first.'}
+                  </p>
+                  {cup.board?.length ? (
+                    <ol className="mt-2 space-y-0.5 text-sm">
+                      {cup.board.slice(0, 5).map((row) => (
                         <li key={row.profileId} className="flex items-center gap-2">
                           <span className="w-5 tabular-nums text-midnight-400">{row.rank}</span>
                           <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} className="flex-1 text-midnight-800" />

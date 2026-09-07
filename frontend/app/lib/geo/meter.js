@@ -122,7 +122,7 @@ export function refusalTitle(code) {
  * friend's invitation is never refused for it).
  *
  * Returns { ok: true, source } with source 'free' | 'paid' | 'daily' |
- * 'apple' | 'room', or { ok: false, code }.
+ * 'cup' | 'apple' | 'room', or { ok: false, code }.
  */
 export function decideRound({ provider, mode, signedIn = false, hasProfile = false, paidRounds = 0, usage = {}, limits = DEFAULT_LIMITS, allowance = true }) {
   const p = provider === 'apple' ? 'apple' : 'google';
@@ -134,7 +134,8 @@ export function decideRound({ provider, mode, signedIn = false, hasProfile = fal
 
   if (p === 'apple') return { ok: true, source: 'apple' };
   if (!allowance) return { ok: true, source: 'room' };
-  if (mode === 'daily') return { ok: true, source: 'daily' };
+  // The shared challenges are the front door: on top of the allowance.
+  if (mode === 'daily' || mode === 'cup') return { ok: true, source: mode };
 
   const freeByProfile = !hasProfile || (usage.profile?.google?.free || 0) < limits.freeGoogleRounds;
   const ipFreeLimit = hasProfile ? limits.freeGoogleRoundsPerIp : limits.freeGoogleRounds;
@@ -178,12 +179,14 @@ export function meterView({ usage = {}, hasProfile = false, signedIn = false, pa
   };
 }
 
-/** "in 5 h", "in 20 min", "soon": time until the free rounds come back. */
+/** "in 5 h", "in 20 min", "in 6 days": time until something comes back or ends. */
 export function untilText(resetAt, now = Date.now()) {
   const ms = Math.max(0, (Number(resetAt) || 0) - now);
   const min = Math.round(ms / 60000);
   if (min < 1) return 'any moment now';
   if (min < 60) return `in ${min} min`;
   const h = Math.round(min / 60);
-  return `in ${h} h`;
+  if (h < 48) return `in ${h} h`;
+  const days = Math.round(h / 24);
+  return `in ${days} days`;
 }

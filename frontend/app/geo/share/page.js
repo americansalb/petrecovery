@@ -84,14 +84,14 @@ export default function GeoSharePage({ searchParams }) {
       </p>
       {!isStreak ? <p className="mt-2 text-2xl tracking-wider">{summary.rounds.map((r) => scoreGlyph(r.score)).join('')}</p> : null}
 
-      {/* A daily's places are the puzzle: hidden until the reader has played that day (ShareRounds). */}
+      {/* A daily's or a cup's places are the puzzle: hidden until the reader has played it (ShareRounds). */}
       <ShareRounds
         rounds={summary.rounds.map((round) => {
           const country = round.countryCode ? countryByCode(round.countryCode) : null;
           return { flag: country?.flag || '', name: country?.name || '', distanceKm: round.distanceKm, score: round.score, correct: round.correct };
         })}
         isStreak={isStreak}
-        hideUntilPlayed={summary.config.mode === 'daily'}
+        hideUntilPlayed={summary.config.mode === 'daily' || summary.config.mode === 'cup'}
         seed={summary.config.seed || ''}
       />
 

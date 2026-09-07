@@ -31,7 +31,7 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
     <>
       {hideUntilPlayed && !revealed ? (
         <p className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-midnight-200 bg-white px-4 py-3 text-sm text-midnight-700">
-          <span className="flex-1">The places are hidden until you have played today&apos;s five.</span>
+          <span className="flex-1">The places are hidden until you have played this one yourself.</span>
           <button type="button" onClick={() => setRevealed(true)} className="rounded-lg border border-midnight-300 px-3 py-1.5 text-xs font-semibold hover:bg-midnight-100">
             Show them anyway
           </button>
@@ -54,7 +54,7 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
           </li>
         ))}
       </ol>
-      {hideUntilPlayed && played ? <p className="mt-2 text-xs text-midnight-500">You have played this day&apos;s five, so the places are shown.</p> : null}
+      {hideUntilPlayed && played ? <p className="mt-2 text-xs text-midnight-500">You have played this one, so the places are shown.</p> : null}
     </>
   );
 }

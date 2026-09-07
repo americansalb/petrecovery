@@ -94,6 +94,7 @@ export function createCandidateSource(config, roundIndex = 0) {
     }
     case 'balanced':
     case 'daily':
+    case 'cup':
     case 'streak': {
       next = fromPool(coveredPool());
       break;

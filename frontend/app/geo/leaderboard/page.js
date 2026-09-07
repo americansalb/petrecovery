@@ -64,6 +64,11 @@ export default function GeoLeaderboardPage() {
             </button>
           ))}
         </div>
+        {board?.season ? (
+          <p className="mt-2 text-sm text-midnight-600" data-season>
+            {board.season.label}. {board.season.daysLeft} {board.season.daysLeft === 1 ? 'day' : 'days'} left. Ratings carry over softly, and finishing a season Silver or better on a ladder with three or more rated games pays points.
+          </p>
+        ) : null}
 
         {you ? (
           <section className="mt-6 rounded-2xl border border-midnight-900 bg-midnight-900 p-5 text-white">

@@ -302,10 +302,14 @@ async function daily(browser) {
   const board = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
   log('lobby daily board:', board.slice(0, 160));
   if (!/You are \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the lobby board should show your rank');
+  await page.waitForSelector('[data-cup-board]:has-text("Ends")', { timeout: 20000 });
+  const cupText = (await page.textContent('[data-cup-board]')).replace(/\s+/g, ' ');
+  if (!/Ends in/.test(cupText)) throw new Error('the cup card should say when the week ends');
+  log('lobby cup card:', cupText.slice(0, 120));
 
   // This browser played today: the result page shows the places.
   await page.goto(shareHref, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('text=/played this day/', { timeout: 20000 });
+  await page.waitForSelector('text=/You have played this one/', { timeout: 20000 });
   if ((await page.locator('li:has-text("Hidden")').count()) !== 0) throw new Error('places should show to a browser that played');
 
   // A browser that has not: hidden until "Show them anyway".

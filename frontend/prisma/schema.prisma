@@ -5908,6 +5908,7 @@ model GeoProfile {
   lastSeenAt DateTime @default(now())
 
   ratings GeoRating[]
+  seasonRatings GeoSeasonRating[]
   results GeoMatchResult[]
   challengeRounds  GeoChallengeRound[]
   challengeEntries GeoChallengeEntry[]
@@ -5976,6 +5977,14 @@ model GeoChallengeRound {
   @@index([key])
 }
 
+// A shared challenge whose prizes were paid (the weekly cup), so the
+// board is not walked again on every view of a past week.
+model GeoChallengeFinal {
+  key         String   @id
+  finalizedAt DateTime @default(now())
+  prizes      Int      @default(0)
+}
+
 model GeoChallengeEntry {
   id         String     @id @default(cuid())
   profileId  String
@@ -5991,6 +6000,10 @@ model GeoChallengeEntry {
   @@index([key, rounds, total])
 }
 
+// Ratings from before the first season (docs/GEO.md, "Seasons"): the
+// "s0" rows, read once when a player is first seen in season 1. Seasons
+// live in GeoSeasonRating; this table stays as it was so the boot's
+// `prisma db push` never has to alter it.
 model GeoRating {
   id           String     @id @default(cuid())
   profileId    String
@@ -6010,12 +6023,35 @@ model GeoRating {
   @@index([ladder, rating])
 }
 
+// One rating row per profile, ladder and season ("s1" is Sep to Nov
+// 2026); carried in softly from the season before on first sight.
+model GeoSeasonRating {
+  id           String     @id @default(cuid())
+  profileId    String
+  profile      GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  ladder       String // classic | duel
+  season       String
+  rating       Float      @default(1500)
+  rd           Float      @default(350)
+  games        Int        @default(0)
+  wins         Int        @default(0)
+  podiums      Int        @default(0)
+  peak         Float      @default(1500)
+  streak       Int        @default(0)
+  lastPlayedAt DateTime?
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([profileId, ladder, season])
+  @@index([ladder, season, rating])
+}
+
 model GeoMatchResult {
   id           String     @id @default(cuid())
   roomId       String
   profileId    String
   profile      GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   ladder       String
+  season       String     @default("s0")
   placement    Int
   players      Int
   score        Int        @default(0)

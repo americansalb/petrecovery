@@ -8,6 +8,9 @@ const {
   configToParams,
   configFromParams,
   dailySeed,
+  cupSeed,
+  isoWeek,
+  isoWeekEnd,
   describeConfig,
   DEFAULT_CONFIG,
   MODES,
@@ -43,6 +46,22 @@ describe('normalizeConfig', () => {
     expect(normalizeConfig({ mode: 'continent', region: 'asia' }).region).toBe('asia');
     expect(normalizeConfig({ mode: 'continent', region: 'atlantis' }).region).toBe('europe');
     expect(normalizeConfig({ mode: 'world', region: 'JP' }).region).toBe('');
+  });
+
+  test('the weekly cup forces its settings and this week\'s seed', () => {
+    const now = new Date('2026-09-07T12:00:00Z');
+    const c = normalizeConfig({ mode: 'cup', rounds: 3, time: 0, move: '0', seed: 'cheat' }, { now });
+    expect(c).toMatchObject({ mode: 'cup', rounds: 10, time: 60, move: true, pan: true, zoom: true, radius: 'standard' });
+    expect(c.seed).toBe(`cup-${isoWeek(now)}`);
+    expect(cupSeed(now)).toBe('cup-2026-W37');
+    expect(normalizeConfig({ mode: 'cup', seed: 'cup-2026-W36' }, { now }).seed).toBe('cup-2026-W36');
+    // ISO weeks run Monday to Sunday; week 1 holds 4 January
+    expect(isoWeek(new Date('2026-01-01T00:00:00Z'))).toBe('2026-W01');
+    expect(isoWeek(new Date('2026-01-04T23:59:59Z'))).toBe('2026-W01');
+    expect(isoWeek(new Date('2026-01-05T00:00:00Z'))).toBe('2026-W02');
+    expect(isoWeekEnd('2026-W01')).toBe(Date.UTC(2026, 0, 5));
+    expect(isoWeekEnd('2026-W37')).toBe(Date.UTC(2026, 8, 14));
+    expect(isoWeekEnd('nope')).toBeNull();
   });
 
   test('the daily challenge forces its settings and today\'s seed', () => {
