@@ -9,13 +9,19 @@
 import { Crown } from 'lucide-react';
 import { initials } from '@/app/lib/geo/rooms';
 import { formatScore } from '@/app/lib/geo/distance';
+import PlayerName from '../PlayerName';
 
 export function PlayerBadge({ player, size = 'md' }) {
   const dims = size === 'sm' ? 'h-7 w-7 text-[10px]' : size === 'lg' ? 'h-12 w-12 text-base' : 'h-9 w-9 text-xs';
   return (
     <span
       className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-midnight-900 ring-2 ring-midnight-950/60`}
-      style={{ backgroundColor: player.color, opacity: player.eliminated ? 0.45 : 1 }}
+      style={{
+        backgroundColor: player.color,
+        opacity: player.eliminated ? 0.45 : 1,
+        // A frame from the shop sits outside the ring.
+        boxShadow: player.cosmetics?.frame ? `0 0 0 3px ${player.cosmetics.frame}` : undefined,
+      }}
       title={player.name}
     >
       {initials(player.name)}
@@ -63,10 +69,7 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
           <PlayerBadge player={p} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className={`truncate font-semibold ${p.you ? 'text-flash-300' : 'text-white'}`}>
-                {p.name}
-                {p.you ? ' (you)' : ''}
-              </span>
+              <PlayerName name={p.name} cosmetics={p.cosmetics} you={p.you} className={`font-semibold ${p.you && !p.cosmetics?.color ? 'text-flash-300' : 'text-white'}`} />
               {p.isHost ? <Crown className="h-3.5 w-3.5 text-flash-400" aria-label="Host" /> : null}
               {p.eliminated ? <span className="rounded-full bg-red-500/20 px-1.5 text-[10px] font-bold uppercase text-red-300">out</span> : null}
               {p.online === false ? <span className="text-[10px] uppercase tracking-wide text-white/40">away</span> : null}

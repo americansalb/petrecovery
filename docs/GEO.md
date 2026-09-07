@@ -16,12 +16,13 @@ but no data models.
 | `/geo/rooms` | Multiplayer: open a room, join by code, return to a room you were in, or pick a public room | universal bar + game subtabs |
 | `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
 | `/geo/leaderboard` | The ladders (classic, duel) and your own rating | universal bar + game subtabs |
+| `/geo/me` | Your profile: name, rating, points, country badges, today's meter, recent points, and the cosmetics shop | universal bar + game subtabs |
 
 Chrome follows the house rule in `app/lib/navChrome.js`: the lobby, the
 room browser, the rankings and the share page are ordinary pages under
 the universal ReunitePets bar (Dashboard, account menu and all), with the
 game's own subtabs below it (`app/geo/components/GeoHeader.js`: Play,
-Rooms, Rankings, Daily). Only a round or a room in progress
+Rooms, Rankings, Daily, Profile). Only a round or a room in progress
 (`/geo/play`, `/geo/room/<code>`) covers the screen, and each carries an
 X back out. On a build of the game's own site (`NEXT_PUBLIC_SITE=geo`,
 see "Hosting on another domain") there is no pet chrome at all and the
@@ -154,6 +155,45 @@ Answers leak, as they do for any shared puzzle, so the daily is never
 rated, and the result page (`/geo/share`) hides a daily's places until
 the reader's own browser has played that day, with a "show them anyway"
 for the impatient. The preview image never shows places.
+
+## Points and cosmetics
+
+Points are the earned currency (`app/lib/geo/points.js` has the rules,
+`app/lib/geo/server/points.js` applies them). They come from playing and
+from skill, and they buy only things that cost nothing to serve. They
+never buy Google rounds: the moment earned points turned into imagery,
+heavy players would farm them on free Apple play and spend them on rounds
+we pay for. Points earn on the first 50 rounds of the day only, so a
+script running all night gains nothing.
+
+| Event | Points |
+|---|---|
+| A solo round | 2, plus up to 8 by accuracy; the daily pays double; a streak pays 3 per country named right |
+| A room round | 3, plus up to 8 by accuracy, for a guess that scored |
+| Finishing a room | 30, 20, 10 for the top three among those who stayed, 5 otherwise; a duel won adds 40 |
+| A country badge | 25, once per country, for a guess within 100 km of the answer inside it |
+| The first round of the day | 10 |
+
+Every earn and spend is a `GeoLedger` row whose `ref` names the event
+(`solo:<seed>:<i>`, `room:<id>:<round>:<profile>`, `badge:<cc>`,
+`buy:<item>`), unique per profile, so a replayed guess or a repeated
+reveal never pays twice; `GeoProfile.points` follows the ledger. Badges
+are `GeoBadge` rows with the best distance kept.
+
+The catalog is `app/lib/geo/items.js`: pins (the marker you place, drawn
+by the guess map), name colours, titles, frames, and reaction packs.
+Titles for a rating tier are free once the tier is reached on either
+ladder. `/api/geo/shop` lists the catalog with what a profile owns, may
+wear and can afford, and takes `buy` and `equip`; buying wears the item.
+What is worn is `GeoProfile.equipped` (item ids per slot) and reaches
+the screens as a small view: the pin on the guess map in solo play and
+in room reveals (the player's colour keeps identifying them there), the
+name colour and title in rooms, on the rankings and on the daily board,
+the frame around the badge, and the extra reactions in a room's bar
+(the server accepts any reaction from any pack).
+
+`/geo/me` is the profile page: name, rating, points, badges, today's
+meter, recent points, and the shop.
 
 ## The play meter
 

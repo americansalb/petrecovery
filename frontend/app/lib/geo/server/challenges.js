@@ -8,6 +8,7 @@
  */
 
 import { MODES, isDailySeed } from '../modes';
+import { equippedView } from '../items';
 
 export const DAILY_ROUNDS = MODES.daily.fixed.rounds;
 
@@ -70,6 +71,7 @@ export async function challengeBoard(store, { key, rounds = DAILY_ROUNDS, limit 
     rank: i + 1,
     profileId: row.profileId,
     name: row.profile?.name || 'Player',
+    cosmetics: equippedView(row.profile?.equipped),
     total: row.total,
     finishedAt: toMs(row.finishedAt),
   }));

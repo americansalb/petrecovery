@@ -17,7 +17,7 @@ function scoreWord(score) {
   return 'No points this round.';
 }
 
-export default function RoundResult({ result, roundNumber, roundsTotal, isLast, isStreak, streak, onNext, countryName }) {
+export default function RoundResult({ result, roundNumber, roundsTotal, isLast, isStreak, streak, onNext, countryName, points = null }) {
   const country = result.answer?.country;
   const place = [result.answer?.city, country?.name].filter(Boolean).join(', ');
 
@@ -46,6 +46,13 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                 {result.timedOut ? 'Time ran out before a guess. ' : Number.isFinite(result.distanceKm) ? `${formatDistance(result.distanceKm)} away. ` : ''}
                 {scoreWord(result.score)}
               </p>
+              {points && (points.earned > 0 || points.badge) ? (
+                <p className="mt-1 text-sm text-flash-300">
+                  {points.earned > 0 ? `+${points.earned} points` : ''}
+                  {points.badge ? `${points.earned > 0 ? '. ' : ''}New badge: ${points.badge.flag} ${points.badge.name}` : ''}
+                </p>
+              ) : null}
+              {points && points.allowed === false ? <p className="mt-1 text-xs text-white/50">Points paused for today: the first 50 rounds earn.</p> : null}
               <p className="mt-1 flex items-center gap-2 text-sm text-white/70">
                 <Flag className="h-4 w-4 text-flash-400" />
                 <span>

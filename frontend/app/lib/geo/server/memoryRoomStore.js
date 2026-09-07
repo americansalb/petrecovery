@@ -20,6 +20,9 @@ export function createMemoryRoomStore() {
   const usage = new Map(); // key `${subject}|${day}|${provider}`
   const challengeRounds = new Map(); // key `${profileId}|${key}|${index}`
   const challengeEntries = new Map(); // key `${profileId}|${key}`
+  const ledger = new Map(); // key `${profileId}|${ref}`
+  const unlocks = new Map(); // key `${profileId}|${itemId}`
+  const badges = new Map(); // key `${profileId}|${countryCode}`
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -107,7 +110,7 @@ export function createMemoryRoomStore() {
       return p ? { ...p } : null;
     },
     async createProfile(data) {
-      const profile = { id: id('profile'), userId: null, paidRounds: 0, ...data };
+      const profile = { id: id('profile'), userId: null, paidRounds: 0, points: 0, equipped: null, ...data };
       profiles.set(profile.id, profile);
       return { ...profile };
     },
@@ -143,7 +146,7 @@ export function createMemoryRoomStore() {
         .filter((r) => r.ladder === ladder && (r.games || 0) >= minGames)
         .sort((a, b) => b.rating - a.rating)
         .slice(0, limit)
-        .map((r) => ({ ...r, profile: { id: r.profileId, name: profiles.get(r.profileId)?.name || 'Player' } }));
+        .map((r) => ({ ...r, profile: { id: r.profileId, name: profiles.get(r.profileId)?.name || 'Player', equipped: profiles.get(r.profileId)?.equipped || null } }));
     },
     async getRecentResults(profileId, limit = 10) {
       return [...results.values()]
@@ -197,7 +200,7 @@ export function createMemoryRoomStore() {
         .filter((e) => e.key === key && e.rounds >= rounds)
         .sort((a, b) => b.total - a.total || (a.finishedAt?.getTime() || 0) - (b.finishedAt?.getTime() || 0))
         .slice(0, limit)
-        .map((e) => ({ ...e, profile: { id: e.profileId, name: profiles.get(e.profileId)?.name || 'Player' } }));
+        .map((e) => ({ ...e, profile: { id: e.profileId, name: profiles.get(e.profileId)?.name || 'Player', equipped: profiles.get(e.profileId)?.equipped || null } }));
     },
     async countChallengeEntries(key, { rounds } = {}) {
       return [...challengeEntries.values()].filter((e) => e.key === key && (!rounds || e.rounds >= rounds)).length;
@@ -207,6 +210,59 @@ export function createMemoryRoomStore() {
       return [...challengeEntries.values()].filter(
         (e) => e.key === key && e.rounds >= rounds && (e.total > total || (e.total === total && (e.finishedAt?.getTime() || 0) < mine))
       ).length;
+    },
+    // Points, unlocks and badges (server/points.js)
+    async getProfilesByIds(ids) {
+      return ids.map((pid) => profiles.get(pid)).filter(Boolean).map((p) => ({ ...p }));
+    },
+    async createLedger(data) {
+      const k = `${data.profileId}|${data.ref}`;
+      if (ledger.has(k)) return null;
+      const row = { id: id('ledger'), ...data };
+      ledger.set(k, row);
+      return { ...row };
+    },
+    async addPoints(profileId, delta, { requireBalance = false } = {}) {
+      const profile = profiles.get(profileId);
+      if (!profile) return false;
+      if (requireBalance && delta < 0 && (profile.points || 0) < -delta) return false;
+      profile.points = (profile.points || 0) + delta;
+      return true;
+    },
+    async listLedger(profileId, limit = 20) {
+      return [...ledger.values()]
+        .filter((r) => r.profileId === profileId)
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, limit)
+        .map((r) => ({ ...r }));
+    },
+    async createUnlock(profileId, itemId, now) {
+      const k = `${profileId}|${itemId}`;
+      if (unlocks.has(k)) return null;
+      const row = { id: id('unlock'), profileId, itemId, createdAt: new Date(now) };
+      unlocks.set(k, row);
+      return { ...row };
+    },
+    async listUnlocks(profileId) {
+      return [...unlocks.values()].filter((u) => u.profileId === profileId).map((u) => ({ ...u }));
+    },
+    async upsertBadge(profileId, countryCode, km, now) {
+      const k = `${profileId}|${countryCode}`;
+      const existing = badges.get(k);
+      if (!existing) {
+        const row = { id: id('badge'), profileId, countryCode, bestKm: km, createdAt: new Date(now), updatedAt: new Date(now) };
+        badges.set(k, row);
+        return { badge: { ...row }, created: true };
+      }
+      if (km < existing.bestKm) existing.bestKm = km;
+      existing.updatedAt = new Date(now);
+      return { badge: { ...existing }, created: false };
+    },
+    async listBadges(profileId) {
+      return [...badges.values()].filter((b) => b.profileId === profileId).sort((a, b) => b.createdAt - a.createdAt).map((b) => ({ ...b }));
+    },
+    async countBadges(profileId) {
+      return [...badges.values()].filter((b) => b.profileId === profileId).length;
     },
     /** Test helper. */
     _dump() {
@@ -221,6 +277,9 @@ export function createMemoryRoomStore() {
         usage: [...usage.values()],
         challengeRounds: [...challengeRounds.values()],
         challengeEntries: [...challengeEntries.values()],
+        ledger: [...ledger.values()],
+        unlocks: [...unlocks.values()],
+        badges: [...badges.values()],
       };
     },
   };

@@ -5791,6 +5791,7 @@ model GeoRoomPlayer {
   ratingBefore Float?
   ratingAfter  Float?
   placement    Int?
+  pointsEarned Int       @default(0)
 
   guesses GeoRoomGuess[]
 
@@ -5898,6 +5899,11 @@ model GeoProfile {
   // Prepaid Google rounds (quota packs, bought once), drawn on after the
   // day's free allowance (docs/GEO.md, "The play meter").
   paidRounds Int      @default(0)
+  // Points, the earned currency (docs/GEO.md, "Points and cosmetics"):
+  // the balance, kept in step with GeoLedger, and what is worn
+  // ({ pin, color, title, frame } item ids from app/lib/geo/items.js).
+  points     Int      @default(0)
+  equipped   Json?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
@@ -5905,6 +5911,51 @@ model GeoProfile {
   results GeoMatchResult[]
   challengeRounds  GeoChallengeRound[]
   challengeEntries GeoChallengeEntry[]
+  ledger  GeoLedger[]
+  unlocks GeoUnlock[]
+  badges  GeoBadge[]
+}
+
+// One row per earn or spend. `ref` names the event ("solo:<seed>:<i>",
+// "room:<id>:<round>:<profile>", "badge:<cc>", "buy:<item>") and is
+// unique per profile, so a replayed request never pays twice.
+model GeoLedger {
+  id        String     @id @default(cuid())
+  profileId String
+  profile   GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  kind      String // earn | spend
+  amount    Int
+  reason    String
+  ref       String
+  day       String
+  createdAt DateTime   @default(now())
+
+  @@unique([profileId, ref])
+  @@index([profileId, createdAt])
+}
+
+model GeoUnlock {
+  id        String     @id @default(cuid())
+  profileId String
+  profile   GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  itemId    String
+  createdAt DateTime   @default(now())
+
+  @@unique([profileId, itemId])
+}
+
+// A country badge: a guess within 100 km of the answer inside that
+// country. One per country per profile, with the best distance.
+model GeoBadge {
+  id          String     @id @default(cuid())
+  profileId   String
+  profile     GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  countryCode String
+  bestKm      Float
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([profileId, countryCode])
 }
 
 // The daily challenge's board (docs/GEO.md, "The daily challenge"): one

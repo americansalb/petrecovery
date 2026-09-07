@@ -16,7 +16,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, streak, timer, mobile, rooms, daily)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, streak, timer, mobile, rooms, daily, profile)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -322,11 +322,44 @@ async function daily(browser) {
   await fresh.close();
 }
 
+/**
+ * Points and the profile page: a game earns points that show on the
+ * result and the summary; /geo/me shows the balance, the shop with its
+ * pins, and the name can be changed.
+ */
+async function profile(browser) {
+  const page = await newPage(browser, { width: 1280, height: 900 });
+  await page.goto(`${BASE}/geo/play?provider=google&mode=balanced&rounds=3&seed=e2e-points-1&time=0`, { waitUntil: 'domcontentloaded' });
+  await waitPlayable(page);
+  await waitForPano(page);
+  await page.evaluate(() => window.__fakeClick(48.8566, 2.3522));
+  await waitGuessable(page);
+  await page.click('button:has-text("Guess")');
+  await page.waitForSelector('text=/\\+\\d+ points/', { timeout: 20000 });
+  log('round points line:', await page.textContent('text=/\\+\\d+ points/'));
+  await page.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-shop] li', { timeout: 30000 });
+  const pins = await page.locator('[data-shop] li').count();
+  if (pins < 6) throw new Error(`expected the pins in the shop, saw ${pins}`);
+  const headerText = (await page.textContent('header')).replace(/\s+/g, ' ');
+  log('profile header:', headerText.slice(0, 120));
+  if (!/\d+\s*points/.test(headerText)) throw new Error('the profile header should show the points balance');
+  await page.fill('input[aria-label="Your name"]', 'Harness Ada');
+  await page.click('button:has-text("Save")');
+  await page.waitForSelector('button:has-text("Saved")', { timeout: 10000 });
+  await page.waitForSelector('h1:has-text("Harness Ada")', { timeout: 10000 });
+  await page.click('button[role="tab"]:has-text("Title")');
+  await page.waitForSelector('[data-shop] li:has-text("Wanderer")', { timeout: 10000 });
+  await shot(page, 'profile');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, streak, timer, mobile, rooms, daily };
+    const all = { pinGame, streak, timer, mobile, rooms, daily, profile };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

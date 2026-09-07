@@ -4,7 +4,7 @@
  * The game's navigation, so nobody has to remember a path. On
  * reunitepets.org it is a row of subtabs under the universal bar (the
  * permitted variation in app/lib/navChrome.js): Play, Rooms, Rankings,
- * Daily. On the game's own site (NEXT_PUBLIC_SITE=geo, docs/GEO.md)
+ * Daily, Profile. On the game's own site (NEXT_PUBLIC_SITE=geo, docs/GEO.md)
  * there is no pet chrome, so the same row is the site's header, with
  * the site's name and a ReunitePets link as the way out. Hidden inside
  * a round or a room, which cover the screen and carry their own X.
@@ -23,6 +23,7 @@ export const GAME_LINKS = [
   { href: '/geo/rooms', label: 'Rooms' },
   { href: '/geo/leaderboard', label: 'Rankings' },
   { href: '/geo/play?mode=daily', label: 'Daily', never: true },
+  { href: '/geo/me', label: 'Profile' },
 ];
 
 /** A round or a room in progress: the screen is theirs. */

@@ -42,6 +42,8 @@ import {
 } from '../rooms';
 import { findRoundImagery } from './game';
 import { checkRoomEntry, recordRoomRound } from './meter';
+import { awardRoomFinish, awardRoomRound, reactionsForProfile } from './points';
+import { allReactionEmoji } from '../items';
 import { applyRoomRatings, ratingsForRoom } from './profiles';
 
 export class RoomError extends Error {
@@ -271,6 +273,19 @@ async function revealRound(store, room, now) {
   );
   if (!claimed) return store.getRoomByCode(room.code);
 
+  // Points for the round (docs/GEO.md, "Points and cosmetics"); the
+  // ledger's refs make a repeat harmless, and a failure costs nothing.
+  let earned = {};
+  try {
+    earned = await awardRoomRound(store, room, round, guesses, now);
+  } catch (error) {
+    console.error('[geo/rooms] round points', error?.message || error);
+  }
+  for (const u of updates) {
+    const before = players.find((p) => p.id === u.id)?.pointsEarned || 0;
+    u.data.pointsEarned = before + (earned[u.id] || 0);
+  }
+
   for (const g of guesses) {
     const u = updates.find((x) => x.id === g.playerId);
     if (g.isNew) {
@@ -299,6 +314,15 @@ async function advanceRound(store, room, now, fetchImpl) {
         await applyRoomRatings(store, finished, now);
       } catch (error) {
         console.error('[geo/rooms] rating failed', error?.message || error);
+      }
+      // Points for finishing, by placement among those who stayed.
+      try {
+        const earned = await awardRoomFinish(store, finished, now);
+        for (const p of finished.players) {
+          if (earned[p.id]) await store.updatePlayer(p.id, { pointsEarned: (p.pointsEarned || 0) + earned[p.id] });
+        }
+      } catch (error) {
+        console.error('[geo/rooms] finish points', error?.message || error);
       }
     }
     return store.getRoomByCode(room.code);
@@ -403,7 +427,7 @@ async function submitGuess(store, room, me, body, now) {
 }
 
 async function react(store, room, me, emoji, now) {
-  if (!REACTION_EMOJI.includes(emoji)) throw new RoomError('bad_reaction', 'Pick one of the offered reactions', 400);
+  if (!allReactionEmoji(REACTION_EMOJI).includes(emoji)) throw new RoomError('bad_reaction', 'Pick one of the offered reactions', 400);
   const reactions = [...(Array.isArray(room.reactions) ? room.reactions : []), { p: me.id, n: me.name, e: emoji, at: now }].slice(-MAX_REACTIONS_KEPT);
   await touchRoom(store, room, now, { reactions });
   return store.getRoomByCode(room.code);
@@ -465,7 +489,16 @@ export async function roomAction(store, { code, token, action, body = {}, now = 
       throw new RoomError('unknown_action', `Unknown action: ${action}`, 400);
   }
   const meFresh = findPlayer(room, token);
-  return { state: serialize(room, meFresh, now, await ratingsForRoom(store, room)), ...(extra || {}) };
+  return { state: serialize(room, meFresh, now, await ratingsForRoom(store, room), await extrasFor(store, meFresh)), ...(extra || {}) };
+}
+
+/** What only the asking player sees: the reactions they may send. */
+async function extrasFor(store, me) {
+  try {
+    return { reactions: await reactionsForProfile(store, me?.profileId || null) };
+  } catch {
+    return { reactions: [...REACTION_EMOJI] };
+  }
 }
 
 /** The room as one player sees it, after moving the clock. */
@@ -477,7 +510,7 @@ export async function getRoomView(store, { code, token, now = Date.now(), fetchI
     await store.updatePlayer(me.id, { lastSeenAt: new Date(now) });
     me.lastSeenAt = new Date(now);
   }
-  return serialize(room, me, now, await ratingsForRoom(store, room));
+  return serialize(room, me, now, await ratingsForRoom(store, room), await extrasFor(store, me));
 }
 
 export async function listRooms(store, { now = Date.now() } = {}) {
@@ -528,7 +561,7 @@ function revealOf(round, room) {
   };
 }
 
-export function serialize(room, me, now = Date.now(), ratings = {}) {
+export function serialize(room, me, now = Date.now(), ratings = {}, extras = {}) {
   const current = currentRound(room);
   const players = sortStandings(
     present(room).map((p) => {
@@ -551,6 +584,8 @@ export function serialize(room, me, now = Date.now(), ratings = {}) {
         ratingDelta: rated ? Math.round(p.ratingAfter - p.ratingBefore) : null,
         ratingAfter: rated ? Math.round(p.ratingAfter) : null,
         placement: p.placement || null,
+        cosmetics: rating?.cosmetics || null,
+        pointsEarned: p.pointsEarned || 0,
       };
     }),
     room.variant
@@ -584,7 +619,19 @@ export function serialize(room, me, now = Date.now(), ratings = {}) {
       },
     },
     players,
-    me: me ? { id: me.id, name: me.name, color: me.color, isHost: Boolean(me.isHost), eliminated: Boolean(me.eliminated), score: me.score || 0, hp: me.hp ?? DUEL_START_HP } : null,
+    me: me
+      ? {
+          id: me.id,
+          name: me.name,
+          color: me.color,
+          isHost: Boolean(me.isHost),
+          eliminated: Boolean(me.eliminated),
+          score: me.score || 0,
+          hp: me.hp ?? DUEL_START_HP,
+          pointsEarned: me.pointsEarned || 0,
+          reactions: extras.reactions || [...REACTION_EMOJI],
+        }
+      : null,
     round:
       current && room.phase === 'guessing'
         ? { index: current.index, panoId: current.panoId, heading: current.heading, deadline: toMs(current.deadline), startedAt: toMs(current.startedAt), stats: current.stats || null }

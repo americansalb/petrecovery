@@ -116,6 +116,8 @@ export default function PlayClient() {
   const [share, setShare] = useState(null);
   const [challenge, setChallenge] = useState(null);
   const [daily, setDaily] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [pointsByRound, setPointsByRound] = useState({});
   const paneRef = useRef(null);
   const requestRef = useRef(0);
   const recordedRef = useRef(false);
@@ -131,6 +133,7 @@ export default function PlayClient() {
     dispatch({ type: 'restart', config });
     recordedRef.current = false;
     setShare(null);
+    setPointsByRound({});
     setSecondsLeft(config.time);
     setMobileMapOpen(false);
   }, [config]);
@@ -139,7 +142,13 @@ export default function PlayClient() {
   // is playing. Created on the first game; a failure just plays unmetered
   // by profile (the address still counts).
   useEffect(() => {
-    ensureProfile(loadName()).catch(() => {});
+    let alive = true;
+    ensureProfile(loadName())
+      .then((p) => alive && setProfile(p))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // Server settings: which provider is set up, the browser key, the countries.
@@ -248,6 +257,7 @@ export default function PlayClient() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not score the guess');
       if (data.challenge) setChallenge(data.challenge);
+      if (data.points) setPointsByRound((prev) => ({ ...prev, [s.roundIndex]: data.points }));
       dispatch({ type: 'submit_success', result: { ...data.result, timedOut: timedOut || !guess, roundIndex: s.roundIndex } });
       setMobileMapOpen(false);
     } catch (error) {
@@ -348,6 +358,16 @@ export default function PlayClient() {
   }, [state.status, state.rounds, lastResult]);
 
   const inRound = state.status === 'playing' || state.status === 'submitting';
+  // Points this game earned so far, and the badges it found (docs/GEO.md).
+  const gamePoints = useMemo(() => {
+    const rounds = Object.values(pointsByRound);
+    return {
+      earned: rounds.reduce((sum, r) => sum + (r.earned || 0), 0),
+      balance: rounds.length ? rounds[rounds.length - 1].balance : profile?.points || 0,
+      badges: rounds.map((r) => r.badge).filter(Boolean),
+      capped: rounds.some((r) => r.allowed === false),
+    };
+  }, [pointsByRound, profile]);
   const effectiveSize = mapHover && mapSize === 'small' ? 'medium' : mapSize;
   let mapClass;
   if (mapMode === 'result') {
@@ -427,7 +447,7 @@ export default function PlayClient() {
         <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
           <div className="min-h-0 flex-1">
             {isGoogle ? (
-              <GoogleGuessMap api={api} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} />
+              <GoogleGuessMap api={api} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} pinStyle={profile?.equipped?.pin || null} />
             ) : (
               <AppleGuessMap mapkit={mapkit} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} />
             )}
@@ -462,13 +482,23 @@ export default function PlayClient() {
           isStreak={isStreak}
           streak={streakLength(state)}
           countryName={countryName(lastResult.guessCountry)}
+          points={pointsByRound[lastResult.roundIndex] || null}
           onNext={next}
         />
       ) : null}
 
       {/* Summary */}
       {state.status === 'summary' && share ? (
-        <GameSummary summary={share.summary} code={share.code} config={config} regionLabel={regionLabel} best={share.best} daily={config.mode === 'daily' ? daily : null} onPlayAgain={() => {}} />
+        <GameSummary
+          summary={share.summary}
+          code={share.code}
+          config={config}
+          regionLabel={regionLabel}
+          best={share.best}
+          daily={config.mode === 'daily' ? daily : null}
+          points={gamePoints}
+          onPlayAgain={() => {}}
+        />
       ) : null}
       {state.status === 'summary' ? (
         <Link href="/geo" className="absolute right-4 top-4 z-50 rounded-full border border-white/20 bg-midnight-900/80 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-midnight-800">
