@@ -15,7 +15,7 @@ import { NextResponse } from 'next/server';
 import { evaluateGuess } from '@/app/lib/geo/server/game';
 import { GeoTokenError } from '@/app/lib/geo/server/tokens';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
-import { dailyKey, recordChallengeRound } from '@/app/lib/geo/server/challenges';
+import { challengeFor, recordChallengeRound } from '@/app/lib/geo/server/challenges';
 import { awardSoloRound } from '@/app/lib/geo/server/points';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
 
@@ -37,7 +37,7 @@ export async function POST(request) {
     const result = evaluateGuess({ token: body.token, guess });
     let challenge = null;
     let points = null;
-    const key = result.mode === 'daily' ? dailyKey(result.seed) : null;
+    const shared = challengeFor(result);
     // The board and the points are for the profile behind the request.
     // The guess is scored either way; a failure here only loses a row.
     let profileId = null;
@@ -46,9 +46,9 @@ export async function POST(request) {
     } catch (error) {
       console.error('[geo/guess] profile', error?.message || error);
     }
-    if (profileId && key) {
+    if (profileId && shared) {
       try {
-        challenge = await recordChallengeRound(prismaRoomStore, { profileId, key, index: result.roundIndex, score: result.score, distanceKm: result.distanceKm });
+        challenge = await recordChallengeRound(prismaRoomStore, { profileId, key: shared.key, rounds: shared.rounds, index: result.roundIndex, score: result.score, distanceKm: result.distanceKm });
       } catch (error) {
         console.error('[geo/guess] daily board', error?.message || error);
       }

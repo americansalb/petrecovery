@@ -7,10 +7,15 @@
  * earlier finish first on a tie. Server only.
  */
 
-import { MODES, isDailySeed } from '../modes';
+import { MODES, isDailySeed, isCupSeed, isoWeek, isoWeekEnd } from '../modes';
 import { equippedView } from '../items';
+import { grant } from './points';
 
 export const DAILY_ROUNDS = MODES.daily.fixed.rounds;
+export const CUP_ROUNDS = MODES.cup.fixed.rounds;
+
+/** The weekly cup's prizes in points: the top three, the rest of the top ten, everyone who finished. */
+export const CUP_PRIZES = Object.freeze({ podium: Object.freeze([300, 200, 100]), topTen: 50, finished: 20 });
 
 /** "daily-2026-09-07" (the seed) -> "daily:2026-09-07" (the board key), or null. */
 export function dailyKey(seed) {
@@ -20,6 +25,64 @@ export function dailyKey(seed) {
 /** The board key for a date (default today, UTC). */
 export function dailyKeyFor(date = new Date()) {
   return `daily:${new Date(date).toISOString().slice(0, 10)}`;
+}
+
+/** "cup-2026-W37" (the seed) -> "cup:2026-W37" (the board key), or null. */
+export function cupKey(seed) {
+  return isCupSeed(seed) ? `cup:${String(seed).slice('cup-'.length)}` : null;
+}
+
+/** The cup's board key for a moment (default this week). */
+export function cupKeyFor(date = new Date()) {
+  return `cup:${isoWeek(new Date(date))}`;
+}
+
+/** When a cup's week ends, from "cup:2026-W37". */
+export function cupEndsAt(key) {
+  return isoWeekEnd(String(key || '').replace(/^cup:/, ''));
+}
+
+/** The board a scored round belongs to, from the sealed token's mode and seed. */
+export function challengeFor(result) {
+  if (result?.mode === 'daily') {
+    const key = dailyKey(result.seed);
+    return key ? { key, rounds: DAILY_ROUNDS, kind: 'daily' } : null;
+  }
+  if (result?.mode === 'cup') {
+    const key = cupKey(result.seed);
+    return key ? { key, rounds: CUP_ROUNDS, kind: 'cup' } : null;
+  }
+  return null;
+}
+
+/** What a placement in the cup pays. */
+export function cupPrize(placement) {
+  if (placement <= 3) return CUP_PRIZES.podium[placement - 1];
+  if (placement <= 10) return CUP_PRIZES.topTen;
+  return CUP_PRIZES.finished;
+}
+
+/**
+ * Pay a finished cup week's prizes, once: every finished entry by
+ * placement. Returns how many were paid, or null when the week is still
+ * on or was already paid. Safe to call on every view of a past week.
+ */
+export async function finalizeCup(store, key, now = Date.now()) {
+  const endsAt = cupEndsAt(key);
+  if (!endsAt || now < endsAt) return null;
+  if (await store.getChallengeFinal(key)) return null;
+  const rows = await store.listChallengeBoard(key, { rounds: CUP_ROUNDS, limit: 5000 });
+  const claimed = await store.claimChallengeFinal(key, now, rows.length);
+  if (!claimed) return null;
+  let paid = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const placement = i + 1;
+    const amount = cupPrize(placement);
+    const paidRow = await grant(store, { profileId: row.profileId, amount, reason: `Cup ${key.slice(4)}: ${placement <= 3 ? ['1st', '2nd', '3rd'][placement - 1] : `${placement}th`} of ${rows.length}`, ref: `${key}:${row.profileId}`, now });
+    if (paidRow) paid += 1;
+  }
+  return paid;
 }
 
 const toMs = (v) => (v instanceof Date ? v.getTime() : typeof v === 'number' ? v : v ? Date.parse(v) : null);
@@ -80,5 +143,6 @@ export async function challengeBoard(store, { key, rounds = DAILY_ROUNDS, limit 
     const rank = you.finished ? 1 + (await store.countChallengeBetter(key, { rounds, total: mine.total, finishedAt: mine.finishedAt })) : null;
     you = { ...you, rank, name: (await store.getProfileById(profileId))?.name || 'Player' };
   }
-  return { key, rounds, players, finished, board, you };
+  const final = store.getChallengeFinal ? await store.getChallengeFinal(key) : null;
+  return { key, rounds, players, finished, board, you, finalizedAt: final ? toMs(final.finalizedAt) : null };
 }

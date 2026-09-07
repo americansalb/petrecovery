@@ -15,7 +15,7 @@ but no data models.
 | `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | universal bar + game subtabs |
 | `/geo/rooms` | Multiplayer: open a room, join by code, return to a room you were in, or pick a public room | universal bar + game subtabs |
 | `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
-| `/geo/leaderboard` | The ladders (classic, duel) and your own rating | universal bar + game subtabs |
+| `/geo/leaderboard` | The ladders (classic, duel) for the season, and your own rating | universal bar + game subtabs |
 | `/geo/me` | Your profile: name, rating, points, country badges, today's meter, recent points, and the cosmetics shop | universal bar + game subtabs |
 
 Chrome follows the house rule in `app/lib/navChrome.js`: the lobby, the
@@ -155,6 +155,39 @@ Answers leak, as they do for any shared puzzle, so the daily is never
 rated, and the result page (`/geo/share`) hides a daily's places until
 the reader's own browser has played that day, with a "show them anyway"
 for the impatient. The preview image never shows places.
+
+## Seasons
+
+Ratings live per season: three months each from 1 September 2026
+(`app/lib/geo/season.js`; "s1" is Sep to Nov 2026, "s0" is everything
+before). `GeoRating` is unique on profile, ladder and season, and every
+read of ratings goes through `ensureSeasonRows` in
+`app/lib/geo/server/profiles.js`: the first time a profile is seen in a
+new season on a ladder, last season's row is carried in softly (halfway
+back to 1500, the uncertainty widened to at least 200) and last season's
+final tier pays points once (Silver 50, Gold 100, Platinum 200, Diamond
+350, Master 500, Grandmaster 800; three rated games needed), through the
+ledger with ref `season:<key>:<ladder>`. No job runs at the turn of a
+season; the carry happens on the next room, board or profile view. The
+rankings show the season and the days left.
+
+## The weekly cup
+
+The cup is the daily's big sibling: ten balanced Google rounds on a 60
+second clock, the same for everyone in an ISO week (Monday to Sunday,
+UTC), seeded `cup-2026-W37`, free and outside the play meter's
+allowance. Rounds are recorded like the daily's (`GeoChallengeRound`,
+`GeoChallengeEntry`, keyed `cup:2026-W37`, first guess per round counts)
+and `/api/geo/cup` serves the week's board, when it ends, the prizes and
+your row. Prizes in points go out once per week, by placement among
+those who finished the ten: 300, 200 and 100 for the top three, 50 for
+the rest of the top ten, 20 for finishing. No job runs on Monday: the
+first view of a past week after it ended pays it out (`finalizeCup`,
+claimed once through `GeoChallengeFinal`; the ledger refs
+`cup:<week>:<profile>` make a repeat harmless), and any view of the
+current week pays out the previous one. The lobby's cup card shows the
+board and your place; the result page hides a cup's places like a
+daily's.
 
 ## Points and cosmetics
 

@@ -295,11 +295,11 @@ export default function PlayClient() {
     setShare({ summary, code, best });
   }, [state]);
 
-  // The daily's board, once today's five are in (docs/GEO.md).
+  // The shared board, once the daily's five or the cup's ten are in (docs/GEO.md).
   useEffect(() => {
-    if (state.status !== 'summary' || config.mode !== 'daily') return undefined;
+    if (state.status !== 'summary' || (config.mode !== 'daily' && config.mode !== 'cup')) return undefined;
     let alive = true;
-    fetch('/api/geo/daily', { headers: profileHeaders(), cache: 'no-store' })
+    fetch(config.mode === 'cup' ? '/api/geo/cup' : '/api/geo/daily', { headers: profileHeaders(), cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('daily'))))
       .then((data) => alive && setDaily(data))
       .catch(() => {});
@@ -495,7 +495,7 @@ export default function PlayClient() {
           config={config}
           regionLabel={regionLabel}
           best={share.best}
-          daily={config.mode === 'daily' ? daily : null}
+          daily={config.mode === 'daily' || config.mode === 'cup' ? daily : null}
           points={gamePoints}
           onPlayAgain={() => {}}
         />

@@ -35,20 +35,22 @@ function ordinal(n) {
   return `${v}${suffix[(mod - 20) % 10] || suffix[mod] || suffix[0]}`;
 }
 
-/** Today's board under a finished daily: your place, and the top of the day. */
-function DailyBoard({ daily }) {
+/** The shared board under a finished daily or cup: your place, and the top of it. */
+function DailyBoard({ daily, cup = false }) {
   if (!daily) return null;
   const you = daily.you;
+  const what = cup ? "this week's ten" : "today's five";
   return (
     <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Today&apos;s board</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{cup ? "This week's board" : "Today's board"}</p>
       <p className="mt-1 text-sm text-white/90">
         {you?.rank
-          ? `You are ${ordinal(you.rank)} of ${daily.finished} who finished today's five.`
+          ? `You are ${ordinal(you.rank)} of ${daily.finished} who finished ${what}.`
           : you
             ? `Your ${you.rounds} of ${daily.rounds} rounds are in.`
-            : `${daily.finished} finished today's five. Your rounds count once this browser has a profile.`}
+            : `${daily.finished} finished ${what}. Your rounds count once this browser has a profile.`}
         {daily.players > daily.finished ? ` ${daily.players - daily.finished} more still playing.` : ''}
+        {cup ? ' Prizes go out when the week ends.' : ''}
       </p>
       {daily.board?.length ? (
         <ol className="mt-2 space-y-0.5 text-sm">
@@ -86,7 +88,8 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
     }
   };
 
-  const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: config.mode === 'daily' ? config.seed : randomSeedString() }).toString()}`;
+  const shared = config.mode === 'daily' || config.mode === 'cup';
+  const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}`;
 
   return (
     <div className="absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-midnight-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">
@@ -137,7 +140,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
           ))}
         </ol>
 
-        <DailyBoard daily={daily} />
+        <DailyBoard daily={daily} cup={config.mode === 'cup'} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => copy('text', text)} className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
@@ -158,7 +161,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
           ) : null}
           <Link href={newSeedUrl} onClick={onPlayAgain} className="flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2.5 text-sm font-bold text-midnight-900 hover:bg-flash-500">
             <RefreshCw className="h-4 w-4" />
-            {config.mode === 'daily' ? 'Play again' : 'New places, same settings'}
+            {shared ? 'Play again' : 'New places, same settings'}
           </Link>
           <Link href="/geo" className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
             <Settings2 className="h-4 w-4" />

@@ -44,6 +44,14 @@ export const MODES = {
     description: 'Five balanced rounds. Everyone gets the same five places today.',
     fixed: { provider: 'google', rounds: 5, time: 0, move: true, pan: true, zoom: true, radius: 'standard' },
   },
+  cup: {
+    id: 'cup',
+    label: 'Weekly cup',
+    short: 'Cup',
+    providers: ['google'],
+    description: 'Ten balanced rounds on a 60 second clock. Everyone gets the same ten places this week, and the week ends with prizes.',
+    fixed: { provider: 'google', rounds: 10, time: 60, move: true, pan: true, zoom: true, radius: 'standard' },
+  },
   continent: {
     id: 'continent',
     label: 'Continent',
@@ -76,7 +84,7 @@ export const MODES = {
   },
 };
 
-export const MODE_ORDER = ['world', 'balanced', 'daily', 'continent', 'country', 'cities', 'streak'];
+export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'streak'];
 
 export const CONTINENTS = {
   europe: { id: 'europe', label: 'Europe', regions: ['Europe'] },
@@ -127,6 +135,37 @@ export function dailySeed(date = new Date()) {
 
 export function isDailySeed(seed) {
   return /^daily-\d{4}-\d{2}-\d{2}$/.test(String(seed || ''));
+}
+
+/** The ISO week a moment falls in, as "2026-W37" (weeks run Monday to Sunday, UTC). */
+export function isoWeek(date = new Date()) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
+  const week = Math.ceil(((d.getTime() - yearStart) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/** "cup-2026-W37": the weekly cup's seed for a moment. */
+export function cupSeed(date = new Date()) {
+  return `cup-${isoWeek(date)}`;
+}
+
+export function isCupSeed(seed) {
+  return /^cup-\d{4}-W\d{2}$/.test(String(seed || ''));
+}
+
+/** When an ISO week ends (the following Monday, 00:00 UTC), from "2026-W37". */
+export function isoWeekEnd(week) {
+  const m = /^(\d{4})-W(\d{2})$/.exec(String(week || ''));
+  if (!m) return null;
+  const year = Number(m[1]);
+  const w = Number(m[2]);
+  // ISO week 1 contains 4 January; find that week's Monday, then step.
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const monday1 = jan4.getTime() - ((jan4.getUTCDay() || 7) - 1) * 86400000;
+  return monday1 + w * 7 * 86400000;
 }
 
 function toBool(value, fallback) {
@@ -182,6 +221,10 @@ export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
   if (mode === 'daily') {
     Object.assign(config, MODES.daily.fixed);
     config.seed = isDailySeed(seed) ? seed : dailySeed(now);
+  }
+  if (mode === 'cup') {
+    Object.assign(config, MODES.cup.fixed);
+    config.seed = isCupSeed(seed) ? seed : cupSeed(now);
   }
 
   return config;

@@ -5,6 +5,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
+import { seasonFor } from '@/app/lib/geo/season';
 
 const include = {
   players: { orderBy: { joinedAt: 'asc' } },
@@ -70,14 +71,25 @@ export const prismaRoomStore = {
   updateProfile(id, data) {
     return prisma.geoProfile.update({ where: { id }, data });
   },
-  getRatings(profileIds, ladder) {
+  // Ratings live per season (server/profiles.js); the current one by
+  // default. Season "s0", everything before the first season, is the
+  // original GeoRating table; the seasons are GeoSeasonRating.
+  getRatings(profileIds, ladder, season = seasonFor().key) {
     if (!profileIds.length) return Promise.resolve([]);
-    return prisma.geoRating.findMany({ where: { profileId: { in: profileIds }, ladder } });
+    if (season === 's0') return prisma.geoRating.findMany({ where: { profileId: { in: profileIds }, ladder } }).then((rows) => rows.map((r) => ({ ...r, season: 's0' })));
+    return prisma.geoSeasonRating.findMany({ where: { profileId: { in: profileIds }, ladder, season } });
   },
-  upsertRating(profileId, ladder, data) {
-    return prisma.geoRating.upsert({
-      where: { profileId_ladder: { profileId, ladder } },
-      create: { profileId, ladder, ...data },
+  upsertRating(profileId, ladder, data, season = seasonFor().key) {
+    if (season === 's0') {
+      return prisma.geoRating.upsert({
+        where: { profileId_ladder: { profileId, ladder } },
+        create: { profileId, ladder, ...data },
+        update: data,
+      });
+    }
+    return prisma.geoSeasonRating.upsert({
+      where: { profileId_ladder_season: { profileId, ladder, season } },
+      create: { profileId, ladder, season, ...data },
       update: data,
     });
   },
@@ -88,9 +100,10 @@ export const prismaRoomStore = {
     const result = await prisma.geoRoom.updateMany({ where: { id: roomId, ratedAt: null }, data: { ratedAt: new Date(now) } });
     return result.count === 1;
   },
-  listLeaderboard(ladder, { limit = 50, minGames = 0 } = {}) {
-    return prisma.geoRating.findMany({
-      where: { ladder, games: { gte: minGames } },
+  listLeaderboard(ladder, { limit = 50, minGames = 0, season = seasonFor().key } = {}) {
+    const table = season === 's0' ? prisma.geoRating : prisma.geoSeasonRating;
+    return table.findMany({
+      where: season === 's0' ? { ladder, games: { gte: minGames } } : { ladder, season, games: { gte: minGames } },
       orderBy: [{ rating: 'desc' }, { games: 'desc' }],
       take: limit,
       include: { profile: { select: { id: true, name: true, equipped: true } } },
@@ -176,6 +189,20 @@ export const prismaRoomStore = {
         OR: [{ total: { gt: total } }, { total, finishedAt: { lt: finishedAt } }],
       },
     });
+  },
+
+  // The weekly cup's prizes, paid once per week (server/challenges.js)
+  async claimChallengeFinal(key, now, prizes = 0) {
+    try {
+      await prisma.geoChallengeFinal.create({ data: { key, finalizedAt: new Date(now), prizes } });
+      return true;
+    } catch (error) {
+      if (error?.code === 'P2002') return false;
+      throw error;
+    }
+  },
+  getChallengeFinal(key) {
+    return prisma.geoChallengeFinal.findUnique({ where: { key } });
   },
 
   // Points, unlocks and badges (server/points.js)

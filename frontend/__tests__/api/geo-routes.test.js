@@ -29,6 +29,7 @@ const { POST: postGuess } = require('@/app/api/geo/guess/route');
 const { POST: postProfile } = require('@/app/api/geo/profile/route');
 const { GET: getDaily } = require('@/app/api/geo/daily/route');
 const { GET: getShop, POST: postShop } = require('@/app/api/geo/shop/route');
+const { GET: getCup } = require('@/app/api/geo/cup/route');
 const { openToken } = require('@/app/lib/geo/server/tokens');
 
 function request(body, headers = {}) {
@@ -222,6 +223,23 @@ describe('POST /api/geo/guess', () => {
     expect(past).toMatchObject({ date: '2020-01-01', players: 0, board: [], you: null });
     const junk = await (await getDaily({ ...request(null, {}), url: 'http://localhost/api/geo/daily?date=nope' })).json();
     expect(junk.date).toBe(today);
+  });
+
+  test("a cup round lands on this week's board, and the cup route says when the week ends and what it pays", async () => {
+    const registered = await (await postProfile(request({ name: 'Cupper' }, { 'x-test-ip': '198.51.100.40' }))).json();
+    const mine = { 'x-test-ip': '198.51.100.40', 'x-geo-profile': registered.token };
+    const round = (await (await postRound(request({ config: { mode: 'cup' }, roundIndex: 0 }, mine))).json()).round;
+    const answer = openToken(round.token, { secret: process.env.NEXTAUTH_SECRET });
+    const { challenge } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
+    expect(challenge).toMatchObject({ recorded: true, rounds: 1, finished: false });
+    expect(challenge.key).toMatch(/^cup:\d{4}-W\d{2}$/);
+    const cup = await (await getCup({ ...request(null, mine), url: 'http://localhost/api/geo/cup' })).json();
+    expect(cup).toMatchObject({ rounds: 10, players: 1, finished: 0, prizes: { finished: 20 } });
+    expect(cup.week).toBe(challenge.key.slice(4));
+    expect(cup.endsAt).toBeGreaterThan(Date.now());
+    expect(cup.you).toMatchObject({ rounds: 1, finished: false, rank: null });
+    const past = await (await getCup({ ...request(null, {}), url: 'http://localhost/api/geo/cup?week=2020-W01' })).json();
+    expect(past).toMatchObject({ week: '2020-W01', players: 0, board: [] });
   });
 
   test('a scored round earns points and a badge for the profile, and the shop sells what they buy', async () => {

@@ -15,6 +15,8 @@ import { LADDERS, PROVISIONAL_GAMES, RATING_DEFAULT, RD_DEFAULT, displayRating, 
 import { MAX_ROUND_SCORE } from '../distance';
 import { equippedView } from '../items';
 import { countryByCode } from './countries';
+import { carryRating, daysLeft, previousSeasonKey, seasonByKey, seasonFor, seasonReward } from '../season';
+import { grant } from './points';
 
 export const LEADERBOARD_MIN_GAMES = 3;
 
@@ -58,6 +60,52 @@ export async function resolveProfile(store, { token, userId, name, now = Date.no
   return { profile, token: null, created: false };
 }
 
+/**
+ * The current season's rating rows for these profiles, carrying last
+ * season's in softly the first time a profile is seen this season
+ * (docs/GEO.md, "Seasons") and paying last season's reward once.
+ */
+export async function ensureSeasonRows(store, profileIds, ladder, now = Date.now()) {
+  const ids = [...new Set(profileIds.filter(Boolean))];
+  if (!ids.length) return [];
+  const season = seasonFor(now);
+  const rows = await store.getRatings(ids, ladder, season.key);
+  const missing = ids.filter((id) => !rows.some((r) => r.profileId === id));
+  const prevKey = previousSeasonKey(season.key);
+  if (missing.length && prevKey) {
+    const previous = await store.getRatings(missing, ladder, prevKey);
+    for (const prev of previous) {
+      const carried = carryRating(prev.rating, prev.rd);
+      await store.upsertRating(
+        prev.profileId,
+        ladder,
+        { rating: carried.rating, rd: carried.rd, games: 0, wins: 0, podiums: 0, peak: carried.rating, streak: 0, lastPlayedAt: prev.lastPlayedAt || null },
+        season.key
+      );
+      const tier = tierFor(prev.rating);
+      const reward = seasonReward(tier, prev.games);
+      if (reward > 0) {
+        const last = seasonByKey(prevKey);
+        await grant(store, {
+          profileId: prev.profileId,
+          amount: reward,
+          reason: `Season ${last?.number ?? ''} ${ladder}: ${tier}`.replace(/\s+/g, ' ').trim(),
+          ref: `season:${prevKey}:${ladder}`,
+          now,
+        });
+      }
+    }
+    return store.getRatings(ids, ladder, season.key);
+  }
+  return rows;
+}
+
+/** The season as the screens show it. */
+export function seasonView(now = Date.now()) {
+  const season = seasonFor(now);
+  return { key: season.key, number: season.number, label: season.label, startsAt: Number.isFinite(season.startsAt) ? season.startsAt : null, endsAt: season.endsAt, daysLeft: daysLeft(season, now) };
+}
+
 function ratingView(row) {
   const rating = row?.rating ?? RATING_DEFAULT;
   const rd = row?.rd ?? RD_DEFAULT;
@@ -81,7 +129,7 @@ function ratingView(row) {
 export async function profileSummary(store, profile) {
   const ratings = {};
   for (const ladder of LADDERS) {
-    const [row] = await store.getRatings([profile.id], ladder);
+    const [row] = await ensureSeasonRows(store, [profile.id], ladder);
     ratings[ladder] = ratingView(row);
   }
   const recent = (await store.getRecentResults(profile.id, 10)).map((r) => ({
@@ -117,6 +165,7 @@ export async function profileSummary(store, profile) {
     equipped: equippedView(fresh?.equipped),
     badges,
     ledger,
+    season: seasonView(),
   };
 }
 
@@ -125,7 +174,7 @@ export async function ratingsForRoom(store, room) {
   const ladder = room.variant === 'duel' ? 'duel' : 'classic';
   const ids = [...new Set(room.players.map((p) => p.profileId).filter(Boolean))];
   if (!ids.length) return {};
-  const [rows, profiles] = await Promise.all([store.getRatings(ids, ladder), store.getProfilesByIds ? store.getProfilesByIds(ids) : []]);
+  const [rows, profiles] = await Promise.all([ensureSeasonRows(store, ids, ladder), store.getProfilesByIds ? store.getProfilesByIds(ids) : []]);
   const out = {};
   for (const id of ids) {
     out[id] = { ...ratingView(rows.find((r) => r.profileId === id)), cosmetics: equippedView(profiles.find((p) => p.id === id)?.equipped) };
@@ -151,7 +200,8 @@ export async function applyRoomRatings(store, room, now = Date.now()) {
   const stayed = sortStandings(rated.filter((p) => !p.leftAt), room.variant);
   const measureOf = (p) => (isDuel ? (p.eliminated ? 0 : p.hp || 0) : p.score || 0);
   const placements = placementsFrom(stayed, measureOf);
-  const rows = await store.getRatings(rated.map((p) => p.profileId), ladder);
+  const rows = await ensureSeasonRows(store, rated.map((p) => p.profileId), ladder, now);
+  const seasonKey = seasonFor(now).key;
   const byProfile = Object.fromEntries(rows.map((r) => [r.profileId, r]));
 
   const entries = rated.map((p) => {
@@ -184,11 +234,12 @@ export async function applyRoomRatings(store, room, now = Date.now()) {
       peak: Math.max(row?.peak ?? RATING_DEFAULT, result.after),
       streak: won ? (row?.streak || 0) + 1 : 0,
       lastPlayedAt: new Date(now),
-    });
+    }, seasonKey);
     await store.createMatchResult({
       roomId: room.id,
       profileId: result.id,
       ladder,
+      season: seasonKey,
       placement: result.placement,
       players: rated.length,
       score: Math.round(entry.measure),
@@ -204,19 +255,20 @@ export async function applyRoomRatings(store, room, now = Date.now()) {
 }
 
 /** The ladder table, with the asker's own row even when unranked. */
-export async function leaderboard(store, { ladder = 'classic', limit = 50, profileId = null } = {}) {
+export async function leaderboard(store, { ladder = 'classic', limit = 50, profileId = null, now = Date.now() } = {}) {
   const which = LADDERS.includes(ladder) ? ladder : 'classic';
-  const rows = await store.listLeaderboard(which, { limit, minGames: LEADERBOARD_MIN_GAMES });
+  const season = seasonView(now);
+  const rows = await store.listLeaderboard(which, { limit, minGames: LEADERBOARD_MIN_GAMES, season: season.key });
   const table = rows.map((r, i) => ({ rank: i + 1, profileId: r.profileId, name: r.profile?.name || 'Player', cosmetics: equippedView(r.profile?.equipped), ...ratingView(r) }));
   let you = null;
   if (profileId) {
     const inTable = table.find((r) => r.profileId === profileId);
     if (inTable) you = inTable;
     else {
-      const [row] = await store.getRatings([profileId], which);
+      const [row] = await ensureSeasonRows(store, [profileId], which, now);
       const profile = await store.getProfileById?.(profileId);
       you = { rank: null, profileId, name: profile?.name || 'You', ...ratingView(row) };
     }
   }
-  return { ladder: which, minGames: LEADERBOARD_MIN_GAMES, rows: table, you };
+  return { ladder: which, minGames: LEADERBOARD_MIN_GAMES, season, rows: table, you };
 }

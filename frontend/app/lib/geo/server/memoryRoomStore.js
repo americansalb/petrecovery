@@ -9,6 +9,8 @@
  * safe against two requests racing.
  */
 
+import { seasonFor } from '../season';
+
 export function createMemoryRoomStore() {
   const rooms = new Map();
   const players = new Map();
@@ -23,6 +25,7 @@ export function createMemoryRoomStore() {
   const ledger = new Map(); // key `${profileId}|${ref}`
   const unlocks = new Map(); // key `${profileId}|${itemId}`
   const badges = new Map(); // key `${profileId}|${countryCode}`
+  const finals = new Map(); // challenge key -> { finalizedAt, prizes }
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -120,12 +123,12 @@ export function createMemoryRoomStore() {
       Object.assign(profile, data);
       return { ...profile };
     },
-    async getRatings(profileIds, ladder) {
-      return profileIds.map((pid) => ratings.get(`${pid}|${ladder}`)).filter(Boolean).map((r) => ({ ...r }));
+    async getRatings(profileIds, ladder, season = seasonFor().key) {
+      return profileIds.map((pid) => ratings.get(`${pid}|${ladder}|${season}`)).filter(Boolean).map((r) => ({ ...r }));
     },
-    async upsertRating(profileId, ladder, data) {
-      const key = `${profileId}|${ladder}`;
-      const existing = ratings.get(key) || { id: id('rating'), profileId, ladder };
+    async upsertRating(profileId, ladder, data, season = seasonFor().key) {
+      const key = `${profileId}|${ladder}|${season}`;
+      const existing = ratings.get(key) || { id: id('rating'), profileId, ladder, season };
       Object.assign(existing, data);
       ratings.set(key, existing);
       return { ...existing };
@@ -141,9 +144,9 @@ export function createMemoryRoomStore() {
       room.ratedAt = new Date(now);
       return true;
     },
-    async listLeaderboard(ladder, { limit = 50, minGames = 0 } = {}) {
+    async listLeaderboard(ladder, { limit = 50, minGames = 0, season = seasonFor().key } = {}) {
       return [...ratings.values()]
-        .filter((r) => r.ladder === ladder && (r.games || 0) >= minGames)
+        .filter((r) => r.ladder === ladder && r.season === season && (r.games || 0) >= minGames)
         .sort((a, b) => b.rating - a.rating)
         .slice(0, limit)
         .map((r) => ({ ...r, profile: { id: r.profileId, name: profiles.get(r.profileId)?.name || 'Player', equipped: profiles.get(r.profileId)?.equipped || null } }));
@@ -211,6 +214,17 @@ export function createMemoryRoomStore() {
         (e) => e.key === key && e.rounds >= rounds && (e.total > total || (e.total === total && (e.finishedAt?.getTime() || 0) < mine))
       ).length;
     },
+    // The weekly cup's prizes, paid once per week (server/challenges.js)
+    async claimChallengeFinal(key, now, prizes = 0) {
+      if (finals.has(key)) return false;
+      finals.set(key, { key, finalizedAt: new Date(now), prizes });
+      return true;
+    },
+    async getChallengeFinal(key) {
+      const row = finals.get(key);
+      return row ? { ...row } : null;
+    },
+
     // Points, unlocks and badges (server/points.js)
     async getProfilesByIds(ids) {
       return ids.map((pid) => profiles.get(pid)).filter(Boolean).map((p) => ({ ...p }));

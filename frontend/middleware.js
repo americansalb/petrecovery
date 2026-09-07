@@ -41,6 +41,7 @@ const RATE_LIMIT_CONFIG = {
   '/api/geo/og': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/daily': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/shop': { windowMs: 60000, maxRequests: 60 },
+  '/api/geo/cup': { windowMs: 60000, maxRequests: 30 },
   // Higher than the other strict routes on purpose: letter-writing events
   // put a whole room of families behind one venue IP, and each lookup is
   // one cheap, un-stored Census call (see app/api/rasuwa/district).
