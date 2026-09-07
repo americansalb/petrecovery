@@ -1,7 +1,8 @@
 /**
- * The Where on Earth segment: its own header and footer (this is an
- * immersive segment, see app/lib/navChrome.js) and the static share card
- * for /geo (docs/LINK_PREVIEWS.md). Pages below override the card.
+ * The Where on Earth segment: the game's subtabs under the universal bar
+ * (or, on the game's own site, its header and footer; see
+ * app/lib/navChrome.js) and the static share card for /geo
+ * (docs/LINK_PREVIEWS.md). Pages below override the card.
  */
 
 import { buildShareMetadata } from '@/app/lib/shareMetadata';

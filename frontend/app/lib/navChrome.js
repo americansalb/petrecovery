@@ -21,16 +21,33 @@
  * /rasuwa is the letter tool for families of people missing in the 2026
  * Rasuwa (Nepal) flood: a crisis page for a non-pet audience, so it
  * carries none of the pet-site chrome; its footer links back to /.
- * /geo is Where on Earth, the street-level guessing game (docs/GEO.md):
- * a game for a non-pet audience that can also be served on a domain of
- * its own, so the whole segment ships its own header (app/geo/layout.js)
- * with a ReunitePets link as the way back out. A round or a room in
- * progress covers the screen and carries an X back to the game's lobby.
+ * /geo/play and /geo/room are Where on Earth, the street-level guessing
+ * game (docs/GEO.md), while a round or a room is in progress: they cover
+ * the screen and carry an X back to the game's lobby. The rest of the
+ * game (/geo, /geo/rooms, /geo/leaderboard, /geo/share) is ordinary
+ * pages under the universal bar, with the game's own subtabs below it
+ * (app/geo/components/GeoHeader.js).
  */
-export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter', '/rasuwa', '/geo'];
+export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter', '/rasuwa', '/geo/play', '/geo/room'];
+
+/**
+ * Which site this build is. 'pet' is reunitepets.org, where the game
+ * lives under /geo beneath the universal chrome. A deployment built with
+ * NEXT_PUBLIC_SITE=geo is the game's own site (docs/GEO.md, "Hosting on
+ * another domain"): no pet chrome anywhere, the game's header in its
+ * place, and the middleware sends every non-game path to the pet site.
+ * Read at build time, so the server and the browser agree on the first
+ * paint.
+ */
+export const SITE = process.env.NEXT_PUBLIC_SITE === 'geo' ? 'geo' : 'pet';
+
+export function isGameSite() {
+  return SITE === 'geo';
+}
 
 /** True inside an immersive takeover: no global chrome at all. */
 export function isImmersiveRoute(pathname) {
+  if (SITE === 'geo') return true;
   return IMMERSIVE_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );

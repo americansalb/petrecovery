@@ -44,7 +44,7 @@ const KNOWN_EXCEPTIONS = [
 ];
 
 /** Segments that ARE the immersive experiences - they own their chrome. */
-const IMMERSIVE_DIRS = ['mission-control', 'my-shelter', 'rasuwa', 'geo'];
+const IMMERSIVE_DIRS = ['mission-control', 'my-shelter', 'rasuwa', 'geo/play', 'geo/room'];
 
 function walkChromeFiles(dir, rel = '') {
   const out = [];
@@ -73,12 +73,35 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     // the footer's ReunitePets link is its way back out
   });
 
-  test('the geo game is an immersive segment with its own header (app/geo/layout.js)', () => {
-    // its header carries the ReunitePets link back out; rounds and rooms carry an X
-    for (const route of ['/geo', '/geo/play', '/geo/rooms', '/geo/room/ABC123', '/geo/share', '/geo/leaderboard']) {
-      expect(isImmersiveRoute(route)).toBe(true);
+  test('the geo game covers the screen only while a round or a room is in progress', () => {
+    // the HUD's X leads back to /geo; a room's X to /geo/rooms
+    expect(isImmersiveRoute('/geo/play')).toBe(true);
+    expect(isImmersiveRoute('/geo/room/ABC123')).toBe(true);
+    // the lobby, the room browser, the rankings and share pages are
+    // ordinary pages: universal bar on top, the game's subtabs below it
+    for (const route of ['/geo', '/geo/rooms', '/geo/share', '/geo/leaderboard', '/geocode']) {
+      expect(isImmersiveRoute(route)).toBe(false);
     }
-    expect(isImmersiveRoute('/geocode')).toBe(false);
+  });
+
+  test('a build of the game site (NEXT_PUBLIC_SITE=geo) has no pet chrome anywhere', () => {
+    const saved = process.env.NEXT_PUBLIC_SITE;
+    process.env.NEXT_PUBLIC_SITE = 'geo';
+    try {
+      jest.isolateModules(() => {
+        const chrome = require('@/app/lib/navChrome');
+        expect(chrome.isGameSite()).toBe(true);
+        for (const route of ['/', '/geo', '/geo/rooms', '/geo/leaderboard', '/geo/play']) {
+          expect(chrome.isImmersiveRoute(route)).toBe(true);
+          expect(chrome.hidesBottomNav(route)).toBe(true);
+        }
+      });
+    } finally {
+      if (saved === undefined) delete process.env.NEXT_PUBLIC_SITE;
+      else process.env.NEXT_PUBLIC_SITE = saved;
+    }
+    // this build is the pet site
+    expect(isImmersiveRoute('/geo')).toBe(false);
   });
 
   test('the shelter portal is an immersive takeover; its onboarding is not', () => {
@@ -214,6 +237,6 @@ describe('nav components defer to the shared policy', () => {
   test('the immersive list stays deliberate - additions need a docs update', () => {
     // If this fails you added a takeover: update docs/APP_MAP.md §8.2 and
     // the IMMERSIVE_DIRS list above, then extend this expectation.
-    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', '/geo']);
+    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', '/geo/play', '/geo/room']);
   });
 });

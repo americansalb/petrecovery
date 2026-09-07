@@ -46,6 +46,14 @@ export function saveIdentity(code, identity) {
   }
 }
 
+/** Rooms this browser has been in, newest first: { code, roomName, name, at }. */
+export function listRecentRooms() {
+  const all = readAll();
+  return Object.keys(all)
+    .map((code) => ({ code, roomName: all[code].roomName || '', name: all[code].name || '', at: all[code].at || 0 }))
+    .sort((a, b) => b.at - a.at);
+}
+
 export function loadName() {
   try {
     return window.localStorage.getItem(NAME_KEY) || '';
@@ -82,13 +90,23 @@ export function useRoom(code) {
     setReady(true);
   }, [code]);
 
-  const apply = useCallback((json) => {
-    if (json && json.state) {
-      stateRef.current = json.state;
-      offsetRef.current = (json.state.serverNow || Date.now()) - Date.now();
-      setState(json.state);
-    }
-  }, []);
+  const apply = useCallback(
+    (json) => {
+      if (json && json.state) {
+        stateRef.current = json.state;
+        offsetRef.current = (json.state.serverNow || Date.now()) - Date.now();
+        setState(json.state);
+        // Remember the room's name next to the token, so the lobby and
+        // the room browser can list it without anyone memorizing a code.
+        const roomName = json.state.room?.name;
+        if (roomName && identityRef.current?.token && identityRef.current.roomName !== roomName) {
+          identityRef.current = { ...identityRef.current, roomName };
+          saveIdentity(code, identityRef.current);
+        }
+      }
+    },
+    [code]
+  );
 
   const headersFor = useCallback((extra = {}) => {
     const headers = { ...extra, ...profileHeaders() };

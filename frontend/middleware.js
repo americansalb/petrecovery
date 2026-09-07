@@ -236,16 +236,20 @@ export async function middleware(request) {
     return NextResponse.redirect(url, 301);
   }
 
-  // A domain of the game's own (docs/GEO.md): GEO_DOMAINS lists hosts
-  // that serve only Where on Earth. Short paths redirect into /geo so the
-  // visible pathname drives the chrome, and anything that is not the game
-  // goes to the pet site. Redirects, not rewrites, for the same reason as
-  // the rasuwa branch below.
+  // The game's own site (docs/GEO.md, "Hosting on another domain"): a
+  // build with NEXT_PUBLIC_SITE=geo, or a host listed in GEO_DOMAINS on
+  // the shared deployment. Short paths redirect into /geo so the visible
+  // pathname drives the chrome, and anything that is not the game goes
+  // to the pet site. Redirects, not rewrites, for the same reason as the
+  // rasuwa branch below.
   const geoHosts = (process.env.GEO_DOMAINS || '')
     .split(',')
     .map((h) => h.trim().toLowerCase())
     .filter(Boolean);
-  if (geoHosts.length && geoHosts.includes(host.toLowerCase().replace(/:\d+$/, ''))) {
+  const gameSite =
+    process.env.NEXT_PUBLIC_SITE === 'geo' ||
+    (geoHosts.length > 0 && geoHosts.includes(host.toLowerCase().replace(/:\d+$/, '')));
+  if (gameSite) {
     const short = {
       '/': '/geo',
       '/play': '/geo/play',
@@ -270,7 +274,8 @@ export async function middleware(request) {
       pathname.startsWith('/static') ||
       /\.[a-z0-9]{2,5}$/i.test(pathname);
     if (!isGame) {
-      return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, 'https://www.reunitepets.org'), 302);
+      const petSite = process.env.NEXT_PUBLIC_GEO_HOME_URL || 'https://www.reunitepets.org';
+      return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, petSite), 302);
     }
   }
 
