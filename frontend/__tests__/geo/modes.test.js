@@ -12,6 +12,11 @@ const {
   isoWeek,
   isoWeekEnd,
   describeConfig,
+  movementLabel,
+  formatOf,
+  formatSettings,
+  formatLabel,
+  FORMAT_ORDER,
   DEFAULT_CONFIG,
   MODES,
   MODE_ORDER,
@@ -51,7 +56,7 @@ describe('normalizeConfig', () => {
   test('the weekly cup forces its settings and this week\'s seed', () => {
     const now = new Date('2026-09-07T12:00:00Z');
     const c = normalizeConfig({ mode: 'cup', rounds: 3, time: 0, move: '0', seed: 'cheat' }, { now });
-    expect(c).toMatchObject({ mode: 'cup', rounds: 10, time: 60, move: true, pan: true, zoom: true, radius: 'standard' });
+    expect(c).toMatchObject({ mode: 'cup', rounds: 10, time: 60, move: false, pan: true, zoom: true, radius: 'standard' });
     expect(c.seed).toBe(`cup-${isoWeek(now)}`);
     expect(cupSeed(now)).toBe('cup-2026-W37');
     expect(normalizeConfig({ mode: 'cup', seed: 'cup-2026-W36' }, { now }).seed).toBe('cup-2026-W36');
@@ -97,12 +102,38 @@ describe('links', () => {
   });
 });
 
+describe('formats', () => {
+  test('a format is one choice that sets move, pan and zoom together', () => {
+    expect(FORMAT_ORDER).toEqual(['moving', 'nm', 'nmpz']);
+    expect(formatSettings('moving')).toEqual({ move: true, pan: true, zoom: true });
+    expect(formatSettings('nm')).toEqual({ move: false, pan: true, zoom: true });
+    expect(formatSettings('nmpz')).toEqual({ move: false, pan: false, zoom: false });
+    expect(formatSettings('what')).toEqual(formatSettings('moving'));
+    for (const id of FORMAT_ORDER) expect(formatOf(formatSettings(id))).toBe(id);
+  });
+
+  test('the format of a config reads back from its settings, odd mixes fall to the nearest', () => {
+    expect(formatOf({ move: true, pan: false, zoom: false })).toBe('moving');
+    expect(formatOf({ move: false, pan: true, zoom: false })).toBe('nm');
+    expect(formatOf({})).toBe('nmpz');
+    expect(formatLabel({ move: false, pan: true, zoom: true })).toBe('No Move');
+    expect(formatLabel(DEFAULT_CONFIG)).toBe('Moving');
+  });
+
+  test('the movement label names the format, or spells out an odd mix', () => {
+    expect(movementLabel({ move: false, pan: false, zoom: false })).toBe('NMPZ');
+    expect(movementLabel({ move: false, pan: true, zoom: true })).toBe('No Move');
+    expect(movementLabel({ move: true, pan: true, zoom: true })).toBe('Moving');
+    expect(movementLabel({ move: false, pan: true, zoom: false })).toBe('No move, pan, no zoom');
+    expect(movementLabel({ move: true, pan: false, zoom: true })).toBe('Move, no pan, zoom');
+  });
+});
+
 describe('describeConfig', () => {
   test('says what the game was in one line', () => {
     expect(describeConfig({ mode: 'country', region: 'JP' }, { regionLabel: 'Japan' })).toBe('Country: Japan. 5 rounds. No timer.');
-    expect(describeConfig({ mode: 'streak', time: 60, move: false, pan: false, zoom: false })).toBe(
-      'Country streak. Until the first miss. 1 minute. No move, pan or zoom.'
-    );
+    expect(describeConfig({ mode: 'streak', time: 60, move: false, pan: false, zoom: false })).toBe('Country streak. Until the first miss. 1 minute. NMPZ.');
+    expect(describeConfig({ mode: 'balanced', time: 60, move: false, pan: true, zoom: true })).toBe('World, balanced. 5 rounds. 1 minute. No Move.');
     expect(describeConfig({ provider: 'apple', mode: 'cities', rounds: 3 })).toContain('Apple Look Around');
   });
 

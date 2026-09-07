@@ -5748,7 +5748,7 @@ model GeoRoom {
   name         String
   visibility   String    @default("public") // public | private
   status       String    @default("lobby") // lobby | playing | finished
-  phase        String    @default("lobby") // lobby | loading | guessing | reveal | finished
+  phase        String    @default("lobby") // lobby | loading | locating | guessing | reveal | finished
   variant      String    @default("classic") // classic | duel
   config       Json // normalized game config incl. seed
   roundIndex   Int       @default(-1)
@@ -5815,6 +5815,9 @@ model GeoRoomRound {
   imageDate   String?
   sizeKm      Float
   stats       Json?
+  // Apple Look Around rooms: the coordinates offered for this round,
+  // one of which a player's browser finds imagery at (docs/GEO.md).
+  candidates  Json?
   startedAt   DateTime  @default(now())
   deadline    DateTime?
   revealedAt  DateTime?

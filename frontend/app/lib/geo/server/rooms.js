@@ -29,6 +29,7 @@ import {
   REVEAL_SECONDS,
   ROOM_LISTING_WINDOW_MS,
   describeRoomMode,
+  describeRoomRules,
   duelDamages,
   isGameOver,
   normalizeRoomConfig,
@@ -40,7 +41,8 @@ import {
   sanitizeRoomName,
   sortStandings,
 } from '../rooms';
-import { findRoundImagery } from './game';
+import { APPLE_CANDIDATES_PER_ROUND, findRoundImagery } from './game';
+import { createCandidateSource } from './sampler';
 import { checkRoomEntry, recordRoomRound } from './meter';
 import { awardRoomFinish, awardRoomRound, reactionsForProfile } from './points';
 import { allReactionEmoji } from '../items';
@@ -208,6 +210,22 @@ export async function tick(store, room, now, fetchImpl) {
   if (room.phase === 'reveal' && room.phaseEndsAt && now >= toMs(room.phaseEndsAt)) {
     return advanceRound(store, room, now, fetchImpl);
   }
+  if (room.phase === 'locating' && room.phaseEndsAt && now >= toMs(room.phaseEndsAt)) {
+    // Nobody's browser found Look Around imagery among the places offered:
+    // offer the next ones, same round, and wait again.
+    const round = currentRound(room);
+    const retries = (room.retries || 0) + 1;
+    const candidates = appleCandidates(room.config, room.roundIndex, retries);
+    const claimed = await store.updateRoom(
+      room.id,
+      { phaseEndsAt: new Date(now + LOCATING_TIMEOUT_MS), lastError: 'No Look Around imagery at the places tried. Trying more.', retries, version: room.version + 1 },
+      { expectVersion: room.version }
+    );
+    if (claimed && round && candidates.length) {
+      await store.updateRound(round.id, { candidates, lat: candidates[0].lat, lng: candidates[0].lng, startedAt: new Date(now) });
+    }
+    return store.getRoomByCode(room.code);
+  }
   if (room.phase === 'loading' && room.phaseEndsAt && now >= toMs(room.phaseEndsAt)) {
     // The request that claimed the build died mid-probe. Hand it back.
     const fallbackPhase = room.roundIndex < 0 ? 'lobby' : 'reveal';
@@ -336,9 +354,75 @@ async function advanceRound(store, room, now, fetchImpl) {
   return buildRound(store, await store.getRoomByCode(room.code), room.roundIndex + 1, now, fetchImpl);
 }
 
+/** How long a room waits for someone's browser to find Look Around imagery. */
+export const LOCATING_TIMEOUT_MS = 25000;
+
+/**
+ * Apple rooms: the places to try for a round, in the seeded order, with
+ * the country and city kept server-side so the round can be filled in
+ * once a browser reports which one has imagery. `attempt` skips past
+ * places that were already tried.
+ */
+function appleCandidates(config, index, attempt = 0) {
+  const source = createCandidateSource(config, index);
+  const skip = Math.max(0, Math.min(20, Math.floor(Number(attempt) || 0))) * APPLE_CANDIDATES_PER_ROUND;
+  for (let i = 0; i < skip; i++) if (!source.next()) break;
+  const out = [];
+  for (let i = 0; i < APPLE_CANDIDATES_PER_ROUND; i++) {
+    const c = source.next();
+    if (!c) break;
+    out.push({
+      lat: Math.round(c.lat * 1e6) / 1e6,
+      lng: Math.round(c.lng * 1e6) / 1e6,
+      cc: c.country?.cca2 || '',
+      cn: c.country?.name || '',
+      cf: c.country?.flag || '',
+      city: c.city || '',
+      sizeKm: source.sizeKm,
+    });
+  }
+  return out;
+}
+
 /** Probe for imagery and open the guessing phase. Only the claimant calls this. */
 async function buildRound(store, room, index, now, fetchImpl) {
   try {
+    if (room.config?.provider === 'apple') {
+      // No server-side probe exists for Look Around: offer places and let
+      // a browser find one (the locate action), then everyone opens it.
+      const candidates = appleCandidates(room.config, index, room.retries || 0);
+      if (!candidates.length) throw new RoomError('no_candidates', 'No places to try for this mode', 422);
+      const first = candidates[0];
+      await store.createRound({
+        roomId: room.id,
+        index,
+        panoId: '',
+        heading: 0,
+        lat: first.lat,
+        lng: first.lng,
+        countryCode: first.cc || null,
+        countryName: first.cn || null,
+        countryFlag: first.cf || null,
+        city: first.city || null,
+        imageDate: null,
+        sizeKm: first.sizeKm,
+        stats: null,
+        candidates,
+        startedAt: new Date(now),
+        deadline: null,
+      });
+      const fresh = await store.getRoomById(room.id);
+      await store.updateRoom(room.id, {
+        status: 'playing',
+        phase: 'locating',
+        roundIndex: index,
+        phaseEndsAt: new Date(now + LOCATING_TIMEOUT_MS),
+        lastError: null,
+        lastActiveAt: new Date(now),
+        version: fresh.version + 1,
+      });
+      return store.getRoomByCode(room.code);
+    }
     const imagery = await findRoundImagery({ config: room.config, roundIndex: index, attempt: room.retries || 0, fetchImpl });
     const deadline = new Date(now + room.config.time * 1000);
     await store.createRound({
@@ -426,6 +510,42 @@ async function submitGuess(store, room, me, body, now) {
   return store.getRoomByCode(room.code);
 }
 
+/**
+ * Apple rooms: a browser found Look Around imagery at one of the places
+ * offered. The first report wins (claimed by version); the round takes
+ * that place and the clock starts for everyone.
+ */
+async function locateRound(store, room, me, body, now) {
+  if (room.phase !== 'locating') throw new RoomError('not_locating', 'This round already has its place', 409);
+  const round = currentRound(room);
+  const candidates = Array.isArray(round?.candidates) ? round.candidates : [];
+  const index = Number(body?.index);
+  if (!round || !Number.isInteger(index) || index < 0 || index >= candidates.length) {
+    throw new RoomError('bad_candidate', 'That is not one of the places offered', 400);
+  }
+  const deadline = new Date(now + room.config.time * 1000);
+  const claimed = await store.updateRoom(
+    room.id,
+    { phase: 'guessing', phaseEndsAt: deadline, lastActiveAt: new Date(now), version: room.version + 1 },
+    { expectVersion: room.version }
+  );
+  if (!claimed) throw new RoomError('not_locating', 'Someone else placed this round first', 409);
+  const c = candidates[index];
+  await store.updateRound(round.id, {
+    lat: c.lat,
+    lng: c.lng,
+    countryCode: c.cc || null,
+    countryName: c.cn || null,
+    countryFlag: c.cf || null,
+    city: c.city || null,
+    sizeKm: c.sizeKm || round.sizeKm,
+    startedAt: new Date(now),
+    deadline,
+  });
+  await recordRoomRound(store, await store.getRoomById(room.id), now);
+  return store.getRoomByCode(room.code);
+}
+
 async function react(store, room, me, emoji, now) {
   if (!allReactionEmoji(REACTION_EMOJI).includes(emoji)) throw new RoomError('bad_reaction', 'Pick one of the offered reactions', 400);
   const reactions = [...(Array.isArray(room.reactions) ? room.reactions : []), { p: me.id, n: me.name, e: emoji, at: now }].slice(-MAX_REACTIONS_KEPT);
@@ -472,6 +592,9 @@ export async function roomAction(store, { code, token, action, body = {}, now = 
       if (room.phase === 'guessing') room = await revealRound(store, room, now);
       else if (room.phase === 'reveal') room = await advanceRound(store, room, now, fetchImpl);
       else throw new RoomError('nothing_to_skip', 'Nothing to move on from right now', 409);
+      break;
+    case 'locate':
+      room = await locateRound(store, room, me, body, now);
       break;
     case 'react':
       room = await react(store, room, me, body?.emoji, now);
@@ -524,7 +647,9 @@ export async function listRooms(store, { now = Date.now() } = {}) {
     roundIndex: room.roundIndex,
     roundsTotal: room.config?.rounds || 0,
     time: room.config?.time || 0,
+    provider: room.config?.provider || 'google',
     mode: describeRoomMode(room.config),
+    rules: describeRoomRules(room.config),
     players: present(room).length,
     maxPlayers: MAX_PLAYERS,
     createdAt: toMs(room.createdAt),
@@ -608,6 +733,7 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
       lastError: room.lastError || null,
       hostId: present(room).find((p) => p.isHost)?.id || null,
       config: {
+        provider: config.provider || 'google',
         mode: config.mode,
         region: config.region || '',
         rounds: config.rounds,
@@ -634,7 +760,27 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
       : null,
     round:
       current && room.phase === 'guessing'
-        ? { index: current.index, panoId: current.panoId, heading: current.heading, deadline: toMs(current.deadline), startedAt: toMs(current.startedAt), stats: current.stats || null }
+        ? {
+            index: current.index,
+            provider: config.provider || 'google',
+            panoId: current.panoId,
+            heading: current.heading,
+            // Apple rooms open Look Around at the round's place in every
+            // browser; the place is known to the browser, as in solo play.
+            coordinate: config.provider === 'apple' ? { lat: current.lat, lng: current.lng } : null,
+            deadline: toMs(current.deadline),
+            startedAt: toMs(current.startedAt),
+            stats: current.stats || null,
+          }
+        : null,
+    locating:
+      current && room.phase === 'locating'
+        ? {
+            index: current.index,
+            candidates: (Array.isArray(current.candidates) ? current.candidates : []).map((c) => ({ lat: c.lat, lng: c.lng })),
+            startedAt: toMs(current.startedAt),
+            endsAt: toMs(room.phaseEndsAt),
+          }
         : null,
     reveal: current && (room.phase === 'reveal' || room.phase === 'finished') ? revealOf(current, room) : null,
     history: room.rounds.filter((r) => r.revealedAt).map((r) => revealOf(r, room)),

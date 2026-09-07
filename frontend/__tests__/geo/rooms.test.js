@@ -10,8 +10,8 @@
 
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 const { createMemoryRoundCache } = require('@/app/lib/geo/server/roundCache');
-const { createRoom, joinRoom, roomAction, getRoomView, listRooms, tick, RoomError, hashToken } = require('@/app/lib/geo/server/rooms');
-const { createRound } = require('@/app/lib/geo/server/game');
+const { createRoom, joinRoom, roomAction, getRoomView, listRooms, tick, RoomError, hashToken, LOCATING_TIMEOUT_MS } = require('@/app/lib/geo/server/rooms');
+const { createRound, APPLE_CANDIDATES_PER_ROUND } = require('@/app/lib/geo/server/game');
 const rules = require('@/app/lib/geo/rooms');
 
 const ENV_KEYS = { GOOGLE_STREET_VIEW_API_KEY: 'sv', GOOGLE_MAPS_BROWSER_KEY: 'browser' };
@@ -71,12 +71,21 @@ describe('rules', () => {
     expect(rules.initials('grace')).toBe('GR');
   });
 
-  test('room settings force Google, a timer, and a supported mode', () => {
-    const { config, variant, visibility } = rules.normalizeRoomConfig({ provider: 'apple', mode: 'streak', time: 7, rounds: 4, variant: 'duel', visibility: 'private' });
+  test('room settings force a timer and a mode the imagery supports', () => {
+    const { config, variant, visibility } = rules.normalizeRoomConfig({ provider: 'bing', mode: 'streak', time: 7, rounds: 4, variant: 'duel', visibility: 'private' });
     expect(config).toMatchObject({ provider: 'google', mode: 'balanced', time: 60, rounds: 5 });
     expect(variant).toBe('duel');
     expect(visibility).toBe('private');
     expect(rules.normalizeRoomConfig({ mode: 'country', region: 'jp', time: 90, rounds: 10 }).config).toMatchObject({ mode: 'country', region: 'JP', time: 90, rounds: 10 });
+    // Apple Look Around rooms play the modes Apple imagery covers.
+    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'balanced' }).config).toMatchObject({ provider: 'apple', mode: 'cities' });
+    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'cities', time: 90 }).config).toMatchObject({ provider: 'apple', mode: 'cities', time: 90 });
+  });
+
+  test('the rules line names the places, the format when it is not moving, and Apple imagery', () => {
+    expect(rules.describeRoomRules({ mode: 'balanced', move: true, pan: true, zoom: true })).toBe('World, balanced');
+    expect(rules.describeRoomRules({ mode: 'country', region: 'JP', move: false, pan: true, zoom: true }, { regionLabel: 'Japan' })).toBe('Country: Japan, No Move');
+    expect(rules.describeRoomRules({ provider: 'apple', mode: 'cities', move: false, pan: false, zoom: false })).toBe('City streets, NMPZ, on Apple Look Around');
   });
 
   test('duel damage is the gap to the best guess, scaled every three rounds', () => {
@@ -235,7 +244,9 @@ describe('a classic game', () => {
     await createRoom(pub.store, { name: 'Secret', hostName: 'H', settings: { visibility: 'private' }, now: T0 });
     const list = await listRooms(pub.store, { now: T0 + sec(5) });
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'World, balanced' });
+    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'World, balanced', provider: 'google', rules: 'World, balanced' });
+    const nm = await setupRoom({ settings: { move: false, pan: true, zoom: true } });
+    expect((await listRooms(nm.store, { now: T0 }))[0].rules).toBe('World, balanced, No Move');
     expect(await listRooms(pub.store, { now: T0 + rules.ROOM_LISTING_WINDOW_MS + sec(1) })).toHaveLength(0);
   });
 
@@ -261,6 +272,76 @@ describe('a classic game', () => {
     expect(next.me.isHost).toBe(true);
     const twice = await roomAction(store, { code, token: tokens[1], action: 'rematch', now }).catch((e) => e);
     expect(twice).toBeInstanceOf(RoomError); // only the host
+  });
+});
+
+describe('an Apple Look Around room', () => {
+  const apple = { provider: 'apple', mode: 'cities', rounds: 2, time: 60 };
+
+  test('a round offers places, the first browser to find imagery places it for everyone, then the clock runs', async () => {
+    const { store, code, tokens } = await setupRoom({ settings: apple });
+    const [ada, grace] = tokens;
+
+    const started = await roomAction(store, { code, token: ada, action: 'start', now: T0 });
+    expect(started.state.room).toMatchObject({ status: 'playing', phase: 'locating', roundIndex: 0, config: { provider: 'apple', mode: 'cities' } });
+    expect(started.state.room.phaseEndsAt).toBe(T0 + LOCATING_TIMEOUT_MS);
+    expect(started.state.round).toBeNull();
+    const offered = started.state.locating;
+    expect(offered.index).toBe(0);
+    expect(offered.candidates).toHaveLength(APPLE_CANDIDATES_PER_ROUND);
+    // The browser sees coordinates to try, never the country behind them.
+    expect(Object.keys(offered.candidates[0]).sort()).toEqual(['lat', 'lng']);
+    expect(JSON.stringify(offered)).not.toMatch(/"cc"|"cn"|country/);
+
+    await expect(roomAction(store, { code, token: grace, action: 'guess', body: offered.candidates[0], now: T0 + sec(1) })).rejects.toMatchObject({ code: 'not_guessing' });
+    await expect(roomAction(store, { code, token: grace, action: 'locate', body: { index: 99 }, now: T0 + sec(2) })).rejects.toMatchObject({ code: 'bad_candidate', status: 400 });
+    await expect(roomAction(store, { code, token: grace, action: 'locate', body: { index: 'x' }, now: T0 + sec(2) })).rejects.toMatchObject({ code: 'bad_candidate' });
+
+    const placed = await roomAction(store, { code, token: grace, action: 'locate', body: { index: 3 }, now: T0 + sec(3) });
+    expect(placed.state.room.phase).toBe('guessing');
+    expect(placed.state.locating).toBeNull();
+    expect(placed.state.round).toMatchObject({ index: 0, provider: 'apple', panoId: '', coordinate: offered.candidates[3], deadline: T0 + sec(63) });
+    expect(await answerOf(store, code)).toEqual(offered.candidates[3]);
+    await expect(roomAction(store, { code, token: ada, action: 'locate', body: { index: 4 }, now: T0 + sec(4) })).rejects.toMatchObject({ code: 'not_locating', status: 409 });
+
+    const answer = offered.candidates[3];
+    await roomAction(store, { code, token: ada, action: 'guess', body: answer, now: T0 + sec(5) });
+    const revealed = await roomAction(store, { code, token: grace, action: 'guess', body: { lat: answer.lat, lng: ((answer.lng + 360) % 360) - 180 }, now: T0 + sec(8) });
+    expect(revealed.state.room.phase).toBe('reveal');
+    expect(revealed.state.reveal.answer).toMatchObject(answer);
+    expect(revealed.state.reveal.answer.country?.code).toBeTruthy();
+    expect(revealed.state.reveal.guesses[0]).toMatchObject({ rank: 1, score: 5000 });
+
+    // The next round offers new places; the meter counted the round for the site under Apple.
+    const next = await getRoomView(store, { code, token: ada, now: T0 + sec(8) + rules.REVEAL_SECONDS * 1000 + sec(1) });
+    expect(next.room).toMatchObject({ phase: 'locating', roundIndex: 1 });
+    expect(next.locating.index).toBe(1);
+    expect(next.locating.candidates[0]).not.toEqual(offered.candidates[0]);
+    const usage = store._dump().usage;
+    expect(usage).toHaveLength(1);
+    expect(usage[0]).toMatchObject({ subject: 'site', provider: 'apple', rounds: 2 });
+  });
+
+  test('when nobody finds imagery in time the room offers the next places for the same round', async () => {
+    const { store, code, tokens } = await setupRoom({ settings: apple });
+    const started = await roomAction(store, { code, token: tokens[0], action: 'start', now: T0 });
+    const first = started.state.locating.candidates;
+    const stale = await store.getRoomByCode(code);
+    const late = T0 + LOCATING_TIMEOUT_MS + sec(1);
+    const [a, b] = await Promise.all([tick(store, stale, late), tick(store, stale, late)]);
+    expect(a.phase).toBe('locating');
+    expect(b.phase).toBe('locating');
+    expect(a.retries).toBe(1);
+    expect(a.lastError).toMatch(/No Look Around imagery/);
+    const view = await getRoomView(store, { code, token: tokens[1], now: late + sec(1) });
+    expect(view.room).toMatchObject({ phase: 'locating', roundIndex: 0 });
+    expect(view.room.phaseEndsAt).toBe(late + LOCATING_TIMEOUT_MS);
+    expect(view.locating.candidates).toHaveLength(APPLE_CANDIDATES_PER_ROUND);
+    expect(view.locating.candidates).not.toEqual(first);
+    // The place that finally loads is one of the new offers.
+    const placed = await roomAction(store, { code, token: tokens[1], action: 'locate', body: { index: 0 }, now: late + sec(2) });
+    expect(placed.state.round.coordinate).toEqual(view.locating.candidates[0]);
+    expect(placed.state.round.deadline).toBe(late + sec(62));
   });
 });
 

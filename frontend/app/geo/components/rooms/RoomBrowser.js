@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, History, Plus, RefreshCw, Users } from 'lucide-react';
-import { CONTINENTS, CONTINENT_ORDER, MODES, timeLabel } from '@/app/lib/geo/modes';
+import { CONTINENTS, CONTINENT_ORDER, FORMATS, FORMAT_ORDER, MODES, formatSettings, timeLabel } from '@/app/lib/geo/modes';
 import { MAX_PLAYERS, ROOM_MODES, ROOM_ROUND_OPTIONS, ROOM_TIME_OPTIONS, VARIANTS, describeRoomStatus, normalizeRoomCode } from '@/app/lib/geo/rooms';
 import { listRecentRooms, loadName, saveIdentity, saveName } from '../../lib/useRoom';
 import { ensureProfile, profileHeaders } from '../../lib/profile';
@@ -33,7 +33,18 @@ export default function RoomBrowser() {
   const [rooms, setRooms] = useState(null);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [form, setForm] = useState({ roomName: '', variant: 'classic', mode: 'balanced', continent: 'europe', country: 'US', rounds: 5, time: 60, move: true, pan: true, zoom: true, visibility: 'public' });
+  const [form, setForm] = useState({
+    roomName: '',
+    variant: 'classic',
+    provider: 'google',
+    mode: 'balanced',
+    continent: 'europe',
+    country: 'US',
+    rounds: 5,
+    time: 60,
+    format: 'moving',
+    visibility: 'public',
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [hydrated, setHydrated] = useState(false);
@@ -61,20 +72,20 @@ export default function RoomBrowser() {
     };
   }, []);
 
-  const configured = Boolean(server?.providers?.google?.configured);
+  const configured = Boolean(form.provider === 'apple' ? server?.providers?.apple?.configured : server?.providers?.google?.configured);
+  const modesFor = (provider) => ROOM_MODES.filter((id) => MODES[id]?.providers?.includes(provider));
   const countries = server?.countries || [];
   const update = (patch) => setForm((f) => ({ ...f, ...patch }));
 
   const settings = useMemo(
     () => ({
       variant: form.variant,
+      provider: form.provider,
       mode: form.mode,
       region: form.mode === 'continent' ? form.continent : form.mode === 'country' ? form.country : '',
       rounds: form.rounds,
       time: form.time,
-      move: form.move,
-      pan: form.pan,
-      zoom: form.zoom,
+      ...formatSettings(form.format),
       visibility: form.visibility,
     }),
     [form]
@@ -94,12 +105,20 @@ export default function RoomBrowser() {
       const res = await fetch('/api/geo/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...profileHeaders() },
-        body: JSON.stringify({ name: form.roomName.trim() || `${hostName}'s room`, hostName, settings }),
+        body: JSON.stringify({
+          name: form.roomName.trim() || `${hostName}'s room`,
+          hostName,
+          settings,
+        }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Could not open the room');
       saveName(hostName);
-      saveIdentity(json.code, { token: json.token, playerId: json.playerId, name: hostName });
+      saveIdentity(json.code, {
+        token: json.token,
+        playerId: json.playerId,
+        name: hostName,
+      });
       router.push(`/geo/room/${json.code}`);
     } catch (e) {
       setError(e.message);
@@ -137,7 +156,7 @@ export default function RoomBrowser() {
         {error ? <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p> : null}
         {server && !configured ? (
           <div className="mt-6">
-            <SetupNotice provider="google" missing={server?.providers?.google?.missing || []} compact tone="light" />
+            <SetupNotice provider={form.provider} missing={server?.providers?.[form.provider]?.missing || []} compact tone="light" />
           </div>
         ) : null}
 
@@ -174,9 +193,27 @@ export default function RoomBrowser() {
                   ))}
                 </div>
               </div>
+              <Field label="Imagery">
+                <select
+                  value={form.provider}
+                  onChange={(e) => {
+                    const provider = e.target.value;
+                    const modes = modesFor(provider);
+                    update({
+                      provider,
+                      mode: modes.includes(form.mode) ? form.mode : modes[0],
+                    });
+                  }}
+                  className={select}
+                >
+                  <option value="google">Google Street View</option>
+                  <option value="apple">Apple Look Around (beta)</option>
+                </select>
+                <span className="mt-1 block text-xs text-midnight-500">{form.provider === 'apple' ? 'City streets in the countries Apple covers. Free without limit.' : 'Covers most of the world. Counts toward your Google rounds.'}</span>
+              </Field>
               <Field label="Places">
                 <select value={form.mode} onChange={(e) => update({ mode: e.target.value })} className={select}>
-                  {ROOM_MODES.map((id) => (
+                  {modesFor(form.provider).map((id) => (
                     <option key={id} value={id}>
                       {MODES[id].label}
                     </option>
@@ -184,58 +221,61 @@ export default function RoomBrowser() {
                 </select>
               </Field>
               {form.mode === 'continent' ? (
-                <Field label="Continent">
-                  <select value={form.continent} onChange={(e) => update({ continent: e.target.value })} className={select}>
-                    {CONTINENT_ORDER.map((id) => (
-                      <option key={id} value={id}>
-                        {CONTINENTS[id].label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              ) : form.mode === 'country' ? (
-                <Field label="Country">
-                  <select value={form.country} onChange={(e) => update({ country: e.target.value })} className={select}>
-                    {countries.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.flag} {c.name}
-                        {!c.google ? ' (no known imagery)' : ''}
-                      </option>
-                    ))}
-                    {!countries.length ? <option value={form.country}>{form.country}</option> : null}
-                  </select>
-                </Field>
-              ) : (
-                <div />
-              )}
-              <Field label="Rounds">
-                <select value={form.rounds} onChange={(e) => update({ rounds: Number(e.target.value) })} className={select}>
-                  {ROOM_ROUND_OPTIONS.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Time per round">
-                <select value={form.time} onChange={(e) => update({ time: Number(e.target.value) })} className={select}>
-                  {ROOM_TIME_OPTIONS.map((n) => (
-                    <option key={n} value={n}>
-                      {timeLabel(n)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <div className="sm:col-span-2">
-                <p className="mb-1 text-sm font-semibold text-midnight-800">Movement</p>
-                <div className="flex flex-wrap items-center gap-4 text-sm">
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={form.move} onChange={(e) => update({ move: e.target.checked })} className="h-4 w-4 rounded border-midnight-300" /> Move</label>
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={form.pan} onChange={(e) => update({ pan: e.target.checked })} className="h-4 w-4 rounded border-midnight-300" /> Pan</label>
-                  <label className="flex items-center gap-2"><input type="checkbox" checked={form.zoom} onChange={(e) => update({ zoom: e.target.checked })} className="h-4 w-4 rounded border-midnight-300" /> Zoom</label>
-                  <button type="button" onClick={() => update({ move: false, pan: false, zoom: false })} className="rounded-lg border border-midnight-300 px-2 py-1 text-xs font-semibold hover:bg-midnight-100">
-                    NMPZ
-                  </button>
+                <div className="sm:col-span-2">
+                  <Field label="Continent">
+                    <select value={form.continent} onChange={(e) => update({ continent: e.target.value })} className={select}>
+                      {CONTINENT_ORDER.map((id) => (
+                        <option key={id} value={id}>
+                          {CONTINENTS[id].label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                 </div>
+              ) : form.mode === 'country' ? (
+                <div className="sm:col-span-2">
+                  <Field label="Country">
+                    <select value={form.country} onChange={(e) => update({ country: e.target.value })} className={select}>
+                      {countries.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.flag} {c.name}
+                          {!c.google ? ' (no known imagery)' : ''}
+                        </option>
+                      ))}
+                      {!countries.length ? <option value={form.country}>{form.country}</option> : null}
+                    </select>
+                  </Field>
+                </div>
+              ) : null}
+              <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
+                <Field label="Rounds">
+                  <select value={form.rounds} onChange={(e) => update({ rounds: Number(e.target.value) })} className={select}>
+                    {ROOM_ROUND_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Time per round">
+                  <select value={form.time} onChange={(e) => update({ time: Number(e.target.value) })} className={select}>
+                    {ROOM_TIME_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {timeLabel(n)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Format">
+                  <select value={form.format} onChange={(e) => update({ format: e.target.value })} className={select}>
+                    {FORMAT_ORDER.map((id) => (
+                      <option key={id} value={id}>
+                        {FORMATS[id].label}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-xs text-midnight-500">{FORMATS[form.format]?.description}</span>
+                </Field>
               </div>
             </div>
             <button type="submit" disabled={busy || !configured} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-flash-400 px-5 py-2.5 font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
@@ -298,7 +338,7 @@ export default function RoomBrowser() {
                           {room.name} <span className="rounded-full bg-midnight-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-midnight-600">{VARIANTS[room.variant]?.label || room.variant}</span>
                         </p>
                         <p className="truncate text-xs text-midnight-600">
-                          {room.mode}. {describeRoomStatus(room)}. {room.players} of {room.maxPlayers || MAX_PLAYERS} in.
+                          {room.rules || room.mode}. {describeRoomStatus(room)}. {room.players} of {room.maxPlayers || MAX_PLAYERS} in.
                         </p>
                       </div>
                       <Link href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ''}`} className="rounded-lg bg-flash-400 px-3 py-1.5 text-sm font-bold text-midnight-900 hover:bg-flash-500">

@@ -14,6 +14,8 @@ import { CalendarDays, Check, Gauge, Medal, Play, Trophy, Users } from 'lucide-r
 import {
   CONTINENTS,
   CONTINENT_ORDER,
+  FORMATS,
+  FORMAT_ORDER,
   MODES,
   MODE_ORDER,
   PROVIDERS,
@@ -21,6 +23,8 @@ import {
   ROUND_OPTIONS,
   TIME_OPTIONS,
   configToParams,
+  formatOf,
+  formatSettings,
   normalizeConfig,
   timeLabel,
 } from '@/app/lib/geo/modes';
@@ -81,15 +85,6 @@ function Segmented({ options, value, onChange, label, format = (v) => String(v),
         ))}
       </div>
     </div>
-  );
-}
-
-function Toggle({ checked, onChange, label, disabled }) {
-  return (
-    <label className={`flex cursor-pointer items-center gap-2 text-sm ${disabled ? 'opacity-50' : ''}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 rounded border-midnight-300 text-midnight-900 focus:ring-flash-400" />
-      {label}
-    </label>
   );
 }
 
@@ -199,7 +194,14 @@ export default function GeoLobby() {
   const configured = Boolean(providerInfo?.configured);
   const countries = server?.countries || [];
   const modeDef = MODES[config.mode];
-  const fixed = config.mode === 'daily';
+  const fixed = config.mode === 'daily' || config.mode === 'cup';
+  const format = formatOf(config);
+  const setFormat = (id) => {
+    const f = formatSettings(id);
+    setMove(f.move);
+    setPan(f.pan);
+    setZoom(f.zoom);
+  };
 
   const start = (overrides = {}) => {
     const c = normalizeConfig({ ...config, ...overrides });
@@ -312,30 +314,17 @@ export default function GeoLobby() {
             {/* Rules */}
             <section className="rounded-2xl border border-midnight-200 bg-white p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Rules</h2>
-              {fixed ? <p className="mt-2 text-sm text-midnight-600">The daily challenge uses fixed rules so scores compare: 5 rounds, no timer, moving allowed.</p> : null}
+              {fixed ? (
+                <p className="mt-2 text-sm text-midnight-600">
+                  {config.mode === 'cup' ? 'The weekly cup uses fixed rules so scores compare: 10 rounds, 60 seconds each, No Move.' : 'The daily challenge uses fixed rules so scores compare: 5 rounds, no timer, Moving.'}
+                </p>
+              ) : null}
               <div className="mt-3 grid gap-5 sm:grid-cols-2">
                 {config.mode !== 'streak' ? <Segmented label="Rounds" options={ROUND_OPTIONS} value={config.rounds} onChange={setRounds} disabled={fixed} /> : null}
                 <Segmented label="Time per round" options={TIME_OPTIONS} value={config.time} onChange={setTime} format={timeLabel} disabled={fixed} />
                 <div>
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-midnight-500">Movement</p>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <Toggle label="Move" checked={config.move} onChange={setMove} disabled={fixed} />
-                    <Toggle label="Pan" checked={config.pan} onChange={setPan} disabled={fixed} />
-                    <Toggle label="Zoom" checked={config.zoom} onChange={setZoom} disabled={fixed} />
-                    <button
-                      type="button"
-                      disabled={fixed}
-                      onClick={() => {
-                        setMove(false);
-                        setPan(false);
-                        setZoom(false);
-                      }}
-                      className="rounded-lg border border-midnight-300 px-2 py-1 text-xs font-semibold hover:bg-midnight-100 disabled:opacity-50"
-                      title="No move, pan or zoom: one view, that is all you get"
-                    >
-                      NMPZ
-                    </button>
-                  </div>
+                  <Segmented label="Format" options={FORMAT_ORDER} value={format} onChange={setFormat} format={(id) => FORMATS[id].label} disabled={fixed} />
+                  <p className="mt-1.5 text-xs text-midnight-600">{FORMATS[format].description}</p>
                 </div>
                 {config.provider === 'google' && config.mode !== 'cities' ? (
                   <div>
@@ -376,7 +365,7 @@ export default function GeoLobby() {
                 <Users className="h-4 w-4" />
                 Play with friends
               </h2>
-              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP.</p>
+              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP. Rooms on Apple Look Around are free without limit.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href="/geo/rooms" className="inline-flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500">
                   <Users className="h-4 w-4" />
