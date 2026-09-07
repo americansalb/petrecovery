@@ -135,6 +135,26 @@ in, so the rating follows them across devices. `/geo/leaderboard` lists
 players with at least 3 rated games; ratings stay "provisional" until 5.
 Tiers (Bronze to Grandmaster) are labels on the number, nothing more.
 
+## The daily challenge
+
+The daily is the front door: five balanced Google rounds, the same for
+everyone, free, and outside the play meter's allowance. Same places for
+all is what makes a score worth sharing and a board worth reading, so
+the server keeps the score. `/api/geo/guess` records each round of a
+daily for the profile behind the request (the seed and the round index
+are in the sealed token; the first guess on a round is the one that
+counts) as a `GeoChallengeRound`, and keeps a running `GeoChallengeEntry`
+per profile per day, keyed `daily:YYYY-MM-DD`. `/api/geo/daily` answers
+with the day's board: everyone who finished the five, ranked by total
+with the earlier finisher ahead on a tie, how many started, and your own
+row with its rank. The lobby's daily card shows the top of the board and
+your place; the summary under a finished daily does the same.
+
+Answers leak, as they do for any shared puzzle, so the daily is never
+rated, and the result page (`/geo/share`) hides a daily's places until
+the reader's own browser has played that day, with a "show them anyway"
+for the impatient. The preview image never shows places.
+
 ## The play meter
 
 Every Google Street View round costs money once the month's free calls

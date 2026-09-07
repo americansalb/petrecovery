@@ -16,7 +16,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, streak, timer, mobile, rooms)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, streak, timer, mobile, rooms, daily)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -269,11 +269,64 @@ async function rooms(browser) {
   await guest.close();
 }
 
+/**
+ * The daily challenge as the front door: today's five, scored on the
+ * server; the summary and the lobby show your place on the day's board;
+ * the result page hides the places from a browser that has not played
+ * that day, and shows them to one that has.
+ */
+async function daily(browser) {
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(`${BASE}/geo/play?mode=daily`, { waitUntil: 'domcontentloaded' });
+  const spots = [[48.8566, 2.3522], [-33.8688, 151.2093], [35.6762, 139.6503], [40.7128, -74.006], [51.5072, -0.1276]];
+  for (let i = 0; i < spots.length; i++) {
+    await waitPlayable(page);
+    await waitForPano(page);
+    await page.evaluate(([lat, lng]) => window.__fakeClick(lat, lng), spots[i]);
+    await waitGuessable(page);
+    await page.click('button:has-text("Guess")');
+    await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
+    log(`daily round ${i + 1} scored`);
+    if (i < spots.length - 1) await page.keyboard.press('Space');
+  }
+  await page.click('button:has-text("See results")');
+  await page.waitForSelector('text=/of 25,000/', { timeout: 20000 });
+  const rankLine = 'text=/You are \\d+(st|nd|rd|th) of \\d+ who finished/';
+  await page.waitForSelector(rankLine, { timeout: 20000 });
+  log('daily summary:', await page.textContent(rankLine));
+  await shot(page, 'daily-summary');
+  const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
+
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-daily-board]', { timeout: 20000 });
+  const board = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
+  log('lobby daily board:', board.slice(0, 160));
+  if (!/You are \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the lobby board should show your rank');
+
+  // This browser played today: the result page shows the places.
+  await page.goto(shareHref, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('text=/played this day/', { timeout: 20000 });
+  if ((await page.locator('li:has-text("Hidden")').count()) !== 0) throw new Error('places should show to a browser that played');
+
+  // A browser that has not: hidden until "Show them anyway".
+  const fresh = await newPage(browser, { width: 1280, height: 800 });
+  await fresh.goto(shareHref, { waitUntil: 'domcontentloaded' });
+  await fresh.waitForSelector('text=/hidden until you have played/', { timeout: 20000 });
+  if ((await fresh.locator('li:has-text("Hidden")').count()) !== 5) throw new Error('a fresh browser should see five hidden places');
+  await shot(fresh, 'daily-share-hidden');
+  await fresh.click('button:has-text("Show them anyway")');
+  await fresh.waitForFunction(() => ![...document.querySelectorAll('li')].some((li) => li.textContent.trim() === 'Hidden'), null, { timeout: 10000 });
+  log('daily share: hidden for a fresh browser, shown on request');
+  for (const p of [page, fresh]) if (p.errors.length) throw new Error('page errors: ' + p.errors.join(' | '));
+  await page.close();
+  await fresh.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, streak, timer, mobile, rooms };
+    const all = { pinGame, streak, timer, mobile, rooms, daily };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

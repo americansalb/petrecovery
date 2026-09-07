@@ -27,6 +27,7 @@ const { GET: getConfig } = require('@/app/api/geo/config/route');
 const { POST: postRound } = require('@/app/api/geo/round/route');
 const { POST: postGuess } = require('@/app/api/geo/guess/route');
 const { POST: postProfile } = require('@/app/api/geo/profile/route');
+const { GET: getDaily } = require('@/app/api/geo/daily/route');
 const { openToken } = require('@/app/lib/geo/server/tokens');
 
 function request(body, headers = {}) {
@@ -186,5 +187,39 @@ describe('POST /api/geo/guess', () => {
     const res = await postGuess(request({ token: 'g1.garbage', guess: null }));
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe('invalid');
+  });
+
+  test("a daily round lands on today's board for the profile, first guess only, and the board answers with your rank", async () => {
+    const registered = await (await postProfile(request({ name: 'Ada' }, { 'x-test-ip': '198.51.100.20' }))).json();
+    const mine = { 'x-test-ip': '198.51.100.20', 'x-geo-profile': registered.token };
+    const today = new Date().toISOString().slice(0, 10);
+    const totals = [];
+    for (let i = 0; i < 5; i++) {
+      const round = (await (await postRound(request({ config: { mode: 'daily' }, roundIndex: i }, mine))).json()).round;
+      const answer = openToken(round.token, { secret: process.env.NEXTAUTH_SECRET });
+      const { challenge } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
+      expect(challenge).toMatchObject({ key: `daily:${today}`, recorded: true, rounds: i + 1, finished: i === 4 });
+      totals.push(challenge.total);
+      if (i === 0) {
+        // a second guess on the same round changes nothing
+        const repeat = await (await postGuess(request({ token: round.token, guess: null }, mine))).json();
+        expect(repeat.challenge).toMatchObject({ recorded: false, rounds: 1, total: challenge.total });
+      }
+    }
+    expect(totals[4]).toBe(5 * 5000);
+    // without a profile the guess is scored and nothing is recorded
+    const round = (await (await postRound(request({ config: { mode: 'daily' }, roundIndex: 0 }, { 'x-test-ip': '198.51.100.21' }))).json()).round;
+    const anon = await (await postGuess(request({ token: round.token, guess: null }, { 'x-test-ip': '198.51.100.21' }))).json();
+    expect(anon.result.score).toBe(0);
+    expect(anon.challenge).toBeNull();
+
+    const board = await (await getDaily({ ...request(null, mine), url: 'http://localhost/api/geo/daily' })).json();
+    expect(board).toMatchObject({ date: today, rounds: 5, finished: 1 });
+    expect(board.board[0]).toMatchObject({ rank: 1, name: 'Ada', total: 25000 });
+    expect(board.you).toMatchObject({ rank: 1, total: 25000, finished: true });
+    const past = await (await getDaily({ ...request(null, {}), url: 'http://localhost/api/geo/daily?date=2020-01-01' })).json();
+    expect(past).toMatchObject({ date: '2020-01-01', players: 0, board: [], you: null });
+    const junk = await (await getDaily({ ...request(null, {}), url: 'http://localhost/api/geo/daily?date=nope' })).json();
+    expect(junk.date).toBe(today);
   });
 });

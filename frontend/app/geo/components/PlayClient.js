@@ -114,6 +114,8 @@ export default function PlayClient() {
   const [notice, setNotice] = useState('');
   const [appleAttempt, setAppleAttempt] = useState(0);
   const [share, setShare] = useState(null);
+  const [challenge, setChallenge] = useState(null);
+  const [daily, setDaily] = useState(null);
   const paneRef = useRef(null);
   const requestRef = useRef(0);
   const recordedRef = useRef(false);
@@ -240,11 +242,12 @@ export default function PlayClient() {
     try {
       const res = await fetch('/api/geo/guess', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...profileHeaders() },
         body: JSON.stringify({ token: s.current.token, guess }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not score the guess');
+      if (data.challenge) setChallenge(data.challenge);
       dispatch({ type: 'submit_success', result: { ...data.result, timedOut: timedOut || !guess, roundIndex: s.roundIndex } });
       setMobileMapOpen(false);
     } catch (error) {
@@ -281,6 +284,19 @@ export default function PlayClient() {
     recordGame(summary, code);
     setShare({ summary, code, best });
   }, [state]);
+
+  // The daily's board, once today's five are in (docs/GEO.md).
+  useEffect(() => {
+    if (state.status !== 'summary' || config.mode !== 'daily') return undefined;
+    let alive = true;
+    fetch('/api/geo/daily', { headers: profileHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('daily'))))
+      .then((data) => alive && setDaily(data))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [state.status, config.mode, challenge]);
 
   // Keyboard: Space/Enter guess or continue, R return to start, M map size, Esc closes the sheet.
   useEffect(() => {
@@ -452,7 +468,7 @@ export default function PlayClient() {
 
       {/* Summary */}
       {state.status === 'summary' && share ? (
-        <GameSummary summary={share.summary} code={share.code} config={config} regionLabel={regionLabel} best={share.best} onPlayAgain={() => {}} />
+        <GameSummary summary={share.summary} code={share.code} config={config} regionLabel={regionLabel} best={share.best} daily={config.mode === 'daily' ? daily : null} onPlayAgain={() => {}} />
       ) : null}
       {state.status === 'summary' ? (
         <Link href="/geo" className="absolute right-4 top-4 z-50 rounded-full border border-white/20 bg-midnight-900/80 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-midnight-800">

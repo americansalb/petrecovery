@@ -5903,6 +5903,41 @@ model GeoProfile {
 
   ratings GeoRating[]
   results GeoMatchResult[]
+  challengeRounds  GeoChallengeRound[]
+  challengeEntries GeoChallengeEntry[]
+}
+
+// The daily challenge's board (docs/GEO.md, "The daily challenge"): one
+// row per profile per challenge per round, the first guess on a round
+// being the one that counts, and one entry per profile per challenge
+// with the running total. `key` is "daily:2026-09-07".
+model GeoChallengeRound {
+  id         String     @id @default(cuid())
+  profileId  String
+  profile    GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  key        String
+  index      Int
+  score      Int
+  distanceKm Float?
+  createdAt  DateTime   @default(now())
+
+  @@unique([profileId, key, index])
+  @@index([key])
+}
+
+model GeoChallengeEntry {
+  id         String     @id @default(cuid())
+  profileId  String
+  profile    GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  key        String
+  total      Int        @default(0)
+  rounds     Int        @default(0)
+  finishedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([profileId, key])
+  @@index([key, rounds, total])
 }
 
 model GeoRating {

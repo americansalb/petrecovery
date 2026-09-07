@@ -18,6 +18,8 @@ export function createMemoryRoomStore() {
   const ratings = new Map(); // key `${profileId}|${ladder}`
   const results = new Map();
   const usage = new Map(); // key `${subject}|${day}|${provider}`
+  const challengeRounds = new Map(); // key `${profileId}|${key}|${index}`
+  const challengeEntries = new Map(); // key `${profileId}|${key}`
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -169,6 +171,43 @@ export function createMemoryRoomStore() {
       profile.paidRounds -= 1;
       return true;
     },
+    // Challenges with a board (server/challenges.js)
+    async createChallengeRound(data) {
+      const k = `${data.profileId}|${data.key}|${data.index}`;
+      if (challengeRounds.has(k)) return null;
+      const row = { id: id('cround'), ...data };
+      challengeRounds.set(k, row);
+      return { ...row };
+    },
+    async bumpChallengeEntry(profileId, key, { scoreDelta = 0, roundsDelta = 0, rounds, now }) {
+      const k = `${profileId}|${key}`;
+      const row = challengeEntries.get(k) || { id: id('centry'), profileId, key, total: 0, rounds: 0, finishedAt: null, createdAt: new Date(now) };
+      row.total += scoreDelta;
+      row.rounds += roundsDelta;
+      if (rounds && row.rounds >= rounds && !row.finishedAt) row.finishedAt = new Date(now);
+      challengeEntries.set(k, row);
+      return { ...row };
+    },
+    async getChallengeEntry(profileId, key) {
+      const row = challengeEntries.get(`${profileId}|${key}`);
+      return row ? { ...row } : null;
+    },
+    async listChallengeBoard(key, { rounds, limit = 20 }) {
+      return [...challengeEntries.values()]
+        .filter((e) => e.key === key && e.rounds >= rounds)
+        .sort((a, b) => b.total - a.total || (a.finishedAt?.getTime() || 0) - (b.finishedAt?.getTime() || 0))
+        .slice(0, limit)
+        .map((e) => ({ ...e, profile: { id: e.profileId, name: profiles.get(e.profileId)?.name || 'Player' } }));
+    },
+    async countChallengeEntries(key, { rounds } = {}) {
+      return [...challengeEntries.values()].filter((e) => e.key === key && (!rounds || e.rounds >= rounds)).length;
+    },
+    async countChallengeBetter(key, { rounds, total, finishedAt }) {
+      const mine = finishedAt instanceof Date ? finishedAt.getTime() : Number(finishedAt) || 0;
+      return [...challengeEntries.values()].filter(
+        (e) => e.key === key && e.rounds >= rounds && (e.total > total || (e.total === total && (e.finishedAt?.getTime() || 0) < mine))
+      ).length;
+    },
     /** Test helper. */
     _dump() {
       return {
@@ -180,6 +219,8 @@ export function createMemoryRoomStore() {
         ratings: [...ratings.values()],
         results: [...results.values()],
         usage: [...usage.values()],
+        challengeRounds: [...challengeRounds.values()],
+        challengeEntries: [...challengeEntries.values()],
       };
     },
   };

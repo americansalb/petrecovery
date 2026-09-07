@@ -186,7 +186,7 @@ export function evaluateGuess({ token, guess, now = Date.now(), env } = {}) {
     date: payload.date || '',
     country: payload.cc || payload.cn ? { code: payload.cc, name: payload.cn, flag: payload.cf } : null,
   };
-  const base = { provider: payload.p, mode: payload.mode, roundIndex: payload.i, sizeKm: payload.size, answer };
+  const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, answer };
 
   if (payload.mode === 'streak') {
     const code = String(guess?.countryCode || '').toUpperCase();

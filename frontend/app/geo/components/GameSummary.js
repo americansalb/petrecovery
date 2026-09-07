@@ -28,7 +28,47 @@ function useCopy() {
   return [copied, copy];
 }
 
-export default function GameSummary({ summary, code, config, regionLabel, best, onPlayAgain }) {
+function ordinal(n) {
+  const v = Number(n) || 0;
+  const suffix = ['th', 'st', 'nd', 'rd'];
+  const mod = v % 100;
+  return `${v}${suffix[(mod - 20) % 10] || suffix[mod] || suffix[0]}`;
+}
+
+/** Today's board under a finished daily: your place, and the top of the day. */
+function DailyBoard({ daily }) {
+  if (!daily) return null;
+  const you = daily.you;
+  return (
+    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Today&apos;s board</p>
+      <p className="mt-1 text-sm text-white/90">
+        {you?.rank
+          ? `You are ${ordinal(you.rank)} of ${daily.finished} who finished today's five.`
+          : you
+            ? `Your ${you.rounds} of ${daily.rounds} rounds are in.`
+            : `${daily.finished} finished today's five. Your rounds count once this browser has a profile.`}
+        {daily.players > daily.finished ? ` ${daily.players - daily.finished} more still playing.` : ''}
+      </p>
+      {daily.board?.length ? (
+        <ol className="mt-2 space-y-0.5 text-sm">
+          {daily.board.slice(0, 5).map((row) => (
+            <li key={row.profileId} className="flex items-center gap-2">
+              <span className="w-6 tabular-nums text-white/50">{row.rank}</span>
+              <span className="flex-1 truncate">{row.name}</span>
+              <span className="font-semibold tabular-nums text-flash-300">{formatScore(row.total)}</span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      <Link href="/geo" className="mt-2 inline-block text-xs text-white/60 underline decoration-white/30 hover:text-white">
+        The whole board is in the lobby
+      </Link>
+    </div>
+  );
+}
+
+export default function GameSummary({ summary, code, config, regionLabel, best, daily = null, onPlayAgain }) {
   const [copied, copy] = useCopy();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/geo/share?s=${encodeURIComponent(code)}`;
@@ -87,6 +127,8 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
             </li>
           ))}
         </ol>
+
+        <DailyBoard daily={daily} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => copy('text', text)} className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
