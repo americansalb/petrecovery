@@ -5841,6 +5841,24 @@ model GeoRoomGuess {
 }
 
 // Resolved rounds for seeded games (daily challenge, challenge links),
+// The play meter (docs/GEO.md, "The play meter"): rounds started per
+// subject ("profile:<id>", "ip:<hash>", or "site") per UTC day per
+// imagery provider. `free` and `paid` split the Google rounds by what
+// they drew on: the day's free allowance or prepaid rounds.
+model GeoUsage {
+  id        String   @id @default(cuid())
+  subject   String
+  day       String
+  provider  String
+  rounds    Int      @default(0)
+  free      Int      @default(0)
+  paid      Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([subject, day, provider])
+  @@index([day, provider])
+}
+
 // kept a day so everyone who plays a seed sees the same place without
 // re-probing. Panorama ids go stale, which is why it expires.
 model GeoRoundCache {
@@ -5877,6 +5895,9 @@ model GeoProfile {
   tokenHash  String   @unique
   userId     String?  @unique
   name       String
+  // Prepaid Google rounds (quota packs, bought once), drawn on after the
+  // day's free allowance (docs/GEO.md, "The play meter").
+  paidRounds Int      @default(0)
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 

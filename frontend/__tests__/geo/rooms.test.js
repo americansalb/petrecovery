@@ -124,6 +124,14 @@ describe('a classic game', () => {
     expect(anonymous.me).toBeNull();
   });
 
+  test('a room needs two players to start', async () => {
+    const { store, code, tokens } = await setupRoom({ players: ['Solo'] });
+    await expect(roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch })).rejects.toMatchObject({ code: 'need_players', status: 409 });
+    await joinRoom(store, { code, name: 'Friend', now: T0 });
+    const started = await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    expect(started.state.room.status).toBe('playing');
+  });
+
   test('duplicate names get a number, and only the host can start', async () => {
     const { store, code, others } = await setupRoom({ players: ['Ada', 'ada'] });
     expect(others[0].player.name).toBe('ada 2');
@@ -188,7 +196,7 @@ describe('a classic game', () => {
   });
 
   test('guesses are refused after the deadline plus grace, and with bad coordinates', async () => {
-    const { store, code, tokens } = await setupRoom({ players: ['Solo'] });
+    const { store, code, tokens } = await setupRoom({ players: ['Solo', 'Other'] });
     await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     await expect(roomAction(store, { code, token: tokens[0], action: 'guess', body: { lat: 'x', lng: 1 }, now: T0 + sec(1) })).rejects.toMatchObject({ code: 'bad_guess' });
     // Past the deadline the tick reveals first, so the guess meets a closed round.

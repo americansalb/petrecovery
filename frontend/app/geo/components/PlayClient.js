@@ -12,12 +12,15 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { configFromParams } from '@/app/lib/geo/modes';
+import { MODES, configFromParams, configToParams } from '@/app/lib/geo/modes';
+import { METER_CODES, refusalTitle, untilText } from '@/app/lib/geo/meter';
 import { encodeShare } from '@/app/lib/geo/share';
 import { reducer, createInitialState, isFinished, totalScore, streakLength, buildSummary } from '../lib/gameState';
 import { loadGoogleMaps, onGoogleMapsAuthFailure } from '../lib/googleMaps';
 import { ensureLookAround } from '../lib/lookAround';
 import { recordGame, bestFor } from '../lib/storage';
+import { ensureProfile, profileHeaders } from '../lib/profile';
+import { loadName } from '../lib/useRoom';
 import GoogleStreetViewPane from './GoogleStreetViewPane';
 import GoogleGuessMap from './GoogleGuessMap';
 import AppleLookAroundPane from './AppleLookAroundPane';
@@ -57,7 +60,7 @@ function Panel({ children }) {
   );
 }
 
-function ErrorPanel({ title, message, stats, onRetry, retrying }) {
+function ErrorPanel({ title, message, stats, onRetry, retrying, appleHref, resetAt }) {
   return (
     <Panel>
       <div className="rounded-2xl border border-white/10 bg-midnight-900 p-5 text-white">
@@ -66,10 +69,16 @@ function ErrorPanel({ title, message, stats, onRetry, retrying }) {
           <div className="min-w-0">
             <h2 className="text-lg font-bold">{title}</h2>
             <p className="mt-1 text-sm text-white/80">{message}</p>
+            {resetAt ? <p className="mt-1 text-sm text-white/60">Free rounds come back {untilText(resetAt)}.</p> : null}
             {stats ? <p className="mt-2 text-xs text-white/50">{statsSentence(stats)}</p> : null}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
+          {appleHref ? (
+            <Link href={appleHref} className="rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500">
+              Play this on Apple imagery
+            </Link>
+          ) : null}
           {onRetry ? (
             <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
@@ -124,6 +133,13 @@ export default function PlayClient() {
     setMobileMapOpen(false);
   }, [config]);
 
+  // This browser's profile, so the play meter and the ratings know who
+  // is playing. Created on the first game; a failure just plays unmetered
+  // by profile (the address still counts).
+  useEffect(() => {
+    ensureProfile(loadName()).catch(() => {});
+  }, []);
+
   // Server settings: which provider is set up, the browser key, the countries.
   useEffect(() => {
     let alive = true;
@@ -165,7 +181,7 @@ export default function PlayClient() {
     try {
       const res = await fetch('/api/geo/round', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...profileHeaders() },
         body: JSON.stringify({ config: s.config, roundIndex: s.roundIndex, attempt: s.attempt }),
       });
       const data = await res.json().catch(() => ({}));
@@ -174,13 +190,14 @@ export default function PlayClient() {
         const error = new Error(data.error || 'Could not start the round');
         error.code = data.code;
         error.stats = data.stats;
+        error.resetAt = data.resetAt || null;
         throw error;
       }
       dispatch({ type: 'load_success', round: data.round });
       setNotice(statsSentence(data.round.stats));
     } catch (error) {
       if (id !== requestRef.current) return;
-      dispatch({ type: 'load_error', error: { message: error.message, code: error.code, stats: error.stats } });
+      dispatch({ type: 'load_error', error: { message: error.message, code: error.code, stats: error.stats, resetAt: error.resetAt || null } });
     }
   }, []);
 
@@ -191,6 +208,14 @@ export default function PlayClient() {
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
   const autoRetrying = state.status === 'error' && state.error?.code === 'no_imagery' && state.attempt < 2;
+
+  // The play meter said no (docs/GEO.md): the same game on Apple imagery
+  // is the way on when the mode has one and Google was the problem.
+  const metered = state.status === 'error' && METER_CODES.includes(state.error?.code);
+  const appleHref =
+    metered && isGoogle && ['allowance', 'budget'].includes(state.error.code) && MODES[config.mode]?.providers?.includes('apple')
+      ? `/geo/play?${configToParams({ ...config, provider: 'apple' }).toString()}`
+      : null;
   useEffect(() => {
     if (!autoRetrying) return undefined;
     const id = setTimeout(() => dispatch({ type: 'retry' }), 400);
@@ -454,10 +479,12 @@ export default function PlayClient() {
       ) : null}
       {state.status === 'error' && !autoRetrying ? (
         <ErrorPanel
-          title={state.error?.code === 'no_imagery' ? 'No imagery found' : 'Could not start the round'}
+          title={metered ? refusalTitle(state.error.code) : state.error?.code === 'no_imagery' ? 'No imagery found' : 'Could not start the round'}
           message={state.error?.message || 'Something went wrong.'}
           stats={state.error?.stats}
-          onRetry={() => dispatch({ type: 'retry' })}
+          onRetry={metered && state.error.code !== 'speed' ? null : () => dispatch({ type: 'retry' })}
+          appleHref={appleHref}
+          resetAt={metered && state.error.code === 'allowance' ? state.error.resetAt : null}
         />
       ) : null}
       {state.status === 'playing' && state.error ? (

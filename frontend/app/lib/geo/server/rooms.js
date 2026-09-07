@@ -41,6 +41,7 @@ import {
   sortStandings,
 } from '../rooms';
 import { findRoundImagery } from './game';
+import { checkRoomEntry, recordRoomRound } from './meter';
 import { applyRoomRatings, ratingsForRoom } from './profiles';
 
 export class RoomError extends Error {
@@ -107,8 +108,11 @@ async function touchRoom(store, room, now, extra = {}) {
 // Create, join, leave
 // ---------------------------------------------------------------------------
 
-export async function createRoom(store, { name, hostName, settings = {}, profileId = null, now = Date.now() }) {
+export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now() }) {
   const { config, variant, visibility } = normalizeRoomConfig(settings);
+  // The play meter: a person at the day's ceiling, or a site past its
+  // budget, does not open a room. The allowance is not checked here.
+  if (subjects) await checkRoomEntry(store, { subjects, provider: config.provider, now });
   config.seed = randomSeedString();
   let room = null;
   for (let i = 0; i < 6 && !room; i++) {
@@ -147,9 +151,10 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
   return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
 }
 
-export async function joinRoom(store, { code, name, profileId = null, now = Date.now() }) {
+export async function joinRoom(store, { code, name, profileId = null, subjects = null, now = Date.now() }) {
   const room = await loadRoom(store, code);
   if (room.status === 'finished') throw new RoomError('finished', 'This game is over', 409);
+  if (subjects) await checkRoomEntry(store, { subjects, provider: room.config?.provider || 'google', now });
   if (room.status === 'playing' && room.variant === 'duel') {
     throw new RoomError('duel_in_progress', 'A duel is in progress. Ask the host for a rematch when it ends.', 409);
   }
@@ -339,6 +344,8 @@ async function buildRound(store, room, index, now, fetchImpl) {
       lastActiveAt: new Date(now),
       version: fresh.version + 1,
     });
+    // Every player present sees this panorama: one round each on the meter.
+    await recordRoomRound(store, fresh, now);
   } catch (error) {
     const fresh = await store.getRoomById(room.id);
     const backToLobby = index === 0;
@@ -360,8 +367,13 @@ async function buildRound(store, room, index, now, fetchImpl) {
 // Player actions
 // ---------------------------------------------------------------------------
 
+export const MIN_PLAYERS_TO_START = 2;
+
 async function startRoom(store, room, now, fetchImpl) {
   if (room.status !== 'lobby') throw new RoomError('already_started', 'The game has already started', 409);
+  if (present(room).length < MIN_PLAYERS_TO_START) {
+    throw new RoomError('need_players', 'A room needs at least two players to start. Share the code.', 409);
+  }
   const claimed = await store.updateRoom(
     room.id,
     { status: 'playing', phase: 'loading', phaseEndsAt: new Date(now + LOADING_TIMEOUT_MS), lastActiveAt: new Date(now), version: room.version + 1 },

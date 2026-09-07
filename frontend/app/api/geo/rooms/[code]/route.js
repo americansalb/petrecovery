@@ -15,7 +15,7 @@ import { normalizeRoomCode } from '@/app/lib/geo/rooms';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { getRoomView, joinRoom, roomAction } from '@/app/lib/geo/server/rooms';
-import { NO_STORE, profileIdFor, roomErrorResponse } from '@/app/lib/geo/server/roomRoute';
+import { NO_STORE, playerSubjects, roomErrorResponse } from '@/app/lib/geo/server/roomRoute';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,8 +53,8 @@ export async function POST(request, { params }) {
     if (action === 'join') {
       const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'geo-room-join');
       if (!limit.success) return rateLimitResponse(limit);
-      const profileId = await profileIdFor(request, body?.name);
-      const { player, token, state } = await joinRoom(prismaRoomStore, { code, name: body?.name, profileId });
+      const subjects = await playerSubjects(request, body?.name);
+      const { player, token, state } = await joinRoom(prismaRoomStore, { code, name: body?.name, profileId: subjects.profileId, subjects });
       return NextResponse.json({ ok: true, token, playerId: player.id, state }, NO_STORE);
     }
     if (!ACTIONS.has(action)) {

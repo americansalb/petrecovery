@@ -11,8 +11,9 @@
  *
  * Setup (from frontend/):
  *   node scripts/geo-e2e/mock-metadata.js &
- *   GOOGLE_STREET_VIEW_API_KEY=x GOOGLE_MAPS_BROWSER_KEY=x \
+ *   GOOGLE_STREET_VIEW_API_KEY=x GOOGLE_MAPS_BROWSER_KEY=x GEO_FREE_GOOGLE_ROUNDS=1000 \
  *   GEO_STREET_VIEW_METADATA_URL=http://localhost:3999/metadata npm run dev &
+ *   (the play meter would otherwise stop one address at 25 Google rounds a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
  *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, streak, timer, mobile, rooms)

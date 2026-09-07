@@ -6,13 +6,31 @@
  * key comes back as a 503 with the variable names, not a stack trace.
  */
 
+const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
+
+// The round route runs the play meter on the store and asks who is
+// playing; here the store is in memory, nobody is signed in, and the
+// speed limiter always says yes.
+const memoryStore = createMemoryRoomStore();
+jest.mock('@/app/lib/geo/server/roomStore', () => ({ prismaRoomStore: memoryStore }));
+jest.mock('next-auth', () => ({ getServerSession: jest.fn().mockResolvedValue(null) }));
+jest.mock('@/app/lib/auth', () => ({ authOptions: {} }));
+jest.mock('@/app/lib/rateLimit', () => ({
+  checkRateLimitForKeyAsync: jest.fn().mockResolvedValue({ success: true }),
+  getClientIP: (request) => request.headers.get('x-test-ip') || '203.0.113.9',
+  withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
+  RateLimitPresets: { PUBLIC_WRITE: {}, PUBLIC_READ: {} },
+  rateLimitResponse: jest.fn(),
+}));
+
 const { GET: getConfig } = require('@/app/api/geo/config/route');
 const { POST: postRound } = require('@/app/api/geo/round/route');
 const { POST: postGuess } = require('@/app/api/geo/guess/route');
+const { POST: postProfile } = require('@/app/api/geo/profile/route');
 const { openToken } = require('@/app/lib/geo/server/tokens');
 
-function request(body) {
-  return { json: async () => body, headers: new Map(), url: 'http://localhost/api/geo/x' };
+function request(body, headers = {}) {
+  return { json: async () => body, headers: new Map(Object.entries(headers)), url: 'http://localhost/api/geo/x' };
 }
 
 const hitFetch = jest.fn(async (url) => {
@@ -93,6 +111,38 @@ describe('POST /api/geo/round', () => {
     expect(body.round.candidates.length).toBeGreaterThan(5);
     expect(body.round.candidates[0].token).toMatch(/^g1\./);
     expect(hitFetch).not.toHaveBeenCalled();
+  });
+
+  test('the play meter: free Google rounds run out per address, the daily and Apple do not count, and a profile can be refused too', async () => {
+    process.env.GEO_FREE_GOOGLE_ROUNDS = '2';
+    try {
+      const ip = { 'x-test-ip': '198.51.100.7' };
+      expect((await postRound(request({ config: { mode: 'world', seed: 'm-1' } }, ip))).status).toBe(200);
+      expect((await postRound(request({ config: { mode: 'world', seed: 'm-2' } }, ip))).status).toBe(200);
+      const refused = await postRound(request({ config: { mode: 'world', seed: 'm-3' } }, ip));
+      expect(refused.status).toBe(429);
+      const body = await refused.json();
+      expect(body.code).toBe('allowance');
+      expect(body.error).toMatch(/free Google Street View rounds/);
+      expect(typeof body.resetAt).toBe('number');
+      expect(refused.headers.get('Retry-After')).toBeTruthy();
+      // the daily challenge is on top of the allowance; Apple has none
+      expect((await postRound(request({ config: { mode: 'daily' } }, ip))).status).toBe(200);
+      expect((await postRound(request({ config: { provider: 'apple', mode: 'cities' } }, ip))).status).toBe(200);
+      // a different address starts fresh
+      expect((await postRound(request({ config: { mode: 'world', seed: 'm-4' } }, { 'x-test-ip': '198.51.100.8' }))).status).toBe(200);
+
+      // a browser with a profile is metered by that profile
+      const registered = await (await postProfile(request({ name: 'Ada' }, { 'x-test-ip': '198.51.100.9' }))).json();
+      const mine = { 'x-test-ip': '198.51.100.9', 'x-geo-profile': registered.token };
+      expect((await postRound(request({ config: { mode: 'world', seed: 'p-1' } }, mine))).status).toBe(200);
+      expect((await postRound(request({ config: { mode: 'world', seed: 'p-2' } }, mine))).status).toBe(200);
+      expect((await postRound(request({ config: { mode: 'world', seed: 'p-3' } }, mine))).status).toBe(429);
+      const me = await (await postProfile(request({}, mine))).json();
+      expect(me.profile.usage.google).toMatchObject({ freeUsed: 2, freeLimit: 2, freeLeft: 0 });
+    } finally {
+      delete process.env.GEO_FREE_GOOGLE_ROUNDS;
+    }
   });
 
   test('a missing Google key is a 503 that says so', async () => {

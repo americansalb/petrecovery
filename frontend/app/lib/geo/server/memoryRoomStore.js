@@ -17,6 +17,7 @@ export function createMemoryRoomStore() {
   const profiles = new Map();
   const ratings = new Map(); // key `${profileId}|${ladder}`
   const results = new Map();
+  const usage = new Map(); // key `${subject}|${day}|${provider}`
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -104,7 +105,7 @@ export function createMemoryRoomStore() {
       return p ? { ...p } : null;
     },
     async createProfile(data) {
-      const profile = { id: id('profile'), userId: null, ...data };
+      const profile = { id: id('profile'), userId: null, paidRounds: 0, ...data };
       profiles.set(profile.id, profile);
       return { ...profile };
     },
@@ -149,6 +150,25 @@ export function createMemoryRoomStore() {
         .slice(0, limit)
         .map((r) => ({ ...r }));
     },
+    // The play meter (server/meter.js)
+    async listUsage(subjects, day) {
+      return [...usage.values()].filter((u) => u.day === day && subjects.includes(u.subject)).map((u) => ({ ...u }));
+    },
+    async bumpUsage(subject, day, provider, inc = {}) {
+      const key = `${subject}|${day}|${provider}`;
+      const row = usage.get(key) || { id: id('usage'), subject, day, provider, rounds: 0, free: 0, paid: 0 };
+      row.rounds += inc.rounds || 0;
+      row.free += inc.free || 0;
+      row.paid += inc.paid || 0;
+      usage.set(key, row);
+      return { ...row };
+    },
+    async consumePaidRound(profileId) {
+      const profile = profiles.get(profileId);
+      if (!profile || !(profile.paidRounds > 0)) return false;
+      profile.paidRounds -= 1;
+      return true;
+    },
     /** Test helper. */
     _dump() {
       return {
@@ -159,6 +179,7 @@ export function createMemoryRoomStore() {
         profiles: [...profiles.values()],
         ratings: [...ratings.values()],
         results: [...results.values()],
+        usage: [...usage.values()],
       };
     },
   };
