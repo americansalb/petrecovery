@@ -310,7 +310,9 @@ export default function PlayClient() {
   const effectiveSize = mapHover && mapSize === 'small' ? 'medium' : mapSize;
   let mapClass;
   if (mapMode === 'result') {
-    mapClass = `absolute inset-x-2 top-16 z-30 overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-20 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
+    // flex-col so the map's flex-1 fills the frame; without it the map
+    // collapses to zero height and the panorama shows through the border.
+    mapClass = `absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-20 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-midnight-900'

@@ -39,7 +39,9 @@ async function newPage(browser, viewport) {
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => {
-    if (m.type() === 'error' && !/b-cdn|ERR_TUNNEL|ERR_NAME_NOT_RESOLVED/.test(m.text())) errors.push('console: ' + m.text());
+    // CDN blocks in sandboxes and next-auth's session poll losing a race
+    // with navigation are noise; anything else on the console fails the run.
+    if (m.type() === 'error' && !/b-cdn|ERR_TUNNEL|ERR_NAME_NOT_RESOLVED|\[next-auth\]\[error\]\[CLIENT_FETCH_ERROR\]/.test(m.text())) errors.push('console: ' + m.text());
   });
   page.on('dialog', (d) => d.dismiss().catch(() => {}));
   await page.route('https://maps.googleapis.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE }));
@@ -51,6 +53,18 @@ const waitForPano = (page, timeout = 60000) =>
   page.waitForFunction(() => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano'); }, null, { timeout });
 const waitPlayable = (page) => page.waitForSelector('button:has-text("Place your pin on the map")', { timeout: 60000 });
 const waitGuessable = (page) => page.waitForSelector('button:has-text("Guess"):not([disabled])');
+
+/** The result map must really have a box on screen, not just exist. */
+async function expectMapVisible(page, where) {
+  const box = await page.evaluate(() => {
+    const host = document.querySelector('[data-fake-map]')?.parentElement;
+    if (!host) return null;
+    const r = host.getBoundingClientRect();
+    return { width: Math.round(r.width), height: Math.round(r.height), top: Math.round(r.top) };
+  });
+  log(`${where} map box:`, box);
+  if (!box || box.height < 150 || box.width < 300) throw new Error(`${where} map is not visibly sized: ${JSON.stringify(box)}`);
+}
 
 async function pinGame(browser) {
   const url = `${BASE}/geo/play?provider=google&mode=balanced&rounds=3&seed=e2e-pin-1&time=0`;
@@ -71,6 +85,7 @@ async function pinGame(browser) {
   await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
   log('round 1 result:', await page.textContent('text=/away\\.|Time ran out/').catch(() => '(no distance line)'));
   await shot(page, 'result');
+  await expectMapVisible(page, 'result');
   await page.keyboard.press('Space');
   await page.keyboard.press('Space'); // a second press must not skip a round
   await waitPlayable(page);
@@ -91,6 +106,7 @@ async function pinGame(browser) {
   await page.click('button:has-text("See results")');
   await page.waitForSelector('text=/of 15,000/', { timeout: 20000 });
   await shot(page, 'summary');
+  await expectMapVisible(page, 'summary');
   const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
   const counts = await page.evaluate(() => ({
     markers: window.__fakeMarkers.filter((m) => m.opts.map).length,
