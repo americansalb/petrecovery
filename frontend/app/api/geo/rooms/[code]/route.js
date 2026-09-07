@@ -2,7 +2,7 @@
  * GET  /api/geo/rooms/:code      the room as you see it (x-geo-player header
  *                                optional; without it you are a spectator)
  * POST /api/geo/rooms/:code      { action: 'join', name }
- *                                { action: 'start' | 'guess' | 'next' |
+ *                                { action: 'start' | 'locate' | 'guess' | 'next' |
  *                                  'react' | 'leave' | 'rematch', ... }
  *
  * Every call moves the room's clock first (reveal on deadline, next round
@@ -19,7 +19,7 @@ import { NO_STORE, playerSubjects, roomErrorResponse } from '@/app/lib/geo/serve
 
 export const dynamic = 'force-dynamic';
 
-const ACTIONS = new Set(['start', 'guess', 'next', 'react', 'leave', 'rematch']);
+const ACTIONS = new Set(['start', 'guess', 'locate', 'next', 'react', 'leave', 'rematch']);
 const errorResponse = roomErrorResponse;
 
 function playerToken(request, body) {
@@ -61,8 +61,10 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: `Unknown action: ${action || '(none)'}`, code: 'unknown_action' }, { status: 400, ...NO_STORE });
     }
     if (action === 'start') {
+      // Apple Look Around rooms need no server key; Google rooms do.
       const cfg = getGeoServerConfig();
-      if (!cfg.googleConfigured) {
+      const room = await prismaRoomStore.getRoomByCode(code);
+      if (room?.config?.provider !== 'apple' && !cfg.googleConfigured) {
         return NextResponse.json({ error: 'Google Street View is not configured on this server', code: 'google_not_configured' }, { status: 503, ...NO_STORE });
       }
     }

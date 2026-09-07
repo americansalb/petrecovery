@@ -11,7 +11,7 @@
  */
 
 import { MAX_ROUND_SCORE } from './distance';
-import { MODES, normalizeConfig } from './modes';
+import { MODES, formatLabel, formatOf, normalizeConfig } from './modes';
 
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const ROOM_CODE_LENGTH = 6;
@@ -110,10 +110,14 @@ export function initials(name) {
  */
 export function normalizeRoomConfig(input = {}) {
   const raw = input || {};
-  const mode = ROOM_MODES.includes(raw.mode) ? raw.mode : 'balanced';
+  // Apple Look Around rooms play the modes Apple imagery supports (city
+  // streets); everything else is Google Street View.
+  const provider = raw.provider === 'apple' ? 'apple' : 'google';
+  const supported = ROOM_MODES.filter((id) => MODES[id]?.providers?.includes(provider));
+  const mode = supported.includes(raw.mode) ? raw.mode : supported.includes('balanced') ? 'balanced' : supported[0];
   const config = normalizeConfig({
     ...raw,
-    provider: 'google',
+    provider,
     mode,
     rounds: ROOM_ROUND_OPTIONS.includes(Number(raw.rounds)) ? Number(raw.rounds) : 5,
     seed: raw.seed,
@@ -212,4 +216,12 @@ export function describeRoomMode(config, { regionLabel } = {}) {
   if (mode.needs === 'continent') return `Continent: ${regionLabel || config.region}`;
   if (mode.needs === 'country') return `Country: ${regionLabel || config.region}`;
   return mode.label;
+}
+
+/** "City streets, No Move, on Apple Look Around": the room card's one line. */
+export function describeRoomRules(config, { regionLabel } = {}) {
+  const parts = [describeRoomMode(config, { regionLabel })];
+  if (formatOf(config) !== 'moving') parts.push(formatLabel(config));
+  if (config?.provider === 'apple') parts.push('on Apple Look Around');
+  return parts.join(', ');
 }

@@ -49,8 +49,8 @@ export const MODES = {
     label: 'Weekly cup',
     short: 'Cup',
     providers: ['google'],
-    description: 'Ten balanced rounds on a 60 second clock. Everyone gets the same ten places this week, and the week ends with prizes.',
-    fixed: { provider: 'google', rounds: 10, time: 60, move: true, pan: true, zoom: true, radius: 'standard' },
+    description: 'Ten balanced rounds, No Move, 60 seconds each. Everyone gets the same ten places this week, and the week ends with prizes.',
+    fixed: { provider: 'google', rounds: 10, time: 60, move: false, pan: true, zoom: true, radius: 'standard' },
   },
   continent: {
     id: 'continent',
@@ -85,6 +85,35 @@ export const MODES = {
 };
 
 export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'streak'];
+
+/**
+ * The three formats competitive play knows (docs/GEO.md, "Formats"):
+ * one choice that sets move, pan and zoom together. The settings stay
+ * separate underneath, so an old link with an odd mix still works.
+ */
+export const FORMATS = {
+  moving: { id: 'moving', label: 'Moving', short: 'Moving', description: 'Walk, look around and zoom.', move: true, pan: true, zoom: true },
+  nm: { id: 'nm', label: 'No Move', short: 'NM', description: 'Look around and zoom from one spot. The format the pros play.', move: false, pan: true, zoom: true },
+  nmpz: { id: 'nmpz', label: 'NMPZ', short: 'NMPZ', description: 'No move, pan or zoom. One view, that is all you get.', move: false, pan: false, zoom: false },
+};
+export const FORMAT_ORDER = ['moving', 'nm', 'nmpz'];
+
+/** The format a config plays as. Odd mixes count as the nearest one. */
+export function formatOf(config = {}) {
+  if (config.move) return 'moving';
+  if (!config.pan && !config.zoom) return 'nmpz';
+  return 'nm';
+}
+
+/** The move, pan and zoom settings of a format. */
+export function formatSettings(id) {
+  const f = FORMATS[id] || FORMATS.moving;
+  return { move: f.move, pan: f.pan, zoom: f.zoom };
+}
+
+export function formatLabel(config = {}) {
+  return FORMATS[formatOf(config)].label;
+}
 
 export const CONTINENTS = {
   europe: { id: 'europe', label: 'Europe', regions: ['Europe'] },
@@ -268,8 +297,8 @@ export function configFromParams(params, options) {
 }
 
 export function movementLabel(config) {
-  if (config.move && config.pan && config.zoom) return 'Move, pan, zoom';
-  if (!config.move && !config.pan && !config.zoom) return 'No move, pan or zoom';
+  const f = FORMATS[formatOf(config)];
+  if (f.move === Boolean(config.move) && f.pan === Boolean(config.pan) && f.zoom === Boolean(config.zoom)) return f.label;
   const parts = [];
   parts.push(config.move ? 'Move' : 'No move');
   parts.push(config.pan ? 'pan' : 'no pan');

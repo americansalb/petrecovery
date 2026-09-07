@@ -40,6 +40,7 @@ export function RoomSummary({ room, countries }) {
   const regionLabel = room.config.mode === 'country' ? countries?.find((c) => c.code === room.config.region)?.name : undefined;
   const parts = [describeRoomMode(room.config, { regionLabel }), `${room.roundsTotal} rounds`, `${timeLabel(room.config.time)} each`];
   if (!(room.config.move && room.config.pan && room.config.zoom)) parts.push(movementLabel(room.config));
+  if (room.config.provider === 'apple') parts.push('Apple Look Around');
   return (
     <p className="text-sm text-white/70">
       <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-flash-300">{VARIANTS[room.variant]?.label || room.variant}</span>{' '}
@@ -177,6 +178,23 @@ export function LoadingPanel({ state }) {
       <RefreshCw className="h-9 w-9 animate-spin text-flash-400" />
       <p className="mt-4 text-lg font-semibold">Round {state.room.roundIndex + 2 > state.room.roundsTotal ? state.room.roundsTotal : state.room.roundIndex + 2}</p>
       <p className="mt-1 text-sm text-white/70">Finding a place with imagery for everyone</p>
+    </div>
+  );
+}
+
+/** Apple rooms: a browser is trying the places offered; the screen waits with it. */
+export function LocatingPanel({ state, attempt = 0 }) {
+  const total = state.locating?.candidates?.length || 0;
+  return (
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-midnight-950/95 text-center text-white" role="status" aria-live="polite">
+      <RefreshCw className="h-9 w-9 animate-spin text-flash-400" />
+      <p className="mt-4 text-lg font-semibold">
+        Round {state.room.roundIndex + 1} of {state.room.roundsTotal}
+      </p>
+      <p className="mt-1 text-sm text-white/70">
+        Finding Look Around imagery for everyone
+        {attempt ? `, place ${Math.min(attempt, total || attempt)} of ${total || '?'}` : ''}
+      </p>
     </div>
   );
 }

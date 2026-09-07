@@ -77,23 +77,31 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     const annotations = [];
     const overlays = [];
     results.forEach((r, i) => {
-      if (r.answer) {
+      // Solo play draws every answer; a room's reveal draws the one place
+      // once (answerMarker) and every player's guess in their colour.
+      if (r.answer && (r.answerMarker ?? true)) {
         annotations.push(
           new mapkit.MarkerAnnotation(new mapkit.Coordinate(r.answer.lat, r.answer.lng), {
             color: '#22c55e',
-            glyphText: r.label || String(i + 1),
-            title: 'Where you were',
+            glyphText: r.answerLabel || r.label || String(i + 1),
+            title: r.answerTitle || 'Where you were',
           })
         );
       }
       if (r.guess) {
-        annotations.push(new mapkit.MarkerAnnotation(new mapkit.Coordinate(r.guess.lat, r.guess.lng), { color: '#facc15', title: 'Your guess' }));
+        annotations.push(
+          new mapkit.MarkerAnnotation(new mapkit.Coordinate(r.guess.lat, r.guess.lng), {
+            color: r.color || '#facc15',
+            glyphText: r.color && r.label ? r.label : undefined,
+            title: r.title || 'Your guess',
+          })
+        );
       }
       if (r.guess && r.answer) {
         overlays.push(
           new mapkit.PolylineOverlay(
             [new mapkit.Coordinate(r.guess.lat, r.guess.lng), new mapkit.Coordinate(r.answer.lat, r.answer.lng)],
-            { style: new mapkit.Style({ lineWidth: 2, strokeColor: '#facc15' }) }
+            { style: new mapkit.Style({ lineWidth: 2, strokeColor: r.color || '#facc15' }) }
           )
         );
       }

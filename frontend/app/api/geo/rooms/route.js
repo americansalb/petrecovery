@@ -30,16 +30,18 @@ export async function POST(request) {
   const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'geo-room-create');
   if (!limit.success) return rateLimitResponse(limit);
 
-  const cfg = getGeoServerConfig();
-  if (!cfg.googleConfigured || !cfg.tokenSecret) {
-    return NextResponse.json({ error: 'Google Street View is not configured on this server', code: 'google_not_configured' }, { status: 503, ...NO_STORE });
-  }
-
   let body;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Send a JSON body with the room name and your name' }, { status: 400, ...NO_STORE });
+  }
+
+  // Apple Look Around rooms need no server key; Google rooms do.
+  const cfg = getGeoServerConfig();
+  const provider = body?.settings?.provider === 'apple' || body?.provider === 'apple' ? 'apple' : 'google';
+  if (!cfg.tokenSecret || (provider === 'google' && !cfg.googleConfigured)) {
+    return NextResponse.json({ error: 'Google Street View is not configured on this server', code: 'google_not_configured' }, { status: 503, ...NO_STORE });
   }
 
   try {

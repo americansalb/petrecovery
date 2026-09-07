@@ -91,11 +91,30 @@ uses `daily-YYYY-MM-DD` (UTC), and the summary offers a "Challenge a
 friend" link that replays the same places. A retry after "no imagery"
 skips ahead in the seeded sequence rather than repeating it.
 
+## Formats
+
+Move, pan and zoom are one choice in the lobby and the room form, the
+three formats competitive players know (`FORMATS` in
+`app/lib/geo/modes.js`):
+
+- **Moving**: walk, look around and zoom.
+- **No Move**: look around and zoom from one spot. The format the pros
+  play; the weekly cup is fixed to it.
+- **NMPZ**: no move, pan or zoom. One view.
+
+Links and stored games still carry `move`, `pan` and `zoom` separately,
+so an old link with an odd mix keeps working; `formatOf` reads the
+format back and `movementLabel` spells out a mix that matches none.
+Results, room cards, the share text and the OpenGraph card name the
+format whenever it is not Moving. Street names are hidden in every
+format on both providers.
+
 ## Multiplayer rooms
 
 A room is a code, a name, fixed settings and a phase:
-`lobby -> loading -> guessing -> reveal -> ... -> finished`. Everyone plays
-the same rounds on the same server clock.
+`lobby -> loading -> guessing -> reveal -> ... -> finished` (an Apple room
+goes `lobby -> locating -> guessing -> ...`, below). Everyone plays the
+same rounds on the same server clock.
 
 - **State lives in Postgres** (`GeoRoom`, `GeoRoomPlayer`, `GeoRoomRound`,
   `GeoRoomGuess`); the browser polls `/api/geo/rooms/:code` every 1.5 s
@@ -118,6 +137,17 @@ the same rounds on the same server clock.
   through the same poll.
 - **Rematch** opens a new room with the same settings and links it from the
   old one; others follow with one click.
+- **Apple Look Around rooms** (city streets only, the mode Apple imagery
+  covers) have no server-side probe, so a round starts in `locating`: the
+  server stores the seeded places to try on the round (`candidates`,
+  country kept server-side) and sends the browsers the coordinates. Every
+  browser tries them in order; the first to get a Look Around `load` posts
+  `locate {index}`, the claim wins by version, the round takes that place,
+  and the clock starts for everyone. If nobody reports within 25 s the
+  room offers the next places for the same round (`retries` climbs). The
+  round's coordinate is in the poll during `guessing`, as in solo play,
+  because the browser has to open the imagery itself. Apple rooms count in
+  the play meter under `apple` and are never refused for the allowance.
 
 ## Ratings
 

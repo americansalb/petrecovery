@@ -103,5 +103,19 @@ describe('rooms API', () => {
     delete process.env.GOOGLE_STREET_VIEW_API_KEY;
     expect((await createRoom(request({ name: 'X', hostName: 'H' }))).status).toBe(503);
     expect((await postRoom(request({ action: 'start' }, created.token), { params: { code: created.code } })).status).toBe(503);
+    // Apple Look Around rooms need no Google key: they open, and they start.
+    const apple = await createRoom(request({ name: 'Look', hostName: 'H', settings: { provider: 'apple', mode: 'cities', rounds: 3 } }));
+    expect(apple.status).toBe(200);
+    const appleHost = await apple.json();
+    expect(appleHost.state.room.config).toMatchObject({ provider: 'apple', mode: 'cities' });
+    const guest = await (await postRoom(request({ action: 'join', name: 'G' }), { params: { code: appleHost.code } })).json();
+    const started = await postRoom(request({ action: 'start' }, appleHost.token), { params: { code: appleHost.code } });
+    expect(started.status).toBe(200);
+    const state = (await started.json()).state;
+    expect(state.room.phase).toBe('locating');
+    expect(state.locating.candidates.length).toBeGreaterThan(0);
+    const placed = await postRoom(request({ action: 'locate', index: 0 }, guest.token), { params: { code: appleHost.code } });
+    expect(placed.status).toBe(200);
+    expect((await placed.json()).state.round.coordinate).toEqual(state.locating.candidates[0]);
   });
 });
