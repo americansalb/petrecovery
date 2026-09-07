@@ -51,6 +51,7 @@ const STATIC_SEGMENTS = [
   'report',
   'for-shelters',
   'rasuwa',
+  'geo',
 ];
 
 /**
