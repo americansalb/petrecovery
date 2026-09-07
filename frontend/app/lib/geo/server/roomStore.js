@@ -119,13 +119,13 @@ export const prismaRoomStore = {
     return prisma.geoUsage.findMany({ where: { subject: { in: subjects }, day } });
   },
   async bumpUsage(subject, day, provider, inc = {}) {
-    const data = { rounds: inc.rounds || 0, free: inc.free || 0, paid: inc.paid || 0 };
+    const data = { rounds: inc.rounds || 0, free: inc.free || 0, paid: inc.paid || 0, games: inc.games || 0 };
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         return await prisma.geoUsage.upsert({
           where: { subject_day_provider: { subject, day, provider } },
           create: { subject, day, provider, ...data },
-          update: { rounds: { increment: data.rounds }, free: { increment: data.free }, paid: { increment: data.paid } },
+          update: { rounds: { increment: data.rounds }, free: { increment: data.free }, paid: { increment: data.paid }, games: { increment: data.games } },
         });
       } catch (error) {
         // Two first rounds of the day racing to create the row: retry once.

@@ -39,6 +39,21 @@ export const APPLE_COVERAGE = new Set([
   'NL', 'BE', 'AT', 'CH', 'SE', 'NO', 'DK', 'FI', 'IL',
 ]);
 
+/** The Apple list in plain words, for the lobby: where the free tier plays. */
+export const APPLE_COVERAGE_NAMES = {
+  US: 'the United States', CA: 'Canada', GB: 'the UK', IE: 'Ireland', JP: 'Japan', AU: 'Australia', NZ: 'New Zealand',
+  SG: 'Singapore', HK: 'Hong Kong', FR: 'France', DE: 'Germany', IT: 'Italy', ES: 'Spain', PT: 'Portugal',
+  NL: 'the Netherlands', BE: 'Belgium', AT: 'Austria', CH: 'Switzerland', SE: 'Sweden', NO: 'Norway', DK: 'Denmark',
+  FI: 'Finland', IL: 'Israel',
+};
+
+/** "the United States, Canada, ... and Israel" */
+export function appleCoverageSentence() {
+  const names = [...APPLE_COVERAGE].map((cc) => APPLE_COVERAGE_NAMES[cc] || cc);
+  if (names.length < 2) return names.join('');
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 /**
  * Large cities with dense street-level coverage from both providers.
  * [name, country, lat, lng, radiusKm]. The radius is how far from the

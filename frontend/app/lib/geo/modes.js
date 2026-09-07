@@ -14,7 +14,7 @@ export const PROVIDERS = {
     id: 'apple',
     label: 'Apple Look Around',
     short: 'Apple',
-    description: 'Apple Maps Look Around. Cities in about two dozen countries.',
+    description: 'Apple Maps Look Around. City streets, free without limit.',
     beta: true,
   },
 };

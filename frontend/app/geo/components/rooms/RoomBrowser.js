@@ -15,13 +15,18 @@ import { listRecentRooms, loadName, saveIdentity, saveName } from '../../lib/use
 import { ensureProfile, profileHeaders } from '../../lib/profile';
 import { ago } from '../../lib/time';
 import SetupNotice from '../SetupNotice';
+import { APPLE_COVERAGE } from '@/app/lib/geo/coverage';
 
-function Field({ label, children }) {
+function Field({ label, hint, children }) {
+  // The hint sits outside the label so the label reads as its name alone.
   return (
-    <label className="block text-sm">
-      <span className="mb-1 block font-semibold text-midnight-800">{label}</span>
-      {children}
-    </label>
+    <div className="text-sm">
+      <label className="block">
+        <span className="mb-1 block font-semibold text-midnight-800">{label}</span>
+        {children}
+      </label>
+      {hint ? <span className="mt-1 block text-xs text-midnight-500">{hint}</span> : null}
+    </div>
   );
 }
 
@@ -193,7 +198,7 @@ export default function RoomBrowser() {
                   ))}
                 </div>
               </div>
-              <Field label="Imagery">
+              <Field label="Imagery" hint={form.provider === 'apple' ? `City streets in ${APPLE_COVERAGE.size} countries. Free without limit.` : 'Covers most of the world. One room a day is free, then bought rounds.'}>
                 <select
                   value={form.provider}
                   onChange={(e) => {
@@ -209,7 +214,6 @@ export default function RoomBrowser() {
                   <option value="google">Google Street View</option>
                   <option value="apple">Apple Look Around (beta)</option>
                 </select>
-                <span className="mt-1 block text-xs text-midnight-500">{form.provider === 'apple' ? 'City streets in the countries Apple covers. Free without limit.' : 'Covers most of the world. Counts toward your Google rounds.'}</span>
               </Field>
               <Field label="Places">
                 <select value={form.mode} onChange={(e) => update({ mode: e.target.value })} className={select}>
@@ -266,7 +270,7 @@ export default function RoomBrowser() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Format">
+                <Field label="Format" hint={FORMATS[form.format]?.description}>
                   <select value={form.format} onChange={(e) => update({ format: e.target.value })} className={select}>
                     {FORMAT_ORDER.map((id) => (
                       <option key={id} value={id}>
@@ -274,7 +278,6 @@ export default function RoomBrowser() {
                       </option>
                     ))}
                   </select>
-                  <span className="mt-1 block text-xs text-midnight-500">{FORMATS[form.format]?.description}</span>
                 </Field>
               </div>
             </div>

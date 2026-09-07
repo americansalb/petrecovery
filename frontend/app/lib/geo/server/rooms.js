@@ -43,7 +43,7 @@ import {
 } from '../rooms';
 import { APPLE_CANDIDATES_PER_ROUND, findRoundImagery } from './game';
 import { createCandidateSource } from './sampler';
-import { checkRoomEntry, recordRoomRound } from './meter';
+import { checkRoomEntry, recordRoomRound, subjectsForPlayer } from './meter';
 import { awardRoomFinish, awardRoomRound, reactionsForProfile } from './points';
 import { allReactionEmoji } from '../items';
 import { applyRoomRatings, ratingsForRoom } from './profiles';
@@ -114,8 +114,10 @@ async function touchRoom(store, room, now, extra = {}) {
 
 export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now() }) {
   const { config, variant, visibility } = normalizeRoomConfig(settings);
-  // The play meter: a person at the day's ceiling, or a site past its
-  // budget, does not open a room. The allowance is not checked here.
+  // The play meter: a person at the day's ceiling, a site past its
+  // budget, or on Google a player whose free room game is used and who
+  // has no prepaid rounds, does not open a room. The solo allowance is
+  // not checked here.
   if (subjects) await checkRoomEntry(store, { subjects, provider: config.provider, now });
   config.seed = randomSeedString();
   let room = null;
@@ -148,6 +150,8 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     isHost: true,
     hp: DUEL_START_HP,
     profileId: profileId || null,
+    ipHash: subjects?.ipHash || null,
+    entry: null,
     joinedAt: new Date(now),
     lastSeenAt: new Date(now),
   });
@@ -175,6 +179,8 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
     isHost: players.length === 0,
     hp: DUEL_START_HP,
     profileId: profileId || null,
+    ipHash: subjects?.ipHash || null,
+    entry: null,
     joinedAt: new Date(now),
     lastSeenAt: new Date(now),
   });
@@ -558,11 +564,15 @@ async function rematch(store, room, me, now) {
   if (room.rematchCode) {
     return { rematch: { code: room.rematchCode } };
   }
+  // A rematch is a new game: it goes through the play meter's door like
+  // any other room, with the player's profile and address as they were.
+  const subjects = me.profileId || me.ipHash ? await subjectsForPlayer(store, me) : null;
   const created = await createRoom(store, {
     name: room.name,
     hostName: me.name,
     settings: { ...room.config, variant: room.variant, visibility: room.visibility },
     profileId: me.profileId || null,
+    subjects,
     now,
   });
   await touchRoom(store, room, now, { rematchCode: created.room.code });
