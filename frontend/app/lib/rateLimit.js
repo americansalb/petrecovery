@@ -127,7 +127,7 @@ export const RateLimitPresets = {
  * 'true-client-ip') - that value can't be forged past a trusted proxy.
  * The leftmost-XFF path remains only as a last-resort fallback for local/dev.
  */
-function getClientIP(request) {
+export function getClientIP(request) {
   const trustedHeader = process.env.RATELIMIT_TRUSTED_IP_HEADER;
   if (trustedHeader) {
     const trusted = request.headers.get(trustedHeader.toLowerCase());
@@ -413,15 +413,21 @@ function checkRateLimitMemory(key, options) {
  * Automatically uses Redis if available, falls back to in-memory
  */
 export async function checkRateLimitAsync(request, options) {
+  const { keyPrefix = 'default' } = options;
+  const ip = getClientIP(request);
+  return checkRateLimitForKeyAsync(`${keyPrefix}:${ip}`, options);
+}
+
+/**
+ * The same check on a key the caller built: a per-player limit keyed by
+ * a profile id rather than the address (the geo game's speed limit).
+ */
+export async function checkRateLimitForKeyAsync(key, options) {
   const {
     windowMs = 60000,
     maxRequests = 30,
     blockDurationMs = 60000,
-    keyPrefix = 'default'
   } = options;
-
-  const ip = getClientIP(request);
-  const key = `${keyPrefix}:${ip}`;
 
   // Redis first when it is configured: same durability, lower latency.
   const redis = await getRedisClient();

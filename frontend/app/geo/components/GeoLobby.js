@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { CalendarDays, Check, Medal, Play, Trophy, Users } from 'lucide-react';
+import { CalendarDays, Check, Gauge, Medal, Play, Trophy, Users } from 'lucide-react';
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -445,6 +445,30 @@ export default function GeoLobby() {
                     rankings
                   </Link>
                   .
+                </p>
+              )}
+            </section>
+
+            {/* Today's meter */}
+            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+                <Gauge className="h-4 w-4" />
+                Today
+              </h2>
+              {profile?.usage ? (
+                <>
+                  <p className="mt-2 text-sm text-midnight-700">
+                    <span className="font-semibold text-midnight-900">
+                      {profile.usage.google.freeUsed} of {profile.usage.google.freeLimit}
+                    </span>{' '}
+                    free Google Street View rounds used.
+                    {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''}
+                  </p>
+                  <p className="mt-1 text-sm text-midnight-600">Apple Look Around rounds: no limit. The daily challenge does not count.</p>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-midnight-600">
+                  {server?.limits?.freeGoogleRounds ?? 25} free Google Street View rounds a day, the daily challenge on top. Apple Look Around rounds: no limit.
                 </p>
               )}
             </section>

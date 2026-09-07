@@ -10,6 +10,8 @@ const memoryStore = createMemoryRoomStore();
 jest.mock('@/app/lib/geo/server/roomStore', () => ({ prismaRoomStore: memoryStore }));
 jest.mock('@/app/lib/rateLimit', () => ({
   withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
+  checkRateLimitForKeyAsync: jest.fn().mockResolvedValue({ success: true }),
+  getClientIP: (request) => request.headers.get('x-test-ip') || '203.0.113.9',
   RateLimitPresets: { PUBLIC_WRITE: {} },
   rateLimitResponse: jest.fn(),
 }));

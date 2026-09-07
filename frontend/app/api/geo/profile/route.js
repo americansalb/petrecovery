@@ -14,6 +14,9 @@ import { authOptions } from '@/app/lib/auth';
 import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/rateLimit';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { profileSummary, resolveProfile } from '@/app/lib/geo/server/profiles';
+import { hashIp, usageToday } from '@/app/lib/geo/server/meter';
+import { getGeoServerConfig } from '@/app/lib/geo/server/config';
+import { getClientIP } from '@/app/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +40,9 @@ export async function POST(request) {
       name: body?.name || session?.user?.name || '',
     });
     const summary = await profileSummary(prismaRoomStore, profile);
+    // Today's meter (docs/GEO.md, "The play meter"), for the lobby.
+    const subjects = { profile, profileId: profile.id, signedIn: Boolean(userId), ipHash: hashIp(getClientIP(request), getGeoServerConfig().tokenSecret) };
+    summary.usage = await usageToday(prismaRoomStore, subjects).catch(() => null);
     return NextResponse.json({ ok: true, token: token || undefined, profile: summary }, NO_STORE);
   } catch (error) {
     console.error('[geo/profile]', error);

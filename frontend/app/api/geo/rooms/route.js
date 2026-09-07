@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/rateLimit';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
-import { NO_STORE, profileIdFor, roomErrorResponse } from '@/app/lib/geo/server/roomRoute';
+import { NO_STORE, playerSubjects, roomErrorResponse } from '@/app/lib/geo/server/roomRoute';
 import { createRoom, listRooms } from '@/app/lib/geo/server/rooms';
 
 export const dynamic = 'force-dynamic';
@@ -43,12 +43,14 @@ export async function POST(request) {
   }
 
   try {
-    const profileId = await profileIdFor(request, body?.hostName);
+    const subjects = await playerSubjects(request, body?.hostName);
+    const profileId = subjects.profileId;
     const { room, player, token, state } = await createRoom(prismaRoomStore, {
       name: body?.name,
       hostName: body?.hostName,
       settings: body?.settings && typeof body.settings === 'object' ? body.settings : body || {},
       profileId,
+      subjects,
     });
     return NextResponse.json({ ok: true, code: room.code, token, playerId: player.id, state }, NO_STORE);
   } catch (error) {

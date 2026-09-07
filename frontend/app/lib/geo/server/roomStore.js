@@ -99,4 +99,30 @@ export const prismaRoomStore = {
   getRecentResults(profileId, limit = 10) {
     return prisma.geoMatchResult.findMany({ where: { profileId }, orderBy: { createdAt: 'desc' }, take: limit });
   },
+
+  // The play meter (server/meter.js)
+  listUsage(subjects, day) {
+    if (!subjects.length) return Promise.resolve([]);
+    return prisma.geoUsage.findMany({ where: { subject: { in: subjects }, day } });
+  },
+  async bumpUsage(subject, day, provider, inc = {}) {
+    const data = { rounds: inc.rounds || 0, free: inc.free || 0, paid: inc.paid || 0 };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await prisma.geoUsage.upsert({
+          where: { subject_day_provider: { subject, day, provider } },
+          create: { subject, day, provider, ...data },
+          update: { rounds: { increment: data.rounds }, free: { increment: data.free }, paid: { increment: data.paid } },
+        });
+      } catch (error) {
+        // Two first rounds of the day racing to create the row: retry once.
+        if (error?.code !== 'P2002' || attempt) throw error;
+      }
+    }
+    return null;
+  },
+  async consumePaidRound(profileId) {
+    const result = await prisma.geoProfile.updateMany({ where: { id: profileId, paidRounds: { gt: 0 } }, data: { paidRounds: { decrement: 1 } } });
+    return result.count === 1;
+  },
 };
