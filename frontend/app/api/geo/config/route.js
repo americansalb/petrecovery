@@ -35,7 +35,7 @@ export async function GET() {
       },
       daily: { seed: dailySeed(), date: new Date().toISOString().slice(0, 10) },
       // The play meter's per-player numbers (docs/GEO.md); the site budgets stay server-side.
-      limits: (({ freeGoogleRounds, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }) => ({ freeGoogleRounds, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }))(limitsFromEnv()),
+      limits: (({ freeGoogleRounds, freeGoogleRoomGames, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }) => ({ freeGoogleRounds, freeGoogleRoomGames, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }))(limitsFromEnv()),
       cityCount: CITIES.length,
       countries: countryOptions(),
     },

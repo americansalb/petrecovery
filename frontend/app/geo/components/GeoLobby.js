@@ -35,7 +35,8 @@ import { getHistory, getStats } from '../lib/storage';
 import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile';
 import { listRecentRooms, loadName } from '../lib/useRoom';
 import { ago } from '../lib/time';
-import { untilText } from '@/app/lib/geo/meter';
+import { DEFAULT_LIMITS, allowanceText, roomGamesText, untilText } from '@/app/lib/geo/meter';
+import { APPLE_COVERAGE, appleCoverageSentence } from '@/app/lib/geo/coverage';
 import SetupNotice from './SetupNotice';
 import PlayerName from './PlayerName';
 
@@ -259,6 +260,9 @@ export default function GeoLobby() {
                   </button>
                 ))}
               </div>
+              <p className="mt-3 text-xs text-midnight-600">
+                Apple Look Around covers city streets in {APPLE_COVERAGE.size} countries: {appleCoverageSentence()}.
+              </p>
             </section>
 
             {/* Mode */}
@@ -365,7 +369,7 @@ export default function GeoLobby() {
                 <Users className="h-4 w-4" />
                 Play with friends
               </h2>
-              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP. Rooms on Apple Look Around are free without limit.</p>
+              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP. One room a day on Google Street View is free; rooms on Apple Look Around are free without limit.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href="/geo/rooms" className="inline-flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500">
                   <Users className="h-4 w-4" />
@@ -475,12 +479,11 @@ export default function GeoLobby() {
                     free Google Street View rounds used.
                     {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''}
                   </p>
-                  <p className="mt-1 text-sm text-midnight-600">Apple Look Around rounds: no limit. The daily challenge does not count.</p>
+                  <p className="mt-1 text-sm text-midnight-700">{roomGamesText(profile.usage.google.roomGames)}</p>
+                  <p className="mt-1 text-sm text-midnight-600">Apple Look Around: no limit. The daily challenge and the weekly cup do not count.</p>
                 </>
               ) : (
-                <p className="mt-2 text-sm text-midnight-600">
-                  {server?.limits?.freeGoogleRounds ?? 25} free Google Street View rounds a day, the daily challenge on top. Apple Look Around rounds: no limit.
-                </p>
+                <p className="mt-2 text-sm text-midnight-600">{allowanceText({ ...DEFAULT_LIMITS, ...(server?.limits || {}) })}</p>
               )}
             </section>
 

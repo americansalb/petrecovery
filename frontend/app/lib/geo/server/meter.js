@@ -11,7 +11,7 @@
  */
 
 import { createHash } from 'crypto';
-import { MeterError, dayKey, decideRound, limitsFromEnv, meterView, nextDayMs, refusalMessage, usageIncrement } from '../meter';
+import { MeterError, dayKey, decideRoomEntry, decideRound, limitsFromEnv, meterView, nextDayMs, refusalMessage, seatIncrement, usageIncrement } from '../meter';
 
 export const SITE_SUBJECT = 'site';
 
@@ -31,7 +31,7 @@ async function readUsage(store, subjects, day) {
   const rows = await store.listUsage(subjectKeys(subjects), day);
   const bucket = (subject) => {
     const out = {};
-    for (const r of rows) if (r.subject === subject) out[r.provider] = { rounds: r.rounds, free: r.free, paid: r.paid };
+    for (const r of rows) if (r.subject === subject) out[r.provider] = { rounds: r.rounds, free: r.free, paid: r.paid, games: r.games || 0 };
     return out;
   };
   return {
@@ -92,28 +92,42 @@ export async function recordRound(store, { subjects, provider, source, now = Dat
 }
 
 /**
- * Opening or joining a room: the ceiling and the site budget apply, the
- * allowance does not. Throws a MeterError.
+ * Opening or joining a room, or a rematch: the ceiling and the site
+ * budget apply, then on Google the day's free room game or a prepaid
+ * balance. The solo allowance never counts here: a friend's invitation
+ * is not refused for it. Throws a MeterError; returns the decision.
  */
 export async function checkRoomEntry(store, { subjects, provider = 'google', now = Date.now(), limits = limitsFromEnv() }) {
   const usage = await readUsage(store, subjects, dayKey(now));
-  const decision = decideRound({
+  const decision = decideRoomEntry({
     provider,
-    mode: 'balanced',
     signedIn: subjects.signedIn,
     hasProfile: Boolean(subjects.profileId),
+    paidRounds: subjects.profile?.paidRounds || 0,
     usage,
     limits,
-    allowance: false,
   });
   if (!decision.ok) throw refuse(decision.code, provider, now);
+  return decision;
 }
 
 /**
- * A room round started: every present player with a profile is charged
- * one round on the room's imagery (the free allowance first, then
- * prepaid rounds, then simply counted), and the site is charged one per
- * player. Never throws.
+ * The subjects behind a player already in a room, for the rematch: the
+ * profile row (fresh, for the prepaid balance) and the hashed address
+ * kept on the player. No request here.
+ */
+export async function subjectsForPlayer(store, player) {
+  const profile = player?.profileId && store.getProfileById ? await store.getProfileById(player.profileId) : null;
+  return { profile, profileId: profile?.id || null, signedIn: Boolean(profile?.userId), ipHash: player?.ipHash || null };
+}
+
+/**
+ * A room round started. The first round a player is present for takes
+ * their seat: on Google the day's free game (its rounds are then outside
+ * the solo allowance) or the prepaid balance, on Apple nothing; a player
+ * whose free game went to another room meanwhile and who has no balance
+ * is simply counted, never sent away mid-game. Every round is counted
+ * toward the day's ceiling for the player and the site. Never throws.
  */
 export async function recordRoomRound(store, room, now = Date.now(), limits = limitsFromEnv()) {
   try {
@@ -123,21 +137,44 @@ export async function recordRoomRound(store, room, now = Date.now(), limits = li
     if (!players.length) return;
     await store.bumpUsage(SITE_SUBJECT, day, provider, { rounds: players.length, free: 0, paid: 0 });
     for (const player of players) {
-      if (!player.profileId) continue;
-      const subject = profileSubject(player.profileId);
-      let source = 'over';
-      if (provider === 'apple') source = 'apple';
-      else {
-        const rows = await store.listUsage([subject], day);
-        const freeUsed = rows.find((r) => r.provider === 'google')?.free || 0;
-        if (freeUsed < limits.freeGoogleRounds) source = 'free';
-        else if (await store.consumePaidRound(player.profileId)) source = 'paid';
+      const subjects = [profileSubject(player.profileId), player.ipHash].filter(Boolean);
+      if (!subjects.length) continue;
+      let entry = player.entry || null;
+      if (!entry) {
+        entry = await takeSeat(store, player, subjects, provider, day, limits);
+        if (store.updatePlayer) await store.updatePlayer(player.id, { entry });
       }
-      await store.bumpUsage(subject, day, provider, usageIncrement(source));
+      let source = 'over';
+      if (entry === 'apple') source = 'apple';
+      else if (entry === 'paid' && player.profileId && (await store.consumePaidRound(player.profileId))) source = 'paid';
+      // A free seat's rounds are counted, not drawn from the allowance.
+      await Promise.all(subjects.map((subject) => store.bumpUsage(subject, day, provider, usageIncrement(source))));
     }
   } catch (error) {
     console.error('[geo/meter] room round', error?.message || error);
   }
+}
+
+async function takeSeat(store, player, subjects, provider, day, limits) {
+  if (provider === 'apple') return 'apple';
+  const rows = await store.listUsage(subjects, day);
+  const gamesOf = (subject) => rows.find((r) => r.subject === subject && r.provider === 'google')?.games || 0;
+  const profileSubj = profileSubject(player.profileId);
+  const profile = player.profileId && store.getProfileById ? await store.getProfileById(player.profileId) : null;
+  const decision = decideRoomEntry({
+    provider,
+    signedIn: Boolean(profile?.userId),
+    hasProfile: Boolean(player.profileId),
+    paidRounds: profile?.paidRounds || 0,
+    usage: {
+      profile: profileSubj ? { google: { games: gamesOf(profileSubj) } } : undefined,
+      ip: player.ipHash ? { google: { games: gamesOf(player.ipHash) } } : undefined,
+    },
+    limits,
+  });
+  const entry = decision.ok ? decision.source : 'over';
+  if (entry === 'free') await Promise.all(subjects.map((subject) => store.bumpUsage(subject, day, provider, seatIncrement('free'))));
+  return entry;
 }
 
 /** Today's meter for one player, as the lobby shows it. */

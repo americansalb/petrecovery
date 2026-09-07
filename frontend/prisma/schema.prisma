@@ -5793,6 +5793,12 @@ model GeoRoomPlayer {
   placement    Int?
   pointsEarned Int       @default(0)
 
+  // The play meter: the hashed address the player joined from, and how
+  // the seat was paid once the first round started (free, paid, apple,
+  // over), so a room game is charged once per player.
+  ipHash String?
+  entry  String?
+
   guesses GeoRoomGuess[]
 
   @@index([roomId])
@@ -5857,6 +5863,7 @@ model GeoUsage {
   rounds    Int      @default(0)
   free      Int      @default(0)
   paid      Int      @default(0)
+  games     Int      @default(0) // free Google room games used (docs/GEO.md, the play meter)
   updatedAt DateTime @updatedAt
 
   @@unique([subject, day, provider])

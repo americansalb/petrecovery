@@ -27,9 +27,10 @@ const hitFetch = jest.fn(async (url) => {
 const ENV_KEYS = ['GOOGLE_STREET_VIEW_API_KEY', 'GOOGLE_MAPS_BROWSER_KEY'];
 const saved = {};
 
-function request(body, token) {
+function request(body, token, ip) {
   const headers = new Map();
   if (token) headers.set('x-geo-player', token);
+  if (ip) headers.set('x-test-ip', ip);
   return { json: async () => body, headers, url: 'http://localhost/api/geo/rooms' };
 }
 
@@ -39,11 +40,14 @@ beforeEach(() => {
     saved[k] = process.env[k];
     process.env[k] = 'set';
   }
+  // Everyone here plays from one address; the free room game per day is tested on its own below.
+  process.env.GEO_FREE_GOOGLE_ROOM_GAMES = '100';
   global.fetch = hitFetch;
 });
 
 afterEach(() => {
   console.error.mockRestore?.();
+  delete process.env.GEO_FREE_GOOGLE_ROOM_GAMES;
   for (const k of ENV_KEYS) {
     if (saved[k] === undefined) delete process.env[k];
     else process.env[k] = saved[k];
@@ -117,5 +121,23 @@ describe('rooms API', () => {
     const placed = await postRoom(request({ action: 'locate', index: 0 }, guest.token), { params: { code: appleHost.code } });
     expect(placed.status).toBe(200);
     expect((await placed.json()).state.round.coordinate).toEqual(state.locating.candidates[0]);
+  });
+
+  test('one free Google room a day: the second one is a 429 that says so, Apple rooms stay open', async () => {
+    process.env.GEO_FREE_GOOGLE_ROOM_GAMES = '1';
+    const host = await (await createRoom(request({ name: 'First', hostName: 'Ada', settings: { rounds: 3 } }, null, '198.51.100.21'))).json();
+    const guest = await (await postRoom(request({ action: 'join', name: 'Grace' }, null, '198.51.100.22'), { params: { code: host.code } })).json();
+    expect(guest.token).toBeTruthy();
+    expect((await postRoom(request({ action: 'start' }, host.token), { params: { code: host.code } })).status).toBe(200);
+    const again = await createRoom(request({ name: 'Second', hostName: 'Ada' }, null, '198.51.100.21'));
+    expect(again.status).toBe(429);
+    const body = await again.json();
+    expect(body.code).toBe('rooms');
+    expect(body.error).toMatch(/free multiplayer game/);
+    expect(again.headers.get('Retry-After')).toBeTruthy();
+    const other = await (await createRoom(request({ name: 'Other', hostName: 'Linus' }, null, '198.51.100.23'))).json();
+    expect((await postRoom(request({ action: 'join', name: 'Grace' }, null, '198.51.100.22'), { params: { code: other.code } })).status).toBe(429);
+    const apple = await createRoom(request({ name: 'Cities', hostName: 'Ada', settings: { provider: 'apple', mode: 'cities' } }, null, '198.51.100.21'));
+    expect(apple.status).toBe(200);
   });
 });

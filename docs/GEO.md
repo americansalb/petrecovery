@@ -269,7 +269,7 @@ holds the counts per subject per UTC day per provider):
 
 | | Google | Apple |
 |---|---|---|
-| Free per player per day | 25 rounds (`GEO_FREE_GOOGLE_ROUNDS`); the daily challenge is on top | no limit |
+| Free per player per day | 25 solo rounds, five games of five (`GEO_FREE_GOOGLE_ROUNDS`), and one room game (`GEO_FREE_GOOGLE_ROOM_GAMES`); the daily challenge and the weekly cup are on top | no limit |
 | After that | prepaid rounds on the profile (`paidRounds`, quota packs bought once; no subscriptions anywhere), then a refusal | |
 | Per player per day, any imagery | 600 anonymous, 2,000 signed in | same |
 | Per address per day | 5,000, and 125 free Google rounds as a backstop for anonymous players who clear the browser | same |
@@ -286,13 +286,23 @@ Where it bites: `/api/geo/round` refuses with a 429 and a code
 (`allowance`, `ceiling`, `budget`, `speed`), and the play page shows the
 refusal in our words with the same game on Apple imagery as the way on
 when the mode has one. A round is charged only once imagery was found.
-Rooms are counted, not refused: every player present is charged a round
-each time one starts (free rounds first, then prepaid, then simply
-counted), a person at the ceiling or a site past its budget cannot open
-or join one, and a room needs two players to start, so a room is never a
-way around the meter alone and never breaks for a friend who is out of
-free rounds. A store failure while metering is logged and the round goes
-on; the caps in the Google console are the backstop, not this table.
+
+Rooms have their own door. A seat in a Google room is the day's free
+room game, or prepaid rounds once that is used; opening, joining and a
+rematch refuse (429 `rooms`) only when both are gone, never for the solo
+allowance, so a friend who is out of free rounds still gets in. The seat
+is charged when the first round starts, not at the door
+(`GeoRoomPlayer.entry`: free, paid, apple, over), so a room nobody joins
+costs nothing and a late joiner is charged at their first round. A free
+seat's rounds are counted toward the ceilings but never drawn from the
+solo allowance (`GeoUsage.games` counts the free games); a paid seat draws
+one prepaid round per round; a player whose balance runs out mid-game, or
+whose free game went to another room in between, is simply counted,
+never sent away. A person at the ceiling or a site past its budget cannot
+open or join a room, and a room needs two players to start. Apple rooms
+are counted under `apple` with no allowance. A store failure while
+metering is logged and the round goes on; the caps in the Google console
+are the backstop, not this table.
 
 The lobby shows today's numbers from `/api/geo/profile` (`usage`).
 Refusal copy stays plain: "You've played a lot today. Back tomorrow."
