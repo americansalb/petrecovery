@@ -125,4 +125,56 @@ export const prismaRoomStore = {
     const result = await prisma.geoProfile.updateMany({ where: { id: profileId, paidRounds: { gt: 0 } }, data: { paidRounds: { decrement: 1 } } });
     return result.count === 1;
   },
+
+  // Challenges with a board (server/challenges.js)
+  async createChallengeRound(data) {
+    try {
+      return await prisma.geoChallengeRound.create({ data });
+    } catch (error) {
+      if (error?.code === 'P2002') return null; // the round was already counted
+      throw error;
+    }
+  },
+  async bumpChallengeEntry(profileId, key, { scoreDelta = 0, roundsDelta = 0, rounds, now }) {
+    let row;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        row = await prisma.geoChallengeEntry.upsert({
+          where: { profileId_key: { profileId, key } },
+          create: { profileId, key, total: scoreDelta, rounds: roundsDelta, createdAt: new Date(now) },
+          update: { total: { increment: scoreDelta }, rounds: { increment: roundsDelta } },
+        });
+        break;
+      } catch (error) {
+        if (error?.code !== 'P2002' || attempt) throw error;
+      }
+    }
+    if (row && rounds && row.rounds >= rounds && !row.finishedAt) {
+      row = await prisma.geoChallengeEntry.update({ where: { id: row.id }, data: { finishedAt: new Date(now) } });
+    }
+    return row;
+  },
+  getChallengeEntry(profileId, key) {
+    return prisma.geoChallengeEntry.findUnique({ where: { profileId_key: { profileId, key } } });
+  },
+  listChallengeBoard(key, { rounds, limit = 20 }) {
+    return prisma.geoChallengeEntry.findMany({
+      where: { key, rounds: { gte: rounds } },
+      orderBy: [{ total: 'desc' }, { finishedAt: 'asc' }],
+      take: limit,
+      include: { profile: { select: { id: true, name: true } } },
+    });
+  },
+  countChallengeEntries(key, { rounds } = {}) {
+    return prisma.geoChallengeEntry.count({ where: rounds ? { key, rounds: { gte: rounds } } : { key } });
+  },
+  countChallengeBetter(key, { rounds, total, finishedAt }) {
+    return prisma.geoChallengeEntry.count({
+      where: {
+        key,
+        rounds: { gte: rounds },
+        OR: [{ total: { gt: total } }, { total, finishedAt: { lt: finishedAt } }],
+      },
+    });
+  },
 };

@@ -11,6 +11,7 @@ import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
 import { countryByCode } from '@/app/lib/geo/server/countries';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
+import ShareRounds from '@/app/geo/components/ShareRounds';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,26 +84,16 @@ export default function GeoSharePage({ searchParams }) {
       </p>
       {!isStreak ? <p className="mt-2 text-2xl tracking-wider">{summary.rounds.map((r) => scoreGlyph(r.score)).join('')}</p> : null}
 
-      <ol className="mt-6 divide-y divide-midnight-100 rounded-2xl border border-midnight-200 bg-white">
-        {summary.rounds.map((round, i) => {
+      {/* A daily's places are the puzzle: hidden until the reader has played that day (ShareRounds). */}
+      <ShareRounds
+        rounds={summary.rounds.map((round) => {
           const country = round.countryCode ? countryByCode(round.countryCode) : null;
-          return (
-            <li key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-              <span className="w-6 text-midnight-400">{i + 1}</span>
-              <span className="w-7 text-lg leading-none">{country?.flag || ''}</span>
-              <span className="flex-1 truncate">{country?.name || 'Somewhere'}</span>
-              {isStreak ? (
-                <span className={round.correct ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>{round.correct ? 'Right' : 'Miss'}</span>
-              ) : (
-                <>
-                  <span className="w-24 text-right text-midnight-600">{round.distanceKm === null ? 'no guess' : formatDistance(round.distanceKm)}</span>
-                  <span className="w-16 text-right font-semibold tabular-nums">{formatScore(round.score)}</span>
-                </>
-              )}
-            </li>
-          );
+          return { flag: country?.flag || '', name: country?.name || '', distanceKm: round.distanceKm, score: round.score, correct: round.correct };
         })}
-      </ol>
+        isStreak={isStreak}
+        hideUntilPlayed={summary.config.mode === 'daily'}
+        seed={summary.config.seed || ''}
+      />
 
       <div className="mt-6 flex flex-wrap gap-3">
         {summary.config.seed ? (

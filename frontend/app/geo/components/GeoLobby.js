@@ -28,7 +28,7 @@ import { randomSeedString } from '@/app/lib/geo/random';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { getHistory, getStats } from '../lib/storage';
-import { ensureProfile, loadProfileToken } from '../lib/profile';
+import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile';
 import { listRecentRooms, loadName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import SetupNotice from './SetupNotice';
@@ -110,6 +110,7 @@ export default function GeoLobby() {
   const [restored, setRestored] = useState(false);
   const [profile, setProfile] = useState(null);
   const [recentRooms, setRecentRooms] = useState([]);
+  const [daily, setDaily] = useState(null);
   const { status: sessionStatus } = useSession();
 
   useEffect(() => {
@@ -121,6 +122,10 @@ export default function GeoLobby() {
     setStats(getStats());
     setHistory(getHistory().slice(0, 8));
     setRecentRooms(listRecentRooms());
+    fetch('/api/geo/daily', { headers: profileHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('daily'))))
+      .then((data) => alive && setDaily(data))
+      .catch(() => {});
     const saved = loadSettings();
     if (saved) {
       const c = normalizeConfig(saved);
@@ -479,7 +484,7 @@ export default function GeoLobby() {
                 <CalendarDays className="h-4 w-4" />
                 Daily challenge
               </h2>
-              <p className="mt-2 text-sm text-midnight-700">Five places, the same for everyone{server?.daily?.date ? ` on ${server.daily.date}` : ' today'}.</p>
+              <p className="mt-2 text-sm text-midnight-700">Five places, the same for everyone{server?.daily?.date ? ` on ${server.daily.date}` : ' today'}. Free, and it does not count against your Google rounds.</p>
               <button
                 type="button"
                 onClick={() => start({ mode: 'daily', provider: 'google' })}
@@ -489,6 +494,30 @@ export default function GeoLobby() {
                 {stats?.dailyPlayed ? <Check className="h-4 w-4 text-flash-400" /> : <Play className="h-4 w-4" />}
                 {stats?.dailyPlayed ? 'Play today again' : "Play today's five"}
               </button>
+              {daily ? (
+                <div className="mt-4 border-t border-midnight-100 pt-3" data-daily-board>
+                  <p className="text-sm text-midnight-700">
+                    {daily.you?.rank
+                      ? `You are ${ordinal(daily.you.rank)} of ${daily.finished} who finished today.`
+                      : daily.you
+                        ? `Your ${daily.you.rounds} of ${daily.rounds} rounds are in.`
+                        : daily.finished
+                          ? `${daily.finished} finished today's five so far.`
+                          : 'Nobody has finished today yet. Be first.'}
+                  </p>
+                  {daily.board?.length ? (
+                    <ol className="mt-2 space-y-0.5 text-sm">
+                      {daily.board.slice(0, 5).map((row) => (
+                        <li key={row.profileId} className="flex items-center gap-2">
+                          <span className="w-5 tabular-nums text-midnight-400">{row.rank}</span>
+                          <span className="flex-1 truncate text-midnight-800">{row.name}</span>
+                          <span className="font-semibold tabular-nums">{formatScore(row.total)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </div>
+              ) : null}
             </section>
 
             {/* Stats */}

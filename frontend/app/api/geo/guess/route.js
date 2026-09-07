@@ -3,11 +3,19 @@
  *
  * Scores a guess against the sealed token from /api/geo/round and reveals
  * the answer. A null guess (timer ran out) scores zero and still reveals.
+ *
+ * A daily challenge round is also recorded on the day's board for the
+ * profile behind the request (docs/GEO.md, "The daily challenge"); the
+ * first guess on a round is the one that counts. The reply then carries
+ * `challenge` with the running total.
  */
 
 import { NextResponse } from 'next/server';
 import { evaluateGuess } from '@/app/lib/geo/server/game';
 import { GeoTokenError } from '@/app/lib/geo/server/tokens';
+import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
+import { dailyKey, recordChallengeRound } from '@/app/lib/geo/server/challenges';
+import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +33,20 @@ export async function POST(request) {
 
   try {
     const result = evaluateGuess({ token: body.token, guess });
-    return NextResponse.json({ ok: true, result }, { headers: { 'Cache-Control': 'no-store' } });
+    let challenge = null;
+    const key = result.mode === 'daily' ? dailyKey(result.seed) : null;
+    if (key) {
+      try {
+        const { profileId } = await subjectsFor(request);
+        if (profileId) {
+          challenge = await recordChallengeRound(prismaRoomStore, { profileId, key, index: result.roundIndex, score: result.score, distanceKm: result.distanceKm });
+        }
+      } catch (error) {
+        // The guess is scored either way; the board just misses a row.
+        console.error('[geo/guess] daily board', error?.message || error);
+      }
+    }
+    return NextResponse.json({ ok: true, result, challenge }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoTokenError) {
       const message =
