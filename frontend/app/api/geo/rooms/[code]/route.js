@@ -2,7 +2,7 @@
  * GET  /api/geo/rooms/:code      the room as you see it (x-geo-player header
  *                                optional; without it you are a spectator)
  * POST /api/geo/rooms/:code      { action: 'join', name }
- *                                { action: 'start' | 'guess' | 'next' |
+ *                                { action: 'start' | 'locate' | 'guess' | 'next' |
  *                                  'react' | 'leave' | 'rematch', ... }
  *
  * Every call moves the room's clock first (reveal on deadline, next round
