@@ -5734,3 +5734,190 @@ model RasuwaCorrection {
 
   @@index([status, createdAt])
 }
+
+// ============================================================================
+// WHERE ON EARTH: MULTIPLAYER ROOMS (docs/GEO.md)
+// ============================================================================
+// Anonymous players: each holds a secret token in their browser, stored
+// here only as a hash. No User link. Rooms are short-lived; the browser
+// lists only rooms active in the last few minutes.
+
+model GeoRoom {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  name         String
+  visibility   String    @default("public") // public | private
+  status       String    @default("lobby") // lobby | playing | finished
+  phase        String    @default("lobby") // lobby | loading | guessing | reveal | finished
+  variant      String    @default("classic") // classic | duel
+  config       Json // normalized game config incl. seed
+  roundIndex   Int       @default(-1)
+  phaseEndsAt  DateTime?
+  version      Int       @default(1)
+  reactions    Json?
+  lastError    String?
+  retries      Int       @default(0)
+  rematchCode  String?
+  ratedAt      DateTime? // set once when the finished game has been rated
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastActiveAt DateTime  @default(now())
+
+  players GeoRoomPlayer[]
+  rounds  GeoRoomRound[]
+
+  @@index([visibility, status, lastActiveAt])
+}
+
+model GeoRoomPlayer {
+  id         String    @id @default(cuid())
+  roomId     String
+  room       GeoRoom   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  name       String
+  color      String
+  isHost     Boolean   @default(false)
+  score      Int       @default(0)
+  hp         Int       @default(6000)
+  eliminated Boolean   @default(false)
+  roundWins  Int       @default(0)
+  joinedAt   DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  leftAt     DateTime?
+
+  // Rating link (docs/GEO.md): who this player is across rooms, and what
+  // the finished game did to their rating, for the standings screen.
+  profileId    String?
+  ratingBefore Float?
+  ratingAfter  Float?
+  placement    Int?
+
+  guesses GeoRoomGuess[]
+
+  @@index([roomId])
+  @@index([profileId])
+}
+
+model GeoRoomRound {
+  id          String    @id @default(cuid())
+  roomId      String
+  room        GeoRoom   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  index       Int
+  panoId      String
+  heading     Int       @default(0)
+  lat         Float
+  lng         Float
+  countryCode String?
+  countryName String?
+  countryFlag String?
+  city        String?
+  imageDate   String?
+  sizeKm      Float
+  stats       Json?
+  startedAt   DateTime  @default(now())
+  deadline    DateTime?
+  revealedAt  DateTime?
+
+  guesses GeoRoomGuess[]
+
+  @@unique([roomId, index])
+}
+
+model GeoRoomGuess {
+  id          String        @id @default(cuid())
+  roundId     String
+  round       GeoRoomRound  @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  playerId    String
+  player      GeoRoomPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  lat         Float?
+  lng         Float?
+  distanceKm  Float?
+  score       Int           @default(0)
+  damage      Int           @default(0)
+  timedOut    Boolean       @default(false)
+  submittedAt DateTime      @default(now())
+
+  @@unique([roundId, playerId])
+}
+
+// Resolved rounds for seeded games (daily challenge, challenge links),
+// kept a day so everyone who plays a seed sees the same place without
+// re-probing. Panorama ids go stale, which is why it expires.
+model GeoRoundCache {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  panoId      String
+  heading     Int      @default(0)
+  lat         Float
+  lng         Float
+  countryCode String?
+  countryName String?
+  countryFlag String?
+  city        String?
+  imageDate   String?
+  sizeKm      Float
+  stats       Json?
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// WHERE ON EARTH: RATINGS (docs/GEO.md)
+// ============================================================================
+// A profile is the same person across rooms: an anonymous token in the
+// browser (stored hashed), bound to a User once they play signed in so the
+// rating follows them across devices. Ratings are Glicko: a rating and a
+// deviation per ladder, updated from every finished room as pairwise
+// results with margin of victory.
+
+model GeoProfile {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String?  @unique
+  name       String
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  ratings GeoRating[]
+  results GeoMatchResult[]
+}
+
+model GeoRating {
+  id           String     @id @default(cuid())
+  profileId    String
+  profile      GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  ladder       String // classic | duel
+  rating       Float      @default(1500)
+  rd           Float      @default(350)
+  games        Int        @default(0)
+  wins         Int        @default(0)
+  podiums      Int        @default(0)
+  peak         Float      @default(1500)
+  streak       Int        @default(0)
+  lastPlayedAt DateTime?
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([profileId, ladder])
+  @@index([ladder, rating])
+}
+
+model GeoMatchResult {
+  id           String     @id @default(cuid())
+  roomId       String
+  profileId    String
+  profile      GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  ladder       String
+  placement    Int
+  players      Int
+  score        Int        @default(0)
+  ratingBefore Float
+  ratingAfter  Float
+  rdBefore     Float
+  rdAfter      Float
+  createdAt    DateTime   @default(now())
+
+  @@unique([roomId, profileId])
+  @@index([profileId, createdAt])
+}

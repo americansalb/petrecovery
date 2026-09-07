@@ -30,6 +30,11 @@ const RATE_LIMIT_CONFIG = {
   // probes on the server; one person plays a handful a minute, and a
   // retry after "no imagery" must not lock them out. The share card
   // is rendered on demand and cached by the browser.
+  // Rooms poll their state every couple of seconds while a game is on,
+  // plus guesses and reactions; one bucket for the whole prefix.
+  '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
+  '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
+  '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/round': { windowMs: 60000, maxRequests: 40 },
   '/api/geo/guess': { windowMs: 60000, maxRequests: 60 },
   '/api/geo/config': { windowMs: 60000, maxRequests: 30 },
@@ -229,6 +234,44 @@ export async function middleware(request) {
     url.host = 'www.reunitepets.org';
     url.port = '';
     return NextResponse.redirect(url, 301);
+  }
+
+  // A domain of the game's own (docs/GEO.md): GEO_DOMAINS lists hosts
+  // that serve only Where on Earth. Short paths redirect into /geo so the
+  // visible pathname drives the chrome, and anything that is not the game
+  // goes to the pet site. Redirects, not rewrites, for the same reason as
+  // the rasuwa branch below.
+  const geoHosts = (process.env.GEO_DOMAINS || '')
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  if (geoHosts.length && geoHosts.includes(host.toLowerCase().replace(/:\d+$/, ''))) {
+    const short = {
+      '/': '/geo',
+      '/play': '/geo/play',
+      '/rooms': '/geo/rooms',
+      '/share': '/geo/share',
+      '/leaderboard': '/geo/leaderboard',
+      '/daily': '/geo/play?mode=daily',
+    };
+    const target = short[pathname] || (pathname.startsWith('/room/') ? `/geo${pathname}` : null);
+    if (target) {
+      const url = request.nextUrl.clone();
+      const [targetPath, targetQuery] = target.split('?');
+      url.pathname = targetPath;
+      if (targetQuery) url.search = `?${targetQuery}`;
+      return NextResponse.redirect(url, 302);
+    }
+    const isGame =
+      pathname.startsWith('/geo') ||
+      pathname.startsWith('/api/geo') ||
+      pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/static') ||
+      /\.[a-z0-9]{2,5}$/i.test(pathname);
+    if (!isGame) {
+      return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, 'https://www.reunitepets.org'), 302);
+    }
   }
 
   // rescueourfamily.org is the families' own domain: browsers and link

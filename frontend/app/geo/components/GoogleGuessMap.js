@@ -110,8 +110,9 @@ export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = '
 
     const bounds = new api.LatLngBounds();
     results.forEach((r, i) => {
-      if (r.answer) {
-        const label = r.label || String(i + 1);
+      // Items may share one answer (a room reveal): draw its marker once.
+      if (r.answer && r.answerMarker !== false) {
+        const label = r.answerLabel || (r.label && !r.color ? r.label : String(i + 1));
         drawnRef.current.push(
           new api.Marker({
             map,
@@ -119,14 +120,21 @@ export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = '
             icon: circleIcon(api, '#22c55e'),
             label: { text: label, color: '#0f172a', fontSize: '11px', fontWeight: '700' },
             zIndex: 30,
-            title: 'Where you were',
+            title: r.answerTitle || 'Where you were',
           })
         );
         bounds.extend(r.answer);
       }
       if (r.guess) {
         drawnRef.current.push(
-          new api.Marker({ map, position: r.guess, icon: circleIcon(api, '#facc15'), zIndex: 25, title: 'Your guess' })
+          new api.Marker({
+            map,
+            position: r.guess,
+            icon: circleIcon(api, r.color || '#facc15'),
+            label: r.color && r.label ? { text: r.label, color: '#0f172a', fontSize: '10px', fontWeight: '700' } : undefined,
+            zIndex: 25,
+            title: r.title || 'Your guess',
+          })
         );
         bounds.extend(r.guess);
       }
@@ -136,7 +144,7 @@ export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = '
             map,
             path: [r.guess, r.answer],
             geodesic: true,
-            strokeColor: '#facc15',
+            strokeColor: r.color || '#facc15',
             strokeOpacity: 0.9,
             strokeWeight: 2,
           })

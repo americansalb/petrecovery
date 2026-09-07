@@ -10,6 +10,7 @@ import { decodeShare, summaryHeadline, averageMissKm, scoreGlyph } from '@/app/l
 import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
 import { countryByCode } from '@/app/lib/geo/server/countries';
+import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,14 +33,18 @@ export async function generateMetadata({ searchParams }) {
   const avg = averageMissKm(summary);
   const description = `${describeConfig(summary.config, { regionLabel: regionLabelFor(summary.config) })}${avg !== null ? ` Average miss ${formatDistance(avg)}.` : ''}`;
   const encoded = encodeURIComponent(code);
-  return buildShareMetadata({
-    title: `${headline} in Where on Earth`,
-    description,
-    image: `/api/geo/og?s=${encoded}`,
-    imageAlt: `${headline} in Where on Earth`,
-    canonical: `/geo/share?s=${encoded}`,
-    index: false,
-  });
+  return {
+    ...buildShareMetadata({
+      title: `${headline} in Where on Earth`,
+      description,
+      image: `/api/geo/og?s=${encoded}`,
+      imageAlt: `${headline} in Where on Earth`,
+      canonical: `/geo/share?s=${encoded}`,
+      index: false,
+    }),
+    // The card must point at whichever domain served it (docs/GEO.md)
+    metadataBase: geoMetadataBase(),
+  };
 }
 
 export default function GeoSharePage({ searchParams }) {

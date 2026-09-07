@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { normalizeConfig } from '@/app/lib/geo/modes';
 import { createRound, GeoGameError } from '@/app/lib/geo/server/game';
 import { GeoSamplerError } from '@/app/lib/geo/server/sampler';
+import { prismaRoundCache } from '@/app/lib/geo/server/roundCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export async function POST(request) {
   const attempt = Math.max(0, Math.min(20, Math.floor(Number(body?.attempt) || 0)));
 
   try {
-    const round = await createRound({ config, roundIndex, attempt });
+    const round = await createRound({ config, roundIndex, attempt, cache: prismaRoundCache });
     return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoGameError || error instanceof GeoSamplerError) {

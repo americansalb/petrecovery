@@ -5,7 +5,9 @@
  * endpoint replaced by mock-metadata.js. Exercises: a three-round pin
  * game with keyboard shortcuts, the summary and its share page, seeded
  * replay, a country streak, a timed NMPZ round that runs out, and the
- * mobile map sheet.
+ * mobile map sheet, and a two-browser room: lobby, rounds, reveal,
+ * reactions, standings with ratings, rematch, leaderboard (needs the
+ * database, see docs/GEO.md).
  *
  * Setup (from frontend/):
  *   node scripts/geo-e2e/mock-metadata.js &
@@ -13,6 +15,7 @@
  *   GEO_STREET_VIEW_METADATA_URL=http://localhost:3999/metadata npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, streak, timer, mobile, rooms)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -178,11 +181,101 @@ async function mobile(browser) {
   await page.close();
 }
 
+/** Two browsers, one room: lobby, three rounds on the shared clock, reveal, standings, ratings, rematch. */
+async function rooms(browser) {
+  const host = await newPage(browser, { width: 1280, height: 800 });
+  await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
+  await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 }); // typed before hydration would be reset
+  await host.fill('input[placeholder="What the others will see"]', 'Ada');
+  await host.selectOption('label:has-text("Rounds") select', '3');
+  await host.selectOption('label:has-text("Time per round") select', '60');
+  await host.click('button:has-text("Open the room")');
+  await host.waitForURL(/\/geo\/room\/[A-Z0-9]{6}/, { timeout: 60000 });
+  const code = host.url().match(/room\/([A-Z0-9]{6})/)[1];
+  await host.waitForSelector('text=Join code', { timeout: 60000 });
+  log('room opened', code);
+
+  const guest = await newPage(browser, { width: 1280, height: 800 });
+  await guest.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
+  await guest.waitForSelector(`a[href*="/geo/room/${code}"]`, { timeout: 20000 });
+  log('room is listed publicly');
+  await guest.goto(`${BASE}/geo/room/${code}`, { waitUntil: 'domcontentloaded' });
+  await guest.fill('input[aria-label="Your name"]', 'Grace');
+  await guest.click('button:has-text("Join")');
+  await guest.waitForSelector('text=Waiting for Ada to start', { timeout: 20000 });
+  await host.waitForSelector('text=Grace', { timeout: 20000 });
+  log('guest joined; host sees them');
+
+  await host.click('button:has-text("Start the game")');
+  const stamp = () => new Date().toISOString().slice(11, 23);
+  const playRound = async (n) => {
+    for (const p of [host, guest]) {
+      await p.waitForSelector(`text=Round ${n} of 3`, { timeout: 60000 });
+      await waitForPano(p);
+    }
+    log(stamp(), `round ${n}: both pages show it`);
+    await host.evaluate(() => window.__fakeClick(48.8566, 2.3522));
+    await waitGuessable(host);
+    await host.click('button:has-text("Guess")');
+    log(stamp(), `round ${n}: host clicked guess`);
+    await host.waitForSelector('text=Guess locked in', { timeout: 20000 });
+    log(stamp(), `round ${n}: host locked in`);
+    await guest.evaluate(() => window.__fakeClick(-33.8688, 151.2093));
+    await waitGuessable(guest);
+    await guest.click('button:has-text("Guess")');
+    log(stamp(), `round ${n}: guest clicked guess`);
+    for (const p of [host, guest]) await p.waitForSelector('text=/(Next round|Results) in \\d+s/', { timeout: 20000 });
+    log(stamp(), `round ${n}: both guessed, reveal on both screens`);
+  };
+
+  await playRound(1);
+  await expectMapVisible(host, 'room reveal');
+  const drawn = await host.evaluate(() => ({ markers: window.__fakeMarkers.filter((m) => m.opts.map).length, lines: window.__fakeLines.filter((l) => l.opts.map).length }));
+  log('reveal map:', drawn);
+  if (drawn.markers !== 3 || drawn.lines !== 2) throw new Error('reveal should draw two guesses, two lines and one answer');
+  await guest.click('button[aria-label="React 🔥"]', { timeout: 5000 });
+  await host.waitForFunction(() => document.body.innerText.includes('Grace') && document.body.innerText.includes('🔥'), null, { timeout: 10000 });
+  log(stamp(), 'reaction reached the host');
+  // The reveal moves on by itself after 12 s; the host's "Now" only shortens it.
+  const skipReveal = async (label) => {
+    const now = host.locator('button:has-text("Now")');
+    if (await now.isVisible().catch(() => false)) await now.click({ timeout: 5000 }).catch(() => {});
+    log(stamp(), label);
+  };
+  await skipReveal('host skipped reveal 1');
+  await playRound(2);
+  await skipReveal('host skipped reveal 2');
+  await playRound(3);
+  await skipReveal('host skipped the final reveal');
+  for (const p of [host, guest]) await p.waitForSelector('text=Final standings', { timeout: 30000 });
+  await host.waitForSelector('text=/[+-]\\d+ rating/', { timeout: 10000 });
+  await shot(host, 'room-standings');
+  const standings = await host.evaluate(() => document.body.innerText);
+  if (!/wins/.test(standings)) throw new Error('standings should name a winner');
+  log('standings show the winner and rating changes');
+
+  await host.click('button:has-text("Play again, same settings")');
+  await host.waitForURL((url) => /\/geo\/room\/[A-Z0-9]{6}/.test(url.href) && !url.href.includes(code), { timeout: 60000 });
+  await host.waitForSelector('text=Join code', { timeout: 60000 });
+  await guest.waitForSelector('a:has-text("Join the rematch")', { timeout: 20000 });
+  log('rematch room opened and offered to the guest');
+
+  await host.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
+  await host.waitForSelector('text=/You, Ada/', { timeout: 20000 });
+  await shot(host, 'leaderboard');
+  for (const p of [host, guest]) if (p.errors.length) throw new Error('page errors: ' + p.errors.join(' | '));
+  await host.close();
+  await guest.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    for (const step of [pinGame, streak, timer, mobile]) {
+    const all = { pinGame, streak, timer, mobile, rooms };
+    const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
+    const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
+    for (const step of steps) {
       try {
         await step(browser);
       } catch (error) {

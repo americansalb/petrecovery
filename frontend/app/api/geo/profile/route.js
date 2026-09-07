@@ -1,0 +1,45 @@
+/**
+ * POST /api/geo/profile   { name }   header x-geo-profile (optional)
+ *
+ * Who you are across rooms, for ratings. Anonymous players get a token
+ * on first call and keep it in the browser; signed-in players are bound
+ * to their account so the rating follows them. Returns the profile with
+ * its ratings per ladder and recent games. Never returns another
+ * person's token.
+ */
+
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
+import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/rateLimit';
+import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
+import { profileSummary, resolveProfile } from '@/app/lib/geo/server/profiles';
+
+export const dynamic = 'force-dynamic';
+
+const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
+
+export async function POST(request) {
+  const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_READ, 'geo-profile');
+  if (!limit.success) return rateLimitResponse(limit);
+  let body = {};
+  try {
+    body = (await request.json()) || {};
+  } catch {
+    body = {};
+  }
+  try {
+    const session = await getServerSession(authOptions).catch(() => null);
+    const userId = session?.user?.id || null;
+    const { profile, token } = await resolveProfile(prismaRoomStore, {
+      token: request.headers.get('x-geo-profile') || '',
+      userId,
+      name: body?.name || session?.user?.name || '',
+    });
+    const summary = await profileSummary(prismaRoomStore, profile);
+    return NextResponse.json({ ok: true, token: token || undefined, profile: summary }, NO_STORE);
+  } catch (error) {
+    console.error('[geo/profile]', error);
+    return NextResponse.json({ error: 'Could not load your profile', code: 'internal' }, { status: 500, ...NO_STORE });
+  }
+}
