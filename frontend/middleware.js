@@ -26,6 +26,14 @@ const RATE_LIMIT_CONFIG = {
   '/api/auth/forgot-password': { windowMs: 60000, maxRequests: 5 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
   '/api/geocode': { windowMs: 60000, maxRequests: 10 },
+  // The geo game (docs/GEO.md). A round is a burst of free metadata
+  // probes on the server; one person plays a handful a minute, and a
+  // retry after "no imagery" must not lock them out. The share card
+  // is rendered on demand and cached by the browser.
+  '/api/geo/round': { windowMs: 60000, maxRequests: 40 },
+  '/api/geo/guess': { windowMs: 60000, maxRequests: 60 },
+  '/api/geo/config': { windowMs: 60000, maxRequests: 30 },
+  '/api/geo/og': { windowMs: 60000, maxRequests: 30 },
   // Higher than the other strict routes on purpose: letter-writing events
   // put a whole room of families behind one venue IP, and each lookup is
   // one cheap, un-stored Census call (see app/api/rasuwa/district).
@@ -176,7 +184,9 @@ function addSecurityHeaders(response) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com https://cdn.apple-mapkit.com",
+      // maps.googleapis.com + maps.gstatic.com: the Maps JavaScript API
+      // (Street View + guess map) for the geo game at /geo (docs/GEO.md)
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com https://cdn.apple-mapkit.com https://maps.googleapis.com https://maps.gstatic.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https: http:",
