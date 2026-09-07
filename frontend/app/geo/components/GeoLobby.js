@@ -32,6 +32,7 @@ import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile'
 import { listRecentRooms, loadName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import SetupNotice from './SetupNotice';
+import PlayerName from './PlayerName';
 
 const SETTINGS_KEY = 'geo:lobby:v1';
 
@@ -405,8 +406,18 @@ export default function GeoLobby() {
               {profile ? (
                 <>
                   <p className="mt-2 text-sm text-midnight-700">
-                    <span className="font-semibold text-midnight-900">{profile.name || 'Player'}</span>
+                    <span className="font-semibold text-midnight-900" style={profile.equipped?.color ? { color: profile.equipped.color } : undefined}>
+                      {profile.name || 'Player'}
+                    </span>
+                    {profile.equipped?.title ? <span className="ml-1.5 rounded-full bg-midnight-100 px-1.5 text-[10px] font-bold uppercase tracking-wide text-midnight-600">{profile.equipped.title}</span> : null}
                     {profile.signedIn ? ', on your account' : ', in this browser'}
+                  </p>
+                  <p className="mt-1 text-sm text-midnight-700">
+                    <span className="font-semibold text-midnight-900">{formatScore(profile.points || 0)}</span> points
+                    {profile.badges?.length ? `, ${profile.badges.length} country ${profile.badges.length === 1 ? 'badge' : 'badges'}` : ''}.{' '}
+                    <Link href="/geo/me" className="underline">
+                      Profile and shop
+                    </Link>
                   </p>
                   <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                     {['classic', 'duel'].map((ladder) => {
@@ -445,9 +456,9 @@ export default function GeoLobby() {
                 </>
               ) : (
                 <p className="mt-2 text-sm text-midnight-600">
-                  Rooms are rated. Finish one and your rating shows here and on the{' '}
-                  <Link href="/geo/leaderboard" className="underline">
-                    rankings
+                  Every round earns points, a guess within 100 km earns the country&apos;s badge, and rooms are rated. Your rating, points and badges show here and on the{' '}
+                  <Link href="/geo/me" className="underline">
+                    profile
                   </Link>
                   .
                 </p>
@@ -510,7 +521,7 @@ export default function GeoLobby() {
                       {daily.board.slice(0, 5).map((row) => (
                         <li key={row.profileId} className="flex items-center gap-2">
                           <span className="w-5 tabular-nums text-midnight-400">{row.rank}</span>
-                          <span className="flex-1 truncate text-midnight-800">{row.name}</span>
+                          <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} className="flex-1 text-midnight-800" />
                           <span className="font-semibold tabular-nums">{formatScore(row.total)}</span>
                         </li>
                       ))}

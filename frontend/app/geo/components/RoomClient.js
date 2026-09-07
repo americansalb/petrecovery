@@ -213,7 +213,7 @@ export default function RoomClient({ code }) {
       .filter((g) => Number.isFinite(g.lat) && Number.isFinite(g.lng))
       .map((g, i) => {
         const p = byId[g.playerId];
-        return { guess: { lat: g.lat, lng: g.lng }, answer, label: initials(p?.name || '?'), color: p?.color || '#facc15', title: p?.name || 'Guess', answerMarker: i === 0, answerLabel: '★', answerTitle: 'The place' };
+        return { guess: { lat: g.lat, lng: g.lng }, answer, label: initials(p?.name || '?'), color: p?.color || '#facc15', pin: p?.cosmetics?.pin || null, title: p?.name || 'Guess', answerMarker: i === 0, answerLabel: '★', answerTitle: 'The place' };
       });
     if (!items.length) items.push({ answer, answerMarker: true, answerLabel: '★', answerTitle: 'The place' });
     return items;
@@ -315,7 +315,7 @@ export default function RoomClient({ code }) {
 
           {phase === 'guessing' ? (
             <div className="pointer-events-auto absolute bottom-16 left-1/2 z-30 -translate-x-1/2">
-              <ReactionsBar onReact={(emoji) => act('react', { emoji })} disabled={busy} />
+              <ReactionsBar onReact={(emoji) => act('react', { emoji })} disabled={busy} emoji={state.me?.reactions || undefined} />
             </div>
           ) : null}
           <ReactionToasts reactions={state.reactions || []} players={state.players} />
@@ -355,7 +355,7 @@ export default function RoomClient({ code }) {
       {api && joined ? (
         <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
           <div className="min-h-0 flex-1">
-            <GoogleGuessMap api={api} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} />
+            <GoogleGuessMap api={api} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} pinStyle={mine?.cosmetics?.pin ? { style: mine.cosmetics.pin.style, fill: mine.color } : null} />
           </div>
           {inRound && !iGuessed ? (
             <button

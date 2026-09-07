@@ -7,7 +7,8 @@
  * A daily challenge round is also recorded on the day's board for the
  * profile behind the request (docs/GEO.md, "The daily challenge"); the
  * first guess on a round is the one that counts. The reply then carries
- * `challenge` with the running total.
+ * `challenge` with the running total. Every scored round also earns
+ * points and maybe a country badge for that profile (`points`).
  */
 
 import { NextResponse } from 'next/server';
@@ -15,6 +16,7 @@ import { evaluateGuess } from '@/app/lib/geo/server/game';
 import { GeoTokenError } from '@/app/lib/geo/server/tokens';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { dailyKey, recordChallengeRound } from '@/app/lib/geo/server/challenges';
+import { awardSoloRound } from '@/app/lib/geo/server/points';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
 
 export const dynamic = 'force-dynamic';
@@ -34,19 +36,31 @@ export async function POST(request) {
   try {
     const result = evaluateGuess({ token: body.token, guess });
     let challenge = null;
+    let points = null;
     const key = result.mode === 'daily' ? dailyKey(result.seed) : null;
-    if (key) {
+    // The board and the points are for the profile behind the request.
+    // The guess is scored either way; a failure here only loses a row.
+    let profileId = null;
+    try {
+      ({ profileId } = await subjectsFor(request));
+    } catch (error) {
+      console.error('[geo/guess] profile', error?.message || error);
+    }
+    if (profileId && key) {
       try {
-        const { profileId } = await subjectsFor(request);
-        if (profileId) {
-          challenge = await recordChallengeRound(prismaRoomStore, { profileId, key, index: result.roundIndex, score: result.score, distanceKm: result.distanceKm });
-        }
+        challenge = await recordChallengeRound(prismaRoomStore, { profileId, key, index: result.roundIndex, score: result.score, distanceKm: result.distanceKm });
       } catch (error) {
-        // The guess is scored either way; the board just misses a row.
         console.error('[geo/guess] daily board', error?.message || error);
       }
     }
-    return NextResponse.json({ ok: true, result, challenge }, { headers: { 'Cache-Control': 'no-store' } });
+    if (profileId) {
+      try {
+        points = await awardSoloRound(prismaRoomStore, { profileId, result });
+      } catch (error) {
+        console.error('[geo/guess] points', error?.message || error);
+      }
+    }
+    return NextResponse.json({ ok: true, result, challenge, points }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoTokenError) {
       const message =

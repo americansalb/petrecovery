@@ -12,6 +12,7 @@ import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { MODES, movementLabel, timeLabel } from '@/app/lib/geo/modes';
 import { REACTION_EMOJI, VARIANTS, describeRoomMode, medal, sortStandings } from '@/app/lib/geo/rooms';
 import PlayersPanel, { PlayerBadge, HpBar } from './PlayersPanel';
+import PlayerName from '../PlayerName';
 
 export function Panel({ children, wide = false }) {
   return (
@@ -209,7 +210,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {onReact ? <ReactionsBar onReact={onReact} disabled={busy} /> : null}
+            {onReact ? <ReactionsBar onReact={onReact} disabled={busy} emoji={state.me?.reactions || REACTION_EMOJI} /> : null}
             <span className="text-sm text-white/60">{last ? 'Results' : 'Next round'} in {secondsLeft}s</span>
             {me?.isHost ? (
               <button type="button" onClick={onNext} disabled={busy} className="flex items-center gap-1 rounded-xl bg-flash-400 px-3 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
@@ -269,12 +270,15 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
         {winner ? `${winner.name} wins` : 'Nobody was left'}
         {winner?.you ? '. That is you.' : ''}
       </h1>
+      {me && (players.find((p) => p.you)?.pointsEarned || 0) > 0 ? (
+        <p className="mt-1 text-sm text-flash-300">+{players.find((p) => p.you).pointsEarned} points for you this game.</p>
+      ) : null}
       <div className="mt-4 flex items-end justify-center gap-3">
         {standings.slice(0, 3).map((p, i) => (
           <div key={p.id} className={`flex flex-col items-center ${i === 0 ? 'order-2' : i === 1 ? 'order-1' : 'order-3'}`}>
             <span className="text-2xl">{medal(i + 1)}</span>
             <PlayerBadge player={p} size="lg" />
-            <span className="mt-1 max-w-[6rem] truncate text-sm font-semibold">{p.name}</span>
+            <PlayerName name={p.name} cosmetics={p.cosmetics} className="mt-1 max-w-[7rem] text-sm font-semibold" />
             <span className="text-xs text-white/60">{isDuel ? `${p.hp} HP` : formatScore(p.score)}</span>
           </div>
         ))}
@@ -320,7 +324,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
 }
 
 /** Quick emoji reactions, sent to everyone in the room. */
-export function ReactionsBar({ onReact, disabled }) {
+export function ReactionsBar({ onReact, disabled, emoji = REACTION_EMOJI }) {
   const [cooldown, setCooldown] = useState(false);
   const send = async (emoji) => {
     if (cooldown || disabled) return;
@@ -334,16 +338,16 @@ export function ReactionsBar({ onReact, disabled }) {
   };
   return (
     <div className="flex items-center gap-1 rounded-full border border-white/15 bg-midnight-900/80 p-1 backdrop-blur">
-      {REACTION_EMOJI.map((emoji) => (
+      {emoji.map((e) => (
         <button
-          key={emoji}
+          key={e}
           type="button"
-          onClick={() => send(emoji)}
+          onClick={() => send(e)}
           disabled={disabled || cooldown}
           className="h-9 w-9 rounded-full text-lg transition hover:bg-white/10 disabled:opacity-50"
-          aria-label={`React ${emoji}`}
+          aria-label={`React ${e}`}
         >
-          {emoji}
+          {e}
         </button>
       ))}
     </div>

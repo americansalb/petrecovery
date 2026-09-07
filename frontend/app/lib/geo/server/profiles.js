@@ -13,6 +13,8 @@ import { hashToken, newPlayerToken } from './rooms';
 import { sanitizeName, sortStandings } from '../rooms';
 import { LADDERS, PROVISIONAL_GAMES, RATING_DEFAULT, RD_DEFAULT, displayRating, isProvisional, placementsFrom, rateGame, tierFor } from '../rating';
 import { MAX_ROUND_SCORE } from '../distance';
+import { equippedView } from '../items';
+import { countryByCode } from './countries';
 
 export const LEADERBOARD_MIN_GAMES = 3;
 
@@ -92,7 +94,30 @@ export async function profileSummary(store, profile) {
     after: Math.round(r.ratingAfter),
     at: toMs(r.createdAt),
   }));
-  return { id: profile.id, name: profile.name, signedIn: Boolean(profile.userId), ratings, recent, provisionalGames: PROVISIONAL_GAMES };
+  // Points and cosmetics (docs/GEO.md, "Points and cosmetics").
+  const [fresh, badgeRows, ledgerRows] = await Promise.all([
+    store.getProfileById(profile.id),
+    store.listBadges ? store.listBadges(profile.id) : [],
+    store.listLedger ? store.listLedger(profile.id, 12) : [],
+  ]);
+  const badges = badgeRows.map((b) => {
+    const country = countryByCode(b.countryCode);
+    return { countryCode: b.countryCode, name: country?.name || b.countryCode, flag: country?.flag || '', bestKm: b.bestKm, at: toMs(b.createdAt) };
+  });
+  const ledger = ledgerRows.map((r) => ({ kind: r.kind, amount: r.amount, reason: r.reason, at: toMs(r.createdAt) }));
+  return {
+    id: profile.id,
+    name: profile.name,
+    signedIn: Boolean(profile.userId),
+    ratings,
+    recent,
+    provisionalGames: PROVISIONAL_GAMES,
+    points: fresh?.points || 0,
+    // What is worn was checked against ownership when it was put on (server/points.js).
+    equipped: equippedView(fresh?.equipped),
+    badges,
+    ledger,
+  };
 }
 
 /** Ratings for the players of a room, keyed by profile id. */
@@ -100,9 +125,11 @@ export async function ratingsForRoom(store, room) {
   const ladder = room.variant === 'duel' ? 'duel' : 'classic';
   const ids = [...new Set(room.players.map((p) => p.profileId).filter(Boolean))];
   if (!ids.length) return {};
-  const rows = await store.getRatings(ids, ladder);
+  const [rows, profiles] = await Promise.all([store.getRatings(ids, ladder), store.getProfilesByIds ? store.getProfilesByIds(ids) : []]);
   const out = {};
-  for (const id of ids) out[id] = ratingView(rows.find((r) => r.profileId === id));
+  for (const id of ids) {
+    out[id] = { ...ratingView(rows.find((r) => r.profileId === id)), cosmetics: equippedView(profiles.find((p) => p.id === id)?.equipped) };
+  }
   return out;
 }
 
@@ -180,7 +207,7 @@ export async function applyRoomRatings(store, room, now = Date.now()) {
 export async function leaderboard(store, { ladder = 'classic', limit = 50, profileId = null } = {}) {
   const which = LADDERS.includes(ladder) ? ladder : 'classic';
   const rows = await store.listLeaderboard(which, { limit, minGames: LEADERBOARD_MIN_GAMES });
-  const table = rows.map((r, i) => ({ rank: i + 1, profileId: r.profileId, name: r.profile?.name || 'Player', ...ratingView(r) }));
+  const table = rows.map((r, i) => ({ rank: i + 1, profileId: r.profileId, name: r.profile?.name || 'Player', cosmetics: equippedView(r.profile?.equipped), ...ratingView(r) }));
   let you = null;
   if (profileId) {
     const inTable = table.find((r) => r.profileId === profileId);

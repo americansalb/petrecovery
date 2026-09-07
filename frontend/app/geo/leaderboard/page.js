@@ -11,6 +11,7 @@ import { Trophy, Users } from 'lucide-react';
 import { LADDERS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { profileHeaders } from '../lib/profile';
+import PlayerName from '../components/PlayerName';
 
 function RatingCell({ row }) {
   return (
@@ -131,7 +132,9 @@ export default function GeoLeaderboardPage() {
               {(board?.rows || []).map((row) => (
                 <tr key={row.profileId} className={row.profileId === you?.profileId ? 'bg-flash-50' : ''}>
                   <td className="px-4 py-2 tabular-nums text-midnight-500">{row.rank}</td>
-                  <td className="px-4 py-2 font-semibold">{row.name}</td>
+                  <td className="px-4 py-2 font-semibold">
+                    <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} />
+                  </td>
                   <td className="px-4 py-2 text-midnight-600">{row.tier}</td>
                   <td className="px-4 py-2"><RatingCell row={row} /></td>
                   <td className="px-4 py-2 text-right tabular-nums">{row.games}</td>

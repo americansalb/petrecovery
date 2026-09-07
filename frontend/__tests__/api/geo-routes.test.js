@@ -28,6 +28,7 @@ const { POST: postRound } = require('@/app/api/geo/round/route');
 const { POST: postGuess } = require('@/app/api/geo/guess/route');
 const { POST: postProfile } = require('@/app/api/geo/profile/route');
 const { GET: getDaily } = require('@/app/api/geo/daily/route');
+const { GET: getShop, POST: postShop } = require('@/app/api/geo/shop/route');
 const { openToken } = require('@/app/lib/geo/server/tokens');
 
 function request(body, headers = {}) {
@@ -221,5 +222,34 @@ describe('POST /api/geo/guess', () => {
     expect(past).toMatchObject({ date: '2020-01-01', players: 0, board: [], you: null });
     const junk = await (await getDaily({ ...request(null, {}), url: 'http://localhost/api/geo/daily?date=nope' })).json();
     expect(junk.date).toBe(today);
+  });
+
+  test('a scored round earns points and a badge for the profile, and the shop sells what they buy', async () => {
+    const registered = await (await postProfile(request({ name: 'Grace' }, { 'x-test-ip': '198.51.100.30' }))).json();
+    const mine = { 'x-test-ip': '198.51.100.30', 'x-geo-profile': registered.token };
+    const round = (await (await postRound(request({ config: { mode: 'country', region: 'JP', seed: 'pts' } }, mine))).json()).round;
+    const answer = openToken(round.token, { secret: process.env.NEXTAUTH_SECRET });
+    const { points } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
+    expect(points.earned).toBeGreaterThan(0);
+    expect(points.badge).toMatchObject({ countryCode: 'JP' });
+    expect(points.balance).toBe(points.earned);
+    const me = await (await postProfile(request({}, mine))).json();
+    expect(me.profile.points).toBe(points.earned);
+    expect(me.profile.badges[0].countryCode).toBe('JP');
+    expect(me.profile.ledger.length).toBeGreaterThan(0);
+    expect(me.profile.equipped.pin.id).toBe('pin-classic');
+
+    expect((await getShop(request(null, { 'x-test-ip': '198.51.100.31' }))).status).toBe(401);
+    const shop = await (await getShop(request(null, mine))).json();
+    expect(shop.shop.points).toBe(points.earned);
+    // a season of play later
+    await memoryStore.addPoints(me.profile.id, 1000);
+    const cheap = shop.shop.items.find((i) => i.price > 0 && i.price <= 1000);
+    const bought = await (await postShop(request({ action: 'buy', itemId: cheap.id }, mine))).json();
+    expect(bought.shop.owned).toContain(cheap.id);
+    expect(bought.shop.points).toBe(points.earned + 1000 - cheap.price);
+    const refused = await postShop(request({ action: 'buy', itemId: 'pin-star' }, mine));
+    expect(refused.status).toBe(402);
+    expect((await postShop(request({ action: 'dance', itemId: 'x' }, mine))).status).toBe(400);
   });
 });

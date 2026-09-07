@@ -93,7 +93,7 @@ export const prismaRoomStore = {
       where: { ladder, games: { gte: minGames } },
       orderBy: [{ rating: 'desc' }, { games: 'desc' }],
       take: limit,
-      include: { profile: { select: { id: true, name: true } } },
+      include: { profile: { select: { id: true, name: true, equipped: true } } },
     });
   },
   getRecentResults(profileId, limit = 10) {
@@ -162,7 +162,7 @@ export const prismaRoomStore = {
       where: { key, rounds: { gte: rounds } },
       orderBy: [{ total: 'desc' }, { finishedAt: 'asc' }],
       take: limit,
-      include: { profile: { select: { id: true, name: true } } },
+      include: { profile: { select: { id: true, name: true, equipped: true } } },
     });
   },
   countChallengeEntries(key, { rounds } = {}) {
@@ -176,5 +176,60 @@ export const prismaRoomStore = {
         OR: [{ total: { gt: total } }, { total, finishedAt: { lt: finishedAt } }],
       },
     });
+  },
+
+  // Points, unlocks and badges (server/points.js)
+  getProfilesByIds(ids) {
+    if (!ids.length) return Promise.resolve([]);
+    return prisma.geoProfile.findMany({ where: { id: { in: ids } } });
+  },
+  async createLedger(data) {
+    try {
+      return await prisma.geoLedger.create({ data });
+    } catch (error) {
+      if (error?.code === 'P2002') return null; // this event was already paid
+      throw error;
+    }
+  },
+  async addPoints(profileId, delta, { requireBalance = false } = {}) {
+    const where = requireBalance && delta < 0 ? { id: profileId, points: { gte: -delta } } : { id: profileId };
+    const result = await prisma.geoProfile.updateMany({ where, data: { points: { increment: delta } } });
+    return result.count === 1;
+  },
+  listLedger(profileId, limit = 20) {
+    return prisma.geoLedger.findMany({ where: { profileId }, orderBy: { createdAt: 'desc' }, take: limit });
+  },
+  async createUnlock(profileId, itemId, now) {
+    try {
+      return await prisma.geoUnlock.create({ data: { profileId, itemId, createdAt: new Date(now) } });
+    } catch (error) {
+      if (error?.code === 'P2002') return null;
+      throw error;
+    }
+  },
+  listUnlocks(profileId) {
+    return prisma.geoUnlock.findMany({ where: { profileId }, orderBy: { createdAt: 'asc' } });
+  },
+  async upsertBadge(profileId, countryCode, km, now) {
+    const existing = await prisma.geoBadge.findUnique({ where: { profileId_countryCode: { profileId, countryCode } } });
+    if (!existing) {
+      try {
+        const row = await prisma.geoBadge.create({ data: { profileId, countryCode, bestKm: km, createdAt: new Date(now) } });
+        return { badge: row, created: true };
+      } catch (error) {
+        if (error?.code !== 'P2002') throw error;
+      }
+    }
+    const row = await prisma.geoBadge.update({
+      where: { profileId_countryCode: { profileId, countryCode } },
+      data: km < (existing?.bestKm ?? Infinity) ? { bestKm: km } : {},
+    });
+    return { badge: row, created: false };
+  },
+  listBadges(profileId) {
+    return prisma.geoBadge.findMany({ where: { profileId }, orderBy: { createdAt: 'desc' } });
+  },
+  countBadges(profileId) {
+    return prisma.geoBadge.count({ where: { profileId } });
   },
 };

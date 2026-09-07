@@ -24,7 +24,18 @@ function circleIcon(api, fill) {
   };
 }
 
-export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = 'guess', interactive = true, className = '' }) {
+// Pin skins from the shop (app/lib/geo/items.js): a style and a fill.
+const STAR = 'M 0 -11 L 3.2 -3.6 L 11 -3.4 L 4.9 1.6 L 6.8 9.2 L 0 4.8 L -6.8 9.2 L -4.9 1.6 L -11 -3.4 L -3.2 -3.6 Z';
+const DIAMOND = 'M 0 -11 L 10 0 L 0 11 L -10 0 Z';
+
+function markerIcon(api, style = 'dot', fill = '#facc15') {
+  if (style === 'ring') return { path: api.maps.SymbolPath.CIRCLE, scale: 9, fillColor: fill, fillOpacity: 0.25, strokeColor: fill, strokeWeight: 3 };
+  if (style === 'star') return { path: STAR, scale: 1, fillColor: fill, fillOpacity: 1, strokeColor: '#0f172a', strokeWeight: 1.5 };
+  if (style === 'diamond') return { path: DIAMOND, scale: 1, fillColor: fill, fillOpacity: 1, strokeColor: '#0f172a', strokeWeight: 2 };
+  return circleIcon(api, fill);
+}
+
+export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = 'guess', interactive = true, className = '', pinStyle = null }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const pinRef = useRef(null);
@@ -88,11 +99,11 @@ export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = '
       return;
     }
     if (!pinRef.current) {
-      pinRef.current = new api.Marker({ map, position: pin, icon: circleIcon(api, '#facc15'), zIndex: 20 });
+      pinRef.current = new api.Marker({ map, position: pin, icon: markerIcon(api, pinStyle?.style, pinStyle?.fill || '#facc15'), zIndex: 20 });
     } else {
       pinRef.current.setPosition(pin);
     }
-  }, [api, pin, mode]);
+  }, [api, pin, mode, pinStyle?.style, pinStyle?.fill]);
 
   // Results.
   useEffect(() => {
@@ -130,7 +141,7 @@ export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = '
           new api.Marker({
             map,
             position: r.guess,
-            icon: circleIcon(api, r.color || '#facc15'),
+            icon: markerIcon(api, r.pin?.style || pinStyle?.style, r.color || r.pin?.fill || pinStyle?.fill || '#facc15'),
             label: r.color && r.label ? { text: r.label, color: '#0f172a', fontSize: '10px', fontWeight: '700' } : undefined,
             zIndex: 25,
             title: r.title || 'Your guess',
@@ -157,7 +168,7 @@ export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = '
       const single = results.length === 1 && !(results[0].guess && results[0].answer);
       if (single) map.setZoom(Math.min(map.getZoom() || 5, 6));
     }
-  }, [api, results, mode]);
+  }, [api, results, mode, pinStyle?.style, pinStyle?.fill]);
 
   return <div ref={containerRef} className={`h-full w-full bg-midnight-900 ${className}`} />;
 }

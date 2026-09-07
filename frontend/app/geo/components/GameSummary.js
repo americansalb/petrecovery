@@ -68,7 +68,7 @@ function DailyBoard({ daily }) {
   );
 }
 
-export default function GameSummary({ summary, code, config, regionLabel, best, daily = null, onPlayAgain }) {
+export default function GameSummary({ summary, code, config, regionLabel, best, daily = null, points = null, onPlayAgain }) {
   const [copied, copy] = useCopy();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/geo/share?s=${encodeURIComponent(code)}`;
@@ -98,6 +98,15 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
               {isStreak ? `Streak of ${summary.streak}` : formatScore(summary.total)}
               {!isStreak ? <span className="text-lg font-medium text-white/60"> of {formatScore(max)}</span> : null}
             </p>
+            {points && (points.earned > 0 || points.badges?.length) ? (
+              <p className="mt-1 text-sm text-flash-300">
+                {points.earned > 0 ? `+${points.earned} points this game, ${formatScore(points.balance)} in all.` : ''}
+                {points.badges?.length ? ` New ${points.badges.length === 1 ? 'badge' : 'badges'}: ${points.badges.map((b) => `${b.flag} ${b.name}`).join(', ')}.` : ''}{' '}
+                <Link href="/geo/me" className="underline decoration-white/30 hover:text-white">
+                  Spend them
+                </Link>
+              </p>
+            ) : null}
             {best ? (
               <p className="mt-1 text-sm text-white/70">
                 {(isStreak ? summary.streak : summary.total) >= best ? 'Your best for these settings.' : `Your best for these settings: ${isStreak ? best : formatScore(best)}.`}
