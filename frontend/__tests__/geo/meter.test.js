@@ -225,7 +225,7 @@ describe('the meter on the store', () => {
     expect(store._dump().usage.find((r) => r.subject === grace.ipHash && r.provider === 'google')).toMatchObject({ rounds: 1, games: 1 });
     expect(store._dump().usage.find((r) => r.subject === SITE_SUBJECT && r.provider === 'google').rounds).toBe(5);
     expect(store._dump().players.map((p) => p.entry)).toEqual(['free', 'free']);
-    expect((await usageToday(store, grace)).google.roomGames).toEqual({ used: 1, limit: 1, left: 0 });
+    expect((await usageToday(store, grace, { now: T0 })).google.roomGames).toEqual({ used: 1, limit: 1, left: 0 });
     // Grace's solo rounds are untouched by the room
     expect((await checkRound(store, google(grace))).source).toBe('free');
 
