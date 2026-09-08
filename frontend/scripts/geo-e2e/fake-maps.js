@@ -10,9 +10,12 @@
   class StreetViewPanorama {
     constructor(el, opts) { this.el = el; this.opts = opts; this.pov = opts.pov || { heading: 0, pitch: 0 }; this.zoom = 0; this.pano = opts.pano || ''; window.__fakePanos.push(this); this.render(); }
     render() { this.el.innerHTML = `<div data-fake-pano="${this.pano}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(#274060,#1b2a41);color:#9fb3c8;font:14px monospace">STREET VIEW ${this.pano} heading ${Math.round(this.pov.heading)}</div>`; }
-    setPano(id) { this.pano = id; this.render(); }
+    setPano(id) { this.pano = id; this.steps = (this.steps || 0) + 1; this.render(); fire(this, 'pano_changed'); fire(this, 'position_changed'); }
     setPov(pov) { this.pov = pov; this.render(); fire(this, 'pov_changed'); }
     getPov() { return this.pov; }
+    // Roads for Kidnapped mode: one link on, a slight bend to the right, and the way back.
+    getLinks() { return [{ pano: `${this.pano}>`, heading: (this.pov.heading + 10) % 360 }, { pano: `${this.pano}<`, heading: (this.pov.heading + 180) % 360 }]; }
+    getPosition() { return new LatLng(48.85 + (this.steps || 0) * 0.0001, 2.35); }
     setZoom(z) { this.zoom = z; }
     getZoom() { return this.zoom; }
     setVisible(v) { this.visible = v; }

@@ -125,6 +125,8 @@ export default function PlayClient() {
 
   const isGoogle = config.provider === 'google';
   const isStreak = config.mode === 'streak';
+  const isKidnapped = config.mode === 'kidnapped';
+  const [driven, setDriven] = useState(0);
   const providerInfo = server?.providers?.[config.provider];
   const configured = Boolean(providerInfo?.configured);
 
@@ -322,7 +324,8 @@ export default function PlayClient() {
           next();
         }
       } else if (event.key === 'r' || event.key === 'R') {
-        paneRef.current?.returnToStart?.();
+        // Not in Kidnapped: the car decides where you are.
+        if (s.config.mode !== 'kidnapped') paneRef.current?.returnToStart?.();
       } else if (event.key === 'm' || event.key === 'M') {
         setMapSize((size) => MAP_SIZES[(MAP_SIZES.indexOf(size) + 1) % MAP_SIZES.length]);
       } else if (event.key === 'Escape') {
@@ -399,7 +402,9 @@ export default function PlayClient() {
           allowMove={config.move}
           allowPan={config.pan}
           allowZoom={config.zoom}
+          drive={isKidnapped && state.status === 'playing'}
           onHeading={setHeading}
+          onDrive={setDriven}
         />
       ) : null}
       {sdkReady && !isGoogle && state.current?.candidates ? (
@@ -431,6 +436,8 @@ export default function PlayClient() {
           secondsLeft={inRound ? secondsLeft : NaN}
           heading={isGoogle ? heading : 0}
           canZoom={canZoom && inRound}
+          canReturn={!isKidnapped}
+          driven={isKidnapped ? driven : null}
           onReturn={() => paneRef.current?.returnToStart?.()}
           onZoom={(delta) => paneRef.current?.zoomBy?.(delta)}
           mapSize={mapSize}

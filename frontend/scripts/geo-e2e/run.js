@@ -4,19 +4,21 @@
  * JavaScript API replaced by fake-maps.js and the Street View metadata
  * endpoint replaced by mock-metadata.js. Exercises: a three-round pin
  * game with keyboard shortcuts, the summary and its share page, seeded
- * replay, a country streak, a timed NMPZ round that runs out, and the
- * mobile map sheet, and a two-browser room: lobby, rounds, reveal,
+ * replay, a Kidnapped round where the car drives itself, a country
+ * streak, a timed NMPZ round that runs out, the mobile map sheet, and a
+ * two-browser room: lobby, rounds, reveal,
  * reactions, standings with ratings, rematch, leaderboard (needs the
  * database, see docs/GEO.md).
  *
  * Setup (from frontend/):
  *   node scripts/geo-e2e/mock-metadata.js &
  *   GOOGLE_STREET_VIEW_API_KEY=x GOOGLE_MAPS_BROWSER_KEY=x GEO_FREE_GOOGLE_ROUNDS=1000 \
+ *   GEO_FREE_GOOGLE_ROUNDS_PER_IP=5000 GEO_FREE_GOOGLE_ROOM_GAMES=100 GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP=500 \
  *   GEO_STREET_VIEW_METADATA_URL=http://localhost:3999/metadata npm run dev &
- *   (the play meter would otherwise stop one address at 25 Google rounds a day)
+ *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, streak, timer, mobile, rooms, daily, profile)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -131,6 +133,33 @@ async function pinGame(browser) {
   const replay = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
   if (replay !== pano1) throw new Error(`seeded replay produced ${replay}, expected ${pano1}`);
   log('seeded replay: same panorama');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
+async function kidnapped(browser) {
+  const url = `${BASE}/geo/play?provider=google&mode=kidnapped&rounds=3&seed=e2e-kid-1`;
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await waitPlayable(page);
+  await waitForPano(page);
+  const start = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
+  await page.waitForSelector('text=/^(3:00|2:5[0-9])$/', { timeout: 10000 });
+  if (await page.locator('button[aria-label="Return to start"]').count()) throw new Error('no return to start while being driven');
+  // The car moves on its own, and the HUD counts the distance.
+  await page.waitForFunction((prev) => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano') !== prev; }, start, { timeout: 15000 });
+  await page.waitForFunction(() => /Driven\s*\d/.test(document.querySelector('[data-driven]')?.textContent || ''), null, { timeout: 15000 });
+  log('kidnapped:', (await page.textContent('[data-driven]')).replace(/\s+/g, ' '));
+  await shot(page, 'kidnapped');
+  await page.evaluate(() => window.__fakeClick(48.8566, 2.3522));
+  await waitGuessable(page);
+  await page.click('button:has-text("Guess")');
+  await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
+  // The drive stops at the guess.
+  const at = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
+  await page.waitForTimeout(2600);
+  if ((await page.getAttribute('[data-fake-pano]', 'data-fake-pano')) !== at) throw new Error('the drive must stop at the guess');
+  log('kidnapped: the car stopped at the guess after', at.length - start.length, 'steps');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
 }
@@ -363,7 +392,7 @@ async function profile(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, streak, timer, mobile, rooms, daily, profile };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

@@ -21,6 +21,7 @@ const {
   MODES,
   MODE_ORDER,
   PROVIDERS,
+  TIME_OPTIONS,
 } = require('@/app/lib/geo/modes');
 
 describe('normalizeConfig', () => {
@@ -67,6 +68,15 @@ describe('normalizeConfig', () => {
     expect(isoWeekEnd('2026-W01')).toBe(Date.UTC(2026, 0, 5));
     expect(isoWeekEnd('2026-W37')).toBe(Date.UTC(2026, 8, 14));
     expect(isoWeekEnd('nope')).toBeNull();
+  });
+
+  test('kidnapped fixes the clock and the drive; rounds and the radius stay yours', () => {
+    const c = normalizeConfig({ mode: 'kidnapped', rounds: 3, time: 30, move: '1', zoom: '1', radius: 'pure' });
+    expect(c).toMatchObject({ provider: 'google', mode: 'kidnapped', rounds: 3, time: 180, move: false, pan: true, zoom: false, radius: 'pure' });
+    expect(TIME_OPTIONS).toContain(180);
+    expect(describeConfig({ mode: 'kidnapped', rounds: 3 })).toBe('Kidnapped. 3 rounds. 3 minutes.');
+    expect(normalizeConfig({ provider: 'apple', mode: 'kidnapped' }).mode).not.toBe('kidnapped');
+    expect(configFromParams(configToParams(c))).toEqual(c);
   });
 
   test('the daily challenge forces its settings and today\'s seed', () => {

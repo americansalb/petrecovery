@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import { Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
-import { formatScore } from '@/app/lib/geo/distance';
+import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { MODES } from '@/app/lib/geo/modes';
 
 export function Compass({ heading = 0 }) {
@@ -75,6 +75,8 @@ export default function GameHud({
   secondsLeft,
   heading,
   canZoom,
+  canReturn = true,
+  driven = null,
   onReturn,
   onZoom,
   mapSize,
@@ -104,6 +106,12 @@ export default function GameHud({
               <span className="text-sm font-semibold tabular-nums text-flash-300">{formatScore(score)}</span>
             </div>
           ) : null}
+          {driven !== null && driven !== undefined ? (
+            <div className="flex flex-col border-l border-white/15 pl-3 leading-tight" data-driven>
+              <span className="text-[11px] uppercase tracking-wide text-white/60">Driven</span>
+              <span className="text-sm font-semibold tabular-nums text-white">{formatDistance(driven)}</span>
+            </div>
+          ) : null}
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
           {config.time > 0 && Number.isFinite(secondsLeft) ? <TimerRing secondsLeft={secondsLeft} total={config.time} /> : null}
@@ -126,9 +134,11 @@ export default function GameHud({
           <Compass heading={heading} />
         </div>
         <div className="pointer-events-auto flex items-center gap-2">
-          <button type="button" onClick={onReturn} className={iconButton} aria-label="Return to start" title="Return to start (R)">
-            <RotateCcw className="h-5 w-5" />
-          </button>
+          {canReturn ? (
+            <button type="button" onClick={onReturn} className={iconButton} aria-label="Return to start" title="Return to start (R)">
+              <RotateCcw className="h-5 w-5" />
+            </button>
+          ) : null}
           {canZoom ? (
             <>
               <button type="button" onClick={() => onZoom(1)} className={iconButton} aria-label="Zoom in" title="Zoom in">

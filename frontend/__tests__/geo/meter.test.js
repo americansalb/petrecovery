@@ -113,6 +113,23 @@ describe('decideRound', () => {
 });
 
 describe('the meter on the store', () => {
+  // The engine reads its limits from the environment; a developer's
+  // frontend/.env (next/jest loads it) must not change what is pinned here.
+  const ROOM_ENV = { GEO_FREE_GOOGLE_ROOM_GAMES: '1', GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP: '5', GEO_FREE_GOOGLE_ROUNDS_PER_IP: '125' };
+  const savedRoomEnv = {};
+  beforeEach(() => {
+    for (const [k, v] of Object.entries(ROOM_ENV)) {
+      savedRoomEnv[k] = process.env[k];
+      process.env[k] = v;
+    }
+  });
+  afterEach(() => {
+    for (const k of Object.keys(ROOM_ENV)) {
+      if (savedRoomEnv[k] === undefined) delete process.env[k];
+      else process.env[k] = savedRoomEnv[k];
+    }
+  });
+
   async function subjectsFor(store, name, extra = {}) {
     const { profile } = await resolveProfile(store, { name, now: T0 });
     return { profile, profileId: profile.id, signedIn: false, ipHash: hashIp('203.0.113.5', 'secret'), ...extra };
