@@ -53,7 +53,9 @@ const GoogleStreetViewPane = forwardRef(function GoogleStreetViewPane(
       clickToGo: allowMove,
       scrollwheel: allowZoom,
       disableDoubleClickZoom: !allowZoom,
-      keyboardShortcuts: allowPan,
+      // The arrow keys also walk along links, so No Move means no
+      // keyboard at all; the mouse still pans.
+      keyboardShortcuts: allowPan && allowMove,
     });
     pano.addListener('pov_changed', () => {
       const pov = pano.getPov();
@@ -92,7 +94,7 @@ const GoogleStreetViewPane = forwardRef(function GoogleStreetViewPane(
       clickToGo: allowMove,
       scrollwheel: allowZoom,
       disableDoubleClickZoom: !allowZoom,
-      keyboardShortcuts: allowPan,
+      keyboardShortcuts: allowPan && allowMove,
     });
   }, [allowMove, allowPan, allowZoom]);
 
