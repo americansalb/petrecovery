@@ -167,6 +167,11 @@ describe('createCandidateSource', () => {
     expect(c.country).not.toBeNull();
     expect(c.radiusKm).toBeLessThanOrEqual(2);
     expect(() => createCandidateSource(normalizeConfig({ mode: 'country', region: 'ZZ' }), 0)).toThrow(/Unknown country/);
+    // Kidnapped draws from the covered pool like balanced: same seed, same road.
+    const driven = createCandidateSource(normalizeConfig({ mode: 'kidnapped', seed: 'kid' }), 0).next();
+    const balanced = createCandidateSource(normalizeConfig({ mode: 'balanced', seed: 'kid' }), 0).next();
+    expect(driven.country.cca2).toBe(balanced.country.cca2);
+    expect(driven.lat).toBe(balanced.lat);
   });
 });
 

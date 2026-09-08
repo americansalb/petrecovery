@@ -75,6 +75,14 @@ export const MODES = {
     providers: ['google', 'apple'],
     description: 'A random spot in one of about 150 large cities.',
   },
+  kidnapped: {
+    id: 'kidnapped',
+    label: 'Kidnapped',
+    short: 'Kidnapped',
+    providers: ['google'],
+    description: 'You are driven down the road for up to three minutes. Look out of the window, then guess where you are. No steering, no zoom.',
+    fixed: { provider: 'google', time: 180, move: false, pan: true, zoom: false },
+  },
   streak: {
     id: 'streak',
     label: 'Country streak',
@@ -84,7 +92,7 @@ export const MODES = {
   },
 };
 
-export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'streak'];
+export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'kidnapped', 'streak'];
 
 /**
  * The three formats competitive play knows (docs/GEO.md, "Formats"):
@@ -142,7 +150,7 @@ export const RADIUS_PRESETS = {
 };
 
 export const ROUND_OPTIONS = [3, 5, 10];
-export const TIME_OPTIONS = [0, 30, 60, 120, 300];
+export const TIME_OPTIONS = [0, 30, 60, 120, 180, 300];
 
 export const DEFAULT_CONFIG = Object.freeze({
   provider: 'google',
@@ -255,6 +263,9 @@ export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
     Object.assign(config, MODES.cup.fixed);
     config.seed = isCupSeed(seed) ? seed : cupSeed(now);
   }
+  // Kidnapped: the clock and the drive are the mode; rounds and the
+  // probe radius stay yours.
+  if (mode === 'kidnapped') Object.assign(config, MODES.kidnapped.fixed);
 
   return config;
 }
@@ -324,7 +335,8 @@ export function describeConfig(config, { regionLabel } = {}) {
   if (c.mode === 'streak') parts.push('Until the first miss');
   else parts.push(`${c.rounds} rounds`);
   parts.push(timeLabel(c.time));
-  if (!(c.move && c.pan && c.zoom)) parts.push(movementLabel(c));
+  // Kidnapped says it all: the car drives, you look.
+  if (c.mode !== 'kidnapped' && !(c.move && c.pan && c.zoom)) parts.push(movementLabel(c));
   if (c.provider === 'apple') parts.push('Apple Look Around');
   return parts.join('. ') + '.';
 }

@@ -225,7 +225,7 @@ Static segment card in `app/hub/layout.js`.
 
 | Route | Purpose | Type | Auth | Data |
 |---|---|---|---|---|
-| `/geo` | Lobby for the street-level guessing game (docs/GEO.md): provider (Google Street View / Apple Look Around beta), mode (world random, balanced, daily, continent, country, city streets, country streak), rules (rounds, timer, format: Moving / No Move / NMPZ, probe radius), local stats/history | server layout (static share card) + client page | public | none (localStorage only) |
+| `/geo` | Lobby for the street-level guessing game (docs/GEO.md): provider (Google Street View / Apple Look Around beta), mode (world random, balanced, daily, weekly cup, continent, country, city streets, kidnapped, country streak), rules (rounds, timer, format: Moving / No Move / NMPZ, probe radius), local stats/history | server layout (static share card) + client page | public | none (localStorage only) |
 | `/geo/play?...` | The game. Settings live in the query string (`app/lib/geo/modes.js`), so a link is a whole game and a seed replays the same places. Immersive route; the HUD's X returns to `/geo`. One panorama and one map instance per game | client | public | none |
 | `/geo/share?s=<code>` | A finished game as a page: the share code carries every round, so `generateMetadata` and the OG image (`/api/geo/og`) need no database | server | public | none |
 | `/geo/rooms` | Multiplayer room browser: open a room (classic or duel, imagery: Google Street View or Apple Look Around, places, rounds, timer, format, public/private), join by code, public rooms active in the last 20 min | client | public | `GeoRoom` (list) |

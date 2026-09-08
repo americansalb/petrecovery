@@ -196,6 +196,8 @@ export default function GeoLobby() {
   const countries = server?.countries || [];
   const modeDef = MODES[config.mode];
   const fixed = config.mode === 'daily' || config.mode === 'cup';
+  // Kidnapped fixes the clock and the drive; rounds and the radius stay yours.
+  const driven = config.mode === 'kidnapped';
   const format = formatOf(config);
   const setFormat = (id) => {
     const f = formatSettings(id);
@@ -318,17 +320,21 @@ export default function GeoLobby() {
             {/* Rules */}
             <section className="rounded-2xl border border-midnight-200 bg-white p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Rules</h2>
-              {fixed ? (
+              {fixed || driven ? (
                 <p className="mt-2 text-sm text-midnight-600">
-                  {config.mode === 'cup' ? 'The weekly cup uses fixed rules so scores compare: 10 rounds, 60 seconds each, No Move.' : 'The daily challenge uses fixed rules so scores compare: 5 rounds, no timer, Moving.'}
+                  {config.mode === 'cup'
+                    ? 'The weekly cup uses fixed rules so scores compare: 10 rounds, 60 seconds each, No Move.'
+                    : config.mode === 'daily'
+                      ? 'The daily challenge uses fixed rules so scores compare: 5 rounds, no timer, Moving.'
+                      : 'Kidnapped has its own clock: three minutes a round. The car drives; you can look around but not steer or zoom. Guess whenever you like.'}
                 </p>
               ) : null}
               <div className="mt-3 grid gap-5 sm:grid-cols-2">
                 {config.mode !== 'streak' ? <Segmented label="Rounds" options={ROUND_OPTIONS} value={config.rounds} onChange={setRounds} disabled={fixed} /> : null}
-                <Segmented label="Time per round" options={TIME_OPTIONS} value={config.time} onChange={setTime} format={timeLabel} disabled={fixed} />
+                <Segmented label="Time per round" options={TIME_OPTIONS} value={config.time} onChange={setTime} format={timeLabel} disabled={fixed || driven} />
                 <div>
-                  <Segmented label="Format" options={FORMAT_ORDER} value={format} onChange={setFormat} format={(id) => FORMATS[id].label} disabled={fixed} />
-                  <p className="mt-1.5 text-xs text-midnight-600">{FORMATS[format].description}</p>
+                  <Segmented label="Format" options={FORMAT_ORDER} value={format} onChange={setFormat} format={(id) => FORMATS[id].label} disabled={fixed || driven} />
+                  <p className="mt-1.5 text-xs text-midnight-600">{driven ? 'Driven: no steering, look around, no zoom.' : FORMATS[format].description}</p>
                 </div>
                 {config.provider === 'google' && config.mode !== 'cities' ? (
                   <div>

@@ -113,6 +113,23 @@ describe('decideRound', () => {
 });
 
 describe('the meter on the store', () => {
+  // The engine reads its limits from the environment; a developer's
+  // frontend/.env (next/jest loads it) must not change what is pinned here.
+  const ROOM_ENV = { GEO_FREE_GOOGLE_ROOM_GAMES: '1', GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP: '5', GEO_FREE_GOOGLE_ROUNDS_PER_IP: '125' };
+  const savedRoomEnv = {};
+  beforeEach(() => {
+    for (const [k, v] of Object.entries(ROOM_ENV)) {
+      savedRoomEnv[k] = process.env[k];
+      process.env[k] = v;
+    }
+  });
+  afterEach(() => {
+    for (const k of Object.keys(ROOM_ENV)) {
+      if (savedRoomEnv[k] === undefined) delete process.env[k];
+      else process.env[k] = savedRoomEnv[k];
+    }
+  });
+
   async function subjectsFor(store, name, extra = {}) {
     const { profile } = await resolveProfile(store, { name, now: T0 });
     return { profile, profileId: profile.id, signedIn: false, ipHash: hashIp('203.0.113.5', 'secret'), ...extra };
@@ -208,7 +225,7 @@ describe('the meter on the store', () => {
     expect(store._dump().usage.find((r) => r.subject === grace.ipHash && r.provider === 'google')).toMatchObject({ rounds: 1, games: 1 });
     expect(store._dump().usage.find((r) => r.subject === SITE_SUBJECT && r.provider === 'google').rounds).toBe(5);
     expect(store._dump().players.map((p) => p.entry)).toEqual(['free', 'free']);
-    expect((await usageToday(store, grace)).google.roomGames).toEqual({ used: 1, limit: 1, left: 0 });
+    expect((await usageToday(store, grace, { now: T0 })).google.roomGames).toEqual({ used: 1, limit: 1, left: 0 });
     // Grace's solo rounds are untouched by the room
     expect((await checkRound(store, google(grace))).source).toBe('free');
 

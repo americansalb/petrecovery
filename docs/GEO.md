@@ -51,9 +51,10 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
      (uniform in the sine of the latitude, so the poles are not
      over-represented), thrown away if it is not on land. Antarctica is
      excluded.
-   - *Balanced, daily, streak*: a random country from the Google coverage
-     list, weighted by the square root of its area so small countries
-     still come up, then a random point inside its polygon.
+   - *Balanced, daily, cup, kidnapped, streak*: a random country from the
+     Google coverage list, weighted by the square root of its area so
+     small countries still come up, then a random point inside its
+     polygon.
    - *Continent / country*: the same, restricted.
    - *City streets*: a random spot within one of about 150 large cities
      (`app/lib/geo/coverage.js`).
@@ -108,6 +109,17 @@ format back and `movementLabel` spells out a mix that matches none.
 Results, room cards, the share text and the OpenGraph card name the
 format whenever it is not Moving. Street names are hidden in every
 format on both providers.
+
+**Kidnapped** is a mode with its own clock rather than a format: three
+minutes a round, Google only, rounds and the probe radius still yours.
+The car drives itself (`app/geo/lib/drive.js`, run by
+`GoogleStreetViewPane` every 1.1 s): each step takes the Street View
+link closest to the direction of travel, never turning back unless the
+road ends, and keeps the way you are looking relative to the road. You
+can look around, not steer or zoom, and guess whenever you like or when
+the clock runs out; the answer is the spot you were dropped at (a few
+hundred metres of road do not move the score), and the HUD counts how
+far you have been driven.
 
 ## Multiplayer rooms
 
@@ -395,8 +407,15 @@ so the whole game runs locally with no Google account:
 cd frontend
 node scripts/geo-e2e/mock-metadata.js &          # fake Street View metadata on :3999
 GOOGLE_STREET_VIEW_API_KEY=x GOOGLE_MAPS_BROWSER_KEY=x \
+GEO_FREE_GOOGLE_ROUNDS=1000 GEO_FREE_GOOGLE_ROUNDS_PER_IP=5000 \
+GEO_FREE_GOOGLE_ROOM_GAMES=100 GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP=500 \
 GEO_STREET_VIEW_METADATA_URL=http://localhost:3999/metadata npm run dev
 ```
+
+The meter knobs lift the play meter for one address (otherwise 25 Google
+rounds and one room a day, which the harness's rematch would hit). Put
+them in `frontend/.env` if you prefer, but note that `next/jest` loads
+that file too; the meter tests pin the knobs they depend on.
 
 The page will still try to load the real Maps JavaScript API with the
 dummy browser key, so for a full run use the browser harness, which
@@ -408,9 +427,10 @@ node scripts/geo-e2e/run.js                      # BASE_URL, CHROME_PATH, GEO_E2
 ```
 
 It plays a three-round pin game with the keyboard shortcuts, checks the
-summary, the share page and a seeded replay, then a country streak, a
-timed NMPZ round that runs out, and the mobile map sheet. It fails on
-any page error. Unit tests for everything below the browser:
+summary, the share page and a seeded replay, then a Kidnapped round
+where the car drives itself and stops at the guess, a country streak, a
+timed NMPZ round that runs out, the mobile map sheet, a two-browser
+room, the daily board and the profile page. It fails on any page error. Unit tests for everything below the browser:
 `npx jest __tests__/geo __tests__/api/geo-routes.test.js`.
 
 The Content Security Policy in `middleware.js` allows the Maps
