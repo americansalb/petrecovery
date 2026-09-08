@@ -3,7 +3,7 @@
  * can, a bend when the road bends, never back unless the road ends.
  */
 
-const { pickLink, angleDiff, normalizeHeading, DRIVE_STEP_MS } = require('@/app/geo/lib/drive');
+const { pickLink, angleDiff, normalizeHeading, DRIVE_STEP_MS, MAX_HOP_KM } = require('@/app/geo/lib/drive');
 
 describe('the driver', () => {
   const link = (pano, heading) => ({ pano, heading });
@@ -31,5 +31,8 @@ describe('the driver', () => {
     expect(normalizeHeading(-30)).toBe(330);
     expect(normalizeHeading(725)).toBe(5);
     expect(DRIVE_STEP_MS).toBeGreaterThan(500);
+    // one Street View hop is well under this; a new round's first position is far over it
+    expect(MAX_HOP_KM).toBeGreaterThanOrEqual(0.5);
+    expect(MAX_HOP_KM).toBeLessThanOrEqual(2);
   });
 });

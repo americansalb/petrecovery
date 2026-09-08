@@ -109,7 +109,7 @@ export default function GameHud({
           {driven !== null && driven !== undefined ? (
             <div className="flex flex-col border-l border-white/15 pl-3 leading-tight" data-driven>
               <span className="text-[11px] uppercase tracking-wide text-white/60">Driven</span>
-              <span className="text-sm font-semibold tabular-nums text-white">{formatDistance(driven)}</span>
+              <span className="text-sm font-semibold tabular-nums text-white">{driven > 0 ? formatDistance(driven) : '0 m'}</span>
             </div>
           ) : null}
         </div>

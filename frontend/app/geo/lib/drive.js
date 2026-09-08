@@ -8,6 +8,8 @@
  */
 
 export const DRIVE_STEP_MS = 1100;
+/** A link is a few dozen metres; a longer hop is a new round or a jump, not driving. */
+export const MAX_HOP_KM = 1;
 const TURN_BACK_DEGREES = 100;
 
 export function normalizeHeading(heading) {

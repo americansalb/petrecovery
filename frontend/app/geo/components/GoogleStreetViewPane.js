@@ -12,7 +12,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { haversineKm } from '@/app/lib/geo/distance';
-import { DRIVE_STEP_MS, angleDiff, normalizeHeading, pickLink } from '../lib/drive';
+import { DRIVE_STEP_MS, MAX_HOP_KM, angleDiff, normalizeHeading, pickLink } from '../lib/drive';
 
 const GoogleStreetViewPane = forwardRef(function GoogleStreetViewPane(
   { api, panoId, heading = 0, allowMove = true, allowPan = true, allowZoom = true, drive = false, onHeading, onDrive },
@@ -110,11 +110,17 @@ const GoogleStreetViewPane = forwardRef(function GoogleStreetViewPane(
       const p = pano.getPosition?.();
       return p && typeof p.lat === 'function' ? { lat: p.lat(), lng: p.lng() } : null;
     };
-    trip.last = here();
+    // The panorama still reports the previous round's spot until the new
+    // one has loaded, so the trip starts at the first position it reports
+    // from here on; and a link is a few dozen metres, so a longer hop is
+    // a new round or a jump, never driving.
     const moved = pano.addListener('position_changed', () => {
       const now = here();
       if (!now) return;
-      if (trip.last) trip.km += haversineKm(trip.last, now);
+      if (trip.last) {
+        const hop = haversineKm(trip.last, now);
+        if (hop <= MAX_HOP_KM) trip.km += hop;
+      }
       trip.last = now;
       onDriveRef.current?.(trip.km);
     });

@@ -148,7 +148,7 @@ async function kidnapped(browser) {
   if (await page.locator('button[aria-label="Return to start"]').count()) throw new Error('no return to start while being driven');
   // The car moves on its own, and the HUD counts the distance.
   await page.waitForFunction((prev) => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano') !== prev; }, start, { timeout: 15000 });
-  await page.waitForFunction(() => /Driven\s*\d/.test(document.querySelector('[data-driven]')?.textContent || ''), null, { timeout: 15000 });
+  await page.waitForFunction(() => /Driven\s*([1-9]\d*\s*m|\d+(\.\d+)?\s*km)\b/.test(document.querySelector('[data-driven]')?.textContent || ''), null, { timeout: 15000 });
   log('kidnapped:', (await page.textContent('[data-driven]')).replace(/\s+/g, ' '));
   await shot(page, 'kidnapped');
   await page.evaluate(() => window.__fakeClick(48.8566, 2.3522));
