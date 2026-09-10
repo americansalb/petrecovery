@@ -104,6 +104,23 @@ describe('the refusal', () => {
   });
 });
 
+describe('when Redis is configured but not reachable', () => {
+  // The bounded connect is the point: left to node-redis defaults an
+  // unreachable host retries forever with commands queued behind it, and
+  // the first request to every limited endpoint hangs instead of falling
+  // through to the window in memory.
+  test('it degrades to memory quickly rather than hanging or waving requests through', async () => {
+    process.env.REDIS_URL = 'redis://127.0.0.1:1';
+    const rule = { windowMs: 60000, maxRequests: 2, blockDurationMs: 60000 };
+    const started = Date.now();
+    expect((await checkRateLimitForKeyAsync('offline', rule)).success).toBe(true);
+    // Limiting still happens: the memory window counts, it does not allow everything.
+    expect((await checkRateLimitForKeyAsync('offline', rule)).success).toBe(true);
+    expect((await checkRateLimitForKeyAsync('offline', rule)).success).toBe(false);
+    expect(Date.now() - started).toBeLessThan(9000);
+  }, 20000);
+});
+
 describe('the presets', () => {
   test('match the numbers the pet site uses, so a review reads the same', () => {
     expect(RateLimitPresets.PUBLIC_WRITE).toEqual({ windowMs: 60000, maxRequests: 10, blockDurationMs: 300000 });

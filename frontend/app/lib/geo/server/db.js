@@ -20,14 +20,24 @@
 import { PrismaClient } from '@prisma/client';
 
 /**
- * The connection string, with the pool cap applied when one is asked
- * for. A URL that will not parse is passed through untouched: a bad
+ * The connection string to hand Prisma, or '' to let Prisma read the
+ * environment itself.
+ *
+ * The cap has to apply to the fallback too. The whole reason GEO_DB_POOL
+ * exists is the phase 1 arrangement where GEO_DATABASE_URL is unset and
+ * both pools point at DATABASE_URL, so reading only GEO_DATABASE_URL
+ * would leave the cap dead in exactly the deployment it is for.
+ *
+ * A URL that will not parse is passed through untouched: a bad
  * connection string should fail in Prisma's words, not ours.
  */
-function connectionUrl() {
-  const raw = process.env.GEO_DATABASE_URL || '';
-  const pool = process.env.GEO_DB_POOL;
-  if (!raw || !pool) return raw;
+export function connectionUrl(env = process.env) {
+  const raw = env.GEO_DATABASE_URL || env.DATABASE_URL || '';
+  const pool = env.GEO_DB_POOL;
+  // Nothing to say: no database of the game's own and no cap to apply,
+  // so Prisma reads DATABASE_URL as it always has.
+  if (!raw || (!env.GEO_DATABASE_URL && !pool)) return '';
+  if (!pool) return raw;
   try {
     const url = new URL(raw);
     if (!url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', pool);

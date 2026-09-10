@@ -8,12 +8,21 @@
  *
  * Two backends. Redis when REDIS_URL is set, which holds across
  * instances and restarts. Otherwise per-process memory, which forgets on
- * deploy. The pet limiter has a third tier that writes to a database
- * table; the game does not, deliberately. What these limits protect is
- * pace, not spend: the thing that stops the game costing money is the
- * play meter (docs/GEO.md, "The play meter"), which counts every round
- * in Postgres and survives anything. Losing a burst cap on restart is
- * an inconvenience; losing the meter would be a bill.
+ * deploy.
+ *
+ * Redis being unreachable, or failing mid-command, falls back to memory
+ * rather than to no limit. Connection attempts are bounded and shared,
+ * so an unreachable host degrades in seconds instead of hanging every
+ * request behind an endless retry, and one cold burst opens one client
+ * rather than one per request. A failed command marks Redis unwell, so
+ * the calls after it go straight to the window in memory.
+ *
+ * The pet limiter has a third tier that writes to a database table; the
+ * game does not, deliberately. What these limits protect is pace, not
+ * spend: the thing that stops the game costing money is the play meter
+ * (docs/GEO.md, "The play meter"), which counts every round in Postgres
+ * and survives anything. Losing a burst cap on restart is an
+ * inconvenience; losing the meter would be a bill.
  *
  * Server only.
  */
@@ -107,32 +116,87 @@ function checkMemory(key, { windowMs, maxRequests, blockDurationMs }) {
   return allow(maxRequests - data.count, data.windowStart + windowMs);
 }
 
-// Redis, connected once and lazily. `false` means "checked, unavailable",
-// which is different from "not checked yet".
-let redisClient = null;
+// One connection attempt, shared. A promise rather than a client,
+// because a burst on a cold process would otherwise have every request
+// see "not connected yet" and open a client of its own, and only the
+// last would be kept while the rest stayed open.
+let redisPromise = null;
+// Whether commands are currently getting through. Separate from the
+// connection: a client can be connected and then lose the server.
+let redisReady = false;
 
-async function getRedis() {
-  if (redisClient !== null) return redisClient || null;
+async function connectRedis() {
   const url = process.env.REDIS_URL;
-  if (!url) {
-    redisClient = false;
-    return null;
-  }
+  if (!url) return null;
+  let client = null;
   try {
-    const { createClient } = await import('redis');
-    const client = createClient({ url });
-    client.on('error', () => {});
-    await client.connect();
-    redisClient = client;
+    // webpackIgnore keeps the bundler from following this. Without it,
+    // anything importing this module drags redis into the Edge bundle
+    // built for middleware, where its dependency on node:net cannot
+    // resolve and the whole site fails. The import still works at
+    // runtime under Node, which is the only place it is reached.
+    const specifier = 'redis';
+    const { createClient } = await import(/* webpackIgnore: true */ specifier);
+    client = createClient({
+      url,
+      // An unreachable host has to fall through to memory at once. Left
+      // to the defaults, node-redis queues commands and retries forever,
+      // so a placeholder REDIS_URL would hang the first request to every
+      // endpoint that limits rather than degrade to the fallback.
+      disableOfflineQueue: true,
+      socket: {
+        connectTimeout: 2000,
+        reconnectStrategy: (retries) => (retries >= 3 ? false : 250),
+      },
+    });
+    let logged = false;
+    client.on('error', (error) => {
+      redisReady = false;
+      if (!logged) {
+        console.error('[geo/limiter] Redis error, using memory:', error?.message || error);
+        logged = true;
+      }
+    });
+    client.on('ready', () => {
+      redisReady = true;
+    });
+    // connect() can still stall while the client retries, so cap the wait.
+    const connecting = client.connect();
+    // The race below can reject first, and this promise settles later.
+    // Without a handler of its own that rejection is unhandled, which
+    // can take the whole process down long after the fallback took over.
+    connecting.catch(() => {});
+    await Promise.race([
+      connecting,
+      new Promise((_, reject) => {
+        const timer = setTimeout(() => reject(new Error('redis connect timeout')), 3000);
+        timer.unref?.();
+      }),
+    ]);
+    redisReady = true;
     return client;
   } catch (error) {
-    console.error('[geo/limiter] Redis unavailable, using memory:', error?.message || error);
-    redisClient = false;
+    console.warn('[geo/limiter] Redis unavailable, using memory:', error?.message || error);
+    // Teardown of a client that never opened throws, and node-redis
+    // reports some of that asynchronously, so swallow both shapes.
+    try {
+      await Promise.resolve(client?.disconnect?.()).catch(() => {});
+    } catch {
+      /* already gone */
+    }
     return null;
   }
 }
 
-async function checkRedis(redis, key, { windowMs, maxRequests, blockDurationMs }) {
+async function getRedis() {
+  if (!process.env.REDIS_URL) return null;
+  if (redisPromise === null) redisPromise = connectRedis();
+  const client = await redisPromise;
+  return client && redisReady ? client : null;
+}
+
+async function checkRedis(redis, key, settings) {
+  const { windowMs, maxRequests, blockDurationMs } = settings;
   const now = Date.now();
   const windowKey = `geolimit:${key}`;
   const blockKey = `geolimit:block:${key}`;
@@ -152,9 +216,13 @@ async function checkRedis(redis, key, { windowMs, maxRequests, blockDurationMs }
     const ttl = await redis.ttl(windowKey);
     return allow(maxRequests - count, now + Math.max(0, ttl) * 1000);
   } catch (error) {
-    // A limiter that is down must not take the game down with it.
-    console.error('[geo/limiter] Redis check failed, allowing:', error?.message || error);
-    return allow(maxRequests, now + windowMs);
+    // A limiter that is down must not take the game down with it, and it
+    // must not wave everything through either. Redis is marked unwell so
+    // the calls after this one skip it, and this one falls back to the
+    // memory window this module documents rather than to no limit at all.
+    redisReady = false;
+    console.error('[geo/limiter] Redis command failed, using memory:', error?.message || error);
+    return checkMemory(key, settings);
   }
 }
 
@@ -199,8 +267,10 @@ export function rateLimitResponse(result) {
   );
 }
 
-/** Test helper: forget every window and block. */
+/** Test helper: forget every window, block and connection attempt. */
 export function _resetLimiter() {
   windows.clear();
   blocks.clear();
+  redisPromise = null;
+  redisReady = false;
 }
