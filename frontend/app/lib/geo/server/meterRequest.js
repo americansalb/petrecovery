@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { checkRateLimitForKeyAsync, getClientIP } from '@/app/lib/rateLimit';
+import { checkRateLimitForKeyAsync, getClientIP } from '@/app/lib/geo/server/limiter';
 import { prismaRoomStore } from './roomStore';
 import { resolveProfile } from './profiles';
 import { getGeoServerConfig } from './config';

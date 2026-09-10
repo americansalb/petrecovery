@@ -11,12 +11,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
-import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/rateLimit';
+import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/geo/server/limiter';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { profileSummary, resolveProfile } from '@/app/lib/geo/server/profiles';
 import { hashIp, usageToday } from '@/app/lib/geo/server/meter';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
-import { getClientIP } from '@/app/lib/rateLimit';
+import { getClientIP } from '@/app/lib/geo/server/limiter';
 
 export const dynamic = 'force-dynamic';
 
