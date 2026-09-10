@@ -5,7 +5,7 @@
  */
 
 import Link from 'next/link';
-import { buildShareMetadata, genericShareMetadata } from '@/app/lib/shareMetadata';
+import { buildShareMetadata, genericShareMetadata } from '@/app/lib/geo/meta';
 import { decodeShare, summaryHeadline, averageMissKm, scoreGlyph } from '@/app/lib/geo/share';
 import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';

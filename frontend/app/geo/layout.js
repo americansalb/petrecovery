@@ -5,7 +5,7 @@
  * (docs/LINK_PREVIEWS.md). Pages below override the card.
  */
 
-import { buildShareMetadata } from '@/app/lib/shareMetadata';
+import { buildShareMetadata } from '@/app/lib/geo/meta';
 import GeoHeader from './components/GeoHeader';
 import GeoFooter from './components/GeoFooter';
 
