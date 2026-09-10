@@ -11,7 +11,7 @@
 import { decodeShare, summaryHeadline, averageMissKm } from '@/app/lib/geo/share';
 import { describeConfig } from '@/app/lib/geo/modes';
 import { formatDistance } from '@/app/lib/geo/distance';
-import { FALLBACK_SHARE_IMAGE } from '@/app/lib/shareMetadata';
+import { FALLBACK_SHARE_IMAGE } from '@/app/lib/geo/meta';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,7 +29,7 @@ export async function GET(request) {
       import('satori'),
       import('@resvg/resvg-js'),
       import('@/app/lib/geo/server/ShareCard.jsx'),
-      import('@/app/lib/cascade/render/fonts/index.js'),
+      import('@/app/lib/geo/server/fonts/index.js'),
       import('@/app/lib/geo/server/countries'),
     ]);
 
