@@ -21,14 +21,14 @@
  * /rasuwa is the letter tool for families of people missing in the 2026
  * Rasuwa (Nepal) flood: a crisis page for a non-pet audience, so it
  * carries none of the pet-site chrome; its footer links back to /.
- * /geo/play and /geo/room are Where on Earth, the street-level guessing
- * game (docs/GEO.md), while a round or a room is in progress: they cover
- * the screen and carry an X back to the game's lobby. The rest of the
- * game (/geo, /geo/rooms, /geo/leaderboard, /geo/share) is ordinary
- * pages under the universal bar, with the game's own subtabs below it
- * (app/geo/components/GeoHeader.js).
+ * /geo/play, /geo/room and /geo/script/play are Where on Earth, the
+ * guessing game (docs/GEO.md), while a round or a room is in progress:
+ * they cover the screen and carry an X back to the game's lobby. The
+ * rest of the game (/geo, /geo/rooms, /geo/leaderboard, /geo/share,
+ * /geo/script) is ordinary pages under the universal bar, with the
+ * game's own subtabs below it (app/geo/components/GeoHeader.js).
  */
-export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter', '/rasuwa', '/geo/play', '/geo/room'];
+export const IMMERSIVE_ROUTES = ['/mission-control', '/my-shelter', '/rasuwa', '/geo/play', '/geo/room', '/geo/script/play'];
 
 /**
  * Which site this build is. 'pet' is reunitepets.org, where the game

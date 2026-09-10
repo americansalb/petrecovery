@@ -44,7 +44,7 @@ const KNOWN_EXCEPTIONS = [
 ];
 
 /** Segments that ARE the immersive experiences - they own their chrome. */
-const IMMERSIVE_DIRS = ['mission-control', 'my-shelter', 'rasuwa', 'geo/play', 'geo/room'];
+const IMMERSIVE_DIRS = ['mission-control', 'my-shelter', 'rasuwa', 'geo/play', 'geo/room', 'geo/script/play'];
 
 function walkChromeFiles(dir, rel = '') {
   const out = [];
@@ -77,6 +77,9 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     // the HUD's X leads back to /geo; a room's X to /geo/rooms
     expect(isImmersiveRoute('/geo/play')).toBe(true);
     expect(isImmersiveRoute('/geo/room/ABC123')).toBe(true);
+    // A script round covers the screen; its lobby is an ordinary page.
+    expect(isImmersiveRoute('/geo/script/play')).toBe(true);
+    expect(isImmersiveRoute('/geo/script')).toBe(false);
     // the lobby, the room browser, the rankings and share pages are
     // ordinary pages: universal bar on top, the game's subtabs below it
     for (const route of ['/geo', '/geo/rooms', '/geo/share', '/geo/leaderboard', '/geocode']) {
@@ -237,6 +240,6 @@ describe('nav components defer to the shared policy', () => {
   test('the immersive list stays deliberate - additions need a docs update', () => {
     // If this fails you added a takeover: update docs/APP_MAP.md §8.2 and
     // the IMMERSIVE_DIRS list above, then extend this expectation.
-    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', '/geo/play', '/geo/room']);
+    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', '/geo/play', '/geo/room', '/geo/script/play']);
   });
 });

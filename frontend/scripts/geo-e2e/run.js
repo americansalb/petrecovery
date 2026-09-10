@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
  * End-to-end run of the geo game in a real browser, with the Google Maps
- * JavaScript API replaced by fake-maps.js and the Street View metadata
- * endpoint replaced by mock-metadata.js. Exercises: a three-round pin
+ * JavaScript API replaced by fake-maps.js, MapKit JS by fake-mapkit.js,
+ * and the Street View metadata endpoint by mock-metadata.js. Exercises: a three-round pin
  * game with keyboard shortcuts, the summary and its share page, seeded
  * replay, a Kidnapped round where the car drives itself, a country
  * streak, a timed NMPZ round that runs out, the mobile map sheet, and a
  * two-browser room: lobby, rounds, reveal,
  * reactions, standings with ratings, rematch, leaderboard (needs the
- * database, see docs/GEO.md).
+ * database, see docs/GEO.md), and a five-round script game where the
+ * answer is a linguistic region rather than a point.
  *
  * Setup (from frontend/):
  *   node scripts/geo-e2e/mock-metadata.js &
@@ -18,7 +19,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile, script)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -35,6 +36,7 @@ try {
 }
 
 const FAKE = fs.readFileSync(path.join(__dirname, 'fake-maps.js'), 'utf8');
+const FAKE_MAPKIT = fs.readFileSync(path.join(__dirname, 'fake-mapkit.js'), 'utf8');
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const OUT = process.env.GEO_E2E_OUT || os.tmpdir();
 const log = (...args) => console.log(...args);
@@ -51,6 +53,7 @@ async function newPage(browser, viewport) {
   });
   page.on('dialog', (d) => d.dismiss().catch(() => {}));
   await page.route('https://maps.googleapis.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE }));
+  await page.route('https://cdn.apple-mapkit.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE_MAPKIT }));
   page.errors = errors;
   return page;
 }
@@ -388,11 +391,93 @@ async function profile(browser) {
   await page.close();
 }
 
+// The writing systems the South Asia pool can serve. A round outside
+// this set means the chosen pool never reached the game.
+const SOUTH_ASIA_SCRIPTS = ['deva', 'beng', 'guru', 'gujr', 'orya', 'taml', 'telu', 'knda', 'mlym', 'sinh', 'arab'];
+
+/**
+ * The script game: read a sentence, pin where the language is spoken.
+ * The point of the scenario is that the answer is an area, so it checks
+ * the reveal really draws the language's heartlands as circles, and that
+ * a pin on the wrong continent is worth less than one in the right
+ * place. No imagery, no key, no meter.
+ */
+async function script(browser) {
+  log('\n== script ==');
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(`${BASE}/geo/script`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('h1:has-text("Script")', { timeout: 30000 });
+
+  // The lobby renders on the server, so a click can land before React
+  // has hydrated and be swallowed. Press until the button says it took:
+  // without this the run silently plays the default pool and passes
+  // while testing nothing.
+  const pool = page.locator('fieldset button:has-text("South Asia")');
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await pool.click();
+    if ((await pool.getAttribute('aria-pressed')) === 'true') break;
+    await page.waitForTimeout(250);
+  }
+  if ((await pool.getAttribute('aria-pressed')) !== 'true') throw new Error('the pool buttons never became interactive');
+  await page.click('button:has-text("Play 5 rounds")');
+  await page.waitForURL(/\/geo\/script\/play/, { timeout: 30000 });
+  if (!page.url().includes('ladder=india')) throw new Error('the chosen pool did not reach the game: ' + page.url());
+
+  await page.waitForSelector('p[lang]', { timeout: 60000 });
+  const sentence = await page.locator('p[lang]').first();
+  const script = await sentence.getAttribute('lang');
+  const drawn = await sentence.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+  log('round 1 script:', script, '| sentence width:', drawn);
+  // A sentence that rendered as nothing is a broken round, not a hard one.
+  if (!drawn) throw new Error('the sample text did not render');
+  if (await page.locator('text=no font for this writing system').count()) throw new Error('missing glyphs for ' + script);
+  if (!SOUTH_ASIA_SCRIPTS.includes(script)) throw new Error(`the South Asia pool served ${script}`);
+
+  await page.waitForSelector('[data-fake-mapkit]', { timeout: 30000 });
+  await page.waitForSelector('button:has-text("Tap the map to place your pin")');
+  // Tap the map, which in the fake maps the click point onto a real
+  // coordinate, then guess.
+  await page.click('[data-fake-mapkit]', { position: { x: 600, y: 300 } });
+  await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
+  await page.click('button:has-text("Guess")');
+
+  await page.waitForSelector('button:has-text("Next round")', { timeout: 30000 });
+  const reveal = await page.evaluate(() => document.body.innerText);
+  const circles = await page.evaluate(() => Number(document.querySelector('[data-fake-mapkit]')?.parentElement?.getAttribute('data-fake-circles') || 0));
+  log('reveal names a language:', /million speakers/.test(reveal));
+  log('heartlands drawn as circles:', circles);
+  if (!circles) throw new Error('the reveal drew no regions: the answer is an area, that is the mode');
+  if (!/points/.test(reveal)) throw new Error('the reveal showed no score');
+  await shot(page, 'script-reveal');
+
+  await page.click('button:has-text("Next round")');
+  await page.waitForSelector('p[lang]', { timeout: 30000 });
+  const second = await page.locator('p[lang]').first().getAttribute('lang');
+  log('round 2 script:', second);
+  if (!SOUTH_ASIA_SCRIPTS.includes(second)) throw new Error(`the South Asia pool served ${second}`);
+
+  // Straight to the end: four more rounds, guessing wherever.
+  for (let i = 2; i <= 5; i++) {
+    await page.waitForSelector('[data-fake-mapkit]', { timeout: 30000 });
+    await page.click('[data-fake-mapkit]', { position: { x: 400 + i * 20, y: 280 } });
+    await page.click('button:has-text("Guess")');
+    await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
+    await page.click('button:has-text("Next round"), button:has-text("See the results")');
+  }
+  await page.waitForSelector('a:has-text("New game")', { timeout: 30000 });
+  const summary = await page.evaluate(() => document.body.innerText);
+  log('summary reached:', /out of 25,000 across 5 rounds/.test(summary));
+  log('summary lists every round:', await page.locator('ol > li').count());
+  await shot(page, 'script-summary');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile, script };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {
