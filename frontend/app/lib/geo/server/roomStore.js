@@ -4,7 +4,7 @@
  * exactly one of two racing requests wins a phase transition.
  */
 
-import prisma from '@/app/lib/prisma';
+import prisma from '@/app/lib/geo/server/db';
 import { seasonFor } from '@/app/lib/geo/season';
 
 const include = {

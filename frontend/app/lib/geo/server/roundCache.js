@@ -12,7 +12,7 @@
  * stop a round.
  */
 
-import prisma from '@/app/lib/prisma';
+import prisma from '@/app/lib/geo/server/db';
 
 export const ROUND_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
