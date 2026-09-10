@@ -4,7 +4,7 @@
  * On reunitepets.org the site's own footer follows the game's pages.
  */
 
-import { isGameSite } from '@/app/lib/navChrome';
+import { isGameSite } from '@/app/lib/geo/site';
 
 const HOME_URL = process.env.NEXT_PUBLIC_GEO_HOME_URL || 'https://www.reunitepets.org';
 
