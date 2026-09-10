@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/rateLimit';
+import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/geo/server/limiter';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
 import { ShopError, buyItem, equipItem, shopView } from '@/app/lib/geo/server/points';

@@ -15,7 +15,7 @@ const memoryStore = createMemoryRoomStore();
 jest.mock('@/app/lib/geo/server/roomStore', () => ({ prismaRoomStore: memoryStore }));
 jest.mock('next-auth', () => ({ getServerSession: jest.fn().mockResolvedValue(null) }));
 jest.mock('@/app/lib/auth', () => ({ authOptions: {} }));
-jest.mock('@/app/lib/rateLimit', () => ({
+jest.mock('@/app/lib/geo/server/limiter', () => ({
   checkRateLimitForKeyAsync: jest.fn().mockResolvedValue({ success: true }),
   getClientIP: (request) => request.headers.get('x-test-ip') || '203.0.113.9',
   withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),

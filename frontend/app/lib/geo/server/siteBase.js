@@ -6,7 +6,7 @@
  */
 
 import { headers } from 'next/headers';
-import { shareMetadataBase } from '@/app/lib/shareMetadata';
+import { shareMetadataBase } from '@/app/lib/geo/meta';
 
 export function geoMetadataBase() {
   try {

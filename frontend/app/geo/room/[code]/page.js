@@ -6,7 +6,7 @@
  */
 
 import { Suspense } from 'react';
-import { buildShareMetadata, genericShareMetadata } from '@/app/lib/shareMetadata';
+import { buildShareMetadata, genericShareMetadata } from '@/app/lib/geo/meta';
 import { VARIANTS, describeRoomMode, describeRoomStatus, normalizeRoomCode } from '@/app/lib/geo/rooms';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';

@@ -13,7 +13,7 @@
  * include the Look Around library, so we ask for it explicitly.
  */
 
-import { initializeMapKit } from '@/app/lib/maps/appleMapKit';
+import { initializeMapKit } from './appleMapKit';
 
 let lookAroundReady = null;
 
