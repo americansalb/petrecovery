@@ -2,10 +2,16 @@
  * The Street View probe.
  *
  * Street View Static API metadata requests are free and unmetered, so
- * we can afford to test random points until one has official imagery
- * nearby. Each probe asks for the nearest outdoor panorama within a
- * radius; the copyright line tells official Google coverage apart from
- * user-uploaded photo spheres, which we skip.
+ * we can afford to test random points until one has imagery nearby. Each
+ * probe asks for the nearest outdoor panorama within a radius; the
+ * copyright line tells official Google coverage apart from
+ * user-uploaded photo spheres.
+ *
+ * Photo spheres are skipped everywhere except the Everywhere mode
+ * (docs/GEO.md), which exists precisely because official coverage stops
+ * at borders and a third of the world's land sits behind that line. In
+ * that mode a sphere is the only imagery there is, so `allowUnofficial`
+ * lets it count.
  *
  * Server only: the key never reaches the browser.
  */
@@ -26,7 +32,7 @@ export function isOfficialCopyright(text) {
  *          or { status: 'miss', reason }
  *          or { status: 'error', code, message, fatal }
  */
-export async function probeStreetView({ lat, lng, radiusKm = 10, key, fetchImpl = globalThis.fetch, timeoutMs = 6000 }) {
+export async function probeStreetView({ lat, lng, radiusKm = 10, key, fetchImpl = globalThis.fetch, timeoutMs = 6000, allowUnofficial = false }) {
   if (!key) return { status: 'error', code: 'no_key', message: 'No Street View key', fatal: true };
   const params = new URLSearchParams({
     location: `${Number(lat).toFixed(6)},${Number(lng).toFixed(6)}`,
@@ -45,7 +51,7 @@ export async function probeStreetView({ lat, lng, radiusKm = 10, key, fetchImpl 
   }
   const status = data?.status;
   if (status === 'OK') {
-    if (!isOfficialCopyright(data.copyright)) return { status: 'miss', reason: 'unofficial' };
+    if (!allowUnofficial && !isOfficialCopyright(data.copyright)) return { status: 'miss', reason: 'unofficial' };
     if (!data.pano_id || !data.location) return { status: 'miss', reason: 'incomplete' };
     return {
       status: 'hit',
@@ -77,6 +83,7 @@ export async function findPanorama({
   maxProbes = 96,
   batchSize = 12,
   timeoutMs,
+  allowUnofficial = false,
 }) {
   const stats = { probes: 0, misses: 0, unofficial: 0, errors: 0, water: 0 };
   let lastError = null;
@@ -90,7 +97,7 @@ export async function findPanorama({
     if (!batch.length) break;
     const results = await Promise.all(
       batch.map((c) =>
-        probeStreetView({ lat: c.lat, lng: c.lng, radiusKm: c.radiusKm, key, fetchImpl, timeoutMs }).catch(
+        probeStreetView({ lat: c.lat, lng: c.lng, radiusKm: c.radiusKm, key, fetchImpl, timeoutMs, allowUnofficial }).catch(
           (error) => ({ status: 'error', code: 'network', message: error?.message, fatal: false })
         )
       )

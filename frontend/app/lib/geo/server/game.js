@@ -129,13 +129,18 @@ async function probeForImagery({ source, config, roundIndex, googleServerKey, fe
   if (!googleServerKey) {
     throw new GeoGameError('google_not_configured', 'Google Street View is not configured on this server');
   }
-  const found = await findPanorama({ source, key: googleServerKey, fetchImpl, maxProbes: MAX_PROBES });
+  // Everywhere runs on user photo spheres: there is no official imagery
+  // in the countries it draws from, which is the whole point of it.
+  const allowUnofficial = config.mode === 'everywhere';
+  const found = await findPanorama({ source, key: googleServerKey, fetchImpl, maxProbes: MAX_PROBES, allowUnofficial });
   if (!found.hit) {
     const upstream = found.error || {};
     const code = upstream.code === 'no_imagery' ? 'no_imagery' : 'probe_failed';
     const message =
       code === 'no_imagery'
-        ? 'No Street View imagery turned up near the random points. Try again or widen the search radius.'
+        ? allowUnofficial
+          ? 'No photo spheres turned up near the places tried. Everywhere runs on imagery people uploaded themselves, so it is thinner than the rest of the game. Try again.'
+          : 'No Street View imagery turned up near the random points. Try again or widen the search radius.'
         : `Street View lookup failed: ${upstream.message || upstream.code || 'unknown error'}`;
     throw new GeoGameError(code, message, { stats: found.stats, upstream: { code: upstream.code, message: upstream.message } });
   }

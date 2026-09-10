@@ -75,6 +75,15 @@ export const MODES = {
     providers: ['google', 'apple'],
     description: 'A random spot in one of about 150 large cities.',
   },
+  everywhere: {
+    id: 'everywhere',
+    label: 'Everywhere',
+    short: 'Everywhere',
+    providers: ['google'],
+    description:
+      'The third of the world Street View never drove. China, Iran, Egypt, the Sahara. Photo spheres instead of official coverage, so knowing where the car went is worth nothing.',
+    fixed: { provider: 'google', move: false, pan: true, zoom: true },
+  },
   kidnapped: {
     id: 'kidnapped',
     label: 'Kidnapped',
@@ -92,7 +101,7 @@ export const MODES = {
   },
 };
 
-export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'kidnapped', 'streak'];
+export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'everywhere', 'kidnapped', 'streak'];
 
 /**
  * The three formats competitive play knows (docs/GEO.md, "Formats"):
@@ -266,6 +275,9 @@ export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
   // Kidnapped: the clock and the drive are the mode; rounds and the
   // probe radius stay yours.
   if (mode === 'kidnapped') Object.assign(config, MODES.kidnapped.fixed);
+  // Everywhere: a photo sphere is one viewpoint with no links, so there
+  // is nothing to walk to. Rounds, timer and radius stay yours.
+  if (mode === 'everywhere') Object.assign(config, MODES.everywhere.fixed);
 
   return config;
 }
