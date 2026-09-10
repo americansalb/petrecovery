@@ -12,6 +12,8 @@ but no data models.
 |---|---|---|
 | `/geo` | Lobby: provider, mode, rules, daily challenge, your rating and recent rated games, rooms you were in, local stats, how it works | universal bar + game subtabs |
 | `/geo/play?...` | The game. Every setting is in the query string, so a link is a whole game | full screen; the X in the HUD returns to `/geo` |
+| `/geo/script` | The script game's lobby: read a sentence, pin where the language is spoken ("Script" below) | universal bar + game subtabs |
+| `/geo/script/play?...` | A script game. Settings are in the query string, so a link is a whole game | full screen; the X returns to `/geo/script` |
 | `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | universal bar + game subtabs |
 | `/geo/rooms` | Multiplayer: open a room, join by code, return to a room you were in, or pick a public room | universal bar + game subtabs |
 | `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
@@ -22,9 +24,9 @@ Chrome follows the house rule in `app/lib/navChrome.js`: the lobby, the
 room browser, the rankings and the share page are ordinary pages under
 the universal ReunitePets bar (Dashboard, account menu and all), with the
 game's own subtabs below it (`app/geo/components/GeoHeader.js`: Play,
-Rooms, Rankings, Daily, Profile). Only a round or a room in progress
-(`/geo/play`, `/geo/room/<code>`) covers the screen, and each carries an
-X back out. On a build of the game's own site (`NEXT_PUBLIC_SITE=geo`,
+Script, Rooms, Rankings, Daily, Profile). Only a round or a room in
+progress (`/geo/play`, `/geo/room/<code>`, `/geo/script/play`) covers the
+screen, and each carries an X back out. On a build of the game's own site (`NEXT_PUBLIC_SITE=geo`,
 see "Hosting on another domain") there is no pet chrome at all and the
 same row is the site's header, with a ReunitePets link as the way out.
 
@@ -173,6 +175,100 @@ the 1:110m coastline and had to move inland.
 unmeasured. The mode is built and correct; whether every city in the list
 can reliably produce a round needs a live Google key and a real run. If
 some cannot, the fix is to trim the list, not to change the mechanism.
+
+## Script: pin the language, not the country
+
+A second game on the same scoring engine. You get a sentence in some
+language and place a pin where that language is spoken; points fall off
+with distance, exactly as in a street-level round.
+
+**Why a pin instead of a list of language names.** A dropdown makes this
+a vocabulary test, and it makes every wrong answer equally wrong:
+mistaking Marathi for Hindi would score the same zero as mistaking it
+for Finnish. One of those is a neighbouring Indo-Aryan language and the
+other is a different family on another continent, and a pin can tell
+them apart.
+
+**Why regions instead of borders.** This is the part that matters.
+Scoring a guess against a country makes South Asia one tile. Tamil,
+Marathi, Bhojpuri and Maithili all collapse into "India" and the round
+stops being about language at all. So each language carries the places
+it is actually spoken, as heartland discs, and a guess is measured to
+the nearest one. Tamil pinned in Tamil Nadu scores full marks. Tamil
+pinned in Punjab does not. Punjabi has a heartland on both sides of a
+border, and pinning either is right.
+
+A disc is a coarse instrument for a language boundary, deliberately.
+Real isoglosses are fuzzy, overlapping and politically contested; a
+centre and a radius says "roughly here, and this big" without claiming a
+precision no map of languages has.
+
+**The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
+
+| Pool | What it is |
+|---|---|
+| World | Everything, drawn by how many people speak it |
+| Alphabets | One language per writing system: learn to tell Devanagari from Bengali from Tamil |
+| South Asia | Seventeen languages, ten scripts, one subcontinent |
+| Devanagari | Hindi, Marathi, Nepali, Bhojpuri, Maithili: same alphabet, five answers |
+| Arabic script | Arabic, Persian, Urdu, Pashto, Kurdish, Sindhi, Uyghur: four families, one alphabet |
+| Cyrillic | Four Slavic answers and two that are not Slavic at all |
+| Latin script | The hardest: the alphabet tells you nothing, every clue is in the words |
+
+**The pool sets the scale.** The scoring size is the diagonal of the box
+the pool's answers live in, so a pin on the right continent is worth
+real points in World and almost nothing in South Asia, where every
+answer was already inside that box.
+
+**Nothing here costs money.** No imagery provider, no metadata probe, no
+key, so script rounds never touch the play meter. That is arithmetic
+rather than generosity: a text round has no marginal cost to meter. It
+also means the mode works on a server with no Google keys at all.
+
+**The corpus** is `app/lib/geo/server/samples.js`, and it is server only
+on purpose: if the browser held it, it could match the sentence on
+screen against it and read off the answer before the guess, the same way
+a panorama round would leak if the client held the coordinate. Rounds go
+out as one sentence plus a sealed token.
+
+The sentences were written for the game rather than taken from a corpus.
+The two obvious upgrades, both open, are the Universal Declaration of
+Human Rights, which exists in more than five hundred translations and is
+the canonical parallel text, and Tatoeba, which has millions of
+sentences across four hundred languages tagged with ISO 639-3 codes.
+Either drops into the same shape.
+
+**One curation rule matters more than the size of the pool: strip proper
+nouns.** A sentence containing a city name answers itself, and so does a
+digit or a sentence that names its own language. This is checked rather
+than trusted, and the check has already caught one: the Lao word for
+"he" is also the endonym for Lao.
+
+**Two more checks, both in `__tests__/geo/script.test.js`, both worth
+more than the rest put together:**
+
+- Every region coordinate is verified against the same Natural Earth
+  polygons that name a geography round, so a typo cannot land Marathi in
+  Pakistan.
+- Every sample is verified against the Unicode ranges of the script it
+  claims, so a sentence pasted into the wrong row fails the build rather
+  than shipping a round whose answer is wrong. This caught Azerbaijani
+  writing its schwa from IPA Extensions.
+
+**Fonts, which is where this mode would otherwise break.** A language
+game that renders empty boxes is not a hard round, it is an unplayable
+one, and it fails worst on cheap Android hardware in exactly the places
+the mode exists to represent. So `app/geo/script/fonts.js` bundles a
+Noto face for all nineteen non-Latin scripts in the corpus, scoped to
+these routes. Han, Hangul and Kana are not bundled: those families are
+megabytes each and system coverage is close to universal. For the
+machines where that bet is wrong, `ScriptSample` measures the text
+against U+FFFF, which no font may have a glyph for, and says so rather
+than showing boxes with no explanation.
+
+Rounds are unranked while the corpus is a starting pool rather than a
+curated one: rating people on content still being written would put
+noise in the ladder.
 
 ## Multiplayer rooms
 
@@ -511,10 +607,15 @@ frontend/app/lib/geo/server/     server only: countries, sampler, streetview, to
                                  rooms + roomStore/memoryRoomStore, profiles, roundCache, siteBase
 frontend/app/lib/geo/rooms.js    room rules (codes, names, duel maths, standings)
 frontend/app/lib/geo/rating.js   Glicko ratings
+frontend/app/lib/geo/languages.js  the script game's languages, scripts and heartland regions
+frontend/app/lib/geo/script.js     the script game's pools and region scoring
+frontend/app/lib/geo/server/samples.js    the sentence corpus, server only so the browser cannot look up the answer
+frontend/app/lib/geo/server/scriptGame.js building and scoring a script round
 frontend/app/lib/geo/data/       countries-meta.json (generated)
-frontend/app/api/geo/            config, round, guess, og, rooms, rooms/[code], profile, leaderboard
+frontend/app/api/geo/            config, round, guess, og, rooms, rooms/[code], profile, leaderboard, script/round, script/guess
 frontend/app/geo/                layout (game subtabs, or the game site's header/footer), lobby, play, share, rooms, room/[code], leaderboard, components, client libs
+frontend/app/geo/script/         the script game: lobby, play, and the bundled Noto faces for every script in the corpus
 frontend/__tests__/geo/          unit tests; __tests__/api/geo-routes.test.js for the routes
 frontend/scripts/build-geo-countries.js
-frontend/scripts/geo-e2e/            mock metadata server, fake Maps SDK, browser run
+frontend/scripts/geo-e2e/            mock metadata server, fake Maps SDK, fake MapKit, browser run
 ```

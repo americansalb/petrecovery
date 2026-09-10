@@ -35,6 +35,11 @@ const RATE_LIMIT_CONFIG = {
   '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
   '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },
+  // Script rounds are text out of a file: no upstream call, no key, no
+  // cost, so they get a looser bucket than a panorama round. The limit
+  // is here to slow a scraper walking the corpus, not to ration play.
+  '/api/geo/script/round': { windowMs: 60000, maxRequests: 90 },
+  '/api/geo/script/guess': { windowMs: 60000, maxRequests: 120 },
   '/api/geo/round': { windowMs: 60000, maxRequests: 40 },
   '/api/geo/guess': { windowMs: 60000, maxRequests: 60 },
   '/api/geo/config': { windowMs: 60000, maxRequests: 30 },

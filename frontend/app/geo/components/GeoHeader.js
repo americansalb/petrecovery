@@ -20,6 +20,7 @@ const HOME_URL = process.env.NEXT_PUBLIC_GEO_HOME_URL || 'https://www.reunitepet
 
 export const GAME_LINKS = [
   { href: '/geo', label: 'Play', exact: true },
+  { href: '/geo/script', label: 'Script' },
   { href: '/geo/rooms', label: 'Rooms' },
   { href: '/geo/leaderboard', label: 'Rankings' },
   { href: '/geo/play?mode=daily', label: 'Daily', never: true },
@@ -28,7 +29,7 @@ export const GAME_LINKS = [
 
 /** A round or a room in progress: the screen is theirs. */
 export function isGameTakeover(pathname) {
-  return pathname.startsWith('/geo/play') || pathname.startsWith('/geo/room/');
+  return pathname.startsWith('/geo/play') || pathname.startsWith('/geo/room/') || pathname.startsWith('/geo/script/play');
 }
 
 function isActive(link, pathname) {
