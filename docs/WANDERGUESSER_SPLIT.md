@@ -184,29 +184,50 @@ By the time anything moves, the game has no wire left to cut, so the
 extraction is a file move with history rather than a rewrite under time
 pressure.
 
-### Phase 1. Sever the outward wires. Seven pull requests.
+### Phase 1. Sever the outward wires. Six done, one to go.
 
 Each one adds a module the game owns, switches the game's imports to it,
 and leaves the pet app's copy untouched. Nothing the pet site uses
 changes, so each is independently safe and independently revertable.
 
-| PR | New module | Replaces | Notes |
-|---|---|---|---|
-| 1.1 | `app/lib/geo/server/db.js` | `@/app/lib/prisma` | Same singleton pattern, JavaScript, reads `GEO_DATABASE_URL` if set and falls back to `DATABASE_URL` so nothing changes yet |
-| 1.2 | `app/lib/geo/server/limiter.js` | `@/app/lib/rateLimit` | The five functions the game uses. Keep the in-memory and Redis split; the game's presets are its own |
-| 1.3 | `app/lib/geo/meta.js` | `@/app/lib/shareMetadata` | Site name from `NEXT_PUBLIC_GEO_SITE_NAME`, own fallback share image |
-| 1.4 | `app/geo/lib/appleMapKit.js` | `@/app/lib/maps/appleMapKit` | Only the token fetch and the loader. Rename the window globals off `__reunitepets*` |
-| 1.5 | `app/lib/geo/server/fonts.js` | `@/app/lib/cascade/render/fonts` | Bundle Inter for satori and resvg under the game's own path |
-| 1.6 | `app/lib/geo/site.js` | `@/app/lib/navChrome` | `isGameSite()` moves in. Also export the route list the pet app reads back, which sets up 2.2 |
-| 1.7 | `app/lib/geo/server/identity.js` | `@/app/lib/auth` | Depends on D1. An interface with one method, "who is this request", with today's NextAuth session behind it and the standalone implementation swapped in at phase 4 |
+Shipped as one pull request with a commit per wire rather than seven
+pull requests: they are all the same mechanical change inside one
+isolated tree, they share a verification run, and `git revert` on a
+commit undoes one wire exactly as reverting a pull request would.
 
-**Exit criteria.** A new guard test, `__tests__/geo/isolation.test.js`,
-walks every file under the three geo directories, reads its imports, and
-fails on any path that leaves the geo tree except npm packages, Node
-builtins and React. It lands in 1.1 with the six remaining wires listed
-as a shrinking allowlist, and the allowlist is empty when 1.7 merges.
-This is the same enforcement the repository already uses for link
-previews and the navigation bar, so it will survive later changes.
+| | New module | Replaces | Notes | State |
+|---|---|---|---|---|
+| 1.1 | `app/lib/geo/server/db.js` | `@/app/lib/prisma` | Own singleton, JavaScript, reads `GEO_DATABASE_URL` and falls back to `DATABASE_URL`. `GEO_DB_POOL` caps the game's pool | done |
+| 1.2 | `app/lib/geo/server/limiter.js` | `@/app/lib/rateLimit` | The five functions the game used, same result shape, same preset numbers. Redis then memory; no database tier, see below | done |
+| 1.3 | `app/lib/geo/meta.js` | `@/app/lib/shareMetadata` | Same card shape without the pet photo helper. Name and fallback image are env-driven and default to today's values | done |
+| 1.4 | `app/geo/lib/appleMapKit.js` | `@/app/lib/maps/appleMapKit` | The loader only. Authorization is guarded by a window flag so a remount cannot authorize twice | done |
+| 1.5 | `app/lib/geo/server/fonts/` | `@/app/lib/cascade/render/fonts` | The three Inter weights the card actually uses, vendored with their licence | done |
+| 1.6 | `app/lib/geo/site.js` | `@/app/lib/navChrome` | `isGameSite()` moves in, plus the route constants phase 2.2 has the pet app read back | done |
+| 1.7 | `app/lib/geo/server/identity.js` | `@/app/lib/auth` | Waiting on D1. One question, "who is this request", with today's NextAuth session behind it and the standalone answer swapped in at phase 4 | blocked on D1 |
+
+Two things changed on purpose rather than being copied across.
+
+**The limiter has no database tier.** The pet limiter falls back Redis,
+then a database table, then memory. The game's goes Redis, then memory.
+What these limits protect is pace, not spend: the thing that stops the
+game costing money is the play meter, which counts every round in
+Postgres and survives a restart. Losing a burst cap on deploy is an
+inconvenience; losing the meter would be a bill. Set `REDIS_URL` and the
+burst cap is durable too.
+
+**The game opens its own connection pool.** Until phase 3 that pool
+points at the same Postgres as the pet app, so the server carries two
+pools instead of one. `GEO_DB_POOL` caps the game's side where the
+server's connection limit is tight. Phase 3 removes the overlap.
+
+**Exit criteria.** The guard test `__tests__/geo/isolation.test.js` walks
+every file under the game's five directories, reads its static imports,
+dynamic imports and requires, and fails on any path that leaves the game
+except an npm package or a Node builtin. Its allowlist is down to one
+entry, `@/app/lib/auth`, and a further test asserts that the list has
+exactly that entry so it cannot quietly grow. This is the same
+enforcement the repository already uses for link previews and the
+navigation bar, so it will outlast the split.
 
 **Verification.** `npm test`, the browser harness across all eight
 scenarios, and a production build, on each pull request.
