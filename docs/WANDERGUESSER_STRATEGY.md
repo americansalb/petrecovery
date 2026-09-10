@@ -22,12 +22,20 @@ encodes a Western default:
   A third of the land surface cannot appear, so a large part of expert
   play is memorising a corporate coverage map rather than knowing the
   world.
-- **The language games answer in countries.** That works for Icelandic
-  and collapses exactly where linguistic diversity is richest. India has
-  22 scheduled languages and around 120 with more than ten thousand
-  speakers. Nigeria has roughly 500 languages, Indonesia around 700. A
-  country pin cannot tell Tamil from Bhojpuri from Santali. They are all
-  just "India".
+- **The language games flatten the same places, for two different
+  reasons.** Most of them ask for a language name from a list, so they
+  do not literally answer "India"; what they do is carry a list of
+  between sixty and a hundred and fifty entries, which is a list of
+  national languages, and score every wrong answer identically whether
+  it was the neighbouring language or a different family on another
+  continent. The ones that answer on a map inherit the country problem
+  outright. Either way the dense parts of the map arrive as one or two
+  entries: India has 22 scheduled languages and around 120 with more
+  than ten thousand speakers, Nigeria roughly 500, Indonesia around 700.
+  (Corrected in review: an earlier draft said flatly that the language
+  games answer in countries. They mostly do not. The claim that survives
+  is about list length and all-or-nothing scoring, and it is narrower.
+  See §2.2, which had this right.)
 
 Attacking that bias consistently is a real position. It produces a
 better game rather than more content, it opens the largest language
@@ -125,7 +133,7 @@ Honest inventory, so the plan starts from the truth.
 | Competitive | Glicko ratings with a deviation, three-month seasons, a weekly cup, formats including No Move and NMPZ |
 | Progression | Points, country badges, cosmetics that cost nothing to serve |
 | Modes | World, balanced, continent, country, city streets, streak, daily, cup, Kidnapped |
-| Coverage | 119 countries in the pool. 130 excluded. See bet 2 |
+| Coverage | 119 countries in the pool. 125 excluded. See bet 2 |
 | Phone | A responsive layout and a map sheet. No installable app, no phone-shaped controls |
 | Integrity | Nothing. The ladder is as forgeable as everyone else's |
 | Language games | Nothing built |
@@ -139,8 +147,13 @@ so it can stay generous without a sponsor or a runway.
 where the player watches motion over time rather than a still panorama.
 That turns out to matter enormously for bet 1.
 
-**Rooms already time every guess on the server.** The behavioural data
-that integrity work needs is already being produced.
+**Rooms already time every guess on the server.** That is one signal,
+and a place to put the rest. It is not the data integrity work needs:
+`GeoRoomGuess` stores the final pin, the score and `submittedAt`, and
+the room API takes a single `guess` action. Time to first pin, how often
+a pin moved, pan and zoom, imagery load time: none of it is recorded
+today. That is exactly what sequencing step 3 is for, and this line
+previously claimed the work was already done.
 
 ## 4. The bets
 
@@ -189,11 +202,26 @@ then decide. Do not ship an accusation you cannot support.
 
 ### Bet 2. The whole world
 
-**The measurement.** Every mode except pure-random world draws from a
-curated list of 119 countries in `app/lib/geo/coverage.js`. That leaves
-130 excluded, which is **34.1% of the world's non-Antarctic land**.
+**The measurement.** `GOOGLE_COVERAGE` in `app/lib/geo/coverage.js` is a
+curated list of 119 countries. The country metadata holds 249 entries,
+five of them Antarctic; against the 244 that are not, the list leaves
+**125 countries excluded, 34.1% of the world's non-Antarctic land**.
 Memorise the list and a third of the planet disappears before you look
 at the screen.
+
+(Corrected in review. An earlier draft said 130 excluded, which
+subtracted from all 249 while the land figure excluded Antarctica: two
+different universes in one sentence. 125 and 34.1% are both measured
+against the 244.)
+
+Which modes that actually binds, since the earlier draft overstated it
+as "every mode except pure-random world": Balanced, the daily, the cup,
+Kidnapped and Streak all draw from `coveredPool()`, Continent filters to
+the covered countries within one, and City streets takes its cities from
+the coverage set. Random world samples any land, and Country mode uses
+whatever country was chosen, so neither is capped by the list. What the
+list caps is what the lobby offers and what a random draw is likely to
+produce.
 
 The largest missing pieces:
 
@@ -290,8 +318,11 @@ Two products, not one, and they should ship in this order.
 
 Text rounds need no recordings, no licensing negotiation and no playback
 time. This is the cheapest possible testbed for the entire ranked layer:
-rated duels could be live in days, proving the rating infrastructure on
-content that costs nothing, before any audio or panorama investment.
+a rated text ladder could follow within days of the mode itself,
+exercising the rating infrastructure on content that costs nothing,
+before any audio or panorama investment. The mode ships unranked first:
+rating people on a corpus still being written puts noise in the ladder,
+which is the thing bet 1 exists to avoid.
 
 It is also silent, so it plays on trains and in meetings where an audio
 game is impossible, and it is the mode where a GeoGuessr player's
@@ -395,14 +426,18 @@ next never happens.
 | 2 | Check photo sphere density with a live Google key | Half an hour, and it decides whether bet 2 is a mode or a footnote |
 | 3 | Record behavioural signals on rounds, change nothing | Bet 1 needs data before it needs a design. Collecting is cheap and reversible |
 | 4 | Phone pass on the play screen | Largest audience gain per unit of work, unblocks India later |
-| 5 | Script mode, unranked, from Tatoeba and the UDHR | Days of work, no licensing, and it proves the rating layer on free content |
+| 5 | Script mode, unranked, from Tatoeba and the UDHR | Days of work, no licensing. It proves the content and the mechanic, not the ladder: an unranked mode exercises no rating code |
 | 6 | Linguistic-region scoring in script mode | The real differentiator, tested where content is free |
-| 7 | Verified ladder using what step 3 learned | Now grounded in real data |
-| 8 | Coverage mode, photo spheres or satellite | Depends on step 2 |
-| 9 | Audio mode and the India pack | The expensive, defensible one, built last on proven mechanics |
+| 7 | A provisional rated ladder on script rounds | The step that actually exercises rating on free content, and the one the earlier draft skipped. Provisional because the corpus is not yet curated enough to rate people on |
+| 8 | Verified ladder using what step 3 learned | Now grounded in real data |
+| 9 | Coverage mode, photo spheres or satellite | Depends on step 2 |
+| 10 | Audio mode and the India pack | The expensive, defensible one, built last on proven mechanics |
 
 The pattern: prove the ranked layer on text, which costs nothing, before
-spending on recordings and imagery.
+spending on recordings and imagery. That takes a rated text step to be
+true, which is step 7; steps 5 and 6 prove the content and the answer
+format and nothing about rating. (Corrected in review: the earlier draft
+claimed step 5 proved the rating layer while also making it unranked.)
 
 ## 6. Naming
 

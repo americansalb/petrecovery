@@ -130,10 +130,16 @@ far you have been driven.
 ## Everywhere: the third of the world Street View never drove
 
 Google's coverage stops at a border for reasons of law and business, not
-geography. 119 countries are in `GOOGLE_COVERAGE`; 130 are not, and that
-excluded set is **34% of the world's non-Antarctic land**: China, Iran,
-Egypt, Algeria, Sudan, Libya, Saudi Arabia, most of the Sahara belt and
-much of Central Asia.
+geography. 119 countries are in `GOOGLE_COVERAGE`. The country metadata
+holds 249 entries, five of them Antarctic, so against the 244 that are
+not, **125 countries are excluded, 34.1% of the world's non-Antarctic
+land**: China, Iran, Egypt, Algeria, Sudan, Libya, Saudi Arabia, most of
+the Sahara belt and much of Central Asia.
+
+(This said 130 until review caught it. That number subtracted from all
+249 while the land figure excluded Antarctica, which is two different
+universes in one sentence. Both figures here are measured against the
+244; `docs/WANDERGUESSER_STRATEGY.md` carries the same correction.)
 
 That has a consequence for the game beyond missing places. If a third of
 the planet can never appear, then memorising the coverage map deletes it
