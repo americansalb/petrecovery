@@ -12,7 +12,7 @@
 import { createRng, randomPointInDisk, randomSeedString, roundSeed, weightedIndex } from '../random';
 import { WORLD_SIZE_KM, sizeForBox } from '../distance';
 import { RADIUS_PRESETS } from '../modes';
-import { citiesFor, hasGoogleCoverage } from '../coverage';
+import { citiesFor, citiesOffCoverage, hasGoogleCoverage } from '../coverage';
 import { countriesInContinent, countryByCode, getCountries, sampleInCountry, sampleOnLand } from './countries';
 
 export class GeoSamplerError extends Error {
@@ -128,6 +128,26 @@ export function createCandidateSource(config, roundIndex = 0) {
           country: countryByCode(city.country),
           city: city.name,
           radiusKm: Math.min(presetKm, 2),
+        };
+      };
+      break;
+    }
+    case 'everywhere': {
+      // Cities in countries with no official coverage. What imagery
+      // exists there is user photo spheres, which are far sparser than
+      // a Street View car's line, so the probe looks further out: two
+      // kilometres would come back empty most of the time.
+      const cities = citiesOffCoverage();
+      if (!cities.length) throw new GeoSamplerError('no_cities', 'No off-coverage cities');
+      next = () => {
+        const city = cities[Math.floor(rng() * cities.length)];
+        const point = randomPointInDisk(rng, city, city.radiusKm);
+        return {
+          lat: point.lat,
+          lng: point.lng,
+          country: countryByCode(city.country),
+          city: city.name,
+          radiusKm: Math.max(presetKm, 10),
         };
       };
       break;

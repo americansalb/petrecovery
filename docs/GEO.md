@@ -56,6 +56,8 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
      small countries still come up, then a random point inside its
      polygon.
    - *Continent / country*: the same, restricted.
+   - *Everywhere*: a random spot in one of the cities listed in
+     `coverage.js` for countries with **no** official Street View at all.
    - *City streets*: a random spot within one of about 150 large cities
      (`app/lib/geo/coverage.js`).
 2. **The imagery probe (Google).** `app/lib/geo/server/streetview.js`
@@ -65,6 +67,8 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    imagery (the copyright line says Google; user photo spheres are
    skipped) and outdoor. The first hit in candidate order wins, so a seed
    reproduces the same round while coverage is unchanged.
+   In every mode but Everywhere a hit must be official Google imagery.
+   Everywhere inverts that, below.
 3. **The imagery probe (Apple).** MapKit JS has no availability call, so
    the browser creates a Look Around view for each candidate in turn and
    listens for `load` or `error` (`app/geo/lib/lookAround.js`).
@@ -120,6 +124,55 @@ can look around, not steer or zoom, and guess whenever you like or when
 the clock runs out; the answer is the spot you were dropped at (a few
 hundred metres of road do not move the score), and the HUD counts how
 far you have been driven.
+
+## Everywhere: the third of the world Street View never drove
+
+Google's coverage stops at a border for reasons of law and business, not
+geography. 119 countries are in `GOOGLE_COVERAGE`; 130 are not, and that
+excluded set is **34% of the world's non-Antarctic land**: China, Iran,
+Egypt, Algeria, Sudan, Libya, Saudi Arabia, most of the Sahara belt and
+much of Central Asia.
+
+That has a consequence for the game beyond missing places. If a third of
+the planet can never appear, then memorising the coverage map deletes it
+from the answer space before the player has looked at anything. A large
+part of what looks like expertise in this genre is knowing where a
+company chose to drive.
+
+**Everywhere** is the mode that makes that knowledge worth nothing.
+
+- **Where it draws from.** Cities in countries with no official coverage
+  (`citiesOffCoverage()` in `app/lib/geo/coverage.js`). It is a city list
+  rather than a country pool because the imagery that exists in those
+  countries is user photo spheres, and those cluster in cities.
+- **What counts as a hit.** The probe normally rejects anything whose
+  copyright line is not Google. Everywhere passes `allowUnofficial` and
+  takes the sphere, because there is nothing else there. No other mode
+  is affected: the flag is derived from the mode inside
+  `probeForImagery`.
+- **A wider probe radius.** Spheres are far sparser than a Street View
+  car's line, so candidates carry at least a 10 km radius rather than the
+  2 km City streets uses. Metadata requests are free and unmetered, so a
+  mode that probes harder costs nothing extra; only the round itself
+  counts against the play meter.
+- **No movement.** A photo sphere is one viewpoint with no links, so
+  there is nothing to walk to. The mode fixes `move: false` and leaves
+  pan and zoom on. Rounds, timer and probe radius stay the player's.
+- **The answer is still named by the polygons.** `countryAt` decides the
+  country from Natural Earth, not from the city label, so a sphere in the
+  wrong place cannot mislabel a round.
+
+The city coordinates were written by hand, so
+`__tests__/geo/off-coverage.test.js` checks every one against the same
+polygons that name the answer. A digit in the wrong place fails the
+build rather than putting a round in Mongolia and calling it Beijing.
+That test caught one on the way in: Tripoli's centre sits just outside
+the 1:110m coastline and had to move inland.
+
+**Known limit.** How dense photo spheres actually are in Chad or Sudan is
+unmeasured. The mode is built and correct; whether every city in the list
+can reliably produce a round needs a live Google key and a real run. If
+some cannot, the fix is to trim the list, not to change the mechanism.
 
 ## Multiplayer rooms
 

@@ -34,6 +34,10 @@ http
         pano_id: `mock-${lat.toFixed(4)}-${lng.toFixed(4)}`,
         location: { lat: lat + 0.0018, lng: lng + 0.0012 },
         date: '2024-05',
+        // Always official here. The Everywhere mode's photo-sphere path
+        // needs country polygons to fake convincingly, and rough boxes
+        // would change what the other scenarios see, so it is covered by
+        // __tests__/geo/off-coverage.test.js instead.
         copyright: '© Google',
       })
     );

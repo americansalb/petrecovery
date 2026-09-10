@@ -170,6 +170,51 @@ const CITY_ROWS = [
   // Israel
   ['Tel Aviv', 'IL', 32.0853, 34.7818, 8], ['Jerusalem', 'IL', 31.7683, 35.2137, 6],
   ['Haifa', 'IL', 32.794, 34.9896, 6],
+
+  // Cities in countries Google never drove. These are the "Everywhere"
+  // mode (docs/GEO.md): no official Street View exists in any of them, so
+  // rounds there run on user photo spheres, which cluster in cities. They
+  // are filtered out of every other mode automatically, because citiesFor
+  // keeps only countries in the coverage set.
+  ['Beijing', 'CN', 39.9042, 116.4074, 16], ['Shanghai', 'CN', 31.2304, 121.4737, 16],
+  ['Guangzhou', 'CN', 23.1291, 113.2644, 12], ['Shenzhen', 'CN', 22.5431, 114.0579, 12],
+  ['Chengdu', 'CN', 30.5728, 104.0668, 12], ['Xi\'an', 'CN', 34.3416, 108.9398, 10],
+  ['Hangzhou', 'CN', 30.2741, 120.1551, 10], ['Chongqing', 'CN', 29.563, 106.5516, 12],
+  ['Wuhan', 'CN', 30.5928, 114.3055, 12], ['Harbin', 'CN', 45.8038, 126.535, 10],
+  ['Kunming', 'CN', 25.0389, 102.7183, 10], ['Lhasa', 'CN', 29.652, 91.1721, 6],
+  ['Qingdao', 'CN', 36.0671, 120.3826, 10], ['Nanjing', 'CN', 32.0603, 118.7969, 10],
+  ['Tehran', 'IR', 35.6892, 51.389, 14], ['Isfahan', 'IR', 32.6546, 51.668, 8],
+  ['Shiraz', 'IR', 29.5918, 52.5837, 8], ['Mashhad', 'IR', 36.2605, 59.6168, 10],
+  ['Tabriz', 'IR', 38.08, 46.2919, 8],
+  ['Cairo', 'EG', 30.0444, 31.2357, 16], ['Alexandria', 'EG', 31.2001, 29.9187, 10],
+  ['Luxor', 'EG', 25.6872, 32.6396, 6], ['Aswan', 'EG', 24.0889, 32.8998, 5],
+  ['Casablanca', 'MA', 33.5731, -7.5898, 12], ['Marrakesh', 'MA', 31.6295, -7.9811, 8],
+  ['Fez', 'MA', 34.0181, -5.0078, 8], ['Rabat', 'MA', 34.0209, -6.8416, 8],
+  ['Algiers', 'DZ', 36.7538, 3.0588, 10], ['Oran', 'DZ', 35.6971, -0.6308, 8],
+  ['Constantine', 'DZ', 36.365, 6.6147, 6],
+  ['Tripoli', 'LY', 32.84, 13.2, 8], ['Benghazi', 'LY', 32.1167, 20.0667, 8],
+  ['Khartoum', 'SD', 15.5007, 32.5599, 10],
+  ['Addis Ababa', 'ET', 9.032, 38.7469, 10],
+  ['Riyadh', 'SA', 24.7136, 46.6753, 14], ['Jeddah', 'SA', 21.4858, 39.1925, 12],
+  ['Baghdad', 'IQ', 33.3152, 44.3661, 12], ['Erbil', 'IQ', 36.1901, 44.0091, 8],
+  ['Karachi', 'PK', 24.8607, 67.0011, 16], ['Lahore', 'PK', 31.5204, 74.3587, 12],
+  ['Islamabad', 'PK', 33.6844, 73.0479, 8],
+  ['Kabul', 'AF', 34.5553, 69.2075, 8],
+  ['Tashkent', 'UZ', 41.2995, 69.2401, 10], ['Samarkand', 'UZ', 39.627, 66.975, 6],
+  ['Ashgabat', 'TM', 37.9601, 58.3261, 8], ['Dushanbe', 'TJ', 38.5598, 68.787, 6],
+  ['Baku', 'AZ', 40.4093, 49.8671, 10], ['Yerevan', 'AM', 40.1792, 44.4991, 8],
+  ['Tbilisi', 'GE', 41.7151, 44.8271, 8],
+  ['Yangon', 'MM', 16.8409, 96.1735, 10], ['Mandalay', 'MM', 21.9588, 96.0891, 8],
+  ['Kathmandu', 'NP', 27.7172, 85.324, 8],
+  ['Kinshasa', 'CD', -4.4419, 15.2663, 12], ['Luanda', 'AO', -8.839, 13.2894, 10],
+  ['Bamako', 'ML', 12.6392, -8.0029, 8], ['Niamey', 'NE', 13.5116, 2.1254, 6],
+  ['N\'Djamena', 'TD', 12.1348, 15.0557, 6], ['Nouakchott', 'MR', 18.0735, -15.9582, 6],
+  ['Abidjan', 'CI', 5.36, -4.0083, 10], ['Douala', 'CM', 4.0511, 9.7679, 8],
+  ['Yaounde', 'CM', 3.848, 11.5021, 8],
+  ['Harare', 'ZW', -17.8252, 31.0335, 8], ['Lusaka', 'ZM', -15.3875, 28.3228, 8],
+  ['Maputo', 'MZ', -25.9692, 32.5732, 8],
+  ['Caracas', 'VE', 10.4806, -66.9036, 10], ['Havana', 'CU', 23.1136, -82.3666, 10],
+  ['Minsk', 'BY', 53.9006, 27.559, 10],
 ];
 
 export const CITIES = CITY_ROWS.map(([name, country, lat, lng, radiusKm]) => ({
@@ -184,6 +229,18 @@ export const CITIES = CITY_ROWS.map(([name, country, lat, lng, radiusKm]) => ({
 export function citiesFor(provider) {
   const set = provider === 'apple' ? APPLE_COVERAGE : GOOGLE_COVERAGE;
   return CITIES.filter((city) => set.has(city.country));
+}
+
+/**
+ * Cities in countries with no official Street View at all: the pool the
+ * "Everywhere" mode draws from (docs/GEO.md). Official coverage stops at
+ * a border for reasons of law and business, not geography, and a third
+ * of the world's land sits behind that line. What does exist there is
+ * user photo spheres, and those cluster in cities, which is why this is
+ * a city list rather than a country pool.
+ */
+export function citiesOffCoverage() {
+  return CITIES.filter((city) => !GOOGLE_COVERAGE.has(city.country));
 }
 
 export function hasGoogleCoverage(cca2) {
