@@ -9,6 +9,12 @@
  *
  * Immersive route (app/lib/navChrome.js): the screen is the game's, and
  * the X leads back to the lobby.
+ *
+ * The map is Leaflet rather than MapKit, and that is the difference
+ * between this mode and the rest of the game: a script round shows no
+ * provider's imagery, so it owes no provider a map, and the keyless
+ * version means the mode runs on a clone of the repository with an
+ * empty environment. See LeafletScriptMap.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,9 +24,15 @@ import { ArrowRight, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { LADDERS, normalizeScriptConfig, scriptConfigToQuery } from '@/app/lib/geo/script';
-import { initializeMapKit } from '@/app/geo/lib/appleMapKit';
-import ScriptMap from './ScriptMap';
+import dynamic from 'next/dynamic';
 import ScriptSample from './ScriptSample';
+
+// Leaflet touches window on import, so it cannot render on the server.
+// Keyless on purpose: see LeafletScriptMap.
+const LeafletScriptMap = dynamic(() => import('./LeafletScriptMap'), {
+  ssr: false,
+  loading: () => <div className="h-full w-full bg-midnight-900" />,
+});
 
 export default function ScriptPlayClient() {
   const params = useSearchParams();
@@ -30,8 +42,6 @@ export default function ScriptPlayClient() {
     return { ...normal, seed: normal.seed || randomSeedString() };
   }, [params]);
 
-  const [mapkit, setMapkit] = useState(null);
-  const [mapError, setMapError] = useState('');
   const [roundIndex, setRoundIndex] = useState(0);
   const [round, setRound] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,16 +55,6 @@ export default function ScriptPlayClient() {
   const ladder = LADDERS[config.ladder] || LADDERS.world;
   const done = history.length >= config.rounds && !result;
   const total = history.reduce((sum, row) => sum + row.score, 0);
-
-  useEffect(() => {
-    let live = true;
-    initializeMapKit()
-      .then((kit) => live && setMapkit(kit))
-      .catch((mapkitError) => live && setMapError(mapkitError?.message || 'The map could not load'));
-    return () => {
-      live = false;
-    };
-  }, []);
 
   // One round at a time, asked for by index: the server is stateless and
   // the seed decides the game, so this is replayable and cheap.
@@ -180,11 +180,7 @@ export default function ScriptPlayClient() {
 
       {/* The map. */}
       <div className="relative min-h-0 flex-1">
-        {mapError ? (
-          <div className="flex h-full items-center justify-center p-6 text-center text-sm text-white/60">{mapError}</div>
-        ) : (
-          <ScriptMap mapkit={mapkit} pin={pin} onPin={setPin} mode={result ? 'result' : 'guess'} answer={result?.answer || null} guess={result?.guess || null} />
-        )}
+        <LeafletScriptMap pin={pin} onPin={setPin} mode={result ? 'result' : 'guess'} answer={result?.answer || null} guess={result?.guess || null} />
 
         {result ? (
           <Reveal result={result} last={history.length >= config.rounds} onNext={next} />

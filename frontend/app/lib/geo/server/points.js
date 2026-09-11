@@ -6,6 +6,7 @@
  * the profile follows the ledger. Server only, no request objects.
  */
 
+import { createHash } from 'node:crypto';
 import { countryByCode } from './countries';
 import { profileSubject } from './meter';
 import { dayKey } from '../meter';
@@ -51,7 +52,34 @@ const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] ||
  * Points and the country badge for one scored solo round. Returns what
  * the round earned, the balance, and the badge if it is new.
  */
-export async function awardSoloRound(store, { profileId, result, now = Date.now() }) {
+/**
+ * The ledger key for one solo round.
+ *
+ * It has to be the same every time that round is scored and different
+ * for every other round, because the ledger's unique index on
+ * (profileId, ref) is the only thing stopping a replayed guess from
+ * paying twice.
+ *
+ * A seeded game gives that for free: seed plus round index names the
+ * round exactly. Without a seed this used to fall back to the clock,
+ * which is not an identity at all, and replaying one twelve-hour token
+ * in a loop minted points without limit. The play meter did not catch
+ * it either, because it counts rounds created rather than guesses
+ * scored, so the daily earning cap never moved. (Found in the
+ * pre-launch audit, 2026-09-11.)
+ *
+ * So a seedless round is keyed by the sealed token itself, hashed. Same
+ * token, same key, paid once. Failing that, by where the answer was,
+ * which is stable for the round and unguessable before the guess.
+ */
+function soloRef(result, token) {
+  if (result.seed) return `solo:${result.seed}:${result.roundIndex}`;
+  if (token) return `solo:t:${createHash('sha256').update(String(token)).digest('base64url').slice(0, 24)}`;
+  const where = `${result.answer?.lat ?? ''},${result.answer?.lng ?? ''}`;
+  return `solo:a:${createHash('sha256').update(`${where}|${result.mode}|${result.roundIndex}`).digest('base64url').slice(0, 24)}`;
+}
+
+export async function awardSoloRound(store, { profileId, result, token = '', now = Date.now() }) {
   const roundsToday = await roundsPlayedToday(store, profileId, now);
   const allowed = earningAllowed(Math.max(1, roundsToday));
   const lines = [];
@@ -63,7 +91,7 @@ export async function awardSoloRound(store, { profileId, result, now = Date.now(
   };
 
   if (allowed) {
-    const ref = result.seed ? `solo:${result.seed}:${result.roundIndex}` : `solo:${now}:${result.roundIndex}`;
+    const ref = soloRef(result, token);
     const value = roundPoints({ score: result.score, mode: result.mode, kind: result.kind, correct: result.correct });
     add(await grant(store, { profileId, amount: value, reason: result.mode === 'daily' ? 'Daily round' : 'Round', ref, now }));
   }

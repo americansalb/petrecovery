@@ -15,7 +15,7 @@ import { usePathname } from 'next/navigation';
 import { Globe2 } from 'lucide-react';
 import { isGameSite } from '@/app/lib/geo/site';
 
-const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Where on Earth';
+const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'WanderGuesser';
 const HOME_URL = process.env.NEXT_PUBLIC_GEO_HOME_URL || 'https://www.reunitepets.org';
 
 export const GAME_LINKS = [

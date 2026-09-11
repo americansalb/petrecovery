@@ -10,7 +10,7 @@ import { buildShareMetadata } from '@/app/lib/geo/meta';
 import { scriptFontClasses } from './fonts';
 
 export const metadata = buildShareMetadata({
-  title: 'Script | Where on Earth',
+  title: 'Script | WanderGuesser',
   description:
     'Read a sentence, pin where that language is spoken. Seventy-six languages across twenty-six writing systems, scored by distance rather than by country, so Tamil and Marathi are different answers.',
   index: false,

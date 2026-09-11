@@ -147,7 +147,7 @@ export default function RoomBrowser() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header>
           <p className="text-sm font-semibold uppercase tracking-wide text-midnight-500">
-            <Link href="/geo" className="hover:underline">Where on Earth</Link>
+            <Link href="/geo" className="hover:underline">WanderGuesser</Link>
           </p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Rooms</h1>
           <p className="mt-1 text-sm text-midnight-500">

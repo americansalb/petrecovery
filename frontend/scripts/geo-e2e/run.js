@@ -441,17 +441,20 @@ async function script(browser) {
   if (await page.locator('text=no font for this writing system').count()) throw new Error('missing glyphs for ' + script);
   if (!SOUTH_ASIA_SCRIPTS.includes(script)) throw new Error(`the South Asia pool served ${script}`);
 
-  await page.waitForSelector('[data-fake-mapkit]', { timeout: 30000 });
+  // The script map is Leaflet on keyless tiles, not MapKit: a script
+  // round shows no provider's imagery so it owes no provider a map, and
+  // the MapKit token is locked to one origin (LeafletScriptMap).
+  await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
   await page.waitForSelector('button:has-text("Tap the map to place your pin")');
-  // Tap the map, which in the fake maps the click point onto a real
-  // coordinate, then guess.
-  await page.click('[data-fake-mapkit]', { position: { x: 600, y: 300 } });
+  await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 300 } });
   await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
   await page.click('button:has-text("Guess")');
 
   await page.waitForSelector('button:has-text("Next round")', { timeout: 30000 });
   const reveal = await page.evaluate(() => document.body.innerText);
-  const circles = await page.evaluate(() => Number(document.querySelector('[data-fake-mapkit]')?.parentElement?.getAttribute('data-fake-circles') || 0));
+  // Leaflet draws a circle as an SVG path, so counting paths counts the
+  // heartlands the reveal drew.
+  const circles = await page.locator('[data-script-map="leaflet"] path.leaflet-interactive').count();
   log('reveal names a language:', /million speakers/.test(reveal));
   log('heartlands drawn as circles:', circles);
   if (!circles) throw new Error('the reveal drew no regions: the answer is an area, that is the mode');
@@ -466,8 +469,8 @@ async function script(browser) {
 
   // Straight to the end: four more rounds, guessing wherever.
   for (let i = 2; i <= 5; i++) {
-    await page.waitForSelector('[data-fake-mapkit]', { timeout: 30000 });
-    await page.click('[data-fake-mapkit]', { position: { x: 400 + i * 20, y: 280 } });
+    await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
+    await page.click('[data-script-map="leaflet"]', { position: { x: 400 + i * 20, y: 280 } });
     await page.click('button:has-text("Guess")');
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
     await page.click('button:has-text("Next round"), button:has-text("See the results")');
