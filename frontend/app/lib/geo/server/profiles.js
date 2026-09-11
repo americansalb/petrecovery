@@ -28,16 +28,22 @@ const toMs = (v) => (v instanceof Date ? v.getTime() : typeof v === 'number' ? v
  * first time they meet. Returns { profile, token, created }; `token` is
  * set only when a new anonymous token was minted.
  */
-export async function resolveProfile(store, { token, userId, name, now = Date.now(), createIfMissing = true } = {}) {
+export async function resolveProfile(store, { token, accountId, name, now = Date.now(), createIfMissing = true } = {}) {
   const hash = token ? hashToken(token) : null;
-  const byUser = userId ? await store.getProfileByUserId(userId) : null;
+  // The account is the game's own (server/accounts.js), never a
+  // ReunitePets user: that binding was cut deliberately
+  // (docs/WANDERGUESSER_SPLIT.md, D1).
+  const byAccount = accountId ? await store.getProfileByAccountId(accountId) : null;
   const byToken = hash ? await store.getProfileByTokenHash(hash) : null;
   let profile = null;
 
-  if (byUser) {
-    profile = byUser;
+  if (byAccount) {
+    // The account already has a profile, so that one wins and this
+    // browser's anonymous profile is left alone rather than folded in.
+    // Merging two rating histories has no right answer.
+    profile = byAccount;
   } else if (byToken) {
-    profile = userId && !byToken.userId ? await store.updateProfile(byToken.id, { userId }) : byToken;
+    profile = accountId && !byToken.accountId ? await store.updateProfile(byToken.id, { accountId }) : byToken;
   }
 
   if (!profile) {
@@ -45,7 +51,7 @@ export async function resolveProfile(store, { token, userId, name, now = Date.no
     const fresh = newPlayerToken();
     profile = await store.createProfile({
       tokenHash: hashToken(fresh),
-      userId: userId || null,
+      accountId: accountId || null,
       name: sanitizeName(name),
       createdAt: new Date(now),
       lastSeenAt: new Date(now),
@@ -156,7 +162,7 @@ export async function profileSummary(store, profile) {
   return {
     id: profile.id,
     name: profile.name,
-    signedIn: Boolean(profile.userId),
+    signedIn: Boolean(profile.accountId),
     ratings,
     recent,
     provisionalGames: PROVISIONAL_GAMES,

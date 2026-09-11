@@ -88,18 +88,23 @@ describe('profiles', () => {
   });
 
   test('signing in binds the anonymous profile to the account, and the account wins from then on', async () => {
+    // The account is the game's own (server/accounts.js), never a
+    // ReunitePets user: docs/WANDERGUESSER_SPLIT.md, D1.
     const store = createMemoryRoomStore();
     const anon = await profileFor(store, 'Guest');
-    const bound = await resolveProfile(store, { token: anon.token, userId: 'user_1', name: 'Guest', now: T0 });
+    const bound = await resolveProfile(store, { token: anon.token, accountId: 'acct_1', name: 'Guest', now: T0 });
     expect(bound.profile.id).toBe(anon.profile.id);
-    expect(bound.profile.userId).toBe('user_1');
+    expect(bound.profile.accountId).toBe('acct_1');
     // another device, signed in, no token: same profile
-    const other = await resolveProfile(store, { userId: 'user_1', now: T0 });
+    const other = await resolveProfile(store, { accountId: 'acct_1', now: T0 });
     expect(other.profile.id).toBe(anon.profile.id);
-    // a second anonymous token from that device does not replace the account's profile
+    // a second anonymous token from that device does not replace the
+    // account's profile, and is not folded into it either: merging two
+    // rating histories has no right answer.
     const stray = await profileFor(store, 'Stray');
-    const merged = await resolveProfile(store, { token: stray.token, userId: 'user_1', now: T0 });
+    const merged = await resolveProfile(store, { token: stray.token, accountId: 'acct_1', now: T0 });
     expect(merged.profile.id).toBe(anon.profile.id);
+    expect((await store.getProfileByTokenHash(hashToken(stray.token))).id).toBe(stray.profile.id);
   });
 
   test('the summary carries a default rating per ladder before any game', async () => {

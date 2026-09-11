@@ -17,6 +17,8 @@ export function createMemoryRoomStore() {
   const rounds = new Map();
   const guesses = new Map();
   const profiles = new Map();
+  const accounts = new Map();
+  const loginTokens = new Map();
   const ratings = new Map(); // key `${profileId}|${ladder}`
   const results = new Map();
   const usage = new Map(); // key `${subject}|${day}|${provider}`
@@ -104,16 +106,61 @@ export function createMemoryRoomStore() {
       const p = [...profiles.values()].find((x) => x.tokenHash === tokenHash);
       return p ? { ...p } : null;
     },
-    async getProfileByUserId(userId) {
-      const p = [...profiles.values()].find((x) => x.userId && x.userId === userId);
+    async getProfileByAccountId(accountId) {
+      const p = [...profiles.values()].find((x) => x.accountId && x.accountId === accountId);
       return p ? { ...p } : null;
+    },
+    // The game's own accounts and sign-in links.
+    async getAccountByEmail(email) {
+      const a = [...accounts.values()].find((x) => x.email === email);
+      return a ? { ...a } : null;
+    },
+    async getAccountById(accountId) {
+      const a = accounts.get(accountId);
+      return a ? { ...a } : null;
+    },
+    async createAccount(data) {
+      const account = { id: id('account'), createdAt: new Date(), lastSeenAt: new Date(), ...data };
+      accounts.set(account.id, account);
+      return { ...account };
+    },
+    async updateAccount(accountId, data) {
+      const account = accounts.get(accountId);
+      if (!account) return null;
+      Object.assign(account, data);
+      return { ...account };
+    },
+    async createLoginToken(data) {
+      const row = { id: id('login'), usedAt: null, createdAt: new Date(), ...data };
+      loginTokens.set(row.id, row);
+      return { ...row };
+    },
+    async getLoginTokenByHash(tokenHash) {
+      const row = [...loginTokens.values()].find((x) => x.tokenHash === tokenHash);
+      return row ? { ...row } : null;
+    },
+    async useLoginToken(tokenId, at) {
+      const row = loginTokens.get(tokenId);
+      if (!row || row.usedAt) return false;
+      row.usedAt = at;
+      return true;
+    },
+    async deleteExpiredLoginTokens(before) {
+      let count = 0;
+      for (const [key, row] of loginTokens) {
+        if (new Date(row.expiresAt).getTime() < new Date(before).getTime()) {
+          loginTokens.delete(key);
+          count += 1;
+        }
+      }
+      return { count };
     },
     async getProfileById(profileId) {
       const p = profiles.get(profileId);
       return p ? { ...p } : null;
     },
     async createProfile(data) {
-      const profile = { id: id('profile'), userId: null, paidRounds: 0, points: 0, equipped: null, ...data };
+      const profile = { id: id('profile'), accountId: null, paidRounds: 0, points: 0, equipped: null, ...data };
       profiles.set(profile.id, profile);
       return { ...profile };
     },

@@ -9,7 +9,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { CalendarDays, Check, Gauge, Medal, Play, Trophy, Users } from 'lucide-react';
 import {
   CONTINENTS,
@@ -29,6 +28,7 @@ import {
   timeLabel,
 } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
+import { isSignedIn } from '@/app/geo/lib/session';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { getHistory, getStats } from '../lib/storage';
@@ -110,7 +110,7 @@ export default function GeoLobby() {
   const [recentRooms, setRecentRooms] = useState([]);
   const [daily, setDaily] = useState(null);
   const [cup, setCup] = useState(null);
-  const { status: sessionStatus } = useSession();
+
 
   useEffect(() => {
     let alive = true;
@@ -150,11 +150,11 @@ export default function GeoLobby() {
   }, []);
 
   // Your rating: this browser gets a profile the first time it joins a
-  // room, and a signed-in account has one across devices. Nobody else
-  // needs a row for looking at the lobby.
+  // room, and a WanderGuesser account has one across devices. Nobody
+  // else needs a row for looking at the lobby.
   useEffect(() => {
-    if (sessionStatus === 'loading') return undefined;
-    if (!loadProfileToken() && sessionStatus !== 'authenticated') return undefined;
+    // A visitor who has never played and is not signed in gets no row.
+    if (!loadProfileToken() && !isSignedIn()) return undefined;
     let alive = true;
     ensureProfile(loadName())
       .then((p) => alive && setProfile(p))
@@ -162,7 +162,7 @@ export default function GeoLobby() {
     return () => {
       alive = false;
     };
-  }, [sessionStatus]);
+  }, []);
 
   const config = useMemo(
     () =>

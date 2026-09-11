@@ -118,7 +118,7 @@ export async function checkRoomEntry(store, { subjects, provider = 'google', now
  */
 export async function subjectsForPlayer(store, player) {
   const profile = player?.profileId && store.getProfileById ? await store.getProfileById(player.profileId) : null;
-  return { profile, profileId: profile?.id || null, signedIn: Boolean(profile?.userId), ipHash: player?.ipHash || null };
+  return { profile, profileId: profile?.id || null, signedIn: Boolean(profile?.accountId), ipHash: player?.ipHash || null };
 }
 
 /**
@@ -163,7 +163,7 @@ async function takeSeat(store, player, subjects, provider, day, limits) {
   const profile = player.profileId && store.getProfileById ? await store.getProfileById(player.profileId) : null;
   const decision = decideRoomEntry({
     provider,
-    signedIn: Boolean(profile?.userId),
+    signedIn: Boolean(profile?.accountId),
     hasProfile: Boolean(player.profileId),
     paidRounds: profile?.paidRounds || 0,
     usage: {

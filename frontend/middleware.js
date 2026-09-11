@@ -35,6 +35,12 @@ const RATE_LIMIT_CONFIG = {
   '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
   '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },
+  // Sign-in sends mail, so it gets the strictest bucket in the game:
+  // five a minute per address is more than a person needs and far less
+  // than a script needs to be a nuisance. Verify is a link click.
+  '/api/geo/auth/request': { windowMs: 60000, maxRequests: 5 },
+  '/api/geo/auth/verify': { windowMs: 60000, maxRequests: 20 },
+  '/api/geo/auth': { windowMs: 60000, maxRequests: 60 },
   // Script rounds are text out of a file: no upstream call, no key, no
   // cost, so they get a looser bucket than a panorama round. The limit
   // is here to slow a scraper walking the corpus, not to ration play.

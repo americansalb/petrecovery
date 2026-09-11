@@ -59,8 +59,39 @@ export const prismaRoomStore = {
   getProfileByTokenHash(tokenHash) {
     return prisma.geoProfile.findUnique({ where: { tokenHash } });
   },
-  getProfileByUserId(userId) {
-    return prisma.geoProfile.findUnique({ where: { userId } });
+  getProfileByAccountId(accountId) {
+    return prisma.geoProfile.findUnique({ where: { accountId } });
+  },
+
+  // The game's own accounts (server/accounts.js). Not ReunitePets
+  // users: a WanderGuesser player is not a pet-site user and does not
+  // become one (docs/WANDERGUESSER_SPLIT.md, D1).
+  getAccountByEmail(email) {
+    return prisma.geoAccount.findUnique({ where: { email } });
+  },
+  getAccountById(id) {
+    return prisma.geoAccount.findUnique({ where: { id } });
+  },
+  createAccount(data) {
+    return prisma.geoAccount.create({ data });
+  },
+  updateAccount(id, data) {
+    return prisma.geoAccount.update({ where: { id }, data });
+  },
+  createLoginToken(data) {
+    return prisma.geoLoginToken.create({ data });
+  },
+  getLoginTokenByHash(tokenHash) {
+    return prisma.geoLoginToken.findUnique({ where: { tokenHash } });
+  },
+  /** Burn a link. The usedAt guard makes a double click a no-op, not a second sign-in. */
+  async useLoginToken(id, at) {
+    const done = await prisma.geoLoginToken.updateMany({ where: { id, usedAt: null }, data: { usedAt: at } });
+    return done.count === 1;
+  },
+  /** Housekeeping: drop links nobody followed. */
+  deleteExpiredLoginTokens(before) {
+    return prisma.geoLoginToken.deleteMany({ where: { expiresAt: { lt: before } } });
   },
   getProfileById(id) {
     return prisma.geoProfile.findUnique({ where: { id } });

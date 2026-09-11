@@ -52,6 +52,14 @@ leaderboard is worth signing in for, and NextAuth links providers to one
 account later without a data change. B is a valid smaller first step;
 going B then C costs nothing extra.
 
+**Answered 2026-09-10 (founder): a standalone account means one not
+connected to ReunitePets.** Built as B, which is C without the OAuth
+buttons: the game issues its own emailed sign-in links and its own
+sealed session, and `GeoProfile.accountId` replaces the old
+`GeoProfile.userId` binding to a pet user. Adding Google and Discord
+later is two provider registrations and no data change, so the choice
+between B and C stays open. See docs/GEO.md, "Signing in".
+
 ### D2. Do existing players carry over
 
 | Option | What it means |
@@ -184,7 +192,7 @@ By the time anything moves, the game has no wire left to cut, so the
 extraction is a file move with history rather than a rewrite under time
 pressure.
 
-### Phase 1. Sever the outward wires. Six done, one to go.
+### Phase 1. Sever the outward wires. Done.
 
 Each one adds a module the game owns, switches the game's imports to it,
 and leaves the pet app's copy untouched. Nothing the pet site uses
@@ -203,7 +211,7 @@ commit undoes one wire exactly as reverting a pull request would.
 | 1.4 | `app/geo/lib/appleMapKit.js` | `@/app/lib/maps/appleMapKit` | The loader only. Authorization is guarded by a window flag so a remount cannot authorize twice | done |
 | 1.5 | `app/lib/geo/server/fonts/` | `@/app/lib/cascade/render/fonts` | The three Inter weights the card actually uses, vendored with their licence | done |
 | 1.6 | `app/lib/geo/site.js` | `@/app/lib/navChrome` | `isGameSite()` moves in, plus the route constants phase 2.2 has the pet app read back | done |
-| 1.7 | `app/lib/geo/server/identity.js` | `@/app/lib/auth` | Waiting on D1. One question, "who is this request", with today's NextAuth session behind it and the standalone answer swapped in at phase 4 | blocked on D1 |
+| 1.7 | `app/lib/geo/server/identity.js` | `@/app/lib/auth` | D1 answered 2026-09-10: a standalone account is not connected to ReunitePets, so the standalone answer went in now rather than at phase 4. The game issues its own sealed session and owns its own accounts (docs/GEO.md, "Signing in") | done |
 
 Two things changed on purpose rather than being copied across.
 
@@ -220,12 +228,15 @@ points at the same Postgres as the pet app, so the server carries two
 pools instead of one. `GEO_DB_POOL` caps the game's side where the
 server's connection limit is tight. Phase 3 removes the overlap.
 
-**Exit criteria.** The guard test `__tests__/geo/isolation.test.js` walks
-every file under the game's five directories, reads its static imports,
-dynamic imports and requires, and fails on any path that leaves the game
-except an npm package or a Node builtin. Its allowlist is down to one
-entry, `@/app/lib/auth`, and a further test asserts that the list has
-exactly that entry so it cannot quietly grow. This is the same
+**Exit criteria, met.** The guard test `__tests__/geo/isolation.test.js`
+walks every file under the game's five directories, reads its static
+imports, dynamic imports and requires, and fails on any path that leaves
+the game except an npm package or a Node builtin. Its allowlist is now
+empty, and a further test asserts that it stays empty so it cannot
+quietly grow. A fifth test covers the wire that an import walk would
+miss: `useSession()` and `getServerSession(authOptions)` are the same
+tangle wearing a different hat, since next-auth is an npm package, so
+reading the pet site's session in any form fails the build. This is the same
 enforcement the repository already uses for link previews and the
 navigation bar, so it will outlast the split.
 

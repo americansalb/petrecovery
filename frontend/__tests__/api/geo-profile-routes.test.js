@@ -1,35 +1,36 @@
 /**
- * /api/geo/profile and /api/geo/leaderboard on the in-memory store, with
- * the session mocked: a token on first call, the account binding when
- * signed in, and a board with your own row.
+ * /api/geo/profile and /api/geo/leaderboard on the in-memory store: a
+ * token on first call, the account binding when signed in, and a board
+ * with your own row.
+ *
+ * Signed in here means a WanderGuesser account, which is a sealed
+ * cookie the game issues itself (app/lib/geo/server/identity.js). It
+ * used to mean a mocked ReunitePets session; phase 1.7 of the split cut
+ * that, so the test seals a real cookie rather than mocking anything.
  */
 
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 
 const memoryStore = createMemoryRoomStore();
 jest.mock('@/app/lib/geo/server/roomStore', () => ({ prismaRoomStore: memoryStore }));
-jest.mock('next-auth', () => ({ getServerSession: jest.fn() }));
-jest.mock('@/app/lib/auth', () => ({ authOptions: {} }));
-jest.mock('@/app/lib/rateLimit', () => ({
-  withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
-  checkRateLimitForKeyAsync: jest.fn().mockResolvedValue({ success: true }),
-  getClientIP: (request) => request.headers.get('x-test-ip') || '203.0.113.9',
-  RateLimitPresets: { PUBLIC_WRITE: {}, PUBLIC_READ: {} },
-  rateLimitResponse: jest.fn(),
-}));
 
-const { getServerSession } = require('next-auth');
+const SECRET = 'a-long-enough-test-secret';
+process.env.GEO_TOKEN_SECRET = SECRET;
+
 const { POST: postProfile } = require('@/app/api/geo/profile/route');
 const { GET: getLeaderboard } = require('@/app/api/geo/leaderboard/route');
+const { SESSION_COOKIE, sealSession } = require('@/app/lib/geo/server/identity');
 
 function request(body, headers = {}, url = 'http://localhost/api/geo/profile') {
   const map = new Map(Object.entries(headers));
   return { json: async () => body, headers: map, url };
 }
 
-beforeEach(() => {
-  getServerSession.mockResolvedValue(null);
-});
+/** Headers carrying a real signed-in session for one account. */
+function signedIn(accountId, extra = {}) {
+  const sealed = sealSession({ accountId, email: `${accountId}@example.com` }, { env: { GEO_TOKEN_SECRET: SECRET } });
+  return { ...extra, cookie: `${SESSION_COOKIE}=${encodeURIComponent(sealed)}` };
+}
 
 test('an anonymous browser gets a token once, then keeps its profile', async () => {
   const first = await (await postProfile(request({ name: 'Ada' }))).json();
@@ -43,13 +44,21 @@ test('an anonymous browser gets a token once, then keeps its profile', async () 
 
 test('a signed-in player is matched by account and the anonymous token binds to it', async () => {
   const anon = await (await postProfile(request({ name: 'Guest' }))).json();
-  getServerSession.mockResolvedValue({ user: { id: 'user_42', name: 'Grace H' } });
-  const bound = await (await postProfile(request({}, { 'x-geo-profile': anon.token }))).json();
+  // Same browser, now signed in: the anonymous profile becomes the
+  // account's rather than a second profile appearing.
+  const bound = await (await postProfile(request({}, signedIn('acct_42', { 'x-geo-profile': anon.token })))).json();
   expect(bound.profile.id).toBe(anon.profile.id);
   expect(bound.profile.signedIn).toBe(true);
-  const elsewhere = await (await postProfile(request({}))).json();
+  // A different browser with no play token at all, same account: same profile.
+  const elsewhere = await (await postProfile(request({}, signedIn('acct_42')))).json();
   expect(elsewhere.profile.id).toBe(anon.profile.id);
   expect(elsewhere.token).toBeUndefined();
+});
+
+test('a garbled session cookie is anonymous, not an error and not someone else', async () => {
+  const body = await (await postProfile(request({ name: 'Ada' }, { cookie: `${SESSION_COOKIE}=garbage` }))).json();
+  expect(body.profile.signedIn).toBe(false);
+  expect(body.token).toBeTruthy();
 });
 
 test('the leaderboard answers with a board and your own row', async () => {
