@@ -3,7 +3,7 @@
  * POST /api/geo/rooms            { name, hostName, settings } -> a new room,
  *                                the host's player token, and the room state
  *
- * Multiplayer for Where on Earth (docs/GEO.md). Players are anonymous:
+ * Multiplayer for WanderGuesser (docs/GEO.md). Players are anonymous:
  * the token in the response is the only proof of who you are in the
  * room, so the browser keeps it and sends it back as x-geo-player.
  */

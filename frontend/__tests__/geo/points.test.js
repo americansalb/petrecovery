@@ -109,6 +109,45 @@ describe('the ledger', () => {
     expect(store._dump().ledger.map((r) => [r.kind, r.amount])).toEqual([['earn', 40], ['spend', 30]]);
   });
 
+  test('a round without a seed cannot be replayed for points', async () => {
+    // Found in the pre-launch audit. The ledger's idempotency key used
+    // to be built from the wall clock when a round carried no seed, so
+    // replaying one guess token minted a fresh key every time. The play
+    // meter did not stop it either: it counts rounds created, not
+    // guesses, so the daily earning cap never moved. One round, a
+    // twelve-hour token and a loop was unlimited points.
+    //
+    // The lobby always sends a seed, so nobody playing normally could
+    // hit this; it took a hand-made request. That is not a reason to
+    // leave it.
+    const store = createMemoryRoomStore();
+    const ada = await player(store, 'Ada');
+    const subjects = { profileId: ada.id, signedIn: false, ipHash: null };
+    await recordRound(store, { subjects, provider: 'google', source: 'free', now: T0 });
+
+    const seedless = pinResult({ seed: '' });
+    const token = 'g1.the-same-sealed-token-every-time';
+    const first = await awardSoloRound(store, { profileId: ada.id, result: seedless, token, now: T0 });
+    expect(first.earned).toBeGreaterThan(0);
+
+    // Same round, same token, later clock: nothing.
+    for (const later of [T0 + 1000, T0 + 60000, T0 + 3600000]) {
+      const replay = await awardSoloRound(store, { profileId: ada.id, result: seedless, token, now: later });
+      expect(replay.earned).toBe(0);
+    }
+    expect((await store.getProfileById(ada.id)).points).toBe(first.earned);
+
+    // A genuinely different round still pays.
+    await recordRound(store, { subjects, provider: 'google', source: 'free', now: T0 });
+    const other = await awardSoloRound(store, {
+      profileId: ada.id,
+      result: pinResult({ seed: '', roundIndex: 1, score: 3000 }),
+      token: 'g1.a-different-round-entirely',
+      now: T0 + 2000,
+    });
+    expect(other.earned).toBeGreaterThan(0);
+  });
+
   test('a solo round: the round, the first of the day, a badge once per country, and the cap after 50 rounds', async () => {
     const store = createMemoryRoomStore();
     const ada = await player(store, 'Ada');

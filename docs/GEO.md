@@ -1,4 +1,8 @@
-# Where on Earth (the geo game)
+# WanderGuesser (the geo game)
+
+The game was called "Where on Earth" until 2026-09-11. The route is still
+`/geo` and the code is still `app/geo`; renaming those is part of phase 4
+of the split, when the game moves to its own repository.
 
 A street-level guessing game at `/geo`, in the style of GeoGuessr: you are
 dropped at a random spot with imagery, you place a pin, and points depend
@@ -558,7 +562,7 @@ that shares the database, built as the game site:
    ```
    NEXT_PUBLIC_SITE=geo
    NEXTAUTH_URL=https://whereonearth.example
-   NEXT_PUBLIC_GEO_SITE_NAME=Where on Earth        # optional, the header's name
+   NEXT_PUBLIC_GEO_SITE_NAME=WanderGuesser        # optional, the header's name
    NEXT_PUBLIC_GEO_HOME_URL=https://www.reunitepets.org   # optional, where its ReunitePets link goes
    ```
 
@@ -593,6 +597,44 @@ back to the game domain.
 finished, what needs a Google project with quota caps, a domain and a
 mail sender, and the two decisions that block later work. The setup
 below is how to run it; that document is whether it can go out.
+
+## Playing it with nothing configured
+
+```
+npm run geo:demo
+```
+
+No Google project, no database, no mail account, no domain. It starts
+the mock metadata server and the dev server, mints a throwaway token
+secret, and prints what does and does not work.
+
+**Script mode is the one that needs nobody's permission**, and that is
+deliberate. Its map is Leaflet on CARTO's raster tiles rather than
+MapKit (`app/geo/components/script/LeafletScriptMap.js`): a script round
+shows no provider's imagery, so it owes no provider a map, and the
+MapKit token this repository ships is locked to the reunitepets.org
+origin. On localhost, on a preview deployment, or on the game's own
+future domain, a MapKit map does not authorise and the round cannot be
+answered. Leaflet has no key and no origin lock.
+
+Rooms, ratings, points, the shop and sign-in all work too, on an
+in-memory store that forgets everything when the process stops **or when
+the dev server reloads a file**. Sign-in links are printed to the log
+instead of emailed.
+
+**What cannot work without keys, and why no mock fixes it:**
+
+- **Street View.** The panorama is drawn by Google's own JavaScript SDK
+  in the browser, which needs a Maps browser key. The server side is
+  mocked by `scripts/geo-e2e/mock-metadata.js`, so probing and scoring
+  run, but the round has nothing to look at.
+- **Apple Look Around**, on any origin the MapKit token does not cover.
+
+Two things are deliberately weakened in development and nowhere else. A
+missing token secret is generated per process rather than refused, and a
+missing `DATABASE_URL` falls back to memory. Both say so loudly in the
+log, both are `NODE_ENV === 'development'` only, and production still
+refuses a missing secret.
 
 ## Setup
 

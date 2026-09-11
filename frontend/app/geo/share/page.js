@@ -29,17 +29,17 @@ function regionLabelFor(config) {
 export async function generateMetadata({ searchParams }) {
   const code = readCode(searchParams);
   const summary = decodeShare(code);
-  if (!summary) return genericShareMetadata('Where on Earth | ReunitePets', LOBBY_DESCRIPTION);
+  if (!summary) return genericShareMetadata('WanderGuesser | ReunitePets', LOBBY_DESCRIPTION);
   const headline = summaryHeadline(summary);
   const avg = averageMissKm(summary);
   const description = `${describeConfig(summary.config, { regionLabel: regionLabelFor(summary.config) })}${avg !== null ? ` Average miss ${formatDistance(avg)}.` : ''}`;
   const encoded = encodeURIComponent(code);
   return {
     ...buildShareMetadata({
-      title: `${headline} in Where on Earth`,
+      title: `${headline} in WanderGuesser`,
       description,
       image: `/api/geo/og?s=${encoded}`,
-      imageAlt: `${headline} in Where on Earth`,
+      imageAlt: `${headline} in WanderGuesser`,
       canonical: `/geo/share?s=${encoded}`,
       index: false,
     }),
@@ -58,7 +58,7 @@ export default function GeoSharePage({ searchParams }) {
         <h1 className="text-2xl font-bold">That result link is not one of ours</h1>
         <p className="mt-2 text-midnight-600">{LOBBY_DESCRIPTION}</p>
         <Link href="/geo" className="mt-6 inline-block rounded-xl bg-flash-400 px-6 py-3 font-bold text-midnight-900 hover:bg-flash-500">
-          Play Where on Earth
+          Play WanderGuesser
         </Link>
       </div>
     );
@@ -72,7 +72,7 @@ export default function GeoSharePage({ searchParams }) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
-      <p className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Where on Earth</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-midnight-500">WanderGuesser</p>
       <h1 className="mt-1 text-4xl font-bold tabular-nums">
         {isStreak ? summaryHeadline(summary) : formatScore(summary.total)}
         {!isStreak ? <span className="text-lg font-medium text-midnight-500"> of {formatScore(max)} points</span> : null}
@@ -102,7 +102,7 @@ export default function GeoSharePage({ searchParams }) {
           </Link>
         ) : null}
         <Link href="/geo" className="rounded-xl border-2 border-midnight-300 px-5 py-3 font-semibold text-midnight-800 hover:bg-midnight-100">
-          Play Where on Earth
+          Play WanderGuesser
         </Link>
       </div>
     </div>

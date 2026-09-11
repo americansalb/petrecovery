@@ -113,9 +113,9 @@ export function shareText(summary, url, { regionLabel } = {}) {
   const mode = MODES[summary.config.mode]?.label || summary.config.mode;
   const lines = [];
   if (summary.config.mode === 'streak') {
-    lines.push(`Where on Earth: streak of ${summary.streak} in ${mode}.`);
+    lines.push(`WanderGuesser: streak of ${summary.streak} in ${mode}.`);
   } else {
-    lines.push(`Where on Earth: ${summaryHeadline(summary)} in ${describeConfig(summary.config, { regionLabel })}`);
+    lines.push(`WanderGuesser: ${summaryHeadline(summary)} in ${describeConfig(summary.config, { regionLabel })}`);
     const avg = averageMissKm(summary);
     if (avg !== null) lines.push(`Average miss ${formatDistance(avg)}.`);
     lines.push(summary.rounds.map((r) => scoreGlyph(r.score)).join(''));

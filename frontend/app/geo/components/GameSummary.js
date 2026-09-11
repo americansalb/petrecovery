@@ -82,7 +82,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
 
   const systemShare = async () => {
     try {
-      await navigator.share({ title: 'Where on Earth', text, url: shareUrl });
+      await navigator.share({ title: 'WanderGuesser', text, url: shareUrl });
     } catch {
       /* dismissed */
     }

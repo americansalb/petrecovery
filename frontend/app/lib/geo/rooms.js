@@ -86,7 +86,7 @@ export function sanitizeName(input, fallback = 'Player') {
   return cleaned || fallback;
 }
 
-export function sanitizeRoomName(input, fallback = 'Where on Earth') {
+export function sanitizeRoomName(input, fallback = 'WanderGuesser') {
   const cleaned = String(input || '')
     .replace(CONTROL_CHARS, '')
     .replace(/\s+/g, ' ')

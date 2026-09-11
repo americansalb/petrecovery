@@ -2,17 +2,24 @@
  * The room store on Prisma. Same contract as memoryRoomStore.js.
  * updateRoom with expectVersion is an updateMany on (id, version), so
  * exactly one of two racing requests wins a phase transition.
+ *
+ * With no DATABASE_URL, and outside production, the export at the bottom
+ * of this file is the in-memory store instead. That is what lets someone
+ * clone the repository and play without installing Postgres; the cost is
+ * that everything is forgotten on restart, which is said out loud rather
+ * than discovered.
  */
 
 import prisma from '@/app/lib/geo/server/db';
 import { seasonFor } from '@/app/lib/geo/season';
+import { createMemoryRoomStore } from './memoryRoomStore';
 
 const include = {
   players: { orderBy: { joinedAt: 'asc' } },
   rounds: { include: { guesses: true }, orderBy: { index: 'asc' } },
 };
 
-export const prismaRoomStore = {
+const databaseStore = {
   getRoomByCode(code) {
     return prisma.geoRoom.findUnique({ where: { code }, include });
   },
@@ -291,3 +298,28 @@ export const prismaRoomStore = {
     return prisma.geoBadge.count({ where: { profileId } });
   },
 };
+
+/**
+ * The store the game actually uses.
+ *
+ * Postgres when there is one. Memory when there is not and this is not
+ * production, so a clone of the repository is playable with an empty
+ * environment: rooms, profiles, ratings and points all work and none of
+ * them survive a restart.
+ *
+ * In production a missing DATABASE_URL stays an error, and it surfaces
+ * where it should, as a failing query rather than as a game that
+ * silently forgets everyone.
+ */
+function chooseStore() {
+  const hasDatabase = Boolean(process.env.GEO_DATABASE_URL || process.env.DATABASE_URL);
+  if (hasDatabase || process.env.NODE_ENV === 'production') return databaseStore;
+  console.warn(
+    '[geo] No DATABASE_URL, so the game is running on an in-memory store.\n' +
+      '      Rooms, profiles, ratings and points all work and are forgotten when this process stops.\n' +
+      '      Set DATABASE_URL to keep anything.'
+  );
+  return createMemoryRoomStore();
+}
+
+export const prismaRoomStore = chooseStore();

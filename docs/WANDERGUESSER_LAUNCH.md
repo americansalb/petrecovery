@@ -4,6 +4,20 @@ Written 2026-09-11 against `pet_main`. `docs/GEO.md` is what the game
 does, `docs/WANDERGUESSER_SPLIT.md` is how it becomes its own product.
 This is only the question "can it go live", answered honestly.
 
+## Try it first, decide later
+
+```
+cd frontend && npm run geo:demo
+```
+
+Nothing configured: no Google project, no database, no mail account, no
+domain. **Script mode is fully playable**, because its map is Leaflet on
+keyless tiles rather than MapKit. Rooms, ratings, points, the shop and
+sign-in all work on an in-memory store; sign-in links are printed to the
+log. Street View needs a browser key no mock can replace, because
+Google's own SDK draws the panorama. Details in `docs/GEO.md`, "Playing
+it with nothing configured".
+
 ## The short answer
 
 **The game is ready. The deployment is not, and most of what is left is
@@ -26,6 +40,24 @@ decision that is not mine to make. Everything marked "code" is done.
 Driven on a production build, desktop and phone, every route: no page
 errors, no horizontal overflow, chrome present, no missing link
 previews.
+
+## How it is actually run in production
+
+Two things the audit found by running it rather than reading it, both of
+which would have cost an afternoon on deployment day:
+
+- **`next start` does not work.** `next.config.js` sets
+  `output: 'standalone'`, so Next serves pages but 404s the API routes
+  and prints one warning about it. The supported command is
+  `node .next/standalone/server.js`, with `.next/static` and `public`
+  copied in beside it.
+- **The standalone server does not read `.env` files.** Everything has
+  to be in the process environment. A deployment that puts secrets in a
+  `.env` and starts the standalone server gets a game that renders and
+  then answers 503 to every round.
+
+The whole browser harness passes against a server started that way, which
+is how that is now known rather than assumed.
 
 ## What launch needs from you
 

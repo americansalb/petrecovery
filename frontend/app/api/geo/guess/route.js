@@ -55,7 +55,9 @@ export async function POST(request) {
     }
     if (profileId) {
       try {
-        points = await awardSoloRound(prismaRoomStore, { profileId, result });
+        // The token identifies the round when the config carried no
+        // seed, so a replayed guess cannot be paid twice (points.js).
+        points = await awardSoloRound(prismaRoomStore, { profileId, result, token: body.token });
       } catch (error) {
         console.error('[geo/guess] points', error?.message || error);
       }
