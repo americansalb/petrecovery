@@ -587,6 +587,13 @@ Share cards and room links resolve against the host that served them
 (`app/lib/geo/server/siteBase.js`), so previews on the game domain point
 back to the game domain.
 
+## Going live
+
+`docs/WANDERGUESSER_LAUNCH.md` is the launch checklist: what is
+finished, what needs a Google project with quota caps, a domain and a
+mail sender, and the two decisions that block later work. The setup
+below is how to run it; that document is whether it can go out.
+
 ## Setup
 
 Google (the only errand):
