@@ -20,6 +20,12 @@
  * Same contract as ScriptMap so the play client does not care which it
  * has: tap to pin, and on the reveal draw the language's heartlands as
  * circles, because the answer is an area rather than a point.
+ *
+ * Tiles belong to someone else's CDN, so they can fail. When enough of
+ * them do, a latitude and longitude grid is drawn in their place and
+ * `onTileTrouble` fires so the screen can say what happened. A round on
+ * a grid is harder than a round on a map, but it is still a round; a
+ * round on a grey rectangle is a bug report.
  */
 
 import 'leaflet/dist/leaflet.css';
@@ -38,15 +44,17 @@ function dot(L, color, label) {
   });
 }
 
-export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, mode = 'guess', className = '' }) {
+export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, mode = 'guess', className = '', onTileTrouble }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const leafletRef = useRef(null);
   const pinRef = useRef(null);
   const drawnRef = useRef([]);
   const onPinRef = useRef(onPin);
+  const onTroubleRef = useRef(onTileTrouble);
   const interactiveRef = useRef(mode === 'guess');
   onPinRef.current = onPin;
+  onTroubleRef.current = onTileTrouble;
   interactiveRef.current = mode === 'guess';
 
   useEffect(() => {
@@ -61,16 +69,33 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         worldCopyJump: false,
         maxBounds: [[-85, -180], [85, 180]],
         maxBoundsViscosity: 1,
-        zoomControl: true,
+        // Leaflet puts zoom at top-left, which is exactly where the
+        // round's HUD pill sits; it overlapped and clipped it.
+        zoomControl: false,
         attributionControl: true,
       }).setView([20, 0], 2);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+      L.control.zoom({ position: 'bottomleft' }).addTo(map);
+      const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
         // No labels: place names on the map would answer the round.
         attribution: '© OpenStreetMap contributors © CARTO',
         noWrap: true,
         minZoom: 1,
         maxZoom: 12,
       }).addTo(map);
+
+      // Tiles come from someone else's CDN, so they can fail: a captive
+      // network, an offline laptop, an ad blocker, a bad afternoon at
+      // CARTO. Without this the player gets a featureless grey rectangle
+      // and no idea why the game stopped working. A handful of failures
+      // is normal at the edges of a pan; a wall of them is not.
+      let failures = 0;
+      tiles.on('tileerror', () => {
+        failures += 1;
+        if (failures === 6) {
+          drawGraticule(L, map);
+          onTroubleRef.current?.();
+        }
+      });
       map.on('click', (event) => {
         if (!interactiveRef.current) return;
         onPinRef.current?.({ lat: event.latlng.lat, lng: event.latlng.lng });
@@ -151,7 +176,29 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     }
   }, [answer, guess, mode]);
 
-  return <div ref={hostRef} className={`h-full w-full bg-midnight-900 ${className}`} data-script-map="leaflet" />;
+  // The reveal's panel owns the bottom of the screen, and the zoom
+  // control sat on top of it. Nothing needs zooming during a reveal:
+  // the map has already fitted itself to the answer.
+  return <div ref={hostRef} className={`h-full w-full ${className}`} data-script-map="leaflet" data-map-mode={mode} />;
+}
+
+/**
+ * A bare latitude and longitude grid, drawn when the tiles do not come.
+ *
+ * It is not a map, but it is not nothing: the equator, the tropics and
+ * the meridians are enough to place a pin roughly where you mean, so a
+ * round stays answerable on a network that cannot reach the tile server.
+ */
+function drawGraticule(L, map) {
+  const line = (points, weight, color) => L.polyline(points, { color, weight, opacity: 0.55, interactive: false }).addTo(map);
+  for (let lng = -180; lng <= 180; lng += 30) {
+    line([[-85, lng], [85, lng]], lng === 0 ? 1.5 : 0.75, lng === 0 ? '#94a3b8' : '#475569');
+  }
+  for (let lat = -60; lat <= 60; lat += 30) {
+    line([[lat, -180], [lat, 180]], lat === 0 ? 1.5 : 0.75, lat === 0 ? '#94a3b8' : '#475569');
+  }
+  // The tropics, which are where most of the world's languages are.
+  for (const lat of [23.44, -23.44]) line([[lat, -180], [lat, 180]], 0.75, '#3f4a5a');
 }
 
 /** Straight-line nearest by squared degrees: only used to draw a line. */
