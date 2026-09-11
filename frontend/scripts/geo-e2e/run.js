@@ -47,9 +47,17 @@ async function newPage(browser, viewport) {
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => {
-    // CDN blocks in sandboxes and next-auth's session poll losing a race
-    // with navigation are noise; anything else on the console fails the run.
-    if (m.type() === 'error' && !/b-cdn|ERR_TUNNEL|ERR_NAME_NOT_RESOLVED|\[next-auth\]\[error\]\[CLIENT_FETCH_ERROR\]/.test(m.text())) errors.push('console: ' + m.text());
+    // CDN blocks in sandboxes, and requests that lose a race with a
+    // navigation, are noise; anything else on the console fails the run.
+    //
+    // The RSC one: the game's subtab row is six links, so Next prefetches
+    // six route payloads as soon as a page paints. Navigate before one
+    // lands and the browser aborts it, which surfaces as "Failed to fetch
+    // RSC payload ... Falling back to browser navigation". The fallback is
+    // the point: the click still works. Same class as next-auth's session
+    // poll below, which this list already forgave.
+    const ignore = /b-cdn|ERR_TUNNEL|ERR_NAME_NOT_RESOLVED|Failed to fetch RSC payload|\[next-auth\]\[error\]\[CLIENT_FETCH_ERROR\]/;
+    if (m.type() === 'error' && !ignore.test(m.text())) errors.push('console: ' + m.text());
   });
   page.on('dialog', (d) => d.dismiss().catch(() => {}));
   await page.route('https://maps.googleapis.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE }));
