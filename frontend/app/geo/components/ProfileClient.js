@@ -18,6 +18,7 @@ import { roomGamesText } from '@/app/lib/geo/meter';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
+import SignInCard from './SignInCard';
 
 const KIND_ORDER = ['pin', 'color', 'title', 'frame', 'reactions'];
 
@@ -184,7 +185,7 @@ export default function ProfileClient() {
               {view?.title ? <span className="rounded-full bg-midnight-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-midnight-600">{view.title}</span> : null}
             </h1>
             <p className="mt-1 text-sm text-midnight-600">
-              {profile ? (profile.signedIn ? 'On your account, so it follows you to other devices.' : 'In this browser. Sign in to keep it across devices.') : 'Loading'}
+              {profile ? (profile.signedIn ? 'On your WanderGuesser account, so it follows you to other devices.' : 'In this browser only. Sign in below to keep it across devices.') : 'Loading'}
             </p>
           </div>
           <div className="text-right">
@@ -246,6 +247,14 @@ export default function ProfileClient() {
           </div>
 
           <aside className="space-y-6">
+            {/* Signing in. A WanderGuesser account, not a ReunitePets one. */}
+            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Account</h2>
+              <div className="mt-3">
+                <SignInCard />
+              </div>
+            </section>
+
             {/* Name */}
             <section className="rounded-2xl border border-midnight-200 bg-white p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Your name</h2>

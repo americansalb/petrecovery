@@ -18,7 +18,7 @@ but no data models.
 | `/geo/rooms` | Multiplayer: open a room, join by code, return to a room you were in, or pick a public room | universal bar + game subtabs |
 | `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
 | `/geo/leaderboard` | The ladders (classic, duel) for the season, and your own rating | universal bar + game subtabs |
-| `/geo/me` | Your profile: name, rating, points, country badges, today's meter, recent points, and the cosmetics shop | universal bar + game subtabs |
+| `/geo/me` | Your profile: name, rating, points, country badges, today's meter, recent points, the cosmetics shop, and signing in ("Signing in" below) | universal bar + game subtabs |
 
 Chrome follows the house rule in `app/lib/navChrome.js`: the lobby, the
 room browser, the rankings and the share page are ordinary pages under
@@ -276,6 +276,75 @@ Rounds are unranked while the corpus is a starting pool rather than a
 curated one: rating people on content still being written would put
 noise in the ladder.
 
+## Signing in
+
+An account here is an email address and nothing else, and it is the
+game's own. A WanderGuesser player is not a ReunitePets user and does
+not become one: that was the founder's answer on 2026-09-10 to what a
+standalone account means, and it is what phase 1.7 of the split
+implements (`docs/WANDERGUESSER_SPLIT.md`, D1).
+
+**Playing needs no account.** A browser mints a play token the first
+time it joins a room or asks for a profile, keeps it in localStorage,
+and sends it as `x-geo-profile`. That is the whole identity for
+anonymous play and always has been. The only thing an account buys is
+that the profile follows you to a second device and survives a cleared
+browser.
+
+**How it works.** Give an address, get a link. No password, so there is
+nothing to leak, nothing to reset, and nothing an attacker can reuse
+from another site's breach.
+
+| Piece | Where |
+|---|---|
+| The link, its expiry and its single use | `app/lib/geo/server/accounts.js` |
+| The session, sealed rather than stored | `app/lib/geo/server/identity.js` |
+| The mail | `app/lib/geo/server/email.js` |
+| The endpoints | `/api/geo/auth/{request,verify,signout,me}` |
+
+**What is deliberate, and why:**
+
+- **The link is stored hashed.** Only the SHA-256 goes in
+  `GeoLoginToken`, so reading that table is not enough to sign in as
+  anyone. It expires in fifteen minutes and is burned on first use, so a
+  forwarded mail or a mail client that prefetches links cannot be a
+  second sign-in.
+- **Asking for a link answers the same way every time**, whether or not
+  the address has an account, so the endpoint cannot be used to find out
+  who is registered.
+- **The session is a sealed cookie, not a table.** Same AES-256-GCM
+  envelope as a round answer (`server/tokens.js`), holding an account id
+  and an expiry, ninety days. No session table to sweep and it works
+  across instances that share the secret. The cost is that signing out
+  on one device does not sign out the others; if that ever matters, the
+  fix is a token version column on `GeoAccount`. A tampered or expired
+  cookie is nobody, never somebody else.
+- **A readable companion cookie** (`geo_signed_in=1`, no secret in it)
+  exists so the lobby can tell whether to ask the server for a profile
+  without a whole extra request. It says "there is a session cookie",
+  not "the session is valid"; every endpoint checks the real one.
+- **Signing in never merges two profiles.** If the account already has
+  one, that profile becomes the player's and the browser's anonymous
+  profile is left alone. Merging two rating histories has no right
+  answer, and quietly picking one would be the worst of them.
+
+**Mail.** `RESEND_API_KEY` sends it. Without one the link is written to
+the server log and the endpoint reports success, which is what makes a
+server with no mail account playable: the link is in the log and you can
+paste it. Set `GEO_MAIL_FROM` for the sender.
+
+**Deploying this** needs the three schema additions (`GeoAccount`,
+`GeoLoginToken`, `GeoProfile.accountId`). The geo tables have always
+been applied with `npx prisma db push` rather than a migration folder,
+so that is how these go out too.
+
+`GeoProfile.userId`, which used to hold the ReunitePets user id, is dead
+as of this change: nothing reads or writes it. It stays in the schema
+until phase 3 moves the geo tables to their own database, which is where
+dropping a column belongs. Players who had bound a profile to a pet
+account keep playing on their browser token and can sign in again with
+an email address.
+
 ## Multiplayer rooms
 
 A room is a code, a name, fixed settings and a phase:
@@ -518,6 +587,13 @@ Share cards and room links resolve against the host that served them
 (`app/lib/geo/server/siteBase.js`), so previews on the game domain point
 back to the game domain.
 
+## Going live
+
+`docs/WANDERGUESSER_LAUNCH.md` is the launch checklist: what is
+finished, what needs a Google project with quota caps, a domain and a
+mail sender, and the two decisions that block later work. The setup
+below is how to run it; that document is whether it can go out.
+
 ## Setup
 
 Google (the only errand):
@@ -617,8 +693,11 @@ frontend/app/lib/geo/languages.js  the script game's languages, scripts and hear
 frontend/app/lib/geo/script.js     the script game's pools and region scoring
 frontend/app/lib/geo/server/samples.js    the sentence corpus, server only so the browser cannot look up the answer
 frontend/app/lib/geo/server/scriptGame.js building and scoring a script round
+frontend/app/lib/geo/server/identity.js   who a request is: the game's own session cookie, not the pet site's
+frontend/app/lib/geo/server/accounts.js   sign-in links: hashed, expiring, single use
+frontend/app/lib/geo/server/email.js      the game's own mailer, one message
 frontend/app/lib/geo/data/       countries-meta.json (generated)
-frontend/app/api/geo/            config, round, guess, og, rooms, rooms/[code], profile, leaderboard, script/round, script/guess
+frontend/app/api/geo/            config, round, guess, og, rooms, rooms/[code], profile, leaderboard, script/round, script/guess, auth/{request,verify,signout,me}
 frontend/app/geo/                layout (game subtabs, or the game site's header/footer), lobby, play, share, rooms, room/[code], leaderboard, components, client libs
 frontend/app/geo/script/         the script game: lobby, play, and the bundled Noto faces for every script in the corpus
 frontend/__tests__/geo/          unit tests; __tests__/api/geo-routes.test.js for the routes

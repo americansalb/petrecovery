@@ -9,8 +9,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
+import { accountFromRequest } from '@/app/lib/geo/server/identity';
 import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/geo/server/limiter';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { profileSummary, resolveProfile } from '@/app/lib/geo/server/profiles';
@@ -32,16 +31,16 @@ export async function POST(request) {
     body = {};
   }
   try {
-    const session = await getServerSession(authOptions).catch(() => null);
-    const userId = session?.user?.id || null;
+    // The game's own session cookie (app/lib/geo/server/identity.js).
+    const { accountId } = accountFromRequest(request);
     const { profile, token } = await resolveProfile(prismaRoomStore, {
       token: request.headers.get('x-geo-profile') || '',
-      userId,
-      name: body?.name || session?.user?.name || '',
+      accountId,
+      name: body?.name || '',
     });
     const summary = await profileSummary(prismaRoomStore, profile);
     // Today's meter (docs/GEO.md, "The play meter"), for the lobby.
-    const subjects = { profile, profileId: profile.id, signedIn: Boolean(userId), ipHash: hashIp(getClientIP(request), getGeoServerConfig().tokenSecret) };
+    const subjects = { profile, profileId: profile.id, signedIn: Boolean(accountId), ipHash: hashIp(getClientIP(request), getGeoServerConfig().tokenSecret) };
     summary.usage = await usageToday(prismaRoomStore, subjects).catch(() => null);
     return NextResponse.json({ ok: true, token: token || undefined, profile: summary }, NO_STORE);
   } catch (error) {

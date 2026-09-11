@@ -32,9 +32,12 @@ const GAME_DIRS = [
  * Wires still standing, with the pull request that cuts each one.
  * Phase 1.7 empties this; nothing may be added.
  */
-const ALLOWED = {
-  '@/app/lib/auth': 'phase 1.7, gated on decision D1 (what an account is on the standalone site)',
-};
+// Empty, and it should stay empty. The last entry was '@/app/lib/auth',
+// cut in phase 1.7 once the founder decided (2026-09-10) that a
+// standalone account means one not connected to ReunitePets: the game
+// answers "who is this request" itself now, in
+// app/lib/geo/server/identity.js.
+const ALLOWED = {};
 
 const CODE = /\.(js|jsx|mjs|cjs|ts|tsx)$/;
 
@@ -98,10 +101,54 @@ describe('the game stands alone', () => {
     expect(wires).toEqual([]);
   });
 
-  test('the list of wires still standing only shrinks', () => {
-    // Phase 1.7 empties this. If you are here because a test failed
-    // after you added an import, cut the wire instead of listing it.
-    expect(Object.keys(ALLOWED)).toEqual(['@/app/lib/auth']);
+  test('there are no wires left, and none may be added', () => {
+    // Phase 1.7 emptied this and it stays empty. If you are here
+    // because a test failed after you added an import, cut the wire
+    // instead of listing it: the game is now a file move away from its
+    // own repository and this list is what keeps it that way.
+    expect(Object.keys(ALLOWED)).toEqual([]);
+  });
+
+  test('the game does not read the pet site\'s session, in any form', () => {
+    // next-auth is an npm package, so the import walk above lets it
+    // through, but useSession() and getServerSession(authOptions) are
+    // the same wire wearing a different hat: they make a WanderGuesser
+    // player a ReunitePets user. The founder's answer to D1 was that a
+    // standalone account is not connected to ReunitePets, so both go.
+    // Built at runtime rather than written out, so this file does not
+    // match its own search and report itself.
+    const pet = ['next', 'auth'].join('-');
+    const importing = new RegExp(`(from|require\\()\\s*['"]${pet}`);
+    const offenders = [];
+    for (const dir of GAME_DIRS) {
+      for (const file of walk(dir)) {
+        if (importing.test(fs.readFileSync(path.join(ROOT, file), 'utf8'))) offenders.push(file);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test('the pet site names the game in one place, not fourteen', () => {
+    // Phase 2 of the split. The wires that point INWARD used to be a
+    // dozen rate-limit lines, three lists of map hosts and a table of
+    // short paths in middleware.js, plus a hard-coded route list in
+    // navChrome.js. They are all constants in app/lib/geo/site.js now,
+    // so pulling the game out is deleting two imports rather than
+    // hunting through the pet site for mentions of it.
+    const middleware = fs.readFileSync(path.join(ROOT, 'middleware.js'), 'utf8');
+    const chrome = fs.readFileSync(path.join(ROOT, 'app/lib/navChrome.js'), 'utf8');
+
+    // No geo API path may appear as a rate-limit key. '/api/geocode' is
+    // a pet route that merely starts the same way, so it is allowed.
+    const keys = [...middleware.matchAll(/'(\/api\/geo[^']*)':/g)].map((m) => m[1]).filter((key) => key !== '/api/geocode');
+    expect(keys).toEqual([]);
+
+    // No game route may be hard-coded into the pet site's chrome.
+    expect([...chrome.matchAll(/'(\/geo[^']*)'/g)].map((m) => m[1])).toEqual([]);
+
+    // Both read the game's module instead.
+    expect(middleware).toContain("from '@/app/lib/geo/site'");
+    expect(chrome).toContain("from '@/app/lib/geo/site'");
   });
 
   test('the game owns a replacement for every pet module it used to import', () => {
@@ -110,6 +157,7 @@ describe('the game stands alone', () => {
       'app/lib/geo/server/limiter.js',
       'app/lib/geo/server/fonts/index.js',
       'app/lib/geo/meta.js',
+      'app/lib/geo/server/identity.js',
       'app/lib/geo/site.js',
       'app/geo/lib/appleMapKit.js',
     ]) {

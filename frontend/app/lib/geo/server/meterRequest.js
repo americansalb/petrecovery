@@ -5,8 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/lib/auth';
+import { accountFromRequest } from './identity';
 import { checkRateLimitForKeyAsync, getClientIP } from '@/app/lib/geo/server/limiter';
 import { prismaRoomStore } from './roomStore';
 import { resolveProfile } from './profiles';
@@ -15,25 +14,24 @@ import { hashIp } from './meter';
 
 /**
  * The subjects behind a request: the profile (the browser's token or
- * the signed-in account; created only when asked), whether they are
- * signed in, and the hashed IP. Never throws: a failed lookup leaves
- * the profile out and the IP in.
+ * the game's own signed-in account; created only when asked), whether
+ * they are signed in, and the hashed IP. Never throws: a failed lookup
+ * leaves the profile out and the IP in.
+ *
+ * "Signed in" here means a WanderGuesser account, which is an email
+ * address and nothing else. It has never meant a ReunitePets account
+ * since phase 1.7 of the split; the two products do not share identity.
  */
 export async function subjectsFor(request, { name = '', store = prismaRoomStore, createIfMissing = false } = {}) {
-  let session = null;
-  try {
-    session = await getServerSession(authOptions);
-  } catch {
-    session = null;
-  }
-  const userId = session?.user?.id || null;
+  // The game's own session cookie, not the pet site's (server/identity.js).
+  const { accountId } = accountFromRequest(request);
   let profile = null;
   let token = null;
   try {
     const resolved = await resolveProfile(store, {
       token: request.headers.get('x-geo-profile') || '',
-      userId,
-      name: name || session?.user?.name || '',
+      accountId,
+      name,
       createIfMissing,
     });
     profile = resolved.profile;
@@ -44,7 +42,7 @@ export async function subjectsFor(request, { name = '', store = prismaRoomStore,
   return {
     profile,
     profileId: profile?.id || null,
-    signedIn: Boolean(userId),
+    signedIn: Boolean(accountId),
     ipHash: hashIp(getClientIP(request), getGeoServerConfig().tokenSecret),
     token,
   };

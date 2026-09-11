@@ -5791,7 +5791,7 @@ model GeoRoomPlayer {
   ratingBefore Float?
   ratingAfter  Float?
   placement    Int?
-  pointsEarned Int       @default(0)
+  pointsEarned Int     @default(0)
 
   // The play meter: the hashed address the player joined from, and how
   // the seat was paid once the first round started (free, paid, apple,
@@ -5901,30 +5901,67 @@ model GeoRoundCache {
 // deviation per ladder, updated from every finished room as pairwise
 // results with margin of victory.
 
-model GeoProfile {
+/// A WanderGuesser account (docs/GEO.md, "Signing in").
+///
+/// The game's own, deliberately: a player here is not a ReunitePets
+/// user and never becomes one (founder decision, 2026-09-10, D1 in
+/// docs/WANDERGUESSER_SPLIT.md). Sign-in is an emailed link and the
+/// email address is the whole record; there is no password to leak and
+/// nothing here is shared with the pet site's User table.
+model GeoAccount {
   id         String   @id @default(cuid())
-  tokenHash  String   @unique
-  userId     String?  @unique
-  name       String
-  // Prepaid Google rounds (quota packs, bought once), drawn on after the
-  // day's free allowance (docs/GEO.md, "The play meter").
-  paidRounds Int      @default(0)
-  // Points, the earned currency (docs/GEO.md, "Points and cosmetics"):
-  // the balance, kept in step with GeoLedger, and what is worn
-  // ({ pin, color, title, frame } item ids from app/lib/geo/items.js).
-  points     Int      @default(0)
-  equipped   Json?
+  email      String   @unique
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
-  ratings GeoRating[]
-  seasonRatings GeoSeasonRating[]
-  results GeoMatchResult[]
+  profiles GeoProfile[]
+}
+
+/// One emailed sign-in link. The token is stored hashed, so a leak of
+/// this table cannot be used to sign in as anyone; it expires, and it is
+/// burned on first use.
+model GeoLoginToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model GeoProfile {
+  id         String      @id @default(cuid())
+  tokenHash  String      @unique
+  /// The game's own account, when the player has signed in.
+  accountId  String?     @unique
+  account    GeoAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// Dead as of the standalone-accounts decision: the game no longer
+  /// reads or writes it. Kept until phase 3 of the split moves the geo
+  /// tables to their own database, which is where dropping it belongs.
+  userId     String?     @unique
+  name       String
+  // Prepaid Google rounds (quota packs, bought once), drawn on after the
+  // day's free allowance (docs/GEO.md, "The play meter").
+  paidRounds Int         @default(0)
+  // Points, the earned currency (docs/GEO.md, "Points and cosmetics"):
+  // the balance, kept in step with GeoLedger, and what is worn
+  // ({ pin, color, title, frame } item ids from app/lib/geo/items.js).
+  points     Int         @default(0)
+  equipped   Json?
+  createdAt  DateTime    @default(now())
+  lastSeenAt DateTime    @default(now())
+
+  ratings          GeoRating[]
+  seasonRatings    GeoSeasonRating[]
+  results          GeoMatchResult[]
   challengeRounds  GeoChallengeRound[]
   challengeEntries GeoChallengeEntry[]
-  ledger  GeoLedger[]
-  unlocks GeoUnlock[]
-  badges  GeoBadge[]
+  ledger           GeoLedger[]
+  unlocks          GeoUnlock[]
+  badges           GeoBadge[]
 }
 
 // One row per earn or spend. `ref` names the event ("solo:<seed>:<i>",
