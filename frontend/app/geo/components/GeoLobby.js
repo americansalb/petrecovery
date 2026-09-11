@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Check, Gauge, Medal, Play, Trophy, Users } from 'lucide-react';
+import { CalendarDays, Check, Gauge, Languages, Medal, Play, Trophy, Users } from 'lucide-react';
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -369,6 +369,27 @@ export default function GeoLobby() {
           </div>
 
           <aside className="space-y-6">
+            {/* The other game. It was reachable only from the subtab
+                row, which meant most people never found out it existed. */}
+            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+                <Languages className="h-4 w-4" />
+                Script
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                A second game on the same scoring. You get a sentence and pin where that language is spoken. 76 languages
+                across 26 writing systems, scored by distance, so Tamil and Marathi are different answers.
+              </p>
+              <p className="mt-2 text-sm text-gray-500">No imagery, so it does not touch your Street View allowance.</p>
+              <Link
+                href="/geo/script"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-bold text-white hover:bg-midnight-800"
+              >
+                <Languages className="h-4 w-4" />
+                Play Script
+              </Link>
+            </section>
+
             {/* Rooms */}
             <section className="rounded-2xl border border-midnight-900 bg-midnight-900 p-5 text-white">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">

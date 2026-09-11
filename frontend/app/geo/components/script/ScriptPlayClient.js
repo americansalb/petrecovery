@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowRight, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
+import { ArrowRight, Clock, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { LADDERS, normalizeScriptConfig, scriptConfigToQuery } from '@/app/lib/geo/script';
@@ -29,6 +29,11 @@ import ScriptSample from './ScriptSample';
 
 // Leaflet touches window on import, so it cannot render on the server.
 // Keyless on purpose: see LeafletScriptMap.
+// The panorama round's chrome, so the two halves of the game look
+// like one game (app/geo/components/GameHud.js).
+const PILL = 'rounded-full border border-white/20 bg-midnight-900/80 shadow-lg backdrop-blur';
+const ICON_BUTTON = `${PILL} flex h-11 w-11 items-center justify-center text-white transition hover:bg-midnight-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-flash-400`;
+
 const LeafletScriptMap = dynamic(() => import('./LeafletScriptMap'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-midnight-900" />,
@@ -51,6 +56,7 @@ export default function ScriptPlayClient() {
   const [history, setHistory] = useState([]);
   const [sending, setSending] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(config.timer || 0);
+  const [tileTrouble, setTileTrouble] = useState(false);
 
   const ladder = LADDERS[config.ladder] || LADDERS.world;
   const done = history.length >= config.rounds && !result;
@@ -140,63 +146,99 @@ export default function ScriptPlayClient() {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-midnight-950 text-white lg:flex-row">
-      {/* The sentence. On a phone it is the top half; on a laptop the left column. */}
-      <div className="flex min-h-0 shrink-0 flex-col border-b border-white/10 lg:h-full lg:w-[38%] lg:border-b-0 lg:border-r">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <Link href="/geo/script" className="rounded-lg p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white" aria-label="Leave the game">
-            <X className="h-5 w-5" />
-          </Link>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-white/60">
+    <div className="fixed inset-0 z-[60] bg-midnight-950 text-white">
+      {/* The map is the screen. A sentence needs a panel, not half a
+          display, and the panorama game already set this shape. */}
+      <div className="absolute inset-0">
+        <LeafletScriptMap
+          pin={pin}
+          onPin={setPin}
+          mode={result ? 'result' : 'guess'}
+          answer={result?.answer || null}
+          guess={result?.guess || null}
+          onTileTrouble={() => setTileTrouble(true)}
+        />
+      </div>
+
+      {/* Top row: the same pill and icon button the panorama round uses. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 p-3 sm:p-4">
+        <div className={`pointer-events-auto flex items-center gap-3 px-4 py-2 ${PILL}`}>
+          <div className="flex flex-col leading-tight">
+            <span className="text-[11px] uppercase tracking-wide text-white/60">{ladder.short}</span>
+            <span className="text-sm font-semibold text-white">
               Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}
             </span>
-            <span className="font-semibold">{formatScore(total)}</span>
-            {config.timer ? (
-              <span className={`tabular-nums font-semibold ${secondsLeft <= 10 ? 'text-red-400' : 'text-white/80'}`}>{secondsLeft}s</span>
-            ) : null}
+          </div>
+          <div className="flex flex-col border-l border-white/15 pl-3 leading-tight">
+            <span className="text-[11px] uppercase tracking-wide text-white/60">Score</span>
+            <span className="text-sm font-semibold tabular-nums text-flash-300">{formatScore(total)}</span>
           </div>
         </div>
-        <div className="flex min-h-0 flex-1 items-center overflow-y-auto px-5 pb-5">
-          {loading ? (
-            <p className="flex items-center gap-2 text-white/60">
-              <Loader2 className="h-4 w-4 animate-spin" /> Finding a sentence
-            </p>
-          ) : error ? (
-            <div className="text-sm">
-              <p className="text-red-300">{error}</p>
-              <Link href="/geo/script" className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 font-semibold hover:bg-white/20">
-                Back to the lobby
-              </Link>
-            </div>
-          ) : round ? (
-            <div className="w-full">
-              <p className="mb-3 text-xs uppercase tracking-wide text-white/40">{ladder.label}</p>
-              <ScriptSample text={round.text} script={round.script} />
+        <div className="pointer-events-auto flex items-center gap-2">
+          {config.timer ? (
+            <div className={`flex items-center gap-2 px-3 py-1.5 ${secondsLeft <= 10 ? 'rounded-full border border-red-400/60 bg-red-950/70 shadow-lg backdrop-blur' : PILL}`}>
+              <Clock className="h-4 w-4 text-white/60" />
+              <span className={`min-w-[2ch] text-sm font-semibold tabular-nums ${secondsLeft <= 10 ? 'text-red-200' : 'text-white'}`}>{secondsLeft}</span>
             </div>
           ) : null}
+          <Link href="/geo/script" className={ICON_BUTTON} aria-label="Leave the game" title="Leave the game">
+            <X className="h-5 w-5" />
+          </Link>
         </div>
       </div>
 
-      {/* The map. */}
-      <div className="relative min-h-0 flex-1">
-        <LeafletScriptMap pin={pin} onPin={setPin} mode={result ? 'result' : 'guess'} answer={result?.answer || null} guess={result?.guess || null} />
+      {/* The sentence. Sized to its content and centred near the top, so
+          a long Devanagari line and a short Thai one both look composed. */}
+      {!result ? (
+        <div className="pointer-events-none absolute inset-x-0 top-20 z-20 flex justify-center px-3 sm:top-24">
+          <div className="pointer-events-auto w-full max-w-2xl rounded-2xl border border-white/15 bg-midnight-950/85 p-4 shadow-2xl backdrop-blur sm:p-6">
+            {loading ? (
+              <p className="flex items-center gap-2 py-2 text-white/60">
+                <Loader2 className="h-4 w-4 animate-spin" /> Finding a sentence
+              </p>
+            ) : error ? (
+              <div className="text-sm">
+                <p className="text-red-300">{error}</p>
+                <Link href="/geo/script" className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 font-semibold hover:bg-white/20">
+                  Back to the lobby
+                </Link>
+              </div>
+            ) : round ? (
+              <ScriptSample text={round.text} script={round.script} />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
-        {result ? (
-          <Reveal result={result} last={history.length >= config.rounds} onNext={next} />
-        ) : (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
+      {/* Tiles come from someone else's CDN. Say so rather than leaving
+          a grey rectangle that looks like the game broke. */}
+      {tileTrouble && !result ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-20 flex justify-center px-3">
+          <p className="pointer-events-auto max-w-md rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
+            The map tiles will not load on this network, so you are placing a pin on a bare grid. The round still scores.
+          </p>
+        </div>
+      ) : null}
+
+      {result ? (
+        <Reveal result={result} last={history.length >= config.rounds} onNext={next} />
+      ) : (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
+          <div className="mx-auto max-w-md">
+            {!pin && !loading && round ? (
+              <p className="mb-2 text-center text-sm text-white/70 drop-shadow">Tap the map where that language is spoken</p>
+            ) : null}
             <button
               type="button"
               disabled={!pin || sending || !round}
               onClick={() => submit(pin)}
-              className="pointer-events-auto w-full rounded-xl bg-flash-500 px-4 py-3 font-semibold text-midnight-950 shadow-lg transition enabled:hover:bg-flash-400 disabled:cursor-not-allowed disabled:bg-white/20 disabled:text-white/50"
+              className="pointer-events-auto w-full rounded-xl bg-flash-500 px-4 py-3.5 text-base font-semibold text-midnight-950 shadow-xl transition enabled:hover:bg-flash-400 disabled:cursor-not-allowed disabled:bg-midnight-900/80 disabled:text-white/40 disabled:shadow-lg disabled:backdrop-blur"
             >
-              {sending ? 'Scoring' : pin ? 'Guess' : 'Tap the map to place your pin'}
+              {sending ? 'Scoring' : 'Guess'}
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -266,7 +308,9 @@ function Summary({ config, ladder, history, total }) {
                 <p className="font-semibold">
                   {row.answer.name} <span className="font-normal text-white/50">{row.answer.endonym}</span>
                 </p>
-                <p className="text-sm font-semibold text-flash-400">{formatScore(row.score)}</p>
+                <p className="text-sm font-semibold text-flash-400">
+                  {formatScore(row.score)} <span className="font-normal text-white/40">pts</span>
+                </p>
               </div>
               <p className="mt-1 text-sm text-white/50">
                 {row.answer.scriptName} script.{' '}

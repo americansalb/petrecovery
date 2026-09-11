@@ -445,7 +445,9 @@ async function script(browser) {
   // round shows no provider's imagery so it owes no provider a map, and
   // the MapKit token is locked to one origin (LeafletScriptMap).
   await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
-  await page.waitForSelector('button:has-text("Tap the map to place your pin")');
+  // The hint is copy, not a disabled button: a control that tells you
+  // what to do should not look broken while it tells you.
+  await page.waitForSelector('text=Tap the map where that language is spoken');
   await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 300 } });
   await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
   await page.click('button:has-text("Guess")');
