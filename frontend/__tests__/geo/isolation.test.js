@@ -128,6 +128,29 @@ describe('the game stands alone', () => {
     expect(offenders).toEqual([]);
   });
 
+  test('the pet site names the game in one place, not fourteen', () => {
+    // Phase 2 of the split. The wires that point INWARD used to be a
+    // dozen rate-limit lines, three lists of map hosts and a table of
+    // short paths in middleware.js, plus a hard-coded route list in
+    // navChrome.js. They are all constants in app/lib/geo/site.js now,
+    // so pulling the game out is deleting two imports rather than
+    // hunting through the pet site for mentions of it.
+    const middleware = fs.readFileSync(path.join(ROOT, 'middleware.js'), 'utf8');
+    const chrome = fs.readFileSync(path.join(ROOT, 'app/lib/navChrome.js'), 'utf8');
+
+    // No geo API path may appear as a rate-limit key. '/api/geocode' is
+    // a pet route that merely starts the same way, so it is allowed.
+    const keys = [...middleware.matchAll(/'(\/api\/geo[^']*)':/g)].map((m) => m[1]).filter((key) => key !== '/api/geocode');
+    expect(keys).toEqual([]);
+
+    // No game route may be hard-coded into the pet site's chrome.
+    expect([...chrome.matchAll(/'(\/geo[^']*)'/g)].map((m) => m[1])).toEqual([]);
+
+    // Both read the game's module instead.
+    expect(middleware).toContain("from '@/app/lib/geo/site'");
+    expect(chrome).toContain("from '@/app/lib/geo/site'");
+  });
+
   test('the game owns a replacement for every pet module it used to import', () => {
     for (const own of [
       'app/lib/geo/server/db.js',

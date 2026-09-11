@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { GAME_CSP_HOSTS, GAME_RATE_LIMITS, GAME_SHORT_PATHS } from '@/app/lib/geo/site';
 import { getToken } from 'next-auth/jwt';
 
 // Simple in-memory rate limiter (use Redis in production)
@@ -26,33 +27,11 @@ const RATE_LIMIT_CONFIG = {
   '/api/auth/forgot-password': { windowMs: 60000, maxRequests: 5 },
   '/api/contact': { windowMs: 60000, maxRequests: 5 },
   '/api/geocode': { windowMs: 60000, maxRequests: 10 },
-  // The geo game (docs/GEO.md). A round is a burst of free metadata
-  // probes on the server; one person plays a handful a minute, and a
-  // retry after "no imagery" must not lock them out. The share card
-  // is rendered on demand and cached by the browser.
-  // Rooms poll their state every couple of seconds while a game is on,
-  // plus guesses and reactions; one bucket for the whole prefix.
-  '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
-  '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
-  '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },
-  // Sign-in sends mail, so it gets the strictest bucket in the game:
-  // five a minute per address is more than a person needs and far less
-  // than a script needs to be a nuisance. Verify is a link click.
-  '/api/geo/auth/request': { windowMs: 60000, maxRequests: 5 },
-  '/api/geo/auth/verify': { windowMs: 60000, maxRequests: 20 },
-  '/api/geo/auth': { windowMs: 60000, maxRequests: 60 },
-  // Script rounds are text out of a file: no upstream call, no key, no
-  // cost, so they get a looser bucket than a panorama round. The limit
-  // is here to slow a scraper walking the corpus, not to ration play.
-  '/api/geo/script/round': { windowMs: 60000, maxRequests: 90 },
-  '/api/geo/script/guess': { windowMs: 60000, maxRequests: 120 },
-  '/api/geo/round': { windowMs: 60000, maxRequests: 40 },
-  '/api/geo/guess': { windowMs: 60000, maxRequests: 60 },
-  '/api/geo/config': { windowMs: 60000, maxRequests: 30 },
-  '/api/geo/og': { windowMs: 60000, maxRequests: 30 },
-  '/api/geo/daily': { windowMs: 60000, maxRequests: 30 },
-  '/api/geo/shop': { windowMs: 60000, maxRequests: 60 },
-  '/api/geo/cup': { windowMs: 60000, maxRequests: 30 },
+  // The geo game's limits are the game's own (app/lib/geo/site.js), so
+  // they leave with it. Spread rather than listed: order is preserved,
+  // and /api/geocode above is a PET route that startsWith('/api/geo'),
+  // so it has to stay above this block.
+  ...GAME_RATE_LIMITS,
   // Higher than the other strict routes on purpose: letter-writing events
   // put a whole room of families behind one venue IP, and each lookup is
   // one cheap, un-stored Census call (see app/api/rasuwa/district).
@@ -203,18 +182,18 @@ function addSecurityHeaders(response) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      // maps.googleapis.com + maps.gstatic.com: the Maps JavaScript API
-      // (Street View + guess map) for the geo game at /geo (docs/GEO.md)
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com https://cdn.apple-mapkit.com https://maps.googleapis.com https://maps.gstatic.com",
+      // The game's map hosts come from app/lib/geo/site.js so they leave
+      // with it; nothing else on the pet site asks for them.
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://www.googletagmanager.com ${GAME_CSP_HOSTS.script.join(' ')}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https: http:",
-      "connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:* https://*.apple-mapkit.com https://*.ls.apple.com",
+      `connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:* ${GAME_CSP_HOSTS.connect.join(' ')}`,
       // docs.google.com / script.google.com / *.googleusercontent.com:
       // the embedded family roster form on /rasuwa/form (Google Forms
       // and Apps Script web apps; script iframes serve from
       // googleusercontent)
-      "frame-src 'self' https://www.google.com https://*.apple.com https://*.apple-mapkit.com https://maps.apple.com https://docs.google.com https://script.google.com https://*.googleusercontent.com",
+      `frame-src 'self' https://www.google.com ${GAME_CSP_HOSTS.frame.join(' ')} https://docs.google.com https://script.google.com https://*.googleusercontent.com`,
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -264,15 +243,7 @@ export async function middleware(request) {
     process.env.NEXT_PUBLIC_SITE === 'geo' ||
     (geoHosts.length > 0 && geoHosts.includes(host.toLowerCase().replace(/:\d+$/, '')));
   if (gameSite) {
-    const short = {
-      '/': '/geo',
-      '/play': '/geo/play',
-      '/rooms': '/geo/rooms',
-      '/share': '/geo/share',
-      '/leaderboard': '/geo/leaderboard',
-      '/daily': '/geo/play?mode=daily',
-    };
-    const target = short[pathname] || (pathname.startsWith('/room/') ? `/geo${pathname}` : null);
+    const target = GAME_SHORT_PATHS[pathname] || (pathname.startsWith('/room/') ? `/geo${pathname}` : null);
     if (target) {
       const url = request.nextUrl.clone();
       const [targetPath, targetQuery] = target.split('?');

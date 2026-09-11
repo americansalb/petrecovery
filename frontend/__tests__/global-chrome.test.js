@@ -240,6 +240,18 @@ describe('nav components defer to the shared policy', () => {
   test('the immersive list stays deliberate - additions need a docs update', () => {
     // If this fails you added a takeover: update docs/APP_MAP.md §8.2 and
     // the IMMERSIVE_DIRS list above, then extend this expectation.
-    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', '/geo/play', '/geo/room', '/geo/script/play']);
+    //
+    // The game's own takeovers are asserted THROUGH its constant rather
+    // than copied here (docs/WANDERGUESSER_SPLIT.md, phase 2.2): the pet
+    // site must not carry a second copy of the game's route map that can
+    // drift from it. The pet site's own three are still spelled out,
+    // because those are the ones this rule exists to hold still.
+    const { IMMERSIVE_GAME_ROUTES } = require('@/app/lib/geo/site');
+    expect(IMMERSIVE_ROUTES.filter((route) => !IMMERSIVE_GAME_ROUTES.includes(route))).toEqual([
+      '/mission-control',
+      '/my-shelter',
+      '/rasuwa',
+    ]);
+    expect(IMMERSIVE_ROUTES).toEqual(['/mission-control', '/my-shelter', '/rasuwa', ...IMMERSIVE_GAME_ROUTES]);
   });
 });
