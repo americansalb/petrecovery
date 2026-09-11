@@ -88,8 +88,21 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
   return {
     roundIndex: index,
     ladder: config.ladder,
+    // The script ID, and only the ID, because the client has to pick a
+    // font (app/geo/script/fonts.js). Its human NAME used to be here
+    // too, and that was a leak: for a script only one language uses -
+    // Odia, Tamil, Telugu, Kannada, Malayalam, Sinhala, Thai, Lao,
+    // Khmer, Georgian, Armenian, Hebrew, Greek - the name of the script
+    // is the name of the answer, handed over before the guess. Nothing
+    // on the client read it; the reveal takes scriptName from the guess
+    // response, where it belongs.
+    //
+    // The ID is still a hint to anyone reading the network tab, and it
+    // cannot be removed while the browser chooses the font. That mostly
+    // does not matter, because the script is on screen anyway; where it
+    // does matter is the Alphabets ladder, whose whole game is naming
+    // the writing system. Treat that ladder as unranked-by-design.
     script: language.script,
-    scriptName: SCRIPTS[language.script]?.name || language.script,
     text,
     token: sealToken({ c: language.code, l: config.ladder, i: index, seed: config.seed || '' }, { secret: tokenSecret, now }),
   };

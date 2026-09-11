@@ -230,7 +230,8 @@ describe('a round', () => {
     const round = createScriptRound({ config, roundIndex: 2, env });
     expect(round.roundIndex).toBe(2);
     expect(round.text.length).toBeGreaterThan(8);
-    expect(round.scriptName).toBeTruthy();
+    // scriptName is deliberately absent: see the leak test below.
+    expect(round.scriptName).toBeUndefined();
 
     const answer = openToken(round.token, { secret: SECRET });
     const language = find(answer.c);
@@ -241,6 +242,30 @@ describe('a round', () => {
     expect(language.code).toBe(drawLanguages(config)[2].code);
     expect(samplesFor(language.code)).toContain(round.text);
     expect(round.script).toBe(language.script);
+  });
+
+  test('gives away nothing about the answer beyond what is on screen', () => {
+    // Found in the deep audit. The round used to carry scriptName, the
+    // script's human name, and for a script only one language uses -
+    // Odia, Tamil, Georgian, Thai and nine others - that name IS the
+    // answer, sent before the guess. Nothing on the client read it.
+    //
+    // The script ID stays, because the browser cannot choose a font
+    // without it, and the script is visible on screen regardless.
+    for (let i = 0; i < 12; i++) {
+      const config = { ladder: 'world', rounds: 3, seed: `leak-${i}` };
+      const round = createScriptRound({ config, roundIndex: 0, env });
+      const answer = find(openToken(round.token, { secret: SECRET }).c);
+      // The sentence IS the round, and a three-letter code like "por"
+      // occurs inside Portuguese prose, so every check looks outside it.
+      const withoutText = JSON.stringify({ ...round, text: '' });
+
+      for (const giveaway of [answer.name, answer.endonym, answer.family, answer.branch, SCRIPTS[answer.script].name, answer.code]) {
+        expect(withoutText).not.toContain(giveaway);
+      }
+      // The sealed token must not be readable without the secret.
+      expect(() => openToken(round.token, { secret: 'a-different-long-secret' })).toThrow();
+    }
   });
 
   test('the same seed and index give the same round every time', () => {
