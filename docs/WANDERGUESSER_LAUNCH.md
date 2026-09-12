@@ -61,10 +61,21 @@ is how that is now known rather than assumed.
 
 ## What launch needs from you
 
-### 1. Google keys with quota caps. Blocking.
+### 1. An Apple MapKit token for the game's domain. Blocking.
 
-The game cannot serve a Street View round without them, and without
-**caps** it cannot be allowed to.
+The game is Apple-first (docs/GEO.md, "Apple first"): the lobby opens on
+Look Around and the daily and the cup are played on it. The MapKit token
+in the repository is locked to the reunitepets.org origin, so on the
+game's own domain every Apple round fails until there is one for that
+origin. An Apple Developer account, a MapKit JS key, a token minted for
+the domain, into `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`. Nothing else in the
+game needs Apple's account.
+
+### 1b. Google keys with quota caps. Optional, and blocking for the Google modes.
+
+Without them the Google option is off: no countryside, no Everywhere, no
+Kidnapped, and the other hundred-odd countries. With them, **caps**
+matter, because without caps the game cannot be allowed to serve them.
 
 - In a Google Cloud project, enable **Maps JavaScript API** and **Street
   View Static API**.
@@ -76,9 +87,9 @@ The game cannot serve a Street View round without them, and without
   play meter is the first line; the console cap is the one that cannot
   be bypassed by a bug in my code.
 
-Apple Look Around needs no key to be playable and is the free tier, so a
-launch without Google keys is possible and would be a smaller game: no
-Street View, no Everywhere, no Kidnapped. Script mode needs neither.
+A launch without Google keys is the Apple-first game as designed: city
+streets in 23 countries in every mode but Everywhere and Kidnapped, plus
+Script mode, which needs neither.
 
 ### 2. Where it lives. Blocking.
 

@@ -103,6 +103,11 @@ describe('decideRound', () => {
     // round was one load then.
     const legacy = { profile: bucket(), ip: bucket(), site: { google: { rounds: 100, free: 0, paid: 0 }, apple: { rounds: 0 } } };
     expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: legacy, limits: tight })).toEqual({ ok: false, code: 'budget' });
+    // A row that straddles the deploy: a day of rounds, then the first
+    // few loads. Reading loads alone forgot the day and reopened the
+    // budget; the larger of the two counters is the day so far.
+    const straddling = { profile: bucket(), ip: bucket(), site: { google: { rounds: 100, free: 0, paid: 0, loads: 3 }, apple: { rounds: 0 } } };
+    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: straddling, limits: tight })).toEqual({ ok: false, code: 'budget' });
   });
 
   test('ceilings shaped like a person, the site budget above everything', () => {
@@ -136,8 +141,9 @@ describe('decideRound', () => {
     expect(roomGamesText({ used: 0, limit: 1, left: 1 })).toBe('Free Google room today: not used yet.');
     expect(roomGamesText({ used: 1, limit: 1, left: 0 })).toBe('Free Google room today: used.');
     expect(roomGamesText({ used: 1, limit: 2, left: 1 })).toBe('1 of 2 free Google rooms used today.');
-    expect(allowanceText(DEFAULT_LIMITS)).toBe('5 free Google Street View games a day (25 rounds) and 1 free room, the daily challenge and the weekly cup on top. Apple Look Around: no limit.');
-    expect(allowanceText({ ...DEFAULT_LIMITS, freeGoogleRounds: 12, freeGoogleRoomGames: 0 })).toBe('12 free Google Street View rounds a day, the daily challenge and the weekly cup on top. Apple Look Around: no limit.');
+    // The daily and the cup are on Apple now, so they are simply unmetered.
+    expect(allowanceText(DEFAULT_LIMITS)).toBe('5 free Google Street View games a day (25 rounds) and 1 free room. Apple Look Around, the daily challenge and the weekly cup: no limit.');
+    expect(allowanceText({ ...DEFAULT_LIMITS, freeGoogleRounds: 12, freeGoogleRoomGames: 0 })).toBe('12 free Google Street View rounds a day. Apple Look Around, the daily challenge and the weekly cup: no limit.');
   });
 
   test('limits come from the environment with the defaults behind them', () => {
@@ -272,7 +278,7 @@ describe('the meter on the store', () => {
     await expect(checkRound(store, google(ada))).rejects.toMatchObject({ code: 'allowance' });
 
     // out of free rounds, still welcome in a room: the seat is today's free room game
-    const host = await createRoom(store, { name: 'Ranked', hostName: 'Ada', settings: { rounds: 3, time: 30 }, profileId: ada.profileId, subjects: ada, now: T0 });
+    const host = await createRoom(store, { name: 'Ranked', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.profileId, subjects: ada, now: T0 });
     await expect(roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch })).rejects.toMatchObject({ code: 'need_players', status: 409 });
     const joined = await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.profileId, subjects: grace, now: T0 });
     expect(joined.player.name).toBe('Grace');
@@ -292,8 +298,8 @@ describe('the meter on the store', () => {
     expect((await checkRound(store, google(grace))).source).toBe('free');
 
     // a second Google room today needs prepaid rounds; Apple rooms are open
-    await expect(createRoom(store, { name: 'Again', hostName: 'Ada', settings: {}, profileId: ada.profileId, subjects: ada, now: T0 })).rejects.toMatchObject({ code: 'rooms', status: 429 });
-    const other = await createRoom(store, { name: 'Open', hostName: 'Nobody', settings: {}, now: T0 });
+    await expect(createRoom(store, { name: 'Again', hostName: 'Ada', settings: { provider: 'google' }, profileId: ada.profileId, subjects: ada, now: T0 })).rejects.toMatchObject({ code: 'rooms', status: 429 });
+    const other = await createRoom(store, { name: 'Open', hostName: 'Nobody', settings: { provider: 'google' }, now: T0 });
     await expect(joinRoom(store, { code: other.room.code, name: 'Grace', profileId: grace.profileId, subjects: grace, now: T0 })).rejects.toMatchObject({ code: 'rooms' });
     const lookAround = await createRoom(store, { name: 'Cities', hostName: 'Grace', settings: { provider: 'apple', mode: 'cities' }, profileId: grace.profileId, subjects: grace, now: T0 });
     expect(lookAround.room.config.provider).toBe('apple');
@@ -301,7 +307,7 @@ describe('the meter on the store', () => {
     // with prepaid rounds the seat is paid, one round at a time, and the balance reads fresh
     await store.updateProfile(ada.profileId, { paidRounds: 2 });
     const paidSubjects = { ...ada, profile: await store.getProfileById(ada.profileId) };
-    const second = await createRoom(store, { name: 'Again', hostName: 'Ada', settings: { rounds: 3, time: 30 }, profileId: ada.profileId, subjects: paidSubjects, now: T0 });
+    const second = await createRoom(store, { name: 'Again', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.profileId, subjects: paidSubjects, now: T0 });
     const linus = await subjectsFor(store, 'Linus', { ipHash: hashIp('203.0.113.8', 'secret') });
     await joinRoom(store, { code: second.room.code, name: 'Linus', profileId: linus.profileId, subjects: linus, now: T0 });
     await roomAction(store, { code: second.room.code, token: second.token, action: 'start', now: T0, fetchImpl: hitFetch });
@@ -315,7 +321,7 @@ describe('the meter on the store', () => {
     const tired = await subjectsFor(store, 'Tired', { ipHash: hashIp('203.0.113.7', 'secret') });
     for (let i = 0; i < 8; i++) await recordRound(store, { subjects: tired, provider: 'apple', source: 'apple', now: T0 });
     await expect(joinRoom(store, { code: host.room.code, name: 'Tired', profileId: tired.profileId, subjects: tired, now: T0 })).rejects.toMatchObject({ code: 'ceiling', status: 429 });
-    await expect(createRoom(store, { name: 'Mine', hostName: 'Tired', settings: {}, profileId: tired.profileId, subjects: tired, now: T0 })).rejects.toMatchObject({ code: 'ceiling' });
+    await expect(createRoom(store, { name: 'Mine', hostName: 'Tired', settings: { provider: 'google' }, profileId: tired.profileId, subjects: tired, now: T0 })).rejects.toMatchObject({ code: 'ceiling' });
     await expect(checkRoomEntry(store, { subjects: tired, now: T0, limits })).rejects.toMatchObject({ code: 'ceiling' });
   }
 
@@ -324,7 +330,7 @@ describe('the meter on the store', () => {
     const ada = await subjectsFor(store, 'Ada');
     const grace = await subjectsFor(store, 'Grace', { ipHash: hashIp('203.0.113.6', 'secret') });
     await store.updateProfile(grace.profileId, { paidRounds: 1 });
-    const host = await createRoom(store, { name: 'Friday', hostName: 'Ada', settings: { rounds: 3, time: 30 }, profileId: ada.profileId, subjects: ada, now: T0 });
+    const host = await createRoom(store, { name: 'Friday', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.profileId, subjects: ada, now: T0 });
     await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.profileId, subjects: grace, now: T0 });
     await roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch });
     let now = T0;

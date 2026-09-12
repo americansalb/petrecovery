@@ -56,7 +56,7 @@ afterEach(() => {
 
 describe('rooms API', () => {
   test('a whole game over the routes', async () => {
-    const created = await createRoom(request({ name: 'Office', hostName: 'Ada', settings: { rounds: 3, time: 60, variant: 'classic' } }));
+    const created = await createRoom(request({ name: 'Office', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 60, variant: 'classic' } }));
     expect(created.status).toBe(200);
     const host = await created.json();
     expect(host.code).toMatch(/^[A-Z0-9]{6}$/);
@@ -98,20 +98,20 @@ describe('rooms API', () => {
   test('bad codes, unknown actions, missing tokens and missing keys have plain answers', async () => {
     expect((await getRoom(request(null), { params: { code: 'nope' } })).status).toBe(404);
     expect((await getRoom(request(null), { params: { code: 'ZZZZZZ' } })).status).toBe(404);
-    const created = await (await createRoom(request({ name: 'X', hostName: 'H' }))).json();
+    const created = await (await createRoom(request({ name: 'X', hostName: 'H', settings: { provider: 'google' } }))).json();
     const unknown = await postRoom(request({ action: 'dance' }, created.token), { params: { code: created.code } });
     expect(unknown.status).toBe(400);
     const anonymous = await postRoom(request({ action: 'guess', lat: 1, lng: 1 }), { params: { code: created.code } });
     expect(anonymous.status).toBe(401);
     expect((await postRoom({ json: async () => { throw new Error('bad'); }, headers: new Map() }, { params: { code: created.code } })).status).toBe(400);
     delete process.env.GOOGLE_STREET_VIEW_API_KEY;
-    expect((await createRoom(request({ name: 'X', hostName: 'H' }))).status).toBe(503);
+    expect((await createRoom(request({ name: 'X', hostName: 'H', settings: { provider: 'google' } }))).status).toBe(503);
     expect((await postRoom(request({ action: 'start' }, created.token), { params: { code: created.code } })).status).toBe(503);
     // Apple Look Around rooms need no Google key: they open, and they start.
-    const apple = await createRoom(request({ name: 'Look', hostName: 'H', settings: { provider: 'apple', mode: 'cities', rounds: 3 } }));
+    const apple = await createRoom(request({ name: 'Look', hostName: 'H', settings: { provider: 'apple', mode: 'world', rounds: 3 } }));
     expect(apple.status).toBe(200);
     const appleHost = await apple.json();
-    expect(appleHost.state.room.config).toMatchObject({ provider: 'apple', mode: 'cities' });
+    expect(appleHost.state.room.config).toMatchObject({ provider: 'apple', mode: 'world' });
     const guest = await (await postRoom(request({ action: 'join', name: 'G' }), { params: { code: appleHost.code } })).json();
     const started = await postRoom(request({ action: 'start' }, appleHost.token), { params: { code: appleHost.code } });
     expect(started.status).toBe(200);
@@ -125,19 +125,19 @@ describe('rooms API', () => {
 
   test('one free Google room a day: the second one is a 429 that says so, Apple rooms stay open', async () => {
     process.env.GEO_FREE_GOOGLE_ROOM_GAMES = '1';
-    const host = await (await createRoom(request({ name: 'First', hostName: 'Ada', settings: { rounds: 3 } }, null, '198.51.100.21'))).json();
+    const host = await (await createRoom(request({ name: 'First', hostName: 'Ada', settings: { provider: 'google', rounds: 3 } }, null, '198.51.100.21'))).json();
     const guest = await (await postRoom(request({ action: 'join', name: 'Grace' }, null, '198.51.100.22'), { params: { code: host.code } })).json();
     expect(guest.token).toBeTruthy();
     expect((await postRoom(request({ action: 'start' }, host.token), { params: { code: host.code } })).status).toBe(200);
-    const again = await createRoom(request({ name: 'Second', hostName: 'Ada' }, null, '198.51.100.21'));
+    const again = await createRoom(request({ name: 'Second', hostName: 'Ada', settings: { provider: 'google' } }, null, '198.51.100.21'));
     expect(again.status).toBe(429);
     const body = await again.json();
     expect(body.code).toBe('rooms');
     expect(body.error).toMatch(/free multiplayer game/);
     expect(again.headers.get('Retry-After')).toBeTruthy();
-    const other = await (await createRoom(request({ name: 'Other', hostName: 'Linus' }, null, '198.51.100.23'))).json();
+    const other = await (await createRoom(request({ name: 'Other', hostName: 'Linus', settings: { provider: 'google' } }, null, '198.51.100.23'))).json();
     expect((await postRoom(request({ action: 'join', name: 'Grace' }, null, '198.51.100.22'), { params: { code: other.code } })).status).toBe(429);
-    const apple = await createRoom(request({ name: 'Cities', hostName: 'Ada', settings: { provider: 'apple', mode: 'cities' } }, null, '198.51.100.21'));
+    const apple = await createRoom(request({ name: 'Cities', hostName: 'Ada', settings: { provider: 'apple', mode: 'balanced' } }, null, '198.51.100.21'));
     expect(apple.status).toBe(200);
   });
 });

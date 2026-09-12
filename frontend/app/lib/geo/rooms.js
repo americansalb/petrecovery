@@ -11,7 +11,7 @@
  */
 
 import { MAX_ROUND_SCORE } from './distance';
-import { MODES, formatLabel, formatOf, normalizeConfig } from './modes';
+import { MODES, PRIMARY_PROVIDER, PROVIDERS, formatLabel, formatOf, normalizeConfig } from './modes';
 
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const ROOM_CODE_LENGTH = 6;
@@ -105,14 +105,15 @@ export function initials(name) {
 }
 
 /**
- * Room settings from any input. Multiplayer is Google only, needs a
- * timer so rounds end, and leaves out the daily and streak modes.
+ * Room settings from any input. A room plays on either imagery, needs a
+ * timer so rounds end, and leaves out the modes that are not a shared
+ * clock's business: the daily, the cup, the streak, Everywhere, Kidnapped.
  */
 export function normalizeRoomConfig(input = {}) {
   const raw = input || {};
-  // Apple Look Around rooms play the modes Apple imagery supports (city
-  // streets); everything else is Google Street View.
-  const provider = raw.provider === 'apple' ? 'apple' : 'google';
+  // Rooms open on the default imagery unless the host chose the other;
+  // either way the mode list is what that imagery can play.
+  const provider = PROVIDERS[raw.provider] ? raw.provider : PRIMARY_PROVIDER;
   const supported = ROOM_MODES.filter((id) => MODES[id]?.providers?.includes(provider));
   const mode = supported.includes(raw.mode) ? raw.mode : supported.includes('balanced') ? 'balanced' : supported[0];
   const config = normalizeConfig({
@@ -222,6 +223,6 @@ export function describeRoomMode(config, { regionLabel } = {}) {
 export function describeRoomRules(config, { regionLabel } = {}) {
   const parts = [describeRoomMode(config, { regionLabel })];
   if (formatOf(config) !== 'moving') parts.push(formatLabel(config));
-  if (config?.provider === 'apple') parts.push('on Apple Look Around');
+  if (config?.provider && config.provider !== PRIMARY_PROVIDER) parts.push(`on ${PROVIDERS[config.provider]?.label || config.provider}`);
   return parts.join(', ');
 }

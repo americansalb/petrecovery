@@ -20,7 +20,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleRoom, daily, profile, script)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -79,6 +79,19 @@ const waitForPano = (page, timeout = 60000) =>
   page.waitForFunction(() => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano'); }, null, { timeout });
 const waitPlayable = (page) => page.waitForSelector('button:has-text("Place your pin on the map")', { timeout: 60000 });
 const waitGuessable = (page) => page.waitForSelector('button:has-text("Guess"):not([disabled])');
+
+/** Apple rounds: Look Around has opened, and the MapKit guess map is up. */
+const waitForLookAround = (page, timeout = 60000) => page.waitForFunction(() => Boolean(document.querySelector('[data-fake-lookaround]')), null, { timeout });
+/** A tap in the middle of the MapKit guess map, which the fake turns into a coordinate. */
+async function pinApple(page) {
+  await page.waitForSelector('[data-fake-mapkit]', { timeout: 20000 });
+  const box = await page.evaluate(() => {
+    const r = document.querySelector('[data-fake-mapkit]').getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  });
+  await page.mouse.click(box.x, box.y);
+  await waitGuessable(page);
+}
 
 /** The result map must really have a box on screen, not just exist. */
 async function expectMapVisible(page, where) {
@@ -237,6 +250,8 @@ async function rooms(browser) {
   await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
   await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 }); // typed before hydration would be reset
   await host.fill('input[placeholder="What the others will see"]', 'Ada');
+  // The form opens on Apple now; this scenario is the Street View room.
+  await host.selectOption('label:has-text("Imagery") select', 'google');
   await host.selectOption('label:has-text("Rounds") select', '3');
   await host.selectOption('label:has-text("Time per round") select', '60');
   await host.click('button:has-text("Open the room")');
@@ -325,6 +340,39 @@ async function rooms(browser) {
  * that day, and shows them to one that has.
  */
 /**
+ * The default game: a solo balanced game on Apple Look Around. Three
+ * rounds, each a list of city-street places the browser tries in order,
+ * a pin on the MapKit map, a score, and a summary with a share link.
+ */
+async function appleSolo(browser) {
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=e2e-apple-solo&time=0`, { waitUntil: 'domcontentloaded' });
+  for (let i = 1; i <= 3; i++) {
+    await page.waitForSelector(`text=Round ${i} of 3`, { timeout: 60000 });
+    await waitPlayable(page);
+    await waitForLookAround(page);
+    if (i === 1) {
+      log('apple solo: Look Around opened at', await page.getAttribute('[data-fake-pano]', 'data-fake-pano'));
+      await shot(page, 'apple-solo-playing');
+    }
+    await pinApple(page);
+    await page.click('button:has-text("Guess")');
+    await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
+    const line = await page.textContent('text=/away\\.|Time ran out/').catch(() => '');
+    if (/Time ran out/.test(line)) throw new Error('an Apple round with a pin was recorded as timed out');
+    log(`apple solo round ${i}:`, line || '(scored)');
+    if (i < 3) await page.keyboard.press('Space');
+  }
+  await page.click('button:has-text("See results")');
+  await page.waitForSelector('text=/of 15,000/', { timeout: 20000 });
+  await page.waitForSelector('[data-fake-mapkit]', { timeout: 10000 });
+  if (!(await page.getAttribute('a[href*="/geo/share?s="]', 'href'))) throw new Error('no share link on the Apple summary');
+  await shot(page, 'apple-solo-summary');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
+/**
  * A room on Apple Look Around, which is the one thing the deep audit
  * found unplayable: the shared map block was gated on the Google Maps
  * handle, which an Apple room never sets, so every player saw the
@@ -404,17 +452,17 @@ async function appleRoom(browser) {
 
 async function daily(browser) {
   const page = await newPage(browser, { width: 1280, height: 800 });
+  // The daily is played on the primary imagery, Apple: the round is a
+  // list of places the browser tries until Look Around opens one.
   await page.goto(`${BASE}/geo/play?mode=daily`, { waitUntil: 'domcontentloaded' });
-  const spots = [[48.8566, 2.3522], [-33.8688, 151.2093], [35.6762, 139.6503], [40.7128, -74.006], [51.5072, -0.1276]];
-  for (let i = 0; i < spots.length; i++) {
+  for (let i = 0; i < 5; i++) {
     await waitPlayable(page);
-    await waitForPano(page);
-    await page.evaluate(([lat, lng]) => window.__fakeClick(lat, lng), spots[i]);
-    await waitGuessable(page);
+    await waitForLookAround(page);
+    await pinApple(page);
     await page.click('button:has-text("Guess")');
     await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
     log(`daily round ${i + 1} scored`);
-    if (i < spots.length - 1) await page.keyboard.press('Space');
+    if (i < 4) await page.keyboard.press('Space');
   }
   await page.click('button:has-text("See results")');
   await page.waitForSelector('text=/of 25,000/', { timeout: 20000 });
@@ -577,7 +625,7 @@ async function script(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleRoom, daily, profile, script };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

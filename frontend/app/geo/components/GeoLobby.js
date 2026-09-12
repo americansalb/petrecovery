@@ -26,6 +26,8 @@ import {
   formatSettings,
   normalizeConfig,
   timeLabel,
+  PRIMARY_PROVIDER,
+  modeDescription,
 } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { isSignedIn } from '@/app/geo/lib/session';
@@ -93,7 +95,10 @@ export default function GeoLobby() {
   const router = useRouter();
   const [server, setServer] = useState(null);
   const [serverError, setServerError] = useState('');
-  const [provider, setProvider] = useState('google');
+  // Apple first: the lobby opens on the primary imagery, whatever the
+  // server has keys for. A Google-less server used to greet every first
+  // visitor with a setup error for imagery they had not asked for.
+  const [provider, setProvider] = useState(PRIMARY_PROVIDER);
   const [mode, setMode] = useState('world');
   const [continent, setContinent] = useState('europe');
   const [country, setCountry] = useState('JP');
@@ -193,6 +198,21 @@ export default function GeoLobby() {
 
   const providerInfo = server?.providers?.[provider];
   const configured = Boolean(providerInfo?.configured);
+
+  // Does this imagery have anything to play in a continent? Apple has no
+  // city streets in Africa or South America, so those are not offered on
+  // it. Until the country list arrives, nothing is hidden.
+  const continentCovered = (id) => {
+    const list = server?.countries;
+    if (!list?.length) return true;
+    const preset = CONTINENTS[id];
+    return list.some((c) => c[provider] && ((preset.regions && preset.regions.includes(c.region)) || (preset.subregions && preset.subregions.includes(c.subregion))));
+  };
+  useEffect(() => {
+    if (mode !== 'continent' || continentCovered(continent)) return;
+    setContinent(CONTINENT_ORDER.find(continentCovered) || continent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider, mode, server]);
   const countries = server?.countries || [];
   const modeDef = MODES[config.mode];
   const fixed = config.mode === 'daily' || config.mode === 'cup';
@@ -284,7 +304,7 @@ export default function GeoLobby() {
                       className={`rounded-xl border-2 p-3 text-left transition ${active ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-400'}`}
                     >
                       <p className="font-semibold">{m.label}</p>
-                      <p className="mt-0.5 text-sm text-midnight-600">{m.description}</p>
+                      <p className="mt-0.5 text-sm text-midnight-600">{modeDescription(id, provider)}</p>
                     </button>
                   );
                 })}
@@ -293,7 +313,7 @@ export default function GeoLobby() {
                 <label className="mt-4 block text-sm">
                   <span className="mb-1 block font-semibold">Continent</span>
                   <select value={continent} onChange={(e) => setContinent(e.target.value)} className="w-full max-w-xs rounded-xl border border-midnight-300 bg-white px-3 py-2">
-                    {CONTINENT_ORDER.map((id) => (
+                    {CONTINENT_ORDER.filter(continentCovered).map((id) => (
                       <option key={id} value={id}>
                         {CONTINENTS[id].label}
                       </option>
@@ -308,7 +328,7 @@ export default function GeoLobby() {
                     {countries.map((c) => (
                       <option key={c.code} value={c.code}>
                         {c.flag} {c.name}
-                        {!c.google ? ' (no known imagery)' : ''}
+                        {!c[provider] ? ' (no known imagery)' : ''}
                       </option>
                     ))}
                     {!countries.length ? <option value={country}>{country}</option> : null}
@@ -396,7 +416,7 @@ export default function GeoLobby() {
                 <Users className="h-4 w-4" />
                 Play with friends
               </h2>
-              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP. One room a day on Google Street View is free; rooms on Apple Look Around are free without limit.</p>
+              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP. Rooms on Apple Look Around are free without limit; one room a day on Google Street View is free.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href="/geo/rooms" className="inline-flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500">
                   <Users className="h-4 w-4" />
@@ -520,11 +540,14 @@ export default function GeoLobby() {
                 <CalendarDays className="h-4 w-4" />
                 Daily challenge
               </h2>
-              <p className="mt-2 text-sm text-midnight-700">Five places, the same for everyone{server?.daily?.date ? ` on ${server.daily.date}` : ' today'}. Free, and it does not count against your Google rounds.</p>
+              <p className="mt-2 text-sm text-midnight-700">
+                Five places on {PROVIDERS[PRIMARY_PROVIDER].label}, the same for everyone{server?.daily?.date ? ` on ${server.daily.date}` : ' today'}.
+                {PRIMARY_PROVIDER === 'google' ? ' Free, and it does not count against your Google rounds.' : ' Free.'}
+              </p>
               <button
                 type="button"
-                onClick={() => start({ mode: 'daily', provider: 'google' })}
-                disabled={!server?.providers?.google?.configured}
+                onClick={() => start({ mode: 'daily' })}
+                disabled={!server?.providers?.[PRIMARY_PROVIDER]?.configured}
                 className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50"
               >
                 {stats?.dailyPlayed ? <Check className="h-4 w-4 text-flash-400" /> : <Play className="h-4 w-4" />}
@@ -563,14 +586,15 @@ export default function GeoLobby() {
                 Weekly cup
               </h2>
               <p className="mt-2 text-sm text-midnight-700">
-                Ten places on a 60 second clock, the same for everyone this week. Free, outside your Google rounds.
+                Ten places on {PROVIDERS[PRIMARY_PROVIDER].label}, 60 seconds each, the same for everyone this week.
+                {PRIMARY_PROVIDER === 'google' ? ' Free, outside your Google rounds.' : ' Free.'}
                 {cup?.endsAt ? ` Ends ${untilText(cup.endsAt)}.` : ''}
               </p>
               <p className="mt-1 text-xs text-midnight-500">Prizes in points: 300, 200 and 100 for the top three, 50 for the rest of the top ten, 20 for finishing.</p>
               <button
                 type="button"
-                onClick={() => start({ mode: 'cup', provider: 'google' })}
-                disabled={!server?.providers?.google?.configured}
+                onClick={() => start({ mode: 'cup' })}
+                disabled={!server?.providers?.[PRIMARY_PROVIDER]?.configured}
                 className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50"
               >
                 <Play className="h-4 w-4" />
@@ -658,7 +682,7 @@ export default function GeoLobby() {
           <div>
             <h3 className="font-semibold">How the spot is picked</h3>
             <p className="mt-1 text-sm text-midnight-600">
-              The server draws a random point on the globe, throws it away if it is water, then asks Street View whether official imagery exists within the radius you chose. It keeps drawing until one hits. Nothing is pre-made, so no two games repeat unless you share a seed.
+              On Apple Look Around the server draws a covered city, then a spot on its streets, and your browser tries the spots in order until one loads. On Google Street View it draws a random point on the globe, throws it away if it is water, then asks Street View whether official imagery exists within the radius you chose, and keeps drawing until one hits. Nothing is pre-made, so no two games repeat unless you share a seed.
             </p>
           </div>
           <div>
@@ -670,7 +694,7 @@ export default function GeoLobby() {
           <div>
             <h3 className="font-semibold">Where the pictures come from</h3>
             <p className="mt-1 text-sm text-midnight-600">
-              Google Street View or Apple Look Around, shown with their own logos and under their own terms. Country outlines are Natural Earth data. The answer never reaches your browser until you have guessed.
+              Apple Look Around or Google Street View, shown with their own logos and under their own terms. Country outlines are Natural Earth data. The answer never reaches your browser until you have guessed.
             </p>
           </div>
         </section>

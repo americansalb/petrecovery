@@ -11,8 +11,8 @@
 
 import { createRng, randomPointInDisk, randomSeedString, roundSeed, weightedIndex } from '../random';
 import { WORLD_SIZE_KM, sizeForBox } from '../distance';
-import { RADIUS_PRESETS } from '../modes';
-import { citiesFor, citiesOffCoverage, hasGoogleCoverage } from '../coverage';
+import { CONTINENTS, RADIUS_PRESETS } from '../modes';
+import { citiesFor, citiesOffCoverage, hasAppleCoverage, hasGoogleCoverage } from '../coverage';
 import { countriesInContinent, countryByCode, getCountries, sampleInCountry, sampleOnLand } from './countries';
 
 export class GeoSamplerError extends Error {
@@ -65,6 +65,85 @@ export function coveredPool(countries = getCountries()) {
 }
 
 /**
+ * Apple Look Around is city streets, and only city streets: no
+ * countryside, no photo spheres, and no server-side probe. So on Apple
+ * every mode is a draw from the curated city list (app/lib/geo/coverage.js),
+ * filtered by what the mode asks for, and the browser tries the drawn
+ * spots in order until Look Around loads one. The list is the whole
+ * Apple world; adding a covered city to it is how that world grows.
+ *
+ *   world      every covered city, each as likely as the next
+ *   balanced,  a covered country first, weighted like the Google pool
+ *   daily, cup,  (square root of area, so small ones still come up),
+ *   streak     then one of its cities
+ *   continent  the covered countries inside it; none is an error the
+ *              lobby already prevents, said plainly if reached
+ *   country    that country's cities, or an error if it has none
+ */
+function appleSource(config, rng, presetKm, holder) {
+  const cities = citiesFor('apple');
+  if (!cities.length) throw new GeoSamplerError('no_cities', 'No cities for Apple Look Around');
+  const byCountry = new Map();
+  for (const city of cities) {
+    if (!byCountry.has(city.country)) byCountry.set(city.country, []);
+    byCountry.get(city.country).push(city);
+  }
+  const spot = (city) => {
+    const point = randomPointInDisk(rng, city, city.radiusKm);
+    return { lat: point.lat, lng: point.lng, country: countryByCode(city.country), city: city.name, radiusKm: Math.min(presetKm, 2) };
+  };
+  const fromCities = (pool) => () => spot(pool[Math.floor(rng() * pool.length)]);
+  const fromCountries = (countries) => {
+    const pool = countries.filter((c) => byCountry.has(c.cca2));
+    if (!pool.length) return null;
+    const weights = pool.map((c) => Math.sqrt(Math.max(1, c.areaKm2 || 1)));
+    return () => {
+      const list = byCountry.get(pool[weightedIndex(rng, weights)].cca2);
+      return spot(list[Math.floor(rng() * list.length)]);
+    };
+  };
+
+  let next = null;
+  switch (config.mode) {
+    case 'world':
+    case 'cities':
+      next = fromCities(cities);
+      break;
+    case 'balanced':
+    case 'daily':
+    case 'cup':
+    case 'streak':
+      next = fromCountries(getCountries().filter((c) => c.cca2 && hasAppleCoverage(c.cca2)));
+      break;
+    case 'continent': {
+      const all = countriesInContinent(config.region);
+      if (!all.length) throw new GeoSamplerError('unknown_continent', `Unknown continent: ${config.region}`);
+      const covered = all.filter((c) => hasAppleCoverage(c.cca2) && byCountry.has(c.cca2));
+      if (!covered.length) {
+        const label = CONTINENTS[config.region]?.label || config.region;
+        throw new GeoSamplerError('no_cities', `Apple Look Around has no city streets in ${label} yet. Play that continent on Google Street View.`);
+      }
+      holder.sizeKm = sizeForBox(unionBox(covered));
+      next = fromCountries(covered);
+      break;
+    }
+    case 'country': {
+      const country = countryByCode(config.region);
+      if (!country) throw new GeoSamplerError('unknown_country', `Unknown country: ${config.region}`);
+      const list = byCountry.get(country.cca2);
+      if (!list) throw new GeoSamplerError('no_cities', `Apple Look Around has no city streets in ${country.name} yet. Play it on Google Street View.`);
+      holder.sizeKm = sizeForBox(countryBox(country));
+      next = fromCities(list);
+      break;
+    }
+    default:
+      throw new GeoSamplerError('unknown_mode', `${config.mode} is not a mode Apple Look Around can play`);
+  }
+  if (!next) throw new GeoSamplerError('empty_pool', 'No covered countries to sample from');
+  return next;
+}
+
+/**
  * Build a candidate source for one round.
  * Returns { next(), stats, sizeKm, rng }.
  */
@@ -73,6 +152,13 @@ export function createCandidateSource(config, roundIndex = 0) {
   const rng = createRng(seed);
   const presetKm = RADIUS_PRESETS[config.radius]?.km ?? RADIUS_PRESETS.standard.km;
   const stats = { skippedWater: 0 };
+
+  if (config.provider === 'apple') {
+    // sizeKm for a continent or a country is set inside; read it back.
+    const holder = { sizeKm: WORLD_SIZE_KM };
+    const next = appleSource(config, rng, presetKm, holder);
+    return { next, stats, sizeKm: holder.sizeKm, rng };
+  }
 
   const pointIn = (country) => {
     const point = sampleInCountry(rng, country);

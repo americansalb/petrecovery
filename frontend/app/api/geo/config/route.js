@@ -10,7 +10,7 @@
 import { NextResponse } from 'next/server';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { countryOptions } from '@/app/lib/geo/server/countries';
-import { dailySeed } from '@/app/lib/geo/modes';
+import { PRIMARY_PROVIDER, dailySeed } from '@/app/lib/geo/modes';
 import { limitsFromEnv } from '@/app/lib/geo/meter';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +37,8 @@ export async function GET() {
         },
         apple: { configured: cfg.appleConfigured && Boolean(cfg.tokenSecret) },
       },
+      // The imagery the lobby starts on and the shared boards are played on.
+      primary: PRIMARY_PROVIDER,
       daily: { seed: dailySeed(), date: new Date().toISOString().slice(0, 10) },
       // The play meter's per-player numbers (docs/GEO.md); the site budgets stay server-side.
       limits: (({ freeGoogleRounds, freeGoogleRoomGames, freeChallengeRounds, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }) => ({

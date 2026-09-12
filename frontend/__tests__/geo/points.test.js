@@ -208,7 +208,7 @@ describe('the ledger', () => {
     const store = createMemoryRoomStore();
     const ada = await player(store, 'Ada');
     const grace = await player(store, 'Grace');
-    const host = await createRoom(store, { name: 'Pts', hostName: 'Ada', settings: { rounds: 3, time: 30 }, profileId: ada.id, now: T0 });
+    const host = await createRoom(store, { name: 'Pts', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.id, now: T0 });
     const joined = await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.id, now: T0 });
     await roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch });
     let t = T0;

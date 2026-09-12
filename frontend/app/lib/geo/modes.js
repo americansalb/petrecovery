@@ -3,76 +3,103 @@
  * the API and the share page all read. Pure data and pure functions.
  */
 
+import { APPLE_COVERAGE } from './coverage';
+
+/**
+ * The imagery the game plays on, in the order the lobby offers it.
+ *
+ * Apple first (founder direction, 2026-09-12). Look Around covers city
+ * streets in the countries Apple has driven, costs nothing per view
+ * under Apple's daily quota, and needs no probe budget, so it is the
+ * default game and the imagery the shared boards are played on. Google
+ * Street View is the option for the countryside, the hundred-odd other
+ * countries, and the two modes only its imagery can do (Everywhere,
+ * Kidnapped); it is metered (docs/GEO.md, "The play meter").
+ */
 export const PROVIDERS = {
-  google: {
-    id: 'google',
-    label: 'Google Street View',
-    short: 'Google',
-    description: 'Official Street View imagery. Covers most of the world.',
-  },
   apple: {
     id: 'apple',
     label: 'Apple Look Around',
     short: 'Apple',
-    description: 'Apple Maps Look Around. City streets, free without limit.',
-    beta: true,
+    description: `City streets in ${APPLE_COVERAGE.size} countries. No limit on rounds.`,
+  },
+  google: {
+    id: 'google',
+    label: 'Google Street View',
+    short: 'Google',
+    description: 'Most of the world, countryside included. A free allowance of rounds a day, then bought rounds.',
   },
 };
+
+/**
+ * The imagery the daily challenge and the weekly cup are played on, and
+ * what the lobby and the room form start on. Everyone on a board has to
+ * be on the same places, so this is one value for the whole deployment,
+ * set at build (NEXT_PUBLIC_GEO_PRIMARY_PROVIDER), never a choice a
+ * player makes.
+ */
+export const PRIMARY_PROVIDER = process.env.NEXT_PUBLIC_GEO_PRIMARY_PROVIDER === 'google' ? 'google' : 'apple';
 
 export const MODES = {
   world: {
     id: 'world',
     label: 'World, pure random',
     short: 'World',
-    providers: ['google'],
+    providers: ['apple', 'google'],
     description:
       'A random point on land, kept only if it has imagery nearby. Most of the world is countryside, so expect a lot of roads.',
+    apple: { description: 'A random street in any city Apple covers, every city as likely as the next.' },
   },
   balanced: {
     id: 'balanced',
     label: 'World, balanced',
     short: 'Balanced',
-    providers: ['google'],
+    providers: ['apple', 'google'],
     description:
       'A random country first, weighted so small countries still come up, then a random spot inside it.',
+    apple: { description: 'A random covered country first, weighted so small ones still come up, then a random street in one of its cities.' },
   },
   daily: {
     id: 'daily',
     label: 'Daily challenge',
     short: 'Daily',
-    providers: ['google'],
+    providers: ['apple', 'google'],
     description: 'Five balanced rounds. Everyone gets the same five places today.',
-    fixed: { provider: 'google', rounds: 5, time: 0, move: true, pan: true, zoom: true, radius: 'standard' },
+    // The board is one board, so the imagery is fixed for everyone.
+    fixed: { provider: PRIMARY_PROVIDER, rounds: 5, time: 0, move: true, pan: true, zoom: true, radius: 'standard' },
   },
   cup: {
     id: 'cup',
     label: 'Weekly cup',
     short: 'Cup',
-    providers: ['google'],
+    providers: ['apple', 'google'],
     description: 'Ten balanced rounds, No Move, 60 seconds each. Everyone gets the same ten places this week, and the week ends with prizes.',
-    fixed: { provider: 'google', rounds: 10, time: 60, move: false, pan: true, zoom: true, radius: 'standard' },
+    fixed: { provider: PRIMARY_PROVIDER, rounds: 10, time: 60, move: false, pan: true, zoom: true, radius: 'standard' },
   },
   continent: {
     id: 'continent',
     label: 'Continent',
     short: 'Continent',
-    providers: ['google'],
+    providers: ['apple', 'google'],
     needs: 'continent',
     description: 'Random countries within one continent.',
+    apple: { description: 'Random covered countries within one continent. Apple has no city streets in Africa or South America yet.' },
   },
   country: {
     id: 'country',
     label: 'Country',
     short: 'Country',
-    providers: ['google'],
+    providers: ['apple', 'google'],
     needs: 'country',
     description: 'Random spots inside one country.',
+    apple: { description: 'Random streets in the cities of one covered country.' },
   },
   cities: {
     id: 'cities',
     label: 'City streets',
     short: 'Cities',
-    providers: ['google', 'apple'],
+    // On Apple every mode is city streets, so World is this mode there.
+    providers: ['google'],
     description: 'A random spot in one of 185 large cities with Street View coverage.',
   },
   everywhere: {
@@ -96,10 +123,25 @@ export const MODES = {
     id: 'streak',
     label: 'Country streak',
     short: 'Streak',
-    providers: ['google'],
+    providers: ['apple', 'google'],
     description: 'Name the country instead of placing a pin. The game ends at your first miss.',
   },
 };
+
+/**
+ * What a mode does on this imagery, in the lobby's words. Apple modes
+ * are all city streets, so a mode's Google description ("a random point
+ * on land") would be wrong there; and a mode whose imagery is fixed (the
+ * daily, the cup) says so when it is not the imagery being looked at.
+ */
+export function modeDescription(id, provider = PRIMARY_PROVIDER) {
+  const mode = MODES[id];
+  if (!mode) return '';
+  const fixed = mode.fixed?.provider;
+  const base = (provider === 'apple' && mode.apple?.description) || mode.description;
+  if (fixed && fixed !== provider) return `${base} Played on ${PROVIDERS[fixed].label}.`;
+  return base;
+}
 
 export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'everywhere', 'kidnapped', 'streak'];
 
@@ -162,7 +204,7 @@ export const ROUND_OPTIONS = [3, 5, 10];
 export const TIME_OPTIONS = [0, 30, 60, 120, 180, 300];
 
 export const DEFAULT_CONFIG = Object.freeze({
-  provider: 'google',
+  provider: PRIMARY_PROVIDER,
   mode: 'world',
   region: '',
   rounds: 5,
@@ -235,10 +277,15 @@ function pick(value, options, fallback) {
  */
 export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
   const input = raw || {};
-  const provider = PROVIDERS[input.provider] ? input.provider : DEFAULT_CONFIG.provider;
   let mode = MODES[input.mode] ? input.mode : DEFAULT_CONFIG.mode;
+  // A named imagery wins over the mode: asking for Apple and a Google-only
+  // mode drops the mode. With no imagery named, the mode picks it, so a
+  // link to Kidnapped or Everywhere still opens on Google when the default
+  // imagery is Apple.
+  let provider = PROVIDERS[input.provider] ? input.provider : DEFAULT_CONFIG.provider;
   if (!MODES[mode].providers.includes(provider)) {
-    mode = MODE_ORDER.find((id) => MODES[id].providers.includes(provider)) || 'world';
+    if (PROVIDERS[input.provider]) mode = MODE_ORDER.find((id) => MODES[id].providers.includes(provider)) || 'world';
+    else provider = MODES[mode].providers[0];
   }
 
   let region = '';
@@ -349,6 +396,7 @@ export function describeConfig(config, { regionLabel } = {}) {
   parts.push(timeLabel(c.time));
   // Kidnapped says it all: the car drives, you look.
   if (c.mode !== 'kidnapped' && !(c.move && c.pan && c.zoom)) parts.push(movementLabel(c));
-  if (c.provider === 'apple') parts.push('Apple Look Around');
+  // The default imagery goes without saying; the other one is named.
+  if (c.provider !== PRIMARY_PROVIDER) parts.push(PROVIDERS[c.provider].label);
   return parts.join('. ') + '.';
 }

@@ -42,7 +42,8 @@ const sec = (n) => n * 1000;
 
 async function setupRoom({ settings = {}, players = ['Ada', 'Grace'], now = T0 } = {}) {
   const store = createMemoryRoomStore();
-  const host = await createRoom(store, { name: 'Friday night', hostName: players[0], settings: { rounds: 3, time: 60, ...settings }, now });
+  // Google unless a test says Apple: the fake fetch is a Street View probe.
+  const host = await createRoom(store, { name: 'Friday night', hostName: players[0], settings: { provider: 'google', rounds: 3, time: 60, ...settings }, now });
   const others = [];
   for (const name of players.slice(1)) others.push(await joinRoom(store, { code: host.room.code, name, now }));
   return { store, code: host.room.code, host, others, tokens: [host.token, ...others.map((o) => o.token)] };
@@ -73,19 +74,22 @@ describe('rules', () => {
 
   test('room settings force a timer and a mode the imagery supports', () => {
     const { config, variant, visibility } = rules.normalizeRoomConfig({ provider: 'bing', mode: 'streak', time: 7, rounds: 4, variant: 'duel', visibility: 'private' });
-    expect(config).toMatchObject({ provider: 'google', mode: 'balanced', time: 60, rounds: 5 });
+    expect(config).toMatchObject({ provider: 'apple', mode: 'balanced', time: 60, rounds: 5 });
     expect(variant).toBe('duel');
     expect(visibility).toBe('private');
     expect(rules.normalizeRoomConfig({ mode: 'country', region: 'jp', time: 90, rounds: 10 }).config).toMatchObject({ mode: 'country', region: 'JP', time: 90, rounds: 10 });
-    // Apple Look Around rooms play the modes Apple imagery covers.
-    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'balanced' }).config).toMatchObject({ provider: 'apple', mode: 'cities' });
-    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'cities', time: 90 }).config).toMatchObject({ provider: 'apple', mode: 'cities', time: 90 });
+    // Apple Look Around rooms play the modes Apple imagery covers; City
+    // streets is Google's name for what every Apple mode already is.
+    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'world', time: 90 }).config).toMatchObject({ provider: 'apple', mode: 'world', time: 90 });
+    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'cities' }).config).toMatchObject({ provider: 'apple', mode: 'balanced' });
+    expect(rules.normalizeRoomConfig({ provider: 'google', mode: 'cities' }).config).toMatchObject({ provider: 'google', mode: 'cities' });
   });
 
   test('the rules line names the places, the format when it is not moving, and Apple imagery', () => {
     expect(rules.describeRoomRules({ mode: 'balanced', move: true, pan: true, zoom: true })).toBe('World, balanced');
     expect(rules.describeRoomRules({ mode: 'country', region: 'JP', move: false, pan: true, zoom: true }, { regionLabel: 'Japan' })).toBe('Country: Japan, No Move');
-    expect(rules.describeRoomRules({ provider: 'apple', mode: 'cities', move: false, pan: false, zoom: false })).toBe('City streets, NMPZ, on Apple Look Around');
+    expect(rules.describeRoomRules({ provider: 'apple', mode: 'world', move: false, pan: false, zoom: false })).toBe('World, pure random, NMPZ');
+    expect(rules.describeRoomRules({ provider: 'google', mode: 'cities', move: false, pan: false, zoom: false })).toBe('City streets, NMPZ, on Google Street View');
   });
 
   test('duel damage is the gap to the best guess, scaled every three rounds', () => {
@@ -271,9 +275,9 @@ describe('a classic game', () => {
     await createRoom(pub.store, { name: 'Secret', hostName: 'H', settings: { visibility: 'private' }, now: T0 });
     const list = await listRooms(pub.store, { now: T0 + sec(5) });
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'World, balanced', provider: 'google', rules: 'World, balanced' });
+    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'World, balanced', provider: 'google', rules: 'World, balanced, on Google Street View' });
     const nm = await setupRoom({ settings: { move: false, pan: true, zoom: true } });
-    expect((await listRooms(nm.store, { now: T0 }))[0].rules).toBe('World, balanced, No Move');
+    expect((await listRooms(nm.store, { now: T0 }))[0].rules).toBe('World, balanced, No Move, on Google Street View');
     expect(await listRooms(pub.store, { now: T0 + rules.ROOM_LISTING_WINDOW_MS + sec(1) })).toHaveLength(0);
   });
 
@@ -303,14 +307,14 @@ describe('a classic game', () => {
 });
 
 describe('an Apple Look Around room', () => {
-  const apple = { provider: 'apple', mode: 'cities', rounds: 2, time: 60 };
+  const apple = { provider: 'apple', mode: 'world', rounds: 2, time: 60 };
 
   test('a round offers places, the first browser to find imagery places it for everyone, then the clock runs', async () => {
     const { store, code, tokens } = await setupRoom({ settings: apple });
     const [ada, grace] = tokens;
 
     const started = await roomAction(store, { code, token: ada, action: 'start', now: T0 });
-    expect(started.state.room).toMatchObject({ status: 'playing', phase: 'locating', roundIndex: 0, config: { provider: 'apple', mode: 'cities' } });
+    expect(started.state.room).toMatchObject({ status: 'playing', phase: 'locating', roundIndex: 0, config: { provider: 'apple', mode: 'world' } });
     expect(started.state.room.phaseEndsAt).toBe(T0 + LOCATING_TIMEOUT_MS);
     expect(started.state.round).toBeNull();
     const offered = started.state.locating;
@@ -561,10 +565,10 @@ describe('the seeded round cache', () => {
   test('a seeded round is probed once and served from the cache after that', async () => {
     const cache = createMemoryRoundCache();
     const fetchImpl = jest.fn(hitFetch);
-    const first = await createRound({ config: { mode: 'daily', seed: 'daily-2026-09-07' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
+    const first = await createRound({ config: { provider: 'google', mode: 'balanced', seed: 'cache-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
     const calls = fetchImpl.mock.calls.length;
     expect(calls).toBeGreaterThan(0);
-    const second = await createRound({ config: { mode: 'daily', seed: 'daily-2026-09-07' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 + sec(60) });
+    const second = await createRound({ config: { provider: 'google', mode: 'balanced', seed: 'cache-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 + sec(60) });
     expect(fetchImpl.mock.calls.length).toBe(calls);
     expect(second.panoId).toBe(first.panoId);
     expect(second.heading).toBe(first.heading);
@@ -575,14 +579,14 @@ describe('the seeded round cache', () => {
   test('retries skip the cache and expired entries are ignored', async () => {
     const cache = createMemoryRoundCache();
     const fetchImpl = jest.fn(hitFetch);
-    await createRound({ config: { mode: 'world', seed: 'link-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
+    await createRound({ config: { provider: 'google', mode: 'world', seed: 'link-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
     const before = fetchImpl.mock.calls.length;
-    await createRound({ config: { mode: 'world', seed: 'link-1' }, roundIndex: 0, attempt: 1, fetchImpl, env: ENV, cache, now: T0 });
+    await createRound({ config: { provider: 'google', mode: 'world', seed: 'link-1' }, roundIndex: 0, attempt: 1, fetchImpl, env: ENV, cache, now: T0 });
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(before);
     const afterRetry = fetchImpl.mock.calls.length;
-    await createRound({ config: { mode: 'world', seed: 'link-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 + 25 * 3600 * 1000 });
+    await createRound({ config: { provider: 'google', mode: 'world', seed: 'link-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 + 25 * 3600 * 1000 });
     expect(fetchImpl.mock.calls.length).toBeGreaterThan(afterRetry);
-    const unseeded = await createRound({ config: { mode: 'world' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
+    const unseeded = await createRound({ config: { provider: 'google', mode: 'world' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
     expect(unseeded.stats.cached).toBeUndefined();
   });
 });

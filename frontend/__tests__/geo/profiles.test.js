@@ -48,7 +48,7 @@ async function profileFor(store, name, extra = {}) {
 
 /** Play a whole classic game: `winner` guesses exactly, the others guess far away. */
 async function playGame(store, { players, winnerIndex = 0, rounds = 3, now = T0, leaveIndex = null }) {
-  const host = await createRoom(store, { name: 'Ranked', hostName: players[0].name, settings: { rounds, time: 30 }, profileId: players[0].profileId, now });
+  const host = await createRoom(store, { name: 'Ranked', hostName: players[0].name, settings: { provider: 'google', rounds, time: 30 }, profileId: players[0].profileId, now });
   const tokens = [host.token];
   for (const p of players.slice(1)) {
     const joined = await joinRoom(store, { code: host.room.code, name: p.name, profileId: p.profileId, now });
@@ -172,7 +172,7 @@ describe('rating a finished room', () => {
     const store = createMemoryRoomStore();
     const ada = (await profileFor(store, 'Ada')).profile;
     const grace = (await profileFor(store, 'Grace')).profile;
-    const host = await createRoom(store, { name: 'Duel', hostName: 'Ada', settings: { variant: 'duel', rounds: 3, time: 30 }, profileId: ada.id, now: T0 });
+    const host = await createRoom(store, { name: 'Duel', hostName: 'Ada', settings: { provider: 'google', variant: 'duel', rounds: 3, time: 30 }, profileId: ada.id, now: T0 });
     const joined = await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.id, now: T0 });
     await roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch });
     let t = T0;
