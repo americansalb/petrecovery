@@ -68,10 +68,17 @@ describe('the privacy page covers WanderGuesser', () => {
     expect(terms).toMatch(/separate from a ReunitePets account/);
   });
 
-  test('the game is in the sitemap and live games are out of the index', () => {
+  test('the game is in the sitemap, live games are out of the index, and what unfurls stays fetchable', () => {
     expect(read('app/api/sitemap/route.js')).toContain("url: '/geo'");
     const robots = read('app/api/robots/route.js');
     expect(robots).toContain('Disallow: /geo/play');
-    expect(robots).toContain('Disallow: /geo/room/');
+    expect(robots).toContain('Disallow: /geo/me');
+    // A room and a share page are pasted into chat, and the bots that
+    // draw the card honour robots.txt; both carry noindex in their own
+    // metadata instead.
+    expect(robots).not.toContain('Disallow: /geo/room');
+    expect(robots).not.toContain('Disallow: /geo/share');
+    expect(read('app/geo/room/[code]/page.js')).toMatch(/index:\s*false/);
+    expect(read('app/geo/share/page.js')).toMatch(/index:\s*false/);
   });
 });

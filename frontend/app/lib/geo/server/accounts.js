@@ -106,17 +106,24 @@ export async function verifySignIn(store, { token, profileToken = '', now = Date
     await store.updateAccount(account.id, { lastSeenAt: new Date(now) });
   }
 
-  // The browser's profile, from the header if a caller had one, else
-  // the one recorded when the link was asked for. Without this the
-  // player's rating, points and badges were severed from the account on
-  // the very first sign-in: resolveProfile found nothing, made a fresh
-  // empty profile, and from then on always preferred that one.
-  let profile = null;
-  if (profileToken) ({ profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: false }));
+  // The account's own profile wins, on every device. An account that
+  // already has one is signing in from another browser, and that
+  // browser's anonymous profile is left alone rather than bound: a
+  // profile's accountId is unique, so binding it was a constraint error,
+  // and the sign-in meant to carry the account across devices failed as
+  // "unknown". Merging two histories has no right answer (profiles.js).
+  let profile = await store.getProfileByAccountId(account.id);
+  if (profile) profile = (await store.updateProfile(profile.id, { lastSeenAt: new Date(now) })) || profile;
+
+  // First sign-in: the browser's profile, from the header if a caller
+  // had one, else the one recorded when the link was asked for. Without
+  // this the player's rating, points and badges were severed from the
+  // account on the very first sign-in: resolveProfile found nothing,
+  // made a fresh empty profile, and from then on always preferred that one.
+  if (!profile && profileToken) ({ profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: false }));
   if (!profile && row.profileId && store.getProfileById) {
     const existing = await store.getProfileById(row.profileId);
     if (existing && !existing.accountId) profile = await store.updateProfile(existing.id, { accountId: account.id, lastSeenAt: new Date(now) });
-    else if (existing?.accountId === account.id) profile = existing;
   }
   if (!profile) ({ profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: true }));
   return { account, profile };
@@ -138,13 +145,11 @@ export function sameToken(a, b) {
  * Delete an account and the profile bound to it.
  *
  * Everything the game knows about a player hangs off the profile
- * (ratings, points, badges, unlocks, results, room seats), and the
- * schema cascades from it, so removing the profile removes them. The
- * account row and any unspent sign-in links for its address go with it.
- *
- * Boards keep a name and a score for rounds already played: those rows
- * belong to the challenge, not to the profile, and removing them would
- * rewrite everyone else's ranking.
+ * (ratings, points, badges, unlocks, results, room seats, and the rows
+ * on the daily and cup boards), and the schema cascades from it, so
+ * removing the profile removes them: a deleted player's name and score
+ * leave the boards, and the people below move up. The account row and
+ * any unspent sign-in links for its address go with it.
  */
 export async function deleteAccount(store, { accountId } = {}) {
   if (!accountId) throw new GeoAuthError('invalid', 'No account to delete');

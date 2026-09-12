@@ -86,7 +86,7 @@ export default function SignInCard() {
       setAccount(null);
       setConfirmDelete(false);
       setState('idle');
-      setMessage('Account deleted. Your email address, profile, rating, points and badges are gone.');
+      setMessage('Account deleted. Your email address, profile, rating, points, badges and board scores are gone.');
     } catch (error) {
       setState('error');
       setMessage(error.message);
@@ -118,8 +118,8 @@ export default function SignInCard() {
           <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
             <p className="text-sm font-semibold text-red-900">Delete this account?</p>
             <p className="mt-1 text-sm text-red-800">
-              This removes your email address, your profile, your rating, points, badges and results. Scores already on
-              a daily or cup board stay there. It cannot be undone.
+              This removes your email address, your profile, your rating, points, badges and results, and your scores on
+              the daily and cup boards. It cannot be undone.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <button

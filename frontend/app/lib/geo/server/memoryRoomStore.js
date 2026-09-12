@@ -146,7 +146,12 @@ export function createMemoryRoomStore() {
     },
     async deleteProfile(profileId) {
       profiles.delete(profileId);
-      for (const [k, row] of ledger) if (row.profileId === profileId) ledger.delete(k);
+      // The schema cascades from the profile to everything that names
+      // it, the board rows included; this store does the same, so a
+      // test here proves what production does.
+      for (const map of [ledger, unlocks, badges, ratings, results, challengeRounds, challengeEntries]) {
+        for (const [k, row] of map) if (row.profileId === profileId) map.delete(k);
+      }
       return true;
     },
     async deleteLoginTokensForEmail(email) {
@@ -223,6 +228,11 @@ export function createMemoryRoomStore() {
     async updateProfile(profileId, data) {
       const profile = profiles.get(profileId);
       if (!profile) return null;
+      // accountId is unique in the schema; binding a second profile to
+      // an account is the constraint error Postgres would raise.
+      if (data.accountId && [...profiles.values()].some((x) => x.id !== profileId && x.accountId === data.accountId)) {
+        throw new Error('Unique constraint failed on the fields: (`accountId`)');
+      }
       Object.assign(profile, data);
       return { ...profile };
     },

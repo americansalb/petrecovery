@@ -158,8 +158,14 @@ export function decideRound({ provider, mode, signedIn = false, hasProfile = fal
   const p = provider === 'apple' ? 'apple' : 'google';
   const loads = roundLoads(mode);
   // Rows written before loads existed carry only rounds; one round was
-  // one load then, so reading across is exact.
-  const siteLoads = usage.site?.[p]?.loads || usage.site?.[p]?.rounds || 0;
+  // one load then. A row that straddles the change carries both, and
+  // loads counts only the rounds since, so the larger of the two is the
+  // day so far (every round is at least one load, so loads never
+  // undercounts once it is the only counter). Reading loads first, with
+  // rounds as the fallback, forgot the whole day before a deploy the
+  // moment the first new load landed.
+  const site = usage.site?.[p] || {};
+  const siteLoads = Math.max(site.loads || 0, site.rounds || 0);
   if (siteLoads + loads > limits.siteBudget[p]) return { ok: false, code: 'budget' };
 
   const ceiling = signedIn ? limits.ceilingSignedIn : limits.ceilingAnonymous;

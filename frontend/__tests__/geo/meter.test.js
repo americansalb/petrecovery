@@ -103,6 +103,11 @@ describe('decideRound', () => {
     // round was one load then.
     const legacy = { profile: bucket(), ip: bucket(), site: { google: { rounds: 100, free: 0, paid: 0 }, apple: { rounds: 0 } } };
     expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: legacy, limits: tight })).toEqual({ ok: false, code: 'budget' });
+    // A row that straddles the deploy: a day of rounds, then the first
+    // few loads. Reading loads alone forgot the day and reopened the
+    // budget; the larger of the two counters is the day so far.
+    const straddling = { profile: bucket(), ip: bucket(), site: { google: { rounds: 100, free: 0, paid: 0, loads: 3 }, apple: { rounds: 0 } } };
+    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: straddling, limits: tight })).toEqual({ ok: false, code: 'budget' });
   });
 
   test('ceilings shaped like a person, the site budget above everything', () => {

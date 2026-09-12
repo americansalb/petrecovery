@@ -175,6 +175,24 @@ describe('following a link', () => {
     expect(second.account.email).toBe('ada@example.com');
   });
 
+  test('a second browser that already has an anonymous profile gets the account\'s profile, not a crash', async () => {
+    // The usual second-device flow: the account page makes an anonymous
+    // profile before it shows the sign-in card, so the link is asked for
+    // with that profile recorded on it. Binding it to the account was a
+    // unique-constraint error, because the account's first profile
+    // already holds the accountId, and the sign-in failed as "unknown".
+    const store = createMemoryRoomStore();
+    const first = await resolveProfile(store, { name: 'Ada', now: T0 });
+    await verifySignIn(store, { token: await linkFor(store, 'ada@example.com'), profileToken: first.token, now: T0 + 1 });
+
+    const other = await resolveProfile(store, { name: 'Ada on a laptop', now: T0 + 10 });
+    const { url } = await requestSignIn(store, { email: 'ada@example.com', profileId: other.profile.id, baseUrl: 'https://example.test', now: T0 + 10, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    const second = await verifySignIn(store, { token: new URL(url).searchParams.get('token'), now: T0 + 20 });
+    expect(second.profile.id).toBe(first.profile.id);
+    // The laptop's anonymous profile is left as it was, not folded in.
+    expect((await store.getProfileById(other.profile.id)).accountId).toBeFalsy();
+  });
+
   test('two people signing in stay two people', async () => {
     const store = createMemoryRoomStore();
     const ada = await verifySignIn(store, { token: await linkFor(store, 'ada@example.com'), now: T0 + 1 });
@@ -185,7 +203,7 @@ describe('following a link', () => {
 });
 
 describe('deleting an account', () => {
-  test('takes the profile and everything hanging off it, and leaves the boards alone', async () => {
+  test('takes the profile and everything hanging off it, the board rows included', async () => {
     // Found in the deep audit: the game held an email address, a name,
     // ratings, points, badges and a record of games played, and there
     // was no way to remove any of it.
@@ -201,9 +219,10 @@ describe('deleting an account', () => {
     expect(removed.deletedProfile).toBe(true);
     expect(await store.getProfileById(profile.id)).toBeFalsy();
     expect(await store.getAccountByEmail('ada@example.com')).toBeFalsy();
-    // A score already on a board belongs to the board, not to the
-    // profile: removing it would rewrite everyone else's ranking.
-    expect(await store.getChallengeEntry(profile.id, 'daily:2026-09-07')).toBeTruthy();
+    // The schema cascades from the profile to the board rows too, so the
+    // name and the score leave the board with the account. The copy on
+    // the delete button says so; it used to promise the opposite.
+    expect(await store.getChallengeEntry(profile.id, 'daily:2026-09-07')).toBeFalsy();
   });
 
   test('a link asked for before the delete cannot sign the address back in', async () => {

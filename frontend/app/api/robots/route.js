@@ -15,12 +15,13 @@ Disallow: /dashboard
 Disallow: /profile
 Disallow: /settings/
 # WanderGuesser: the lobby and the boards are worth indexing, a live
-# game, a room and an account page are not.
+# game and an account page are not. A room and a share page are not
+# listed here on purpose: they are built to unfurl in chat, the bots
+# that draw those cards honour this file, and their own metadata
+# already says noindex.
 Disallow: /geo/play
 Disallow: /geo/script/play
-Disallow: /geo/room/
 Disallow: /geo/me
-Disallow: /geo/share
 
 # Crawl delay
 Crawl-delay: 1

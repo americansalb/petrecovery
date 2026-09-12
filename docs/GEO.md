@@ -541,10 +541,12 @@ up, both now handled:
 
 Deleting an account (`POST /api/geo/auth/delete`, the button on
 `/geo/me`) removes the email address, the profile and everything that
-cascades from it: ratings, points, badges, unlocks, results and room
-seats. Scores already on a daily or cup board stay, because those rows
-belong to the challenge and removing them would rewrite everyone else's
-ranking. What the game stores and for how long is written out in
+cascades from it: ratings, points, badges, unlocks, results, room seats
+and the rows on the daily and cup boards, so the name and the score
+leave the board and the people below move up (the schema cascades
+`GeoChallengeRound` and `GeoChallengeEntry` from the profile, and the
+memory store does the same so the test proves it). What the game stores
+and for how long is written out in
 `/privacy`, and `__tests__/geo/privacy-coverage.test.js` enumerates
 every personal-data column so a new one cannot ship unmentioned.
 
