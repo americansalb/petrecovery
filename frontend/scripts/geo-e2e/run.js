@@ -84,6 +84,20 @@ async function newPage(browser, viewport) {
     if (request.failure()?.errorText === 'net::ERR_ABORTED') return;
     errors.push(`request: ${request.failure()?.errorText} ${url}`);
   });
+  // requestfailed is transport only: a 404 for a chunk or a stylesheet
+  // is a perfectly successful response as far as the browser is
+  // concerned, and would otherwise slip past with the console line this
+  // run ignores. Our own assets are never allowed to 404.
+  page.on('response', (response) => {
+    const url = response.url();
+    if (!url.startsWith(BASE) || response.status() < 400) return;
+    const kind = response.request().resourceType();
+    // The API's own error responses are the game talking: a room that
+    // is full, a meter that says no, a round the scenario expects to
+    // fail. Scenarios assert on those; assets have no such excuse.
+    if (!['document', 'script', 'stylesheet', 'font', 'image'].includes(kind)) return;
+    errors.push(`asset: ${response.status()} ${kind} ${url}`);
+  });
   page.on('dialog', (d) => d.dismiss().catch(() => {}));
   await page.route('https://maps.googleapis.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE }));
   await page.route('https://cdn.apple-mapkit.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE_MAPKIT }));

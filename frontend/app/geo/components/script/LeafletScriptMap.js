@@ -93,14 +93,32 @@ function loadWorld() {
  */
 function splitAtAntimeridian(collection) {
   const cut = (ring) => {
-    const parts = [];
-    let part = [ring[0]];
+    const jumps = [];
     for (let i = 1; i < ring.length; i++) {
-      if (Math.abs(ring[i][0] - ring[i - 1][0]) > 180) {
+      if (Math.abs(ring[i][0] - ring[i - 1][0]) > 180) jumps.push(i);
+    }
+    if (!jumps.length) return [ring];
+    // A ring is a loop, and its start point is wherever the data happens
+    // to begin. Cutting in place leaves the piece before the first
+    // crossing and the piece after the last one as separate polygons,
+    // although they are the same piece of land either side of an
+    // arbitrary seam: Leaflet then closes each back to that start point
+    // and draws a chord through the country. Rotating the ring to begin
+    // at a crossing makes the wrap-around join itself.
+    const closed =
+      ring.length > 3 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1];
+    const open = closed ? ring.slice(0, -1) : ring.slice();
+    const start = jumps[0] % open.length;
+    const rotated = open.slice(start).concat(open.slice(0, start));
+
+    const parts = [];
+    let part = [rotated[0]];
+    for (let i = 1; i < rotated.length; i++) {
+      if (Math.abs(rotated[i][0] - rotated[i - 1][0]) > 180) {
         if (part.length >= 3) parts.push(part);
         part = [];
       }
-      part.push(ring[i]);
+      part.push(rotated[i]);
     }
     if (part.length >= 3) parts.push(part);
     return parts.length ? parts : [ring];
