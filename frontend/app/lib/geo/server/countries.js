@@ -174,6 +174,15 @@ function build() {
     const meta = metaByN.get(id) || metaByName.get(name) || null;
     const parts = buildParts(f.geometry);
     const box = unionBox(parts.map((p) => p.rawBox));
+    // A second box for measuring rather than gating. A country cut by
+    // the seam has a raw box that spans the whole planet, and its
+    // diagonal then collapses to the pure latitude span, because the
+    // longitude term is sin(180deg) = 0. Country mode scored Russia and
+    // Fiji on that, roughly twice as harshly as intended. Measuring in
+    // the shifted space gives the country's real east-west extent.
+    const spanBox = parts.some((p) => p.wrapped)
+      ? unionBox(parts.map((p) => (p.wrapped ? p.box : ringBox(shiftEast(p.outer)))))
+      : box;
     const record = {
       ccn3: meta?.ccn3 || `ne-${name}`,
       cca2: meta?.cca2 || '',
@@ -185,6 +194,7 @@ function build() {
       areaKm2: meta?.area || parts.reduce((s, p) => s + p.weight, 0),
       center: meta && Number.isFinite(meta.lat) ? { lat: meta.lat, lng: meta.lng } : null,
       box,
+      spanBox,
       parts,
       disk: null,
     };
@@ -210,6 +220,7 @@ function build() {
       areaKm2: meta.area || 0,
       center: disk.center,
       box: null,
+      spanBox: null,
       parts: [],
       disk,
     });

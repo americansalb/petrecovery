@@ -293,6 +293,10 @@ export function createMemoryRoomStore() {
       ledger.set(k, row);
       return { ...row };
     },
+    async deleteLedger(rowId) {
+      for (const [k, row] of ledger) if (row.id === rowId) ledger.delete(k);
+      return true;
+    },
     async addPoints(profileId, delta, { requireBalance = false } = {}) {
       const profile = profiles.get(profileId);
       if (!profile) return false;

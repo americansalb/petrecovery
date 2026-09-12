@@ -165,7 +165,11 @@ describe('POST /api/geo/round', () => {
     global.fetch = jest.fn(async () => ({ status: 200, json: async () => ({ status: 'REQUEST_DENIED', error_message: 'Street View Static API has not been used' }) }));
     const denied = await postRound(request({ config: { mode: 'world' } }));
     expect(denied.status).toBe(502);
-    expect((await denied.json()).error).toContain('has not been used');
+    // The player is told the service is unreachable; Google's own text,
+    // which names the key and the project, stays in the server log.
+    const deniedBody = await denied.json();
+    expect(deniedBody.error).not.toContain('has not been used');
+    expect(deniedBody.code).toBe('probe_failed');
     global.fetch = jest.fn(async () => ({ status: 200, json: async () => ({ status: 'ZERO_RESULTS' }) }));
     const none = await postRound(request({ config: { mode: 'world', radius: 'pure' } }));
     expect(none.status).toBe(422);

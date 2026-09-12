@@ -121,6 +121,18 @@ function checkMemory(key, { windowMs, maxRequests, blockDurationMs }) {
 // see "not connected yet" and open a client of its own, and only the
 // last would be kept while the rest stayed open.
 let redisPromise = null;
+/**
+ * When the connection may be tried again after it went bad. Without
+ * this, redisPromise cached the first attempt forever and redisReady
+ * was set false by any error, so an outage of a second or two - longer
+ * than the socket's three retries at 250 ms - demoted every limit in
+ * the game to a per-process map for the life of the process, silently,
+ * and on a multi-instance deployment that is every limit multiplied by
+ * the instance count.
+ */
+let redisRetryAt = 0;
+const REDIS_RETRY_MS = 30000;
+let degradedSince = 0;
 // Whether commands are currently getting through. Separate from the
 // connection: a client can be connected and then lose the server.
 let redisReady = false;
@@ -149,13 +161,8 @@ async function connectRedis() {
         reconnectStrategy: (retries) => (retries >= 3 ? false : 250),
       },
     });
-    let logged = false;
     client.on('error', (error) => {
-      redisReady = false;
-      if (!logged) {
-        console.error('[geo/limiter] Redis error, using memory:', error?.message || error);
-        logged = true;
-      }
+      markDegraded(error?.message || String(error));
     });
     client.on('ready', () => {
       redisReady = true;
@@ -176,7 +183,7 @@ async function connectRedis() {
     redisReady = true;
     return client;
   } catch (error) {
-    console.warn('[geo/limiter] Redis unavailable, using memory:', error?.message || error);
+    markDegraded(error?.message || String(error));
     // Teardown of a client that never opened throws, and node-redis
     // reports some of that asynchronously, so swallow both shapes.
     try {
@@ -188,11 +195,38 @@ async function connectRedis() {
   }
 }
 
+function markDegraded(reason) {
+  redisReady = false;
+  const now = Date.now();
+  redisRetryAt = now + REDIS_RETRY_MS;
+  // Say so again every ten minutes. One line at the start of an outage
+  // and silence after it reads like a blip, not like a limiter that is
+  // still running on memory an hour later.
+  if (!degradedSince || now - degradedSince > 600000) {
+    degradedSince = now;
+    console.error(`[geo/limiter] Redis unavailable, limiting in memory: ${reason}`);
+  }
+}
+
 async function getRedis() {
   if (!process.env.REDIS_URL) return null;
+  const now = Date.now();
   if (redisPromise === null) redisPromise = connectRedis();
+  else if (!redisReady && now >= redisRetryAt) {
+    // Try again rather than living on memory forever.
+    redisRetryAt = now + REDIS_RETRY_MS;
+    const previous = redisPromise;
+    redisPromise = connectRedis();
+    Promise.resolve(previous)
+      .then((old) => old?.quit?.().catch(() => {}))
+      .catch(() => {});
+  }
   const client = await redisPromise;
-  return client && redisReady ? client : null;
+  if (client && redisReady) {
+    degradedSince = 0;
+    return client;
+  }
+  return null;
 }
 
 async function checkRedis(redis, key, settings) {
@@ -220,8 +254,7 @@ async function checkRedis(redis, key, settings) {
     // must not wave everything through either. Redis is marked unwell so
     // the calls after this one skip it, and this one falls back to the
     // memory window this module documents rather than to no limit at all.
-    redisReady = false;
-    console.error('[geo/limiter] Redis command failed, using memory:', error?.message || error);
+    markDegraded(`command failed: ${error?.message || error}`);
     return checkMemory(key, settings);
   }
 }
@@ -273,4 +306,6 @@ export function _resetLimiter() {
   blocks.clear();
   redisPromise = null;
   redisReady = false;
+  redisRetryAt = 0;
+  degradedSince = 0;
 }

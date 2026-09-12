@@ -30,7 +30,14 @@ export function radiusForCountry(country, presetKm) {
   return Math.min(presetKm, Math.max(1, 0.25 * Math.sqrt(area)));
 }
 
+/**
+ * A box to measure a country by. spanBox, not box: a country cut by the
+ * antimeridian has a raw box from -180 to +180, whose diagonal drops
+ * the east-west term entirely (sin(180deg) = 0) and leaves the latitude
+ * span pretending to be the diagonal.
+ */
 function countryBox(country) {
+  if (country.spanBox) return country.spanBox;
   if (country.box) return country.box;
   if (country.disk) {
     const { center, radiusKm } = country.disk;

@@ -110,8 +110,6 @@ export async function finalizeCup(store, key, now = Date.now()) {
   if (!endsAt || now < endsAt) return null;
   if (await store.getChallengeFinal(key)) return null;
   const rows = await store.listChallengeBoard(key, { rounds: CUP_ROUNDS, limit: 5000 });
-  const claimed = await store.claimChallengeFinal(key, now, rows.length);
-  if (!claimed) return null;
   let paid = 0;
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -120,6 +118,14 @@ export async function finalizeCup(store, key, now = Date.now()) {
     const paidRow = await grant(store, { profileId: row.profileId, amount, reason: `Cup ${key.slice(4)}: ${placement <= 3 ? ['1st', '2nd', '3rd'][placement - 1] : `${placement}th`} of ${rows.length}`, ref: `${key}:${row.profileId}`, now });
     if (paidRow) paid += 1;
   }
+  // The week is marked done only once every prize has landed. This used
+  // to be claimed first, so one dropped connection partway through the
+  // loop left the row written and the rest of the board unpaid for
+  // good: every later call short-circuited on it. Paying first is safe
+  // precisely because grant is idempotent per (profile, ref), which is
+  // also why the claim was never needed as a guard against paying
+  // twice; it only saves re-walking a finished week.
+  await store.claimChallengeFinal(key, now, rows.length);
   return paid;
 }
 

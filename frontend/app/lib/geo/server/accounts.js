@@ -76,7 +76,7 @@ export async function requestSignIn(store, { email: raw, baseUrl, profileId = nu
 
   const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/geo/auth/verify?token=${encodeURIComponent(token)}`;
   const result = await sendSignInEmail({ to: email, url, sendImpl, env });
-  return { email, sent: result.sent, delivered: Boolean(result.delivered), url };
+  return { email, sent: result.sent, delivered: Boolean(result.delivered), reason: result.reason || '', url };
 }
 
 /**

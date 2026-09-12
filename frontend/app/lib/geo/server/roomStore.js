@@ -269,6 +269,10 @@ const databaseStore = {
       throw error;
     }
   },
+  /** Undo a ledger row whose balance write failed (server/points.js). */
+  deleteLedger(id) {
+    return prisma.geoLedger.delete({ where: { id } });
+  },
   async addPoints(profileId, delta, { requireBalance = false } = {}) {
     const where = requireBalance && delta < 0 ? { id: profileId, points: { gte: -delta } } : { id: profileId };
     const result = await prisma.geoProfile.updateMany({ where, data: { points: { increment: delta } } });

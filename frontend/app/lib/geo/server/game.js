@@ -154,11 +154,24 @@ async function probeForImagery({ source, config, roundIndex, googleServerKey, fe
         ? allowUnofficial
           ? 'No photo spheres turned up near the places tried. Everywhere runs on imagery people uploaded themselves, so it is thinner than the rest of the game. Try again.'
           : 'No Street View imagery turned up near the random points. Try again or widen the search radius.'
-        : `Street View lookup failed: ${upstream.message || upstream.code || 'unknown error'}`;
+        // Google's own error_message names the key and the project
+        // state ("The provided API key is invalid", "This API project
+        // is not authorized to use this API"), and this message is shown
+        // to every player in a room and to anyone holding the room's
+        // code. It stays in the log, where it is useful and private.
+        : 'Street View could not be reached just now. Try again in a moment.';
     throw new GeoGameError(code, message, { stats: found.stats, upstream: { code: upstream.code, message: upstream.message } });
   }
   const hit = found.hit;
-  const country = countryAt(hit.lat, hit.lng) || found.candidate?.country || null;
+  // A curated city row names its own country, and that is the answer
+  // the game gives for it. countryAt reads 1:110m polygons, where
+  // Singapore, Hong Kong and Monaco have no polygon at all: the point
+  // lands inside a neighbour's simplified outline instead, which is
+  // truthy, so the fallback never fired and the reveal named the
+  // neighbour. Border cities lost the same way.
+  const country = found.candidate?.city
+    ? found.candidate.country || countryAt(hit.lat, hit.lng)
+    : countryAt(hit.lat, hit.lng) || found.candidate?.country || null;
   const headingRng = createRng(config.seed ? `${roundSeed(config.seed, roundIndex)}:heading` : undefined);
   return {
     panoId: hit.panoId,

@@ -41,8 +41,8 @@ import {
   sanitizeRoomName,
   sortStandings,
 } from '../rooms';
-import { APPLE_CANDIDATES_PER_ROUND, findRoundImagery } from './game';
-import { createCandidateSource } from './sampler';
+import { APPLE_CANDIDATES_PER_ROUND, GeoGameError, findRoundImagery } from './game';
+import { createCandidateSource, GeoSamplerError } from './sampler';
 import { checkRoomEntry, recordRoomRound, subjectsForPlayer } from './meter';
 import { awardRoomFinish, awardRoomRound, reactionsForProfile } from './points';
 import { allReactionEmoji } from '../items';
@@ -359,6 +359,19 @@ async function revealRound(store, room, now) {
   return store.getRoomByCode(room.code);
 }
 
+/**
+ * A message fit to put on a room screen. The game's own errors are
+ * written for players; anything else is logged and replaced, because
+ * this string reaches everyone in the room and everyone holding its
+ * code, and a Prisma or Google message names models, fields, keys and
+ * project state.
+ */
+function roomSafeError(error, tag) {
+  if (error instanceof GeoGameError || error instanceof GeoSamplerError) return error.message;
+  console.error(tag, error?.message || error);
+  return 'Could not find imagery for the next round. Trying again.';
+}
+
 /** After a reveal: finish, or claim the build of the next round. */
 async function advanceRound(store, room, now, fetchImpl) {
   const over = isGameOver({ variant: room.variant, roundIndex: room.roundIndex, roundsTotal: room.config.rounds, players: room.players });
@@ -504,7 +517,10 @@ async function buildRound(store, room, index, now, fetchImpl) {
       phase: backToLobby ? 'lobby' : 'reveal',
       // A reveal that is already over retries on the next poll.
       phaseEndsAt: backToLobby ? null : new Date(now + 3000),
-      lastError: error?.message || 'Could not find imagery for the next round',
+      // Only the game's own errors are safe to show: everything else
+      // here is Prisma's or an upstream's, and this string is rendered
+      // to every player and to anyone holding the room's code.
+      lastError: roomSafeError(error, '[geo/rooms] build'),
       retries: (fresh.retries || 0) + 1,
       lastActiveAt: new Date(now),
       version: fresh.version + 1,

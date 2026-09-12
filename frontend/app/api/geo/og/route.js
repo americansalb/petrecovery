@@ -12,6 +12,7 @@ import { decodeShare, summaryHeadline, averageMissKm } from '@/app/lib/geo/share
 import { describeConfig } from '@/app/lib/geo/modes';
 import { formatDistance } from '@/app/lib/geo/distance';
 import { FALLBACK_SHARE_IMAGE } from '@/app/lib/geo/meta';
+import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,10 +20,33 @@ export const runtime = 'nodejs';
 const WIDTH = 1200;
 const HEIGHT = 630;
 
+/**
+ * Response.redirect throws on anything that is not an absolute URL, and
+ * both graceful exits here redirect to the fallback card. A relative
+ * NEXT_PUBLIC_GEO_SHARE_IMAGE is a reasonable thing to set - every
+ * other share surface resolves relative images through metadataBase -
+ * and it turned both of this route's fallbacks into a 500.
+ */
+function fallbackCard(request) {
+  try {
+    const base = (() => {
+      try {
+        return geoMetadataBase();
+      } catch {
+        return new URL(request.url);
+      }
+    })();
+    return Response.redirect(new URL(FALLBACK_SHARE_IMAGE, base).toString(), 302);
+  } catch (error) {
+    console.error('[geo/og] fallback image is not resolvable', error?.message || error);
+    return new Response('', { status: 204 });
+  }
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const summary = decodeShare(searchParams.get('s') || '');
-  if (!summary) return Response.redirect(FALLBACK_SHARE_IMAGE, 302);
+  if (!summary) return fallbackCard(request);
 
   try {
     const [{ default: satori }, { Resvg }, { ShareCard }, fonts, { countryByCode }] = await Promise.all([
@@ -58,6 +82,6 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error('[geo/og] render failed', error?.message || error);
-    return Response.redirect(FALLBACK_SHARE_IMAGE, 302);
+    return fallbackCard(request);
   }
 }

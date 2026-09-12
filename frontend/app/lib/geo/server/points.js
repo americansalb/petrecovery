@@ -21,7 +21,16 @@ export async function grant(store, { profileId, amount, reason, ref, now = Date.
   if (!profileId || value <= 0 || !ref) return null;
   const row = await store.createLedger({ profileId, kind: 'earn', amount: value, reason, ref, day: dayKey(now), createdAt: new Date(now) });
   if (!row) return null;
-  await store.addPoints(profileId, value);
+  try {
+    await store.addPoints(profileId, value);
+  } catch (error) {
+    // The ledger row IS the idempotency key, so a burned ref with no
+    // balance behind it is a payment that can never be retried. Give
+    // the ref back and let the caller fail, rather than recording the
+    // player as paid when they were not.
+    if (store.deleteLedger) await store.deleteLedger(row.id).catch(() => {});
+    throw error;
+  }
   return row;
 }
 

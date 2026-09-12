@@ -204,6 +204,36 @@ describe('createRound and evaluateGuess', () => {
     expect(timedOut.answer.lat).toBe(answer.lat);
   });
 
+  test('a city round is revealed as the city\'s own country, not the polygon under the pin', async () => {
+    // Singapore has no polygon at 1:110m, so countryAt returns Malaysia
+    // for a point in it: truthy, so the row's own country never got a
+    // look in, and the reveal named the neighbour. Hong Kong, Geneva
+    // and Jerusalem failed the same way.
+    const fetchImpl = fetchAlwaysHit();
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const round = await createRound({ config: { mode: 'cities', seed: `sg-${attempt}` }, roundIndex: 0, fetchImpl, env: ENV });
+      const answer = openToken(round.token, { secret: ENV.NEXTAUTH_SECRET });
+      if (answer.city !== 'Singapore') continue;
+      expect(answer.cc).toBe('SG');
+      expect(countryAt(answer.lat, answer.lng)?.cca2).toBe('MY');
+      return;
+    }
+    throw new Error('never drew Singapore');
+  });
+
+  test('a country round measures a seam-crossing country by its real width', async () => {
+    // A country cut by the antimeridian has a bounding box from -180 to
+    // +180, and its diagonal collapses to the latitude span because the
+    // longitude term is sin(180deg) = 0. Russia and Fiji were scored on
+    // that, roughly twice as harshly as intended.
+    const fetchImpl = fetchAlwaysHit();
+    // Raw boxes gave Russia 4,459 km (its latitude span) and Fiji 252.
+    const ru = await createRound({ config: { mode: 'country', region: 'RU', seed: 'ru-1' }, roundIndex: 0, fetchImpl, env: ENV });
+    const fj = await createRound({ config: { mode: 'country', region: 'FJ', seed: 'fj-1' }, roundIndex: 0, fetchImpl, env: ENV });
+    expect(ru.sizeKm).toBeGreaterThan(5000);
+    expect(fj.sizeKm).toBeGreaterThan(300);
+  });
+
   test('a seeded round replays the same panorama and heading', async () => {
     const a = await createRound({ config: { mode: 'world', seed: 'same' }, roundIndex: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
     const b = await createRound({ config: { mode: 'world', seed: 'same' }, roundIndex: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
@@ -243,7 +273,13 @@ describe('createRound and evaluateGuess', () => {
   test('missing configuration is reported, not thrown as a crash', async () => {
     await expect(createRound({ config: { mode: 'world' }, env: { NEXTAUTH_SECRET: ENV.NEXTAUTH_SECRET } })).rejects.toMatchObject({ code: 'google_not_configured' });
     await expect(createRound({ config: { mode: 'world' }, env: { GOOGLE_STREET_VIEW_API_KEY: KEY } })).rejects.toMatchObject({ code: 'no_secret' });
-    await expect(createRound({ config: { mode: 'world', seed: 'x' }, fetchImpl: fetchStatus('REQUEST_DENIED', { error_message: 'not enabled' }), env: ENV })).rejects.toMatchObject({ code: 'probe_failed', message: expect.stringContaining('not enabled') });
+    // Google's own error_message names the key and the project state,
+    // and this message is shown to players and to anyone holding a
+    // room's code. It is kept on `upstream` for the log instead.
+    const denied = await createRound({ config: { mode: 'world', seed: 'x' }, fetchImpl: fetchStatus('REQUEST_DENIED', { error_message: 'not enabled' }), env: ENV }).catch((e) => e);
+    expect(denied).toMatchObject({ code: 'probe_failed' });
+    expect(denied.message).not.toContain('not enabled');
+    expect(denied.upstream.message).toContain('not enabled');
     const noImagery = createRound({ config: { mode: 'world', seed: 'x' }, fetchImpl: fetchStatus('ZERO_RESULTS'), env: ENV });
     await expect(noImagery).rejects.toBeInstanceOf(GeoGameError);
     await expect(noImagery).rejects.toMatchObject({ code: 'no_imagery' });
