@@ -56,6 +56,17 @@ export async function POST(request) {
   // The meter. A store failure here is logged and the round goes on:
   // the caps in the Google console are the backstop, not this table.
   const subjects = await subjectsFor(request);
+  // The daily and the cup are scored on a shared board, so they are
+  // played as somebody. Without this, a round could be opened with no
+  // identity, its answer read from /api/geo/guess for free, and then
+  // played perfectly under a real profile: the round is deterministic
+  // from its seed and cached, so the second draw is the same place.
+  if ((config.mode === 'daily' || config.mode === 'cup') && !subjects.profileId) {
+    return NextResponse.json(
+      { error: 'The daily challenge and the weekly cup are scored on a board, so they need a play profile. Reload the page and start again.', code: 'no_profile' },
+      { status: 401 }
+    );
+  }
   let decision = null;
   try {
     decision = await checkRound(prismaRoomStore, { subjects, provider: config.provider, mode: config.mode, limiter: speedLimiter });
@@ -65,7 +76,7 @@ export async function POST(request) {
   }
 
   try {
-    const round = await createRound({ config, roundIndex, attempt, cache: prismaRoundCache });
+    const round = await createRound({ config, roundIndex, attempt, subject: subjects.profileId || '', cache: prismaRoundCache });
     if (decision) await recordRound(prismaRoomStore, { subjects, provider: config.provider, source: decision.source, mode: config.mode });
     return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {

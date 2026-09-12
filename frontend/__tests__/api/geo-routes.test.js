@@ -129,8 +129,12 @@ describe('POST /api/geo/round', () => {
       expect(body.error).toMatch(/free Google Street View rounds/);
       expect(typeof body.resetAt).toBe('number');
       expect(refused.headers.get('Retry-After')).toBeTruthy();
-      // the daily challenge is on top of the allowance; Apple has none
-      expect((await postRound(request({ config: { mode: 'daily' } }, ip))).status).toBe(200);
+      // the daily challenge is on top of the allowance; Apple has none.
+      // The daily is scored on a board, so it is played as somebody.
+      const dailyProfile = await (await postProfile(request({ name: 'Daily' }, ip))).json();
+      const dailyHeaders = { ...ip, 'x-geo-profile': dailyProfile.token };
+      expect((await postRound(request({ config: { mode: 'daily' } }, dailyHeaders))).status).toBe(200);
+      expect((await postRound(request({ config: { mode: 'daily' } }, ip))).status).toBe(401);
       expect((await postRound(request({ config: { provider: 'apple', mode: 'cities' } }, ip))).status).toBe(200);
       // a different address starts fresh
       expect((await postRound(request({ config: { mode: 'world', seed: 'm-4' } }, { 'x-test-ip': '198.51.100.8' }))).status).toBe(200);
@@ -209,11 +213,25 @@ describe('POST /api/geo/guess', () => {
       }
     }
     expect(totals[4]).toBe(5 * 5000);
-    // without a profile the guess is scored and nothing is recorded
-    const round = (await (await postRound(request({ config: { mode: 'daily' }, roundIndex: 0 }, { 'x-test-ip': '198.51.100.21' }))).json()).round;
-    const anon = await (await postGuess(request({ token: round.token, guess: null }, { 'x-test-ip': '198.51.100.21' }))).json();
-    expect(anon.result.score).toBe(0);
-    expect(anon.challenge).toBeNull();
+    // A challenge round cannot be opened without a profile, and it is
+    // revealed only to the profile that opened it. Both halves of the
+    // old attack: read the answer with no identity and nothing recorded,
+    // then replay the same round under a real profile for a perfect
+    // 5,000 that lands as that profile's first guess.
+    const anonRound = await postRound(request({ config: { mode: 'daily' }, roundIndex: 0 }, { 'x-test-ip': '198.51.100.21' }));
+    expect(anonRound.status).toBe(401);
+    expect((await anonRound.json()).code).toBe('no_profile');
+
+    const other = await (await postProfile(request({ name: 'Mallory' }, { 'x-test-ip': '198.51.100.22' }))).json();
+    const theirs = { 'x-test-ip': '198.51.100.22', 'x-geo-profile': other.token };
+    const theirRound = (await (await postRound(request({ config: { mode: 'daily' }, roundIndex: 0 }, theirs))).json()).round;
+    const stolen = await postGuess(request({ token: theirRound.token, guess: null }, mine));
+    expect(stolen.status).toBe(403);
+    const stolenBody = await stolen.json();
+    expect(stolenBody.code).toBe('wrong_player');
+    expect(stolenBody.result).toBeUndefined();
+    const noProfile = await postGuess(request({ token: theirRound.token, guess: null }, { 'x-test-ip': '198.51.100.23' }));
+    expect(noProfile.status).toBe(403);
 
     const board = await (await getDaily({ ...request(null, mine), url: 'http://localhost/api/geo/daily' })).json();
     expect(board).toMatchObject({ date: today, rounds: 5, finished: 1 });

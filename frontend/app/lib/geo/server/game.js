@@ -35,9 +35,13 @@ export class GeoGameError extends Error {
 
 const round6 = (n) => Math.round(Number(n) * 1e6) / 1e6;
 
-function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date }) {
+function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date, subject }) {
   return {
     v: 1,
+    // Who asked for this round. The guess route refuses a scored
+    // challenge token presented by anyone else, which is what stops a
+    // round being revealed under one identity and scored under another.
+    sub: subject || '',
     p: provider,
     pano: panoId || '',
     lat: round6(lat),
@@ -59,7 +63,7 @@ function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm
  * Google: { provider, roundIndex, panoId, heading, token, stats }
  * Apple:  { provider, roundIndex, candidates: [{ lat, lng, token }] }
  */
-export async function createRound({ config: rawConfig, roundIndex = 0, attempt = 0, fetchImpl, now = Date.now(), env, cache } = {}) {
+export async function createRound({ config: rawConfig, roundIndex = 0, attempt = 0, subject = '', fetchImpl, now = Date.now(), env, cache } = {}) {
   const config = normalizeConfig(rawConfig);
   const { googleServerKey, tokenSecret } = getGeoServerConfig(env);
   if (!tokenSecret) {
@@ -81,7 +85,7 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
         lat: round6(c.lat),
         lng: round6(c.lng),
         token: sealToken(
-          answerPayload({ provider: 'apple', config, roundIndex, lat: c.lat, lng: c.lng, country: c.country, sizeKm: source.sizeKm, city: c.city }),
+          answerPayload({ provider: 'apple', config, roundIndex, lat: c.lat, lng: c.lng, country: c.country, sizeKm: source.sizeKm, city: c.city, subject }),
           { secret: tokenSecret, now }
         ),
       });
@@ -103,6 +107,7 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
       panoId: found.panoId,
       city: found.city,
       date: found.date,
+      subject,
     }),
     { secret: tokenSecret, now }
   );
@@ -191,7 +196,7 @@ export function evaluateGuess({ token, guess, now = Date.now(), env } = {}) {
     date: payload.date || '',
     country: payload.cc || payload.cn ? { code: payload.cc, name: payload.cn, flag: payload.cf } : null,
   };
-  const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, answer };
+  const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, subject: payload.sub || '', answer };
 
   if (payload.mode === 'streak') {
     const code = String(guess?.countryCode || '').toUpperCase();

@@ -5926,6 +5926,10 @@ model GeoLoginToken {
   id        String    @id @default(cuid())
   tokenHash String    @unique
   email     String
+  // The browser's play profile at the moment the link was asked for.
+  // A mail link is a plain navigation and carries no headers, so this
+  // is the only way the verify route knows whose profile to bind.
+  profileId String?
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())

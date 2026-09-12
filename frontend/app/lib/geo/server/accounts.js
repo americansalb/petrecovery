@@ -57,7 +57,7 @@ export function looksLikeEmail(value) {
  * Always reports the same thing whether or not an account exists, so
  * this endpoint cannot be used to find out who has one.
  */
-export async function requestSignIn(store, { email: raw, baseUrl, now = Date.now(), sendImpl, env } = {}) {
+export async function requestSignIn(store, { email: raw, baseUrl, profileId = null, now = Date.now(), sendImpl, env } = {}) {
   const email = normalizeEmail(raw);
   if (!looksLikeEmail(email)) throw new GeoAuthError('bad_email', 'That does not look like an email address');
 
@@ -65,6 +65,11 @@ export async function requestSignIn(store, { email: raw, baseUrl, now = Date.now
   await store.createLoginToken({
     tokenHash: hashLoginToken(token),
     email,
+    // Whose profile this browser is playing as, captured now. The link
+    // arrives as a plain navigation from a mail client, with no
+    // localStorage and no headers, so by the time it is followed there
+    // is nothing left to say who asked.
+    profileId: profileId || null,
     expiresAt: new Date(now + LINK_TTL_MS),
     createdAt: new Date(now),
   });
@@ -101,7 +106,19 @@ export async function verifySignIn(store, { token, profileToken = '', now = Date
     await store.updateAccount(account.id, { lastSeenAt: new Date(now) });
   }
 
-  const { profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: true });
+  // The browser's profile, from the header if a caller had one, else
+  // the one recorded when the link was asked for. Without this the
+  // player's rating, points and badges were severed from the account on
+  // the very first sign-in: resolveProfile found nothing, made a fresh
+  // empty profile, and from then on always preferred that one.
+  let profile = null;
+  if (profileToken) ({ profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: false }));
+  if (!profile && row.profileId && store.getProfileById) {
+    const existing = await store.getProfileById(row.profileId);
+    if (existing && !existing.accountId) profile = await store.updateProfile(existing.id, { accountId: account.id, lastSeenAt: new Date(now) });
+    else if (existing?.accountId === account.id) profile = existing;
+  }
+  if (!profile) ({ profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: true }));
   return { account, profile };
 }
 

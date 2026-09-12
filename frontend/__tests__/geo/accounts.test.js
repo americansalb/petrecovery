@@ -90,6 +90,49 @@ describe('following a link', () => {
     return new URL(url).searchParams.get('token');
   };
 
+  const linkForProfile = async (store, email, profileId, now = T0) => {
+    const { url } = await requestSignIn(store, { email, profileId, baseUrl: 'https://example.test', now, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    return new URL(url).searchParams.get('token');
+  };
+
+  test('the link carries the profile that asked for it, which is the only thing a mail click can', async () => {
+    // Found in the deep audit. verifySignIn took a profileToken and the
+    // test passed one, but the only production caller is the verify
+    // route, and a link click is a plain top-level navigation: no
+    // localStorage, no x-geo-profile header, nothing. So every first
+    // sign-in created a fresh empty profile, and because resolveProfile
+    // then always prefers the account's profile, the player's rating,
+    // points and badges were cut off from their account for good.
+    const store = createMemoryRoomStore();
+    const anon = await resolveProfile(store, { name: 'Guest', now: T0 });
+    const token = await linkForProfile(store, 'ada@example.com', anon.profile.id);
+
+    // No profileToken, exactly as the route calls it.
+    const { account, profile } = await verifySignIn(store, { token, now: T0 + 1000 });
+    expect(profile.id).toBe(anon.profile.id);
+    expect(profile.accountId).toBe(account.id);
+  });
+
+  test('a link asked for with no profile still signs in, with a fresh one', async () => {
+    const store = createMemoryRoomStore();
+    const token = await linkFor(store, 'grace@example.com');
+    const { account, profile } = await verifySignIn(store, { token, now: T0 + 1000 });
+    expect(profile.accountId).toBe(account.id);
+  });
+
+  test('a profile already bound to another account is not stolen by a link', async () => {
+    const store = createMemoryRoomStore();
+    const mine = await resolveProfile(store, { name: 'Mine', now: T0 });
+    const first = await verifySignIn(store, { token: await linkForProfile(store, 'one@example.com', mine.profile.id), now: T0 + 1000 });
+    expect(first.profile.id).toBe(mine.profile.id);
+
+    const second = await verifySignIn(store, { token: await linkForProfile(store, 'two@example.com', mine.profile.id, T0 + 2000), now: T0 + 3000 });
+    expect(second.account.email).toBe('two@example.com');
+    expect(second.profile.id).not.toBe(mine.profile.id);
+    const still = await store.getProfileById(mine.profile.id);
+    expect(still.accountId).toBe(first.account.id);
+  });
+
   test('creates the account, binds this browser profile to it, and works once', async () => {
     const store = createMemoryRoomStore();
     const anon = await resolveProfile(store, { name: 'Guest', now: T0 });

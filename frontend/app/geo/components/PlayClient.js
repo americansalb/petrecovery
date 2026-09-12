@@ -117,6 +117,7 @@ export default function PlayClient() {
   const [challenge, setChallenge] = useState(null);
   const [daily, setDaily] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [profileSettled, setProfileSettled] = useState(false);
   const [pointsByRound, setPointsByRound] = useState({});
   const paneRef = useRef(null);
   const requestRef = useRef(0);
@@ -147,7 +148,8 @@ export default function PlayClient() {
     let alive = true;
     ensureProfile(loadName())
       .then((p) => alive && setProfile(p))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => alive && setProfileSettled(true));
     return () => {
       alive = false;
     };
@@ -214,10 +216,15 @@ export default function PlayClient() {
     }
   }, []);
 
+  // The daily and the cup are scored on a board, so the server plays
+  // them as somebody: wait for this browser's profile before asking for
+  // the first round, rather than racing it and being refused.
+  const needsProfile = config.mode === 'daily' || config.mode === 'cup';
   useEffect(() => {
     if (!configured || state.status !== 'idle') return;
+    if (needsProfile && !profileSettled) return;
     startRound();
-  }, [configured, state.status, state.roundIndex, state.attempt, startRound]);
+  }, [configured, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
   const autoRetrying = state.status === 'error' && state.error?.code === 'no_imagery' && state.attempt < 2;

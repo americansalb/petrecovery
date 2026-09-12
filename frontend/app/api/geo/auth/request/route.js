@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server';
 import { GeoAuthError, requestSignIn } from '@/app/lib/geo/server/accounts';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
+import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,8 +27,17 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Send a JSON body with an email address' }, { status: 400 });
   }
 
+  // The play profile this browser is asking from, so the link can bind
+  // it to the account. A failure here only costs the binding.
+  let profileId = null;
   try {
-    const result = await requestSignIn(prismaRoomStore, { email: body?.email, baseUrl: geoMetadataBase().toString() });
+    ({ profileId } = await subjectsFor(request));
+  } catch (error) {
+    console.error('[geo/auth/request] profile', error?.message || error);
+  }
+
+  try {
+    const result = await requestSignIn(prismaRoomStore, { email: body?.email, baseUrl: geoMetadataBase().toString(), profileId });
     // A mail failure is worth saying out loud: silently claiming to have
     // sent something we did not would leave the player waiting forever.
     if (!result.sent) {

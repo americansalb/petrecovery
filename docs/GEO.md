@@ -426,6 +426,49 @@ rated, and the result page (`/geo/share`) hides a daily's places until
 the reader's own browser has played that day, with a "show them anyway"
 for the impatient. The preview image never shows places.
 
+### What holds the board up, and what does not
+
+A round token is bound to the profile that opened it (`sub` in the
+sealed payload). The daily and the cup cannot be opened without a
+profile at all, and `/api/geo/guess` refuses a challenge token presented
+by anyone else with a 403 and no answer. That closes the shape the audit
+found: open a round with no identity, read its answer from the guess
+route for free and with nothing recorded, then play the same round under
+a real profile for a perfect 5,000 that lands as that profile's first
+guess. It was a free oracle because a seeded round is deterministic and
+cached, so the second draw is the same place.
+
+The board's own window is checked too. The seed comes from the client
+and `daily-2031-01-01` is a valid shape, so `challengeFor` requires the
+board to be open now (with two hours of grace for a game in flight over
+midnight), and `recordChallengeRound` refuses a round index outside the
+challenge's length.
+
+What this does NOT stop: a throwaway profile. Profiles are free and
+anonymous by design, so somebody can register one, play the daily with
+it to learn the five places, and then play it properly on their real
+profile. Nothing short of restricting the board to verified accounts
+fixes that, and that is a product decision, not a patch. It is worth
+weighing for the cup, which pays points.
+
+### What the browser can always work out
+
+Two things are visible to anyone reading the network tab, and neither
+can be closed while the game uses these SDKs:
+
+- **Apple rounds send the coordinate.** Look Around is opened by the
+  browser at a latitude and longitude; there is no id to hand over
+  instead. Every Apple round's answer is in the page before the guess.
+- **Google rounds send a panorama id**, and the browser also holds the
+  public Maps key, so `StreetViewService.getPanorama({ pano })` returns
+  that panorama's exact position. The id is not the coordinate, but it
+  is one call away from it.
+
+So the sealed token protects the answer from a casual reader, not from a
+determined one, on any imagery round. That is why rated play is rooms
+(one clock, everyone on the same place, scores compared with each other)
+and why the daily is unrated.
+
 ## Seasons
 
 Ratings live per season: three months each from 1 September 2026

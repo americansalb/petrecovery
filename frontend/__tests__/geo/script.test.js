@@ -209,6 +209,22 @@ describe('the draw', () => {
     expect(drawLanguages({ ...config, seed: 'sc-2' }).map((l) => l.code)).not.toEqual(first);
   });
 
+  test('the server\'s secret decides the draw, so the browser cannot compute the game', () => {
+    // Everything else the draw reads is in the page bundle: the ladder,
+    // the language rows, the speaker counts and the generator all ship
+    // to a 'use client' component, and the seed is in the address bar.
+    // Without the secret in the mix the whole answer sequence was
+    // computable before the first sentence was read.
+    const config = { ladder: 'world', rounds: 5, seed: 'sc-secret' };
+    const unsalted = drawLanguages(config).map((l) => l.code);
+    const salted = drawLanguages(config, SECRET).map((l) => l.code);
+    const other = drawLanguages(config, 'a-different-long-secret').map((l) => l.code);
+    expect(salted).not.toEqual(unsalted);
+    expect(salted).not.toEqual(other);
+    // and it is still a replay: same seed, same secret, same game
+    expect(drawLanguages({ ...config }, SECRET).map((l) => l.code)).toEqual(salted);
+  });
+
   test('a ladder smaller than the round count refills instead of refusing', () => {
     const pool = languagesForLadder('cyrl');
     const drawn = drawLanguages({ ladder: 'cyrl', rounds: 10, seed: 'sc-3' });
@@ -239,7 +255,7 @@ describe('a round', () => {
     // The round is drawn from the game the seed describes, the sentence
     // is one of that language's, and the script the client renders in is
     // the one the language actually uses.
-    expect(language.code).toBe(drawLanguages(config)[2].code);
+    expect(language.code).toBe(drawLanguages(config, SECRET)[2].code);
     expect(samplesFor(language.code)).toContain(round.text);
     expect(round.script).toBe(language.script);
   });
@@ -258,7 +274,12 @@ describe('a round', () => {
       const answer = find(openToken(round.token, { secret: SECRET }).c);
       // The sentence IS the round, and a three-letter code like "por"
       // occurs inside Portuguese prose, so every check looks outside it.
-      const withoutText = JSON.stringify({ ...round, text: '' });
+      // The script id is deliberately sent (the browser cannot choose a
+      // font without it) and a code can be a substring of one: "tam" is
+      // inside "taml". It is checked for what it is instead.
+      const withoutText = JSON.stringify({ ...round, text: '', script: '' });
+      expect(Object.keys(SCRIPTS)).toContain(round.script);
+      expect(round.script).toBe(answer.script);
 
       for (const giveaway of [answer.name, answer.endonym, answer.family, answer.branch, SCRIPTS[answer.script].name, answer.code]) {
         expect(withoutText).not.toContain(giveaway);
@@ -287,7 +308,7 @@ describe('scoring a round', () => {
     // test scores a real token rather than a hand-built one.
     for (let i = 0; i < 400; i++) {
       const config = { ladder: 'world', rounds: 3, seed: `hunt-${i}` };
-      const drawn = drawLanguages(config);
+      const drawn = drawLanguages(config, SECRET);
       const index = drawn.findIndex((language) => language.code === code);
       if (index >= 0) return createScriptRound({ config, roundIndex: index, env });
     }
