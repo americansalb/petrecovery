@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 
-export default function CountryPicker({ countries = [], value, onChange, onSubmit, disabled }) {
+export default function CountryPicker({ countries = [], value, onChange, onSubmit, disabled, provider = 'google' }) {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);
@@ -17,12 +17,12 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const sorted = countries.slice().sort((a, b) => Number(b.google) - Number(a.google) || a.name.localeCompare(b.name));
+    const sorted = countries.slice().sort((a, b) => Number(Boolean(b[provider])) - Number(Boolean(a[provider])) || a.name.localeCompare(b.name));
     if (!q) return sorted.slice(0, 60);
     const starts = sorted.filter((c) => c.name.toLowerCase().startsWith(q) || c.code.toLowerCase() === q);
     const contains = sorted.filter((c) => !starts.includes(c) && c.name.toLowerCase().includes(q));
     return [...starts, ...contains].slice(0, 60);
-  }, [countries, query]);
+  }, [countries, query, provider]);
 
   useEffect(() => {
     setActive(0);
@@ -93,7 +93,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
             >
               <span className="w-6 text-base leading-none">{country.flag}</span>
               <span className="flex-1 truncate">{country.name}</span>
-              {!country.google ? <span className="text-[10px] uppercase tracking-wide opacity-60">no imagery</span> : null}
+              {!country[provider] ? <span className="text-[10px] uppercase tracking-wide opacity-60">no imagery</span> : null}
             </button>
           </li>
         ))}

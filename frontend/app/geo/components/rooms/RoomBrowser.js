@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, History, Plus, RefreshCw, Users } from 'lucide-react';
-import { CONTINENTS, CONTINENT_ORDER, FORMATS, FORMAT_ORDER, MODES, formatSettings, timeLabel } from '@/app/lib/geo/modes';
+import { CONTINENTS, CONTINENT_ORDER, FORMATS, FORMAT_ORDER, MODES, PRIMARY_PROVIDER, formatSettings, timeLabel } from '@/app/lib/geo/modes';
 import { MAX_PLAYERS, ROOM_MODES, ROOM_ROUND_OPTIONS, ROOM_TIME_OPTIONS, VARIANTS, describeRoomStatus, normalizeRoomCode } from '@/app/lib/geo/rooms';
 import { listRecentRooms, loadName, saveIdentity, saveName } from '../../lib/useRoom';
 import { ensureProfile, profileHeaders } from '../../lib/profile';
@@ -41,7 +41,7 @@ export default function RoomBrowser() {
   const [form, setForm] = useState({
     roomName: '',
     variant: 'classic',
-    provider: 'google',
+    provider: PRIMARY_PROVIDER,
     mode: 'balanced',
     continent: 'europe',
     country: 'US',
@@ -211,8 +211,8 @@ export default function RoomBrowser() {
                   }}
                   className={select}
                 >
+                  <option value="apple">Apple Look Around</option>
                   <option value="google">Google Street View</option>
-                  <option value="apple">Apple Look Around (beta)</option>
                 </select>
               </Field>
               <Field label="Places">

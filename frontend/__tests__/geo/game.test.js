@@ -13,6 +13,7 @@ const { createRound, evaluateGuess, GeoGameError, APPLE_CANDIDATES_PER_ROUND } =
 const { openToken } = require('@/app/lib/geo/server/tokens');
 const { normalizeConfig } = require('@/app/lib/geo/modes');
 const { countryAt } = require('@/app/lib/geo/server/countries');
+const { hasAppleCoverage } = require('@/app/lib/geo/coverage');
 
 const KEY = 'server-key';
 const ENV = { GOOGLE_STREET_VIEW_API_KEY: KEY, GOOGLE_MAPS_BROWSER_KEY: 'browser-key', NEXTAUTH_SECRET: 'jest-secret-long-enough' };
@@ -106,7 +107,7 @@ describe('findPanorama', () => {
 
 describe('createCandidateSource', () => {
   test('world mode draws land points with the preset radius and counts water', () => {
-    const source = createCandidateSource(normalizeConfig({ mode: 'world', radius: 'pure', seed: 's1' }), 0);
+    const source = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'world', radius: 'pure', seed: 's1' }), 0);
     const c = source.next();
     expect(countryAt(c.lat, c.lng)).not.toBeNull();
     expect(c.radiusKm).toBe(2);
@@ -114,7 +115,7 @@ describe('createCandidateSource', () => {
   });
 
   test('a seed replays the same candidates; no seed does not', () => {
-    const cfg = normalizeConfig({ mode: 'balanced', seed: 'replay-me' });
+    const cfg = normalizeConfig({ provider: 'google', mode: 'balanced', seed: 'replay-me' });
     const a = createCandidateSource(cfg, 2);
     const b = createCandidateSource(cfg, 2);
     const seqA = Array.from({ length: 4 }, () => a.next()).map((c) => [c.lat, c.lng, c.country.cca2]);
@@ -122,13 +123,13 @@ describe('createCandidateSource', () => {
     expect(seqA).toEqual(seqB);
     const other = createCandidateSource(cfg, 3).next();
     expect([other.lat, other.lng]).not.toEqual(seqA[0].slice(0, 2));
-    const unseeded1 = createCandidateSource(normalizeConfig({ mode: 'balanced' }), 0).next();
-    const unseeded2 = createCandidateSource(normalizeConfig({ mode: 'balanced' }), 0).next();
+    const unseeded1 = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'balanced' }), 0).next();
+    const unseeded2 = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'balanced' }), 0).next();
     expect([unseeded1.lat, unseeded1.lng]).not.toEqual([unseeded2.lat, unseeded2.lng]);
   });
 
   test('country mode stays inside the country and scales its radius and scoring', () => {
-    const source = createCandidateSource(normalizeConfig({ mode: 'country', region: 'CH', seed: 'ch' }), 0);
+    const source = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'country', region: 'CH', seed: 'ch' }), 0);
     for (let i = 0; i < 50; i++) {
       const c = source.next();
       expect(countryAt(c.lat, c.lng)?.cca2).toBe('CH');
@@ -141,7 +142,7 @@ describe('createCandidateSource', () => {
   });
 
   test('continent mode only draws covered countries in that continent', () => {
-    const source = createCandidateSource(normalizeConfig({ mode: 'continent', region: 'south-america', seed: 'sa' }), 0);
+    const source = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'continent', region: 'south-america', seed: 'sa' }), 0);
     const seen = new Set();
     for (let i = 0; i < 40; i++) {
       const c = source.next();
@@ -153,7 +154,7 @@ describe('createCandidateSource', () => {
   });
 
   test('balanced mode spreads across many countries', () => {
-    const source = createCandidateSource(normalizeConfig({ mode: 'balanced', seed: 'spread' }), 0);
+    const source = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'balanced', seed: 'spread' }), 0);
     const seen = new Set();
     for (let i = 0; i < 200; i++) seen.add(source.next().country.cca2);
     expect(seen.size).toBeGreaterThan(40);
@@ -161,24 +162,78 @@ describe('createCandidateSource', () => {
   });
 
   test('city mode draws inside a listed city for the provider', () => {
-    const apple = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'cities', seed: 'c' }), 0);
+    const apple = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'world', seed: 'c' }), 0);
     const c = apple.next();
     expect(c.city).toBeTruthy();
     expect(c.country).not.toBeNull();
     expect(c.radiusKm).toBeLessThanOrEqual(2);
-    expect(() => createCandidateSource(normalizeConfig({ mode: 'country', region: 'ZZ' }), 0)).toThrow(/Unknown country/);
+    expect(() => createCandidateSource(normalizeConfig({ provider: 'google', mode: 'country', region: 'ZZ' }), 0)).toThrow(/Unknown country/);
     // Kidnapped draws from the covered pool like balanced: same seed, same road.
-    const driven = createCandidateSource(normalizeConfig({ mode: 'kidnapped', seed: 'kid' }), 0).next();
-    const balanced = createCandidateSource(normalizeConfig({ mode: 'balanced', seed: 'kid' }), 0).next();
+    const driven = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'kidnapped', seed: 'kid' }), 0).next();
+    const balanced = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'balanced', seed: 'kid' }), 0).next();
     expect(driven.country.cca2).toBe(balanced.country.cca2);
     expect(driven.lat).toBe(balanced.lat);
+  });
+});
+
+describe('the Apple samplers', () => {
+  // Apple Look Around is city streets in the countries Apple has driven,
+  // with no server-side probe: every mode on it is a draw from the city
+  // list, and the browser tries the drawn spots in order.
+  const draw = (config, n = 150) => {
+    const source = createCandidateSource(normalizeConfig({ provider: 'apple', ...config }), 0);
+    return Array.from({ length: n }, () => source.next());
+  };
+
+  test('every Apple candidate is a street in a covered city, whatever the mode', () => {
+    for (const config of [{ mode: 'world', seed: 'a' }, { mode: 'balanced', seed: 'b' }, { mode: 'streak', seed: 'c' }, { mode: 'daily' }, { mode: 'cup' }]) {
+      for (const c of draw(config, 40)) {
+        expect(c.city).toBeTruthy();
+        expect(hasAppleCoverage(c.country.cca2)).toBe(true);
+        expect(c.radiusKm).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  test('balanced spreads across covered countries; world spreads across cities', () => {
+    const countries = new Set(draw({ mode: 'balanced', seed: 'spread' }).map((c) => c.country.cca2));
+    expect(countries.size).toBeGreaterThan(10);
+    const cities = new Set(draw({ mode: 'world', seed: 'spread' }).map((c) => c.city));
+    expect(cities.size).toBeGreaterThan(60);
+  });
+
+  test('a continent is its covered countries, and one Apple has not reached says so', () => {
+    for (const c of draw({ mode: 'continent', region: 'europe', seed: 'eu' }, 60)) expect(c.country.region).toBe('Europe');
+    expect(() => draw({ mode: 'continent', region: 'africa' })).toThrow(/no city streets in Africa/);
+    expect(() => draw({ mode: 'continent', region: 'south-america' })).toThrow(/South America/);
+  });
+
+  test('a country is its cities, and one with none is refused plainly', () => {
+    for (const c of draw({ mode: 'country', region: 'JP', seed: 'jp' }, 40)) expect(c.country.cca2).toBe('JP');
+    expect(() => draw({ mode: 'country', region: 'BR' })).toThrow(/Brazil/);
+    expect(() => draw({ mode: 'country', region: 'ZZ' })).toThrow(/Unknown country/);
+  });
+
+  test('a seeded Apple draw replays, so a daily is the same places for everyone', () => {
+    const a = draw({ mode: 'daily', seed: 'daily-2026-09-12' }, 12);
+    const b = draw({ mode: 'daily', seed: 'daily-2026-09-12' }, 12);
+    expect(b.map((c) => [c.lat, c.lng])).toEqual(a.map((c) => [c.lat, c.lng]));
+    expect(normalizeConfig({ mode: 'daily' }).provider).toBe('apple');
+  });
+
+  test('a continent or country on Apple is scored at its own size', () => {
+    const eu = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'continent', region: 'europe', seed: 'x' }), 0);
+    const jp = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'country', region: 'JP', seed: 'x' }), 0);
+    const world = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'world', seed: 'x' }), 0);
+    expect(jp.sizeKm).toBeLessThan(eu.sizeKm);
+    expect(eu.sizeKm).toBeLessThan(world.sizeKm);
   });
 });
 
 describe('createRound and evaluateGuess', () => {
   test('a Google round hides the answer and the guess reveals it', async () => {
     const fetchImpl = fetchAlwaysHit();
-    const round = await createRound({ config: { mode: 'balanced', seed: 'game-1' }, roundIndex: 0, fetchImpl, env: ENV });
+    const round = await createRound({ config: { provider: 'google', mode: 'balanced', seed: 'game-1' }, roundIndex: 0, fetchImpl, env: ENV });
     expect(round.provider).toBe('google');
     expect(round.panoId).toMatch(/^pano-/);
     expect(round.heading).toBeGreaterThanOrEqual(0);
@@ -211,7 +266,7 @@ describe('createRound and evaluateGuess', () => {
     // and Jerusalem failed the same way.
     const fetchImpl = fetchAlwaysHit();
     for (let attempt = 0; attempt < 60; attempt++) {
-      const round = await createRound({ config: { mode: 'cities', seed: `sg-${attempt}` }, roundIndex: 0, fetchImpl, env: ENV });
+      const round = await createRound({ config: { provider: 'google', mode: 'cities', seed: `sg-${attempt}` }, roundIndex: 0, fetchImpl, env: ENV });
       const answer = openToken(round.token, { secret: ENV.NEXTAUTH_SECRET });
       if (answer.city !== 'Singapore') continue;
       expect(answer.cc).toBe('SG');
@@ -228,30 +283,30 @@ describe('createRound and evaluateGuess', () => {
     // that, roughly twice as harshly as intended.
     const fetchImpl = fetchAlwaysHit();
     // Raw boxes gave Russia 4,459 km (its latitude span) and Fiji 252.
-    const ru = await createRound({ config: { mode: 'country', region: 'RU', seed: 'ru-1' }, roundIndex: 0, fetchImpl, env: ENV });
-    const fj = await createRound({ config: { mode: 'country', region: 'FJ', seed: 'fj-1' }, roundIndex: 0, fetchImpl, env: ENV });
+    const ru = await createRound({ config: { provider: 'google', mode: 'country', region: 'RU', seed: 'ru-1' }, roundIndex: 0, fetchImpl, env: ENV });
+    const fj = await createRound({ config: { provider: 'google', mode: 'country', region: 'FJ', seed: 'fj-1' }, roundIndex: 0, fetchImpl, env: ENV });
     expect(ru.sizeKm).toBeGreaterThan(5000);
     expect(fj.sizeKm).toBeGreaterThan(300);
   });
 
   test('a seeded round replays the same panorama and heading', async () => {
-    const a = await createRound({ config: { mode: 'world', seed: 'same' }, roundIndex: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
-    const b = await createRound({ config: { mode: 'world', seed: 'same' }, roundIndex: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
+    const a = await createRound({ config: { provider: 'google', mode: 'world', seed: 'same' }, roundIndex: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
+    const b = await createRound({ config: { provider: 'google', mode: 'world', seed: 'same' }, roundIndex: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
     expect(a.panoId).toBe(b.panoId);
     expect(a.heading).toBe(b.heading);
     expect(a.token).not.toBe(b.token); // fresh IV each time
   });
 
   test('a retry of a seeded round moves on to new points instead of repeating the failure', async () => {
-    const first = await createRound({ config: { mode: 'world', seed: 'retry' }, roundIndex: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
-    const again = await createRound({ config: { mode: 'world', seed: 'retry' }, roundIndex: 0, attempt: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
-    const moved = await createRound({ config: { mode: 'world', seed: 'retry' }, roundIndex: 0, attempt: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
+    const first = await createRound({ config: { provider: 'google', mode: 'world', seed: 'retry' }, roundIndex: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
+    const again = await createRound({ config: { provider: 'google', mode: 'world', seed: 'retry' }, roundIndex: 0, attempt: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
+    const moved = await createRound({ config: { provider: 'google', mode: 'world', seed: 'retry' }, roundIndex: 0, attempt: 1, fetchImpl: fetchAlwaysHit(), env: ENV });
     expect(again.panoId).toBe(first.panoId);
     expect(moved.panoId).not.toBe(first.panoId);
   });
 
   test('streak rounds are judged by country', async () => {
-    const round = await createRound({ config: { mode: 'streak', seed: 'streak-1' }, roundIndex: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
+    const round = await createRound({ config: { provider: 'google', mode: 'streak', seed: 'streak-1' }, roundIndex: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
     const answer = openToken(round.token, { secret: ENV.NEXTAUTH_SECRET });
     expect(evaluateGuess({ token: round.token, guess: { countryCode: answer.cc.toLowerCase() }, env: ENV })).toMatchObject({ kind: 'streak', correct: true });
     expect(evaluateGuess({ token: round.token, guess: { countryCode: 'ZZ' }, env: ENV })).toMatchObject({ kind: 'streak', correct: false });
@@ -271,22 +326,22 @@ describe('createRound and evaluateGuess', () => {
   });
 
   test('missing configuration is reported, not thrown as a crash', async () => {
-    await expect(createRound({ config: { mode: 'world' }, env: { NEXTAUTH_SECRET: ENV.NEXTAUTH_SECRET } })).rejects.toMatchObject({ code: 'google_not_configured' });
-    await expect(createRound({ config: { mode: 'world' }, env: { GOOGLE_STREET_VIEW_API_KEY: KEY } })).rejects.toMatchObject({ code: 'no_secret' });
+    await expect(createRound({ config: { provider: 'google', mode: 'world' }, env: { NEXTAUTH_SECRET: ENV.NEXTAUTH_SECRET } })).rejects.toMatchObject({ code: 'google_not_configured' });
+    await expect(createRound({ config: { provider: 'google', mode: 'world' }, env: { GOOGLE_STREET_VIEW_API_KEY: KEY } })).rejects.toMatchObject({ code: 'no_secret' });
     // Google's own error_message names the key and the project state,
     // and this message is shown to players and to anyone holding a
     // room's code. It is kept on `upstream` for the log instead.
-    const denied = await createRound({ config: { mode: 'world', seed: 'x' }, fetchImpl: fetchStatus('REQUEST_DENIED', { error_message: 'not enabled' }), env: ENV }).catch((e) => e);
+    const denied = await createRound({ config: { provider: 'google', mode: 'world', seed: 'x' }, fetchImpl: fetchStatus('REQUEST_DENIED', { error_message: 'not enabled' }), env: ENV }).catch((e) => e);
     expect(denied).toMatchObject({ code: 'probe_failed' });
     expect(denied.message).not.toContain('not enabled');
     expect(denied.upstream.message).toContain('not enabled');
-    const noImagery = createRound({ config: { mode: 'world', seed: 'x' }, fetchImpl: fetchStatus('ZERO_RESULTS'), env: ENV });
+    const noImagery = createRound({ config: { provider: 'google', mode: 'world', seed: 'x' }, fetchImpl: fetchStatus('ZERO_RESULTS'), env: ENV });
     await expect(noImagery).rejects.toBeInstanceOf(GeoGameError);
     await expect(noImagery).rejects.toMatchObject({ code: 'no_imagery' });
   });
 
   test('a tampered or expired token cannot be scored', async () => {
-    const round = await createRound({ config: { mode: 'world', seed: 't' }, roundIndex: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
+    const round = await createRound({ config: { provider: 'google', mode: 'world', seed: 't' }, roundIndex: 0, fetchImpl: fetchAlwaysHit(), env: ENV });
     expect(() => evaluateGuess({ token: round.token + 'x', guess: { lat: 0, lng: 0 }, env: ENV })).toThrow(/open/);
     expect(() => evaluateGuess({ token: round.token, guess: { lat: 0, lng: 0 }, env: ENV, now: Date.now() + 13 * 3600 * 1000 })).toThrow(/expired/);
   });

@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Check, Copy, Link2, LogOut, Play, RefreshCw, Share2, SkipForward, Users } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
-import { MODES, movementLabel, timeLabel } from '@/app/lib/geo/modes';
+import { MODES, PRIMARY_PROVIDER, PROVIDERS, movementLabel, timeLabel } from '@/app/lib/geo/modes';
 import { REACTION_EMOJI, VARIANTS, describeRoomMode, medal, sortStandings } from '@/app/lib/geo/rooms';
 import PlayersPanel, { PlayerBadge, HpBar } from './PlayersPanel';
 import PlayerName from '../PlayerName';
@@ -40,7 +40,7 @@ export function RoomSummary({ room, countries }) {
   const regionLabel = room.config.mode === 'country' ? countries?.find((c) => c.code === room.config.region)?.name : undefined;
   const parts = [describeRoomMode(room.config, { regionLabel }), `${room.roundsTotal} rounds`, `${timeLabel(room.config.time)} each`];
   if (!(room.config.move && room.config.pan && room.config.zoom)) parts.push(movementLabel(room.config));
-  if (room.config.provider === 'apple') parts.push('Apple Look Around');
+  if (room.config.provider && room.config.provider !== PRIMARY_PROVIDER) parts.push(PROVIDERS[room.config.provider]?.label || room.config.provider);
   return (
     <p className="text-sm text-white/70">
       <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-flash-300">{VARIANTS[room.variant]?.label || room.variant}</span>{' '}

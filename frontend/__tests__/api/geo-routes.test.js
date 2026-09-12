@@ -32,6 +32,13 @@ const { GET: getShop, POST: postShop } = require('@/app/api/geo/shop/route');
 const { GET: getCup } = require('@/app/api/geo/cup/route');
 const { openToken } = require('@/app/lib/geo/server/tokens');
 
+/**
+ * The token a round can be scored with. A Google round has one; an
+ * Apple round is a list of places to try, each sealed on its own, and
+ * the daily and the cup are Apple rounds now.
+ */
+const roundToken = (round) => round.token || round.candidates?.[0]?.token;
+
 function request(body, headers = {}) {
   return { json: async () => body, headers: new Map(Object.entries(headers)), url: 'http://localhost/api/geo/x' };
 }
@@ -103,7 +110,7 @@ describe('GET /api/geo/config', () => {
 
 describe('POST /api/geo/round', () => {
   test('returns a panorama and token, never the location', async () => {
-    const res = await postRound(request({ config: { mode: 'balanced', seed: 'api-1' }, roundIndex: 2 }));
+    const res = await postRound(request({ config: { provider: 'google', mode: 'balanced', seed: 'api-1' }, roundIndex: 2 }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
@@ -117,8 +124,8 @@ describe('POST /api/geo/round', () => {
   });
 
   test('the same seed gives the same panorama on a second call', async () => {
-    const a = await (await postRound(request({ config: { mode: 'world', seed: 'twice' } }))).json();
-    const b = await (await postRound(request({ config: { mode: 'world', seed: 'twice' } }))).json();
+    const a = await (await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'twice' } }))).json();
+    const b = await (await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'twice' } }))).json();
     expect(a.round.panoId).toBe(b.round.panoId);
   });
 
@@ -134,9 +141,9 @@ describe('POST /api/geo/round', () => {
     process.env.GEO_FREE_GOOGLE_ROUNDS = '2';
     try {
       const ip = { 'x-test-ip': '198.51.100.7' };
-      expect((await postRound(request({ config: { mode: 'world', seed: 'm-1' } }, ip))).status).toBe(200);
-      expect((await postRound(request({ config: { mode: 'world', seed: 'm-2' } }, ip))).status).toBe(200);
-      const refused = await postRound(request({ config: { mode: 'world', seed: 'm-3' } }, ip));
+      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-1' } }, ip))).status).toBe(200);
+      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-2' } }, ip))).status).toBe(200);
+      const refused = await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-3' } }, ip));
       expect(refused.status).toBe(429);
       const body = await refused.json();
       expect(body.code).toBe('allowance');
@@ -151,14 +158,14 @@ describe('POST /api/geo/round', () => {
       expect((await postRound(request({ config: { mode: 'daily' } }, ip))).status).toBe(401);
       expect((await postRound(request({ config: { provider: 'apple', mode: 'cities' } }, ip))).status).toBe(200);
       // a different address starts fresh
-      expect((await postRound(request({ config: { mode: 'world', seed: 'm-4' } }, { 'x-test-ip': '198.51.100.8' }))).status).toBe(200);
+      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-4' } }, { 'x-test-ip': '198.51.100.8' }))).status).toBe(200);
 
       // a browser with a profile is metered by that profile
       const registered = await (await postProfile(request({ name: 'Ada' }, { 'x-test-ip': '198.51.100.9' }))).json();
       const mine = { 'x-test-ip': '198.51.100.9', 'x-geo-profile': registered.token };
-      expect((await postRound(request({ config: { mode: 'world', seed: 'p-1' } }, mine))).status).toBe(200);
-      expect((await postRound(request({ config: { mode: 'world', seed: 'p-2' } }, mine))).status).toBe(200);
-      expect((await postRound(request({ config: { mode: 'world', seed: 'p-3' } }, mine))).status).toBe(429);
+      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'p-1' } }, mine))).status).toBe(200);
+      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'p-2' } }, mine))).status).toBe(200);
+      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'p-3' } }, mine))).status).toBe(429);
       const me = await (await postProfile(request({}, mine))).json();
       expect(me.profile.usage.google).toMatchObject({ freeUsed: 2, freeLimit: 2, freeLeft: 0 });
     } finally {
@@ -168,16 +175,16 @@ describe('POST /api/geo/round', () => {
 
   test('a missing Google key is a 503 that says so', async () => {
     delete process.env.GOOGLE_STREET_VIEW_API_KEY;
-    const res = await postRound(request({ config: { mode: 'world' } }));
+    const res = await postRound(request({ config: { provider: 'google', mode: 'world' } }));
     expect(res.status).toBe(503);
     expect((await res.json()).code).toBe('google_not_configured');
   });
 
   test('bad input is a 400, a dead key is a 502, no imagery is a 422', async () => {
     expect((await postRound({ json: async () => { throw new Error('nope'); } })).status).toBe(400);
-    expect((await postRound(request({ config: { mode: 'country', region: 'ZZ' } }))).status).toBe(400);
+    expect((await postRound(request({ config: { provider: 'google', mode: 'country', region: 'ZZ' } }))).status).toBe(400);
     global.fetch = jest.fn(async () => ({ status: 200, json: async () => ({ status: 'REQUEST_DENIED', error_message: 'Street View Static API has not been used' }) }));
-    const denied = await postRound(request({ config: { mode: 'world' } }));
+    const denied = await postRound(request({ config: { provider: 'google', mode: 'world' } }));
     expect(denied.status).toBe(502);
     // The player is told the service is unreachable; Google's own text,
     // which names the key and the project, stays in the server log.
@@ -185,7 +192,7 @@ describe('POST /api/geo/round', () => {
     expect(deniedBody.error).not.toContain('has not been used');
     expect(deniedBody.code).toBe('probe_failed');
     global.fetch = jest.fn(async () => ({ status: 200, json: async () => ({ status: 'ZERO_RESULTS' }) }));
-    const none = await postRound(request({ config: { mode: 'world', radius: 'pure' } }));
+    const none = await postRound(request({ config: { provider: 'google', mode: 'world', radius: 'pure' } }));
     expect(none.status).toBe(422);
     expect((await none.json()).stats.probes).toBeGreaterThan(0);
   });
@@ -193,9 +200,9 @@ describe('POST /api/geo/round', () => {
 
 describe('POST /api/geo/guess', () => {
   test('scores a guess from the sealed token and reveals the answer', async () => {
-    const round = (await (await postRound(request({ config: { mode: 'country', region: 'FR', seed: 'g' } }))).json()).round;
-    const answer = openToken(round.token, { secret: TOKEN_SECRET });
-    const res = await postGuess(request({ token: round.token, guess: { lat: answer.lat + 0.5, lng: answer.lng } }));
+    const round = (await (await postRound(request({ config: { provider: 'google', mode: 'country', region: 'FR', seed: 'g' } }))).json()).round;
+    const answer = openToken(roundToken(round), { secret: TOKEN_SECRET });
+    const res = await postGuess(request({ token: roundToken(round), guess: { lat: answer.lat + 0.5, lng: answer.lng } }));
     expect(res.status).toBe(200);
     const { result } = await res.json();
     expect(result.kind).toBe('pin');
@@ -220,13 +227,13 @@ describe('POST /api/geo/guess', () => {
     const totals = [];
     for (let i = 0; i < 5; i++) {
       const round = (await (await postRound(request({ config: { mode: 'daily' }, roundIndex: i }, mine))).json()).round;
-      const answer = openToken(round.token, { secret: TOKEN_SECRET });
-      const { challenge } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
+      const answer = openToken(roundToken(round), { secret: TOKEN_SECRET });
+      const { challenge } = await (await postGuess(request({ token: roundToken(round), guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
       expect(challenge).toMatchObject({ key: `daily:${today}`, recorded: true, rounds: i + 1, finished: i === 4 });
       totals.push(challenge.total);
       if (i === 0) {
         // a second guess on the same round changes nothing
-        const repeat = await (await postGuess(request({ token: round.token, guess: null }, mine))).json();
+        const repeat = await (await postGuess(request({ token: roundToken(round), guess: null }, mine))).json();
         expect(repeat.challenge).toMatchObject({ recorded: false, rounds: 1, total: challenge.total });
       }
     }
@@ -243,12 +250,12 @@ describe('POST /api/geo/guess', () => {
     const other = await (await postProfile(request({ name: 'Mallory' }, { 'x-test-ip': '198.51.100.22' }))).json();
     const theirs = { 'x-test-ip': '198.51.100.22', 'x-geo-profile': other.token };
     const theirRound = (await (await postRound(request({ config: { mode: 'daily' }, roundIndex: 0 }, theirs))).json()).round;
-    const stolen = await postGuess(request({ token: theirRound.token, guess: null }, mine));
+    const stolen = await postGuess(request({ token: roundToken(theirRound), guess: null }, mine));
     expect(stolen.status).toBe(403);
     const stolenBody = await stolen.json();
     expect(stolenBody.code).toBe('wrong_player');
     expect(stolenBody.result).toBeUndefined();
-    const noProfile = await postGuess(request({ token: theirRound.token, guess: null }, { 'x-test-ip': '198.51.100.23' }));
+    const noProfile = await postGuess(request({ token: roundToken(theirRound), guess: null }, { 'x-test-ip': '198.51.100.23' }));
     expect(noProfile.status).toBe(403);
 
     const board = await (await getDaily({ ...request(null, mine), url: 'http://localhost/api/geo/daily' })).json();
@@ -265,8 +272,8 @@ describe('POST /api/geo/guess', () => {
     const registered = await (await postProfile(request({ name: 'Cupper' }, { 'x-test-ip': '198.51.100.40' }))).json();
     const mine = { 'x-test-ip': '198.51.100.40', 'x-geo-profile': registered.token };
     const round = (await (await postRound(request({ config: { mode: 'cup' }, roundIndex: 0 }, mine))).json()).round;
-    const answer = openToken(round.token, { secret: TOKEN_SECRET });
-    const { challenge } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
+    const answer = openToken(roundToken(round), { secret: TOKEN_SECRET });
+    const { challenge } = await (await postGuess(request({ token: roundToken(round), guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
     expect(challenge).toMatchObject({ recorded: true, rounds: 1, finished: false });
     expect(challenge.key).toMatch(/^cup:\d{4}-W\d{2}$/);
     const cup = await (await getCup({ ...request(null, mine), url: 'http://localhost/api/geo/cup' })).json();
@@ -282,8 +289,8 @@ describe('POST /api/geo/guess', () => {
     const registered = await (await postProfile(request({ name: 'Grace' }, { 'x-test-ip': '198.51.100.30' }))).json();
     const mine = { 'x-test-ip': '198.51.100.30', 'x-geo-profile': registered.token };
     const round = (await (await postRound(request({ config: { mode: 'country', region: 'JP', seed: 'pts' } }, mine))).json()).round;
-    const answer = openToken(round.token, { secret: TOKEN_SECRET });
-    const { points } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
+    const answer = openToken(roundToken(round), { secret: TOKEN_SECRET });
+    const { points } = await (await postGuess(request({ token: roundToken(round), guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
     expect(points.earned).toBeGreaterThan(0);
     expect(points.badge).toMatchObject({ countryCode: 'JP' });
     expect(points.balance).toBe(points.earned);

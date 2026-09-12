@@ -22,6 +22,8 @@ const {
   MODE_ORDER,
   PROVIDERS,
   TIME_OPTIONS,
+  PRIMARY_PROVIDER,
+  modeDescription,
 } = require('@/app/lib/geo/modes');
 
 describe('normalizeConfig', () => {
@@ -31,7 +33,7 @@ describe('normalizeConfig', () => {
 
   test('junk falls back field by field', () => {
     const c = normalizeConfig({ provider: 'bing', mode: 'moon', rounds: 7, time: 45, move: 'maybe', radius: 'huge', seed: 'a b/c!' });
-    expect(c.provider).toBe('google');
+    expect(c.provider).toBe(PRIMARY_PROVIDER);
     expect(c.mode).toBe('world');
     expect(c.rounds).toBe(5);
     expect(c.time).toBe(0);
@@ -41,8 +43,10 @@ describe('normalizeConfig', () => {
   });
 
   test('a mode the provider does not support is swapped for one it does', () => {
-    const c = normalizeConfig({ provider: 'apple', mode: 'world' });
+    // City streets is a Google mode now: on Apple, World is city streets.
+    const c = normalizeConfig({ provider: 'apple', mode: 'cities' });
     expect(c.provider).toBe('apple');
+    expect(c.mode).toBe('world');
     expect(MODES[c.mode].providers).toContain('apple');
   });
 
@@ -74,7 +78,7 @@ describe('normalizeConfig', () => {
     const c = normalizeConfig({ mode: 'kidnapped', rounds: 3, time: 30, move: '1', zoom: '1', radius: 'pure' });
     expect(c).toMatchObject({ provider: 'google', mode: 'kidnapped', rounds: 3, time: 180, move: false, pan: true, zoom: false, radius: 'pure' });
     expect(TIME_OPTIONS).toContain(180);
-    expect(describeConfig({ mode: 'kidnapped', rounds: 3 })).toBe('Kidnapped. 3 rounds. 3 minutes.');
+    expect(describeConfig({ mode: 'kidnapped', rounds: 3 })).toBe('Kidnapped. 3 rounds. 3 minutes. Google Street View.');
     expect(normalizeConfig({ provider: 'apple', mode: 'kidnapped' }).mode).not.toBe('kidnapped');
     expect(configFromParams(configToParams(c))).toEqual(c);
   });
@@ -144,7 +148,35 @@ describe('describeConfig', () => {
     expect(describeConfig({ mode: 'country', region: 'JP' }, { regionLabel: 'Japan' })).toBe('Country: Japan. 5 rounds. No timer.');
     expect(describeConfig({ mode: 'streak', time: 60, move: false, pan: false, zoom: false })).toBe('Country streak. Until the first miss. 1 minute. NMPZ.');
     expect(describeConfig({ mode: 'balanced', time: 60, move: false, pan: true, zoom: true })).toBe('World, balanced. 5 rounds. 1 minute. No Move.');
-    expect(describeConfig({ provider: 'apple', mode: 'cities', rounds: 3 })).toContain('Apple Look Around');
+    // The default imagery goes without saying; the other one is named.
+    expect(describeConfig({ provider: 'apple', mode: 'world', rounds: 3 })).not.toContain('Apple Look Around');
+    expect(describeConfig({ provider: 'google', mode: 'world', rounds: 3 })).toContain('Google Street View');
+  });
+
+  test('Apple first: the default imagery, the boards, and what each mode says on it', () => {
+    // Founder direction, 2026-09-12. The lobby opens on Apple, the daily
+    // and the cup are played on it whatever a link asks for (one board,
+    // one set of places), and every mode that is a draw of city streets
+    // plays on it. Everywhere and Kidnapped need Google's imagery and
+    // stay there.
+    expect(PRIMARY_PROVIDER).toBe('apple');
+    expect(Object.keys(PROVIDERS)[0]).toBe('apple');
+    expect(normalizeConfig({}).provider).toBe('apple');
+    expect(normalizeConfig({ provider: 'google', mode: 'daily' }).provider).toBe('apple');
+    expect(normalizeConfig({ provider: 'google', mode: 'cup' }).provider).toBe('apple');
+    for (const id of ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'streak']) {
+      expect(MODES[id].providers).toContain('apple');
+    }
+    for (const id of ['everywhere', 'kidnapped', 'cities']) {
+      expect(MODES[id].providers).not.toContain('apple');
+    }
+    // Apple modes are city streets, and the copy says so instead of
+    // reusing Google's "a random point on land".
+    expect(modeDescription('world', 'apple')).toMatch(/city/i);
+    expect(modeDescription('world', 'google')).toMatch(/random point on land/);
+    // A mode with fixed imagery says so when looked at from the other.
+    expect(modeDescription('daily', 'google')).toContain('Played on Apple Look Around');
+    expect(modeDescription('daily', 'apple')).not.toContain('Played on');
   });
 
   test('every mode lists a supported provider', () => {

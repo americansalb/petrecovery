@@ -95,7 +95,7 @@ describe('the Everywhere mode', () => {
 
   test('probes a wider radius than City streets, because spheres are sparse', () => {
     const everywhere = createCandidateSource(normalizeConfig({ mode: 'everywhere', seed: 'r' }), 0).next();
-    const cities = createCandidateSource(normalizeConfig({ mode: 'cities', seed: 'r' }), 0).next();
+    const cities = createCandidateSource(normalizeConfig({ provider: 'google', mode: 'cities', seed: 'r' }), 0).next();
     expect(everywhere.radiusKm).toBeGreaterThan(cities.radiusKm);
   });
 });

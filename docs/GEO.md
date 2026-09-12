@@ -10,6 +10,46 @@ on how close you are. Built as a side project inside the ReunitePets app;
 it shares the app's chrome rules, share-card rules and API conventions
 but no data models.
 
+## Apple first
+
+Founder direction, 2026-09-12: the game is Apple-first. Apple Look Around
+is the default imagery, the lobby and the room form open on it, and the
+daily challenge and the weekly cup are played on it. Google Street View
+is the option for what Apple does not have: the countryside, the hundred
+or so other countries, photo spheres (Everywhere) and a car that drives
+itself (Kidnapped).
+
+What that buys and what it costs, plainly:
+
+- **Cost.** A Look Around view is not billed per view; MapKit JS runs
+  under Apple's daily quota (250,000 map views a day per developer
+  account), which the play meter keeps the whole site under. There is no
+  per-player allowance on Apple and none is needed. Google rounds stay
+  metered as before.
+- **Coverage.** City streets in 23 countries (`APPLE_COVERAGE` in
+  `app/lib/geo/coverage.js`): the US, Canada, the UK, Ireland, Japan,
+  Australia, New Zealand, Singapore, Hong Kong, Israel and thirteen in
+  Europe. No countryside anywhere, no Africa, no South America, no Asia
+  beyond Japan, Singapore and Hong Kong. Apple keeps adding countries; the
+  list is maintained by hand and should be checked against Apple's
+  coverage page when it grows.
+- **What plays on Apple.** World, Balanced, Daily, Cup, Continent,
+  Country and Country streak, all as draws of city streets (see "How a
+  round is built"). Everywhere and Kidnapped are Google only by nature.
+  The Apple world is the city list: adding a covered city to
+  `CITY_ROWS` is how it grows.
+- **The token.** MapKit JS needs a token from an Apple Developer account,
+  and the one in the repository is locked to the reunitepets.org origin.
+  On any other domain, make a token for that origin and set
+  `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`. Without it, every Apple round fails
+  in the browser with Look Around's own error, and the game is Script
+  mode and whatever Google keys are set.
+- **The primary imagery is one value for a deployment**,
+  `NEXT_PUBLIC_GEO_PRIMARY_PROVIDER` (`apple` unless set to `google`),
+  inlined at build. Everyone on a daily or cup board has to be on the
+  same places, so this is never a per-player choice; changing it mid-day
+  splits that day's board into two sets of places.
+
 ## Routes
 
 | Route | What | Chrome |
@@ -53,6 +93,14 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
 
 1. **A candidate point.** `app/lib/geo/server/sampler.js` draws from a
    seeded generator (`app/lib/geo/random.js`) according to the mode:
+   On Apple Look Around every mode is a draw from the curated city list
+   (`app/lib/geo/coverage.js`), because that is the whole of what Apple
+   covers: *World* is any covered city, *Balanced*, *Daily*, *Cup* and
+   *Streak* pick a covered country first (square root of area, so small
+   ones still come up) and then one of its cities, *Continent* and
+   *Country* are the covered cities inside them, and a continent or
+   country Apple has not reached is refused in plain words. The Google
+   draws below are what the Google option does.
    - *World, pure random*: a point uniformly distributed over the sphere
      (uniform in the sine of the latitude, so the poles are not
      over-represented), thrown away if it is not on land. Antarctica is
@@ -377,8 +425,8 @@ same rounds on the same server clock.
   through the same poll.
 - **Rematch** opens a new room with the same settings and links it from the
   old one; others follow with one click.
-- **Apple Look Around rooms** (city streets only, the mode Apple imagery
-  covers) have no server-side probe, so a round starts in `locating`: the
+- **Apple Look Around rooms** (the default; any mode the room form
+  offers on Apple) have no server-side probe, so a round starts in `locating`: the
   server stores the seeded places to try on the round (`candidates`,
   country kept server-side) and sends the browsers the coordinates. Every
   browser tries them in order; the first to get a Look Around `load` posts
@@ -808,9 +856,9 @@ line is what the browser harness caught missing.
   visible. The HUD keeps clear of the bottom edge; the corner map sits
   above it.
 - No caching of imagery or panorama ids: every round probes live.
-- Apple Look Around covers cities in about two dozen countries, nearly all
-  of which Google covers too, so the Apple mode is "City streets" only and
-  is labelled beta.
+- Apple Look Around covers city streets in 23 countries and nothing
+  outside them, so every Apple mode is a draw from the city list; "City
+  streets" as a named mode is the Google one.
 
 ## Files
 
