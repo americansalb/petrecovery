@@ -414,8 +414,8 @@ export default function RoomClient({ code }) {
         </>
       ) : null}
 
-      {/* The one map */}
-      {api && joined ? (
+      {/* The one map: MapKit backs it in an Apple room, Maps in a Google one. */}
+      {imageryReady && joined ? (
         <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
           <div className="min-h-0 flex-1">
             {isApple ? (

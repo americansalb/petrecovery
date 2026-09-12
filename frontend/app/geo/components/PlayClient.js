@@ -241,14 +241,20 @@ export default function PlayClient() {
     return () => clearTimeout(id);
   }, [notice]);
 
-  const submitGuess = useCallback(async (override, { timedOut = false } = {}) => {
+  /**
+   * `allowEmpty` lets the clock (and the retry after a failed send) submit a
+   * round with no pin. It does NOT decide how the round is labelled: the
+   * server already answers timedOut for a pin round, and stamping it here
+   * marked a guess that was placed, sent and scored as "time ran out".
+   */
+  const submitGuess = useCallback(async (override, { allowEmpty = false } = {}) => {
     const s = stateRef.current;
     if (s.status !== 'playing' || !s.current?.token) return;
     let guess;
     if (override !== undefined) guess = override;
     else if (s.config.mode === 'streak') guess = s.pin?.countryCode ? { countryCode: s.pin.countryCode } : null;
     else guess = s.pin ? { lat: s.pin.lat, lng: s.pin.lng } : null;
-    if (!guess && !timedOut) return;
+    if (!guess && !allowEmpty) return;
     dispatch({ type: 'submit_start' });
     try {
       const res = await fetch('/api/geo/guess', {
@@ -260,7 +266,7 @@ export default function PlayClient() {
       if (!res.ok) throw new Error(data.error || 'Could not score the guess');
       if (data.challenge) setChallenge(data.challenge);
       if (data.points) setPointsByRound((prev) => ({ ...prev, [s.roundIndex]: data.points }));
-      dispatch({ type: 'submit_success', result: { ...data.result, timedOut: timedOut || !guess, roundIndex: s.roundIndex } });
+      dispatch({ type: 'submit_success', result: { ...data.result, timedOut: data.result?.timedOut ?? !guess, roundIndex: s.roundIndex } });
       setMobileMapOpen(false);
     } catch (error) {
       dispatch({ type: 'submit_error', error: { message: error.message } });
@@ -278,7 +284,7 @@ export default function PlayClient() {
       setSecondsLeft(Math.max(0, Math.ceil(left)));
       if (left <= 0 && timerFiredRef.current !== startedAt) {
         timerFiredRef.current = startedAt;
-        submitGuess(undefined, { timedOut: true });
+        submitGuess(undefined, { allowEmpty: true });
       }
     };
     tick();
@@ -542,7 +548,7 @@ export default function PlayClient() {
       ) : null}
       {state.status === 'playing' && state.error ? (
         <div className="absolute left-1/2 top-24 z-40 -translate-x-1/2 rounded-xl border border-red-400/40 bg-red-950/90 px-4 py-2 text-sm text-red-100 shadow-lg">
-          {state.error.message} <button type="button" className="ml-2 underline" onClick={() => submitGuess(undefined, { timedOut: true })}>Retry</button>
+          {state.error.message} <button type="button" className="ml-2 underline" onClick={() => submitGuess(undefined, { allowEmpty: true })}>Retry</button>
         </div>
       ) : null}
     </div>
