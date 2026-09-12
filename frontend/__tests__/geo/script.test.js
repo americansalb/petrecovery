@@ -20,7 +20,6 @@
 
 const { LANGUAGES, SCRIPTS, SHARED_CHARS, inScript, languagesInScript, scriptsInCorpus } = require('@/app/lib/geo/languages');
 const { SAMPLES, samplesFor } = require('@/app/lib/geo/server/samples');
-const { countryAt } = require('@/app/lib/geo/server/countries');
 const {
   LADDERS,
   LADDER_ORDER,
@@ -29,8 +28,10 @@ const {
   scriptConfigToQuery,
 } = require('@/app/lib/geo/script');
 const {
+  COUNTRIES,
   UNITS,
   adminUnit,
+  countryShape,
   distanceToLanguage,
   ladderSizeKm,
   languagesAt,
@@ -45,44 +46,38 @@ const env = { NEXTAUTH_SECRET: SECRET };
 const find = (code) => LANGUAGES.find((language) => language.code === code);
 
 describe('the corpus', () => {
-  test('every disc lands in the country it claims', () => {
-    const wrong = [];
-    for (const language of LANGUAGES) {
-      for (const region of language.regions) {
-        if (region.units) continue;
-        const found = countryAt(region.lat, region.lng);
-        if (!found) wrong.push(`${language.name}/${region.name}: no country at ${region.lat},${region.lng}`);
-        else if (found.cca2 !== region.cca2) wrong.push(`${language.name}/${region.name}: claims ${region.cca2}, polygons say ${found.cca2}`);
-      }
-    }
-    expect(wrong).toEqual([]);
-  });
-
-  test('every named administrative unit exists and resolves to a real shape', () => {
+  test('every region is a real place, and every code resolves to a shape', () => {
     // A typo in a unit code is the one way this data can be wrong
     // without looking wrong: 'IN-TM' would simply throw on the round
-    // that drew Tamil. So every unit every language names is resolved
+    // that drew Tamil. So every code every language names is resolved
     // here, and the shape it resolves to has to be a shape.
     const wrong = [];
     for (const language of LANGUAGES) {
       for (const region of language.regions) {
-        if (!region.units) continue;
-        for (const id of region.units) {
+        if (!region.units?.length && !region.countries?.length) {
+          wrong.push(`${language.name}/${region.name}: names no place`);
+          continue;
+        }
+        for (const id of region.units || []) {
           const unit = adminUnit(id);
           if (!unit) wrong.push(`${language.name}/${region.name}: no unit ${id}`);
           else if (unit.cca2 !== id.slice(0, 2)) wrong.push(`${id}: country ${unit.cca2}`);
         }
+        for (const code of region.countries || []) {
+          if (!countryShape(code)) wrong.push(`${language.name}/${region.name}: no country ${code}`);
+        }
       }
       for (const resolved of resolveRegions(language)) {
-        if (!resolved.rings) continue;
         const points = resolved.rings.reduce((n, ring) => n + ring.length, 0);
         if (points < 4) wrong.push(`${language.name}/${resolved.name}: ${points} points`);
         if (resolved.box.maxLat <= resolved.box.minLat) wrong.push(`${language.name}/${resolved.name}: empty box`);
       }
     }
     expect(wrong).toEqual([]);
-    // Every unit in the file is one of these, spelled the same way.
-    expect(Object.keys(UNITS).length).toBeGreaterThan(80);
+    // The data file carries what the corpus names and nothing else:
+    // Natural Earth's other four thousand subdivisions are not shipped.
+    expect(Object.keys(UNITS).length).toBeGreaterThan(200);
+    expect(Object.keys(COUNTRIES).length).toBeGreaterThan(100);
   });
 
   test('every sample is written in the script its language claims', () => {
@@ -275,6 +270,127 @@ describe('scoring a pin', () => {
     expect(at(10.92, 79.83)).toContain('tam'); // Karaikal
     expect(at(12.053, 75.288)).toEqual(['mal']); // Mahe, which Kerala's own polygon does not cover
     expect(at(16.727, 82.242)).toEqual(['tel']); // Yanam, which sits inside Andhra Pradesh
+  });
+
+  test('a city speaks the language it speaks, everywhere in the world', () => {
+    // The corpus is 76 languages and the map is now every one of them.
+    // These are the checks that would catch a wrong code: each city is
+    // somewhere the language is unarguably spoken, and a wrong unit or
+    // a wrong country would miss it.
+    const cities = {
+      Reykjavik: [64.15, -21.94, 'isl'],
+      Lisbon: [38.72, -9.14, 'por'],
+      'Sao Paulo': [-23.55, -46.63, 'por'],
+      Luanda: [-8.84, 13.23, 'por'],
+      Madrid: [40.42, -3.7, 'spa'],
+      'Mexico City': [19.43, -99.13, 'spa'],
+      'Buenos Aires': [-34.6, -58.38, 'spa'],
+      Bogota: [4.71, -74.07, 'spa'],
+      Paris: [48.86, 2.35, 'fra'],
+      Montreal: [45.5, -73.57, 'fra'],
+      Dakar: [14.72, -17.47, 'fra'],
+      Geneva: [46.2, 6.14, 'fra'],
+      Amsterdam: [52.37, 4.9, 'nld'],
+      Zurich: [47.38, 8.54, 'deu'],
+      Berlin: [52.52, 13.4, 'deu'],
+      Vienna: [48.21, 16.37, 'deu'],
+      Rome: [41.9, 12.5, 'ita'],
+      Lugano: [46.0, 8.95, 'ita'],
+      Cardiff: [51.48, -3.18, 'cym'],
+      Stockholm: [59.33, 18.07, 'swe'],
+      Oslo: [59.91, 10.75, 'nob'],
+      Copenhagen: [55.68, 12.57, 'dan'],
+      Helsinki: [60.17, 24.94, 'fin'],
+      Tallinn: [59.44, 24.75, 'est'],
+      Vilnius: [54.69, 25.28, 'lit'],
+      Warsaw: [52.23, 21.01, 'pol'],
+      Prague: [50.08, 14.44, 'ces'],
+      Budapest: [47.5, 19.04, 'hun'],
+      Bucharest: [44.43, 26.1, 'ron'],
+      Chisinau: [47.01, 28.86, 'ron'],
+      Sofia: [42.7, 23.32, 'bul'],
+      Zagreb: [45.81, 15.98, 'hrv'],
+      Belgrade: [44.79, 20.45, 'srp'],
+      Tirana: [41.33, 19.82, 'sqi'],
+      Pristina: [42.66, 21.17, 'sqi'],
+      Athens: [37.98, 23.73, 'ell'],
+      Istanbul: [41.01, 28.98, 'tur'],
+      Kyiv: [50.45, 30.52, 'ukr'],
+      Moscow: [55.76, 37.62, 'rus'],
+      Minsk: [53.9, 27.57, 'rus'],
+      Tbilisi: [41.72, 44.78, 'kat'],
+      Yerevan: [40.18, 44.51, 'hye'],
+      Baku: [40.41, 49.87, 'azj'],
+      Tabriz: [38.08, 46.29, 'azj'],
+      'Tel Aviv': [32.08, 34.78, 'heb'],
+      Cairo: [30.04, 31.24, 'arb'],
+      Casablanca: [33.57, -7.59, 'arb'],
+      Riyadh: [24.71, 46.68, 'arb'],
+      Tehran: [35.69, 51.39, 'pes'],
+      Herat: [34.35, 62.2, 'pes'],
+      Dushanbe: [38.56, 68.79, 'pes'],
+      Kandahar: [31.62, 65.72, 'pbu'],
+      Peshawar: [34.02, 71.58, 'pbu'],
+      Erbil: [36.19, 44.01, 'ckb'],
+      Diyarbakir: [37.91, 40.24, 'ckb'],
+      Tashkent: [41.3, 69.24, 'uzn'],
+      Almaty: [43.24, 76.89, 'kaz'],
+      Ulaanbaatar: [47.89, 106.91, 'mon'],
+      Hohhot: [40.84, 111.75, 'mon'],
+      Urumqi: [43.83, 87.62, 'uig'],
+      Beijing: [39.9, 116.41, 'cmn'],
+      Chengdu: [30.57, 104.07, 'cmn'],
+      Tokyo: [35.68, 139.69, 'jpn'],
+      Seoul: [37.57, 126.98, 'kor'],
+      Pyongyang: [39.04, 125.76, 'kor'],
+      Bangkok: [13.75, 100.5, 'tha'],
+      Vientiane: [17.97, 102.6, 'lao'],
+      'Phnom Penh': [11.56, 104.92, 'khm'],
+      Yangon: [16.87, 96.2, 'mya'],
+      Hanoi: [21.03, 105.85, 'vie'],
+      Jakarta: [-6.21, 106.85, 'ind'],
+      'Kuala Lumpur': [3.14, 101.69, 'zsm'],
+      Manila: [14.6, 120.98, 'tgl'],
+      Nairobi: [-1.29, 36.82, 'swh'],
+      'Dar es Salaam': [-6.79, 39.21, 'swh'],
+      Kano: [12.0, 8.52, 'hau'],
+      Zinder: [13.8, 8.99, 'hau'],
+      Lagos: [6.52, 3.38, 'yor'],
+      Mogadishu: [2.05, 45.32, 'som'],
+      'Addis Ababa': [9.03, 38.74, 'amh'],
+      Asmara: [15.34, 38.93, 'tir'],
+      'Cape Town': [-33.92, 18.42, 'afr'],
+      Windhoek: [-22.56, 17.08, 'afr'],
+      Durban: [-29.86, 31.02, 'zul'],
+      Barcelona: [41.39, 2.17, 'cat'],
+      Palma: [39.57, 2.65, 'cat'],
+      Bilbao: [43.26, -2.93, 'eus'],
+    };
+    const wrong = [];
+    for (const [city, [lat, lng, code]] of Object.entries(cities)) {
+      const here = languagesAt({ lat, lng }).map((language) => language.code);
+      if (!here.includes(code)) wrong.push(`${city}: ${code} not spoken here, only ${here.join(',') || 'nothing'}`);
+      const scored = scoreScriptGuess({ guess: { lat, lng }, language: find(code), ladder: 'world' });
+      if (scored.points !== 5000) wrong.push(`${city}: ${code} scored ${scored.points}`);
+    }
+    expect(wrong).toEqual([]);
+
+    // And the corpus does not claim what it does not have. Cantonese
+    // and Cebuano are not in it, so Guangzhou and Cebu speak nothing
+    // the game knows, and neither is quietly handed to a neighbour.
+    expect(languagesAt({ lat: 23.13, lng: 113.26 }).map((l) => l.code)).toEqual([]);
+    expect(languagesAt({ lat: 10.32, lng: 123.89 }).map((l) => l.code)).toEqual([]);
+  });
+
+  test('the same ground can speak more than one, and often does', () => {
+    const at = (lat, lng) => languagesAt({ lat, lng }).map((language) => language.code).sort();
+    expect(at(50.85, 4.35)).toEqual(['fra', 'nld']); // Brussels
+    expect(at(43.86, 18.41)).toEqual(['hrv', 'srp']); // Sarajevo
+    expect(at(41.39, 2.17)).toEqual(['cat', 'spa']); // Barcelona
+    expect(at(43.26, -2.93)).toEqual(['eus', 'spa']); // Bilbao
+    expect(at(36.19, 44.01)).toEqual(['arb', 'ckb']); // Erbil
+    expect(at(38.08, 46.29)).toEqual(['azj', 'pes']); // Tabriz
+    expect(at(34.53, 69.17).sort()).toEqual(['pbu', 'pes']); // Kabul
   });
 
   test('languages overlap, because the ground does', () => {

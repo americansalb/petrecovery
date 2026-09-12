@@ -256,39 +256,57 @@ pinned in Tamil Nadu scores full marks. Tamil pinned in Punjab does not.
 Punjabi is spoken on both sides of a border, and pinning either is
 right.
 
-**South Asian languages are drawn as real administrative units.** A
-region is a union of states, union territories, Sri Lankan districts,
-Pakistani provinces, Bangladeshi divisions or Nepali zones, from Natural
-Earth's 10m admin-1 set (public domain), built into
-`app/lib/geo/data/admin1-south-asia.json` by
+**Every language is drawn as real places.** A region is a whole country
+(`{ countries: ['IS'] }`), a set of subdivisions (`{ units: ['IN-TN'] }`,
+ISO 3166-2), or either of those clipped to a box where the line runs
+through a unit rather than round it. Source is Natural Earth's 10m
+admin-0 and admin-1 sets (public domain), built into
+`app/lib/geo/data/language-regions.json` by
 `scripts/build-language-regions.js` and resolved by
-`app/lib/geo/server/regions.js`. They were discs until 2026-09-12, and
-the discs were wrong in ways the map showed: the Maithili circle covered
-the hills of eastern Nepal, the Marathi one reached into Karnataka, and
-every coastal language had half its area out at sea. Anywhere in Kerala
-is Malayalam now, because "Kerala" is how someone who knows Malayalam
-knows where it is spoken.
+`app/lib/geo/server/regions.js`. The file carries only what the corpus
+names: 126 countries and 262 subdivisions, not Natural Earth's four
+thousand.
 
-Three things follow, and all three are the mode:
+They were discs until 2026-09-12, and the discs were wrong in ways the
+map showed: the Maithili circle covered the hills of eastern Nepal, the
+Marathi one reached into Karnataka, and every coastal language had half
+its area out at sea. Anywhere in Kerala is Malayalam now, because
+"Kerala" is how someone who knows Malayalam knows where it is spoken.
+
+Four things follow, and they are the mode:
 
 - **Regions overlap, because languages do.** Hindi and Urdu share the
-  Doab, Nepali and Bengali share Darjeeling, Telugu and Urdu share
-  Hyderabad. Nothing is exclusive; the reveal names what else is spoken
-  where the pin landed.
-- **Not every language is state-shaped.** A region can carry a `clip`
-  box that cuts a unit down: Bhojpuri is western Bihar, eastern Uttar
-  Pradesh and a strip of the Nepal Terai, not any of the three whole.
-  The coast, the state line and the international border stay real; the
-  one straight edge is the inland isogloss, which is fuzzy on the ground
-  and contested on paper, so a straight line is the honest way to draw
-  it.
-- **The polygons never reach the browser except on a reveal.** They are
-  129 KB, the round payload must never carry anything the answer can be
-  read from, and the reveal needs only the answer's own shapes.
+  Doab, Nepali and Bengali share Darjeeling, French and Dutch share
+  Brussels, Kurdish and Arabic share Erbil, Pashto and Dari share Kabul.
+  Nothing is exclusive; the reveal names what else is spoken where the
+  pin landed.
+- **Not every language is state-shaped.** A `clip` box cuts a unit down:
+  Bhojpuri is western Bihar, eastern Uttar Pradesh and a strip of the
+  Nepal Terai; Basque is the western third of the Pyrenees-Atlantiques;
+  Hausa is southern Niger and the north of Nigeria. The coast, the
+  state line and the border stay real; the one straight edge is the
+  inland isogloss, which is fuzzy on the ground and contested on paper,
+  so a straight line is the honest way to draw it.
+- **The map does not take sides.** A region says where a language is
+  spoken, never who a place belongs to. Kurdish is drawn across four
+  states and Kirkuk is left out of it, because saying either way would
+  be the game answering a question nobody asked it. Where Natural Earth
+  draws a border the game draws it too, and where a language crosses
+  one, the language crosses it.
+- **Three kilometres of grace.** The polygons are simplified to about
+  two kilometres, so a coastline is known to about two kilometres, and
+  Reykjavik, Montreal and Copenhagen each fell outside their own
+  country. A pin within three kilometres of a region counts as inside
+  it: that is the error bar on the map, and the score at 3 km is 4,990
+  out of 5,000 anyway.
 
-The rest of the world is still discs: `[name, cca2, lat, lng, radiusKm]`
-in `app/lib/geo/languages.js`. They are wrong in the same way, and the
-fix is the same fix one region of the world at a time.
+**The polygons never reach the browser except on a reveal**, and then
+only the answer's own, thinned to the region's own scale: Spanish is 186
+KB at scoring precision and 65 KB drawn, which looks identical at the
+zoom the reveal flies to. The round payload must never carry anything
+the answer can be read from.
+
+
 
 **The screen.** A script round is the one screen in the game with no
 imagery on it, so it is the one screen that is light: warm paper, a pale
