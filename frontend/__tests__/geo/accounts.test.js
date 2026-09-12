@@ -26,10 +26,12 @@ const {
   normalizeEmail,
   requestSignIn,
   verifySignIn,
+  deleteAccount,
 } = require('@/app/lib/geo/server/accounts');
 const { accountFromRequest, sealSession, readCookie, SESSION_COOKIE } = require('@/app/lib/geo/server/identity');
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 const { resolveProfile } = require('@/app/lib/geo/server/profiles');
+const { recordChallengeRound } = require('@/app/lib/geo/server/challenges');
 
 const SECRET = 'a-long-enough-test-secret';
 const env = { NEXTAUTH_SECRET: SECRET };
@@ -179,6 +181,44 @@ describe('following a link', () => {
     const grace = await verifySignIn(store, { token: await linkFor(store, 'grace@example.com', T0 + 5), now: T0 + 6 });
     expect(grace.account.id).not.toBe(ada.account.id);
     expect(grace.profile.id).not.toBe(ada.profile.id);
+  });
+});
+
+describe('deleting an account', () => {
+  test('takes the profile and everything hanging off it, and leaves the boards alone', async () => {
+    // Found in the deep audit: the game held an email address, a name,
+    // ratings, points, badges and a record of games played, and there
+    // was no way to remove any of it.
+    const store = createMemoryRoomStore();
+    const anon = await resolveProfile(store, { name: 'Ada', now: T0 });
+    const { url } = await requestSignIn(store, { email: 'ada@example.com', profileId: anon.profile.id, baseUrl: 'https://example.test', now: T0, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    const { account, profile } = await verifySignIn(store, { token: new URL(url).searchParams.get('token'), now: T0 + 1000 });
+    expect(profile.id).toBe(anon.profile.id);
+
+    await recordChallengeRound(store, { profileId: profile.id, key: 'daily:2026-09-07', index: 0, score: 5000, now: T0 + 2000 });
+
+    const removed = await deleteAccount(store, { accountId: account.id });
+    expect(removed.deletedProfile).toBe(true);
+    expect(await store.getProfileById(profile.id)).toBeFalsy();
+    expect(await store.getAccountByEmail('ada@example.com')).toBeFalsy();
+    // A score already on a board belongs to the board, not to the
+    // profile: removing it would rewrite everyone else's ranking.
+    expect(await store.getChallengeEntry(profile.id, 'daily:2026-09-07')).toBeTruthy();
+  });
+
+  test('a link asked for before the delete cannot sign the address back in', async () => {
+    const store = createMemoryRoomStore();
+    const { url } = await requestSignIn(store, { email: 'grace@example.com', baseUrl: 'https://example.test', now: T0, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    const token = new URL(url).searchParams.get('token');
+    const { account } = await verifySignIn(store, { token, now: T0 + 1000 });
+    const second = await requestSignIn(store, { email: 'grace@example.com', baseUrl: 'https://example.test', now: T0 + 2000, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    await deleteAccount(store, { accountId: account.id });
+    await expect(verifySignIn(store, { token: new URL(second.url).searchParams.get('token'), now: T0 + 3000 })).rejects.toMatchObject({ code: 'invalid' });
+  });
+
+  test('deleting without an account is refused, not a crash', async () => {
+    const store = createMemoryRoomStore();
+    await expect(deleteAccount(store, {})).rejects.toMatchObject({ code: 'invalid' });
   });
 });
 

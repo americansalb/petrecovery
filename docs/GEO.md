@@ -469,6 +469,35 @@ determined one, on any imagery round. That is why rated play is rooms
 (one clock, everyone on the same place, scores compared with each other)
 and why the daily is unrated.
 
+## Housekeeping and the shared database
+
+The game's sixteen-plus tables live on the pet site's Postgres until
+phase 3 gives the game its own. Two consequences the deep audit turned
+up, both now handled:
+
+- **The pool is capped.** `app/lib/geo/server/db.js` gives the game's
+  Prisma client `connection_limit=5` on the shared database whether or
+  not `GEO_DB_POOL` is set. The thing on the other side of that database
+  is a lost-pet service, and an uncapped second pool turns a launch
+  spike into connection starvation for pet reports.
+- **Rows are swept.** `app/lib/geo/server/sweep.js` deletes expired
+  round-cache rows and sign-in links, play-meter rows older than 120
+  days, finished rooms after 14 days and rooms abandoned part way after
+  3. `/api/geo/round` runs it at most once an hour per process, and
+  `npm run geo:sweep` runs it on demand. Profiles, accounts, ratings,
+  the points ledger, badges, challenge boards and `GeoMatchResult` are
+  kept: a swept room does not take a player's record of it, because
+  `GeoMatchResult` carries no foreign key to `GeoRoom`.
+
+Deleting an account (`POST /api/geo/auth/delete`, the button on
+`/geo/me`) removes the email address, the profile and everything that
+cascades from it: ratings, points, badges, unlocks, results and room
+seats. Scores already on a daily or cup board stay, because those rows
+belong to the challenge and removing them would rewrite everyone else's
+ranking. What the game stores and for how long is written out in
+`/privacy`, and `__tests__/geo/privacy-coverage.test.js` enumerates
+every personal-data column so a new one cannot ship unmentioned.
+
 ## Seasons
 
 Ratings live per season: three months each from 1 September 2026

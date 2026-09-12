@@ -19,8 +19,14 @@ const nextConfig = {
     serverComponentsExternalPackages: ['@react-pdf/renderer', '@resvg/resvg-js', 'satori', 'yoga-wasm-web'],
     outputFileTracingIncludes: {
       '/*': ['./app/lib/uscities.full.json'],
-      // Ensure the vendored flyer/social fonts ship with a standalone build.
-      '/api/**': ['./app/lib/cascade/render/fonts/**'],
+      // Ensure the vendored flyer/social fonts ship with a standalone
+      // build. Both sets are read with readFileSync from process.cwd()
+      // at import, and a standalone build copies only what is traced:
+      // without the game's line here every WanderGuesser share preview
+      // fell back to the site logo in the Docker deploy, because the
+      // font module threw ENOENT and the OG route's catch swallowed it.
+      // __tests__/geo/standalone-assets.test.js keeps this honest.
+      '/api/**': ['./app/lib/cascade/render/fonts/**', './app/lib/geo/server/fonts/**'],
     },
   },
 

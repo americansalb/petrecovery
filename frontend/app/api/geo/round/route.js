@@ -22,6 +22,7 @@ import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { checkRound, recordRound } from '@/app/lib/geo/server/meter';
 import { meterErrorResponse, speedLimiter, subjectsFor } from '@/app/lib/geo/server/meterRequest';
 import { MeterError } from '@/app/lib/geo/meter';
+import { maybeSweep } from '@/app/lib/geo/server/sweep';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,11 @@ export async function POST(request) {
   const maxIndex = config.rounds > 0 ? config.rounds - 1 : 999;
   const roundIndex = Math.max(0, Math.min(maxIndex, Math.floor(Number(body?.roundIndex) || 0)));
   const attempt = Math.max(0, Math.min(20, Math.floor(Number(body?.attempt) || 0)));
+
+  // Housekeeping, at most once an hour per process and never awaited:
+  // the game has no scheduler and its tables are on the pet site's
+  // database (app/lib/geo/server/sweep.js).
+  maybeSweep(prismaRoomStore);
 
   // The meter. A store failure here is logged and the round goes on:
   // the caps in the Google console are the backstop, not this table.

@@ -10,15 +10,25 @@
 
 jest.mock('@prisma/client', () => ({ PrismaClient: class {} }));
 
-const { connectionUrl } = require('@/app/lib/geo/server/db');
+const { connectionUrl, SHARED_POOL_DEFAULT } = require('@/app/lib/geo/server/db');
 
 const SHARED = 'postgresql://user:pw@db.example:5432/petrecovery';
 const OWN = 'postgresql://user:pw@geo.example:5432/wanderguesser';
 
 describe('the connection string', () => {
-  test('says nothing when there is nothing to say, so Prisma reads the environment', () => {
-    expect(connectionUrl({ DATABASE_URL: SHARED })).toBe('');
+  test('says nothing when there is no database at all', () => {
     expect(connectionUrl({})).toBe('');
+  });
+
+  test('the shared database is capped even when nobody set a cap', () => {
+    // The other thing on that database is a lost-pet service, and an
+    // uncapped second pool turns a launch spike into connection
+    // starvation for pet reports.
+    const url = connectionUrl({ DATABASE_URL: SHARED });
+    expect(url).toContain(`connection_limit=${SHARED_POOL_DEFAULT}`);
+    expect(url).toContain('db.example');
+    // The game's own database has nothing else on it to protect.
+    expect(connectionUrl({ GEO_DATABASE_URL: OWN })).toBe(OWN);
   });
 
   test('the pool cap applies to the shared database, which is the whole point of it', () => {

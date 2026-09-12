@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Check, LogOut, Mail } from 'lucide-react';
+import { Check, LogOut, Mail, Trash2 } from 'lucide-react';
 
 const WHY = {
   'that-link-is-not-valid': 'That link was not valid. Ask for a new one.',
@@ -29,6 +29,7 @@ export default function SignInCard() {
   const [state, setState] = useState('idle');
   const [message, setMessage] = useState('');
   const [account, setAccount] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -76,6 +77,22 @@ export default function SignInCard() {
     setMessage('Signed out. You are still playing in this browser.');
   };
 
+  const deleteAccount = async () => {
+    setState('deleting');
+    try {
+      const response = await fetch('/api/geo/auth/delete', { method: 'POST' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Could not delete that account');
+      setAccount(null);
+      setConfirmDelete(false);
+      setState('idle');
+      setMessage('Account deleted. Your email address, profile, rating, points and badges are gone.');
+    } catch (error) {
+      setState('error');
+      setMessage(error.message);
+    }
+  };
+
   if (account) {
     return (
       <div className="rounded-xl border border-gray-200 p-4">
@@ -83,9 +100,42 @@ export default function SignInCard() {
           <Check className="h-4 w-4 text-green-600" /> Signed in as {account.email}
         </p>
         <p className="mt-1 text-sm text-gray-600">Your profile follows you to any device you sign in on.</p>
-        <button type="button" onClick={signOut} className="mt-3 flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">
-          <LogOut className="h-4 w-4" /> Sign out
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={signOut} className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
+          {confirmDelete ? null : (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-500 hover:bg-red-50 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4" /> Delete account
+            </button>
+          )}
+        </div>
+        {confirmDelete ? (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
+            <p className="text-sm font-semibold text-red-900">Delete this account?</p>
+            <p className="mt-1 text-sm text-red-800">
+              This removes your email address, your profile, your rating, points, badges and results. Scores already on
+              a daily or cup board stay there. It cannot be undone.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={deleteAccount}
+                disabled={state === 'deleting'}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {state === 'deleting' ? 'Deleting' : 'Yes, delete it'}
+              </button>
+              <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100">
+                Keep it
+              </button>
+            </div>
+          </div>
+        ) : null}
         {message ? <p className="mt-2 text-sm text-gray-600">{message}</p> : null}
       </div>
     );

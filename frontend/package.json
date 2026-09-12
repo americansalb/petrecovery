@@ -23,7 +23,8 @@
     "cap:add:android": "npx cap add android",
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
-    "geo:demo": "node scripts/geo-demo.js"
+    "geo:demo": "node scripts/geo-demo.js",
+    "geo:sweep": "node scripts/geo-sweep.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

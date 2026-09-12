@@ -98,6 +98,19 @@ const databaseStore = {
   updateAccount(id, data) {
     return prisma.geoAccount.update({ where: { id }, data });
   },
+  getAccountById(id) {
+    return prisma.geoAccount.findUnique({ where: { id } });
+  },
+  /** Account deletion (server/accounts.js). Profile rows cascade. */
+  deleteAccount(id) {
+    return prisma.geoAccount.delete({ where: { id } });
+  },
+  deleteProfile(id) {
+    return prisma.geoProfile.delete({ where: { id } });
+  },
+  deleteLoginTokensForEmail(email) {
+    return prisma.geoLoginToken.deleteMany({ where: { email } });
+  },
   createLoginToken(data) {
     return prisma.geoLoginToken.create({ data });
   },
@@ -109,9 +122,33 @@ const databaseStore = {
     const done = await prisma.geoLoginToken.updateMany({ where: { id, usedAt: null }, data: { usedAt: at } });
     return done.count === 1;
   },
-  /** Housekeeping: drop links nobody followed. */
+  /** Housekeeping: drop links nobody followed (server/sweep.js). */
   deleteExpiredLoginTokens(before) {
     return prisma.geoLoginToken.deleteMany({ where: { expiresAt: { lt: before } } });
+  },
+  /** Cached rounds are read-filtered by expiry; this is what removes them. */
+  deleteExpiredRoundCache(before) {
+    return prisma.geoRoundCache.deleteMany({ where: { expiresAt: { lt: before } } });
+  },
+  /** Play-meter rows for days long past. */
+  deleteUsageBefore(day) {
+    return prisma.geoUsage.deleteMany({ where: { day: { lt: day } } });
+  },
+  /**
+   * Rooms nobody will open again: finished a while ago, or abandoned
+   * part way. Players, rounds and guesses cascade with them;
+   * GeoMatchResult has no foreign key here, so a player's record of the
+   * games they played survives the room.
+   */
+  deleteOldRooms({ finishedBefore, staleBefore }) {
+    return prisma.geoRoom.deleteMany({
+      where: {
+        OR: [
+          { status: 'finished', lastActiveAt: { lt: finishedBefore } },
+          { status: { not: 'finished' }, lastActiveAt: { lt: staleBefore } },
+        ],
+      },
+    });
   },
   getProfileById(id) {
     return prisma.geoProfile.findUnique({ where: { id } });

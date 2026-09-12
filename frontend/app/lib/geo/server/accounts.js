@@ -133,3 +133,25 @@ export function sameToken(a, b) {
   if (left.length !== right.length) return false;
   return timingSafeEqual(left, right);
 }
+
+/**
+ * Delete an account and the profile bound to it.
+ *
+ * Everything the game knows about a player hangs off the profile
+ * (ratings, points, badges, unlocks, results, room seats), and the
+ * schema cascades from it, so removing the profile removes them. The
+ * account row and any unspent sign-in links for its address go with it.
+ *
+ * Boards keep a name and a score for rounds already played: those rows
+ * belong to the challenge, not to the profile, and removing them would
+ * rewrite everyone else's ranking.
+ */
+export async function deleteAccount(store, { accountId } = {}) {
+  if (!accountId) throw new GeoAuthError('invalid', 'No account to delete');
+  const account = await store.getAccountById?.(accountId);
+  const profile = await store.getProfileByAccountId(accountId);
+  if (profile) await store.deleteProfile(profile.id);
+  await store.deleteAccount(accountId);
+  if (account?.email) await store.deleteLoginTokensForEmail?.(account.email);
+  return { deletedProfile: Boolean(profile) };
+}

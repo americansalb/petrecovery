@@ -137,6 +137,28 @@ export function createMemoryRoomStore() {
       Object.assign(account, data);
       return { ...account };
     },
+    async getAccountById(accountId) {
+      const account = accounts.get(accountId);
+      return account ? { ...account } : null;
+    },
+    async deleteAccount(accountId) {
+      return accounts.delete(accountId);
+    },
+    async deleteProfile(profileId) {
+      profiles.delete(profileId);
+      for (const [k, row] of ledger) if (row.profileId === profileId) ledger.delete(k);
+      return true;
+    },
+    async deleteLoginTokensForEmail(email) {
+      let count = 0;
+      for (const [k, row] of loginTokens) {
+        if (row.email === email) {
+          loginTokens.delete(k);
+          count += 1;
+        }
+      }
+      return count;
+    },
     async createLoginToken(data) {
       const row = { id: id('login'), usedAt: null, createdAt: new Date(), ...data };
       loginTokens.set(row.id, row);
@@ -161,6 +183,33 @@ export function createMemoryRoomStore() {
         }
       }
       return { count };
+    },
+    async deleteUsageBefore(day) {
+      let count = 0;
+      for (const [key, row] of usage) {
+        if (row.day < day) {
+          usage.delete(key);
+          count += 1;
+        }
+      }
+      return count;
+    },
+    async deleteOldRooms({ finishedBefore, staleBefore }) {
+      let count = 0;
+      for (const [key, room] of rooms) {
+        const last = new Date(room.lastActiveAt || room.createdAt || 0).getTime();
+        const cutoff = room.status === 'finished' ? new Date(finishedBefore).getTime() : new Date(staleBefore).getTime();
+        if (last >= cutoff) continue;
+        for (const [pk, p] of players) if (p.roomId === room.id) players.delete(pk);
+        for (const [rk, r] of rounds) {
+          if (r.roomId !== room.id) continue;
+          for (const [gk, g] of guesses) if (g.roundId === r.id) guesses.delete(gk);
+          rounds.delete(rk);
+        }
+        rooms.delete(key);
+        count += 1;
+      }
+      return count;
     },
     async getProfileById(profileId) {
       const p = profiles.get(profileId);

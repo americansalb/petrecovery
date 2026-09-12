@@ -58,6 +58,15 @@ const SECTIONS = [
     ],
   },
   {
+    title: 'WanderGuesser',
+    body: [
+      'WanderGuesser, the geography game at reunitepets.org/geo, is part of this service and these terms cover it. A WanderGuesser account is separate from a ReunitePets account: one does not sign you in to the other, and neither carries data to the other.',
+      'Scores, ratings, points and the items points buy exist inside the game. They have no cash value, cannot be exchanged or transferred, and may be adjusted or reset when a scoreboard has been manipulated.',
+      'The imagery comes from Google Street View and Apple Look Around and is theirs, subject to their terms. Playing the game does not give you any right to it.',
+      'Play is limited per day so the imagery bills stay bounded. The limits are shown in the game and described at reunitepets.org/geo.',
+    ],
+  },
+  {
     title: 'Disclaimers & limitation of liability',
     body: [
       'The service is provided “as is,” without warranties of any kind. We work hard to keep it reliable, but we can’t guarantee it will be uninterrupted or error-free.',
