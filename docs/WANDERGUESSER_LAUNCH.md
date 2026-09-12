@@ -11,8 +11,9 @@ cd frontend && npm run geo:demo
 ```
 
 Nothing configured: no Google project, no database, no mail account, no
-domain. **Script mode is fully playable**, because its map is Leaflet on
-keyless tiles rather than MapKit. Rooms, ratings, points, the shop and
+domain. **Script mode is fully playable**, because its map is drawn from
+the country polygons in the game's own bundle rather than MapKit or a
+tile server. Rooms, ratings, points, the shop and
 sign-in all work on an in-memory store; sign-in links are printed to the
 log. Street View needs a browser key no mock can replace, because
 Google's own SDK draws the panorama. Details in `docs/GEO.md`, "Playing

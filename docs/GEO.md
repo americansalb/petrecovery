@@ -746,13 +746,19 @@ the mock metadata server and the dev server, mints a throwaway token
 secret, and prints what does and does not work.
 
 **Script mode is the one that needs nobody's permission**, and that is
-deliberate. Its map is Leaflet on CARTO's raster tiles rather than
-MapKit (`app/geo/components/script/LeafletScriptMap.js`): a script round
-shows no provider's imagery, so it owes no provider a map, and the
-MapKit token this repository ships is locked to the reunitepets.org
-origin. On localhost, on a preview deployment, or on the game's own
-future domain, a MapKit map does not authorise and the round cannot be
-answered. Leaflet has no key and no origin lock.
+deliberate. Its map is Leaflet drawing the world from the polygons the
+game already ships (Natural Earth 1:110m, the `world-atlas` package,
+the same file the server scores with), not MapKit and not a tile server
+(`app/geo/components/script/LeafletScriptMap.js`): a script round shows
+no provider's imagery, so it owes no provider a map, and the MapKit
+token this repository ships is locked to the reunitepets.org origin. On
+localhost, on a preview deployment, or on the game's own domain, a
+MapKit map does not authorise and the round cannot be answered. The
+outline is one 108 KB chunk of the game's own bundle, cached by the
+browser like any other, so nothing is fetched from anyone during a
+round. It was CARTO's raster tiles until September 2026, when those
+started coming back stamped "API KEY REQUIRED"; a world outline with no
+labels never needed a tile server.
 
 Rooms, ratings, points, the shop and sign-in all work too, on an
 in-memory store that forgets everything when the process stops **or when

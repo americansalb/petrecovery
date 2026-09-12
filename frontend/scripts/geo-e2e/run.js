@@ -576,14 +576,21 @@ async function script(browser) {
   if (await page.locator('text=no font for this writing system').count()) throw new Error('missing glyphs for ' + script);
   if (!SOUTH_ASIA_SCRIPTS.includes(script)) throw new Error(`the South Asia pool served ${script}`);
 
-  // The script map is Leaflet on keyless tiles, not MapKit: a script
-  // round shows no provider's imagery so it owes no provider a map, and
-  // the MapKit token is locked to one origin (LeafletScriptMap).
-  await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
+  // The script map is Leaflet drawing the bundled country polygons, not
+  // MapKit and not a tile server: a script round shows no provider's
+  // imagery so it owes no provider a map, and the MapKit token is locked
+  // to one origin (LeafletScriptMap).
+  // The container renders before Leaflet has loaded into it; a click
+  // that lands in between is a click on an empty div. Leaflet's own
+  // class says the map is there.
+  await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
   // The hint is copy, not a disabled button: a control that tells you
   // what to do should not look broken while it tells you.
   await page.waitForSelector('text=Tap the map where that language is spoken');
-  await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 300 } });
+  // Low on the map: the sentence panel sits over its top and a long
+  // sentence wraps to two lines, and the overlays are above the map, so
+  // a click up there is a click on the panel.
+  await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 450 } });
   await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
   await page.click('button:has-text("Guess")');
 
@@ -606,8 +613,8 @@ async function script(browser) {
 
   // Straight to the end: four more rounds, guessing wherever.
   for (let i = 2; i <= 5; i++) {
-    await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
-    await page.click('[data-script-map="leaflet"]', { position: { x: 400 + i * 20, y: 280 } });
+    await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
+    await page.click('[data-script-map="leaflet"]', { position: { x: 400 + i * 20, y: 430 } });
     await page.click('button:has-text("Guess")');
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
     await page.click('button:has-text("Next round"), button:has-text("See the results")');

@@ -7,16 +7,20 @@
  * directories the split moves (docs/WANDERGUESSER_SPLIT.md).
  *
  * Leaflet's defaults are built for a light page: a pale grey backdrop
- * behind the tiles and white controls. The round is dark, and when the
- * tiles fail that backdrop is the whole screen, so the game looked
- * broken rather than offline. Scoped to the one map so nothing else
- * changes.
+ * and white controls. The round is dark, and the backdrop is the sea
+ * the land outline is drawn on, so it is painted navy here. Scoped to
+ * the one map so nothing else changes.
  */
 /* Leaflet's own stylesheet is imported by the component, so it loads
    after this file; these need the extra class to win on specificity
    rather than on order. */
 [data-script-map='leaflet'].leaflet-container {
   background: #0b1220;
+  /* Leaflet's panes carry z-index 100 to 800 and the container makes no
+     stacking context of its own, so they escaped into the round's
+     overlay space and painted over the sentence panel and the Guess
+     button, which then could not be clicked. Contain them. */
+  isolation: isolate;
 }
 [data-script-map='leaflet'] .leaflet-control-zoom a.leaflet-control-zoom-in,
 [data-script-map='leaflet'] .leaflet-control-zoom a.leaflet-control-zoom-out,
