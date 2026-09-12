@@ -15,7 +15,15 @@ const memoryStore = createMemoryRoomStore();
 jest.mock('@/app/lib/geo/server/roomStore', () => ({ prismaRoomStore: memoryStore }));
 
 const SECRET = 'a-long-enough-test-secret';
+// process.env is shared by every test file a Jest worker runs, so a
+// module-scope write here used to leak into whatever ran next in the
+// same worker. Set it for this file and put it back.
+const savedSecret = process.env.GEO_TOKEN_SECRET;
 process.env.GEO_TOKEN_SECRET = SECRET;
+afterAll(() => {
+  if (savedSecret === undefined) delete process.env.GEO_TOKEN_SECRET;
+  else process.env.GEO_TOKEN_SECRET = savedSecret;
+});
 
 const { POST: postProfile } = require('@/app/api/geo/profile/route');
 const { GET: getLeaderboard } = require('@/app/api/geo/leaderboard/route');

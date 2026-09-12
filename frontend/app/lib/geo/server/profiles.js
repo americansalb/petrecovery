@@ -132,10 +132,10 @@ function ratingView(row) {
 }
 
 /** What the browser shows for a profile: ratings per ladder and recent games. */
-export async function profileSummary(store, profile) {
+export async function profileSummary(store, profile, { now = Date.now() } = {}) {
   const ratings = {};
   for (const ladder of LADDERS) {
-    const [row] = await ensureSeasonRows(store, [profile.id], ladder);
+    const [row] = await ensureSeasonRows(store, [profile.id], ladder, now);
     ratings[ladder] = ratingView(row);
   }
   const recent = (await store.getRecentResults(profile.id, 10)).map((r) => ({
@@ -171,7 +171,7 @@ export async function profileSummary(store, profile) {
     equipped: equippedView(fresh?.equipped),
     badges,
     ledger,
-    season: seasonView(),
+    season: seasonView(now),
   };
 }
 

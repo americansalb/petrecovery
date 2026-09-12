@@ -64,7 +64,31 @@ test('first sight in a new season carries last season in and pays its reward onc
   expect(board.season).toMatchObject({ key: 's1', label: 'Season 1: Sep to Nov 2026', daysLeft: 85 });
   expect(board.rows.map((r) => r.name)).toEqual(['Ada']);
   expect(board.you).toMatchObject({ name: 'Grace', rank: null, rating: 1575 });
-  const summary = await profileSummary(store, grace);
+  const summary = await profileSummary(store, grace, { now: T0 });
   expect(summary.ratings.classic.rating).toBe(1575);
   expect(summary.season.key).toBe('s1');
+});
+
+test('the season-scoped assertions do not depend on what day it is', () => {
+  // Every rating fixture in these suites is written at a fixed moment
+  // and read back through calls that defaulted to the wall clock. Ratings
+  // are per season, so from the first day of season 2 the write season
+  // and the read season diverged permanently and four tests went red for
+  // a reason that had nothing to do with the code. Every such call now
+  // passes `now`, and this fails if a new one does not.
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.resolve(__dirname);
+  const offenders = [];
+  for (const file of ['profiles.test.js', 'season.test.js', 'rating.test.js']) {
+    const src = fs.readFileSync(path.join(dir, file), 'utf8');
+    for (const [index, line] of src.split('\n').entries()) {
+      const reads = /\b(leaderboard|profileSummary|ensureSeasonRows)\(/.test(line);
+      // Pinned means the moment is named: `now: T0`, or T0 passed positionally.
+      if (reads && !/\bnow\b|T0/.test(line) && !/require\(/.test(line) && !/^\s*\*/.test(line)) {
+        offenders.push(`${file}:${index + 1}: ${line.trim()}`);
+      }
+    }
+  }
+  expect(offenders).toEqual([]);
 });

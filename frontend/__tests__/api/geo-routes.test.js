@@ -44,7 +44,20 @@ const hitFetch = jest.fn(async (url) => {
   };
 });
 
-const ENV_KEYS = ['GOOGLE_STREET_VIEW_API_KEY', 'GOOGLE_MAPS_BROWSER_KEY', 'GOOGLE_PLACES_API_KEY', 'GOOGLE_MAPS_SERVER_KEY', 'NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY'];
+const ENV_KEYS = [
+  'GOOGLE_STREET_VIEW_API_KEY',
+  'GOOGLE_MAPS_BROWSER_KEY',
+  'GOOGLE_PLACES_API_KEY',
+  'GOOGLE_MAPS_SERVER_KEY',
+  'NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY',
+  // next/jest loads frontend/.env, and GEO_TOKEN_SECRET is a documented
+  // variable that takes precedence over NEXTAUTH_SECRET when the server
+  // seals a token. A developer or CI box that sets it used to get five
+  // red tests here for a reason that had nothing to do with the code.
+  // The suite pins the secret instead of hoping nobody set one.
+  'GEO_TOKEN_SECRET',
+];
+const TOKEN_SECRET = 'geo-routes-test-secret-long-enough';
 const saved = {};
 
 beforeEach(() => {
@@ -55,6 +68,7 @@ beforeEach(() => {
   }
   process.env.GOOGLE_STREET_VIEW_API_KEY = 'sv-key';
   process.env.GOOGLE_MAPS_BROWSER_KEY = 'browser-key';
+  process.env.GEO_TOKEN_SECRET = TOKEN_SECRET;
   global.fetch = hitFetch;
   hitFetch.mockClear();
 });
@@ -98,7 +112,7 @@ describe('POST /api/geo/round', () => {
     expect(body.round.panoId).toMatch(/^pano-/);
     expect(body.round.token).toMatch(/^g1\./);
     expect(JSON.stringify(body.round)).not.toMatch(/"lat"/);
-    const answer = openToken(body.round.token, { secret: process.env.NEXTAUTH_SECRET });
+    const answer = openToken(body.round.token, { secret: TOKEN_SECRET });
     expect(answer.pano).toBe(body.round.panoId);
   });
 
@@ -180,7 +194,7 @@ describe('POST /api/geo/round', () => {
 describe('POST /api/geo/guess', () => {
   test('scores a guess from the sealed token and reveals the answer', async () => {
     const round = (await (await postRound(request({ config: { mode: 'country', region: 'FR', seed: 'g' } }))).json()).round;
-    const answer = openToken(round.token, { secret: process.env.NEXTAUTH_SECRET });
+    const answer = openToken(round.token, { secret: TOKEN_SECRET });
     const res = await postGuess(request({ token: round.token, guess: { lat: answer.lat + 0.5, lng: answer.lng } }));
     expect(res.status).toBe(200);
     const { result } = await res.json();
@@ -206,7 +220,7 @@ describe('POST /api/geo/guess', () => {
     const totals = [];
     for (let i = 0; i < 5; i++) {
       const round = (await (await postRound(request({ config: { mode: 'daily' }, roundIndex: i }, mine))).json()).round;
-      const answer = openToken(round.token, { secret: process.env.NEXTAUTH_SECRET });
+      const answer = openToken(round.token, { secret: TOKEN_SECRET });
       const { challenge } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
       expect(challenge).toMatchObject({ key: `daily:${today}`, recorded: true, rounds: i + 1, finished: i === 4 });
       totals.push(challenge.total);
@@ -251,7 +265,7 @@ describe('POST /api/geo/guess', () => {
     const registered = await (await postProfile(request({ name: 'Cupper' }, { 'x-test-ip': '198.51.100.40' }))).json();
     const mine = { 'x-test-ip': '198.51.100.40', 'x-geo-profile': registered.token };
     const round = (await (await postRound(request({ config: { mode: 'cup' }, roundIndex: 0 }, mine))).json()).round;
-    const answer = openToken(round.token, { secret: process.env.NEXTAUTH_SECRET });
+    const answer = openToken(round.token, { secret: TOKEN_SECRET });
     const { challenge } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
     expect(challenge).toMatchObject({ recorded: true, rounds: 1, finished: false });
     expect(challenge.key).toMatch(/^cup:\d{4}-W\d{2}$/);
@@ -268,7 +282,7 @@ describe('POST /api/geo/guess', () => {
     const registered = await (await postProfile(request({ name: 'Grace' }, { 'x-test-ip': '198.51.100.30' }))).json();
     const mine = { 'x-test-ip': '198.51.100.30', 'x-geo-profile': registered.token };
     const round = (await (await postRound(request({ config: { mode: 'country', region: 'JP', seed: 'pts' } }, mine))).json()).round;
-    const answer = openToken(round.token, { secret: process.env.NEXTAUTH_SECRET });
+    const answer = openToken(round.token, { secret: TOKEN_SECRET });
     const { points } = await (await postGuess(request({ token: round.token, guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
     expect(points.earned).toBeGreaterThan(0);
     expect(points.badge).toMatchObject({ countryCode: 'JP' });

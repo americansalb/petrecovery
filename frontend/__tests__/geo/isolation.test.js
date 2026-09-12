@@ -52,13 +52,23 @@ function walk(dir, found = []) {
   return found;
 }
 
-/** Static imports, dynamic imports and requires, in source order. */
+/**
+ * Static imports, dynamic imports, requires and bare side-effect
+ * imports, in source order.
+ *
+ * The last shape is the one this walk used to miss. `import
+ * '@/app/lib/auth';` has no `from`, no parentheses and no `require`, so
+ * a wire back to the pet site could be added without failing the test
+ * that exists to forbid it, while the docstring claimed every import
+ * was checked (found in the deep audit).
+ */
 function importsIn(source) {
   const specifiers = [];
   const patterns = [
     /\bfrom\s+['"]([^'"]+)['"]/g,
     /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
     /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /(?:^|[;\n])\s*import\s+['"]([^'"]+)['"]/g,
   ];
   for (const pattern of patterns) {
     let match;
@@ -118,7 +128,10 @@ describe('the game stands alone', () => {
     // Built at runtime rather than written out, so this file does not
     // match its own search and report itself.
     const pet = ['next', 'auth'].join('-');
-    const importing = new RegExp(`(from|require\\()\\s*['"]${pet}`);
+    // from, require(, import( and a bare side-effect import. The
+    // dynamic form used to be missing, so a destructured await of the
+    // package went straight through this guard.
+    const importing = new RegExp(`(from|require\\(|import\\(|import)\\s*['"]${pet}`);
     const offenders = [];
     for (const dir of GAME_DIRS) {
       for (const file of walk(dir)) {
