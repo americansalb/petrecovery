@@ -265,6 +265,18 @@ describe('scoring a pin', () => {
     expect(marathiInChennai.distanceKm).toBeGreaterThan(400);
   });
 
+  test('an enclave belongs to the language spoken in it, not to the state around it', () => {
+    // Puducherry is one union territory in four pieces in three states.
+    // Assigning the whole unit to Tamil, which is what the first cut of
+    // this did, scored a pin in Malayalam-speaking Mahe as full marks
+    // for Tamil. Each piece belongs to the language spoken there.
+    const at = (lat, lng) => languagesAt({ lat, lng }).map((language) => language.code).sort();
+    expect(at(11.93, 79.78)).toContain('tam'); // Puducherry town
+    expect(at(10.92, 79.83)).toContain('tam'); // Karaikal
+    expect(at(12.053, 75.288)).toEqual(['mal']); // Mahe, which Kerala's own polygon does not cover
+    expect(at(16.727, 82.242)).toEqual(['tel']); // Yanam, which sits inside Andhra Pradesh
+  });
+
   test('languages overlap, because the ground does', () => {
     // A state is not a language and a language is not a state. Every
     // one of these places speaks more than one of the corpus, and a
@@ -437,10 +449,12 @@ describe('scoring a round', () => {
     expect(result.inRegion).toBe(true);
     expect(result.answer).toMatchObject({ code: 'tam', name: 'Tamil', script: 'taml', family: 'Dravidian' });
     expect(result.answer.endonym).toBeTruthy();
-    // Both heartlands, so the map can draw them: a border is not the
-    // edge of a language.
-    expect(result.answer.regions.length).toBe(2);
-    expect(result.answer.regions.map((r) => r.cca2).sort()).toEqual(['IN', 'LK']);
+    // Every region, so the map can draw them all: Tamil Nadu, the two
+    // Tamil pieces of Puducherry, and the Sri Lankan north and east. A
+    // border is not the edge of a language.
+    expect(result.answer.regions.length).toBe(3);
+    expect([...new Set(result.answer.regions.map((r) => r.cca2))].sort()).toEqual(['IN', 'LK']);
+    expect(result.answer.regions.every((region) => region.rings?.length)).toBe(true);
   });
 
   test('a pin in the wrong part of the same country loses most of the round', () => {

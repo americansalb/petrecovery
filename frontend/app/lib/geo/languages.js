@@ -196,7 +196,13 @@ const LANGUAGE_ROWS = [
     code: 'tam', name: 'Tamil', endonym: 'தமிழ்', script: 'taml',
     family: 'Dravidian', branch: 'South Dravidian', speakers: 87,
     regions: [
-      { name: 'Tamil Nadu', units: ['IN-TN', 'IN-PY'] },
+      { name: 'Tamil Nadu', units: ['IN-TN'] },
+      // Puducherry is four enclaves in three states and only two of
+      // them are Tamil: this is Puducherry town and Karaikal, both
+      // inside Tamil Nadu. Mahe is Malayalam and has its own region
+      // there; Yanam is Telugu and falls inside Andhra Pradesh, which
+      // Telugu already has.
+      { name: 'Puducherry and Karaikal', units: ['IN-PY'], clip: { minLng: 79.0, maxLng: 80.5, maxLat: 12.5 } },
       { name: 'northern and eastern Sri Lanka', units: ['LK-41', 'LK-42', 'LK-43', 'LK-44', 'LK-45', 'LK-51', 'LK-52', 'LK-53'] },
     ],
   },
@@ -213,7 +219,10 @@ const LANGUAGE_ROWS = [
   {
     code: 'mal', name: 'Malayalam', endonym: 'മലയാളം', script: 'mlym',
     family: 'Dravidian', branch: 'South Dravidian', speakers: 37,
-    regions: [{ name: 'Kerala', units: ['IN-KL', 'IN-LD'] }],
+    regions: [
+      { name: 'Kerala', units: ['IN-KL', 'IN-LD'] },
+      { name: 'Mahe', units: ['IN-PY'], clip: { maxLng: 76.0 } },
+    ],
   },
   {
     code: 'sin', name: 'Sinhala', endonym: 'සිංහල', script: 'sinh',
