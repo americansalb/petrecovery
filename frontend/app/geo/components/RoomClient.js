@@ -277,8 +277,12 @@ export default function RoomClient({ code }) {
   const notFound = error?.status === 404;
   const joined = Boolean(identity && me);
   const imageryReady = isApple ? Boolean(mapkit) : Boolean(api);
-  const showImagery = !isApple && api && status === 'playing' && shownRound;
-  const showApple = isApple && mapkit && status === 'playing' && appleCandidates?.length > 0;
+  // Players only: every panorama a browser opens is a billed load, and
+  // the meter charges the room's players. The server withholds the
+  // panorama id from anyone who has not joined; this keeps the pane from
+  // mounting for them at all.
+  const showImagery = !isApple && api && joined && status === 'playing' && shownRound;
+  const showApple = isApple && mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-midnight-950 text-white">
@@ -414,8 +418,8 @@ export default function RoomClient({ code }) {
         </>
       ) : null}
 
-      {/* The one map */}
-      {api && joined ? (
+      {/* The one map: MapKit backs it in an Apple room, Maps in a Google one. */}
+      {imageryReady && joined ? (
         <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
           <div className="min-h-0 flex-1">
             {isApple ? (
@@ -461,7 +465,7 @@ export default function RoomClient({ code }) {
       {joined && phase === 'loading' ? <LoadingPanel state={state} /> : null}
       {joined && phase === 'locating' ? <LocatingPanel state={state} attempt={locateAttempt} /> : null}
       {joined && phase === 'reveal' ? (
-        <RevealPanel state={state} secondsLeft={revealLeft ?? 0} onNext={() => run(() => act('next'))} onReact={(emoji) => act('react', { emoji })} busy={busy} />
+        <RevealPanel state={state} secondsLeft={revealLeft ?? 0} onNext={() => run(() => act('next', { phase, roundIndex: room?.roundIndex }))} onReact={(emoji) => act('react', { emoji })} busy={busy} />
       ) : null}
       {joined && status === 'finished' ? <StandingsPanel state={state} onRematch={onRematch} onLeave={onLeave} busy={busy} error={actionError} /> : null}
       {server && !googleConfigured && joined && status !== 'finished' ? (

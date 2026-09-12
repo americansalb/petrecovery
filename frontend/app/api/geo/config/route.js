@@ -10,7 +10,6 @@
 import { NextResponse } from 'next/server';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { countryOptions } from '@/app/lib/geo/server/countries';
-import { CITIES } from '@/app/lib/geo/coverage';
 import { dailySeed } from '@/app/lib/geo/modes';
 import { limitsFromEnv } from '@/app/lib/geo/meter';
 
@@ -21,7 +20,12 @@ export async function GET() {
   const missing = [];
   if (!cfg.googleServerKey) missing.push('GOOGLE_STREET_VIEW_API_KEY');
   if (!cfg.googleBrowserKey) missing.push('GOOGLE_MAPS_BROWSER_KEY');
-  if (!cfg.tokenSecret) missing.push('NEXTAUTH_SECRET');
+  // The game's own variable, which is what config.js reads first and
+  // what the split carries to a standalone deployment. This used to name
+  // NEXTAUTH_SECRET, the pet site's, which is only the fallback: the
+  // setup screen renders this list verbatim, so it was telling operators
+  // to set the one variable the game is trying to stop needing.
+  if (!cfg.tokenSecret) missing.push('GEO_TOKEN_SECRET');
 
   return NextResponse.json(
     {
@@ -35,8 +39,14 @@ export async function GET() {
       },
       daily: { seed: dailySeed(), date: new Date().toISOString().slice(0, 10) },
       // The play meter's per-player numbers (docs/GEO.md); the site budgets stay server-side.
-      limits: (({ freeGoogleRounds, freeGoogleRoomGames, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }) => ({ freeGoogleRounds, freeGoogleRoomGames, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }))(limitsFromEnv()),
-      cityCount: CITIES.length,
+      limits: (({ freeGoogleRounds, freeGoogleRoomGames, freeChallengeRounds, ceilingAnonymous, ceilingSignedIn, roundsPerMinute }) => ({
+        freeGoogleRounds,
+        freeGoogleRoomGames,
+        freeChallengeRounds,
+        ceilingAnonymous,
+        ceilingSignedIn,
+        roundsPerMinute,
+      }))(limitsFromEnv()),
       countries: countryOptions(),
     },
     { headers: { 'Cache-Control': 'no-store' } }

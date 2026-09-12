@@ -8,10 +8,14 @@
  * too, or the browser could match the text against it and read off the
  * answer (app/lib/geo/server/samples.js).
  *
- * The whole game for a seed is decided by the seed. The API is
- * stateless: the client asks for round three and gets the same round
- * three every time, and a shared link replays the same sentences in the
- * same order.
+ * The whole game for a seed is decided by the seed AND the server's
+ * token secret. The API is stateless: the client asks for round three
+ * and gets the same round three every time, and a shared link replays
+ * the same sentences in the same order. The secret is what stops the
+ * browser doing the same arithmetic: the seed is in the address bar,
+ * the language pool and the speaker counts ship in the page bundle, and
+ * the draw is one weighted pick per round, so without it the whole
+ * answer sequence is computable before the first sentence is read.
  *
  * Nothing here costs money. There is no imagery provider, no metadata
  * probe and no key, so script rounds do not touch the play meter
@@ -19,6 +23,7 @@
  * arithmetic: a text round has no marginal cost to meter.
  */
 
+import { createHash } from 'crypto';
 import { createRng, roundSeed, weightedIndex } from '../random';
 import { languagesForLadder, ladderSizeKm, normalizeScriptConfig, scoreScriptGuess } from '../script';
 import { SCRIPTS, languageByCode } from '../languages';
@@ -46,15 +51,25 @@ function weightFor(language) {
 }
 
 /**
+ * A seed the browser cannot reproduce. Everything else the draw reads -
+ * the ladder, the language rows, the speaker counts, the generator - is
+ * in the page bundle, so the secret is the only part that is not.
+ */
+function saltedSeed(seed, purpose, secret) {
+  if (!secret) return `${seed}#${purpose}`;
+  return createHash('sha256').update(`wanderguesser-script:${purpose}:${secret}:${seed}`).digest('hex').slice(0, 32);
+}
+
+/**
  * The languages for a whole game, in order, drawn without replacement
  * so a five-round game is five different answers. A ladder smaller than
  * the round count (Cyrillic has six languages, a ten-round game wants
  * ten) refills and may then repeat, which beats refusing to start.
  */
-export function drawLanguages(config) {
+export function drawLanguages(config, secret = '') {
   const { ladder, rounds, seed } = normalizeScriptConfig(config);
   const source = languagesForLadder(ladder);
-  const rng = createRng(seed || 'script');
+  const rng = createRng(saltedSeed(seed || 'script', 'draw', secret));
   const picked = [];
   let bag = [...source];
   while (picked.length < rounds) {
@@ -77,19 +92,32 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
     throw new ScriptGameError('no_secret', 'Set NEXTAUTH_SECRET or GEO_TOKEN_SECRET before starting a game');
   }
   const index = Math.max(0, Math.min(config.rounds - 1, Math.floor(Number(roundIndex) || 0)));
-  const language = drawLanguages(config)[index];
+  const language = drawLanguages(config, tokenSecret)[index];
   if (!language) throw new ScriptGameError('empty_pool', 'No languages in that pool');
 
   const samples = samplesFor(language.code);
   if (!samples.length) throw new ScriptGameError('no_samples', `No sample text for ${language.name}`);
-  const rng = createRng(roundSeed(config.seed || 'script', index));
+  const rng = createRng(saltedSeed(roundSeed(config.seed || 'script', index), 'text', tokenSecret));
   const text = samples[Math.floor(rng() * samples.length)];
 
   return {
     roundIndex: index,
     ladder: config.ladder,
+    // The script ID, and only the ID, because the client has to pick a
+    // font (app/geo/script/fonts.js). Its human NAME used to be here
+    // too, and that was a leak: for a script only one language uses -
+    // Odia, Tamil, Telugu, Kannada, Malayalam, Sinhala, Thai, Lao,
+    // Khmer, Georgian, Armenian, Hebrew, Greek - the name of the script
+    // is the name of the answer, handed over before the guess. Nothing
+    // on the client read it; the reveal takes scriptName from the guess
+    // response, where it belongs.
+    //
+    // The ID is still a hint to anyone reading the network tab, and it
+    // cannot be removed while the browser chooses the font. That mostly
+    // does not matter, because the script is on screen anyway; where it
+    // does matter is the Alphabets ladder, whose whole game is naming
+    // the writing system. Treat that ladder as unranked-by-design.
     script: language.script,
-    scriptName: SCRIPTS[language.script]?.name || language.script,
     text,
     token: sealToken({ c: language.code, l: config.ladder, i: index, seed: config.seed || '' }, { secret: tokenSecret, now }),
   };

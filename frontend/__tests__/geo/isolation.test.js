@@ -52,13 +52,23 @@ function walk(dir, found = []) {
   return found;
 }
 
-/** Static imports, dynamic imports and requires, in source order. */
+/**
+ * Static imports, dynamic imports, requires and bare side-effect
+ * imports, in source order.
+ *
+ * The last shape is the one this walk used to miss. `import
+ * '@/app/lib/auth';` has no `from`, no parentheses and no `require`, so
+ * a wire back to the pet site could be added without failing the test
+ * that exists to forbid it, while the docstring claimed every import
+ * was checked (found in the deep audit).
+ */
 function importsIn(source) {
   const specifiers = [];
   const patterns = [
     /\bfrom\s+['"]([^'"]+)['"]/g,
     /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
     /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /(?:^|[;\n])\s*import\s+['"]([^'"]+)['"]/g,
   ];
   for (const pattern of patterns) {
     let match;
@@ -67,11 +77,43 @@ function importsIn(source) {
   return specifiers;
 }
 
-/** Where a specifier points, as a repo-relative path, or null for a package. */
+/**
+ * Where a specifier points, as a repo-relative path, or null for a real
+ * npm package.
+ *
+ * Two holes the deep audit found. '@/' was returned raw, so '@/app/../app/lib/auth'
+ * was compared against the game's directories without being normalized;
+ * and everything that was neither '@/' nor relative was called a
+ * package, though jsconfig.json maps other aliases into the repo and a
+ * bare specifier that matches a top-level directory resolves there too.
+ * Both let a real pet-site import satisfy the one test that enforces
+ * the whole standalone claim.
+ */
+const ALIASES = (() => {
+  const file = ['jsconfig.json', 'tsconfig.json'].map((name) => path.join(ROOT, name)).find((p) => fs.existsSync(p));
+  const config = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\s*\/\/.*$/gm, ''));
+  const paths = config.compilerOptions?.paths || {};
+  return Object.entries(paths).map(([pattern, [target]]) => ({
+    prefix: pattern.replace(/\*$/, ''),
+    target: String(target).replace(/^\.\//, '').replace(/\*$/, ''),
+  }));
+})();
+
 function resolveInRepo(specifier, fromFile) {
-  if (specifier.startsWith('@/')) return specifier.slice(2);
+  for (const alias of ALIASES) {
+    if (alias.prefix && specifier.startsWith(alias.prefix)) {
+      return path.normalize(`${alias.target}${specifier.slice(alias.prefix.length)}`);
+    }
+  }
   if (specifier.startsWith('.')) {
     return path.normalize(path.join(path.dirname(fromFile), specifier));
+  }
+  // A bare specifier that names a directory in the repo is a repo file,
+  // not a package: Node and the bundler both find it before they look
+  // in node_modules.
+  const bare = specifier.split('/')[0];
+  if (bare && !bare.startsWith('@') && fs.existsSync(path.join(ROOT, bare)) && !fs.existsSync(path.join(ROOT, 'node_modules', bare))) {
+    return path.normalize(specifier);
   }
   return null; // an npm package or a Node builtin
 }
@@ -118,7 +160,10 @@ describe('the game stands alone', () => {
     // Built at runtime rather than written out, so this file does not
     // match its own search and report itself.
     const pet = ['next', 'auth'].join('-');
-    const importing = new RegExp(`(from|require\\()\\s*['"]${pet}`);
+    // from, require(, import( and a bare side-effect import. The
+    // dynamic form used to be missing, so a destructured await of the
+    // package went straight through this guard.
+    const importing = new RegExp(`(from|require\\(|import\\(|import)\\s*['"]${pet}`);
     const offenders = [];
     for (const dir of GAME_DIRS) {
       for (const file of walk(dir)) {

@@ -148,6 +148,28 @@ describe('the ledger', () => {
     expect(other.earned).toBeGreaterThan(0);
   });
 
+  test('an Apple round pays once, though it hands out twelve tokens', async () => {
+    // Found in the deep audit. An Apple round issues one sealed token
+    // per candidate place, all for the same round, and the ledger was
+    // keyed by the token: twelve grants for one round, while the play
+    // meter, which counts rounds created, moved by one. Every candidate
+    // carries its own plaintext coordinate, so all twelve scored 5,000.
+    const store = createMemoryRoomStore();
+    const ada = await player(store, 'Ada');
+    const subjects = { profileId: ada.id, signedIn: false, ipHash: null };
+    await recordRound(store, { subjects, provider: 'apple', source: 'apple', now: T0 });
+
+    const roundId = 'one-round';
+    let paid = 0;
+    for (let candidate = 0; candidate < 12; candidate++) {
+      const result = pinResult({ seed: '', roundId, answer: { lat: 48 + candidate, lng: 2 + candidate, country: { code: 'FR', name: 'France', flag: '🇫🇷' } } });
+      const row = await awardSoloRound(store, { profileId: ada.id, result, token: `g1.candidate-${candidate}`, now: T0 + candidate });
+      paid += row.earned;
+    }
+    // the round once, the first of the day once, the badge once
+    expect(paid).toBe(POINTS.roundBase + POINTS.roundBonusMax + POINTS.firstOfDay + POINTS.badge);
+  });
+
   test('a solo round: the round, the first of the day, a badge once per country, and the cap after 50 rounds', async () => {
     const store = createMemoryRoomStore();
     const ada = await player(store, 'Ada');
@@ -217,6 +239,28 @@ describe('the ledger', () => {
     await expect(roomAction(store, { code: host.room.code, token: host.token, action: 'react', body: { emoji: '💩' }, now: t })).rejects.toMatchObject({ code: 'bad_reaction' });
     expect(final.me.reactions).toEqual(REACTION_EMOJI);
     expect(adaRow.cosmetics.pin.id).toBe('pin-classic');
+  });
+
+  test('the daily earning cap holds for finishing a room, not only for its rounds', async () => {
+    // Placement and the duel win are the biggest single awards in the
+    // economy and were the only ones outside the cap. Apple rooms have
+    // no allowance at all, so two profiles could finish short duels all
+    // night and take 70 uncapped points a room.
+    const store = createMemoryRoomStore();
+    const ada = await player(store, 'Ada');
+    const grace = await player(store, 'Grace');
+    await store.bumpUsage(`profile:${ada.id}`, '2026-09-07', 'apple', { rounds: 60, free: 0, paid: 0 });
+    const room = {
+      id: 'room-capped',
+      variant: 'classic',
+      players: [
+        { id: 'p1', profileId: ada.id, score: 9000, leftAt: null },
+        { id: 'p2', profileId: grace.id, score: 4000, leftAt: null },
+      ],
+    };
+    const paid = await awardRoomFinish(store, room, T0);
+    expect(paid.p1).toBeUndefined();
+    expect(paid.p2).toBe(roomFinishPoints({ placement: 2 }));
   });
 });
 

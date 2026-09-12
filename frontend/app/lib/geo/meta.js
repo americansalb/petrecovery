@@ -21,6 +21,13 @@
 
 export const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'ReunitePets';
 
+/**
+ * The game's name, in one place. Renaming it once left the share card
+ * painting the old one into every preview PNG for months, because that
+ * was a literal in a JSX file nobody greps.
+ */
+export const GAME_NAME = 'WanderGuesser';
+
 /** The card a page falls back to when it has no image of its own. */
 export const FALLBACK_SHARE_IMAGE =
   process.env.NEXT_PUBLIC_GEO_SHARE_IMAGE ||

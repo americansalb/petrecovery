@@ -42,6 +42,9 @@ export async function GET() {
       { url: '/advice', priority: 0.6, changefreq: 'weekly' },
       { url: '/hub', priority: 0.5, changefreq: 'daily' },
       { url: '/about', priority: 0.5, changefreq: 'monthly' },
+      { url: '/geo', priority: 0.6, changefreq: 'daily' },
+      { url: '/geo/rooms', priority: 0.4, changefreq: 'daily' },
+      { url: '/geo/leaderboard', priority: 0.4, changefreq: 'daily' },
       { url: '/legal/terms', priority: 0.3, changefreq: 'yearly' },
       { url: '/privacy', priority: 0.3, changefreq: 'yearly' },
     ];

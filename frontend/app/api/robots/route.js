@@ -14,6 +14,13 @@ Disallow: /auth/
 Disallow: /dashboard
 Disallow: /profile
 Disallow: /settings/
+# WanderGuesser: the lobby and the boards are worth indexing, a live
+# game, a room and an account page are not.
+Disallow: /geo/play
+Disallow: /geo/script/play
+Disallow: /geo/room/
+Disallow: /geo/me
+Disallow: /geo/share
 
 # Crawl delay
 Crawl-delay: 1

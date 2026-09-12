@@ -64,7 +64,7 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    - *Continent / country*: the same, restricted.
    - *Everywhere*: a random spot in one of the cities listed in
      `coverage.js` for countries with **no** official Street View at all.
-   - *City streets*: a random spot within one of about 150 large cities
+   - *City streets*: a random spot within one of the 185 covered cities
      (`app/lib/geo/coverage.js`).
 2. **The imagery probe (Google).** `app/lib/geo/server/streetview.js`
    calls the Street View Static API *metadata* endpoint for each
@@ -219,7 +219,7 @@ precision no map of languages has.
 |---|---|
 | World | Everything, drawn by how many people speak it |
 | Alphabets | One language per writing system: learn to tell Devanagari from Bengali from Tamil |
-| South Asia | Seventeen languages, ten scripts, one subcontinent |
+| South Asia | Seventeen languages, eleven scripts, one subcontinent |
 | Devanagari | Hindi, Marathi, Nepali, Bhojpuri, Maithili: same alphabet, five answers |
 | Arabic script | Arabic, Persian, Urdu, Pashto, Kurdish, Sindhi, Uyghur: four families, one alphabet |
 | Cyrillic | Four Slavic answers and two that are not Slavic at all |
@@ -401,8 +401,10 @@ dent regulars. Quitting is a loss to everyone who stayed. Unregistered
 players are ignored entirely.
 
 Identity is a profile (`GeoProfile`): an anonymous token in the browser
-(hashed in the database), bound to a `User` the first time they play signed
-in, so the rating follows them across devices. `/geo/leaderboard` lists
+(hashed in the database), bound to a `GeoAccount` the first time they
+sign in, so the rating follows them across devices. That account is the
+game's own, never a ReunitePets user (phase 1.7 of the split, D1);
+`GeoProfile.userId` is dead and nothing reads it. `/geo/leaderboard` lists
 players with at least 3 rated games; ratings stay "provisional" until 5.
 Tiers (Bronze to Grandmaster) are labels on the number, nothing more.
 
@@ -426,11 +428,84 @@ rated, and the result page (`/geo/share`) hides a daily's places until
 the reader's own browser has played that day, with a "show them anyway"
 for the impatient. The preview image never shows places.
 
+### What holds the board up, and what does not
+
+A round token is bound to the profile that opened it (`sub` in the
+sealed payload). The daily and the cup cannot be opened without a
+profile at all, and `/api/geo/guess` refuses a challenge token presented
+by anyone else with a 403 and no answer. That closes the shape the audit
+found: open a round with no identity, read its answer from the guess
+route for free and with nothing recorded, then play the same round under
+a real profile for a perfect 5,000 that lands as that profile's first
+guess. It was a free oracle because a seeded round is deterministic and
+cached, so the second draw is the same place.
+
+The board's own window is checked too. The seed comes from the client
+and `daily-2031-01-01` is a valid shape, so `challengeFor` requires the
+board to be open now (with two hours of grace for a game in flight over
+midnight), and `recordChallengeRound` refuses a round index outside the
+challenge's length.
+
+What this does NOT stop: a throwaway profile. Profiles are free and
+anonymous by design, so somebody can register one, play the daily with
+it to learn the five places, and then play it properly on their real
+profile. Nothing short of restricting the board to verified accounts
+fixes that, and that is a product decision, not a patch. It is worth
+weighing for the cup, which pays points.
+
+### What the browser can always work out
+
+Two things are visible to anyone reading the network tab, and neither
+can be closed while the game uses these SDKs:
+
+- **Apple rounds send the coordinate.** Look Around is opened by the
+  browser at a latitude and longitude; there is no id to hand over
+  instead. Every Apple round's answer is in the page before the guess.
+- **Google rounds send a panorama id**, and the browser also holds the
+  public Maps key, so `StreetViewService.getPanorama({ pano })` returns
+  that panorama's exact position. The id is not the coordinate, but it
+  is one call away from it.
+
+So the sealed token protects the answer from a casual reader, not from a
+determined one, on any imagery round. That is why rated play is rooms
+(one clock, everyone on the same place, scores compared with each other)
+and why the daily is unrated.
+
+## Housekeeping and the shared database
+
+The game's sixteen-plus tables live on the pet site's Postgres until
+phase 3 gives the game its own. Two consequences the deep audit turned
+up, both now handled:
+
+- **The pool is capped.** `app/lib/geo/server/db.js` gives the game's
+  Prisma client `connection_limit=5` on the shared database whether or
+  not `GEO_DB_POOL` is set. The thing on the other side of that database
+  is a lost-pet service, and an uncapped second pool turns a launch
+  spike into connection starvation for pet reports.
+- **Rows are swept.** `app/lib/geo/server/sweep.js` deletes expired
+  round-cache rows and sign-in links, play-meter rows older than 120
+  days, finished rooms after 14 days and rooms abandoned part way after
+  3. `/api/geo/round` runs it at most once an hour per process, and
+  `npm run geo:sweep` runs it on demand. Profiles, accounts, ratings,
+  the points ledger, badges, challenge boards and `GeoMatchResult` are
+  kept: a swept room does not take a player's record of it, because
+  `GeoMatchResult` carries no foreign key to `GeoRoom`.
+
+Deleting an account (`POST /api/geo/auth/delete`, the button on
+`/geo/me`) removes the email address, the profile and everything that
+cascades from it: ratings, points, badges, unlocks, results and room
+seats. Scores already on a daily or cup board stay, because those rows
+belong to the challenge and removing them would rewrite everyone else's
+ranking. What the game stores and for how long is written out in
+`/privacy`, and `__tests__/geo/privacy-coverage.test.js` enumerates
+every personal-data column so a new one cannot ship unmentioned.
+
 ## Seasons
 
 Ratings live per season: three months each from 1 September 2026
 (`app/lib/geo/season.js`; "s1" is Sep to Nov 2026, "s0" is everything
-before). `GeoRating` is unique on profile, ladder and season, and every
+before). `GeoSeasonRating` is unique on profile, ladder and season (`GeoRating`
+itself is the all-time row, unique on profile and ladder), and every
 read of ratings goes through `ensureSeasonRows` in
 `app/lib/geo/server/profiles.js`: the first time a profile is seen in a
 new season on a ladder, last season's row is carried in softly (halfway
@@ -509,12 +584,24 @@ holds the counts per subject per UTC day per provider):
 
 | | Google | Apple |
 |---|---|---|
-| Free per player per day | 25 solo rounds, five games of five (`GEO_FREE_GOOGLE_ROUNDS`), and one room game (`GEO_FREE_GOOGLE_ROOM_GAMES`); the daily challenge and the weekly cup are on top | no limit |
+| Free per player per day | 25 solo rounds, five games of five (`GEO_FREE_GOOGLE_ROUNDS`), and one room game (`GEO_FREE_GOOGLE_ROOM_GAMES`); the daily challenge and the weekly cup add 10 rounds on top (`GEO_FREE_CHALLENGE_ROUNDS`), after which they draw on the solo allowance like anything else | no limit |
 | After that | prepaid rounds on the profile (`paidRounds`, quota packs bought once; no subscriptions anywhere), then a refusal | |
 | Per player per day, any imagery | 600 anonymous, 2,000 signed in | same |
-| Per address per day | 5,000, and 125 free Google rounds as a backstop for anonymous players who clear the browser | same |
-| Per player per minute | 15 | 15 |
-| Whole site per day | 20,000 | 200,000, under Apple's 250,000 views |
+| Per address per day | 5,000, and as a backstop for anonymous players who clear the browser: 125 free Google rounds and 50 challenge rounds | same |
+| Per player per minute | 15, by profile or, with no profile, by address | 15 |
+| Whole site per day | 20,000 panorama loads | 200,000, under Apple's 250,000 views |
+
+The site's budget is the one limit counted in panorama loads rather than
+rounds, because it is the one that exists to bound the bill. Every mode
+shows one panorama a round except Kidnapped, where the car drives itself
+and each hop is another billed load: a Kidnapped round is 73 loads
+(`KIDNAPPED_LOADS`, one for the drop and `MAX_DRIVE_HOPS` for the
+drive). The drive stops when those hops are spent.
+
+Imagery goes to players only. A spectator on `/geo/room/CODE` gets the
+room, the players and the reveal, but no panorama id and no Look Around
+coordinate: `recordRoomRound` charges the room's players, so a panorama
+loaded by anyone else would be money nothing counted.
 
 Anonymous players are tracked by profile and by hashed IP address, so
 clearing the browser does not reset the allowance. Signed-in players are
@@ -662,13 +749,15 @@ GEO_STREET_VIEW_METADATA_URL=...   # optional, development only: a local mock of
 
 Free tier (Google, per month, as of March 2025 pricing): metadata probes
 unlimited, 5,000 Dynamic Street View loads, 10,000 Dynamic Maps loads.
-One game of five rounds is five panorama loads and one map load.
+One game of five rounds is five panorama loads and one map load. One
+game of Kidnapped is up to 365, because the car drives.
 
 Apple: the app already loads MapKit JS. Look Around arrived in MapKit JS
 5.79 but is not in the full `mapkit.js` bundle; the game asks for the
-`look-around` library with `mapkit.load` after the site-wide loader runs.
+`look-around` library with `mapkit.load` through its own loader,
+`app/geo/lib/appleMapKit.js` (the game owns it: phase 1.4 of the split).
 If that call is missing in the deployed MapKit build, switch the loader
-in `app/lib/maps/appleMapKit.js` to `mapkit.core.js` with
+in `app/geo/lib/appleMapKit.js` to `mapkit.core.js` with
 `data-libraries="services,full-map,geojson,user-location,look-around"`.
 
 ## Local development without keys

@@ -91,6 +91,13 @@ export function createMemoryRoomStore() {
       Object.assign(round, data);
       return { ...round };
     },
+    async createGuessIfAbsent({ roundId, playerId, ...data }) {
+      const existing = [...guesses.values()].find((g) => g.roundId === roundId && g.playerId === playerId);
+      if (existing) return null;
+      const guess = { id: id('guess'), roundId, playerId, score: 0, damage: 0, timedOut: false, ...data };
+      guesses.set(guess.id, guess);
+      return { ...guess };
+    },
     async upsertGuess({ roundId, playerId, ...data }) {
       const existing = [...guesses.values()].find((g) => g.roundId === roundId && g.playerId === playerId);
       if (existing) {
@@ -130,6 +137,28 @@ export function createMemoryRoomStore() {
       Object.assign(account, data);
       return { ...account };
     },
+    async getAccountById(accountId) {
+      const account = accounts.get(accountId);
+      return account ? { ...account } : null;
+    },
+    async deleteAccount(accountId) {
+      return accounts.delete(accountId);
+    },
+    async deleteProfile(profileId) {
+      profiles.delete(profileId);
+      for (const [k, row] of ledger) if (row.profileId === profileId) ledger.delete(k);
+      return true;
+    },
+    async deleteLoginTokensForEmail(email) {
+      let count = 0;
+      for (const [k, row] of loginTokens) {
+        if (row.email === email) {
+          loginTokens.delete(k);
+          count += 1;
+        }
+      }
+      return count;
+    },
     async createLoginToken(data) {
       const row = { id: id('login'), usedAt: null, createdAt: new Date(), ...data };
       loginTokens.set(row.id, row);
@@ -154,6 +183,33 @@ export function createMemoryRoomStore() {
         }
       }
       return { count };
+    },
+    async deleteUsageBefore(day) {
+      let count = 0;
+      for (const [key, row] of usage) {
+        if (row.day < day) {
+          usage.delete(key);
+          count += 1;
+        }
+      }
+      return count;
+    },
+    async deleteOldRooms({ finishedBefore, staleBefore }) {
+      let count = 0;
+      for (const [key, room] of rooms) {
+        const last = new Date(room.lastActiveAt || room.createdAt || 0).getTime();
+        const cutoff = room.status === 'finished' ? new Date(finishedBefore).getTime() : new Date(staleBefore).getTime();
+        if (last >= cutoff) continue;
+        for (const [pk, p] of players) if (p.roomId === room.id) players.delete(pk);
+        for (const [rk, r] of rounds) {
+          if (r.roomId !== room.id) continue;
+          for (const [gk, g] of guesses) if (g.roundId === r.id) guesses.delete(gk);
+          rounds.delete(rk);
+        }
+        rooms.delete(key);
+        count += 1;
+      }
+      return count;
     },
     async getProfileById(profileId) {
       const p = profiles.get(profileId);
@@ -211,11 +267,13 @@ export function createMemoryRoomStore() {
     },
     async bumpUsage(subject, day, provider, inc = {}) {
       const key = `${subject}|${day}|${provider}`;
-      const row = usage.get(key) || { id: id('usage'), subject, day, provider, rounds: 0, free: 0, paid: 0, games: 0 };
+      const row = usage.get(key) || { id: id('usage'), subject, day, provider, rounds: 0, free: 0, paid: 0, games: 0, challenge: 0, loads: 0 };
       row.rounds += inc.rounds || 0;
       row.free += inc.free || 0;
       row.paid += inc.paid || 0;
       row.games += inc.games || 0;
+      row.challenge += inc.challenge || 0;
+      row.loads += inc.loads || 0;
       usage.set(key, row);
       return { ...row };
     },
@@ -283,6 +341,10 @@ export function createMemoryRoomStore() {
       const row = { id: id('ledger'), ...data };
       ledger.set(k, row);
       return { ...row };
+    },
+    async deleteLedger(rowId) {
+      for (const [k, row] of ledger) if (row.id === rowId) ledger.delete(k);
+      return true;
     },
     async addPoints(profileId, delta, { requireBalance = false } = {}) {
       const profile = profiles.get(profileId);

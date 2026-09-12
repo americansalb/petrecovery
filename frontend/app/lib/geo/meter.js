@@ -27,6 +27,8 @@
 export const DEFAULT_LIMITS = Object.freeze({
   freeGoogleRounds: 25, // per player per day; the daily challenge is on top
   freeGoogleRoundsPerIp: 125, // backstop for anonymous players who clear the browser
+  freeChallengeRounds: 10, // the daily (5) and the cup (5), on top of the allowance
+  freeChallengeRoundsPerIp: 50, // backstop per address for anonymous players
   freeGoogleRoomGames: 1, // free multiplayer games per player per day on Google
   freeGoogleRoomGamesPerIp: 5, // backstop per address for anonymous players
   ceilingAnonymous: 600, // rounds per day, any imagery, per anonymous player
@@ -47,6 +49,8 @@ export function limitsFromEnv(env = process.env) {
   return {
     freeGoogleRounds: num(env.GEO_FREE_GOOGLE_ROUNDS, DEFAULT_LIMITS.freeGoogleRounds),
     freeGoogleRoundsPerIp: num(env.GEO_FREE_GOOGLE_ROUNDS_PER_IP, DEFAULT_LIMITS.freeGoogleRoundsPerIp),
+    freeChallengeRounds: num(env.GEO_FREE_CHALLENGE_ROUNDS, DEFAULT_LIMITS.freeChallengeRounds),
+    freeChallengeRoundsPerIp: num(env.GEO_FREE_CHALLENGE_ROUNDS_PER_IP, DEFAULT_LIMITS.freeChallengeRoundsPerIp),
     freeGoogleRoomGames: num(env.GEO_FREE_GOOGLE_ROOM_GAMES, DEFAULT_LIMITS.freeGoogleRoomGames),
     freeGoogleRoomGamesPerIp: num(env.GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP, DEFAULT_LIMITS.freeGoogleRoomGamesPerIp),
     ceilingAnonymous: num(env.GEO_DAILY_CEILING_ANONYMOUS, DEFAULT_LIMITS.ceilingAnonymous),
@@ -82,6 +86,19 @@ export class MeterError extends Error {
 }
 
 export const METER_CODES = ['allowance', 'rooms', 'ceiling', 'budget', 'speed'];
+
+/**
+ * Panorama loads one round of a mode buys. Every mode shows one
+ * panorama; Kidnapped then drives itself, and each hop is another
+ * billed load (app/geo/lib/drive.js, MAX_DRIVE_HOPS). The site's daily
+ * budget is the one limit denominated in loads rather than rounds,
+ * because it is the limit that exists to bound the bill.
+ */
+export const KIDNAPPED_LOADS = 73;
+
+export function roundLoads(mode) {
+  return mode === 'kidnapped' ? KIDNAPPED_LOADS : 1;
+}
 
 const PROVIDERS = ['google', 'apple'];
 const roundsOf = (bucket) => PROVIDERS.reduce((sum, p) => sum + (bucket?.[p]?.rounds || 0), 0);
@@ -137,7 +154,11 @@ export function refusalTitle(code) {
  */
 export function decideRound({ provider, mode, signedIn = false, hasProfile = false, paidRounds = 0, usage = {}, limits = DEFAULT_LIMITS, allowance = true }) {
   const p = provider === 'apple' ? 'apple' : 'google';
-  if ((usage.site?.[p]?.rounds || 0) >= limits.siteBudget[p]) return { ok: false, code: 'budget' };
+  const loads = roundLoads(mode);
+  // Rows written before loads existed carry only rounds; one round was
+  // one load then, so reading across is exact.
+  const siteLoads = usage.site?.[p]?.loads || usage.site?.[p]?.rounds || 0;
+  if (siteLoads + loads > limits.siteBudget[p]) return { ok: false, code: 'budget' };
 
   const ceiling = signedIn ? limits.ceilingSignedIn : limits.ceilingAnonymous;
   if (hasProfile && roundsOf(usage.profile) >= ceiling) return { ok: false, code: 'ceiling' };
@@ -145,8 +166,18 @@ export function decideRound({ provider, mode, signedIn = false, hasProfile = fal
 
   if (p === 'apple') return { ok: true, source: 'apple' };
   if (!allowance) return { ok: true, source: 'room' };
-  // The shared challenges are the front door: on top of the allowance.
-  if (mode === 'daily' || mode === 'cup') return { ok: true, source: mode };
+  // The shared challenges are the front door, so they sit on top of the
+  // allowance. On top of, not instead of: this used to return on the
+  // mode string alone, which made "daily" an unlimited free-Google
+  // switch that skipped the per-address backstop too. A challenge round
+  // past the challenge allowance falls through and competes for the
+  // ordinary free rounds like any other.
+  if (mode === 'daily' || mode === 'cup') {
+    const byProfile = !hasProfile || (usage.profile?.google?.challenge || 0) < limits.freeChallengeRounds;
+    const ipChallengeLimit = hasProfile ? limits.freeChallengeRoundsPerIp : limits.freeChallengeRounds;
+    const byIp = signedIn || (usage.ip?.google?.challenge || 0) < ipChallengeLimit;
+    if (byProfile && byIp) return { ok: true, source: mode };
+  }
 
   const freeByProfile = !hasProfile || (usage.profile?.google?.free || 0) < limits.freeGoogleRounds;
   const ipFreeLimit = hasProfile ? limits.freeGoogleRoundsPerIp : limits.freeGoogleRounds;
@@ -179,13 +210,20 @@ export function decideRoomEntry({ provider, signedIn = false, hasProfile = false
 }
 
 /** What a round that started adds to the usage rows. */
-export function usageIncrement(source) {
-  return { rounds: 1, free: source === 'free' ? 1 : 0, paid: source === 'paid' ? 1 : 0, games: 0 };
+export function usageIncrement(source, mode = '') {
+  return {
+    rounds: 1,
+    free: source === 'free' ? 1 : 0,
+    paid: source === 'paid' ? 1 : 0,
+    games: 0,
+    challenge: source === 'daily' || source === 'cup' ? 1 : 0,
+    loads: roundLoads(mode),
+  };
 }
 
 /** What taking a seat in a room adds: a free game used, or nothing. */
 export function seatIncrement(source) {
-  return { rounds: 0, free: 0, paid: 0, games: source === 'free' ? 1 : 0 };
+  return { rounds: 0, free: 0, paid: 0, games: source === 'free' ? 1 : 0, challenge: 0, loads: 0 };
 }
 
 /**
@@ -218,6 +256,10 @@ export function meterView({ usage = {}, hasProfile = false, signedIn = false, pa
   if (hasProfile) gamePools.push(limits.freeGoogleRoomGames - (usage.profile?.google?.games || 0));
   if (!signedIn) gamePools.push((hasProfile ? limits.freeGoogleRoomGamesPerIp : limits.freeGoogleRoomGames) - (usage.ip?.google?.games || 0));
   const gamesLeft = Math.max(0, Math.min(limits.freeGoogleRoomGames, ...gamePools));
+  const challengePools = [];
+  if (hasProfile) challengePools.push(limits.freeChallengeRounds - (usage.profile?.google?.challenge || 0));
+  if (!signedIn) challengePools.push((hasProfile ? limits.freeChallengeRoundsPerIp : limits.freeChallengeRounds) - (usage.ip?.google?.challenge || 0));
+  const challengeLeft = Math.max(0, Math.min(limits.freeChallengeRounds, ...challengePools));
   return {
     day: dayKey(now),
     resetAt: nextDayMs(now),
@@ -228,6 +270,7 @@ export function meterView({ usage = {}, hasProfile = false, signedIn = false, pa
       freeLeft,
       paidLeft: Math.max(0, Number(paidRounds) || 0),
       roomGames: { used: limits.freeGoogleRoomGames - gamesLeft, limit: limits.freeGoogleRoomGames, left: gamesLeft },
+      challenge: { used: limits.freeChallengeRounds - challengeLeft, limit: limits.freeChallengeRounds, left: challengeLeft },
     },
     apple: { rounds: bucket?.apple?.rounds || 0 },
     rounds: roundsOf(bucket),

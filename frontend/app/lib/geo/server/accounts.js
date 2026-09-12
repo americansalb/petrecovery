@@ -57,7 +57,7 @@ export function looksLikeEmail(value) {
  * Always reports the same thing whether or not an account exists, so
  * this endpoint cannot be used to find out who has one.
  */
-export async function requestSignIn(store, { email: raw, baseUrl, now = Date.now(), sendImpl, env } = {}) {
+export async function requestSignIn(store, { email: raw, baseUrl, profileId = null, now = Date.now(), sendImpl, env } = {}) {
   const email = normalizeEmail(raw);
   if (!looksLikeEmail(email)) throw new GeoAuthError('bad_email', 'That does not look like an email address');
 
@@ -65,13 +65,18 @@ export async function requestSignIn(store, { email: raw, baseUrl, now = Date.now
   await store.createLoginToken({
     tokenHash: hashLoginToken(token),
     email,
+    // Whose profile this browser is playing as, captured now. The link
+    // arrives as a plain navigation from a mail client, with no
+    // localStorage and no headers, so by the time it is followed there
+    // is nothing left to say who asked.
+    profileId: profileId || null,
     expiresAt: new Date(now + LINK_TTL_MS),
     createdAt: new Date(now),
   });
 
   const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/geo/auth/verify?token=${encodeURIComponent(token)}`;
   const result = await sendSignInEmail({ to: email, url, sendImpl, env });
-  return { email, sent: result.sent, delivered: Boolean(result.delivered), url };
+  return { email, sent: result.sent, delivered: Boolean(result.delivered), reason: result.reason || '', url };
 }
 
 /**
@@ -101,7 +106,19 @@ export async function verifySignIn(store, { token, profileToken = '', now = Date
     await store.updateAccount(account.id, { lastSeenAt: new Date(now) });
   }
 
-  const { profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: true });
+  // The browser's profile, from the header if a caller had one, else
+  // the one recorded when the link was asked for. Without this the
+  // player's rating, points and badges were severed from the account on
+  // the very first sign-in: resolveProfile found nothing, made a fresh
+  // empty profile, and from then on always preferred that one.
+  let profile = null;
+  if (profileToken) ({ profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: false }));
+  if (!profile && row.profileId && store.getProfileById) {
+    const existing = await store.getProfileById(row.profileId);
+    if (existing && !existing.accountId) profile = await store.updateProfile(existing.id, { accountId: account.id, lastSeenAt: new Date(now) });
+    else if (existing?.accountId === account.id) profile = existing;
+  }
+  if (!profile) ({ profile } = await resolveProfile(store, { token: profileToken, accountId: account.id, now, createIfMissing: true }));
   return { account, profile };
 }
 
@@ -115,4 +132,26 @@ export function sameToken(a, b) {
   const right = Buffer.from(String(b || ''), 'utf8');
   if (left.length !== right.length) return false;
   return timingSafeEqual(left, right);
+}
+
+/**
+ * Delete an account and the profile bound to it.
+ *
+ * Everything the game knows about a player hangs off the profile
+ * (ratings, points, badges, unlocks, results, room seats), and the
+ * schema cascades from it, so removing the profile removes them. The
+ * account row and any unspent sign-in links for its address go with it.
+ *
+ * Boards keep a name and a score for rounds already played: those rows
+ * belong to the challenge, not to the profile, and removing them would
+ * rewrite everyone else's ranking.
+ */
+export async function deleteAccount(store, { accountId } = {}) {
+  if (!accountId) throw new GeoAuthError('invalid', 'No account to delete');
+  const account = await store.getAccountById?.(accountId);
+  const profile = await store.getProfileByAccountId(accountId);
+  if (profile) await store.deleteProfile(profile.id);
+  await store.deleteAccount(accountId);
+  if (account?.email) await store.deleteLoginTokensForEmail?.(account.email);
+  return { deletedProfile: Boolean(profile) };
 }

@@ -30,8 +30,8 @@ decision that is not mine to make. Everything marked "code" is done.
 
 | | State |
 |---|---|
-| The game itself: eleven modes, rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge | code, live on `pet_main` |
-| Script mode: 76 languages, 26 writing systems, region scoring | code, live on `pet_main` |
+| The game itself: ten modes, rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge | code, live on `pet_main` |
+| Script mode: 76 languages, 25 writing systems, region scoring | code, live on `pet_main` |
 | Its own accounts, its own session, its own mailer | code, live on `pet_main` |
 | No import in either direction between the game and the pet site | code, enforced by `__tests__/geo/isolation.test.js` |
 | Cost control: the play meter, per-day and per-address caps, a site budget | code |

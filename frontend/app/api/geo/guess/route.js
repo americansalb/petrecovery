@@ -33,19 +33,32 @@ export async function POST(request) {
   }
   const guess = body.guess && typeof body.guess === 'object' ? body.guess : null;
 
+  // The board and the points are for the profile behind the request.
+  // Resolved before the token is opened, because a scored challenge
+  // round is only revealed to the profile that opened it.
+  let profileId = null;
+  try {
+    ({ profileId } = await subjectsFor(request));
+  } catch (error) {
+    console.error('[geo/guess] profile', error?.message || error);
+  }
+
   try {
     const result = evaluateGuess({ token: body.token, guess });
     let challenge = null;
     let points = null;
-    const shared = challengeFor(result);
-    // The board and the points are for the profile behind the request.
-    // The guess is scored either way; a failure here only loses a row.
-    let profileId = null;
-    try {
-      ({ profileId } = await subjectsFor(request));
-    } catch (error) {
-      console.error('[geo/guess] profile', error?.message || error);
+    // A round token used to be a bearer credential: anyone holding it
+    // could read the answer, with no identity and no side effect, and
+    // then replay the round under a real profile for a perfect score.
+    // A challenge round is now revealed only to the profile that opened
+    // it, so the first look is also the guess that counts.
+    if ((result.mode === 'daily' || result.mode === 'cup') && (!profileId || result.subject !== profileId)) {
+      return NextResponse.json(
+        { error: 'This round belongs to another player. Start the challenge from the play page.', code: 'wrong_player' },
+        { status: 403 }
+      );
     }
+    const shared = challengeFor(result);
     if (profileId && shared) {
       try {
         challenge = await recordChallengeRound(prismaRoomStore, { profileId, key: shared.key, rounds: shared.rounds, index: result.roundIndex, score: result.score, distanceKm: result.distanceKm });

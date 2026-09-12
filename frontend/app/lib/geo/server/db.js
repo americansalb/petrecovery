@@ -12,12 +12,23 @@
  *   GEO_DATABASE_URL   the game's own database. Falls back to
  *                      DATABASE_URL, which is where the sixteen Geo
  *                      tables live today.
- *   GEO_DB_POOL        optional connection_limit for the game's pool.
+ *   GEO_DB_POOL        connection_limit for the game's pool. On the
+ *                      shared database it defaults to SHARED_POOL_DEFAULT
+ *                      rather than to Prisma's default, because the
+ *                      other thing on that database is a lost-pet
+ *                      service and a game spike must not starve it.
  *
  * Server only.
  */
 
 import { PrismaClient } from '@prisma/client';
+
+/**
+ * Connections the game's pool may open when it shares the pet site's
+ * database. Small on purpose: the game is a game and the database is
+ * also serving lost-pet reports.
+ */
+export const SHARED_POOL_DEFAULT = 5;
 
 /**
  * The connection string to hand Prisma, or '' to let Prisma read the
@@ -33,10 +44,16 @@ import { PrismaClient } from '@prisma/client';
  */
 export function connectionUrl(env = process.env) {
   const raw = env.GEO_DATABASE_URL || env.DATABASE_URL || '';
-  const pool = env.GEO_DB_POOL;
-  // Nothing to say: no database of the game's own and no cap to apply,
-  // so Prisma reads DATABASE_URL as it always has.
-  if (!raw || (!env.GEO_DATABASE_URL && !pool)) return '';
+  // Sharing the pet site's database means a second pool on the same
+  // Postgres, and the thing on the other side of it is a lost-pet
+  // service. An uncapped second pool turns a launch spike, or any of
+  // the abuse the play meter is there to bound, into connection
+  // starvation for pet reports. So the shared arrangement has a cap
+  // whether or not the operator set one; the game's own database does
+  // not, because there is nothing else on it to protect.
+  const shared = !env.GEO_DATABASE_URL && Boolean(env.DATABASE_URL);
+  const pool = env.GEO_DB_POOL || (shared ? String(SHARED_POOL_DEFAULT) : '');
+  if (!raw) return '';
   if (!pool) return raw;
   try {
     const url = new URL(raw);

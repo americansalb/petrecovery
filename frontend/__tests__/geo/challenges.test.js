@@ -6,7 +6,7 @@
  */
 
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
-const { recordChallengeRound, challengeBoard, dailyKey, dailyKeyFor, DAILY_ROUNDS, CUP_ROUNDS, CUP_PRIZES, cupKey, cupKeyFor, cupEndsAt, challengeFor, cupPrize, finalizeCup } = require('@/app/lib/geo/server/challenges');
+const { recordChallengeRound, challengeBoard, dailyKey, dailyKeyFor, DAILY_ROUNDS, CUP_ROUNDS, CUP_PRIZES, cupKey, cupKeyFor, cupEndsAt, challengeFor, challengeWindow, challengeIsOpen, CHALLENGE_GRACE_MS, cupPrize, finalizeCup } = require('@/app/lib/geo/server/challenges');
 const { resolveProfile } = require('@/app/lib/geo/server/profiles');
 
 const T0 = Date.parse('2026-09-07T12:00:00Z');
@@ -80,12 +80,47 @@ describe('the weekly cup', () => {
     expect(cupKey('daily-2026-09-07')).toBeNull();
     expect(cupKeyFor(new Date(T0))).toBe('cup:2026-W37');
     expect(cupEndsAt('cup:2026-W37')).toBe(Date.UTC(2026, 8, 14));
-    expect(challengeFor({ mode: 'daily', seed: 'daily-2026-09-07' })).toEqual({ key: 'daily:2026-09-07', rounds: 5, kind: 'daily' });
-    expect(challengeFor({ mode: 'cup', seed: 'cup-2026-W37' })).toEqual({ key: 'cup:2026-W37', rounds: 10, kind: 'cup' });
-    expect(challengeFor({ mode: 'world', seed: 'x' })).toBeNull();
-    expect(challengeFor({ mode: 'cup', seed: 'nope' })).toBeNull();
+    expect(challengeFor({ mode: 'daily', seed: 'daily-2026-09-07' }, T0)).toEqual({ key: 'daily:2026-09-07', rounds: 5, kind: 'daily' });
+    expect(challengeFor({ mode: 'cup', seed: 'cup-2026-W37' }, T0)).toEqual({ key: 'cup:2026-W37', rounds: 10, kind: 'cup' });
+    expect(challengeFor({ mode: 'world', seed: 'x' }, T0)).toBeNull();
+    expect(challengeFor({ mode: 'cup', seed: 'nope' }, T0)).toBeNull();
     expect([1, 2, 3, 4, 10, 11].map(cupPrize)).toEqual([300, 200, 100, 50, 50, 20]);
     expect(CUP_PRIZES.finished).toBe(20);
+  });
+
+  test('a board only accepts rounds while its own window is open', () => {
+    // The seed rides in from the client, so "daily-2031-01-01" is a
+    // valid shape. Without the window check a player could fill in every
+    // future day's board before that day existed, and top up old ones
+    // for as long as they liked.
+    const day = (seed) => challengeFor({ mode: 'daily', seed }, T0);
+    expect(day('daily-2026-09-07')).not.toBeNull();
+    expect(day('daily-2031-01-01')).toBeNull();
+    expect(day('daily-2026-09-01')).toBeNull();
+    expect(challengeWindow('daily:2026-09-07')).toEqual({ start: Date.UTC(2026, 8, 7), end: Date.UTC(2026, 8, 8) });
+    expect(challengeWindow('cup:2026-W37')).toEqual({ start: Date.UTC(2026, 8, 7), end: Date.UTC(2026, 8, 14) });
+    expect(challengeWindow('nonsense')).toBeNull();
+
+    // A game in flight over midnight still lands, briefly.
+    const justAfter = Date.UTC(2026, 8, 8) + 60 * 60 * 1000;
+    expect(challengeIsOpen('daily:2026-09-07', justAfter)).toBe(true);
+    expect(challengeIsOpen('daily:2026-09-07', Date.UTC(2026, 8, 8) + CHALLENGE_GRACE_MS + 1000)).toBe(false);
+    expect(challengeIsOpen('daily:2026-09-07', Date.UTC(2026, 8, 6))).toBe(false);
+  });
+
+  test('a challenge round outside the challenge length is not recorded', async () => {
+    const store = createMemoryRoomStore();
+    const ada = await player(store, 'Ada');
+    const key = 'daily:2026-09-07';
+    const ok = await recordChallengeRound(store, { profileId: ada.id, key, index: 4, score: 5000, now: T0 });
+    expect(ok.recorded).toBe(true);
+    for (const index of [5, 99, 999, -1]) {
+      const out = await recordChallengeRound(store, { profileId: ada.id, key, index, score: 5000, now: T0 });
+      expect(out.recorded).toBe(false);
+    }
+    const entry = await challengeBoard(store, { key, profileId: ada.id });
+    expect(entry.you.total).toBe(5000);
+    expect(entry.you.rounds).toBe(1);
   });
 
   test('prizes go out once the week ends, by placement, once', async () => {

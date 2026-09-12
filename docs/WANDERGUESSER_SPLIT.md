@@ -25,7 +25,7 @@ into a pet table. That is why the split is a move rather than a rewrite.
 | Total | 14,202 | |
 
 It is not standalone in five ways: it imports seven modules from the pet
-app, the pet app names it in three places, its sixteen tables live in
+app, the pet app names it in three places, its eighteen tables live in
 the pet schema and the pet database, its identity is a ReunitePets
 account, and every page says ReunitePets.
 
@@ -131,13 +131,15 @@ narrow slice of every one of these. Nothing needs porting wholesale.
 
 ### 3.3 Data
 
-Sixteen tables, 284 lines inside a 6,076-line schema, in the same
-Postgres, applied by the same `prisma db push` in `scripts/boot.js`.
+Eighteen tables in the same Postgres, applied by the same `prisma db
+push` in `scripts/boot.js`.
 
 `GeoRoom`, `GeoRoomPlayer`, `GeoRoomRound`, `GeoRoomGuess`,
 `GeoRoundCache`, `GeoUsage`, `GeoProfile`, `GeoLedger`, `GeoUnlock`,
 `GeoBadge`, `GeoChallengeRound`, `GeoChallengeEntry`,
-`GeoChallengeFinal`, `GeoRating`, `GeoSeasonRating`, `GeoMatchResult`.
+`GeoChallengeFinal`, `GeoRating`, `GeoSeasonRating`, `GeoMatchResult`,
+and the two phase 1.7 added for the game's own identity: `GeoAccount`
+and `GeoLoginToken`.
 
 The one piece of good news that makes phase 3 tractable:
 `GeoProfile.userId` is a plain `String? @unique`, not a foreign key, and
@@ -171,7 +173,7 @@ wanderguesser/                       (new repository)
     (game)/            was app/geo,        served at /
     api/               was app/api/geo,    served at /api
     lib/               was app/lib/geo, plus the seven replaced modules
-  prisma/schema.prisma  the sixteen tables and the new account tables
+  prisma/schema.prisma  all eighteen tables
   scripts/e2e/          was scripts/geo-e2e
   __tests__/
   middleware.js         own rate limits, own CSP, no host routing
@@ -181,7 +183,7 @@ petrecovery/                         (unchanged except for removals)
   frontend/app/api/geo      deleted
   frontend/app/lib/geo      deleted
   frontend/middleware.js    geo entries deleted, one permanent redirect kept
-  frontend/prisma           sixteen tables dropped after the retention window
+  frontend/prisma           eighteen tables dropped after the retention window
 ```
 
 ## 5. The phases
@@ -246,14 +248,20 @@ scenarios, and a production build, on each pull request.
 **Rollback.** Revert the single pull request. No data or infrastructure
 has changed at this point.
 
-### Phase 2. Sever the inward wires. Two pull requests.
+### Phase 2. Sever the inward wires. Two pull requests. **Done.**
 
-| PR | Change |
-|---|---|
-| 2.1 | The ten geo rate-limit entries and the Maps CSP hosts move into `app/lib/geo/site.js` as exported constants; `middleware.js` imports and spreads them. One named wire instead of fourteen scattered lines, and deleting it later is one line |
-| 2.2 | `navChrome.js` takes the immersive route list from the geo constant instead of hard-coding `/geo/play` and `/geo/room`; `global-chrome.test.js` and `link-previews.test.js` assert through the same constant |
+| PR | Change | |
+|---|---|---|
+| 2.1 | The geo rate-limit entries, the Maps CSP hosts and the short paths move into `app/lib/geo/site.js` as exported constants; `middleware.js` imports and spreads them. One named wire instead of fourteen scattered lines, and deleting it later is one line | done |
+| 2.2 | `navChrome.js` takes the immersive route list from the geo constant instead of hard-coding `/geo/play` and `/geo/room`; `global-chrome.test.js` and `link-previews.test.js` assert through the same constant | done |
 
-**Exit criteria.** `grep -rn "geo" frontend/middleware.js frontend/app/lib/navChrome.js` returns only the two import lines.
+**Exit criteria.** The pet app holds no geo VALUES: every prefix, host
+and route the game needs comes from `app/lib/geo/site.js`, and
+`__tests__/geo/isolation.test.js` fails the build if one is written out
+again. It still holds geo LOGIC - the host branch that serves the game's
+own domain, and the spread points - which is what phase 5 removes when
+the game moves out; the earlier wording asked for a grep that returns
+only two import lines, which those branches make unreachable.
 
 ### Phase 3. Split the data. Three pull requests.
 
@@ -261,9 +269,9 @@ This is the phase with real risk, so it is split fine.
 
 | PR | Change |
 |---|---|
-| 3.1 | A second Prisma schema, `prisma/geo.schema.prisma`, holding only the sixteen tables, with its own generator output and its own `GEO_DATABASE_URL`. Both schemas can still point at the same database, so nothing moves yet |
+| 3.1 | A second Prisma schema, `prisma/geo.schema.prisma`, holding only the eighteen tables, with its own generator output and its own `GEO_DATABASE_URL`. Both schemas can still point at the same database, so nothing moves yet |
 | 3.2 | `app/lib/geo/server/db.js` uses the new generated client. The pet schema keeps the geo tables for now, unused by the game. Deploy and confirm the game runs entirely through its own client |
-| 3.3 | The account change from D1. `GeoProfile.userId` becomes a relation to the game's own account table. Behind a flag until phase 5 |
+| 3.3 | ~~The account change from D1.~~ Done early, in phase 1.7: `GeoAccount` and `GeoLoginToken` shipped, `GeoProfile.accountId` is the binding, and `GeoProfile.userId` is dead and unread |
 
 **Exit criteria.** The game reads and writes only through its own client,
 the schemas are independent files, and pointing `GEO_DATABASE_URL` at an
@@ -325,7 +333,7 @@ return, so it lands as its own pull request a few days later.
 ### Phase 6. Decommission.
 
 After a retention window of at least thirty days, and after confirming
-the new database holds everything: drop the sixteen tables from the pet
+the new database holds everything: drop the eighteen tables from the pet
 database, remove `world-atlas` and `topojson-client` from the pet
 `package.json`, and update `docs/APP_MAP.md`, `docs/GEO.md` and
 `CLAUDE.md` to say the game lives elsewhere.
@@ -337,7 +345,7 @@ database, remove `world-atlas` and `topojson-client` from the pet
 | Public share links break | Certain without action | High. Every posted result becomes a dead link | The permanent redirect in 5.4 is not optional and is never removed |
 | Player data lost at cutover | Low | High if anyone has a rating they care about | D2 decided from real row counts, copy verified table by table, freeze window |
 | In-flight answer tokens break | Certain at cutover | Low. A round is minutes long | Carry `GEO_TOKEN_SECRET` to the new deployment, or accept that rounds in progress during the switch end |
-| The game's sixteen tables get dropped from the pet database before the copy is verified | Low | Total | Phase 6 is a separate pull request gated on a written row-count comparison, at least thirty days after phase 5 |
+| The game's eighteen tables get dropped from the pet database before the copy is verified | Low | Total | Phase 6 is a separate pull request gated on a written row-count comparison, at least thirty days after phase 5 |
 | Two Google projects double the setup work | Certain | Low | It is the point of D5, and the meter's caps carry over as environment variables |
 | The pet app's CI slows the split | Low | Low | Phases 1 to 3 are ordinary pull requests that pass the same four checks |
 | Scope creep during extraction | Medium | Medium | Phase 4 forbids the namespace rename and any feature work. The extraction changes no behaviour |

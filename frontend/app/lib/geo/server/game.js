@@ -17,6 +17,7 @@ import { getGeoServerConfig } from './config';
 import { countryAt, publicCountry } from './countries';
 import { createCandidateSource } from './sampler';
 import { findPanorama } from './streetview';
+import { randomBytes } from 'node:crypto';
 import { openToken, sealToken } from './tokens';
 import { roundCacheKey } from './roundCache';
 
@@ -35,9 +36,18 @@ export class GeoGameError extends Error {
 
 const round6 = (n) => Math.round(Number(n) * 1e6) / 1e6;
 
-function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date }) {
+function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date, subject, roundId }) {
   return {
     v: 1,
+    // This round's identity, the same in every token it issues. An
+    // Apple round issues twelve, one per candidate place, and without
+    // this the points ledger keyed them by token and paid all twelve
+    // for one round.
+    rid: roundId || '',
+    // Who asked for this round. The guess route refuses a scored
+    // challenge token presented by anyone else, which is what stops a
+    // round being revealed under one identity and scored under another.
+    sub: subject || '',
     p: provider,
     pano: panoId || '',
     lat: round6(lat),
@@ -59,13 +69,14 @@ function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm
  * Google: { provider, roundIndex, panoId, heading, token, stats }
  * Apple:  { provider, roundIndex, candidates: [{ lat, lng, token }] }
  */
-export async function createRound({ config: rawConfig, roundIndex = 0, attempt = 0, fetchImpl, now = Date.now(), env, cache } = {}) {
+export async function createRound({ config: rawConfig, roundIndex = 0, attempt = 0, subject = '', fetchImpl, now = Date.now(), env, cache } = {}) {
   const config = normalizeConfig(rawConfig);
   const { googleServerKey, tokenSecret } = getGeoServerConfig(env);
   if (!tokenSecret) {
     throw new GeoGameError('no_secret', 'Set NEXTAUTH_SECRET or GEO_TOKEN_SECRET before starting a game');
   }
   const source = createCandidateSource(config, roundIndex);
+  const roundId = randomBytes(9).toString('base64url');
 
   // A retry of a seeded round must not replay the same failed points:
   // skip ahead in the deterministic sequence instead.
@@ -81,7 +92,7 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
         lat: round6(c.lat),
         lng: round6(c.lng),
         token: sealToken(
-          answerPayload({ provider: 'apple', config, roundIndex, lat: c.lat, lng: c.lng, country: c.country, sizeKm: source.sizeKm, city: c.city }),
+          answerPayload({ provider: 'apple', config, roundIndex, lat: c.lat, lng: c.lng, country: c.country, sizeKm: source.sizeKm, city: c.city, subject, roundId }),
           { secret: tokenSecret, now }
         ),
       });
@@ -103,6 +114,8 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
       panoId: found.panoId,
       city: found.city,
       date: found.date,
+      subject,
+      roundId,
     }),
     { secret: tokenSecret, now }
   );
@@ -141,11 +154,24 @@ async function probeForImagery({ source, config, roundIndex, googleServerKey, fe
         ? allowUnofficial
           ? 'No photo spheres turned up near the places tried. Everywhere runs on imagery people uploaded themselves, so it is thinner than the rest of the game. Try again.'
           : 'No Street View imagery turned up near the random points. Try again or widen the search radius.'
-        : `Street View lookup failed: ${upstream.message || upstream.code || 'unknown error'}`;
+        // Google's own error_message names the key and the project
+        // state ("The provided API key is invalid", "This API project
+        // is not authorized to use this API"), and this message is shown
+        // to every player in a room and to anyone holding the room's
+        // code. It stays in the log, where it is useful and private.
+        : 'Street View could not be reached just now. Try again in a moment.';
     throw new GeoGameError(code, message, { stats: found.stats, upstream: { code: upstream.code, message: upstream.message } });
   }
   const hit = found.hit;
-  const country = countryAt(hit.lat, hit.lng) || found.candidate?.country || null;
+  // A curated city row names its own country, and that is the answer
+  // the game gives for it. countryAt reads 1:110m polygons, where
+  // Singapore, Hong Kong and Monaco have no polygon at all: the point
+  // lands inside a neighbour's simplified outline instead, which is
+  // truthy, so the fallback never fired and the reveal named the
+  // neighbour. Border cities lost the same way.
+  const country = found.candidate?.city
+    ? found.candidate.country || countryAt(hit.lat, hit.lng)
+    : countryAt(hit.lat, hit.lng) || found.candidate?.country || null;
   const headingRng = createRng(config.seed ? `${roundSeed(config.seed, roundIndex)}:heading` : undefined);
   return {
     panoId: hit.panoId,
@@ -191,7 +217,7 @@ export function evaluateGuess({ token, guess, now = Date.now(), env } = {}) {
     date: payload.date || '',
     country: payload.cc || payload.cn ? { code: payload.cc, name: payload.cn, flag: payload.cf } : null,
   };
-  const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, answer };
+  const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, subject: payload.sub || '', roundId: payload.rid || '', answer };
 
   if (payload.mode === 'streak') {
     const code = String(guess?.countryCode || '').toUpperCase();

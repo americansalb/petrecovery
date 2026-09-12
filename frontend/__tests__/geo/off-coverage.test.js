@@ -14,7 +14,7 @@
  */
 
 const { CITIES, GOOGLE_COVERAGE, citiesFor, citiesOffCoverage } = require('@/app/lib/geo/coverage');
-const { countryAt } = require('@/app/lib/geo/server/countries');
+const { countryAt, countryByCode } = require('@/app/lib/geo/server/countries');
 const { createCandidateSource } = require('@/app/lib/geo/server/sampler');
 const { normalizeConfig, MODES } = require('@/app/lib/geo/modes');
 const { probeStreetView } = require('@/app/lib/geo/server/streetview');
@@ -150,5 +150,60 @@ describe('the probe', () => {
     expect(answer.cc).toBeTruthy();
     expect(GOOGLE_COVERAGE.has(answer.cc)).toBe(false);
     expect(answer.mode).toBe('everywhere');
+  });
+});
+
+/**
+ * The covered half of the same hand-written list. Only the off-coverage
+ * half was ever checked against the polygons, and this half is the one
+ * the game reveals country names from: nine rows disagreed with the
+ * 1:110m outlines and four of them named the wrong country outright.
+ */
+describe('the covered city list', () => {
+  // Rows the coarse polygons cannot confirm, each for a known reason.
+  // A city not on this list that the polygons disagree with is either a
+  // typo in the row or a new hole; either way it should be looked at,
+  // which is what this enumeration is for.
+  const KNOWN = {
+    // No polygon at 1:110m at all, so the point lands in a neighbour.
+    Singapore: 'MY',
+    'Hong Kong': 'CN',
+    // A border city: the simplified outline puts the centre over the line.
+    Geneva: 'FR',
+    Jerusalem: 'PS',
+    // Islands and coasts simplified away entirely.
+    Victoria: null,
+    Palermo: null,
+    Palma: null,
+    Odense: null,
+  };
+
+  test('every covered row names a country the game knows', () => {
+    const offNames = new Set(citiesOffCoverage().map((c) => c.name));
+    for (const city of CITIES) {
+      if (offNames.has(city.name)) continue;
+      expect(countryByCode(city.country)).toBeTruthy();
+    }
+  });
+
+  test('the rows the polygons disagree with are exactly the ones we know about', () => {
+    const offNames = new Set(citiesOffCoverage().map((c) => c.name));
+    const disagree = {};
+    for (const city of CITIES) {
+      if (offNames.has(city.name)) continue;
+      const found = countryAt(city.lat, city.lng);
+      const code = found?.cca2 || null;
+      if (code !== city.country) disagree[city.name] = code;
+    }
+    expect(disagree).toEqual(KNOWN);
+  });
+
+  test('a curated city row is what the reveal names, not the polygon under the pin', () => {
+    // Singapore, Hong Kong and Monaco have no polygon at this scale, so
+    // countryAt returns a truthy neighbour and the old fallback never
+    // fired: a Singapore round revealed Malaysia.
+    const singapore = CITIES.find((c) => c.name === 'Singapore');
+    expect(countryAt(singapore.lat, singapore.lng)?.cca2).toBe('MY');
+    expect(countryByCode(singapore.country).name).toBe('Singapore');
   });
 });

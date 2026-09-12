@@ -126,3 +126,44 @@ describe('the old brand name does not reach people', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/**
+ * The game was renamed too, and the guard above only knew about the
+ * site's old name. The share card kept painting "Where on Earth" into
+ * every link preview for months after the rename, because it was a
+ * literal in a JSX file nobody greps and no test looked for.
+ */
+describe("the game's old name does not reach people either", () => {
+  const OLD = 'Where on Earth';
+  const files = ROOTS.flatMap((root) => walk(root));
+
+  it('has no user-facing "Where on Earth" string anywhere', () => {
+    const offenders = [];
+    for (const file of files) {
+      const hits = [];
+      fs.readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return;
+          if (!line.includes(OLD)) return;
+          hits.push(`${i + 1}: ${trimmed.slice(0, 100)}`);
+        });
+      if (hits.length) offenders.push(`${path.relative(path.join(__dirname, '..'), file)}\n  ${hits.join('\n  ')}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the name the game shows is a constant, not a literal in a card', () => {
+    const { GAME_NAME } = require('@/app/lib/geo/meta');
+    expect(GAME_NAME).toBe('WanderGuesser');
+    const card = fs.readFileSync(path.join(__dirname, '..', 'app/lib/geo/server/ShareCard.jsx'), 'utf8');
+    expect(card).toContain('wordmark = GAME_NAME');
+    // The host is a prop too, so a card rendered on the game's own
+    // domain points back at it rather than at the pet site. The only
+    // surviving mention is the comment saying why.
+    expect(card).toContain('site = ');
+    const code = card.split('\n').filter((line) => !/^\s*(\*|\/\*|\/\/)/.test(line)).join('\n');
+    expect(code).not.toContain('reunitepets.org/geo');
+  });
+});

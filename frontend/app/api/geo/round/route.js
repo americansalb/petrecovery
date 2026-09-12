@@ -22,6 +22,7 @@ import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { checkRound, recordRound } from '@/app/lib/geo/server/meter';
 import { meterErrorResponse, speedLimiter, subjectsFor } from '@/app/lib/geo/server/meterRequest';
 import { MeterError } from '@/app/lib/geo/meter';
+import { maybeSweep } from '@/app/lib/geo/server/sweep';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,12 +47,32 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Send a JSON body with the game config' }, { status: 400 });
   }
   const config = normalizeConfig(body?.config || body || {});
-  const roundIndex = Math.max(0, Math.min(999, Math.floor(Number(body?.roundIndex) || 0)));
+  // A game has as many rounds as its mode says; streak (rounds: 0) is
+  // the only endless one. Without this a five-round daily could ask for
+  // round 999 and be charged, scored and posted as one.
+  const maxIndex = config.rounds > 0 ? config.rounds - 1 : 999;
+  const roundIndex = Math.max(0, Math.min(maxIndex, Math.floor(Number(body?.roundIndex) || 0)));
   const attempt = Math.max(0, Math.min(20, Math.floor(Number(body?.attempt) || 0)));
+
+  // Housekeeping, at most once an hour per process and never awaited:
+  // the game has no scheduler and its tables are on the pet site's
+  // database (app/lib/geo/server/sweep.js).
+  maybeSweep(prismaRoomStore);
 
   // The meter. A store failure here is logged and the round goes on:
   // the caps in the Google console are the backstop, not this table.
   const subjects = await subjectsFor(request);
+  // The daily and the cup are scored on a shared board, so they are
+  // played as somebody. Without this, a round could be opened with no
+  // identity, its answer read from /api/geo/guess for free, and then
+  // played perfectly under a real profile: the round is deterministic
+  // from its seed and cached, so the second draw is the same place.
+  if ((config.mode === 'daily' || config.mode === 'cup') && !subjects.profileId) {
+    return NextResponse.json(
+      { error: 'The daily challenge and the weekly cup are scored on a board, so they need a play profile. Reload the page and start again.', code: 'no_profile' },
+      { status: 401 }
+    );
+  }
   let decision = null;
   try {
     decision = await checkRound(prismaRoomStore, { subjects, provider: config.provider, mode: config.mode, limiter: speedLimiter });
@@ -61,8 +82,8 @@ export async function POST(request) {
   }
 
   try {
-    const round = await createRound({ config, roundIndex, attempt, cache: prismaRoundCache });
-    if (decision) await recordRound(prismaRoomStore, { subjects, provider: config.provider, source: decision.source });
+    const round = await createRound({ config, roundIndex, attempt, subject: subjects.profileId || '', cache: prismaRoundCache });
+    if (decision) await recordRound(prismaRoomStore, { subjects, provider: config.provider, source: decision.source, mode: config.mode });
     return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoGameError || error instanceof GeoSamplerError) {

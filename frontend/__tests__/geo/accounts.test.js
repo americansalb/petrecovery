@@ -26,10 +26,12 @@ const {
   normalizeEmail,
   requestSignIn,
   verifySignIn,
+  deleteAccount,
 } = require('@/app/lib/geo/server/accounts');
 const { accountFromRequest, sealSession, readCookie, SESSION_COOKIE } = require('@/app/lib/geo/server/identity');
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 const { resolveProfile } = require('@/app/lib/geo/server/profiles');
+const { recordChallengeRound } = require('@/app/lib/geo/server/challenges');
 
 const SECRET = 'a-long-enough-test-secret';
 const env = { NEXTAUTH_SECRET: SECRET };
@@ -90,6 +92,49 @@ describe('following a link', () => {
     return new URL(url).searchParams.get('token');
   };
 
+  const linkForProfile = async (store, email, profileId, now = T0) => {
+    const { url } = await requestSignIn(store, { email, profileId, baseUrl: 'https://example.test', now, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    return new URL(url).searchParams.get('token');
+  };
+
+  test('the link carries the profile that asked for it, which is the only thing a mail click can', async () => {
+    // Found in the deep audit. verifySignIn took a profileToken and the
+    // test passed one, but the only production caller is the verify
+    // route, and a link click is a plain top-level navigation: no
+    // localStorage, no x-geo-profile header, nothing. So every first
+    // sign-in created a fresh empty profile, and because resolveProfile
+    // then always prefers the account's profile, the player's rating,
+    // points and badges were cut off from their account for good.
+    const store = createMemoryRoomStore();
+    const anon = await resolveProfile(store, { name: 'Guest', now: T0 });
+    const token = await linkForProfile(store, 'ada@example.com', anon.profile.id);
+
+    // No profileToken, exactly as the route calls it.
+    const { account, profile } = await verifySignIn(store, { token, now: T0 + 1000 });
+    expect(profile.id).toBe(anon.profile.id);
+    expect(profile.accountId).toBe(account.id);
+  });
+
+  test('a link asked for with no profile still signs in, with a fresh one', async () => {
+    const store = createMemoryRoomStore();
+    const token = await linkFor(store, 'grace@example.com');
+    const { account, profile } = await verifySignIn(store, { token, now: T0 + 1000 });
+    expect(profile.accountId).toBe(account.id);
+  });
+
+  test('a profile already bound to another account is not stolen by a link', async () => {
+    const store = createMemoryRoomStore();
+    const mine = await resolveProfile(store, { name: 'Mine', now: T0 });
+    const first = await verifySignIn(store, { token: await linkForProfile(store, 'one@example.com', mine.profile.id), now: T0 + 1000 });
+    expect(first.profile.id).toBe(mine.profile.id);
+
+    const second = await verifySignIn(store, { token: await linkForProfile(store, 'two@example.com', mine.profile.id, T0 + 2000), now: T0 + 3000 });
+    expect(second.account.email).toBe('two@example.com');
+    expect(second.profile.id).not.toBe(mine.profile.id);
+    const still = await store.getProfileById(mine.profile.id);
+    expect(still.accountId).toBe(first.account.id);
+  });
+
   test('creates the account, binds this browser profile to it, and works once', async () => {
     const store = createMemoryRoomStore();
     const anon = await resolveProfile(store, { name: 'Guest', now: T0 });
@@ -136,6 +181,44 @@ describe('following a link', () => {
     const grace = await verifySignIn(store, { token: await linkFor(store, 'grace@example.com', T0 + 5), now: T0 + 6 });
     expect(grace.account.id).not.toBe(ada.account.id);
     expect(grace.profile.id).not.toBe(ada.profile.id);
+  });
+});
+
+describe('deleting an account', () => {
+  test('takes the profile and everything hanging off it, and leaves the boards alone', async () => {
+    // Found in the deep audit: the game held an email address, a name,
+    // ratings, points, badges and a record of games played, and there
+    // was no way to remove any of it.
+    const store = createMemoryRoomStore();
+    const anon = await resolveProfile(store, { name: 'Ada', now: T0 });
+    const { url } = await requestSignIn(store, { email: 'ada@example.com', profileId: anon.profile.id, baseUrl: 'https://example.test', now: T0, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    const { account, profile } = await verifySignIn(store, { token: new URL(url).searchParams.get('token'), now: T0 + 1000 });
+    expect(profile.id).toBe(anon.profile.id);
+
+    await recordChallengeRound(store, { profileId: profile.id, key: 'daily:2026-09-07', index: 0, score: 5000, now: T0 + 2000 });
+
+    const removed = await deleteAccount(store, { accountId: account.id });
+    expect(removed.deletedProfile).toBe(true);
+    expect(await store.getProfileById(profile.id)).toBeFalsy();
+    expect(await store.getAccountByEmail('ada@example.com')).toBeFalsy();
+    // A score already on a board belongs to the board, not to the
+    // profile: removing it would rewrite everyone else's ranking.
+    expect(await store.getChallengeEntry(profile.id, 'daily:2026-09-07')).toBeTruthy();
+  });
+
+  test('a link asked for before the delete cannot sign the address back in', async () => {
+    const store = createMemoryRoomStore();
+    const { url } = await requestSignIn(store, { email: 'grace@example.com', baseUrl: 'https://example.test', now: T0, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    const token = new URL(url).searchParams.get('token');
+    const { account } = await verifySignIn(store, { token, now: T0 + 1000 });
+    const second = await requestSignIn(store, { email: 'grace@example.com', baseUrl: 'https://example.test', now: T0 + 2000, sendImpl: async () => {}, env: { RESEND_API_KEY: 'k' } });
+    await deleteAccount(store, { accountId: account.id });
+    await expect(verifySignIn(store, { token: new URL(second.url).searchParams.get('token'), now: T0 + 3000 })).rejects.toMatchObject({ code: 'invalid' });
+  });
+
+  test('deleting without an account is refused, not a crash', async () => {
+    const store = createMemoryRoomStore();
+    await expect(deleteAccount(store, {})).rejects.toMatchObject({ code: 'invalid' });
   });
 });
 

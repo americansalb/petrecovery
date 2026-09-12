@@ -61,6 +61,8 @@ export const GAME_RATE_LIMITS = {
   // than a script needs to be a nuisance. Verify is a link click.
   '/api/geo/auth/request': { windowMs: 60000, maxRequests: 5 },
   '/api/geo/auth/verify': { windowMs: 60000, maxRequests: 20 },
+  // Deleting an account is not something a person does twice.
+  '/api/geo/auth/delete': { windowMs: 60000, maxRequests: 5 },
   '/api/geo/auth': { windowMs: 60000, maxRequests: 60 },
   // Script rounds are text out of a file: no upstream call, no key, no
   // cost, so they get a looser bucket than a panorama round. The limit

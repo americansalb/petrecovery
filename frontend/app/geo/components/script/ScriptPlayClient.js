@@ -121,18 +121,22 @@ export default function ScriptPlayClient() {
   submitRef.current = submit;
   const pinRef = useRef(pin);
   pinRef.current = pin;
+  // Once per round, and from a ref rather than from inside the
+  // setSecondsLeft updater: an updater must be pure, and Strict Mode runs
+  // it twice, which submitted and recorded the same round twice.
+  const firedRef = useRef(null);
   useEffect(() => {
     if (!config.timer || !round || result) return undefined;
-    const timer = setInterval(() => {
-      setSecondsLeft((left) => {
-        if (left <= 1) {
-          clearInterval(timer);
-          submitRef.current(pinRef.current);
-          return 0;
-        }
-        return left - 1;
-      });
-    }, 1000);
+    const endsAt = Date.now() + config.timer * 1000;
+    const tick = () => {
+      const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left > 0 || firedRef.current === round.token) return;
+      firedRef.current = round.token;
+      clearInterval(timer);
+      submitRef.current(pinRef.current);
+    };
+    const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
   }, [config.timer, round, result]);
 

@@ -61,7 +61,7 @@ export const LADDERS = {
     id: 'india',
     label: 'South Asia',
     short: 'South Asia',
-    description: 'Seventeen languages and ten scripts inside one subcontinent. Every other game in this genre calls all of it India.',
+    description: 'Seventeen languages and eleven scripts inside one subcontinent. Every other game in this genre calls all of it India.',
     pick: () => LANGUAGES.filter((language) => SOUTH_ASIA.has(language.code)),
   },
   deva: {

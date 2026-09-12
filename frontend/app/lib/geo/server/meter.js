@@ -11,7 +11,7 @@
  */
 
 import { createHash } from 'crypto';
-import { MeterError, dayKey, decideRoomEntry, decideRound, limitsFromEnv, meterView, nextDayMs, refusalMessage, seatIncrement, usageIncrement } from '../meter';
+import { MeterError, dayKey, decideRoomEntry, decideRound, limitsFromEnv, meterView, nextDayMs, refusalMessage, roundLoads, seatIncrement, usageIncrement } from '../meter';
 
 export const SITE_SUBJECT = 'site';
 
@@ -31,7 +31,7 @@ async function readUsage(store, subjects, day) {
   const rows = await store.listUsage(subjectKeys(subjects), day);
   const bucket = (subject) => {
     const out = {};
-    for (const r of rows) if (r.subject === subject) out[r.provider] = { rounds: r.rounds, free: r.free, paid: r.paid, games: r.games || 0 };
+    for (const r of rows) if (r.subject === subject) out[r.provider] = { rounds: r.rounds, free: r.free, paid: r.paid, games: r.games || 0, challenge: r.challenge || 0, loads: r.loads || 0 };
     return out;
   };
   return {
@@ -55,8 +55,12 @@ function refuse(code, provider, now, extra = {}) {
  * per-minute speed check; the routes pass the site's rate limiter.
  */
 export async function checkRound(store, { subjects, provider, mode, now = Date.now(), limits = limitsFromEnv(), limiter = null }) {
-  if (limiter && subjects.profileId && limits.roundsPerMinute > 0) {
-    const speed = await limiter(`geo-speed:${subjects.profileId}`, { windowMs: 60000, maxRequests: limits.roundsPerMinute, blockDurationMs: 60000 });
+  // The address stands in when there is no profile: the speed limit is
+  // the defence against a script, and a script is exactly the caller
+  // that sends no profile token.
+  const speedKey = subjects.profileId ? `geo-speed:${subjects.profileId}` : subjects.ipHash ? `geo-speed:${subjects.ipHash}` : null;
+  if (limiter && speedKey && limits.roundsPerMinute > 0) {
+    const speed = await limiter(speedKey, { windowMs: 60000, maxRequests: limits.roundsPerMinute, blockDurationMs: 60000 });
     if (speed && speed.success === false) {
       throw new MeterError('speed', refusalMessage('speed', provider), { provider, resetAt: speed.resetAt || now + 60000 });
     }
@@ -76,7 +80,7 @@ export async function checkRound(store, { subjects, provider, mode, now = Date.n
 }
 
 /** Record a solo round that started. Never throws. */
-export async function recordRound(store, { subjects, provider, source, now = Date.now() }) {
+export async function recordRound(store, { subjects, provider, source, mode = '', now = Date.now() }) {
   try {
     const day = dayKey(now);
     let actual = source;
@@ -84,7 +88,7 @@ export async function recordRound(store, { subjects, provider, source, now = Dat
       // The balance may have gone to zero between the check and now.
       actual = subjects.profileId && (await store.consumePaidRound(subjects.profileId)) ? 'paid' : 'over';
     }
-    const inc = usageIncrement(actual);
+    const inc = usageIncrement(actual, mode);
     await Promise.all(subjectKeys(subjects).map((subject) => store.bumpUsage(subject, day, provider, inc)));
   } catch (error) {
     console.error('[geo/meter] record', error?.message || error);
@@ -135,7 +139,8 @@ export async function recordRoomRound(store, room, now = Date.now(), limits = li
     const provider = room.config?.provider === 'apple' ? 'apple' : 'google';
     const players = (room.players || []).filter((p) => !p.leftAt);
     if (!players.length) return;
-    await store.bumpUsage(SITE_SUBJECT, day, provider, { rounds: players.length, free: 0, paid: 0 });
+    const mode = room.config?.mode || '';
+    await store.bumpUsage(SITE_SUBJECT, day, provider, { rounds: players.length, free: 0, paid: 0, games: 0, challenge: 0, loads: players.length * roundLoads(mode) });
     for (const player of players) {
       const subjects = [profileSubject(player.profileId), player.ipHash].filter(Boolean);
       if (!subjects.length) continue;
@@ -148,7 +153,7 @@ export async function recordRoomRound(store, room, now = Date.now(), limits = li
       if (entry === 'apple') source = 'apple';
       else if (entry === 'paid' && player.profileId && (await store.consumePaidRound(player.profileId))) source = 'paid';
       // A free seat's rounds are counted, not drawn from the allowance.
-      await Promise.all(subjects.map((subject) => store.bumpUsage(subject, day, provider, usageIncrement(source))));
+      await Promise.all(subjects.map((subject) => store.bumpUsage(subject, day, provider, usageIncrement(source, mode))));
     }
   } catch (error) {
     console.error('[geo/meter] room round', error?.message || error);

@@ -29,6 +29,10 @@
  */
 
 import 'leaflet/dist/leaflet.css';
+// Ours, after Leaflet's, so the dark overrides win on order as well as
+// on specificity. Here rather than in the pet site's globals.css so it
+// travels with the component.
+import './leaflet-script-map.css';
 import { useEffect, useRef } from 'react';
 
 const ANSWER = '#22c55e';
@@ -106,6 +110,12 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     return () => {
       cancelled = true;
       try {
+        // stop() before remove(): a pan or zoom still animating will
+        // fire its transitionend after the panes are gone and throw
+        // reading _leaflet_pos off an undefined pane. Reproduced by
+        // finishing a game, where the reveal's fit was still running
+        // when the summary replaced the map.
+        mapRef.current?.stop();
         mapRef.current?.remove();
       } catch {
         /* already gone */
@@ -170,7 +180,10 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     try {
       const group = L.featureGroup(drawn);
       const bounds = group.getBounds();
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 7 });
+      // Not animated. A reveal wants the answer on screen at once, and an
+      // animated fit is a timer that can outlive this component: the last
+      // round's fit was still flying when the summary unmounted the map.
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 7, animate: false });
     } catch {
       /* one layer, or none: leave the view alone */
     }

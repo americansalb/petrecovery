@@ -61,6 +61,19 @@ const databaseStore = {
       update: data,
     });
   },
+  /**
+   * Write a guess row only if the player has none. The reveal's
+   * timed-out rows go through this: a real guess that landed while the
+   * reveal was being computed must never be overwritten with nulls.
+   */
+  async createGuessIfAbsent({ roundId, playerId, ...data }) {
+    try {
+      return await prisma.geoRoomGuess.create({ data: { roundId, playerId, ...data } });
+    } catch (error) {
+      if (error?.code === 'P2002') return null;
+      throw error;
+    }
+  },
 
   // Profiles and ratings
   getProfileByTokenHash(tokenHash) {
@@ -85,6 +98,19 @@ const databaseStore = {
   updateAccount(id, data) {
     return prisma.geoAccount.update({ where: { id }, data });
   },
+  getAccountById(id) {
+    return prisma.geoAccount.findUnique({ where: { id } });
+  },
+  /** Account deletion (server/accounts.js). Profile rows cascade. */
+  deleteAccount(id) {
+    return prisma.geoAccount.delete({ where: { id } });
+  },
+  deleteProfile(id) {
+    return prisma.geoProfile.delete({ where: { id } });
+  },
+  deleteLoginTokensForEmail(email) {
+    return prisma.geoLoginToken.deleteMany({ where: { email } });
+  },
   createLoginToken(data) {
     return prisma.geoLoginToken.create({ data });
   },
@@ -96,9 +122,33 @@ const databaseStore = {
     const done = await prisma.geoLoginToken.updateMany({ where: { id, usedAt: null }, data: { usedAt: at } });
     return done.count === 1;
   },
-  /** Housekeeping: drop links nobody followed. */
+  /** Housekeeping: drop links nobody followed (server/sweep.js). */
   deleteExpiredLoginTokens(before) {
     return prisma.geoLoginToken.deleteMany({ where: { expiresAt: { lt: before } } });
+  },
+  /** Cached rounds are read-filtered by expiry; this is what removes them. */
+  deleteExpiredRoundCache(before) {
+    return prisma.geoRoundCache.deleteMany({ where: { expiresAt: { lt: before } } });
+  },
+  /** Play-meter rows for days long past. */
+  deleteUsageBefore(day) {
+    return prisma.geoUsage.deleteMany({ where: { day: { lt: day } } });
+  },
+  /**
+   * Rooms nobody will open again: finished a while ago, or abandoned
+   * part way. Players, rounds and guesses cascade with them;
+   * GeoMatchResult has no foreign key here, so a player's record of the
+   * games they played survives the room.
+   */
+  deleteOldRooms({ finishedBefore, staleBefore }) {
+    return prisma.geoRoom.deleteMany({
+      where: {
+        OR: [
+          { status: 'finished', lastActiveAt: { lt: finishedBefore } },
+          { status: { not: 'finished' }, lastActiveAt: { lt: staleBefore } },
+        ],
+      },
+    });
   },
   getProfileById(id) {
     return prisma.geoProfile.findUnique({ where: { id } });
@@ -157,13 +207,13 @@ const databaseStore = {
     return prisma.geoUsage.findMany({ where: { subject: { in: subjects }, day } });
   },
   async bumpUsage(subject, day, provider, inc = {}) {
-    const data = { rounds: inc.rounds || 0, free: inc.free || 0, paid: inc.paid || 0, games: inc.games || 0 };
+    const data = { rounds: inc.rounds || 0, free: inc.free || 0, paid: inc.paid || 0, games: inc.games || 0, challenge: inc.challenge || 0, loads: inc.loads || 0 };
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         return await prisma.geoUsage.upsert({
           where: { subject_day_provider: { subject, day, provider } },
           create: { subject, day, provider, ...data },
-          update: { rounds: { increment: data.rounds }, free: { increment: data.free }, paid: { increment: data.paid }, games: { increment: data.games } },
+          update: { rounds: { increment: data.rounds }, free: { increment: data.free }, paid: { increment: data.paid }, games: { increment: data.games }, challenge: { increment: data.challenge }, loads: { increment: data.loads } },
         });
       } catch (error) {
         // Two first rounds of the day racing to create the row: retry once.
@@ -255,6 +305,10 @@ const databaseStore = {
       if (error?.code === 'P2002') return null; // this event was already paid
       throw error;
     }
+  },
+  /** Undo a ledger row whose balance write failed (server/points.js). */
+  deleteLedger(id) {
+    return prisma.geoLedger.delete({ where: { id } });
   },
   async addPoints(profileId, delta, { requireBalance = false } = {}) {
     const where = requireBalance && delta < 0 ? { id: profileId, points: { gte: -delta } } : { id: profileId };

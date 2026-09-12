@@ -11,6 +11,7 @@
 
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 const { createRoom, joinRoom, roomAction, getRoomView, hashToken } = require('@/app/lib/geo/server/rooms');
+const { seasonFor } = require('@/app/lib/geo/season');
 const { resolveProfile, applyRoomRatings, leaderboard, profileSummary, LEADERBOARD_MIN_GAMES } = require('@/app/lib/geo/server/profiles');
 const { RATING_DEFAULT } = require('@/app/lib/geo/rating');
 
@@ -34,6 +35,11 @@ const hitFetch = async (url) => {
   return { status: 200, json: async () => ({ status: 'OK', pano_id: `pano-${lat.toFixed(3)}-${lng.toFixed(3)}`, location: { lat, lng }, copyright: '© Google' }) };
 };
 const T0 = Date.parse('2026-09-07T12:00:00Z');
+// Every fixture here is written at T0, and ratings are per season. Read
+// them back through the wall clock and they vanish on 1 December 2026,
+// when the season the rows were written in stops being the current one
+// (found in the deep audit: four tests were set to go red on a date).
+const SEASON = seasonFor(T0).key;
 const sec = (n) => n * 1000;
 
 async function profileFor(store, name, extra = {}) {
@@ -110,7 +116,7 @@ describe('profiles', () => {
   test('the summary carries a default rating per ladder before any game', async () => {
     const store = createMemoryRoomStore();
     const { profile } = await profileFor(store, 'Ada');
-    const summary = await profileSummary(store, profile);
+    const summary = await profileSummary(store, profile, { now: T0 });
     expect(summary.ratings.classic).toMatchObject({ value: RATING_DEFAULT, games: 0, provisional: true, tier: 'Silver' });
     expect(summary.ratings.duel.value).toBe(RATING_DEFAULT);
     expect(summary.recent).toEqual([]);
@@ -131,7 +137,7 @@ describe('rating a finished room', () => {
     expect(graceRow.ratingDelta).toBeLessThan(0);
     expect(adaRow.ratingAfter).toBe(RATING_DEFAULT + adaRow.ratingDelta);
 
-    const [adaRating] = await store.getRatings([ada.id], 'classic');
+    const [adaRating] = await store.getRatings([ada.id], 'classic', SEASON);
     expect(adaRating).toMatchObject({ games: 1, wins: 1, podiums: 1, streak: 1 });
     expect(adaRating.rating).toBeGreaterThan(RATING_DEFAULT);
     expect(adaRating.rd).toBeLessThan(350);
@@ -182,8 +188,8 @@ describe('rating a finished room', () => {
     }
     const final = await getRoomView(store, { code: host.room.code, token: host.token, now: t, fetchImpl: hitFetch });
     expect(final.room.status).toBe('finished');
-    expect((await store.getRatings([ada.id], 'duel'))[0].games).toBe(1);
-    expect(await store.getRatings([ada.id], 'classic')).toEqual([]);
+    expect((await store.getRatings([ada.id], 'duel', SEASON))[0].games).toBe(1);
+    expect(await store.getRatings([ada.id], 'classic', SEASON)).toEqual([]);
   });
 
   test('the leaderboard shows settled players, ranks them, and still shows you when you are new', async () => {
@@ -196,13 +202,13 @@ describe('rating a finished room', () => {
       const played = await playGame(store, { players: [{ name: 'Ada', profileId: ada.id }, { name: 'Grace', profileId: grace.id }], now });
       now = played.now + sec(60);
     }
-    const board = await leaderboard(store, { ladder: 'classic', profileId: linus.id });
+    const board = await leaderboard(store, { ladder: 'classic', profileId: linus.id, now: T0 });
     expect(board.rows.map((r) => r.name)).toEqual(['Ada', 'Grace']);
     expect(board.rows[0].rank).toBe(1);
     expect(board.rows[0].value).toBeGreaterThan(board.rows[1].value);
     expect(board.rows[0].games).toBe(LEADERBOARD_MIN_GAMES);
     expect(board.you).toMatchObject({ rank: null, name: 'Linus', games: 0, provisional: true });
-    const adaSummary = await profileSummary(store, ada);
+    const adaSummary = await profileSummary(store, ada, { now: T0 });
     expect(adaSummary.recent).toHaveLength(LEADERBOARD_MIN_GAMES);
     expect(adaSummary.recent[0].delta).toBeGreaterThan(0);
     expect(adaSummary.ratings.classic.streak).toBe(LEADERBOARD_MIN_GAMES);
