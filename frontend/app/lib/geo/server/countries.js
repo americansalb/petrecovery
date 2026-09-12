@@ -55,6 +55,38 @@ function ringAreaKm2(ring) {
   return Math.abs(sum / 2) * 111.32 * 110.574;
 }
 
+/**
+ * Natural Earth draws a country that straddles the antimeridian as ONE
+ * ring whose longitude jumps from +179.99 to -180. Ray casting in raw
+ * longitude then sees an edge spanning the entire map, and the
+ * inside/outside parity inverts for every point at the latitudes that
+ * edge covers.
+ *
+ * The damage was not subtle. Before this, countryAt put Finland,
+ * Sweden, Norway, Iceland and Alaska inside Russia; put Brazil and
+ * Mozambique inside Fiji; called the open North Atlantic land; and
+ * called Murmansk and central Siberia sea. Streak mode marked the wrong
+ * country correct, the reveal named it, and the country badge minted it.
+ *
+ * The fix moves such a ring into a continuous longitude space by adding
+ * 360 to its negative longitudes, so it runs 170 -> 190 instead of
+ * 170 -> 180 / -180 -> -170, and shifts a point the same way before
+ * testing it against that part.
+ *
+ * A ring is shifted only when that makes it narrower AND leaves it
+ * under half the globe wide, which is true exactly for the seam
+ * crossers. Antarctica is the case those two conditions protect: its
+ * ring really does circle the globe, so shifting would only move the
+ * 360-degree edge from the antimeridian to the prime meridian. It stays
+ * in raw longitude, where its seam edge is horizontal (180,-84.71 to
+ * -180,-84.71) and ray casting ignores it.
+ */
+const shiftEast = (ring) => ring.map(([lng, lat]) => [lng < 0 ? lng + 360 : lng, lat]);
+const shiftLng = (lng) => (lng < 0 ? lng + 360 : lng);
+/** Undo shiftLng for a point handed back to callers. */
+const normalizeLng = (lng) => (lng > 180 ? lng - 360 : lng);
+const boxWidth = (box) => box.maxLng - box.minLng;
+
 function inBox(lat, lng, box) {
   return lat >= box.minLat && lat <= box.maxLat && lng >= box.minLng && lng <= box.maxLng;
 }
@@ -74,10 +106,11 @@ export function pointInRing(lat, lng, ring) {
 }
 
 function pointInPart(lat, lng, part) {
-  if (!inBox(lat, lng, part.box)) return false;
-  if (!pointInRing(lat, lng, part.outer)) return false;
+  const x = part.wrapped ? shiftLng(lng) : lng;
+  if (!inBox(lat, x, part.box)) return false;
+  if (!pointInRing(lat, x, part.outer)) return false;
   for (const hole of part.holes) {
-    if (pointInRing(lat, lng, hole)) return false;
+    if (pointInRing(lat, x, hole)) return false;
   }
   return true;
 }
@@ -100,10 +133,22 @@ function buildParts(geometry) {
     geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.type === 'MultiPolygon' ? geometry.coordinates : [];
   return polygons
     .map((rings) => {
-      const outer = rings[0] || [];
-      const holes = rings.slice(1);
+      const rawOuter = rings[0] || [];
+      const rawBox = ringBox(rawOuter);
+      // A part is either wholly in normal longitude space or wholly in
+      // the shifted one; mixing the two inside a part would be worse
+      // than the bug it fixes.
+      const shiftedOuter = shiftEast(rawOuter);
+      const shiftedBox = ringBox(shiftedOuter);
+      // Narrower after the shift means the ring really was cut by the
+      // seam. The half-globe ceiling is what keeps Antarctica out: its
+      // shifted width (358.9) is a hair under its raw 360.
+      const shiftedWidth = boxWidth(shiftedBox);
+      const wrapped = shiftedWidth < boxWidth(rawBox) && shiftedWidth < 180;
+      const outer = wrapped ? shiftedOuter : rawOuter;
+      const holes = wrapped ? rings.slice(1).map(shiftEast) : rings.slice(1);
       const weight = Math.max(0, ringAreaKm2(outer) - holes.reduce((s, h) => s + ringAreaKm2(h), 0));
-      return { outer, holes, box: ringBox(outer), weight };
+      return { outer, holes, box: wrapped ? shiftedBox : rawBox, rawBox, weight, wrapped };
     })
     .filter((part) => part.outer.length >= 3);
 }
@@ -128,7 +173,7 @@ function build() {
     const name = f.properties?.name || '';
     const meta = metaByN.get(id) || metaByName.get(name) || null;
     const parts = buildParts(f.geometry);
-    const box = unionBox(parts.map((p) => p.box));
+    const box = unionBox(parts.map((p) => p.rawBox));
     const record = {
       ccn3: meta?.ccn3 || `ne-${name}`,
       cca2: meta?.cca2 || '',
@@ -228,9 +273,11 @@ export function sampleInCountry(rng, country, { maxAttempts = 400 } = {}) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const part = country.parts[weightedIndex(rng, weights)];
     const point = randomPointInBox(rng, part.box);
-    if (pointInPart(point.lat, point.lng, part)) return point;
+    if (pointInPart(point.lat, point.lng, part)) return { lat: point.lat, lng: normalizeLng(point.lng) };
   }
-  return country.center ? { ...country.center } : randomPointInBox(rng, country.box);
+  if (country.center) return { ...country.center };
+  const fallback = randomPointInBox(rng, country.box);
+  return { lat: fallback.lat, lng: normalizeLng(fallback.lng) };
 }
 
 /**

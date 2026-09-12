@@ -25,7 +25,7 @@ describe('countryAt', () => {
     ['Nairobi', -1.2921, 36.8219, 'KE'],
     ['Sao Paulo', -23.5505, -46.6333, 'BR'],
     ['Moscow', 55.7558, 37.6173, 'RU'],
-    ['Chukotka, east of the antimeridian', 65.0, -172.0, 'RU'],
+    ['Chukotka, east of the antimeridian', 66.0, -173.0, 'RU'],
   ])('%s is in %s', (_, lat, lng, code) => {
     expect(countryAt(lat, lng)?.cca2).toBe(code);
   });
@@ -37,6 +37,59 @@ describe('countryAt', () => {
 
   test('Antarctica is recognised so it can be excluded', () => {
     expect(countryAt(-80, 20)?.cca2).toBe('AQ');
+  });
+
+  /**
+   * Regression: the antimeridian ring bug. Natural Earth draws Russia and
+   * Fiji as rings that jump from +180 to -180, and raw ray casting
+   * inverted the inside/outside parity across every latitude those edges
+   * covered. countryAt then put Finland, Sweden, Norway, Iceland and
+   * Alaska inside Russia, put Brazil and Mozambique inside Fiji, called
+   * the open North Atlantic land, and called Murmansk sea.
+   */
+  describe('the antimeridian does not leak Russia and Fiji across the map', () => {
+    test.each([
+      ['Rovaniemi, Finland', 66.5, 25.73, 'FI'],
+      ['Oulu, Finland', 65.01, 25.47, 'FI'],
+      ['Bodo, Norway', 67.28, 14.4, 'NO'],
+      ['Akureyri, Iceland', 65.68, -18.09, 'IS'],
+      ['Boden, Sweden', 65.82, 21.69, 'SE'],
+      ['Fairbanks, Alaska', 64.84, -147.72, 'US'],
+      ['Prudhoe Bay, Alaska', 70.25, -148.34, 'US'],
+      ['Murmansk, Russia', 68.97, 33.08, 'RU'],
+      ['central Siberia', 62.0, 100.0, 'RU'],
+      ['Anadyr, west of the seam', 64.73, 177.5, 'RU'],
+      ['Wrangel Island, east of the seam', 71.2, -179.5, 'RU'],
+      ['Anapolis, Brazil', -16.33, -48.95, 'BR'],
+      ['Tete, Mozambique', -16.16, 33.59, 'MZ'],
+      ['Viti Levu, Fiji', -17.8, 178.0, 'FJ'],
+      ['Vanua Levu, Fiji', -16.6, 179.3, 'FJ'],
+      ['Vanua Levu tip, east of the seam', -16.3, -179.9, 'FJ'],
+    ])('%s is in %s', (_, lat, lng, code) => {
+      expect(countryAt(lat, lng)?.cca2).toBe(code);
+    });
+
+    test.each([
+      ['open North Atlantic', 55.0, -30.0],
+      ['mid Pacific', 0.0, -150.0],
+      ['South Pacific', -40.0, -170.0],
+      ['Barents Sea', 75.0, 40.0],
+    ])('%s is water', (_, lat, lng) => {
+      expect(countryAt(lat, lng)).toBeNull();
+    });
+
+    test('points drawn in a country that straddles the seam stay valid longitudes', () => {
+      const rng = createRng('seam');
+      for (const code of ['RU', 'FJ', 'NZ', 'US']) {
+        const country = countryByCode(code);
+        for (let i = 0; i < 200; i++) {
+          const point = sampleInCountry(rng, country);
+          expect(point.lng).toBeGreaterThanOrEqual(-180);
+          expect(point.lng).toBeLessThanOrEqual(180);
+          expect(countryAt(point.lat, point.lng)?.cca2).toBe(code);
+        }
+      }
+    });
   });
 
   test('Lesotho is a hole in South Africa', () => {
