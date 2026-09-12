@@ -160,6 +160,7 @@ export default function ScriptPlayClient() {
           mode={result ? 'result' : 'guess'}
           answer={result?.answer || null}
           guess={result?.guess || null}
+          nearestPoint={result?.nearestPoint || null}
           onMapTrouble={() => setMapTrouble(true)}
         />
       </div>

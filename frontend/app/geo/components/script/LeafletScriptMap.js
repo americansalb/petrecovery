@@ -23,8 +23,10 @@
  * because a captioned map answers the round.
  *
  * Same contract as ScriptMap so the play client does not care which it
- * has: tap to pin, and on the reveal draw the language's heartlands as
- * circles, because the answer is an area rather than a point.
+ * has: tap to pin, and on the reveal draw where the language is
+ * spoken, because the answer is an area rather than a point: the states
+ * and districts themselves for South Asia, a disc for the rest of the
+ * world until those regions are drawn properly too.
  *
  * If the outline chunk cannot be loaded (a captive network on a first
  * visit), a latitude and longitude grid is drawn in its place and
@@ -80,7 +82,7 @@ function dot(L, color, label) {
   });
 }
 
-export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, mode = 'guess', className = '', onMapTrouble }) {
+export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, nearestPoint = null, mode = 'guess', className = '', onMapTrouble }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const leafletRef = useRef(null);
@@ -189,21 +191,22 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
 
     const drawn = [];
     for (const region of answer.regions || []) {
-      drawn.push(
-        L.circle([region.lat, region.lng], {
-          radius: region.radiusKm * 1000,
-          color: ANSWER,
-          weight: 2,
-          fillColor: ANSWER,
-          fillOpacity: 0.2,
-        })
-          .addTo(map)
-          .bindTooltip(`${region.name} (${answer.name})`)
-      );
+      const style = { color: ANSWER, weight: 2, fillColor: ANSWER, fillOpacity: 0.2 };
+      // South Asian languages are drawn as the states, districts and
+      // divisions they are spoken in, clipped where a language covers
+      // part of one; the rest of the corpus is still a disc, and says
+      // so by being one (app/lib/geo/server/regions.js).
+      const shape = region.rings
+        ? L.polygon(region.rings.map((ring) => ring.map(([lng, lat]) => [lat, lng])), style)
+        : L.circle([region.lat, region.lng], { ...style, radius: region.radiusKm * 1000 });
+      drawn.push(shape.addTo(map).bindTooltip(`${region.name} (${answer.name})`));
     }
     if (guess) {
       drawn.push(L.marker([guess.lat, guess.lng], { icon: dot(L, GUESS, 'Your guess'), keyboard: false }).addTo(map));
-      const nearest = nearestRegion(guess, answer.regions || []);
+      // To the nearest point on the region's edge when the server
+      // measured one, which is where the language actually starts;
+      // otherwise to the nearest region's middle.
+      const nearest = nearestPoint || nearestRegion(guess, answer.regions || []);
       if (nearest) {
         drawn.push(
           L.polyline(
@@ -228,7 +231,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     } catch {
       /* one layer, or none: leave the view alone */
     }
-  }, [answer, guess, mode]);
+  }, [answer, guess, nearestPoint, mode]);
 
   // The reveal's panel owns the bottom of the screen, and the zoom
   // control sat on top of it. Nothing needs zooming during a reveal:

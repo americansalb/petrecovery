@@ -251,15 +251,44 @@ them apart.
 Scoring a guess against a country makes South Asia one tile. Tamil,
 Marathi, Bhojpuri and Maithili all collapse into "India" and the round
 stops being about language at all. So each language carries the places
-it is actually spoken, as heartland discs, and a guess is measured to
-the nearest one. Tamil pinned in Tamil Nadu scores full marks. Tamil
-pinned in Punjab does not. Punjabi has a heartland on both sides of a
-border, and pinning either is right.
+it is actually spoken, and a guess is measured to the nearest one. Tamil
+pinned in Tamil Nadu scores full marks. Tamil pinned in Punjab does not.
+Punjabi is spoken on both sides of a border, and pinning either is
+right.
 
-A disc is a coarse instrument for a language boundary, deliberately.
-Real isoglosses are fuzzy, overlapping and politically contested; a
-centre and a radius says "roughly here, and this big" without claiming a
-precision no map of languages has.
+**South Asian languages are drawn as real administrative units.** A
+region is a union of states, union territories, Sri Lankan districts,
+Pakistani provinces, Bangladeshi divisions or Nepali zones, from Natural
+Earth's 10m admin-1 set (public domain), built into
+`app/lib/geo/data/admin1-south-asia.json` by
+`scripts/build-language-regions.js` and resolved by
+`app/lib/geo/server/regions.js`. They were discs until 2026-09-12, and
+the discs were wrong in ways the map showed: the Maithili circle covered
+the hills of eastern Nepal, the Marathi one reached into Karnataka, and
+every coastal language had half its area out at sea. Anywhere in Kerala
+is Malayalam now, because "Kerala" is how someone who knows Malayalam
+knows where it is spoken.
+
+Three things follow, and all three are the mode:
+
+- **Regions overlap, because languages do.** Hindi and Urdu share the
+  Doab, Nepali and Bengali share Darjeeling, Telugu and Urdu share
+  Hyderabad. Nothing is exclusive; the reveal names what else is spoken
+  where the pin landed.
+- **Not every language is state-shaped.** A region can carry a `clip`
+  box that cuts a unit down: Bhojpuri is western Bihar, eastern Uttar
+  Pradesh and a strip of the Nepal Terai, not any of the three whole.
+  The coast, the state line and the international border stay real; the
+  one straight edge is the inland isogloss, which is fuzzy on the ground
+  and contested on paper, so a straight line is the honest way to draw
+  it.
+- **The polygons never reach the browser except on a reveal.** They are
+  129 KB, the round payload must never carry anything the answer can be
+  read from, and the reveal needs only the answer's own shapes.
+
+The rest of the world is still discs: `[name, cca2, lat, lng, radiusKm]`
+in `app/lib/geo/languages.js`. They are wrong in the same way, and the
+fix is the same fix one region of the world at a time.
 
 **The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
 
@@ -876,7 +905,7 @@ frontend/app/lib/geo/server/     server only: countries, sampler, streetview, to
                                  rooms + roomStore/memoryRoomStore, profiles, roundCache, siteBase
 frontend/app/lib/geo/rooms.js    room rules (codes, names, duel maths, standings)
 frontend/app/lib/geo/rating.js   Glicko ratings
-frontend/app/lib/geo/languages.js  the script game's languages, scripts and heartland regions
+frontend/app/lib/geo/languages.js  the script game's languages, scripts and regions
 frontend/app/lib/geo/script.js     the script game's pools and region scoring
 frontend/app/lib/geo/server/samples.js    the sentence corpus, server only so the browser cannot look up the answer
 frontend/app/lib/geo/server/scriptGame.js building and scoring a script round

@@ -598,10 +598,13 @@ async function script(browser) {
   const reveal = await page.evaluate(() => document.body.innerText);
   // Leaflet draws a circle as an SVG path, so counting paths counts the
   // heartlands the reveal drew.
-  const circles = await page.locator('[data-script-map="leaflet"] path.leaflet-interactive').count();
+  // South Asian languages are drawn as the states and districts they
+  // are spoken in, the rest of the world as discs; Leaflet draws either
+  // as an SVG path, so counting paths counts the regions.
+  const shapes = await page.locator('[data-script-map="leaflet"] path.leaflet-interactive').count();
   log('reveal names a language:', /million speakers/.test(reveal));
-  log('heartlands drawn as circles:', circles);
-  if (!circles) throw new Error('the reveal drew no regions: the answer is an area, that is the mode');
+  log('regions drawn:', shapes);
+  if (!shapes) throw new Error('the reveal drew no regions: the answer is an area, that is the mode');
   if (!/points/.test(reveal)) throw new Error('the reveal showed no score');
   await shot(page, 'script-reveal');
 
