@@ -55,7 +55,7 @@ export default function ScriptLobby() {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {SHOWCASE.map((row) => (
-          <div key={row.script} className="rounded-xl bg-midnight-950 p-4">
+          <div key={row.script} className="rounded-xl border border-midnight-200 bg-[#fffdf8] p-4 shadow-sm">
             <ScriptSample text={row.text} script={row.script} size="sm" />
           </div>
         ))}

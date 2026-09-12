@@ -9,53 +9,58 @@
  * player pinning the right state could be scored as a miss because the
  * circle drawn over that state happened to be centred elsewhere.
  *
- * So a region is now a union of real administrative units, from
- * Natural Earth's 10m admin-1 set (public domain, built into
- * `app/lib/geo/data/admin1-south-asia.json` by
- * `scripts/build-language-regions.js`). India is states and union
- * territories, Sri Lanka districts, Pakistan provinces, Bangladesh
- * divisions, Nepal zones.
+ * So a region is a union of real places: a whole country for a language
+ * that is one, subdivisions where a language covers part of a country
+ * or crosses several, and either of those clipped to a box where the
+ * line runs through a unit rather than round it. The source is Natural
+ * Earth's 10m admin-0 and admin-1 sets (public domain), built into
+ * `app/lib/geo/data/language-regions.json` by
+ * `scripts/build-language-regions.js`.
  *
- * Three things that follow from real boundaries, and all three are the
- * point of the mode:
+ * Four things that follow, and all four are the point of the mode:
  *
  * - **A state is a boundary players think in.** "Kerala" is how someone
  *   who knows Malayalam knows where Malayalam is. Pinning Kerala should
  *   score full marks, and now it does, anywhere in Kerala.
  * - **Regions overlap, because languages do.** Hindi and Urdu share the
- *   Doab, Marathi and Konkani share the Konkan coast, Nepali and
- *   Bengali share Darjeeling. Nothing here is exclusive; a pin can be
- *   inside several languages at once and the reveal says which.
+ *   Doab, French and Dutch share Brussels, Kurdish and Arabic share
+ *   Erbil, Pashto and Dari share Kabul. Nothing here is exclusive; a
+ *   pin can be inside several languages at once and the reveal says
+ *   which.
  * - **Not every language is state-shaped.** Bhojpuri is western Bihar
- *   and eastern Uttar Pradesh, not either state whole. Those regions
- *   carry a `clip` box: the state polygon cut down to the part where
- *   the language is spoken. The coast, the state border and the
- *   international border stay real; the one straight edge is the inland
- *   isogloss, which is fuzzy on the ground and contested on paper, so a
- *   straight line is the honest way to draw it.
+ *   and eastern Uttar Pradesh, not either state whole; Basque is the
+ *   western third of one French department. Those regions carry a
+ *   `clip` box: the polygon cut down to the part where the language is
+ *   spoken. The coast, the state border and the international border
+ *   stay real; the one straight edge is the inland isogloss, which is
+ *   fuzzy on the ground and contested on paper, so a straight line is
+ *   the honest way to draw it.
+ * - **The map does not take sides.** A region says where a language is
+ *   spoken, never who a place belongs to.
  *
- * The rest of the world is still discs (`app/lib/geo/languages.js`).
- * They are wrong in the same way, and admin-1 for every country is a
- * bigger file and a bigger research job; South Asia came first because
- * that is the ladder the mode exists for.
- *
- * Server only, because the polygons are 129 KB and the browser has no
- * use for them: the reveal is sent the answer's rings, and nothing
- * else. Keeping them here also keeps them off the round payload, which
- * must never carry the answer.
+ * Server only, because the polygons are 1.2 MB and the browser has no
+ * use for them: the reveal is sent the answer's own rings, thinned for
+ * drawing, and nothing else. Keeping them here also keeps them off the
+ * round payload, which must never carry the answer.
  */
 
 import { haversineKm } from '../distance';
 import { LANGUAGES } from '../languages';
 import { MAX_ROUND_SCORE, scoreForDistance, sizeForBox } from '../distance';
 import { languagesForLadder } from '../script';
-import ADMIN1 from '../data/admin1-south-asia.json';
+import DATA from '../data/language-regions.json';
 
 /** The admin-1 units, by ISO 3166-2 code: `IN-TN`, `LK-41`, `PK-SD`. */
-export const UNITS = ADMIN1.units;
+export const UNITS = DATA.units;
+/** Whole countries, by ISO 3166-1 alpha-2: `IS`, `BR`, `TH`. */
+export const COUNTRIES = DATA.countries;
 
 export function adminUnit(id) {
   return UNITS[id] || null;
+}
+
+export function countryShape(code) {
+  return COUNTRIES[code] || null;
 }
 
 /** Ray casting on [lng, lat] rings. No antimeridian in South Asia. */
@@ -72,6 +77,20 @@ function pointInRing({ lat, lng }, ring) {
 export function pointInRings(point, rings) {
   return rings.some((ring) => pointInRing(point, ring));
 }
+
+/**
+ * How far outside a region still counts as inside it.
+ *
+ * The polygons are simplified to about two kilometres, so a coastline
+ * is only known to about two kilometres, and a city on one can fall the
+ * wrong side of its own country: Reykjavik, Montreal and Copenhagen all
+ * did. Three kilometres is the error bar on the map, not a favour to
+ * the player: at this scale the boundary genuinely is not known better
+ * than that, and the score at 3 km is 4,990 out of 5,000 anyway. What
+ * it buys is that the game does not tell somebody who pinned Copenhagen
+ * that they were not in Denmark.
+ */
+export const EDGE_GRACE_KM = 3;
 
 function boxOfRings(rings) {
   const box = { minLat: 90, maxLat: -90, minLng: 180, maxLng: -180 };
@@ -97,6 +116,11 @@ function boxOfRings(rings) {
  */
 export function distanceToRingsKm(point, rings) {
   if (pointInRings(point, rings)) return { km: 0, at: point };
+  const measured = measureToRingsKm(point, rings);
+  return measured.km <= EDGE_GRACE_KM ? { km: 0, at: point } : measured;
+}
+
+function measureToRingsKm(point, rings) {
 
   let nearest = null;
   let nearestKm = Infinity;
@@ -140,6 +164,22 @@ export function distanceToRingsKm(point, rings) {
     }
   }
   return { km: bestKm, at: bestAt };
+}
+
+/**
+ * A cheap lower bound on how far a point is from a region: the distance
+ * to its bounding box. Zero inside the box.
+ *
+ * Every guess is measured against every region of every language in the
+ * pool, and most of those are on other continents. Ruling those out on
+ * two subtractions rather than on ten thousand vertices took the
+ * corpus-wide test from eighteen seconds to under one.
+ */
+export function boxDistanceKm(point, box) {
+  const dLat = Math.max(box.minLat - point.lat, 0, point.lat - box.maxLat);
+  const dLng = Math.max(box.minLng - point.lng, 0, point.lng - box.maxLng);
+  const kx = 111.32 * Math.cos((point.lat * Math.PI) / 180);
+  return Math.hypot(dLat * 110.574, dLng * kx);
 }
 
 /** Sutherland-Hodgman against one edge of the clip box. */
@@ -221,45 +261,31 @@ export function resolveRegion(region) {
   const cached = RESOLVED.get(region);
   if (cached) return cached;
 
-  let resolved;
-  if (region.units?.length) {
-    let rings = [];
-    for (const id of region.units) {
-      const unit = adminUnit(id);
-      if (!unit) throw new Error(`No admin-1 unit ${id} for region ${region.name}`);
-      rings = rings.concat(unit.rings);
-    }
-    if (region.clip) rings = clipRingsToBox(rings, region.clip);
-    if (!rings.length) throw new Error(`Region ${region.name} clipped away to nothing`);
-    const box = boxOfRings(rings);
-    resolved = {
-      name: region.name,
-      cca2: region.cca2 || adminUnit(region.units[0])?.cca2 || '',
-      units: region.units,
-      rings,
-      box,
-      lat: (box.minLat + box.maxLat) / 2,
-      lng: (box.minLng + box.maxLng) / 2,
-    };
-  } else {
-    const half = region.radiusKm / Math.SQRT2;
-    const dLat = half / 110.574;
-    const dLng = half / (111.32 * Math.max(0.1, Math.cos((region.lat * Math.PI) / 180)));
-    resolved = {
-      name: region.name,
-      cca2: region.cca2,
-      rings: null,
-      radiusKm: region.radiusKm,
-      lat: region.lat,
-      lng: region.lng,
-      box: {
-        minLat: region.lat - dLat,
-        maxLat: region.lat + dLat,
-        minLng: region.lng - dLng,
-        maxLng: region.lng + dLng,
-      },
-    };
+  let rings = [];
+  for (const code of region.countries || []) {
+    const country = countryShape(code);
+    if (!country) throw new Error(`No country ${code} for region ${region.name}`);
+    rings = rings.concat(country.rings);
   }
+  for (const id of region.units || []) {
+    const unit = adminUnit(id);
+    if (!unit) throw new Error(`No admin-1 unit ${id} for region ${region.name}`);
+    rings = rings.concat(unit.rings);
+  }
+  if (!rings.length) throw new Error(`Region ${region.name} names no country and no unit`);
+  if (region.clip) rings = clipRingsToBox(rings, region.clip);
+  if (!rings.length) throw new Error(`Region ${region.name} clipped away to nothing`);
+  const box = boxOfRings(rings);
+  const resolved = {
+    name: region.name,
+    cca2: region.cca2 || region.countries?.[0] || adminUnit(region.units?.[0])?.cca2 || '',
+    units: region.units,
+    countries: region.countries,
+    rings,
+    box,
+    lat: (box.minLat + box.maxLat) / 2,
+    lng: (box.minLng + box.maxLng) / 2,
+  };
 
   RESOLVED.set(region, resolved);
   return resolved;
@@ -278,18 +304,11 @@ export function resolveRegions(language) {
 export function distanceToLanguage(guess, language) {
   let best = null;
   for (const region of resolveRegions(language)) {
-    let distanceKm;
-    let at;
-    if (region.rings) {
-      const nearest = distanceToRingsKm(guess, region.rings);
-      distanceKm = nearest.km;
-      at = nearest.at;
-    } else {
-      const toCentre = haversineKm(guess, region);
-      distanceKm = Math.max(0, toCentre - region.radiusKm);
-      at = { lat: region.lat, lng: region.lng };
-    }
-    if (!best || distanceKm < best.distanceKm) best = { region, distanceKm, at };
+    // The box is a lower bound: if it is further than the best so far,
+    // no vertex inside it can be nearer.
+    if (best && boxDistanceKm(guess, region.box) >= best.distanceKm) continue;
+    const nearest = distanceToRingsKm(guess, region.rings);
+    if (!best || nearest.km < best.distanceKm) best = { region, distanceKm: nearest.km, at: nearest.at };
   }
   return best || { region: null, distanceKm: Number.POSITIVE_INFINITY, at: null };
 }
@@ -297,8 +316,10 @@ export function distanceToLanguage(guess, language) {
 /** Languages in the pool whose region actually contains the pin. */
 export function languagesAt(guess, pool = LANGUAGES) {
   return pool.filter((language) =>
-    resolveRegions(language).some((region) =>
-      region.rings ? pointInRings(guess, region.rings) : haversineKm(guess, region) <= region.radiusKm
+    resolveRegions(language).some(
+      (region) =>
+        boxDistanceKm(guess, region.box) <= EDGE_GRACE_KM &&
+        (pointInRings(guess, region.rings) || distanceToRingsKm(guess, region.rings).km === 0)
     )
   );
 }
@@ -356,18 +377,74 @@ export function scoreScriptGuess({ guess, language, ladder = 'world', sizeKm }) 
 }
 
 /**
- * What the reveal draws: every region the language is spoken in, as
- * rings where we have them and a disc where we do not. Sent only with
- * the reveal, never with the round.
+ * Ramer-Douglas-Peucker on a ring, in degrees. Used only for drawing.
  */
+function thin(ring, tolerance) {
+  if (ring.length < 5) return ring;
+  const keep = new Uint8Array(ring.length);
+  keep[0] = 1;
+  keep[ring.length - 1] = 1;
+  const stack = [[0, ring.length - 1]];
+  while (stack.length) {
+    const [first, last] = stack.pop();
+    const [x1, y1] = ring[first];
+    const [x2, y2] = ring[last];
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const span = dx * dx + dy * dy;
+    let worst = 0;
+    let index = -1;
+    for (let i = first + 1; i < last; i++) {
+      const [x, y] = ring[i];
+      const t = span === 0 ? 0 : Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / span));
+      const distance = Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+      if (distance > worst) {
+        worst = distance;
+        index = i;
+      }
+    }
+    if (worst > tolerance && index > 0) {
+      keep[index] = 1;
+      stack.push([first, index], [index, last]);
+    }
+  }
+  const out = ring.filter((_, i) => keep[i]);
+  return out.length >= 4 ? out : ring;
+}
+
+/**
+ * What the reveal draws, and only what it needs to draw it.
+ *
+ * Scoring wants the coastline as exact as the data gets; a reveal wants
+ * a shape the player recognises, on a map a few hundred pixels wide,
+ * over a wire that might be a phone's. Spanish is five regions across
+ * twenty countries and 186 KB of vertices at scoring precision, which
+ * is a ridiculous thing to send to draw a shape that size. Thinned to
+ * the region's own scale it is a tenth of that and looks the same.
+ *
+ * Sent only with the reveal, never with the round.
+ */
+const REVEAL = new WeakMap();
+
 export function regionsForReveal(language) {
-  return resolveRegions(language).map((region) => ({
-    name: region.name,
-    cca2: region.cca2,
-    lat: region.lat,
-    lng: region.lng,
-    ...(region.rings ? { rings: region.rings } : { radiusKm: region.radiusKm }),
-  }));
+  const cached = REVEAL.get(language);
+  if (cached) return cached;
+  const out = resolveRegions(language).map((region) => {
+    const span = Math.max(region.box.maxLat - region.box.minLat, region.box.maxLng - region.box.minLng);
+    // About a four-hundredth of the region's own width: the error is
+    // under a pixel at the zoom the reveal flies to.
+    const tolerance = Math.min(0.25, Math.max(0.01, span / 400));
+    const rings = region.rings.map((ring) => thin(ring, tolerance)).filter((ring) => ring.length >= 4);
+    return {
+      name: region.name,
+      cca2: region.cca2,
+      lat: region.lat,
+      lng: region.lng,
+      rings: rings.length ? rings : region.rings,
+    };
+  });
+  REVEAL.set(language, out);
+  return out;
 }
 
 export const SCRIPT_MAX_SCORE = MAX_ROUND_SCORE;

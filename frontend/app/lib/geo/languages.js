@@ -17,27 +17,34 @@
  *    Tamil pinned in Tamil Nadu scores full marks. Tamil pinned in
  *    Punjab does not.
  *
- * Two ways of saying where, and which one a language gets is about how
- * much the map can be trusted, not about how important the language is:
+ * Where a language is spoken is a list of real places, never a circle:
  *
- * - **States, districts, divisions, zones.** South Asian languages name
- *   real administrative units: `{ name, units: ['IN-TN', 'IN-PY'] }`,
- *   resolved against Natural Earth's admin-1 polygons by
- *   `app/lib/geo/server/regions.js`. Anywhere in Tamil Nadu is Tamil,
- *   because that is what a player who knows Tamil knows. A `clip` box
- *   cuts a unit down where a language covers part of one: Bhojpuri is
- *   western Bihar and eastern Uttar Pradesh, not either state whole.
- *   Regions overlap freely, because languages do.
- * - **Discs**, for the rest of the world: [name, cca2, lat, lng,
- *   radiusKm]. A disc is a coarse instrument, and the South Asian rows
- *   used to be discs too until the map showed what that was worth: the
- *   Maithili circle covered half of Nepal. The rest of the corpus is
- *   next, one region of the world at a time.
+ * - **A whole country**, for a language that is one:
+ *   `{ name: 'Iceland', countries: ['IS'] }`.
+ * - **Subdivisions**, where a language covers part of a country or
+ *   crosses several: `{ name: 'Tamil Nadu', units: ['IN-TN'] }`,
+ *   `{ name: 'Wales', units: ['GB-GWN', ...] }`. Codes are ISO 3166-2.
+ * - **Either, clipped**, where the line runs through a unit rather than
+ *   round it: `{ countries: ['NE'], clip: { maxLat: 16 } }` is the
+ *   Hausa half of Niger, and the rest is desert and Tuareg.
  *
- * The country code on a disc is there so the test can check the
- * coordinate against the same Natural Earth polygons that name a
- * geography round: a typo that lands Marathi in Pakistan fails rather
- * than ships.
+ * All of it resolves against Natural Earth polygons in
+ * `app/lib/geo/server/regions.js`. Regions overlap freely, because
+ * languages do: Hindi and Urdu share the Doab, Nepali and Bengali share
+ * Darjeeling, Spanish and Quechua would share Cusco if Quechua were in
+ * here yet.
+ *
+ * **The rule for contested ground**, and it is the only rule that
+ * matters when the map gets political: a region says where a language
+ * is spoken, never who a place belongs to. Kurdish names the country it
+ * is spoken in across four states; Kirkuk is left out, not because of
+ * who governs it but because saying either way would be the game taking
+ * a side. Where Natural Earth draws a border, the game draws it too,
+ * and where a language crosses one, the language crosses it.
+ *
+ * A typo in a code cannot ship: __tests__/geo/script.test.js resolves
+ * every one, and pins two dozen cities to check the codes mean what
+ * they are meant to mean.
  */
 
 /**
@@ -238,30 +245,51 @@ const LANGUAGE_ROWS = [
     code: 'arb', name: 'Arabic', endonym: 'العربية', script: 'arab',
     family: 'Afro-Asiatic', branch: 'Semitic', speakers: 335,
     regions: [
-      ['Egypt', 'EG', 27.5, 30.8, 330], ['the Gulf', 'SA', 24.2, 45.5, 450],
-      ['the Levant', 'SY', 34.0, 37.5, 250], ['the Maghreb', 'DZ', 33.5, 2.5, 500],
-      ['Iraq', 'IQ', 33.0, 43.8, 250],
+      { name: 'Egypt and Sudan', countries: ['EG', 'SD'] },
+      { name: 'the Maghreb', countries: ['MA', 'DZ', 'TN', 'LY', 'MR'] },
+      { name: 'the Levant', countries: ['SY', 'LB', 'JO', 'PS'] },
+      { name: 'the Gulf', countries: ['SA', 'YE', 'OM', 'AE', 'QA', 'BH', 'KW'] },
+      { name: 'Iraq', countries: ['IQ'] },
     ],
   },
   {
     code: 'pes', name: 'Persian', endonym: 'فارسی', script: 'arab',
     family: 'Indo-European', branch: 'Iranian', speakers: 79,
-    regions: [['Iran', 'IR', 32.5, 53.0, 480], ['western Afghanistan', 'AF', 34.4, 63.5, 180]],
+    regions: [
+      { name: 'Iran', countries: ['IR'] },
+      // Dari: the north and west of Afghanistan. The south and east
+      // are Pashto, and both are in this corpus, so the country is
+      // split between them rather than given to either.
+      { name: 'northern and western Afghanistan', units: ['AF-HER', 'AF-BDG', 'AF-FRA', 'AF-GHO', 'AF-BAM', 'AF-BAL', 'AF-JOW', 'AF-FYB', 'AF-SAR', 'AF-SAM', 'AF-BGL', 'AF-TAK', 'AF-KDZ', 'AF-BDS', 'AF-PAR', 'AF-KAP', 'AF-KAB'] },
+      { name: 'Tajikistan', countries: ['TJ'] },
+    ],
   },
   {
     code: 'pbu', name: 'Pashto', endonym: 'پښتو', script: 'arab',
     family: 'Indo-European', branch: 'Iranian', speakers: 43,
-    regions: [['southern Afghanistan', 'AF', 32.5, 66.5, 300], ['Khyber Pakhtunkhwa', 'PK', 33.9, 70.7, 180]],
+    regions: [
+      { name: 'southern and eastern Afghanistan', units: ['AF-KAN', 'AF-HEL', 'AF-ZAB', 'AF-URU', 'AF-GHA', 'AF-PKA', 'AF-PIA', 'AF-KHO', 'AF-NAN', 'AF-KNR', 'AF-NUR', 'AF-LAG', 'AF-LOG', 'AF-WAR', 'AF-KAB', 'AF-NIM'] },
+      { name: 'Khyber Pakhtunkhwa', units: ['PK-KP', 'PK-TA'] },
+    ],
   },
   {
     code: 'ckb', name: 'Kurdish', endonym: 'کوردی', script: 'arab',
     family: 'Indo-European', branch: 'Iranian', speakers: 8,
-    regions: [['Iraqi Kurdistan', 'IQ', 36.0, 44.4, 170], ['eastern Anatolia', 'TR', 38.5, 41.5, 220]],
+    regions: [
+      // Kurdish is spoken across four states and has no state of its
+      // own; these are the places, not a claim about whose they are.
+      // Kirkuk is left out on purpose: it is contested ground and this
+      // is a language game.
+      { name: 'Iraqi Kurdistan', units: ['IQ-DA', 'IQ-AR', 'IQ-SU'] },
+      { name: 'south-eastern Anatolia', units: ['TR-21', 'TR-47', 'TR-72', 'TR-56', 'TR-73', 'TR-30', 'TR-65', 'TR-13', 'TR-12', 'TR-49', 'TR-63', 'TR-02', 'TR-62'] },
+      { name: 'western Iran', units: ['IR-16', 'IR-17', 'IR-05'] },
+      { name: 'north-eastern Syria', units: ['SY-HA'] },
+    ],
   },
   {
     code: 'uig', name: 'Uyghur', endonym: 'ئۇيغۇرچە', script: 'arab',
     family: 'Turkic', branch: 'Karluk', speakers: 11,
-    regions: [['the Tarim basin', 'CN', 39.8, 79.5, 450]],
+    regions: [{ name: 'Xinjiang', units: ['CN-XJ'] }],
   },
 
   // ---- Cyrillic. Three Slavic answers plus two that are not Slavic
@@ -269,32 +297,42 @@ const LANGUAGE_ROWS = [
   {
     code: 'rus', name: 'Russian', endonym: 'русский', script: 'cyrl',
     family: 'Indo-European', branch: 'Slavic', speakers: 255,
-    regions: [['European Russia', 'RU', 55.7, 39.0, 600], ['Siberia', 'RU', 56.0, 84.0, 900]],
+    regions: [
+      { name: 'Russia', countries: ['RU'] },
+      { name: 'Belarus', countries: ['BY'] },
+      { name: 'northern Kazakhstan', countries: ['KZ'], clip: { minLat: 49.5 } },
+    ],
   },
   {
     code: 'ukr', name: 'Ukrainian', endonym: 'українська', script: 'cyrl',
     family: 'Indo-European', branch: 'Slavic', speakers: 39,
-    regions: [['Ukraine', 'UA', 49.5, 31.0, 400]],
+    regions: [{ name: 'Ukraine', countries: ['UA'] }],
   },
   {
     code: 'bul', name: 'Bulgarian', endonym: 'български', script: 'cyrl',
     family: 'Indo-European', branch: 'Slavic', speakers: 8,
-    regions: [['Bulgaria', 'BG', 42.7, 25.2, 180]],
+    regions: [{ name: 'Bulgaria', countries: ['BG'] }],
   },
   {
     code: 'srp', name: 'Serbian', endonym: 'српски', script: 'cyrl',
     family: 'Indo-European', branch: 'Slavic', speakers: 9,
-    regions: [['Serbia', 'RS', 44.0, 20.9, 160]],
+    regions: [
+      { name: 'Serbia', countries: ['RS'] },
+      { name: 'Montenegro and Bosnia', countries: ['ME', 'BA'] },
+    ],
   },
   {
     code: 'kaz', name: 'Kazakh', endonym: 'қазақша', script: 'cyrl',
     family: 'Turkic', branch: 'Kipchak', speakers: 14,
-    regions: [['Kazakhstan', 'KZ', 48.5, 67.0, 700]],
+    regions: [{ name: 'Kazakhstan', countries: ['KZ'] }],
   },
   {
     code: 'mon', name: 'Mongolian', endonym: 'монгол', script: 'cyrl',
     family: 'Mongolic', branch: 'Central Mongolic', speakers: 6,
-    regions: [['Mongolia', 'MN', 47.0, 104.0, 500]],
+    regions: [
+      { name: 'Mongolia', countries: ['MN'] },
+      { name: 'Inner Mongolia', units: ['CN-NM'] },
+    ],
   },
 
   // ---- Scripts with one obvious answer. The easy tier, and the one
@@ -302,52 +340,55 @@ const LANGUAGE_ROWS = [
   {
     code: 'ell', name: 'Greek', endonym: 'ελληνικά', script: 'grek',
     family: 'Indo-European', branch: 'Hellenic', speakers: 13,
-    regions: [['Greece', 'GR', 39.2, 22.2, 220]],
+    regions: [{ name: 'Greece and Cyprus', countries: ['GR', 'CY'] }],
   },
   {
     code: 'heb', name: 'Hebrew', endonym: 'עברית', script: 'hebr',
     family: 'Afro-Asiatic', branch: 'Semitic', speakers: 9,
-    regions: [['Israel', 'IL', 32.0, 34.9, 100]],
+    regions: [{ name: 'Israel', countries: ['IL'] }],
   },
   {
     code: 'kat', name: 'Georgian', endonym: 'ქართული', script: 'geor',
     family: 'Kartvelian', branch: 'Karto-Zan', speakers: 4,
-    regions: [['Georgia', 'GE', 41.9, 44.0, 150]],
+    regions: [{ name: 'Georgia', countries: ['GE'] }],
   },
   {
     code: 'hye', name: 'Armenian', endonym: 'հայերեն', script: 'armn',
     family: 'Indo-European', branch: 'Armenian', speakers: 6,
-    regions: [['Armenia', 'AM', 40.2, 45.0, 120]],
+    regions: [{ name: 'Armenia', countries: ['AM'] }],
   },
   {
     code: 'amh', name: 'Amharic', endonym: 'አማርኛ', script: 'ethi',
     family: 'Afro-Asiatic', branch: 'Semitic', speakers: 60,
-    regions: [['the Ethiopian highlands', 'ET', 10.5, 38.7, 280]],
+    regions: [{ name: 'the Ethiopian highlands', units: ['ET-AM', 'ET-AA', 'ET-DD'] }],
   },
   {
     code: 'tir', name: 'Tigrinya', endonym: 'ትግርኛ', script: 'ethi',
     family: 'Afro-Asiatic', branch: 'Semitic', speakers: 10,
-    regions: [['Tigray', 'ET', 13.9, 39.0, 130], ['Eritrea', 'ER', 15.4, 38.9, 130]],
+    regions: [
+      { name: 'Tigray', units: ['ET-TI'] },
+      { name: 'Eritrea', countries: ['ER'] },
+    ],
   },
   {
     code: 'tha', name: 'Thai', endonym: 'ไทย', script: 'thai',
     family: 'Kra-Dai', branch: 'Tai', speakers: 61,
-    regions: [['Thailand', 'TH', 15.4, 100.8, 350]],
+    regions: [{ name: 'Thailand', countries: ['TH'] }],
   },
   {
     code: 'lao', name: 'Lao', endonym: 'ລາວ', script: 'laoo',
     family: 'Kra-Dai', branch: 'Tai', speakers: 30,
-    regions: [['Laos', 'LA', 18.6, 103.4, 250]],
+    regions: [{ name: 'Laos', countries: ['LA'] }],
   },
   {
     code: 'khm', name: 'Khmer', endonym: 'ខ្មែរ', script: 'khmr',
     family: 'Austroasiatic', branch: 'Khmeric', speakers: 17,
-    regions: [['Cambodia', 'KH', 12.6, 104.9, 200]],
+    regions: [{ name: 'Cambodia', countries: ['KH'] }],
   },
   {
     code: 'mya', name: 'Burmese', endonym: 'မြန်မာ', script: 'mymr',
     family: 'Sino-Tibetan', branch: 'Lolo-Burmese', speakers: 43,
-    regions: [['Myanmar', 'MM', 20.5, 96.2, 380]],
+    regions: [{ name: 'Myanmar', countries: ['MM'] }],
   },
 
   // ---- East Asia. Not bundled as webfonts; system coverage carries
@@ -355,17 +396,22 @@ const LANGUAGE_ROWS = [
   {
     code: 'cmn', name: 'Mandarin Chinese', endonym: '中文', script: 'hans',
     family: 'Sino-Tibetan', branch: 'Sinitic', speakers: 1100,
-    regions: [['northern China', 'CN', 37.5, 114.0, 600], ['Sichuan', 'CN', 30.6, 104.0, 300]],
+    regions: [
+      // Mandarin is most of China and not all of it: Cantonese has the
+      // south coast, Min has Fujian, Wu has the Shanghai delta, and
+      // Xinjiang and Tibet speak neither Mandarin nor each other.
+      { name: 'the Mandarin provinces', units: ['CN-BJ', 'CN-TJ', 'CN-HE', 'CN-SX', 'CN-LN', 'CN-JL', 'CN-HL', 'CN-SD', 'CN-HA', 'CN-HB', 'CN-HN', 'CN-SN', 'CN-GS', 'CN-NX', 'CN-QH', 'CN-SC', 'CN-CQ', 'CN-GZ', 'CN-YN', 'CN-AH', 'CN-JX'] },
+    ],
   },
   {
     code: 'jpn', name: 'Japanese', endonym: '日本語', script: 'jpan',
     family: 'Japonic', branch: 'Japanese', speakers: 123,
-    regions: [['Japan', 'JP', 36.0, 138.5, 400]],
+    regions: [{ name: 'Japan', countries: ['JP'] }],
   },
   {
     code: 'kor', name: 'Korean', endonym: '한국어', script: 'hang',
     family: 'Koreanic', branch: 'Korean', speakers: 82,
-    regions: [['Korea', 'KR', 36.6, 127.9, 220]],
+    regions: [{ name: 'Korea', countries: ['KR', 'KP'] }],
   },
 
   // ---- Latin script, where the alphabet tells you nothing and the
@@ -373,188 +419,250 @@ const LANGUAGE_ROWS = [
   {
     code: 'spa', name: 'Spanish', endonym: 'español', script: 'latn',
     family: 'Indo-European', branch: 'Romance', speakers: 485,
-    regions: [['Spain', 'ES', 40.2, -3.7, 350], ['Mexico', 'MX', 21.5, -100.5, 500], ['the Southern Cone', 'AR', -33.0, -62.0, 600], ['the Andes', 'CO', 4.7, -74.5, 400]],
+    regions: [
+      { name: 'Spain', countries: ['ES'] },
+      { name: 'Mexico and Central America', countries: ['MX', 'GT', 'HN', 'SV', 'NI', 'CR', 'PA'] },
+      { name: 'the Spanish Caribbean', countries: ['CU', 'DO', 'PR'] },
+      { name: 'the Andes', countries: ['CO', 'VE', 'EC', 'PE', 'BO'] },
+      { name: 'the Southern Cone', countries: ['AR', 'CL', 'UY', 'PY'] },
+    ],
   },
   {
     code: 'por', name: 'Portuguese', endonym: 'português', script: 'latn',
     family: 'Indo-European', branch: 'Romance', speakers: 260,
-    regions: [['Portugal', 'PT', 39.6, -8.0, 150], ['Brazil', 'BR', -13.5, -47.0, 900], ['Angola', 'AO', -11.5, 17.5, 400]],
+    regions: [
+      { name: 'Portugal', countries: ['PT'] },
+      { name: 'Brazil', countries: ['BR'] },
+      { name: 'lusophone Africa', countries: ['AO', 'MZ', 'CV', 'GW', 'ST'] },
+      { name: 'Timor-Leste', countries: ['TL'] },
+    ],
   },
   {
     code: 'ita', name: 'Italian', endonym: 'italiano', script: 'latn',
     family: 'Indo-European', branch: 'Romance', speakers: 65,
-    regions: [['Italy', 'IT', 43.2, 12.2, 300]],
+    regions: [
+      { name: 'Italy', countries: ['IT', 'SM'] },
+      { name: 'Ticino', units: ['CH-TI'] },
+    ],
   },
   {
     code: 'ron', name: 'Romanian', endonym: 'română', script: 'latn',
     family: 'Indo-European', branch: 'Romance', speakers: 24,
-    regions: [['Romania', 'RO', 45.9, 25.0, 220]],
+    regions: [{ name: 'Romania and Moldova', countries: ['RO', 'MD'] }],
   },
   {
     code: 'fra', name: 'French', endonym: 'français', script: 'latn',
     family: 'Indo-European', branch: 'Romance', speakers: 310,
-    regions: [['France', 'FR', 47.0, 2.5, 350], ['Quebec', 'CA', 47.5, -71.5, 300], ['central Africa', 'CD', -3.5, 18.5, 500], ['west Africa', 'CI', 8.0, -5.0, 500]],
+    regions: [
+      { name: 'France', countries: ['FR'] },
+      { name: 'Quebec', units: ['CA-QC'] },
+      { name: 'Wallonia and Brussels', units: ['BE-WHT', 'BE-WNA', 'BE-WLX', 'BE-WLG', 'BE-WBR', 'BE-BRU'] },
+      { name: 'Romandy', units: ['CH-GE', 'CH-VD', 'CH-NE', 'CH-JU', 'CH-FR', 'CH-VS'] },
+      { name: 'francophone Africa', countries: ['SN', 'ML', 'BF', 'CI', 'GN', 'TG', 'BJ', 'NE', 'TD', 'CM', 'GA', 'CG', 'CD', 'CF', 'MG'] },
+    ],
   },
   {
     code: 'cat', name: 'Catalan', endonym: 'català', script: 'latn',
     family: 'Indo-European', branch: 'Romance', speakers: 9,
-    regions: [['Catalonia', 'ES', 41.7, 1.5, 120]],
+    regions: [
+      { name: 'Catalonia', units: ['ES-B', 'ES-T', 'ES-L', 'ES-GI'] },
+      { name: 'Valencia and the Balearics', units: ['ES-V', 'ES-CS', 'ES-A', 'ES-PM'] },
+      { name: 'Andorra', countries: ['AD'] },
+      { name: 'northern Catalonia', units: ['FR-66'] },
+    ],
   },
   {
     code: 'deu', name: 'German', endonym: 'Deutsch', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 135,
-    regions: [['Germany', 'DE', 50.7, 10.2, 320], ['Austria', 'AT', 47.6, 14.3, 150]],
+    regions: [
+      { name: 'Germany, Austria and Liechtenstein', countries: ['DE', 'AT', 'LI'] },
+      { name: 'German-speaking Switzerland', units: ['CH-ZH', 'CH-BE', 'CH-LU', 'CH-UR', 'CH-SZ', 'CH-OW', 'CH-NW', 'CH-GL', 'CH-ZG', 'CH-SO', 'CH-BS', 'CH-BL', 'CH-SH', 'CH-AR', 'CH-AI', 'CH-SG', 'CH-GR', 'CH-AG', 'CH-TG'] },
+    ],
   },
   {
     code: 'nld', name: 'Dutch', endonym: 'Nederlands', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 25,
-    regions: [['the Netherlands', 'NL', 52.2, 5.6, 130], ['Flanders', 'BE', 51.0, 4.4, 70]],
+    regions: [
+      { name: 'the Netherlands', countries: ['NL'] },
+      { name: 'Flanders', units: ['BE-VWV', 'BE-VOV', 'BE-VAN', 'BE-VLI', 'BE-VBR', 'BE-BRU'] },
+      { name: 'Suriname', countries: ['SR'] },
+    ],
   },
   {
     code: 'afr', name: 'Afrikaans', endonym: 'Afrikaans', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 17,
-    regions: [['the Cape', 'ZA', -32.0, 21.5, 380]],
+    regions: [
+      { name: 'the Cape and the Free State', units: ['ZA-WC', 'ZA-NC', 'ZA-FS'] },
+      { name: 'Namibia', countries: ['NA'] },
+    ],
   },
   {
     code: 'swe', name: 'Swedish', endonym: 'svenska', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 13,
-    regions: [['Sweden', 'SE', 59.5, 15.3, 350]],
+    regions: [{ name: 'Sweden', countries: ['SE'] }],
   },
   {
     code: 'dan', name: 'Danish', endonym: 'dansk', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 6,
-    regions: [['Denmark', 'DK', 56.2, 9.5, 130]],
+    regions: [{ name: 'Denmark', countries: ['DK'] }],
   },
   {
     code: 'nob', name: 'Norwegian', endonym: 'norsk', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 5,
-    regions: [['Norway', 'NO', 61.0, 9.5, 320]],
+    regions: [{ name: 'Norway', countries: ['NO'] }],
   },
   {
     code: 'isl', name: 'Icelandic', endonym: 'íslenska', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 1,
-    regions: [['Iceland', 'IS', 64.9, -18.6, 150]],
+    regions: [{ name: 'Iceland', countries: ['IS'] }],
   },
   {
     code: 'fin', name: 'Finnish', endonym: 'suomi', script: 'latn',
     family: 'Uralic', branch: 'Finnic', speakers: 5,
-    regions: [['Finland', 'FI', 62.5, 26.0, 320]],
+    regions: [{ name: 'Finland', countries: ['FI'] }],
   },
   {
     code: 'est', name: 'Estonian', endonym: 'eesti', script: 'latn',
     family: 'Uralic', branch: 'Finnic', speakers: 1,
-    regions: [['Estonia', 'EE', 58.7, 25.5, 110]],
+    regions: [{ name: 'Estonia', countries: ['EE'] }],
   },
   {
     code: 'hun', name: 'Hungarian', endonym: 'magyar', script: 'latn',
     family: 'Uralic', branch: 'Ugric', speakers: 13,
-    regions: [['Hungary', 'HU', 47.2, 19.3, 160]],
+    regions: [
+      { name: 'Hungary', countries: ['HU'] },
+      // The Székely counties, where Hungarian is the majority language
+      // inside Romania.
+      { name: 'Székely Land', units: ['RO-HR', 'RO-CV', 'RO-MS'] },
+    ],
   },
   {
     code: 'pol', name: 'Polish', endonym: 'polski', script: 'latn',
     family: 'Indo-European', branch: 'Slavic', speakers: 40,
-    regions: [['Poland', 'PL', 52.0, 19.5, 260]],
+    regions: [{ name: 'Poland', countries: ['PL'] }],
   },
   {
     code: 'ces', name: 'Czech', endonym: 'čeština', script: 'latn',
     family: 'Indo-European', branch: 'Slavic', speakers: 11,
-    regions: [['Czechia', 'CZ', 49.8, 15.4, 150]],
+    regions: [{ name: 'Czechia', countries: ['CZ'] }],
   },
   {
     code: 'hrv', name: 'Croatian', endonym: 'hrvatski', script: 'latn',
     family: 'Indo-European', branch: 'Slavic', speakers: 6,
-    regions: [['Croatia', 'HR', 45.4, 16.3, 140]],
+    regions: [
+      { name: 'Croatia', countries: ['HR'] },
+      { name: 'Bosnia and Herzegovina', countries: ['BA'] },
+    ],
   },
   {
     code: 'lit', name: 'Lithuanian', endonym: 'lietuvių', script: 'latn',
     family: 'Indo-European', branch: 'Baltic', speakers: 3,
-    regions: [['Lithuania', 'LT', 55.3, 24.0, 120]],
+    regions: [{ name: 'Lithuania', countries: ['LT'] }],
   },
   {
     code: 'sqi', name: 'Albanian', endonym: 'shqip', script: 'latn',
     family: 'Indo-European', branch: 'Albanian', speakers: 8,
-    regions: [['Albania', 'AL', 41.0, 20.0, 100], ['western North Macedonia', 'MK', 41.9, 20.9, 70]],
+    regions: [
+      { name: 'Albania and Kosovo', countries: ['AL', 'XK'] },
+      { name: 'western North Macedonia', countries: ['MK'], clip: { maxLng: 21.4 } },
+    ],
   },
   {
     code: 'eus', name: 'Basque', endonym: 'euskara', script: 'latn',
     family: 'isolate', branch: 'Basque', speakers: 1,
-    regions: [['the Basque Country', 'ES', 42.9, -2.4, 90]],
+    regions: [
+      { name: 'the Basque Country and Navarre', units: ['ES-BI', 'ES-SS', 'ES-VI', 'ES-NA'] },
+      // The French Basque Country is the western third of the
+      // Pyrénées-Atlantiques; the rest of that department is Béarn.
+      { name: 'the French Basque Country', units: ['FR-64'], clip: { maxLng: -0.75 } },
+    ],
   },
   {
     code: 'cym', name: 'Welsh', endonym: 'Cymraeg', script: 'latn',
     family: 'Indo-European', branch: 'Celtic', speakers: 1,
-    regions: [['Wales', 'GB', 52.4, -3.7, 100]],
+    regions: [
+      { name: 'Wales', units: ['GB-GWN', 'GB-CWY', 'GB-DEN', 'GB-FLN', 'GB-WRX', 'GB-POW', 'GB-CGN', 'GB-PEM', 'GB-CMN', 'GB-SWA', 'GB-NTL', 'GB-BGE', 'GB-VGL', 'GB-CRF', 'GB-NWP', 'GB-MON'] },
+    ],
   },
   {
     code: 'tur', name: 'Turkish', endonym: 'Türkçe', script: 'latn',
     family: 'Turkic', branch: 'Oghuz', speakers: 90,
-    regions: [['Anatolia', 'TR', 39.2, 33.0, 400]],
+    regions: [{ name: 'Turkey', countries: ['TR'] }],
   },
   {
     code: 'azj', name: 'Azerbaijani', endonym: 'azərbaycan', script: 'latn',
     family: 'Turkic', branch: 'Oghuz', speakers: 24,
-    regions: [['Azerbaijan', 'AZ', 40.3, 47.8, 160], ['Iranian Azerbaijan', 'IR', 37.8, 46.5, 180]],
+    regions: [
+      { name: 'Azerbaijan', countries: ['AZ'] },
+      { name: 'Iranian Azerbaijan', units: ['IR-01', 'IR-02', 'IR-03', 'IR-11'] },
+    ],
   },
   {
     code: 'uzn', name: 'Uzbek', endonym: 'o‘zbek', script: 'latn',
     family: 'Turkic', branch: 'Karluk', speakers: 35,
-    regions: [['Uzbekistan', 'UZ', 40.5, 65.5, 420]],
+    regions: [{ name: 'Uzbekistan', countries: ['UZ'] }],
   },
   {
     code: 'vie', name: 'Vietnamese', endonym: 'tiếng Việt', script: 'latn',
     family: 'Austroasiatic', branch: 'Vietic', speakers: 86,
-    regions: [['the Red River delta', 'VN', 21.0, 105.6, 180], ['the Mekong delta', 'VN', 10.5, 106.0, 200]],
+    regions: [{ name: 'Vietnam', countries: ['VN'] }],
   },
   {
     code: 'ind', name: 'Indonesian', endonym: 'bahasa Indonesia', script: 'latn',
     family: 'Austronesian', branch: 'Malayic', speakers: 200,
-    regions: [['Java', 'ID', -7.2, 110.0, 350], ['Sumatra', 'ID', -1.5, 102.0, 450]],
+    regions: [{ name: 'Indonesia', countries: ['ID'] }],
   },
   {
     code: 'zsm', name: 'Malay', endonym: 'bahasa Melayu', script: 'latn',
     family: 'Austronesian', branch: 'Malayic', speakers: 33,
-    regions: [['the Malay peninsula', 'MY', 3.7, 102.0, 250]],
+    regions: [{ name: 'Malaysia, Brunei and Singapore', countries: ['MY', 'BN', 'SG'] }],
   },
   {
     code: 'tgl', name: 'Tagalog', endonym: 'Tagalog', script: 'latn',
     family: 'Austronesian', branch: 'Philippine', speakers: 83,
-    regions: [['Luzon', 'PH', 14.8, 121.0, 200]],
+    regions: [
+      // Tagalog is Luzon and the islands off it, not the whole
+      // archipelago: the Visayas and Mindanao speak their own.
+      { name: 'Luzon', countries: ['PH'], clip: { minLat: 12.2 } },
+    ],
   },
   {
     code: 'swh', name: 'Swahili', endonym: 'Kiswahili', script: 'latn',
     family: 'Niger-Congo', branch: 'Bantu', speakers: 87,
-    regions: [['the Swahili coast', 'TZ', -6.6, 37.5, 350], ['Kenya', 'KE', -0.5, 37.0, 250]],
+    regions: [{ name: 'Tanzania, Kenya and Uganda', countries: ['TZ', 'KE', 'UG'] }],
   },
   {
     code: 'hau', name: 'Hausa', endonym: 'Hausa', script: 'latn',
     family: 'Afro-Asiatic', branch: 'Chadic', speakers: 88,
-    regions: [['northern Nigeria', 'NG', 11.8, 8.3, 300], ['Niger', 'NE', 13.7, 8.5, 250]],
+    regions: [
+      { name: 'northern Nigeria', units: ['NG-KN', 'NG-KT', 'NG-JI', 'NG-ZA', 'NG-SO', 'NG-KE', 'NG-KD', 'NG-BA', 'NG-GO', 'NG-YO', 'NG-BO', 'NG-NI'] },
+      // Hausa country runs along the Niger border; the north of Niger
+      // is Tuareg, and mostly desert.
+      { name: 'southern Niger', countries: ['NE'], clip: { maxLat: 16 } },
+    ],
   },
   {
     code: 'yor', name: 'Yoruba', endonym: 'Yorùbá', script: 'latn',
     family: 'Niger-Congo', branch: 'Volta-Niger', speakers: 46,
-    regions: [['Yorubaland', 'NG', 7.6, 4.0, 200]],
+    regions: [{ name: 'Yorubaland', units: ['NG-LA', 'NG-OG', 'NG-OY', 'NG-OS', 'NG-ON', 'NG-EK', 'NG-KW'] }],
   },
   {
     code: 'som', name: 'Somali', endonym: 'Soomaali', script: 'latn',
     family: 'Afro-Asiatic', branch: 'Cushitic', speakers: 22,
-    regions: [['Somalia', 'SO', 5.0, 46.0, 400]],
+    regions: [
+      { name: 'Somalia', countries: ['SO'] },
+      { name: 'Djibouti', countries: ['DJ'] },
+      { name: 'the Somali region of Ethiopia', units: ['ET-SO'] },
+    ],
   },
   {
     code: 'zul', name: 'Zulu', endonym: 'isiZulu', script: 'latn',
     family: 'Niger-Congo', branch: 'Bantu', speakers: 28,
-    regions: [['KwaZulu-Natal', 'ZA', -28.6, 30.6, 170]],
+    regions: [{ name: 'KwaZulu-Natal and the Highveld', units: ['ZA-NL', 'ZA-GT', 'ZA-MP'] }],
   },
 ];
 
-export const LANGUAGES = LANGUAGE_ROWS.map((row) => ({
-  ...row,
-  regions: row.regions.map((region) =>
-    Array.isArray(region)
-      ? { name: region[0], cca2: region[1], lat: region[2], lng: region[3], radiusKm: region[4] }
-      : region
-  ),
-}));
+export const LANGUAGES = LANGUAGE_ROWS;
 
 export const LANGUAGE_BY_CODE = new Map(LANGUAGES.map((language) => [language.code, language]));
 

@@ -16,6 +16,7 @@ process.env.GEO_TOKEN_SECRET = SECRET;
 const { POST: postRound } = require('@/app/api/geo/script/round/route');
 const { POST: postGuess } = require('@/app/api/geo/script/guess/route');
 const { openToken } = require('@/app/lib/geo/server/tokens');
+const { resolveRegions } = require('@/app/lib/geo/server/regions');
 const { LANGUAGES, SCRIPTS } = require('@/app/lib/geo/languages');
 
 afterAll(() => {
@@ -81,9 +82,12 @@ describe('POST /api/geo/script/guess', () => {
   test('scores a pin against the language and reveals where it is spoken', async () => {
     const round = (await (await postRound(request({ config: { ladder: 'world', rounds: 3, seed: 'route-4' }, roundIndex: 0 }))).json()).round;
     const answer = find(openToken(round.token, { secret: SECRET }).c);
-    const region = answer.regions[0];
+    // A point on the region's own border, which is inside it: the
+    // middle of the bounding box is not, for a country shaped like
+    // Norway or a region in five pieces like the Maghreb.
+    const [lng, lat] = resolveRegions(answer)[0].rings[0][0];
 
-    const scored = await (await postGuess(request({ token: round.token, guess: { lat: region.lat, lng: region.lng } }))).json();
+    const scored = await (await postGuess(request({ token: round.token, guess: { lat, lng } }))).json();
     expect(scored.result.kind).toBe('script');
     expect(scored.result.score).toBe(5000);
     expect(scored.result.answer.code).toBe(answer.code);
