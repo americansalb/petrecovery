@@ -25,7 +25,8 @@
 
 import { createHash } from 'crypto';
 import { createRng, roundSeed, weightedIndex } from '../random';
-import { languagesForLadder, ladderSizeKm, normalizeScriptConfig, scoreScriptGuess } from '../script';
+import { languagesForLadder, normalizeScriptConfig } from '../script';
+import { ladderSizeKm, regionsForReveal, scoreScriptGuess } from './regions';
 import { SCRIPTS, languageByCode } from '../languages';
 import { samplesFor } from './samples';
 import { getGeoServerConfig } from './config';
@@ -129,8 +130,9 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
  * The reveal carries the language's whole region list, not just the one
  * the pin was measured against, so the result map can draw where the
  * language is actually spoken. That is the teaching half of the mode:
- * seeing that Punjabi has a heartland on both sides of a border is the
- * kind of thing a country dropdown can never show.
+ * seeing Punjabi drawn over both Punjabs, or Bhojpuri over the corner
+ * of two states and a strip of Nepal, is the kind of thing a country
+ * dropdown can never show.
  *
  * A missing guess (the clock ran out) scores zero and still reveals.
  */
@@ -156,6 +158,9 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
     score: scored ? scored.points : 0,
     distanceKm: scored ? scored.distanceKm : null,
     inRegion: scored ? scored.inRegion : false,
+    // Where on the region's edge the distance was measured to, so the
+    // reveal can draw the line to where the language starts.
+    nearestPoint: scored ? scored.nearestPoint : null,
     alsoSpokenHere: scored ? scored.alsoSpokenHere : [],
     guess: pin,
     answer: {
@@ -167,7 +172,11 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
       family: language.family,
       branch: language.branch,
       speakers: language.speakers,
-      regions: language.regions,
+      // The shapes, not the definitions: unions of states, districts
+      // and divisions, clipped where a language covers part of one
+      // (server/regions.js). This is the only place they reach a
+      // browser, and only once the answer is already out.
+      regions: regionsForReveal(language),
     },
   };
 }

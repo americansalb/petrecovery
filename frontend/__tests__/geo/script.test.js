@@ -24,14 +24,19 @@ const { countryAt } = require('@/app/lib/geo/server/countries');
 const {
   LADDERS,
   LADDER_ORDER,
+  languagesForLadder,
+  normalizeScriptConfig,
+  scriptConfigToQuery,
+} = require('@/app/lib/geo/script');
+const {
+  UNITS,
+  adminUnit,
   distanceToLanguage,
   ladderSizeKm,
   languagesAt,
-  languagesForLadder,
-  normalizeScriptConfig,
+  resolveRegions,
   scoreScriptGuess,
-  scriptConfigToQuery,
-} = require('@/app/lib/geo/script');
+} = require('@/app/lib/geo/server/regions');
 const { createScriptRound, drawLanguages, evaluateScriptGuess, ScriptGameError } = require('@/app/lib/geo/server/scriptGame');
 const { openToken } = require('@/app/lib/geo/server/tokens');
 
@@ -40,16 +45,44 @@ const env = { NEXTAUTH_SECRET: SECRET };
 const find = (code) => LANGUAGES.find((language) => language.code === code);
 
 describe('the corpus', () => {
-  test('every region lands in the country it claims', () => {
+  test('every disc lands in the country it claims', () => {
     const wrong = [];
     for (const language of LANGUAGES) {
       for (const region of language.regions) {
+        if (region.units) continue;
         const found = countryAt(region.lat, region.lng);
         if (!found) wrong.push(`${language.name}/${region.name}: no country at ${region.lat},${region.lng}`);
         else if (found.cca2 !== region.cca2) wrong.push(`${language.name}/${region.name}: claims ${region.cca2}, polygons say ${found.cca2}`);
       }
     }
     expect(wrong).toEqual([]);
+  });
+
+  test('every named administrative unit exists and resolves to a real shape', () => {
+    // A typo in a unit code is the one way this data can be wrong
+    // without looking wrong: 'IN-TM' would simply throw on the round
+    // that drew Tamil. So every unit every language names is resolved
+    // here, and the shape it resolves to has to be a shape.
+    const wrong = [];
+    for (const language of LANGUAGES) {
+      for (const region of language.regions) {
+        if (!region.units) continue;
+        for (const id of region.units) {
+          const unit = adminUnit(id);
+          if (!unit) wrong.push(`${language.name}/${region.name}: no unit ${id}`);
+          else if (unit.cca2 !== id.slice(0, 2)) wrong.push(`${id}: country ${unit.cca2}`);
+        }
+      }
+      for (const resolved of resolveRegions(language)) {
+        if (!resolved.rings) continue;
+        const points = resolved.rings.reduce((n, ring) => n + ring.length, 0);
+        if (points < 4) wrong.push(`${language.name}/${resolved.name}: ${points} points`);
+        if (resolved.box.maxLat <= resolved.box.minLat) wrong.push(`${language.name}/${resolved.name}: empty box`);
+      }
+    }
+    expect(wrong).toEqual([]);
+    // Every unit in the file is one of these, spelled the same way.
+    expect(Object.keys(UNITS).length).toBeGreaterThan(80);
   });
 
   test('every sample is written in the script its language claims', () => {
@@ -175,9 +208,102 @@ describe('scoring a pin', () => {
     const tamil = find('tam');
     const edge = distanceToLanguage({ lat: 11.1, lng: 78.6 }, tamil);
     expect(edge.distanceKm).toBe(0);
-    expect(edge.toCentreKm).toBeLessThan(1);
+    // Bengaluru is a short drive from the Tamil Nadu border and a long
+    // way from the middle of it. The number a player is shown is the
+    // one they would recognise.
+    const near = distanceToLanguage({ lat: 12.97, lng: 77.59 }, tamil);
+    expect(near.distanceKm).toBeGreaterThan(5);
+    expect(near.distanceKm).toBeLessThan(60);
+    // And the line drawn on the reveal ends on the border itself.
+    expect(near.at.lat).toBeGreaterThan(12);
+    expect(near.at.lng).toBeGreaterThan(77);
     const far = distanceToLanguage({ lat: 55.7, lng: 37.6 }, tamil);
     expect(far.distanceKm).toBeGreaterThan(4000);
+  });
+
+  test('a pin in a state is a pin in the language, everywhere in the state', () => {
+    // The point of admin-1 regions. Every one of these is a real city
+    // in a real state, and the old discs got several of them wrong:
+    // the Marathi circle covered Kalaburagi in Karnataka, and the
+    // Maithili one covered the hills of eastern Nepal.
+    const cities = {
+      Chennai: [13.08, 80.27, ['tam']],
+      Madurai: [9.92, 78.12, ['tam']],
+      Jaffna: [9.66, 80.02, ['tam']],
+      Colombo: [6.93, 79.86, ['sin']],
+      Mumbai: [19.08, 72.88, ['mar']],
+      Bengaluru: [12.97, 77.59, ['kan']],
+      Kochi: [9.93, 76.27, ['mal']],
+      Bhubaneswar: [20.27, 85.84, ['ory']],
+      Guwahati: [26.14, 91.74, ['asm']],
+      Amritsar: [31.63, 74.87, ['pan']],
+      Lahore: [31.55, 74.34, ['pan']],
+      Dhaka: [23.81, 90.41, ['ben']],
+      Kolkata: [22.57, 88.36, ['ben']],
+      Kathmandu: [27.7, 85.32, ['npi']],
+      Ahmedabad: [23.02, 72.57, ['guj']],
+      Karachi: [24.86, 67.01, ['snd']],
+      Bhopal: [23.26, 77.41, ['hin']],
+    };
+    const wrong = [];
+    for (const [city, [lat, lng, expected]] of Object.entries(cities)) {
+      const here = languagesAt({ lat, lng }).map((language) => language.code);
+      for (const code of expected) {
+        if (!here.includes(code)) wrong.push(`${city}: ${code} not spoken here, only ${here.join(',') || 'nothing'}`);
+        const scored = scoreScriptGuess({ guess: { lat, lng }, language: find(code), ladder: 'india' });
+        if (scored.points !== 5000) wrong.push(`${city}: ${code} scored ${scored.points}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+    // And the wrong state is the wrong answer, inside the same country.
+    expect(languagesAt({ lat: 17.33, lng: 76.83 }).map((l) => l.code)).toEqual(['kan']);
+    expect(languagesAt({ lat: 27.33, lng: 86.08 }).map((l) => l.code)).toEqual(['npi']);
+    // Chennai is 600 km from Maharashtra, which inside the South Asia
+    // ladder is most of the round gone.
+    const marathiInChennai = scoreScriptGuess({ guess: { lat: 13.08, lng: 80.27 }, language: find('mar'), ladder: 'india' });
+    expect(marathiInChennai.points).toBeLessThan(1800);
+    expect(marathiInChennai.distanceKm).toBeGreaterThan(400);
+  });
+
+  test('an enclave belongs to the language spoken in it, not to the state around it', () => {
+    // Puducherry is one union territory in four pieces in three states.
+    // Assigning the whole unit to Tamil, which is what the first cut of
+    // this did, scored a pin in Malayalam-speaking Mahe as full marks
+    // for Tamil. Each piece belongs to the language spoken there.
+    const at = (lat, lng) => languagesAt({ lat, lng }).map((language) => language.code).sort();
+    expect(at(11.93, 79.78)).toContain('tam'); // Puducherry town
+    expect(at(10.92, 79.83)).toContain('tam'); // Karaikal
+    expect(at(12.053, 75.288)).toEqual(['mal']); // Mahe, which Kerala's own polygon does not cover
+    expect(at(16.727, 82.242)).toEqual(['tel']); // Yanam, which sits inside Andhra Pradesh
+  });
+
+  test('languages overlap, because the ground does', () => {
+    // A state is not a language and a language is not a state. Every
+    // one of these places speaks more than one of the corpus, and a
+    // model that made regions exclusive would have to pick a winner.
+    const both = (lat, lng) => languagesAt({ lat, lng }).map((language) => language.code).sort();
+    expect(both(27.04, 88.26)).toEqual(['ben', 'npi']); // Darjeeling
+    expect(both(25.32, 82.97)).toEqual(['bho', 'hin', 'urd']); // Varanasi
+    expect(both(26.17, 85.9)).toEqual(['hin', 'mai']); // Darbhanga
+    expect(both(17.38, 78.49)).toEqual(['tel', 'urd']); // Hyderabad
+    expect(both(24.86, 67.01)).toEqual(['snd', 'urd']); // Karachi
+  });
+
+  test('a language that is part of a state is drawn as part of a state', () => {
+    // Bhojpuri is neither Bihar nor Uttar Pradesh. It is the country
+    // either side of the Ganges around Bhojpur, and Patna, a hundred
+    // kilometres east, is Magahi rather than Bhojpuri.
+    const bhojpuri = find('bho');
+    const varanasi = scoreScriptGuess({ guess: { lat: 25.32, lng: 82.97 }, language: bhojpuri, ladder: 'india' });
+    expect(varanasi.points).toBe(5000);
+    expect(languagesAt({ lat: 25.61, lng: 85.14 }).map((l) => l.code)).not.toContain('bho');
+    // The clip keeps the state's own outline, so the region is a piece
+    // of Bihar rather than a rectangle drawn over it.
+    const western = resolveRegions(bhojpuri).find((region) => region.name === 'western Bihar');
+    expect(western.box.maxLng).toBeLessThanOrEqual(84.91);
+    expect(western.rings[0].length).toBeGreaterThan(20);
+    // And it crosses into Nepal, where the language does.
+    expect(resolveRegions(bhojpuri).some((region) => region.cca2 === 'NP')).toBe(true);
   });
 
   test('the result says what else is spoken where the pin landed', () => {
@@ -323,10 +449,12 @@ describe('scoring a round', () => {
     expect(result.inRegion).toBe(true);
     expect(result.answer).toMatchObject({ code: 'tam', name: 'Tamil', script: 'taml', family: 'Dravidian' });
     expect(result.answer.endonym).toBeTruthy();
-    // Both heartlands, so the map can draw them: a border is not the
-    // edge of a language.
-    expect(result.answer.regions.length).toBe(2);
-    expect(result.answer.regions.map((r) => r.cca2).sort()).toEqual(['IN', 'LK']);
+    // Every region, so the map can draw them all: Tamil Nadu, the two
+    // Tamil pieces of Puducherry, and the Sri Lankan north and east. A
+    // border is not the edge of a language.
+    expect(result.answer.regions.length).toBe(3);
+    expect([...new Set(result.answer.regions.map((r) => r.cca2))].sort()).toEqual(['IN', 'LK']);
+    expect(result.answer.regions.every((region) => region.rings?.length)).toBe(true);
   });
 
   test('a pin in the wrong part of the same country loses most of the round', () => {

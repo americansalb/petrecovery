@@ -21,7 +21,7 @@
  * geography round, so the two games' numbers mean the same thing.
  */
 
-import { MAX_ROUND_SCORE, haversineKm, scoreForDistance, sizeForBox } from './distance';
+import { MAX_ROUND_SCORE } from './distance';
 import { LANGUAGES, SCRIPTS, languagesInScript } from './languages';
 
 /** How long a round may last. 0 means no clock. */
@@ -107,73 +107,16 @@ export function languagesForLadder(id) {
 }
 
 /**
- * The scoring scale for a ladder: the diagonal of the box its answers
- * live in. This is what makes the India ladder hard. In the world
- * ladder, pinning the right continent for Tamil is worth real points;
- * inside South Asia, where every answer is already in that box, the
- * same pin is worth almost nothing.
- */
-export function ladderSizeKm(id) {
-  const pool = languagesForLadder(id);
-  const box = { minLat: 90, minLng: 180, maxLat: -90, maxLng: -180 };
-  for (const language of pool) {
-    for (const region of language.regions) {
-      box.minLat = Math.min(box.minLat, region.lat);
-      box.maxLat = Math.max(box.maxLat, region.lat);
-      box.minLng = Math.min(box.minLng, region.lng);
-      box.maxLng = Math.max(box.maxLng, region.lng);
-    }
-  }
-  return sizeForBox(box);
-}
-
-/**
- * How far a pin is from a language: to the edge of its nearest
- * heartland, not its centre. Anywhere inside the disc is a hit, because
- * a language is an area and pretending otherwise would punish a player
- * for pinning the wrong end of a region they correctly identified.
- */
-export function distanceToLanguage(guess, language) {
-  let best = null;
-  for (const region of language.regions) {
-    const toCentre = haversineKm(guess, region);
-    const distanceKm = Math.max(0, toCentre - region.radiusKm);
-    if (!best || distanceKm < best.distanceKm) best = { region, distanceKm, toCentreKm: toCentre };
-  }
-  return best || { region: null, distanceKm: Number.POSITIVE_INFINITY, toCentreKm: Number.POSITIVE_INFINITY };
-}
-
-/** Languages in the pool whose heartland actually contains the pin. */
-export function languagesAt(guess, pool = LANGUAGES) {
-  return pool.filter((language) => language.regions.some((region) => haversineKm(guess, region) <= region.radiusKm));
-}
-
-/**
- * Score one guess.
+ * Scoring lives in `app/lib/geo/server/regions.js`, with the polygons.
  *
- * Returns the points, how far off the pin was, which heartland it was
- * measured against, and what else is spoken where the player pinned:
- * "you put Marathi in Punjabi country" teaches more than a number.
+ * A language's regions are real administrative units now, not discs, so
+ * scoring a pin means point-in-polygon against 129 KB of Natural Earth
+ * boundaries. That belongs on the server: the browser has no use for
+ * them (the reveal is sent the answer's rings and nothing else), and a
+ * round payload must never carry anything the answer can be read from.
+ * `ladderSizeKm`, `distanceToLanguage`, `languagesAt` and
+ * `scoreScriptGuess` are all there.
  */
-export function scoreScriptGuess({ guess, language, ladder = 'world', sizeKm }) {
-  if (!guess || !language) return null;
-  const scale = Number.isFinite(sizeKm) && sizeKm > 0 ? sizeKm : ladderSizeKm(ladder);
-  const nearest = distanceToLanguage(guess, language);
-  const points = scoreForDistance(nearest.distanceKm, scale);
-  const pool = languagesForLadder(ladder);
-  const here = languagesAt(guess, pool)
-    .filter((other) => other.code !== language.code)
-    .slice(0, 3)
-    .map((other) => ({ code: other.code, name: other.name }));
-  return {
-    points,
-    distanceKm: nearest.distanceKm,
-    region: nearest.region ? { name: nearest.region.name, lat: nearest.region.lat, lng: nearest.region.lng, radiusKm: nearest.region.radiusKm } : null,
-    inRegion: nearest.distanceKm === 0,
-    alsoSpokenHere: here,
-    sizeKm: scale,
-  };
-}
 
 /** The most that can be lost on one round, for the HUD. */
 export const SCRIPT_MAX_SCORE = MAX_ROUND_SCORE;

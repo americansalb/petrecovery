@@ -12,20 +12,32 @@
  * 2. **Regions, not countries.** Scoring a pin against a country border
  *    makes South Asia one tile: Tamil, Bhojpuri, Marathi and Maithili
  *    all become "India" and the game stops being about language at all.
- *    So each language carries the places it is actually spoken, as
- *    heartland discs, and a guess is scored against the nearest one
- *    (docs/GEO.md, "Script"). Tamil pinned in Tamil Nadu scores full
- *    marks. Tamil pinned in Punjab does not.
+ *    So each language carries the places it is actually spoken, and a
+ *    guess is scored against the nearest one (docs/GEO.md, "Script").
+ *    Tamil pinned in Tamil Nadu scores full marks. Tamil pinned in
+ *    Punjab does not.
  *
- * A disc is a coarse instrument for a language boundary, deliberately.
- * Real isoglosses are fuzzy, overlapping and politically contested;
- * a centre and a radius says "roughly here, and this big" without
- * pretending to a precision no map of languages has.
+ * Two ways of saying where, and which one a language gets is about how
+ * much the map can be trusted, not about how important the language is:
  *
- * Region rows are [name, cca2, lat, lng, radiusKm]. The country code is
- * there so the test can check the coordinate against the same Natural
- * Earth polygons that name a geography round: a typo that lands Marathi
- * in Pakistan fails rather than ships.
+ * - **States, districts, divisions, zones.** South Asian languages name
+ *   real administrative units: `{ name, units: ['IN-TN', 'IN-PY'] }`,
+ *   resolved against Natural Earth's admin-1 polygons by
+ *   `app/lib/geo/server/regions.js`. Anywhere in Tamil Nadu is Tamil,
+ *   because that is what a player who knows Tamil knows. A `clip` box
+ *   cuts a unit down where a language covers part of one: Bhojpuri is
+ *   western Bihar and eastern Uttar Pradesh, not either state whole.
+ *   Regions overlap freely, because languages do.
+ * - **Discs**, for the rest of the world: [name, cca2, lat, lng,
+ *   radiusKm]. A disc is a coarse instrument, and the South Asian rows
+ *   used to be discs too until the map showed what that was worth: the
+ *   Maithili circle covered half of Nepal. The rest of the corpus is
+ *   next, one region of the world at a time.
+ *
+ * The country code on a disc is there so the test can check the
+ * coordinate against the same Natural Earth polygons that name a
+ * geography round: a typo that lands Marathi in Pakistan fails rather
+ * than ships.
  */
 
 /**
@@ -77,7 +89,7 @@ export const SCRIPTS = {
 export const SHARED_CHARS = ' \n\t.,;:!?’‘“”"\'()-\u2013\u2014«»…/।॥';
 
 /**
- * The corpus. `regions` are the heartlands a pin is scored against;
+ * The corpus. `regions` are the places a pin is scored against;
  * `speakers` is millions, rounded hard, and is only used to weight the
  * draw so the game is not three quarters minority languages.
  */
@@ -87,87 +99,137 @@ const LANGUAGE_ROWS = [
   {
     code: 'hin', name: 'Hindi', endonym: 'हिन्दी', script: 'deva',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 345,
-    regions: [['the Hindi belt', 'IN', 26.0, 80.5, 400], ['Rajasthan', 'IN', 26.5, 74.5, 200]],
+    regions: [
+      // Hindi is the official language and the lingua franca of the
+      // belt; Bhojpuri, Magahi and Maithili are mother tongues inside
+      // it, and both facts are true of the same ground. Regions overlap.
+      { name: 'the Hindi belt', units: ['IN-UP', 'IN-BR', 'IN-MP', 'IN-RJ', 'IN-HR', 'IN-DL', 'IN-UT', 'IN-CT', 'IN-JH', 'IN-CH', 'IN-HP'] },
+    ],
   },
   {
     code: 'mar', name: 'Marathi', endonym: 'मराठी', script: 'deva',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 83,
-    regions: [['Maharashtra', 'IN', 19.2, 75.5, 260]],
+    regions: [
+      { name: 'Maharashtra', units: ['IN-MH', 'IN-DH'] },
+      { name: 'Goa', units: ['IN-GA'] },
+    ],
   },
   {
     code: 'npi', name: 'Nepali', endonym: 'नेपाली', script: 'deva',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 32,
-    regions: [['Nepal', 'NP', 27.9, 84.5, 220]],
+    regions: [
+      { name: 'Nepal', units: ['NP-BA', 'NP-BH', 'NP-DH', 'NP-GA', 'NP-JA', 'NP-KA', 'NP-KO', 'NP-LU', 'NP-MA', 'NP-ME', 'NP-NA', 'NP-RA', 'NP-SA', 'NP-SE'] },
+      { name: 'Sikkim', units: ['IN-SK'] },
+      // The Darjeeling and Kalimpong hills: the top left corner of West
+      // Bengal, Nepali-speaking, and the rest of the state is not.
+      { name: 'the Darjeeling hills', units: ['IN-WB'], clip: { minLat: 26.7, maxLng: 88.6 } },
+    ],
   },
   {
     code: 'bho', name: 'Bhojpuri', endonym: 'भोजपुरी', script: 'deva',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 51,
-    regions: [['Bhojpur', 'IN', 25.6, 84.0, 170]],
+    regions: [
+      // Bhojpuri is the clearest case for clipping. It is neither Bihar
+      // nor Uttar Pradesh: it is the country either side of the Ganges
+      // around the old Bhojpur, and it crosses into the Nepal Terai.
+      { name: 'western Bihar', units: ['IN-BR'], clip: { maxLng: 84.9 } },
+      { name: 'eastern Uttar Pradesh', units: ['IN-UP'], clip: { minLng: 82.0 } },
+      { name: 'the Nepal Terai', units: ['NP-NA'], clip: { maxLat: 27.3 } },
+    ],
   },
   {
     code: 'mai', name: 'Maithili', endonym: 'मैथिली', script: 'deva',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 34,
-    regions: [['Mithila', 'IN', 26.1, 86.0, 140]],
+    regions: [
+      { name: 'Mithila', units: ['IN-BR'], clip: { minLat: 25.3, minLng: 85.2 } },
+      { name: 'the Nepal Terai', units: ['NP-JA'], clip: { maxLat: 27.2 } },
+    ],
   },
   {
     code: 'ben', name: 'Bengali', endonym: 'বাংলা', script: 'beng',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 273,
-    regions: [['Bangladesh', 'BD', 23.9, 90.3, 200], ['West Bengal', 'IN', 23.2, 87.6, 150]],
+    regions: [
+      { name: 'Bangladesh', units: ['BD-A', 'BD-B', 'BD-C', 'BD-D', 'BD-E', 'BD-F', 'BD-G'] },
+      { name: 'West Bengal and Tripura', units: ['IN-WB', 'IN-TR'] },
+    ],
   },
   {
     code: 'asm', name: 'Assamese', endonym: 'অসমীয়া', script: 'beng',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 15,
-    regions: [['Assam', 'IN', 26.4, 92.8, 170]],
+    regions: [{ name: 'Assam', units: ['IN-AS'] }],
   },
   {
     code: 'pan', name: 'Punjabi', endonym: 'ਪੰਜਾਬੀ', script: 'guru',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 113,
-    regions: [['Indian Punjab', 'IN', 30.9, 75.5, 160], ['Pakistani Punjab', 'PK', 31.2, 73.0, 220]],
+    regions: [
+      { name: 'Indian Punjab', units: ['IN-PB', 'IN-CH'] },
+      { name: 'Pakistani Punjab', units: ['PK-PB', 'PK-IS'] },
+    ],
   },
   {
     code: 'guj', name: 'Gujarati', endonym: 'ગુજરાતી', script: 'gujr',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 57,
-    regions: [['Gujarat', 'IN', 22.7, 71.9, 200]],
+    regions: [{ name: 'Gujarat', units: ['IN-GJ', 'IN-DH'] }],
   },
   {
     code: 'ory', name: 'Odia', endonym: 'ଓଡ଼ିଆ', script: 'orya',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 35,
-    regions: [['Odisha', 'IN', 20.6, 84.6, 180]],
+    regions: [{ name: 'Odisha', units: ['IN-OR'] }],
   },
   {
     code: 'urd', name: 'Urdu', endonym: 'اردو', script: 'arab',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 232,
-    regions: [['Pakistan', 'PK', 30.0, 71.5, 320], ['the Deccan', 'IN', 17.4, 78.5, 150]],
+    regions: [
+      { name: 'Pakistan', units: ['PK-PB', 'PK-SD', 'PK-KP', 'PK-BA', 'PK-IS', 'PK-TA', 'PK-GB', 'PK-JK'] },
+      // Urdu's literary home, and the Hindi belt's other name for the
+      // same ground: Delhi and the Doab.
+      { name: 'Delhi and Uttar Pradesh', units: ['IN-DL', 'IN-UP'] },
+      { name: 'the Deccan', units: ['IN-TG'] },
+    ],
   },
   {
     code: 'snd', name: 'Sindhi', endonym: 'سنڌي', script: 'arab',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 33,
-    regions: [['Sindh', 'PK', 26.2, 68.5, 220]],
+    regions: [{ name: 'Sindh', units: ['PK-SD'] }],
   },
   {
     code: 'tam', name: 'Tamil', endonym: 'தமிழ்', script: 'taml',
     family: 'Dravidian', branch: 'South Dravidian', speakers: 87,
-    regions: [['Tamil Nadu', 'IN', 11.1, 78.6, 230], ['northern Sri Lanka', 'LK', 8.7, 80.5, 90]],
+    regions: [
+      { name: 'Tamil Nadu', units: ['IN-TN'] },
+      // Puducherry is four enclaves in three states and only two of
+      // them are Tamil: this is Puducherry town and Karaikal, both
+      // inside Tamil Nadu. Mahe is Malayalam and has its own region
+      // there; Yanam is Telugu and falls inside Andhra Pradesh, which
+      // Telugu already has.
+      { name: 'Puducherry and Karaikal', units: ['IN-PY'], clip: { minLng: 79.0, maxLng: 80.5, maxLat: 12.5 } },
+      { name: 'northern and eastern Sri Lanka', units: ['LK-41', 'LK-42', 'LK-43', 'LK-44', 'LK-45', 'LK-51', 'LK-52', 'LK-53'] },
+    ],
   },
   {
     code: 'tel', name: 'Telugu', endonym: 'తెలుగు', script: 'telu',
     family: 'Dravidian', branch: 'South-Central Dravidian', speakers: 96,
-    regions: [['the Telugu states', 'IN', 17.0, 79.2, 260]],
+    regions: [{ name: 'the Telugu states', units: ['IN-AP', 'IN-TG'] }],
   },
   {
     code: 'kan', name: 'Kannada', endonym: 'ಕನ್ನಡ', script: 'knda',
     family: 'Dravidian', branch: 'South Dravidian', speakers: 59,
-    regions: [['Karnataka', 'IN', 14.8, 76.2, 250]],
+    regions: [{ name: 'Karnataka', units: ['IN-KA'] }],
   },
   {
     code: 'mal', name: 'Malayalam', endonym: 'മലയാളം', script: 'mlym',
     family: 'Dravidian', branch: 'South Dravidian', speakers: 37,
-    regions: [['Kerala', 'IN', 10.5, 76.4, 160]],
+    regions: [
+      { name: 'Kerala', units: ['IN-KL', 'IN-LD'] },
+      { name: 'Mahe', units: ['IN-PY'], clip: { maxLng: 76.0 } },
+    ],
   },
   {
     code: 'sin', name: 'Sinhala', endonym: 'සිංහල', script: 'sinh',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 17,
-    regions: [['southern Sri Lanka', 'LK', 7.3, 80.6, 110]],
+    regions: [
+      { name: 'southern Sri Lanka', units: ['LK-11', 'LK-12', 'LK-13', 'LK-21', 'LK-22', 'LK-23', 'LK-31', 'LK-32', 'LK-33', 'LK-61', 'LK-62', 'LK-71', 'LK-72', 'LK-81', 'LK-82', 'LK-91', 'LK-92'] },
+    ],
   },
 
   // ---- The Arabic-script ladder. Same alphabet, four unrelated
@@ -487,7 +549,11 @@ const LANGUAGE_ROWS = [
 
 export const LANGUAGES = LANGUAGE_ROWS.map((row) => ({
   ...row,
-  regions: row.regions.map(([name, cca2, lat, lng, radiusKm]) => ({ name, cca2, lat, lng, radiusKm })),
+  regions: row.regions.map((region) =>
+    Array.isArray(region)
+      ? { name: region[0], cca2: region[1], lat: region[2], lng: region[3], radiusKm: region[4] }
+      : region
+  ),
 }));
 
 export const LANGUAGE_BY_CODE = new Map(LANGUAGES.map((language) => [language.code, language]));
