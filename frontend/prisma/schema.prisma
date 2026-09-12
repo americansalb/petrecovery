@@ -5736,7 +5736,7 @@ model RasuwaCorrection {
 }
 
 // ============================================================================
-// WHERE ON EARTH: MULTIPLAYER ROOMS (docs/GEO.md)
+// WANDERGUESSER: MULTIPLAYER ROOMS (docs/GEO.md)
 // ============================================================================
 // Anonymous players: each holds a secret token in their browser, stored
 // here only as a hash. No User link. Rooms are short-lived; the browser
@@ -5895,7 +5895,7 @@ model GeoRoundCache {
 }
 
 // ============================================================================
-// WHERE ON EARTH: RATINGS (docs/GEO.md)
+// WANDERGUESSER: ACCOUNTS AND RATINGS (docs/GEO.md)
 // ============================================================================
 // A profile is the same person across rooms: an anonymous token in the
 // browser (stored hashed), bound to a User once they play signed in so the

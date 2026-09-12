@@ -73,7 +73,7 @@ export const MODES = {
     label: 'City streets',
     short: 'Cities',
     providers: ['google', 'apple'],
-    description: 'A random spot in one of about 150 large cities.',
+    description: 'A random spot in one of 185 large cities with Street View coverage.',
   },
   everywhere: {
     id: 'everywhere',

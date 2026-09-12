@@ -2,7 +2,15 @@
  * The link-preview card for a shared game (1200x630), rendered by satori.
  * satori rules: every box with more than one child is display: flex, and
  * only the font families we bundle exist.
+ *
+ * The wordmark and the host come from the caller. They were literals -
+ * "Where on Earth" and "reunitepets.org/geo" - which meant the card
+ * kept the pre-rename name months after the rename, and pointed at the
+ * pet site even when the game was served on a domain of its own, which
+ * is the one thing docs/GEO.md says share cards must not do.
  */
+
+import { GAME_NAME } from '../meta';
 
 const NAVY = '#0f172a';
 const NAVY_SOFT = '#1e293b';
@@ -17,7 +25,7 @@ function barColor(score) {
   return '#ef4444';
 }
 
-export function ShareCard({ headline, subline, rounds, footer, mode }) {
+export function ShareCard({ headline, subline, rounds, footer, mode, wordmark = GAME_NAME, site = '' }) {
   const isStreak = mode === 'streak';
   const bars = rounds.slice(0, 12);
   return (
@@ -37,9 +45,9 @@ export function ShareCard({ headline, subline, rounds, footer, mode }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: YELLOW, marginRight: 14 }} />
-          <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: -0.5 }}>Where on Earth</div>
+          <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: -0.5 }}>{wordmark}</div>
         </div>
-        <div style={{ fontSize: 24, color: MUTED }}>reunitepets.org/geo</div>
+        <div style={{ fontSize: 24, color: MUTED }}>{site}</div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>

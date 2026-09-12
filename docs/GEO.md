@@ -64,7 +64,7 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    - *Continent / country*: the same, restricted.
    - *Everywhere*: a random spot in one of the cities listed in
      `coverage.js` for countries with **no** official Street View at all.
-   - *City streets*: a random spot within one of about 150 large cities
+   - *City streets*: a random spot within one of the 185 covered cities
      (`app/lib/geo/coverage.js`).
 2. **The imagery probe (Google).** `app/lib/geo/server/streetview.js`
    calls the Street View Static API *metadata* endpoint for each
@@ -219,7 +219,7 @@ precision no map of languages has.
 |---|---|
 | World | Everything, drawn by how many people speak it |
 | Alphabets | One language per writing system: learn to tell Devanagari from Bengali from Tamil |
-| South Asia | Seventeen languages, ten scripts, one subcontinent |
+| South Asia | Seventeen languages, eleven scripts, one subcontinent |
 | Devanagari | Hindi, Marathi, Nepali, Bhojpuri, Maithili: same alphabet, five answers |
 | Arabic script | Arabic, Persian, Urdu, Pashto, Kurdish, Sindhi, Uyghur: four families, one alphabet |
 | Cyrillic | Four Slavic answers and two that are not Slavic at all |
@@ -401,8 +401,10 @@ dent regulars. Quitting is a loss to everyone who stayed. Unregistered
 players are ignored entirely.
 
 Identity is a profile (`GeoProfile`): an anonymous token in the browser
-(hashed in the database), bound to a `User` the first time they play signed
-in, so the rating follows them across devices. `/geo/leaderboard` lists
+(hashed in the database), bound to a `GeoAccount` the first time they
+sign in, so the rating follows them across devices. That account is the
+game's own, never a ReunitePets user (phase 1.7 of the split, D1);
+`GeoProfile.userId` is dead and nothing reads it. `/geo/leaderboard` lists
 players with at least 3 rated games; ratings stay "provisional" until 5.
 Tiers (Bronze to Grandmaster) are labels on the number, nothing more.
 
@@ -502,7 +504,8 @@ every personal-data column so a new one cannot ship unmentioned.
 
 Ratings live per season: three months each from 1 September 2026
 (`app/lib/geo/season.js`; "s1" is Sep to Nov 2026, "s0" is everything
-before). `GeoRating` is unique on profile, ladder and season, and every
+before). `GeoSeasonRating` is unique on profile, ladder and season (`GeoRating`
+itself is the all-time row, unique on profile and ladder), and every
 read of ratings goes through `ensureSeasonRows` in
 `app/lib/geo/server/profiles.js`: the first time a profile is seen in a
 new season on a ladder, last season's row is carried in softly (halfway
@@ -751,9 +754,10 @@ game of Kidnapped is up to 365, because the car drives.
 
 Apple: the app already loads MapKit JS. Look Around arrived in MapKit JS
 5.79 but is not in the full `mapkit.js` bundle; the game asks for the
-`look-around` library with `mapkit.load` after the site-wide loader runs.
+`look-around` library with `mapkit.load` through its own loader,
+`app/geo/lib/appleMapKit.js` (the game owns it: phase 1.4 of the split).
 If that call is missing in the deployed MapKit build, switch the loader
-in `app/lib/maps/appleMapKit.js` to `mapkit.core.js` with
+in `app/geo/lib/appleMapKit.js` to `mapkit.core.js` with
 `data-libraries="services,full-map,geojson,user-location,look-around"`.
 
 ## Local development without keys
