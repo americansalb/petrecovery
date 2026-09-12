@@ -290,6 +290,18 @@ The rest of the world is still discs: `[name, cca2, lat, lng, radiusKm]`
 in `app/lib/geo/languages.js`. They are wrong in the same way, and the
 fix is the same fix one region of the world at a time.
 
+**The screen.** A script round is the one screen in the game with no
+imagery on it, so it is the one screen that is light: warm paper, a pale
+sea, dark type. The sentence has the top of the screen and the map has
+the rest, rather than floating over it. The map writes country names on
+itself, from Natural Earth's own label anchors and at the zooms its
+cartographers set (`app/lib/geo/data/country-labels.json`), because
+reading a country from its silhouette is a different game and a worse
+one. Nothing smaller is ever named: a state or a city would hand over
+the answer. The pin drops, the answer's regions draw themselves in, the
+map flies to fit both, and the score counts up; all of it is off under
+`prefers-reduced-motion`.
+
 **The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
 
 | Pool | What it is |

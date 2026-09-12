@@ -84,12 +84,12 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
         dir={rtl ? 'rtl' : 'ltr'}
         lang={script}
         style={{ fontFamily: stack }}
-        className={`select-none break-words text-white ${textSize} ${rtl ? 'text-right' : ''}`}
+        className={`select-none break-words text-midnight-900 ${textSize} ${rtl ? 'text-right' : ''}`}
       >
         {text}
       </p>
       {tofu ? (
-        <p className="mt-4 flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-200">
+        <p className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             Your device has no font for this writing system, so the sentence above is showing as empty boxes. The round still

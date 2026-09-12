@@ -65,8 +65,24 @@ async function newPage(browser, viewport) {
     // RSC payload ... Falling back to browser navigation". The fallback is
     // the point: the click still works. Same class as next-auth's session
     // poll below, which this list already forgave.
-    const ignore = /b-cdn|ERR_TUNNEL|ERR_NAME_NOT_RESOLVED|Failed to fetch RSC payload|\[next-auth\]\[error\]\[CLIENT_FETCH_ERROR\]/;
+    //
+    // "Failed to load resource: net::ERR_*" is the third one, and it is
+    // the awkward one: the console line carries the error code and not
+    // the URL, so a blocked font CDN and a broken page asset read the
+    // same. Those are caught by the requestfailed listener below
+    // instead, which knows the URL and only fails the run for our own.
+    const ignore = /b-cdn|ERR_TUNNEL|ERR_NAME_NOT_RESOLVED|Failed to fetch RSC payload|\[next-auth\]\[error\]\[CLIENT_FETCH_ERROR\]|Failed to load resource/;
     if (m.type() === 'error' && !ignore.test(m.text())) errors.push('console: ' + m.text());
+  });
+  // A request this deployment serves failing is a bug; a request to
+  // somebody else's CDN failing is this sandbox's network policy.
+  page.on('requestfailed', (request) => {
+    const url = request.url();
+    if (!url.startsWith(BASE)) return;
+    // A prefetch the browser abandons because you navigated is not a
+    // failure: the click it lost the race to is what the player did.
+    if (request.failure()?.errorText === 'net::ERR_ABORTED') return;
+    errors.push(`request: ${request.failure()?.errorText} ${url}`);
   });
   page.on('dialog', (d) => d.dismiss().catch(() => {}));
   await page.route('https://maps.googleapis.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE }));
@@ -548,7 +564,11 @@ const SOUTH_ASIA_SCRIPTS = ['deva', 'beng', 'guru', 'gujr', 'orya', 'taml', 'tel
 async function script(browser) {
   log('\n== script ==');
   const page = await newPage(browser, { width: 1280, height: 800 });
-  await page.goto(`${BASE}/geo/script`, { waitUntil: 'networkidle' });
+  // domcontentloaded, not networkidle: the lobby previews a dozen
+  // writing systems, and a webfont request that a sandbox blocks hangs
+  // until it times out, so "idle" never arrives on a page that is
+  // perfectly usable. The selector below is the real readiness signal.
+  await page.goto(`${BASE}/geo/script`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('h1:has-text("Script")', { timeout: 30000 });
 
   // The lobby renders on the server, so a click can land before React

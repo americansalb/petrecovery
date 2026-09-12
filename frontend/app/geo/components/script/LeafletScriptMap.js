@@ -14,19 +14,25 @@
  *
  * This used to be Leaflet on CARTO's raster tiles, which were free
  * without a key until they were not: in September 2026 every tile came
- * back stamped "API KEY REQUIRED". A world outline with no labels needs
- * no tile server at all. The country polygons the server already scores
- * with (Natural Earth 1:110m, the world-atlas package) are drawn here as
- * vector shapes: one 108 KB file in the game's own bundle, fetched once
- * and cached like any other chunk. No key, no account, no quota, and
- * nothing fetched from anyone while a round is played. Labels stay off,
- * because a captioned map answers the round.
+ * back stamped "API KEY REQUIRED". A world outline needs no tile
+ * server. The country polygons the server already scores with (Natural
+ * Earth 1:110m, the world-atlas package) are drawn here as vector
+ * shapes, and the country names come from Natural Earth's own label
+ * anchors: two files in the game's own bundle, fetched once and cached
+ * like any other chunk. No key, no account, no quota, and nothing
+ * fetched from anyone while a round is played.
+ *
+ * **Countries are named, nothing smaller is.** Reading a country from
+ * its silhouette is a different game and a worse one: this round asks
+ * which language, not whether you can pick Paraguay out of a line-up.
+ * A state or a city name would hand over the answer, so the map has
+ * neither, and that is the only reason the world is drawn without them.
  *
  * Same contract as ScriptMap so the play client does not care which it
- * has: tap to pin, and on the reveal draw where the language is
- * spoken, because the answer is an area rather than a point: the states
- * and districts themselves for South Asia, a disc for the rest of the
- * world until those regions are drawn properly too.
+ * has: tap to pin, and on the reveal draw where the language is spoken,
+ * because the answer is an area rather than a point: the states and
+ * districts themselves for South Asia, a disc for the rest of the world
+ * until those regions are drawn properly too.
  *
  * If the outline chunk cannot be loaded (a captive network on a first
  * visit), a latitude and longitude grid is drawn in its place and
@@ -36,33 +42,36 @@
  */
 
 import 'leaflet/dist/leaflet.css';
-// Ours, after Leaflet's, so the dark overrides win on order as well as
-// on specificity. Here rather than in the pet site's globals.css so it
-// travels with the component.
-import './leaflet-script-map.css';
 import { useEffect, useRef } from 'react';
 
-const ANSWER = '#22c55e';
-const GUESS = '#facc15';
-// Land on the dark sea the stylesheet paints: lighter than the water,
-// borders a shade lighter again so countries read as shapes.
-const LAND = { fillColor: '#2a3a52', fillOpacity: 1, color: '#5b6f8c', weight: 0.6, opacity: 1 };
+const ANSWER = '#16a34a';
+const GUESS = '#e08c0a';
+// Warm land on a pale sea, matching script-round.css. A map reads
+// better as paper than as a hole in the dark.
+const LAND = { fillColor: '#f7f2e7', fillOpacity: 1, color: '#cbbda6', weight: 0.7, opacity: 1 };
 const MIN_ZOOM = 1;
 // 1:110m coastlines are simplified; past this they read as polygons
 // rather than coasts, and nothing in the round needs closer.
 const MAX_ZOOM = 7;
 
 /**
- * The world's outline, loaded once per page. The same polygons the
- * server scores with, so what the player pins on is what the answer is
- * measured against.
+ * The world's outline and the names on it, loaded once per page. The
+ * outline is the same polygon set the server scores with, so what the
+ * player pins on is what the answer is measured against.
  */
 let worldPromise = null;
 function loadWorld() {
   if (!worldPromise) {
-    worldPromise = Promise.all([import('world-atlas/countries-110m.json'), import('topojson-client')]).then(([atlas, topojson]) => {
+    worldPromise = Promise.all([
+      import('world-atlas/countries-110m.json'),
+      import('topojson-client'),
+      import('@/app/lib/geo/data/country-labels.json'),
+    ]).then(([atlas, topojson, labels]) => {
       const topology = atlas.default || atlas;
-      return topojson.feature(topology, topology.objects.countries);
+      return {
+        land: splitAtAntimeridian(topojson.feature(topology, topology.objects.countries)),
+        labels: (labels.default || labels).labels || [],
+      };
     });
     // A failed load is not cached: the next mount tries again.
     worldPromise.catch(() => {
@@ -72,14 +81,89 @@ function loadWorld() {
   return worldPromise;
 }
 
+/**
+ * Cut every ring where it crosses the antimeridian.
+ *
+ * Russia and Fiji have rings that run off one edge of the world and
+ * come back on the other. Drawn flat, the segment between those two
+ * points is a line straight across the map, and the world outline grew
+ * three of them. Splitting the ring at the jump leaves each piece on
+ * its own side, which is what the eye expects and what the old raster
+ * tiles did for us.
+ */
+function splitAtAntimeridian(collection) {
+  const cut = (ring) => {
+    const parts = [];
+    let part = [ring[0]];
+    for (let i = 1; i < ring.length; i++) {
+      if (Math.abs(ring[i][0] - ring[i - 1][0]) > 180) {
+        if (part.length >= 3) parts.push(part);
+        part = [];
+      }
+      part.push(ring[i]);
+    }
+    if (part.length >= 3) parts.push(part);
+    return parts.length ? parts : [ring];
+  };
+  const polygons = (coords, type) => (type === 'Polygon' ? [coords] : coords);
+  return {
+    ...collection,
+    features: collection.features.map((feature) => {
+      const { type, coordinates } = feature.geometry || {};
+      if (type !== 'Polygon' && type !== 'MultiPolygon') return feature;
+      const out = [];
+      for (const polygon of polygons(coordinates, type)) {
+        for (const ring of polygon) for (const piece of cut(ring)) out.push([piece]);
+      }
+      return { ...feature, geometry: { type: 'MultiPolygon', coordinates: out } };
+    }),
+  };
+}
+
 /** A marker that needs no image file, so there are no 404s for Leaflet's default icons. */
 function dot(L, color, label) {
   return L.divIcon({
     className: '',
-    html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)" title="${label}"></div>`,
+    html: `<div class="wg-pin" style="width:18px;height:18px;border-radius:50%;background:${color};border:3px solid #fffdf8;box-shadow:0 2px 8px rgba(43,38,32,.35)" title="${label}"></div>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9],
   });
+}
+
+/** Country names, shown from the zoom Natural Earth's cartographers set. */
+function addLabels(L, map, rows) {
+  const markers = rows.map((row) => ({
+    zoom: row.z,
+    until: row.u ?? 12,
+    marker: L.marker([row.y, row.x], {
+      icon: L.divIcon({
+        className: '',
+        html: `<span class="wg-country-label${row.z <= 2 ? ' wg-country-label--big' : ''}">${row.n}</span>`,
+        iconSize: [0, 0],
+      }),
+      interactive: false,
+      keyboard: false,
+      pane: 'labels',
+    }),
+  }));
+  const shown = new Set();
+  const sync = () => {
+    const zoom = map.getZoom();
+    for (const entry of markers) {
+      const wanted = entry.zoom <= zoom && zoom <= entry.until;
+      if (wanted === shown.has(entry)) continue;
+      if (wanted) {
+        entry.marker.addTo(map);
+        shown.add(entry);
+      } else {
+        map.removeLayer(entry.marker);
+        shown.delete(entry);
+      }
+    }
+  };
+  map.on('zoomend', sync);
+  sync();
+  return () => map.off('zoomend', sync);
 }
 
 export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, nearestPoint = null, mode = 'guess', className = '', onMapTrouble }) {
@@ -98,6 +182,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
   useEffect(() => {
     if (typeof window === 'undefined' || !hostRef.current || mapRef.current) return undefined;
     let cancelled = false;
+    let stopLabels = null;
     // The map exists as soon as Leaflet does, and the land is painted on
     // when its chunk lands, the way tiles used to stream in: a tap
     // before then is still a tap on the map, and nothing waits on the
@@ -114,8 +199,6 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         maxBoundsViscosity: 1,
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
-        // Leaflet puts zoom at top-left, which is exactly where the
-        // round's HUD pill sits; it overlapped and clipped it.
         zoomControl: false,
         attributionControl: true,
       }).setView([20, 0], 2);
@@ -127,22 +210,26 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
       leafletRef.current = L;
       mapRef.current = map;
 
-      // Land on its own canvas, in its own pane below the overlays: a
-      // few thousand vertices pan and zoom faster there than as SVG, it
-      // is not interactive, so a tap on a country is a tap on the map,
-      // and the pin and the reveal's circles sit above it whichever
-      // chunk arrived first.
+      // Land below the overlays, names above them but below the answer:
+      // a country's name should not be hidden by the shape drawn on it,
+      // and should not cover the pin either.
       map.createPane('land').style.zIndex = 350;
+      map.createPane('labels').style.zIndex = 450;
+      map.getPane('labels').style.pointerEvents = 'none';
       loadWorld()
-        .then((world) => {
+        .then(({ land, labels }) => {
           if (cancelled || mapRef.current !== map) return;
-          L.geoJSON(world, {
+          // A few thousand vertices pan and zoom faster on a canvas than
+          // as SVG, and the land is not interactive, so a tap on a
+          // country is a tap on the map.
+          L.geoJSON(land, {
             pane: 'land',
             style: LAND,
             interactive: false,
             renderer: L.canvas({ pane: 'land', padding: 0.5 }),
             attribution: 'Natural Earth',
           }).addTo(map);
+          stopLabels = addLabels(L, map, labels);
         })
         .catch(() => {
           if (cancelled || mapRef.current !== map) return;
@@ -152,9 +239,10 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     });
     return () => {
       cancelled = true;
+      stopLabels?.();
       try {
-        // stop() before remove(): a pan or zoom still animating will
-        // fire its transitionend after the panes are gone and throw
+        // stop() before remove(): a pan, zoom or fly still animating
+        // will fire its transitionend after the panes are gone and throw
         // reading _leaflet_pos off an undefined pane. Reproduced by
         // finishing a game, where the reveal's fit was still running
         // when the summary replaced the map.
@@ -191,7 +279,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
 
     const drawn = [];
     for (const region of answer.regions || []) {
-      const style = { color: ANSWER, weight: 2, fillColor: ANSWER, fillOpacity: 0.2 };
+      const style = { color: ANSWER, weight: 2, fillColor: ANSWER, fillOpacity: 0.22, className: 'wg-region' };
       // South Asian languages are drawn as the states, districts and
       // divisions they are spoken in, clipped where a language covers
       // part of one; the rest of the corpus is still a disc, and says
@@ -214,7 +302,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
               [guess.lat, guess.lng],
               [nearest.lat, nearest.lng],
             ],
-            { color: GUESS, weight: 2, dashArray: '6 6' }
+            { color: GUESS, weight: 2.5, dashArray: '6 6', className: 'wg-line' }
           ).addTo(map)
         );
       }
@@ -224,18 +312,25 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     try {
       const group = L.featureGroup(drawn);
       const bounds = group.getBounds();
-      // Not animated. A reveal wants the answer on screen at once, and an
-      // animated fit is a timer that can outlive this component: the last
-      // round's fit was still flying when the summary unmounted the map.
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40], maxZoom: MAX_ZOOM, animate: false });
+      // Flown, not cut. The player needs to see which way the answer was
+      // from their pin, and a jump cut loses that; a second of travel
+      // keeps it. The cleanup above stops it if the round ends mid-flight.
+      if (bounds.isValid()) {
+        map.flyToBounds(bounds, {
+          // Room at the bottom for the answer panel, which slides up
+          // over the map as this flight lands.
+          paddingTopLeft: [44, 44],
+          paddingBottomRight: [44, 230],
+          maxZoom: MAX_ZOOM,
+          duration: 0.9,
+          easeLinearity: 0.2,
+        });
+      }
     } catch {
       /* one layer, or none: leave the view alone */
     }
   }, [answer, guess, nearestPoint, mode]);
 
-  // The reveal's panel owns the bottom of the screen, and the zoom
-  // control sat on top of it. Nothing needs zooming during a reveal:
-  // the map has already fitted itself to the answer.
   return <div ref={hostRef} className={`h-full w-full ${className}`} data-script-map="leaflet" data-map-mode={mode} />;
 }
 
@@ -248,15 +343,15 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
  * round stays answerable on a network that lost the one chunk.
  */
 function drawGraticule(L, map) {
-  const line = (points, weight, color) => L.polyline(points, { color, weight, opacity: 0.55, interactive: false }).addTo(map);
+  const line = (points, weight, color) => L.polyline(points, { color, weight, opacity: 0.5, interactive: false }).addTo(map);
   for (let lng = -180; lng <= 180; lng += 30) {
-    line([[-85, lng], [85, lng]], lng === 0 ? 1.5 : 0.75, lng === 0 ? '#94a3b8' : '#475569');
+    line([[-85, lng], [85, lng]], lng === 0 ? 1.5 : 0.75, lng === 0 ? '#8a7f6c' : '#b6a892');
   }
   for (let lat = -60; lat <= 60; lat += 30) {
-    line([[lat, -180], [lat, 180]], lat === 0 ? 1.5 : 0.75, lat === 0 ? '#94a3b8' : '#475569');
+    line([[lat, -180], [lat, 180]], lat === 0 ? 1.5 : 0.75, lat === 0 ? '#8a7f6c' : '#b6a892');
   }
   // The tropics, which are where most of the world's languages are.
-  for (const lat of [23.44, -23.44]) line([[lat, -180], [lat, 180]], 0.75, '#3f4a5a');
+  for (const lat of [23.44, -23.44]) line([[lat, -180], [lat, 180]], 0.75, '#c8bba4');
 }
 
 /** Straight-line nearest by squared degrees: only used to draw a line. */

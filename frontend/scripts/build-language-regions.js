@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Build the admin-1 polygons the script game scores against.
+ * Build the map data the script game needs: the admin-1 polygons it
+ * scores against, and the country labels it draws.
  *
  * Language regions used to be discs: a centre and a radius. A disc is
  * wrong in a way that shows on the map, because no language is a circle:
@@ -26,7 +27,10 @@ const path = require('node:path');
 
 const SOURCE = process.argv[2]
   || 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson';
+const COUNTRY_SOURCE = process.argv[3]
+  || 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson';
 const OUT = path.join(__dirname, '..', 'app', 'lib', 'geo', 'data', 'admin1-south-asia.json');
+const LABELS_OUT = path.join(__dirname, '..', 'app', 'lib', 'geo', 'data', 'country-labels.json');
 
 // The countries the script game's South Asian languages are spoken in.
 const COUNTRIES = { IND: 'IN', PAK: 'PK', BGD: 'BD', NPL: 'NP', LKA: 'LK' };
@@ -97,6 +101,52 @@ function ringsOf(geometry) {
   return [];
 }
 
+/**
+ * The country names the map writes on itself.
+ *
+ * A world outline with no words asks the player to recognise a country
+ * by its shape, which is a different game and a worse one: the round is
+ * "where is this language spoken", not "can you identify Paraguay from
+ * its silhouette". Countries only. No states, no cities, nothing
+ * smaller, because those would hand over the answer.
+ *
+ * Natural Earth carries a label anchor (LABEL_X, LABEL_Y) and the zoom
+ * it wants the label to appear at (MIN_LABEL), both set by
+ * cartographers rather than computed from a centroid, so Norway is
+ * labelled down its middle and Chile is labelled where Chile is wide.
+ *
+ * What gets a label is what Natural Earth types as a country or a
+ * sovereign country. Disputed and indeterminate entries are drawn like
+ * any other land and left unnamed: this is a language game, and it has
+ * no business adjudicating anybody's borders.
+ */
+async function buildLabels() {
+  const collection = await read(COUNTRY_SOURCE);
+  const labels = [];
+  for (const feature of collection.features) {
+    const p = feature.properties || {};
+    const type = p.TYPE || p.type;
+    if (type !== 'Country' && type !== 'Sovereign country') continue;
+    // NAME is the cartographic short form: "China", not "People's
+    // Republic of China", which is what belongs on a map this small.
+    // Two are still long enough to run across a neighbour.
+    const SHORTER = { 'United States of America': 'United States', 'Central African Rep.': 'C.A.R.' };
+    const raw = p.NAME || p.NAME_EN || p.name;
+    const name = SHORTER[raw] || raw;
+    const lng = p.LABEL_X ?? p.label_x;
+    const lat = p.LABEL_Y ?? p.label_y;
+    if (!name || !Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    const zoom = Math.max(1, Math.round(p.MIN_LABEL ?? p.min_label ?? 5));
+    // MAX_LABEL is where the cartographers stop drawing it: zoomed into
+    // India, "RUSSIA" floating over the top is clutter, not context.
+    const until = Math.max(zoom, Math.round(p.MAX_LABEL ?? p.max_label ?? 12));
+    labels.push({ n: name, x: Number(lng.toFixed(2)), y: Number(lat.toFixed(2)), z: zoom, u: until });
+  }
+  labels.sort((a, b) => a.z - b.z || a.n.localeCompare(b.n));
+  fs.writeFileSync(LABELS_OUT, `${JSON.stringify({ source: 'Natural Earth 10m admin-0 (public domain)', labels })}\n`);
+  process.stdout.write(`${labels.length} country labels, ${(fs.statSync(LABELS_OUT).size / 1024).toFixed(0)} KB\n`);
+}
+
 async function read(source) {
   if (/^https?:/.test(source)) {
     process.stdout.write(`fetching ${source}\n`);
@@ -147,6 +197,8 @@ async function read(source) {
     units[id] = { name, cca2, rings };
     kept += 1;
   }
+
+  await buildLabels();
 
   const out = {
     source: 'Natural Earth 10m admin-1 states and provinces (public domain)',
