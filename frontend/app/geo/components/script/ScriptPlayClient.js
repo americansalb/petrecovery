@@ -56,7 +56,7 @@ export default function ScriptPlayClient() {
   const [history, setHistory] = useState([]);
   const [sending, setSending] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(config.timer || 0);
-  const [tileTrouble, setTileTrouble] = useState(false);
+  const [mapTrouble, setMapTrouble] = useState(false);
 
   const ladder = LADDERS[config.ladder] || LADDERS.world;
   const done = history.length >= config.rounds && !result;
@@ -160,7 +160,7 @@ export default function ScriptPlayClient() {
           mode={result ? 'result' : 'guess'}
           answer={result?.answer || null}
           guess={result?.guess || null}
-          onTileTrouble={() => setTileTrouble(true)}
+          onMapTrouble={() => setMapTrouble(true)}
         />
       </div>
 
@@ -214,12 +214,13 @@ export default function ScriptPlayClient() {
         </div>
       ) : null}
 
-      {/* Tiles come from someone else's CDN. Say so rather than leaving
-          a grey rectangle that looks like the game broke. */}
-      {tileTrouble && !result ? (
+      {/* The world outline is one chunk of the game's own bundle; if a
+          network drops it, say so rather than leaving an empty rectangle
+          that looks like the game broke. */}
+      {mapTrouble && !result ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-24 z-20 flex justify-center px-3">
           <p className="pointer-events-auto max-w-md rounded-xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-200">
-            The map tiles will not load on this network, so you are placing a pin on a bare grid. The round still scores.
+            The world outline did not load on this network, so you are placing a pin on a bare grid. The round still scores.
           </p>
         </div>
       ) : null}

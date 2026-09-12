@@ -576,9 +576,10 @@ async function script(browser) {
   if (await page.locator('text=no font for this writing system').count()) throw new Error('missing glyphs for ' + script);
   if (!SOUTH_ASIA_SCRIPTS.includes(script)) throw new Error(`the South Asia pool served ${script}`);
 
-  // The script map is Leaflet on keyless tiles, not MapKit: a script
-  // round shows no provider's imagery so it owes no provider a map, and
-  // the MapKit token is locked to one origin (LeafletScriptMap).
+  // The script map is Leaflet drawing the bundled country polygons, not
+  // MapKit and not a tile server: a script round shows no provider's
+  // imagery so it owes no provider a map, and the MapKit token is locked
+  // to one origin (LeafletScriptMap).
   await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
   // The hint is copy, not a disabled button: a control that tells you
   // what to do should not look broken while it tells you.

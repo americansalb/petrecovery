@@ -1,31 +1,36 @@
 'use client';
 
 /**
- * The script game's map, on tiles that need no key.
+ * The script game's map, drawn from data the game already ships.
  *
  * Every other map in the game belongs to an imagery provider: showing
  * Street View obliges you to put the pin on a Google map, and Look
  * Around obliges MapKit. A script round shows a sentence, so it owes
  * neither of them anything, and using their maps anyway costs something
- * real. The MapKit token this repository ships is locked to the
- * reunitepets.org origin, which means that on localhost, on a preview
- * deployment, or on the game's own future domain, the map simply does
- * not authorise and the round cannot be answered.
+ * real: the MapKit token this repository ships is locked to the
+ * reunitepets.org origin, so on localhost, on a preview deployment, or
+ * on any other domain the map does not authorise and the round cannot
+ * be answered.
  *
- * So this one is Leaflet on CARTO's raster tiles, the same stack the pet
- * site's maps already use. No key, no origin lock, no account. It is
- * what makes Script mode playable by cloning the repository and running
- * it, which is the only part of the game that is true of.
+ * This used to be Leaflet on CARTO's raster tiles, which were free
+ * without a key until they were not: in September 2026 every tile came
+ * back stamped "API KEY REQUIRED". A world outline with no labels needs
+ * no tile server at all. The country polygons the server already scores
+ * with (Natural Earth 1:110m, the world-atlas package) are drawn here as
+ * vector shapes: one 108 KB file in the game's own bundle, fetched once
+ * and cached like any other chunk. No key, no account, no quota, and
+ * nothing fetched from anyone while a round is played. Labels stay off,
+ * because a captioned map answers the round.
  *
  * Same contract as ScriptMap so the play client does not care which it
  * has: tap to pin, and on the reveal draw the language's heartlands as
  * circles, because the answer is an area rather than a point.
  *
- * Tiles belong to someone else's CDN, so they can fail. When enough of
- * them do, a latitude and longitude grid is drawn in their place and
- * `onTileTrouble` fires so the screen can say what happened. A round on
- * a grid is harder than a round on a map, but it is still a round; a
- * round on a grey rectangle is a bug report.
+ * If the outline chunk cannot be loaded (a captive network on a first
+ * visit), a latitude and longitude grid is drawn in its place and
+ * `onMapTrouble` fires so the screen can say so. A round on a grid is
+ * harder than a round on a map, but it is still a round; a round on an
+ * empty rectangle is a bug report.
  */
 
 import 'leaflet/dist/leaflet.css';
@@ -37,6 +42,33 @@ import { useEffect, useRef } from 'react';
 
 const ANSWER = '#22c55e';
 const GUESS = '#facc15';
+// Land on the dark sea the stylesheet paints: lighter than the water,
+// borders a shade lighter again so countries read as shapes.
+const LAND = { fillColor: '#2a3a52', fillOpacity: 1, color: '#5b6f8c', weight: 0.6, opacity: 1 };
+const MIN_ZOOM = 1;
+// 1:110m coastlines are simplified; past this they read as polygons
+// rather than coasts, and nothing in the round needs closer.
+const MAX_ZOOM = 7;
+
+/**
+ * The world's outline, loaded once per page. The same polygons the
+ * server scores with, so what the player pins on is what the answer is
+ * measured against.
+ */
+let worldPromise = null;
+function loadWorld() {
+  if (!worldPromise) {
+    worldPromise = Promise.all([import('world-atlas/countries-110m.json'), import('topojson-client')]).then(([atlas, topojson]) => {
+      const topology = atlas.default || atlas;
+      return topojson.feature(topology, topology.objects.countries);
+    });
+    // A failed load is not cached: the next mount tries again.
+    worldPromise.catch(() => {
+      worldPromise = null;
+    });
+  }
+  return worldPromise;
+}
 
 /** A marker that needs no image file, so there are no 404s for Leaflet's default icons. */
 function dot(L, color, label) {
@@ -48,23 +80,23 @@ function dot(L, color, label) {
   });
 }
 
-export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, mode = 'guess', className = '', onTileTrouble }) {
+export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, mode = 'guess', className = '', onMapTrouble }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const leafletRef = useRef(null);
   const pinRef = useRef(null);
   const drawnRef = useRef([]);
   const onPinRef = useRef(onPin);
-  const onTroubleRef = useRef(onTileTrouble);
+  const onTroubleRef = useRef(onMapTrouble);
   const interactiveRef = useRef(mode === 'guess');
   onPinRef.current = onPin;
-  onTroubleRef.current = onTileTrouble;
+  onTroubleRef.current = onMapTrouble;
   interactiveRef.current = mode === 'guess';
 
   useEffect(() => {
     if (typeof window === 'undefined' || !hostRef.current || mapRef.current) return undefined;
     let cancelled = false;
-    import('leaflet').then((mod) => {
+    Promise.all([import('leaflet'), loadWorld().catch(() => null)]).then(([mod, world]) => {
       const L = mod.default || mod;
       if (cancelled || !hostRef.current || mapRef.current) return;
       const map = L.map(hostRef.current, {
@@ -73,33 +105,31 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         worldCopyJump: false,
         maxBounds: [[-85, -180], [85, 180]],
         maxBoundsViscosity: 1,
+        minZoom: MIN_ZOOM,
+        maxZoom: MAX_ZOOM,
         // Leaflet puts zoom at top-left, which is exactly where the
         // round's HUD pill sits; it overlapped and clipped it.
         zoomControl: false,
         attributionControl: true,
       }).setView([20, 0], 2);
       L.control.zoom({ position: 'bottomleft' }).addTo(map);
-      const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
-        // No labels: place names on the map would answer the round.
-        attribution: '© OpenStreetMap contributors © CARTO',
-        noWrap: true,
-        minZoom: 1,
-        maxZoom: 12,
-      }).addTo(map);
 
-      // Tiles come from someone else's CDN, so they can fail: a captive
-      // network, an offline laptop, an ad blocker, a bad afternoon at
-      // CARTO. Without this the player gets a featureless grey rectangle
-      // and no idea why the game stopped working. A handful of failures
-      // is normal at the edges of a pan; a wall of them is not.
-      let failures = 0;
-      tiles.on('tileerror', () => {
-        failures += 1;
-        if (failures === 6) {
-          drawGraticule(L, map);
-          onTroubleRef.current?.();
-        }
-      });
+      if (world) {
+        // Land on its own canvas: a few thousand vertices pan and zoom
+        // faster there than as SVG, and it is not interactive, so a tap
+        // on a country is a tap on the map. The pin and the reveal's
+        // circles stay SVG, where their tooltips live.
+        L.geoJSON(world, {
+          style: LAND,
+          interactive: false,
+          renderer: L.canvas({ padding: 0.5 }),
+          attribution: 'Natural Earth',
+        }).addTo(map);
+      } else {
+        drawGraticule(L, map);
+        onTroubleRef.current?.();
+      }
+
       map.on('click', (event) => {
         if (!interactiveRef.current) return;
         onPinRef.current?.({ lat: event.latlng.lat, lng: event.latlng.lng });
@@ -183,7 +213,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
       // Not animated. A reveal wants the answer on screen at once, and an
       // animated fit is a timer that can outlive this component: the last
       // round's fit was still flying when the summary unmounted the map.
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 7, animate: false });
+      if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40], maxZoom: MAX_ZOOM, animate: false });
     } catch {
       /* one layer, or none: leave the view alone */
     }
@@ -196,11 +226,12 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
 }
 
 /**
- * A bare latitude and longitude grid, drawn when the tiles do not come.
+ * A bare latitude and longitude grid, drawn when the outline does not
+ * load.
  *
  * It is not a map, but it is not nothing: the equator, the tropics and
  * the meridians are enough to place a pin roughly where you mean, so a
- * round stays answerable on a network that cannot reach the tile server.
+ * round stays answerable on a network that lost the one chunk.
  */
 function drawGraticule(L, map) {
   const line = (points, weight, color) => L.polyline(points, { color, weight, opacity: 0.55, interactive: false }).addTo(map);
