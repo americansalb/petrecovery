@@ -16,6 +16,11 @@
    rather than on order. */
 [data-script-map='leaflet'].leaflet-container {
   background: #0b1220;
+  /* Leaflet's panes carry z-index 100 to 800 and the container makes no
+     stacking context of its own, so they escaped into the round's
+     overlay space and painted over the sentence panel and the Guess
+     button, which then could not be clicked. Contain them. */
+  isolation: isolate;
 }
 [data-script-map='leaflet'] .leaflet-control-zoom a.leaflet-control-zoom-in,
 [data-script-map='leaflet'] .leaflet-control-zoom a.leaflet-control-zoom-out,
