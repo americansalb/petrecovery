@@ -46,18 +46,24 @@ previews.
 Two things the audit found by running it rather than reading it, both of
 which would have cost an afternoon on deployment day:
 
-- **`next start` does not work.** `next.config.js` sets
-  `output: 'standalone'`, so Next serves pages but 404s the API routes
-  and prints one warning about it. The supported command is
-  `node .next/standalone/server.js`, with `.next/static` and `public`
-  copied in beside it.
+- **`npm start` works, and prints a warning saying it does not.**
+  `next.config.js` sets `output: 'standalone'`, so `next start` warns
+  that it "does not work" with that setting. Checked 2026-09-12 on a
+  production build: the lobby, `/api/health`, `/api/geo/config` and a
+  `POST /api/geo/round` all answer 200 under `next start`, so Render's
+  native start (`npm start`, which is `scripts/boot.js`) is fine as it
+  is. The standalone server, `node .next/standalone/server.js` with
+  `.next/static` and `public` copied in beside it, is the alternative
+  the warning points at, not a requirement. An earlier note here said
+  the API routes 404 under `next start`; that did not reproduce.
 - **The standalone server does not read `.env` files.** Everything has
   to be in the process environment. A deployment that puts secrets in a
   `.env` and starts the standalone server gets a game that renders and
-  then answers 503 to every round.
+  then answers 503 to every round. Render's environment variables are
+  process environment, so this only bites a hand-rolled deployment.
 
-The whole browser harness passes against a server started that way, which
-is how that is now known rather than assumed.
+The whole browser harness passes against the standalone server, and the
+route check above was run against `next start`.
 
 ## What launch needs from you
 
