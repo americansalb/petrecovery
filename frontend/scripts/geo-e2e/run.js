@@ -7,6 +7,7 @@
  * replay, a Kidnapped round where the car drives itself, a country
  * streak, a timed NMPZ round that runs out, the mobile map sheet, and a
  * two-browser room: lobby, rounds, reveal,
+ * an Apple Look Around room played to a reveal,
  * reactions, standings with ratings, rematch, leaderboard (needs the
  * database, see docs/GEO.md), and a five-round script game where the
  * answer is a linguistic region rather than a point.
@@ -19,7 +20,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile, script)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleRoom, daily, profile, script)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -46,6 +47,14 @@ async function newPage(browser, viewport) {
   const page = await browser.newPage({ viewport });
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  if (process.env.GEO_E2E_TRACE) {
+    page.on('response', (r) => {
+      if (r.status() >= 400) {
+        const body = r.request().postData() || '';
+        r.text().then((t) => console.log(`  [http ${r.status()}] ${r.request().method()} ${r.url()} sent=${body} got=${t.slice(0, 200)}`)).catch(() => {});
+      }
+    });
+  }
   page.on('console', (m) => {
     // CDN blocks in sandboxes, and requests that lose a race with a
     // navigation, are noise; anything else on the console fails the run.
@@ -315,6 +324,84 @@ async function rooms(browser) {
  * the result page hides the places from a browser that has not played
  * that day, and shows them to one that has.
  */
+/**
+ * A room on Apple Look Around, which is the one thing the deep audit
+ * found unplayable: the shared map block was gated on the Google Maps
+ * handle, which an Apple room never sets, so every player saw the
+ * panorama and the countdown with no map to pin and no button to press,
+ * and every round timed out at zero for everyone.
+ *
+ * So this scenario is mostly one assertion made three ways: the guess
+ * map is on screen, the Guess button exists, and a pin scores.
+ */
+async function appleRoom(browser) {
+  const host = await newPage(browser, { width: 1280, height: 800 });
+  await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
+  await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 });
+  await host.fill('input[placeholder="What the others will see"]', 'Ada');
+  await host.selectOption('label:has-text("Imagery") select', 'apple');
+  await host.selectOption('label:has-text("Rounds") select', '3');
+  await host.selectOption('label:has-text("Time per round") select', '60');
+  await host.click('button:has-text("Open the room")');
+  await host.waitForURL(/\/geo\/room\/[A-Z0-9]{6}/, { timeout: 60000 });
+  const code = host.url().match(/room\/([A-Z0-9]{6})/)[1];
+  await host.waitForSelector('text=Join code', { timeout: 60000 });
+  log('apple room opened', code);
+
+  const guest = await newPage(browser, { width: 1280, height: 800 });
+  await guest.goto(`${BASE}/geo/room/${code}`, { waitUntil: 'domcontentloaded' });
+  await guest.fill('input[aria-label="Your name"]', 'Grace');
+  await guest.click('button:has-text("Join")');
+  await guest.waitForSelector('text=Waiting for Ada to start', { timeout: 20000 });
+  await host.click('button:has-text("Start the game")');
+
+  for (const p of [host, guest]) {
+    await p.waitForSelector('text=Round 1 of 3', { timeout: 60000 });
+    // The Look Around pane really opened, for both of them, at the
+    // place the first browser found.
+    await p.waitForFunction(() => Boolean(document.querySelector('[data-fake-lookaround]')), null, { timeout: 60000 });
+  }
+  log('both browsers opened Look Around at the round s place');
+
+  // The fix. Before it, neither of these existed in an Apple room.
+  for (const [p, who] of [[host, 'host'], [guest, 'guest']]) {
+    const map = await p.evaluate(() => {
+      const el = document.querySelector('[data-fake-mapkit]')?.closest('div[class]');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { width: Math.round(r.width), height: Math.round(r.height) };
+    });
+    if (!map || map.height < 120 || map.width < 200) throw new Error(`${who} has no guess map in an Apple room: ${JSON.stringify(map)}`);
+    log(`${who} guess map:`, map);
+    await p.waitForSelector('button:has-text("Place your pin on the map")', { timeout: 20000 });
+  }
+
+  const pin = async (p) => {
+    const box = await p.evaluate(() => {
+      const el = document.querySelector('[data-fake-mapkit]');
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+    });
+    await p.mouse.click(box.x, box.y);
+    await waitGuessable(p);
+    await p.click('button:has-text("Guess")');
+  };
+
+  await pin(host);
+  await host.waitForSelector('text=Guess locked in', { timeout: 20000 });
+  await pin(guest);
+  for (const p of [host, guest]) await p.waitForSelector('text=/(Next round|Results) in \\d+s/', { timeout: 30000 });
+  log('both guessed on Apple imagery, reveal on both screens');
+
+  // Scored, not timed out: the whole symptom of the bug was 0-0.
+  const scored = await host.evaluate(() => /\d/.test(document.body.innerText.match(/away/) ? '1' : '') || !document.body.innerText.includes('no guess'));
+  if (!scored) throw new Error('an Apple room round was recorded as no guess');
+  await shot(host, 'apple-room-reveal');
+  for (const p of [host, guest]) if (p.errors.length) throw new Error('page errors: ' + p.errors.join(' | '));
+  await host.close();
+  await guest.close();
+}
+
 async function daily(browser) {
   const page = await newPage(browser, { width: 1280, height: 800 });
   await page.goto(`${BASE}/geo/play?mode=daily`, { waitUntil: 'domcontentloaded' });
@@ -490,7 +577,7 @@ async function script(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, daily, profile, script };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleRoom, daily, profile, script };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

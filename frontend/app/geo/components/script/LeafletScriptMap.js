@@ -29,6 +29,10 @@
  */
 
 import 'leaflet/dist/leaflet.css';
+// Ours, after Leaflet's, so the dark overrides win on order as well as
+// on specificity. Here rather than in the pet site's globals.css so it
+// travels with the component.
+import './leaflet-script-map.css';
 import { useEffect, useRef } from 'react';
 
 const ANSWER = '#22c55e';

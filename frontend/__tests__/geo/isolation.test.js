@@ -77,11 +77,43 @@ function importsIn(source) {
   return specifiers;
 }
 
-/** Where a specifier points, as a repo-relative path, or null for a package. */
+/**
+ * Where a specifier points, as a repo-relative path, or null for a real
+ * npm package.
+ *
+ * Two holes the deep audit found. '@/' was returned raw, so '@/app/../app/lib/auth'
+ * was compared against the game's directories without being normalized;
+ * and everything that was neither '@/' nor relative was called a
+ * package, though jsconfig.json maps other aliases into the repo and a
+ * bare specifier that matches a top-level directory resolves there too.
+ * Both let a real pet-site import satisfy the one test that enforces
+ * the whole standalone claim.
+ */
+const ALIASES = (() => {
+  const file = ['jsconfig.json', 'tsconfig.json'].map((name) => path.join(ROOT, name)).find((p) => fs.existsSync(p));
+  const config = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\s*\/\/.*$/gm, ''));
+  const paths = config.compilerOptions?.paths || {};
+  return Object.entries(paths).map(([pattern, [target]]) => ({
+    prefix: pattern.replace(/\*$/, ''),
+    target: String(target).replace(/^\.\//, '').replace(/\*$/, ''),
+  }));
+})();
+
 function resolveInRepo(specifier, fromFile) {
-  if (specifier.startsWith('@/')) return specifier.slice(2);
+  for (const alias of ALIASES) {
+    if (alias.prefix && specifier.startsWith(alias.prefix)) {
+      return path.normalize(`${alias.target}${specifier.slice(alias.prefix.length)}`);
+    }
+  }
   if (specifier.startsWith('.')) {
     return path.normalize(path.join(path.dirname(fromFile), specifier));
+  }
+  // A bare specifier that names a directory in the repo is a repo file,
+  // not a package: Node and the bundler both find it before they look
+  // in node_modules.
+  const bare = specifier.split('/')[0];
+  if (bare && !bare.startsWith('@') && fs.existsSync(path.join(ROOT, bare)) && !fs.existsSync(path.join(ROOT, 'node_modules', bare))) {
+    return path.normalize(specifier);
   }
   return null; // an npm package or a Node builtin
 }

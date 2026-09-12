@@ -674,10 +674,16 @@ export async function roomAction(store, { code, token, action, body = {}, now = 
       // a reveal countdown expiring here used to advance to the next
       // round and then be skipped straight past it, revealing a
       // brand-new round nobody had seen with everyone timed out.
-      const seen = Number(body?.version);
-      if (Number.isFinite(seen) && seen !== room.version) {
-        throw new RoomError('moved_on', 'The room already moved on', 409);
-      }
+      //
+      // The phase, not the version. The version moves for reasons that
+      // have nothing to do with the phase - another player's guess, a
+      // reaction - and pinning to it refused ordinary clicks.
+      const seenPhase = typeof body?.phase === 'string' ? body.phase : '';
+      const seenRound = Number(body?.roundIndex);
+      const movedOn =
+        (seenPhase && seenPhase !== room.phase) ||
+        (Number.isFinite(seenRound) && seenRound !== room.roundIndex);
+      if (movedOn) throw new RoomError('moved_on', 'The room already moved on', 409);
       if (room.phase === 'guessing') room = await revealRound(store, room, now);
       else if (room.phase === 'reveal') room = await advanceRound(store, room, now, fetchImpl);
       else throw new RoomError('nothing_to_skip', 'Nothing to move on from right now', 409);

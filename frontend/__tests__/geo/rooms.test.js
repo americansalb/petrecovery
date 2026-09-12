@@ -462,15 +462,25 @@ describe('robustness', () => {
     // having seen the panorama and everyone written down as timed out.
     const { store, code, tokens } = await setupRoom();
     await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
-    const seen = (await store.getRoomByCode(code)).version;
-    await roomAction(store, { code, token: tokens[0], action: 'next', body: { version: seen }, now: T0 + sec(1), fetchImpl: hitFetch });
+    expect((await store.getRoomByCode(code)).phase).toBe('guessing');
+
+    // Skipping the round the host is looking at works, whatever the
+    // version has done meanwhile: another player's guess moves it, and
+    // pinning to the version refused ordinary clicks.
+    await roomAction(store, { code, token: tokens[1], action: 'guess', body: { lat: 0, lng: 0 }, now: T0 + sec(1), fetchImpl: hitFetch });
+    await roomAction(store, { code, token: tokens[0], action: 'next', body: { phase: 'guessing', roundIndex: 0 }, now: T0 + sec(2), fetchImpl: hitFetch });
     expect((await store.getRoomByCode(code)).phase).toBe('reveal');
 
-    // The host's browser is still showing the reveal it just skipped to.
+    // The host's browser is still showing the round it already skipped.
     await expect(
-      roomAction(store, { code, token: tokens[0], action: 'next', body: { version: seen }, now: T0 + sec(2), fetchImpl: hitFetch })
+      roomAction(store, { code, token: tokens[0], action: 'next', body: { phase: 'guessing', roundIndex: 0 }, now: T0 + sec(3), fetchImpl: hitFetch })
     ).rejects.toMatchObject({ code: 'moved_on', status: 409 });
     expect((await store.getRoomByCode(code)).phase).toBe('reveal');
+
+    // And a click on a round the clock has already carried past.
+    await expect(
+      roomAction(store, { code, token: tokens[0], action: 'next', body: { phase: 'reveal', roundIndex: 9 }, now: T0 + sec(4), fetchImpl: hitFetch })
+    ).rejects.toMatchObject({ code: 'moved_on', status: 409 });
   });
 
   test('joins racing for the last seats do not overfill the room or share a colour', async () => {
