@@ -416,6 +416,106 @@ describe('robustness', () => {
     expect(dump.rooms[0].version).toBe(stale.version + 1);
   });
 
+  test('a guess that lands while the reveal is being computed is kept, not overwritten with a timeout', async () => {
+    // revealRound snapshots the guesses, claims the phase, then writes a
+    // timed-out row for everyone it believed had not guessed. A guess
+    // written in that window used to be upserted over with nulls: the
+    // coordinates were destroyed in the database, the player scored
+    // zero for a guess their browser had been told was accepted, and in
+    // a duel they took full damage for it.
+    const { store, code, tokens } = await setupRoom();
+    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    const room = await store.getRoomByCode(code);
+    const round = room.rounds.find((r) => r.index === room.roundIndex);
+    const grace = room.players.find((p) => p.name === 'Grace');
+
+    // Slip Grace's guess in the moment the reveal claims the phase.
+    const realUpdateRoom = store.updateRoom.bind(store);
+    let slipped = false;
+    store.updateRoom = async (...args) => {
+      const result = await realUpdateRoom(...args);
+      if (!slipped && result && args[1]?.phase === 'reveal') {
+        slipped = true;
+        await store.upsertGuess({ roundId: round.id, playerId: grace.id, lat: round.lat, lng: round.lng, distanceKm: 0, score: 5000, damage: 0, timedOut: false, submittedAt: new Date(T0 + sec(5)) });
+      }
+      return result;
+    };
+    await roomAction(store, { code, token: tokens[0], action: 'guess', body: { lat: round.lat, lng: round.lng }, now: T0 + sec(2), fetchImpl: hitFetch });
+    // Ada guessed, Grace has not, so the host skips to the reveal.
+    await roomAction(store, { code, token: tokens[0], action: 'next', now: T0 + sec(3), fetchImpl: hitFetch });
+    store.updateRoom = realUpdateRoom;
+    expect(slipped).toBe(true);
+
+    const after = await store.getRoomByCode(code);
+    const kept = after.rounds.find((r) => r.index === round.index).guesses.find((g) => g.playerId === grace.id);
+    expect(kept.timedOut).toBe(false);
+    expect(kept.lat).toBe(round.lat);
+    expect(kept.score).toBe(5000);
+    // and it counts: the reveal recomputes from the rows as they stand
+    expect(after.players.find((p) => p.id === grace.id).score).toBe(5000);
+  });
+
+  test('Skip acts on the phase the host was looking at, never on the one the clock just made', async () => {
+    // roomAction ticks first, so a reveal countdown expiring inside the
+    // same request used to advance to the next round and then be
+    // skipped straight past it: a brand-new round revealed with nobody
+    // having seen the panorama and everyone written down as timed out.
+    const { store, code, tokens } = await setupRoom();
+    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    const seen = (await store.getRoomByCode(code)).version;
+    await roomAction(store, { code, token: tokens[0], action: 'next', body: { version: seen }, now: T0 + sec(1), fetchImpl: hitFetch });
+    expect((await store.getRoomByCode(code)).phase).toBe('reveal');
+
+    // The host's browser is still showing the reveal it just skipped to.
+    await expect(
+      roomAction(store, { code, token: tokens[0], action: 'next', body: { version: seen }, now: T0 + sec(2), fetchImpl: hitFetch })
+    ).rejects.toMatchObject({ code: 'moved_on', status: 409 });
+    expect((await store.getRoomByCode(code)).phase).toBe('reveal');
+  });
+
+  test('joins racing for the last seats do not overfill the room or share a colour', async () => {
+    const { store, code } = await setupRoom({ players: ['Ada'] });
+    const results = await Promise.allSettled(
+      Array.from({ length: rules.MAX_PLAYERS + 4 }, (_, i) => joinRoom(store, { code, name: `P${i}`, now: T0 }))
+    );
+    const joined = results.filter((r) => r.status === 'fulfilled');
+    expect(joined.length).toBeGreaterThan(0);
+    const room = await store.getRoomByCode(code);
+    const present = room.players.filter((p) => !p.leftAt);
+    expect(present.length).toBeLessThanOrEqual(rules.MAX_PLAYERS);
+    expect(new Set(present.map((p) => p.color)).size).toBe(present.length);
+    expect(new Set(present.map((p) => p.name.toLowerCase())).size).toBe(present.length);
+  });
+
+  test('two rematch clicks open one room, and everyone follows the same code', async () => {
+    // Both used to see rematchCode null, both open a room, and the
+    // second overwrite the first: the host went to her room and the
+    // rest of the table to the other, where her host record sat with a
+    // token nobody held. The orphan also burned a room game from her
+    // daily allowance.
+    const { store, code, tokens } = await setupRoom({ settings: { rounds: 3, time: 30 } });
+    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    let now = T0;
+    for (let i = 0; i < 3; i++) {
+      now += sec(31);
+      await getRoomView(store, { code, now, fetchImpl: hitFetch });
+      now += sec(13);
+      await getRoomView(store, { code, now, fetchImpl: hitFetch });
+    }
+    expect((await store.getRoomByCode(code)).status).toBe('finished');
+
+    const [a, b] = await Promise.all([
+      roomAction(store, { code, token: tokens[0], action: 'rematch', now, fetchImpl: hitFetch }).catch((e) => e),
+      roomAction(store, { code, token: tokens[0], action: 'rematch', now, fetchImpl: hitFetch }).catch((e) => e),
+    ]);
+    const codes = [a, b].map((r) => r?.rematch?.code).filter(Boolean);
+    const followed = (await store.getRoomByCode(code)).rematchCode;
+    expect(followed).toBeTruthy();
+    for (const c of codes) expect(c).toBe(followed);
+    const opened = await Promise.all([...new Set(codes)].map((c) => store.getRoomByCode(c)));
+    expect(opened.filter(Boolean).length).toBe(1);
+  });
+
   test('a round build that finds no imagery sends the lobby back with a reason, and retries move on', async () => {
     const { store, code, tokens } = await setupRoom();
     const failed = await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: noFetch });

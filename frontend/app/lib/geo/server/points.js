@@ -68,12 +68,18 @@ const ordinal = (n) => `${n}${['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] ||
  * scored, so the daily earning cap never moved. (Found in the
  * pre-launch audit, 2026-09-11.)
  *
- * So a seedless round is keyed by the sealed token itself, hashed. Same
- * token, same key, paid once. Failing that, by where the answer was,
- * which is stable for the round and unguessable before the guess.
+ * So a seedless round carries its own id, minted once by createRound
+ * and sealed into every token that round issues. The token itself is
+ * not the round: an Apple round issues twelve tokens, one per candidate
+ * place, and keying by token paid all twelve for one round while the
+ * meter, which counts rounds created, moved by one.
+ *
+ * Older tokens have no round id, so the hashed token is still the next
+ * key, and the answer's own position the one after that.
  */
 function soloRef(result, token) {
   if (result.seed) return `solo:${result.seed}:${result.roundIndex}`;
+  if (result.roundId) return `solo:r:${result.roundId}`;
   if (token) return `solo:t:${createHash('sha256').update(String(token)).digest('base64url').slice(0, 24)}`;
   const where = `${result.answer?.lat ?? ''},${result.answer?.lng ?? ''}`;
   return `solo:a:${createHash('sha256').update(`${where}|${result.mode}|${result.roundIndex}`).digest('base64url').slice(0, 24)}`;
@@ -143,6 +149,12 @@ export async function awardRoomFinish(store, room, now = Date.now()) {
   for (let i = 0; i < stayed.length; i++) {
     const p = stayed[i];
     if (!p.profileId) continue;
+    // The same daily cap awardRoomRound enforces. Placement and the
+    // duel win are the largest single awards in the economy, and they
+    // used to be the only ones outside it: two profiles could finish
+    // short Apple duels all night, which the allowance never touches.
+    const roundsToday = await roundsPlayedToday(store, p.profileId, now);
+    if (!earningAllowed(Math.max(1, roundsToday))) continue;
     const placement = placements[i];
     const row = await grant(store, {
       profileId: p.profileId,

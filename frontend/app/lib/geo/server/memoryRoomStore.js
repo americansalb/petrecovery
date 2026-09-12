@@ -91,6 +91,13 @@ export function createMemoryRoomStore() {
       Object.assign(round, data);
       return { ...round };
     },
+    async createGuessIfAbsent({ roundId, playerId, ...data }) {
+      const existing = [...guesses.values()].find((g) => g.roundId === roundId && g.playerId === playerId);
+      if (existing) return null;
+      const guess = { id: id('guess'), roundId, playerId, score: 0, damage: 0, timedOut: false, ...data };
+      guesses.set(guess.id, guess);
+      return { ...guess };
+    },
     async upsertGuess({ roundId, playerId, ...data }) {
       const existing = [...guesses.values()].find((g) => g.roundId === roundId && g.playerId === playerId);
       if (existing) {

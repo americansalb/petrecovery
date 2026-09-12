@@ -17,6 +17,7 @@ import { getGeoServerConfig } from './config';
 import { countryAt, publicCountry } from './countries';
 import { createCandidateSource } from './sampler';
 import { findPanorama } from './streetview';
+import { randomBytes } from 'node:crypto';
 import { openToken, sealToken } from './tokens';
 import { roundCacheKey } from './roundCache';
 
@@ -35,9 +36,14 @@ export class GeoGameError extends Error {
 
 const round6 = (n) => Math.round(Number(n) * 1e6) / 1e6;
 
-function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date, subject }) {
+function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date, subject, roundId }) {
   return {
     v: 1,
+    // This round's identity, the same in every token it issues. An
+    // Apple round issues twelve, one per candidate place, and without
+    // this the points ledger keyed them by token and paid all twelve
+    // for one round.
+    rid: roundId || '',
     // Who asked for this round. The guess route refuses a scored
     // challenge token presented by anyone else, which is what stops a
     // round being revealed under one identity and scored under another.
@@ -70,6 +76,7 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
     throw new GeoGameError('no_secret', 'Set NEXTAUTH_SECRET or GEO_TOKEN_SECRET before starting a game');
   }
   const source = createCandidateSource(config, roundIndex);
+  const roundId = randomBytes(9).toString('base64url');
 
   // A retry of a seeded round must not replay the same failed points:
   // skip ahead in the deterministic sequence instead.
@@ -85,7 +92,7 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
         lat: round6(c.lat),
         lng: round6(c.lng),
         token: sealToken(
-          answerPayload({ provider: 'apple', config, roundIndex, lat: c.lat, lng: c.lng, country: c.country, sizeKm: source.sizeKm, city: c.city, subject }),
+          answerPayload({ provider: 'apple', config, roundIndex, lat: c.lat, lng: c.lng, country: c.country, sizeKm: source.sizeKm, city: c.city, subject, roundId }),
           { secret: tokenSecret, now }
         ),
       });
@@ -108,6 +115,7 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
       city: found.city,
       date: found.date,
       subject,
+      roundId,
     }),
     { secret: tokenSecret, now }
   );
@@ -196,7 +204,7 @@ export function evaluateGuess({ token, guess, now = Date.now(), env } = {}) {
     date: payload.date || '',
     country: payload.cc || payload.cn ? { code: payload.cc, name: payload.cn, flag: payload.cf } : null,
   };
-  const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, subject: payload.sub || '', answer };
+  const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, subject: payload.sub || '', roundId: payload.rid || '', answer };
 
   if (payload.mode === 'streak') {
     const code = String(guess?.countryCode || '').toUpperCase();

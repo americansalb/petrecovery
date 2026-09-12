@@ -465,7 +465,7 @@ export default function RoomClient({ code }) {
       {joined && phase === 'loading' ? <LoadingPanel state={state} /> : null}
       {joined && phase === 'locating' ? <LocatingPanel state={state} attempt={locateAttempt} /> : null}
       {joined && phase === 'reveal' ? (
-        <RevealPanel state={state} secondsLeft={revealLeft ?? 0} onNext={() => run(() => act('next'))} onReact={(emoji) => act('react', { emoji })} busy={busy} />
+        <RevealPanel state={state} secondsLeft={revealLeft ?? 0} onNext={() => run(() => act('next', { version: room?.version }))} onReact={(emoji) => act('react', { emoji })} busy={busy} />
       ) : null}
       {joined && status === 'finished' ? <StandingsPanel state={state} onRematch={onRematch} onLeave={onLeave} busy={busy} error={actionError} /> : null}
       {server && !googleConfigured && joined && status !== 'finished' ? (

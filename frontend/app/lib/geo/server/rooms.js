@@ -166,13 +166,31 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
   if (room.status === 'playing' && room.variant === 'duel') {
     throw new RoomError('duel_in_progress', 'A duel is in progress. Ask the host for a rematch when it ends.', 409);
   }
-  const players = present(room);
-  if (players.length >= MAX_PLAYERS) throw new RoomError('room_full', `This room is full (${MAX_PLAYERS} players)`, 409);
+  // Claim the seat before taking it. Two joins used to read the same
+  // snapshot, both pass the cap check, and both create a player: a
+  // twelve-seat room could hold thirteen, two players could share a map
+  // colour and be indistinguishable on the reveal, and two could be
+  // handed the same display name.
+  let seat = null;
+  let current = room;
+  for (let attempt = 0; attempt < 4 && !seat; attempt++) {
+    if (attempt) current = await loadRoom(store, code);
+    const here = present(current);
+    if (here.length >= MAX_PLAYERS) throw new RoomError('room_full', `This room is full (${MAX_PLAYERS} players)`, 409);
+    const claimed = await store.updateRoom(
+      current.id,
+      { version: current.version + 1, lastActiveAt: new Date(now) },
+      { expectVersion: current.version }
+    );
+    if (claimed) seat = here;
+  }
+  if (!seat) throw new RoomError('busy', 'The room changed just now, try again', 409);
+  const players = seat;
   const used = new Set(players.map((p) => p.color));
-  const color = PLAYER_COLORS.find((c) => !used.has(c)) || pickColor(room.players.length);
+  const color = PLAYER_COLORS.find((c) => !used.has(c)) || pickColor(current.players.length);
   const token = newPlayerToken();
   const player = await store.createPlayer({
-    roomId: room.id,
+    roomId: current.id,
     tokenHash: hashToken(token),
     name: uniqueName(sanitizeName(name), players),
     color,
@@ -184,7 +202,6 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
     joinedAt: new Date(now),
     lastSeenAt: new Date(now),
   });
-  await touchRoom(store, room, now);
   const fresh = await store.getRoomByCode(code);
   return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
 }
@@ -263,25 +280,28 @@ async function revealRound(store, room, now) {
       : { playerId: p.id, player: p, lat: null, lng: null, distanceKm: null, score: 0, damage: 0, timedOut: true, isNew: true };
   });
 
-  const scoresById = Object.fromEntries(guesses.map((g) => [g.playerId, g.score || 0]));
   const isDuel = room.variant === 'duel';
-  const { damages, best } = isDuel ? duelDamages(scoresById, round.index) : { damages: {}, best: Math.max(0, ...Object.values(scoresById)) };
-
-  const updates = players.map((p) => {
-    const score = scoresById[p.id] || 0;
-    const damage = isDuel ? damages[p.id] || 0 : 0;
-    const hp = isDuel ? Math.max(0, (p.hp ?? DUEL_START_HP) - damage) : p.hp;
-    return {
-      id: p.id,
-      data: {
-        score: (p.score || 0) + score,
-        roundWins: (p.roundWins || 0) + (score > 0 && score === best ? 1 : 0),
-        hp,
-        eliminated: isDuel ? hp <= 0 : false,
-      },
-      damage,
-    };
-  });
+  let updates = [];
+  function recomputeUpdates() {
+    const scoresById = Object.fromEntries(guesses.map((g) => [g.playerId, g.score || 0]));
+    const { damages, best } = isDuel ? duelDamages(scoresById, round.index) : { damages: {}, best: Math.max(0, ...Object.values(scoresById)) };
+    updates = players.map((p) => {
+      const score = scoresById[p.id] || 0;
+      const damage = isDuel ? damages[p.id] || 0 : 0;
+      const hp = isDuel ? Math.max(0, (p.hp ?? DUEL_START_HP) - damage) : p.hp;
+      return {
+        id: p.id,
+        data: {
+          score: (p.score || 0) + score,
+          roundWins: (p.roundWins || 0) + (score > 0 && score === best ? 1 : 0),
+          hp,
+          eliminated: isDuel ? hp <= 0 : false,
+        },
+        damage,
+      };
+    });
+  }
+  recomputeUpdates();
 
   const after = present(room).map((p) => {
     const u = updates.find((x) => x.id === p.id);
@@ -296,6 +316,22 @@ async function revealRound(store, room, now) {
     { expectVersion: room.version }
   );
   if (!claimed) return store.getRoomByCode(room.code);
+
+  // The claim is the serialization point, and everything above was
+  // computed from a snapshot taken before it. A guess written in that
+  // window used to be overwritten with a timed-out row: the real
+  // coordinates were destroyed in the database, the player scored zero
+  // for a guess their own browser had been told was accepted, and in a
+  // duel they took full damage for it and could be eliminated by it.
+  // So the scores are recomputed here, from the rows as they actually
+  // stand now.
+  const settled = currentRound(await store.getRoomByCode(room.code)) || round;
+  for (const g of guesses) {
+    const landed = settled.guesses.find((row) => row.playerId === g.playerId);
+    if (!landed || !g.isNew) continue;
+    Object.assign(g, landed, { player: g.player, isNew: false });
+  }
+  recomputeUpdates();
 
   // Points for the round (docs/GEO.md, "Points and cosmetics"); the
   // ledger's refs make a repeat harmless, and a failure costs nothing.
@@ -313,7 +349,7 @@ async function revealRound(store, room, now) {
   for (const g of guesses) {
     const u = updates.find((x) => x.id === g.playerId);
     if (g.isNew) {
-      await store.upsertGuess({ roundId: round.id, playerId: g.playerId, lat: null, lng: null, distanceKm: null, score: 0, damage: u?.damage || 0, timedOut: true, submittedAt: new Date(now) });
+      await store.createGuessIfAbsent({ roundId: round.id, playerId: g.playerId, lat: null, lng: null, distanceKm: null, score: 0, damage: u?.damage || 0, timedOut: true, submittedAt: new Date(now) });
     } else if (isDuel) {
       await store.upsertGuess({ roundId: round.id, playerId: g.playerId, damage: u?.damage || 0 });
     }
@@ -504,6 +540,7 @@ async function submitGuess(store, room, me, body, now) {
   if (!round) throw new RoomError('no_round', 'No round is open', 409);
   if (hasGuess(round, me.id)) throw new RoomError('already_guessed', 'You already guessed this round', 409);
   if (round.deadline && now > toMs(round.deadline) + GUESS_GRACE_MS) throw new RoomError('too_late', 'Time was up for this round', 409);
+  if (round.revealedAt) throw new RoomError('too_late', 'That round was already revealed', 409);
   const lat = Number(body?.lat);
   const lng = Number(body?.lng);
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
@@ -566,6 +603,23 @@ async function rematch(store, room, me, now) {
   }
   // A rematch is a new game: it goes through the play meter's door like
   // any other room, with the player's profile and address as they were.
+  // Claim the right to open it before opening it. Two clicks used to
+  // both see rematchCode null, both create a room, and the second
+  // overwrite the first: the host's reply carried her room's code and
+  // token while everyone else followed the room's rematchCode to the
+  // other one, so she sat alone and the rest sat in a room whose only
+  // host record she had no token for. The orphan also burned a second
+  // room game from her daily allowance.
+  const claimed = await store.updateRoom(
+    room.id,
+    { version: room.version + 1, lastActiveAt: new Date(now) },
+    { expectVersion: room.version }
+  );
+  if (!claimed) {
+    const settled = await store.getRoomByCode(room.code);
+    if (settled?.rematchCode) return { rematch: { code: settled.rematchCode } };
+    throw new RoomError('busy', 'The room changed just now, try again', 409);
+  }
   const subjects = me.profileId || me.ipHash ? await subjectsForPlayer(store, me) : null;
   const created = await createRoom(store, {
     name: room.name,
@@ -575,7 +629,7 @@ async function rematch(store, room, me, now) {
     subjects,
     now,
   });
-  await touchRoom(store, room, now, { rematchCode: created.room.code });
+  await touchRoom(store, { ...room, version: room.version + 1 }, now, { rematchCode: created.room.code });
   return { rematch: { code: created.room.code, token: created.token, playerId: created.player.id } };
 }
 
@@ -597,12 +651,22 @@ export async function roomAction(store, { code, token, action, body = {}, now = 
       room = await submitGuess(store, room, me, body, now);
       room = await tick(store, room, now, fetchImpl);
       break;
-    case 'next':
+    case 'next': {
       requireHost(me);
+      // Skip what the host was actually looking at. roomAction ticks
+      // first, so the clock can move the room inside this same request:
+      // a reveal countdown expiring here used to advance to the next
+      // round and then be skipped straight past it, revealing a
+      // brand-new round nobody had seen with everyone timed out.
+      const seen = Number(body?.version);
+      if (Number.isFinite(seen) && seen !== room.version) {
+        throw new RoomError('moved_on', 'The room already moved on', 409);
+      }
       if (room.phase === 'guessing') room = await revealRound(store, room, now);
       else if (room.phase === 'reveal') room = await advanceRound(store, room, now, fetchImpl);
       else throw new RoomError('nothing_to_skip', 'Nothing to move on from right now', 409);
       break;
+    }
     case 'locate':
       room = await locateRound(store, room, me, body, now);
       break;

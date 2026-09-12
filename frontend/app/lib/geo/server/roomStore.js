@@ -61,6 +61,19 @@ const databaseStore = {
       update: data,
     });
   },
+  /**
+   * Write a guess row only if the player has none. The reveal's
+   * timed-out rows go through this: a real guess that landed while the
+   * reveal was being computed must never be overwritten with nulls.
+   */
+  async createGuessIfAbsent({ roundId, playerId, ...data }) {
+    try {
+      return await prisma.geoRoomGuess.create({ data: { roundId, playerId, ...data } });
+    } catch (error) {
+      if (error?.code === 'P2002') return null;
+      throw error;
+    }
+  },
 
   // Profiles and ratings
   getProfileByTokenHash(tokenHash) {
