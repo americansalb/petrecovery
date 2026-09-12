@@ -587,7 +587,10 @@ async function script(browser) {
   // The hint is copy, not a disabled button: a control that tells you
   // what to do should not look broken while it tells you.
   await page.waitForSelector('text=Tap the map where that language is spoken');
-  await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 300 } });
+  // Low on the map: the sentence panel sits over its top and a long
+  // sentence wraps to two lines, and the overlays are above the map, so
+  // a click up there is a click on the panel.
+  await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 450 } });
   await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
   await page.click('button:has-text("Guess")');
 
@@ -611,7 +614,7 @@ async function script(browser) {
   // Straight to the end: four more rounds, guessing wherever.
   for (let i = 2; i <= 5; i++) {
     await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
-    await page.click('[data-script-map="leaflet"]', { position: { x: 400 + i * 20, y: 280 } });
+    await page.click('[data-script-map="leaflet"]', { position: { x: 400 + i * 20, y: 430 } });
     await page.click('button:has-text("Guess")');
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
     await page.click('button:has-text("Next round"), button:has-text("See the results")');
