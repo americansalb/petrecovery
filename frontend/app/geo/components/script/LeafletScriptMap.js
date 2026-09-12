@@ -96,7 +96,12 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
   useEffect(() => {
     if (typeof window === 'undefined' || !hostRef.current || mapRef.current) return undefined;
     let cancelled = false;
-    Promise.all([import('leaflet'), loadWorld().catch(() => null)]).then(([mod, world]) => {
+    // The map exists as soon as Leaflet does, and the land is painted on
+    // when its chunk lands, the way tiles used to stream in: a tap
+    // before then is still a tap on the map, and nothing waits on the
+    // larger file.
+    loadWorld().catch(() => null);
+    import('leaflet').then((mod) => {
       const L = mod.default || mod;
       if (cancelled || !hostRef.current || mapRef.current) return;
       const map = L.map(hostRef.current, {
@@ -113,29 +118,35 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         attributionControl: true,
       }).setView([20, 0], 2);
       L.control.zoom({ position: 'bottomleft' }).addTo(map);
-
-      if (world) {
-        // Land on its own canvas: a few thousand vertices pan and zoom
-        // faster there than as SVG, and it is not interactive, so a tap
-        // on a country is a tap on the map. The pin and the reveal's
-        // circles stay SVG, where their tooltips live.
-        L.geoJSON(world, {
-          style: LAND,
-          interactive: false,
-          renderer: L.canvas({ padding: 0.5 }),
-          attribution: 'Natural Earth',
-        }).addTo(map);
-      } else {
-        drawGraticule(L, map);
-        onTroubleRef.current?.();
-      }
-
       map.on('click', (event) => {
         if (!interactiveRef.current) return;
         onPinRef.current?.({ lat: event.latlng.lat, lng: event.latlng.lng });
       });
       leafletRef.current = L;
       mapRef.current = map;
+
+      // Land on its own canvas, in its own pane below the overlays: a
+      // few thousand vertices pan and zoom faster there than as SVG, it
+      // is not interactive, so a tap on a country is a tap on the map,
+      // and the pin and the reveal's circles sit above it whichever
+      // chunk arrived first.
+      map.createPane('land').style.zIndex = 350;
+      loadWorld()
+        .then((world) => {
+          if (cancelled || mapRef.current !== map) return;
+          L.geoJSON(world, {
+            pane: 'land',
+            style: LAND,
+            interactive: false,
+            renderer: L.canvas({ pane: 'land', padding: 0.5 }),
+            attribution: 'Natural Earth',
+          }).addTo(map);
+        })
+        .catch(() => {
+          if (cancelled || mapRef.current !== map) return;
+          drawGraticule(L, map);
+          onTroubleRef.current?.();
+        });
     });
     return () => {
       cancelled = true;

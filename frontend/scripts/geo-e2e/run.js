@@ -580,7 +580,10 @@ async function script(browser) {
   // MapKit and not a tile server: a script round shows no provider's
   // imagery so it owes no provider a map, and the MapKit token is locked
   // to one origin (LeafletScriptMap).
-  await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
+  // The container renders before Leaflet has loaded into it; a click
+  // that lands in between is a click on an empty div. Leaflet's own
+  // class says the map is there.
+  await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
   // The hint is copy, not a disabled button: a control that tells you
   // what to do should not look broken while it tells you.
   await page.waitForSelector('text=Tap the map where that language is spoken');
@@ -607,7 +610,7 @@ async function script(browser) {
 
   // Straight to the end: four more rounds, guessing wherever.
   for (let i = 2; i <= 5; i++) {
-    await page.waitForSelector('[data-script-map="leaflet"]', { timeout: 30000 });
+    await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
     await page.click('[data-script-map="leaflet"]', { position: { x: 400 + i * 20, y: 280 } });
     await page.click('button:has-text("Guess")');
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
