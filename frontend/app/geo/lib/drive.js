@@ -7,7 +7,17 @@
  * ends, and keeps the way the passenger is looking relative to the road.
  */
 
-export const DRIVE_STEP_MS = 1100;
+/**
+ * Every hop is a fresh Street View panorama load, and a panorama load is
+ * what Google bills. At the old 1.1 s a three-minute round bought about
+ * 163 of them while the play meter recorded one round, so the pace and
+ * the total are both bounded now: 72 hops is the whole of a 180-second
+ * round at this step, and the meter charges the site's budget for them
+ * (app/lib/geo/meter.js, KIDNAPPED_LOADS).
+ */
+export const DRIVE_STEP_MS = 2500;
+/** The most panorama loads one driven round may buy. */
+export const MAX_DRIVE_HOPS = 72;
 /** A link is a few dozen metres; a longer hop is a new round or a jump, not driving. */
 export const MAX_HOP_KM = 1;
 const TURN_BACK_DEGREES = 100;

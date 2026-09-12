@@ -5864,6 +5864,8 @@ model GeoUsage {
   free      Int      @default(0)
   paid      Int      @default(0)
   games     Int      @default(0) // free Google room games used (docs/GEO.md, the play meter)
+  challenge Int      @default(0) // free daily/cup rounds used (they sit on top of the allowance)
+  loads     Int      @default(0) // panorama loads bought: 1 a round, more when the car drives itself
   updatedAt DateTime @updatedAt
 
   @@unique([subject, day, provider])

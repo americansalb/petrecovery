@@ -211,11 +211,13 @@ export function createMemoryRoomStore() {
     },
     async bumpUsage(subject, day, provider, inc = {}) {
       const key = `${subject}|${day}|${provider}`;
-      const row = usage.get(key) || { id: id('usage'), subject, day, provider, rounds: 0, free: 0, paid: 0, games: 0 };
+      const row = usage.get(key) || { id: id('usage'), subject, day, provider, rounds: 0, free: 0, paid: 0, games: 0, challenge: 0, loads: 0 };
       row.rounds += inc.rounds || 0;
       row.free += inc.free || 0;
       row.paid += inc.paid || 0;
       row.games += inc.games || 0;
+      row.challenge += inc.challenge || 0;
+      row.loads += inc.loads || 0;
       usage.set(key, row);
       return { ...row };
     },

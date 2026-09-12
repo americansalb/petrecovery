@@ -773,11 +773,17 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
         ? {
             index: current.index,
             provider: config.provider || 'google',
-            panoId: current.panoId,
+            // Imagery goes to players only. A Street View panorama is a
+            // billed load and recordRoomRound charges the room's players,
+            // so anyone who opened the link without joining used to cost
+            // money that nothing counted: not their profile, not their
+            // address, not even the site's budget.
+            panoId: me ? current.panoId : null,
             heading: current.heading,
             // Apple rooms open Look Around at the round's place in every
-            // browser; the place is known to the browser, as in solo play.
-            coordinate: config.provider === 'apple' ? { lat: current.lat, lng: current.lng } : null,
+            // player's browser; the place is known to the browser, as in
+            // solo play.
+            coordinate: me && config.provider === 'apple' ? { lat: current.lat, lng: current.lng } : null,
             deadline: toMs(current.deadline),
             startedAt: toMs(current.startedAt),
             stats: current.stats || null,
@@ -787,7 +793,7 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
       current && room.phase === 'locating'
         ? {
             index: current.index,
-            candidates: (Array.isArray(current.candidates) ? current.candidates : []).map((c) => ({ lat: c.lat, lng: c.lng })),
+            candidates: me ? (Array.isArray(current.candidates) ? current.candidates : []).map((c) => ({ lat: c.lat, lng: c.lng })) : [],
             startedAt: toMs(current.startedAt),
             endsAt: toMs(room.phaseEndsAt),
           }

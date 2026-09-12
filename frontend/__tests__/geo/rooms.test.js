@@ -133,6 +133,33 @@ describe('a classic game', () => {
     expect(anonymous.me).toBeNull();
   });
 
+  test('a spectator gets the room but never the imagery', async () => {
+    // A Street View panorama is a billed load, and recordRoomRound only
+    // charges the players in the room. Anyone who opened the link
+    // without joining used to be handed the panorama id and mount a
+    // pane with it, costing money that nothing counted.
+    const { store, code, tokens } = await setupRoom();
+    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    const player = await getRoomView(store, { code, token: tokens[0], now: T0 + sec(2), fetchImpl: hitFetch });
+    expect(player.round.panoId).toBeTruthy();
+
+    const spectator = await getRoomView(store, { code, now: T0 + sec(2), fetchImpl: hitFetch });
+    expect(spectator.me).toBeNull();
+    expect(spectator.round).not.toBeNull();
+    expect(spectator.round.panoId).toBeNull();
+    expect(spectator.round.coordinate).toBeNull();
+    expect(spectator.players.map((p) => p.name)).toEqual(['Ada', 'Grace']);
+  });
+
+  test('an Apple spectator gets neither the coordinate nor the candidates', async () => {
+    const { store, code, tokens } = await setupRoom({ settings: { provider: 'apple' } });
+    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    const locating = await getRoomView(store, { code, token: tokens[0], now: T0 + sec(1), fetchImpl: hitFetch });
+    expect(locating.locating.candidates.length).toBeGreaterThan(0);
+    const spectator = await getRoomView(store, { code, now: T0 + sec(1), fetchImpl: hitFetch });
+    expect(spectator.locating.candidates).toEqual([]);
+  });
+
   test('a room needs two players to start', async () => {
     const { store, code, tokens } = await setupRoom({ players: ['Solo'] });
     await expect(roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch })).rejects.toMatchObject({ code: 'need_players', status: 409 });

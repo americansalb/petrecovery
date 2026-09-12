@@ -12,7 +12,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { haversineKm } from '@/app/lib/geo/distance';
-import { DRIVE_STEP_MS, MAX_HOP_KM, angleDiff, normalizeHeading, pickLink } from '../lib/drive';
+import { DRIVE_STEP_MS, MAX_DRIVE_HOPS, MAX_HOP_KM, angleDiff, normalizeHeading, pickLink } from '../lib/drive';
 
 const GoogleStreetViewPane = forwardRef(function GoogleStreetViewPane(
   { api, panoId, heading = 0, allowMove = true, allowPan = true, allowZoom = true, drive = false, onHeading, onDrive },
@@ -105,7 +105,7 @@ const GoogleStreetViewPane = forwardRef(function GoogleStreetViewPane(
   useEffect(() => {
     const pano = panoRef.current;
     if (!drive || !pano || !panoId) return undefined;
-    const trip = { travelHeading: normalizeHeading(heading), km: 0, last: null };
+    const trip = { travelHeading: normalizeHeading(heading), km: 0, last: null, hops: 0 };
     const here = () => {
       const p = pano.getPosition?.();
       return p && typeof p.lat === 'function' ? { lat: p.lat(), lng: p.lng() } : null;
@@ -125,8 +125,16 @@ const GoogleStreetViewPane = forwardRef(function GoogleStreetViewPane(
       onDriveRef.current?.(trip.km);
     });
     const step = () => {
+      // The car stops when the trip's panorama loads are spent: each hop
+      // is a billed load, and an unattended interval is not something to
+      // leave open ended.
+      if (trip.hops >= MAX_DRIVE_HOPS) {
+        clearInterval(id);
+        return;
+      }
       const link = pickLink(pano.getLinks?.(), trip.travelHeading);
       if (!link) return;
+      trip.hops += 1;
       const pov = pano.getPov?.() || { heading: trip.travelHeading, pitch: 0 };
       const look = angleDiff(pov.heading, trip.travelHeading);
       trip.travelHeading = normalizeHeading(link.heading);

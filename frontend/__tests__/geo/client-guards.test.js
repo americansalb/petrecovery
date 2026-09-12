@@ -73,3 +73,29 @@ describe('ScriptPlayClient: the clock submits once, outside the state updater', 
     expect(src).toContain('firedRef.current = round.token;');
   });
 });
+
+describe('RoomClient: only players load billed imagery', () => {
+  const src = read('app/geo/components/RoomClient.js');
+
+  test('the panorama panes are gated on having joined', () => {
+    // The joined check was applied to the cheap component (the guess
+    // map) and missed on the expensive one, so anyone who opened the
+    // room link mounted a Street View pane and loaded a panorama for
+    // every round, charged to nobody.
+    expect(src).toMatch(/const showImagery = !isApple && api && joined &&/);
+    expect(src).toMatch(/const showApple = isApple && mapkit && joined &&/);
+  });
+});
+
+describe('GoogleStreetViewPane: the self-driving car stops', () => {
+  const src = read('app/geo/components/GoogleStreetViewPane.js');
+
+  test('the drive is bounded by a hop count, not only by the clock', () => {
+    // Each hop is a setPano, which is a billed panorama load. An
+    // unattended interval over a three-minute round bought about 163 of
+    // them while the meter recorded one round.
+    expect(src).toContain('MAX_DRIVE_HOPS');
+    expect(src).toMatch(/if \(trip\.hops >= MAX_DRIVE_HOPS\) \{\s*\n\s*clearInterval\(id\);/);
+    expect(src).toContain('trip.hops += 1;');
+  });
+});

@@ -509,12 +509,24 @@ holds the counts per subject per UTC day per provider):
 
 | | Google | Apple |
 |---|---|---|
-| Free per player per day | 25 solo rounds, five games of five (`GEO_FREE_GOOGLE_ROUNDS`), and one room game (`GEO_FREE_GOOGLE_ROOM_GAMES`); the daily challenge and the weekly cup are on top | no limit |
+| Free per player per day | 25 solo rounds, five games of five (`GEO_FREE_GOOGLE_ROUNDS`), and one room game (`GEO_FREE_GOOGLE_ROOM_GAMES`); the daily challenge and the weekly cup add 10 rounds on top (`GEO_FREE_CHALLENGE_ROUNDS`), after which they draw on the solo allowance like anything else | no limit |
 | After that | prepaid rounds on the profile (`paidRounds`, quota packs bought once; no subscriptions anywhere), then a refusal | |
 | Per player per day, any imagery | 600 anonymous, 2,000 signed in | same |
-| Per address per day | 5,000, and 125 free Google rounds as a backstop for anonymous players who clear the browser | same |
-| Per player per minute | 15 | 15 |
-| Whole site per day | 20,000 | 200,000, under Apple's 250,000 views |
+| Per address per day | 5,000, and as a backstop for anonymous players who clear the browser: 125 free Google rounds and 50 challenge rounds | same |
+| Per player per minute | 15, by profile or, with no profile, by address | 15 |
+| Whole site per day | 20,000 panorama loads | 200,000, under Apple's 250,000 views |
+
+The site's budget is the one limit counted in panorama loads rather than
+rounds, because it is the one that exists to bound the bill. Every mode
+shows one panorama a round except Kidnapped, where the car drives itself
+and each hop is another billed load: a Kidnapped round is 73 loads
+(`KIDNAPPED_LOADS`, one for the drop and `MAX_DRIVE_HOPS` for the
+drive). The drive stops when those hops are spent.
+
+Imagery goes to players only. A spectator on `/geo/room/CODE` gets the
+room, the players and the reveal, but no panorama id and no Look Around
+coordinate: `recordRoomRound` charges the room's players, so a panorama
+loaded by anyone else would be money nothing counted.
 
 Anonymous players are tracked by profile and by hashed IP address, so
 clearing the browser does not reset the allowance. Signed-in players are
@@ -662,7 +674,8 @@ GEO_STREET_VIEW_METADATA_URL=...   # optional, development only: a local mock of
 
 Free tier (Google, per month, as of March 2025 pricing): metadata probes
 unlimited, 5,000 Dynamic Street View loads, 10,000 Dynamic Maps loads.
-One game of five rounds is five panorama loads and one map load.
+One game of five rounds is five panorama loads and one map load. One
+game of Kidnapped is up to 365, because the car drives.
 
 Apple: the app already loads MapKit JS. Look Around arrived in MapKit JS
 5.79 but is not in the full `mapkit.js` bundle; the game asks for the

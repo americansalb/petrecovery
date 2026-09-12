@@ -277,8 +277,12 @@ export default function RoomClient({ code }) {
   const notFound = error?.status === 404;
   const joined = Boolean(identity && me);
   const imageryReady = isApple ? Boolean(mapkit) : Boolean(api);
-  const showImagery = !isApple && api && status === 'playing' && shownRound;
-  const showApple = isApple && mapkit && status === 'playing' && appleCandidates?.length > 0;
+  // Players only: every panorama a browser opens is a billed load, and
+  // the meter charges the room's players. The server withholds the
+  // panorama id from anyone who has not joined; this keeps the pane from
+  // mounting for them at all.
+  const showImagery = !isApple && api && joined && status === 'playing' && shownRound;
+  const showApple = isApple && mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-midnight-950 text-white">

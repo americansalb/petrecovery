@@ -42,15 +42,53 @@ export function cupEndsAt(key) {
   return isoWeekEnd(String(key || '').replace(/^cup:/, ''));
 }
 
-/** The board a scored round belongs to, from the sealed token's mode and seed. */
-export function challengeFor(result) {
+/**
+ * How long after a challenge's window closes a round may still land on
+ * its board: enough for a game that was in flight over the boundary,
+ * not enough to be worth waiting for.
+ */
+export const CHALLENGE_GRACE_MS = 2 * 60 * 60 * 1000;
+
+/** [start, end) of the window a board key covers, or null. */
+export function challengeWindow(key) {
+  const daily = /^daily:(\d{4})-(\d{2})-(\d{2})$/.exec(String(key || ''));
+  if (daily) {
+    const start = Date.UTC(Number(daily[1]), Number(daily[2]) - 1, Number(daily[3]));
+    if (!Number.isFinite(start)) return null;
+    return { start, end: start + 86400000 };
+  }
+  const cup = /^cup:(\d{4}-W\d{2})$/.exec(String(key || ''));
+  if (cup) {
+    const end = isoWeekEnd(cup[1]);
+    return end ? { start: end - 7 * 86400000, end } : null;
+  }
+  return null;
+}
+
+/** Is this board open for writing right now? */
+export function challengeIsOpen(key, now = Date.now()) {
+  const window = challengeWindow(key);
+  if (!window) return false;
+  return now >= window.start && now < window.end + CHALLENGE_GRACE_MS;
+}
+
+/**
+ * The board a scored round belongs to, from the sealed token's mode and
+ * seed, or null when there is none to write to.
+ *
+ * The seed is chosen by the caller, so the window is checked here: a
+ * seed of "daily-2031-01-01" is a perfectly valid shape, and without
+ * this a player could fill in every future day's board before those
+ * days exist, and top up old ones forever.
+ */
+export function challengeFor(result, now = Date.now()) {
   if (result?.mode === 'daily') {
     const key = dailyKey(result.seed);
-    return key ? { key, rounds: DAILY_ROUNDS, kind: 'daily' } : null;
+    return key && challengeIsOpen(key, now) ? { key, rounds: DAILY_ROUNDS, kind: 'daily' } : null;
   }
   if (result?.mode === 'cup') {
     const key = cupKey(result.seed);
-    return key ? { key, rounds: CUP_ROUNDS, kind: 'cup' } : null;
+    return key && challengeIsOpen(key, now) ? { key, rounds: CUP_ROUNDS, kind: 'cup' } : null;
   }
   return null;
 }
@@ -104,10 +142,18 @@ function entryView(entry, rounds) {
  * scored.
  */
 export async function recordChallengeRound(store, { profileId, key, index, score, distanceKm = null, rounds = DAILY_ROUNDS, now = Date.now() }) {
+  // The round index rides in on the sealed token, and the round route
+  // used to accept any index up to 999: a five-round daily could be
+  // posted as a thousand-round total. A challenge has exactly `rounds`.
+  const i = Math.floor(Number(index));
+  if (!Number.isFinite(i) || i < 0 || i >= rounds) {
+    const existing = await store.getChallengeEntry(profileId, key);
+    return { key, recorded: false, ...entryView(existing, rounds) };
+  }
   const created = await store.createChallengeRound({
     profileId,
     key,
-    index,
+    index: i,
     score: Math.max(0, Math.round(Number(score) || 0)),
     distanceKm: Number.isFinite(distanceKm) ? distanceKm : null,
     createdAt: new Date(now),

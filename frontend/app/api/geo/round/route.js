@@ -46,7 +46,11 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Send a JSON body with the game config' }, { status: 400 });
   }
   const config = normalizeConfig(body?.config || body || {});
-  const roundIndex = Math.max(0, Math.min(999, Math.floor(Number(body?.roundIndex) || 0)));
+  // A game has as many rounds as its mode says; streak (rounds: 0) is
+  // the only endless one. Without this a five-round daily could ask for
+  // round 999 and be charged, scored and posted as one.
+  const maxIndex = config.rounds > 0 ? config.rounds - 1 : 999;
+  const roundIndex = Math.max(0, Math.min(maxIndex, Math.floor(Number(body?.roundIndex) || 0)));
   const attempt = Math.max(0, Math.min(20, Math.floor(Number(body?.attempt) || 0)));
 
   // The meter. A store failure here is logged and the round goes on:
@@ -62,7 +66,7 @@ export async function POST(request) {
 
   try {
     const round = await createRound({ config, roundIndex, attempt, cache: prismaRoundCache });
-    if (decision) await recordRound(prismaRoomStore, { subjects, provider: config.provider, source: decision.source });
+    if (decision) await recordRound(prismaRoomStore, { subjects, provider: config.provider, source: decision.source, mode: config.mode });
     return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoGameError || error instanceof GeoSamplerError) {
