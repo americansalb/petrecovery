@@ -311,14 +311,34 @@ the answer can be read from.
 **The screen.** A script round is the one screen in the game with no
 imagery on it, so it is the one screen that is light: warm paper, a pale
 sea, dark type. The sentence has the top of the screen and the map has
-the rest, rather than floating over it. The map writes country names on
-itself, from Natural Earth's own label anchors and at the zooms its
-cartographers set (`app/lib/geo/data/country-labels.json`), because
-reading a country from its silhouette is a different game and a worse
-one. Nothing smaller is ever named: a state or a city would hand over
-the answer. The pin drops, the answer's regions draw themselves in, the
-map flies to fit both, and the score counts up; all of it is off under
-`prefers-reduced-motion`.
+the rest, rather than floating over it. The pin drops, the answer's
+regions fade in, the map flies to fit both, and the score counts up; all
+of it is off under `prefers-reduced-motion`.
+
+**The map is Apple's**
+(`app/geo/components/script/AppleScriptMap.js`): Muted Standard, points
+of interest off, the answer drawn as polygon overlays and the miss as a
+dashed line to the border it was measured to. The camera is held above
+about a 290 km view, which was the old map's limit too. Apple writes its
+own place names and MapKit has no way to turn them off, so holding the
+camera up is the only lever there is for keeping the round about which
+language rather than which suburb; closer than that the round is not
+worth playing anyway. Apple's tiles are Apple's, and their terms do not
+allow storing or re-serving them, so there is no cache to build: every
+view is a view against the 250,000 a day the token covers.
+
+**When MapKit will not authorize, the game draws the world itself**
+(`app/geo/components/script/LeafletScriptMap.js`). The shipped token is
+locked to the reunitepets.org origin, so on a clone, on localhost and on
+a preview deployment Apple refuses, and a script round with a dead map
+is a round nobody can finish. The fallback is Leaflet over the same
+Natural Earth polygons the server scores with, with country names from
+Natural Earth's own label anchors at the zooms its cartographers set
+(`app/lib/geo/data/country-labels.json`): no key, no quota, and nothing
+fetched from anyone during a round. Nothing smaller than a country is
+ever named on it, because a state or a city would hand over the answer.
+A refusal is latched for the rest of the game, so a token that recovers
+mid-round does not swap the map out from under a pin.
 
 **The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
 
@@ -337,10 +357,12 @@ the pool's answers live in, so a pin on the right continent is worth
 real points in World and almost nothing in South Asia, where every
 answer was already inside that box.
 
-**Nothing here costs money.** No imagery provider, no metadata probe, no
-key, so script rounds never touch the play meter. That is arithmetic
-rather than generosity: a text round has no marginal cost to meter. It
-also means the mode works on a server with no Google keys at all.
+**Script rounds never touch the play meter.** No imagery, no metadata
+probe, no Google key. That is arithmetic rather than generosity: a text
+round has no marginal cost to meter, and the mode works on a server with
+no Google keys at all. The map is a MapKit view like any other round's,
+counted against the same daily allowance, and the keyless fallback above
+costs nothing at all.
 
 **The corpus** is `app/lib/geo/server/samples.js`, and it is server only
 on purpose: if the browser held it, it could match the sentence on
@@ -804,20 +826,17 @@ No Google project, no database, no mail account, no domain. It starts
 the mock metadata server and the dev server, mints a throwaway token
 secret, and prints what does and does not work.
 
-**Script mode is the one that needs nobody's permission**, and that is
-deliberate. Its map is Leaflet drawing the world from the polygons the
-game already ships (Natural Earth 1:110m, the `world-atlas` package,
-the same file the server scores with), not MapKit and not a tile server
-(`app/geo/components/script/LeafletScriptMap.js`): a script round shows
-no provider's imagery, so it owes no provider a map, and the MapKit
-token this repository ships is locked to the reunitepets.org origin. On
-localhost, on a preview deployment, or on the game's own domain, a
-MapKit map does not authorise and the round cannot be answered. The
-outline is one 108 KB chunk of the game's own bundle, cached by the
-browser like any other, so nothing is fetched from anyone during a
-round. It was CARTO's raster tiles until September 2026, when those
-started coming back stamped "API KEY REQUIRED"; a world outline with no
-labels never needed a tile server.
+**Script mode is the one that plays through to the end with nothing
+configured**, and that is deliberate. It normally runs on Apple's map
+like the rest of the game, but the MapKit token this repository ships is
+locked to the reunitepets.org origin, so here it does not authorize.
+When it does not, the round falls back to the world drawn from polygons
+the game already ships (Natural Earth 1:110m, the `world-atlas` package,
+the same file the server scores with), one 108 KB chunk of the bundle,
+cached by the browser like any other: no key, no quota, nothing fetched
+from anyone during a round. That fallback was CARTO's raster tiles until
+September 2026, when those started coming back stamped "API KEY
+REQUIRED"; a world outline with no labels never needed a tile server.
 
 Rooms, ratings, points, the shop and sign-in all work too, on an
 in-memory store that forgets everything when the process stops **or when

@@ -25,6 +25,22 @@
 
 /* The map ------------------------------------------------------------ */
 
+/* Apple's map, which is the one a round is normally played on. The
+   container carries the sea colour underneath so the beat before the
+   first tiles arrive is the same colour as the map that replaces them,
+   and MapKit's layers are contained for the same reason Leaflet's are
+   below: this screen stacks panels over the map. */
+[data-script-map='apple'] {
+  isolation: isolate;
+  background: var(--wg-sea);
+}
+/* During a reveal the answer panel owns the bottom of the screen and the
+   map has already flown to the answer, so the zoom control is only in
+   the way. */
+[data-script-map='apple'][data-map-mode='result'] .mk-zoom-control {
+  display: none;
+}
+
 [data-script-map='leaflet'].leaflet-container {
   background: var(--wg-sea);
   font-family: inherit;

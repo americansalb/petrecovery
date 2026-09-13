@@ -37,6 +37,74 @@ let initPromise = null;
  */
 const INIT_FLAG = '__geoMapKitReady';
 
+/**
+ * What Apple said about the token, once it has said anything.
+ *
+ * MapKit does not reject `init()` when a token is refused. The script
+ * loads, the map object is built, the tiles never arrive, and the
+ * player is left tapping a blank rectangle. That is the normal case on
+ * localhost and on a preview deployment, because the token this
+ * repository ships is locked to the reunitepets.org origin, and it is
+ * also what a spent daily quota looks like.
+ *
+ * Callers that have somewhere else to go need to know. MapKit answers
+ * on the namespace: `configuration-change` with a status of Initialized
+ * once it has authorized, `error` with Unauthorized, Too Many Requests
+ * or Initialization Failed when it has not. Both are recorded here as
+ * 'ok' or 'failed', starting from 'pending'.
+ *
+ * Kept on the window for the same reason as INIT_FLAG: a hot reload
+ * gives this module fresh state but not the page a fresh MapKit.
+ */
+const AUTH_FLAG = '__geoMapKitAuth';
+
+const authWatchers = new Set();
+let watchingAuth = false;
+
+function setAuth(state) {
+  if (typeof window === 'undefined' || window[AUTH_FLAG] === state) return;
+  window[AUTH_FLAG] = state;
+  for (const watcher of [...authWatchers]) {
+    try {
+      watcher(state);
+    } catch {
+      /* one bad subscriber does not stop the others */
+    }
+  }
+}
+
+/** 'pending' until Apple answers, then 'ok' or 'failed'. */
+export function mapKitAuth() {
+  if (typeof window === 'undefined') return 'pending';
+  return window[AUTH_FLAG] || 'pending';
+}
+
+/** Call `fn` whenever that changes. Returns an unsubscribe. */
+export function onMapKitAuth(fn) {
+  authWatchers.add(fn);
+  return () => authWatchers.delete(fn);
+}
+
+function watchAuth(mapkit) {
+  if (watchingAuth) return;
+  watchingAuth = true;
+  if (typeof mapkit.addEventListener !== 'function') {
+    // A build with no way to ask. Say yes: Apple is what every other
+    // round in the game assumes, and a caller waiting for an answer
+    // that cannot come would leave Apple on the shelf for everyone.
+    setAuth('ok');
+    return;
+  }
+  mapkit.addEventListener('configuration-change', (event) => {
+    if (event?.status === 'Initialized' || event?.status === 'Refreshed') setAuth('ok');
+  });
+  // Every error status means Apple has stopped drawing: Unauthorized is
+  // the wrong origin or a dead token, Too Many Requests is the day's
+  // quota, and Timeout and Network Error are a token that never
+  // arrived. None of them leave a map on the screen.
+  mapkit.addEventListener('error', () => setAuth('failed'));
+}
+
 /** Put the script on the page once, however many callers ask at once. */
 function loadMapKitScript() {
   return new Promise((resolve, reject) => {
@@ -76,6 +144,9 @@ export async function initializeMapKit() {
   initPromise = (async () => {
     try {
       const mapkit = await loadMapKitScript();
+      // Listening before init, because the Initialized event is fired
+      // from inside it and a listener attached afterwards misses it.
+      watchAuth(mapkit);
       if (!window[INIT_FLAG]) {
         mapkit.init({
           authorizationCallback: (done) => done(MAPKIT_TOKEN),
