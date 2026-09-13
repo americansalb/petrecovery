@@ -9,8 +9,9 @@
  * two-browser room: lobby, rounds, reveal,
  * an Apple Look Around room played to a reveal,
  * reactions, standings with ratings, rematch, leaderboard (needs the
- * database, see docs/GEO.md), and a five-round script game where the
- * answer is a linguistic region rather than a point.
+ * database, see docs/GEO.md), a five-round script game where the
+ * answer is a linguistic region rather than a point, and that same
+ * round with the MapKit token refused, which is what a clone sees.
  *
  * Setup (from frontend/):
  *   node scripts/geo-e2e/mock-metadata.js &
@@ -20,7 +21,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -43,8 +44,16 @@ const OUT = process.env.GEO_E2E_OUT || os.tmpdir();
 const log = (...args) => console.log(...args);
 const shot = (page, name) => page.screenshot({ path: path.join(OUT, `geo-e2e-${name}.png`) });
 
-async function newPage(browser, viewport) {
+async function newPage(browser, viewport, options = {}) {
   const page = await browser.newPage({ viewport });
+  // The fake MapKit answers about the token the way the real one does,
+  // on the namespace and a tick late. 'failed' plays the origin-locked
+  // token: the script round has a keyless map to fall back to.
+  if (options.mapkitAuth) {
+    await page.addInitScript((state) => {
+      window.__fakeMapKitAuth = state;
+    }, options.mapkitAuth);
+  }
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   if (process.env.GEO_E2E_TRACE) {
@@ -571,9 +580,9 @@ const SOUTH_ASIA_SCRIPTS = ['deva', 'beng', 'guru', 'gujr', 'orya', 'taml', 'tel
 /**
  * The script game: read a sentence, pin where the language is spoken.
  * The point of the scenario is that the answer is an area, so it checks
- * the reveal really draws the language's heartlands as circles, and that
- * a pin on the wrong continent is worth less than one in the right
- * place. No imagery, no key, no meter.
+ * the reveal really draws the language's heartlands, and that the round
+ * is played on Apple's map like the rest of the game. No imagery, no
+ * meter.
  */
 async function script(browser) {
   log('\n== script ==');
@@ -610,32 +619,25 @@ async function script(browser) {
   if (await page.locator('text=no font for this writing system').count()) throw new Error('missing glyphs for ' + script);
   if (!SOUTH_ASIA_SCRIPTS.includes(script)) throw new Error(`the South Asia pool served ${script}`);
 
-  // The script map is Leaflet drawing the bundled country polygons, not
-  // MapKit and not a tile server: a script round shows no provider's
-  // imagery so it owes no provider a map, and the MapKit token is locked
-  // to one origin (LeafletScriptMap).
-  // The container renders before Leaflet has loaded into it; a click
-  // that lands in between is a click on an empty div. Leaflet's own
-  // class says the map is there.
-  await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
+  // The round is played on Apple's map. The host div renders before
+  // MapKit has built anything into it; a click that lands in between is
+  // a click on an empty div, so wait for the map itself.
+  await page.waitForSelector('[data-script-map="apple"] [data-fake-mapkit]', { timeout: 30000 });
   // The hint is copy, not a disabled button: a control that tells you
   // what to do should not look broken while it tells you.
   await page.waitForSelector('text=Tap the map where that language is spoken');
-  // Low on the map: the sentence panel sits over its top and a long
-  // sentence wraps to two lines, and the overlays are above the map, so
-  // a click up there is a click on the panel.
-  await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 450 } });
+  // Low on the map: the panels are above it, so a click up there is a
+  // click on a panel.
+  await page.click('[data-script-map="apple"]', { position: { x: 600, y: 450 } });
   await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
   await page.click('button:has-text("Guess")');
 
   await page.waitForSelector('button:has-text("Next round")', { timeout: 30000 });
   const reveal = await page.evaluate(() => document.body.innerText);
-  // Leaflet draws a circle as an SVG path, so counting paths counts the
-  // heartlands the reveal drew.
-  // South Asian languages are drawn as the states and districts they
-  // are spoken in, the rest of the world as discs; Leaflet draws either
-  // as an SVG path, so counting paths counts the regions.
-  const shapes = await page.locator('[data-script-map="leaflet"] path.leaflet-interactive').count();
+  // Every language in the corpus is drawn as the real places it is
+  // spoken in, one polygon per piece of land, so counting the polygon
+  // overlays counts the regions the reveal drew.
+  const shapes = Number(await page.locator('[data-script-map="apple"]').getAttribute('data-fake-polygons'));
   log('reveal names a language:', /million speakers/.test(reveal));
   log('regions drawn:', shapes);
   if (!shapes) throw new Error('the reveal drew no regions: the answer is an area, that is the mode');
@@ -650,8 +652,8 @@ async function script(browser) {
 
   // Straight to the end: four more rounds, guessing wherever.
   for (let i = 2; i <= 5; i++) {
-    await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
-    await page.click('[data-script-map="leaflet"]', { position: { x: 400 + i * 20, y: 430 } });
+    await page.waitForSelector('[data-script-map="apple"] [data-fake-mapkit]', { timeout: 30000 });
+    await page.click('[data-script-map="apple"]', { position: { x: 400 + i * 20, y: 430 } });
     await page.click('button:has-text("Guess")');
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
     await page.click('button:has-text("Next round"), button:has-text("See the results")');
@@ -665,11 +667,44 @@ async function script(browser) {
   await page.close();
 }
 
+/**
+ * The same round with Apple refusing the token, which is what a clone,
+ * a localhost and a preview deployment all look like: the origin-locked
+ * token this repository ships does not authorize there. The round has
+ * to stay answerable, on the game's own keyless map, because a script
+ * round with a dead map is a round nobody can finish.
+ */
+async function scriptFallback(browser) {
+  log('\n== scriptFallback ==');
+  const page = await newPage(browser, { width: 1280, height: 800 }, { mapkitAuth: 'failed' });
+  await page.goto(`${BASE}/geo/script/play?ladder=world&rounds=3&seed=e2e-script-fallback`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('p[lang]', { timeout: 60000 });
+
+  // Leaflet's own class says the map is really there, not just its div.
+  await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
+  if (await page.locator('[data-script-map="apple"]').count()) throw new Error('a refused token still left the Apple map on screen');
+  await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 450 } });
+  await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
+  await page.click('button:has-text("Guess")');
+
+  await page.waitForSelector('button:has-text("Next round")', { timeout: 30000 });
+  // Leaflet draws every region as an SVG path, so counting paths counts
+  // the regions the reveal drew.
+  const shapes = await page.locator('[data-script-map="leaflet"] path.leaflet-interactive').count();
+  log('regions drawn on the keyless map:', shapes);
+  if (!shapes) throw new Error('the fallback map drew no regions');
+  const reveal = await page.evaluate(() => document.body.innerText);
+  if (!/points/.test(reveal)) throw new Error('the reveal showed no score');
+  await shot(page, 'script-fallback-reveal');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

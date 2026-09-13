@@ -52,6 +52,17 @@
       Object.assign(this, options || {});
     }
   }
+  class PolygonOverlay {
+    constructor(points, options) {
+      this.points = points;
+      Object.assign(this, options || {});
+    }
+  }
+  class CameraZoomRange {
+    constructor(minCameraDistance, maxCameraDistance) {
+      Object.assign(this, { minCameraDistance, maxCameraDistance });
+    }
+  }
 
   class Map {
     constructor(el) {
@@ -94,13 +105,23 @@
     }
     addOverlays(list) {
       this.overlays.push(...list);
-      this.el.setAttribute('data-fake-overlays', String(this.overlays.length));
-      this.el.setAttribute('data-fake-circles', String(this.overlays.filter((o) => o instanceof CircleOverlay).length));
+      this.sync();
     }
     removeOverlays(list) {
       this.overlays = this.overlays.filter((x) => !list.includes(x));
+      this.sync();
     }
-    showItems() {}
+    // The script round's answer is an area, drawn as one polygon per
+    // piece of land, so a scenario that wants to know the reveal really
+    // drew the regions counts these.
+    sync() {
+      this.el.setAttribute('data-fake-overlays', String(this.overlays.length));
+      this.el.setAttribute('data-fake-circles', String(this.overlays.filter((o) => o instanceof CircleOverlay).length));
+      this.el.setAttribute('data-fake-polygons', String(this.overlays.filter((o) => o instanceof PolygonOverlay).length));
+    }
+    showItems(items) {
+      this.shown = items;
+    }
     destroy() {}
   }
 
@@ -133,22 +154,47 @@
 
   window.__fakeMaps = [];
   window.__fakeLookArounds = [];
+
+  // MapKit answers about the token on the namespace rather than by
+  // rejecting init(), and the game listens for it: an origin-locked
+  // token or a spent quota is an 'error', a good one is a
+  // 'configuration-change'. The script round falls back to its own
+  // keyless map on the first, so the harness can play that case by
+  // setting window.__fakeMapKitAuth = 'failed' before the page loads.
+  const nsListeners = {};
+  const fire = (name, event) => (nsListeners[name] || []).forEach((fn) => fn(event));
+
   window.mapkit = {
     LookAround,
     load: (library) => Promise.resolve(library),
+    addEventListener(name, fn) {
+      (nsListeners[name] = nsListeners[name] || []).push(fn);
+    },
+    removeEventListener(name, fn) {
+      nsListeners[name] = (nsListeners[name] || []).filter((x) => x !== fn);
+    },
     init(options) {
       options?.authorizationCallback?.(() => {});
+      const refused = window.__fakeMapKitAuth === 'failed';
+      // Apple answers over the network, so never in the same tick.
+      setTimeout(() => {
+        if (refused) fire('error', { status: 'Unauthorized' });
+        else fire('configuration-change', { status: 'Initialized' });
+      }, 0);
     },
     Map,
     Coordinate,
     CoordinateSpan,
     CoordinateRegion,
+    CameraZoomRange,
     Padding,
     Style,
     MarkerAnnotation,
     CircleOverlay,
     PolylineOverlay,
+    PolygonOverlay,
     FeatureVisibility: { Hidden: 'hidden', Visible: 'visible' },
   };
   Map.ColorSchemes = { Light: 'light', Dark: 'dark' };
+  Map.MapTypes = { Standard: 'standard', MutedStandard: 'mutedStandard', Satellite: 'satellite', Hybrid: 'hybrid' };
 })();

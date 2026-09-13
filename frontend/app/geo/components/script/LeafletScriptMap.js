@@ -1,26 +1,25 @@
 'use client';
 
 /**
- * The script game's map, drawn from data the game already ships.
+ * The script game's map when Apple will not draw one.
  *
- * Every other map in the game belongs to an imagery provider: showing
- * Street View obliges you to put the pin on a Google map, and Look
- * Around obliges MapKit. A script round shows a sentence, so it owes
- * neither of them anything, and using their maps anyway costs something
- * real: the MapKit token this repository ships is locked to the
- * reunitepets.org origin, so on localhost, on a preview deployment, or
- * on any other domain the map does not authorise and the round cannot
- * be answered.
+ * A script round is played on Apple Maps like the rest of the game
+ * (AppleScriptMap). This is what happens when it cannot be: the MapKit
+ * token this repository ships is locked to the reunitepets.org origin,
+ * so on localhost, on a preview deployment or on a clone with an empty
+ * environment MapKit refuses, and the day's quota can refuse as well.
+ * The round is a sentence and a pin, so it needs a map with edges on it
+ * and nothing else. This one is drawn from files already in the bundle:
+ * no key, no account, no quota, and nothing fetched from anyone while a
+ * round is played.
  *
- * This used to be Leaflet on CARTO's raster tiles, which were free
- * without a key until they were not: in September 2026 every tile came
- * back stamped "API KEY REQUIRED". A world outline needs no tile
- * server. The country polygons the server already scores with (Natural
- * Earth 1:110m, the world-atlas package) are drawn here as vector
- * shapes, and the country names come from Natural Earth's own label
- * anchors: two files in the game's own bundle, fetched once and cached
- * like any other chunk. No key, no account, no quota, and nothing
- * fetched from anyone while a round is played.
+ * It was the map this screen shipped with, on CARTO's raster tiles
+ * until those stopped being free without a key: in September 2026 every
+ * tile came back stamped "API KEY REQUIRED". A world outline needs no
+ * tile server. The country polygons the server already scores with
+ * (Natural Earth 1:110m, the world-atlas package) are drawn here as
+ * vector shapes, and the country names come from Natural Earth's own
+ * label anchors.
  *
  * **Countries are named, nothing smaller is.** Reading a country from
  * its silhouette is a different game and a worse one: this round asks
@@ -28,11 +27,9 @@
  * A state or a city name would hand over the answer, so the map has
  * neither, and that is the only reason the world is drawn without them.
  *
- * Same contract as ScriptMap so the play client does not care which it
- * has: tap to pin, and on the reveal draw where the language is spoken,
- * because the answer is an area rather than a point: the states and
- * districts themselves for South Asia, a disc for the rest of the world
- * until those regions are drawn properly too.
+ * Same contract as AppleScriptMap so the play client does not care
+ * which it has: tap to pin, and on the reveal draw where the language
+ * is spoken, because the answer is an area rather than a point.
  *
  * If the outline chunk cannot be loaded (a captive network on a first
  * visit), a latitude and longitude grid is drawn in its place and
@@ -42,7 +39,7 @@
  */
 
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const ANSWER = '#16a34a';
 const GUESS = '#e08c0a';
@@ -192,6 +189,12 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
   const drawnRef = useRef([]);
   const onPinRef = useRef(onPin);
   const onTroubleRef = useRef(onMapTrouble);
+  // Leaflet arrives in its own chunk, so the map does not exist on the
+  // first render. The effects below wait for this rather than for their
+  // own props to change: this map can be mounted into a round that is
+  // already at its reveal, when Apple refuses mid-game, and the answer
+  // still has to be drawn.
+  const [ready, setReady] = useState(false);
   const interactiveRef = useRef(mode === 'guess');
   onPinRef.current = onPin;
   onTroubleRef.current = onMapTrouble;
@@ -227,6 +230,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
       });
       leafletRef.current = L;
       mapRef.current = map;
+      setReady(true);
 
       // Land below the overlays, names above them but below the answer:
       // a country's name should not be hidden by the shape drawn on it,
@@ -270,6 +274,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         /* already gone */
       }
       mapRef.current = null;
+      setReady(false);
     };
   }, []);
 
@@ -284,7 +289,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     }
     if (!pin || mode !== 'guess') return;
     pinRef.current = L.marker([pin.lat, pin.lng], { icon: dot(L, GUESS, 'Your guess'), keyboard: false }).addTo(map);
-  }, [pin, mode]);
+  }, [pin, mode, ready]);
 
   // The reveal: where the language is spoken, and how far off the pin was.
   useEffect(() => {
@@ -347,7 +352,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     } catch {
       /* one layer, or none: leave the view alone */
     }
-  }, [answer, guess, nearestPoint, mode]);
+  }, [answer, guess, nearestPoint, mode, ready]);
 
   return <div ref={hostRef} className={`h-full w-full ${className}`} data-script-map="leaflet" data-map-mode={mode} />;
 }

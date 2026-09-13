@@ -920,7 +920,7 @@ Stack: `leaflet@1.9.4`, `react-leaflet@4.2.1`, `leaflet-draw@1.0.4`. All map com
 | `/admin/divisions/create` | **leaflet-draw** polygon editor (injects `leaflet.draw.css` from unpkg at runtime) |
 | widgets | `SquadCoverageMap`, `SearchAreaMap`, `SightingForm`, `FlyerMapView`/`FlyerTracker`, `MissionMapPanel`; `components/maps/AppleMap.js` for shelter/place search |
 | `/geo/play` | `GoogleStreetViewPane` + `GoogleGuessMap` (Maps JavaScript API, loaded by `app/geo/lib/googleMaps.js`; Google's terms keep Street View off non-Google maps) or `AppleLookAroundPane` + `AppleGuessMap` (MapKit JS Look Around). Never both on one screen |
-| `/geo/script/play` | `LeafletScriptMap` (Leaflet drawing the world from the bundled Natural Earth 1:110m polygons; no MapKit, no tile server). The shipped MapKit token is origin-locked to reunitepets.org, so the script map is deliberately keyless and plays on localhost, on a preview and on the game's own domain. No imagery pane: the round is a sentence. The reveal draws the language's heartlands as circle overlays, because the answer is an area |
+| `/geo/script/play` | `AppleScriptMap` (MapKit, Muted Standard, points of interest off, camera held above a ~290 km view). No imagery pane: the round is a sentence. The reveal draws the language's regions as polygon overlays, because the answer is an area. When MapKit will not authorize (a clone, localhost, a preview, a spent quota) the round falls back to `LeafletScriptMap`, which draws the world from the bundled Natural Earth 1:110m polygons with no key and no quota; the refusal is latched for the rest of the game |
 
 ### 8.6 Motion & charts
 

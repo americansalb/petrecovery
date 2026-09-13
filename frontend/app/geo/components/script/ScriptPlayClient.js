@@ -10,11 +10,14 @@
  * Immersive route (app/lib/navChrome.js): the screen is the game's, and
  * the X leads back to the lobby.
  *
- * The map is Leaflet rather than MapKit, and that is the difference
- * between this mode and the rest of the game: a script round shows no
- * provider's imagery, so it owes no provider a map, and the keyless
- * version means the mode runs on a clone of the repository with an
- * empty environment. See LeafletScriptMap.
+ * The map is Apple's, like the rest of the game (AppleScriptMap). It
+ * has one thing the panorama rounds do not: a fallback. The shipped
+ * MapKit token is locked to the reunitepets.org origin and the quota is
+ * a day's worth of views, so on a clone, on localhost, on a preview
+ * deployment or on a heavy day Apple says no, and a script round with a
+ * dead map is a round that cannot be answered at all. When that
+ * happens the game's own keyless map takes over (LeafletScriptMap): the
+ * world drawn from polygons in the bundle, no key and no quota.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -25,6 +28,8 @@ import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { LADDERS, normalizeScriptConfig, scriptConfigToQuery } from '@/app/lib/geo/script';
 import dynamic from 'next/dynamic';
+import { initializeMapKit, mapKitAuth, onMapKitAuth } from '../../lib/appleMapKit';
+import AppleScriptMap from './AppleScriptMap';
 import ScriptSample from './ScriptSample';
 // The screen's own stylesheet: the light palette the map is drawn in,
 // and the animations. Imported here rather than by the map, which is
@@ -34,6 +39,13 @@ import './script-round.css';
 
 // Leaflet touches window on import, so it cannot render on the server.
 // Keyless on purpose: see LeafletScriptMap.
+// How long Apple gets before the round starts on the map that needs no
+// permission. Two clocks, because two different things can be slow:
+// MapKit is 800 KB and may not arrive at all on a bad network, and once
+// it has arrived Apple still has to answer about the token. A refusal
+// arrives as an error and does not wait out either clock.
+const MAPKIT_LOAD_MS = 12000;
+const MAPKIT_AUTH_MS = 3000;
 // The panorama round's chrome, so the two halves of the game look
 // like one game (app/geo/components/GameHud.js).
 // A script round is the one screen in the game with no imagery on it,
@@ -91,6 +103,43 @@ export default function ScriptPlayClient() {
   const [sending, setSending] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(config.timer || 0);
   const [mapTrouble, setMapTrouble] = useState(false);
+  const [mapkit, setMapkit] = useState(null);
+  const [provider, setProvider] = useState('pending');
+
+  // Which map the round is played on. Apple unless Apple refuses: the
+  // token is origin-locked and the quota is finite, and MapKit does not
+  // fail loudly when either runs out, it just stops drawing
+  // (app/geo/lib/appleMapKit.js). A refusal is latched, so a token that
+  // recovers mid-game does not swap the map out from under a pin.
+  useEffect(() => {
+    let live = true;
+    let unwatch = null;
+    let timer = 0;
+    const settle = (state) => {
+      if (!live || state === 'pending') return;
+      // Whatever Apple said, it said it: the clock below is only for
+      // the case where it says nothing at all.
+      clearTimeout(timer);
+      if (state === 'failed') setProvider('leaflet');
+      else setProvider((current) => (current === 'leaflet' ? current : 'apple'));
+    };
+    timer = setTimeout(() => settle('failed'), MAPKIT_LOAD_MS);
+    initializeMapKit()
+      .then((sdk) => {
+        if (!live) return;
+        setMapkit(sdk);
+        clearTimeout(timer);
+        timer = setTimeout(() => settle('failed'), MAPKIT_AUTH_MS);
+        settle(mapKitAuth());
+        unwatch = onMapKitAuth(settle);
+      })
+      .catch(() => settle('failed'));
+    return () => {
+      live = false;
+      clearTimeout(timer);
+      unwatch?.();
+    };
+  }, []);
 
   const ladder = LADDERS[config.ladder] || LADDERS.world;
   const done = history.length >= config.rounds && !result;
@@ -236,15 +285,32 @@ export default function ScriptPlayClient() {
       </header>
 
       <div className="relative flex-1">
-        <LeafletScriptMap
-          pin={pin}
-          onPin={setPin}
-          mode={result ? 'result' : 'guess'}
-          answer={result?.answer || null}
-          guess={result?.guess || null}
-          nearestPoint={result?.nearestPoint || null}
-          onMapTrouble={() => setMapTrouble(true)}
-        />
+        {provider === 'apple' && mapkit ? (
+          <AppleScriptMap
+            mapkit={mapkit}
+            pin={pin}
+            onPin={setPin}
+            mode={result ? 'result' : 'guess'}
+            answer={result?.answer || null}
+            guess={result?.guess || null}
+            nearestPoint={result?.nearestPoint || null}
+            onUnavailable={() => setProvider('leaflet')}
+          />
+        ) : provider === 'leaflet' ? (
+          <LeafletScriptMap
+            pin={pin}
+            onPin={setPin}
+            mode={result ? 'result' : 'guess'}
+            answer={result?.answer || null}
+            guess={result?.guess || null}
+            nearestPoint={result?.nearestPoint || null}
+            onMapTrouble={() => setMapTrouble(true)}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-[#dce9f2]">
+            <Loader2 className="h-5 w-5 animate-spin text-midnight-400" />
+          </div>
+        )}
 
         {/* The world outline is one chunk of the game's own bundle; if a
             network drops it, say so rather than leaving an empty

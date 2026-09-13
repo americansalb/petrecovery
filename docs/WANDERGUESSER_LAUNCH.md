@@ -11,9 +11,9 @@ cd frontend && npm run geo:demo
 ```
 
 Nothing configured: no Google project, no database, no mail account, no
-domain. **Script mode is fully playable**, because its map is drawn from
-the country polygons in the game's own bundle rather than MapKit or a
-tile server. Rooms, ratings, points, the shop and
+domain. **Script mode is fully playable**: the MapKit token does not
+authorize here, so the round falls back to a map drawn from the country
+polygons in the game's own bundle. Rooms, ratings, points, the shop and
 sign-in all work on an in-memory store; sign-in links are printed to the
 log. Street View needs a browser key no mock can replace, because
 Google's own SDK draws the panorama. Details in `docs/GEO.md`, "Playing
@@ -36,7 +36,7 @@ decision that is not mine to make. Everything marked "code" is done.
 | Its own accounts, its own session, its own mailer | code, live on `pet_main` |
 | No import in either direction between the game and the pet site | code, enforced by `__tests__/geo/isolation.test.js` |
 | Cost control: the play meter, per-day and per-address caps, a site budget | code |
-| 1,074 tests, a nine-scenario browser harness that passes against a production build | code |
+| 1,186 tests, a twelve-scenario browser harness that passes against a production build | code |
 
 Driven on a production build, desktop and phone, every route: no page
 errors, no horizontal overflow, chrome present, no missing link

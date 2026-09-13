@@ -1,11 +1,13 @@
 /**
- * Source guards for three client defects that no node-environment test
- * could have caught, because the game's screens are never rendered here.
+ * Source guards for client defects that no node-environment test could
+ * have caught, because the game's screens are never rendered here.
  *
- * Each one shipped and each one was silent: Apple rooms with no way to
- * guess, a scored guess relabelled "time ran out", and a script round
- * recorded twice. The guards are deliberately narrow - they check the one
- * expression that was wrong, not the shape of the file around it.
+ * Each one shipped or nearly shipped, and each one was silent: Apple
+ * rooms with no way to guess, a scored guess relabelled "time ran out",
+ * a script round recorded twice, a script map replaced by its own
+ * fallback seconds after it drew. The guards are deliberately narrow -
+ * they check the one expression that was wrong, not the shape of the
+ * file around it.
  */
 
 const fs = require('fs');
@@ -71,6 +73,39 @@ describe('ScriptPlayClient: the clock submits once, outside the state updater', 
   test('the timeout submit is fired once per round, keyed off the round token', () => {
     expect(src).toContain('firedRef.current === round.token');
     expect(src).toContain('firedRef.current = round.token;');
+  });
+});
+
+describe('the script round always has a map it can be played on', () => {
+  const client = read('app/geo/components/script/ScriptPlayClient.js');
+  const apple = read('app/geo/components/script/AppleScriptMap.js');
+
+  test('the round is played on Apple, with the keyless map behind it', () => {
+    expect(client).toContain('<AppleScriptMap');
+    expect(client).toContain('<LeafletScriptMap');
+  });
+
+  test('the clock that gives up on Apple stops once Apple has answered', () => {
+    // It did not, so a round drew Apple's map and then threw it away a
+    // few seconds later and redrew the keyless one, every round, for
+    // everyone: MapKit had authorized and the timer fired regardless.
+    const settle = client.slice(client.indexOf('const settle = (state)'));
+    expect(settle.slice(0, settle.indexOf('};'))).toContain('clearTimeout(timer)');
+  });
+
+  test('a refusal is latched, so the map is never swapped out mid-round', () => {
+    expect(client).toContain("setProvider((current) => (current === 'leaflet' ? current : 'apple'))");
+  });
+
+  test('Apple draws no points of interest', () => {
+    // The round asks which language. Apple writes its own place names
+    // and MapKit has no way to remove them, but the pins for shops and
+    // stations are not names anybody needs here.
+    expect(apple).toContain('map.showsPointsOfInterest = false');
+  });
+
+  test('the camera cannot get down to street level', () => {
+    expect(apple).toContain('map.cameraZoomRange = new mapkit.CameraZoomRange(MIN_CAMERA_M)');
   });
 });
 
