@@ -655,6 +655,13 @@ async function script(browser) {
   // spoken in, one polygon per piece of land, so counting the polygon
   // overlays counts the regions the reveal drew.
   const shapes = Number(await page.locator('[data-script-map="apple"]').getAttribute('data-fake-polygons'));
+  // The reveal teaches, not just scores: the features in the sentence
+  // that give the language away, marked in the sentence itself.
+  const tells = await page.locator('mark.wg-tell').count();
+  const notes = await page.locator('text=What gave it away').count();
+  log('what gave it away:', notes, '| features marked in the sentence:', tells);
+  if (!notes) throw new Error('the reveal did not say what gave the language away');
+  if (!tells) throw new Error('the reveal marked nothing in the sentence');
   log('reveal names a language:', /million speakers/.test(reveal));
   log('regions drawn:', shapes);
   if (!shapes) throw new Error('the reveal drew no regions: the answer is an area, that is the mode');

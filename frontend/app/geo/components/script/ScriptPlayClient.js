@@ -26,7 +26,7 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowRight, Clock, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { randomSeedString } from '@/app/lib/geo/random';
-import { LADDERS, normalizeScriptConfig, scriptConfigToQuery } from '@/app/lib/geo/script';
+import { LADDERS, highlightMarkers, normalizeScriptConfig, scriptConfigToQuery } from '@/app/lib/geo/script';
 import dynamic from 'next/dynamic';
 import { initializeMapKit, mapKitAuth, onMapKitAuth } from '../../lib/appleMapKit';
 import AppleScriptMap from './AppleScriptMap';
@@ -324,7 +324,7 @@ export default function ScriptPlayClient() {
         ) : null}
 
         {result ? (
-          <Reveal result={result} last={history.length >= config.rounds} onNext={next} />
+          <Reveal result={result} round={round} last={history.length >= config.rounds} onNext={next} />
         ) : (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
             <div className="mx-auto max-w-md">
@@ -350,7 +350,7 @@ export default function ScriptPlayClient() {
 }
 
 /** The answer, and how close the pin was to it. */
-function Reveal({ result, last, onNext }) {
+function Reveal({ result, round, last, onNext }) {
   const { answer } = result;
   const score = useCountUp(result.score);
   return (
@@ -377,6 +377,7 @@ function Reveal({ result, last, onNext }) {
             Where you pinned, people speak {result.alsoSpokenHere.map((l) => l.name).join(', ')}.
           </p>
         ) : null}
+        <Tells answer={answer} text={round?.text} script={round?.script} />
         <button
           type="button"
           onClick={onNext}
@@ -385,6 +386,56 @@ function Reveal({ result, last, onNext }) {
           {last ? 'See the results' : 'Next round'} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * What gave it away.
+ *
+ * The half of the round that makes it a game you get better at rather
+ * than a quiz you pass or fail. Somebody who knows the answer knows it
+ * from two or three concrete things, and being shown the letter that
+ * would have settled it is worth more than being told the name.
+ *
+ * Only the features actually in the sentence just read are listed, and
+ * they are marked in the sentence itself, so there is no hunting.
+ */
+function Tells({ answer, text, script }) {
+  const markers = answer.markers || [];
+  if (!markers.length && !answer.onlyOneInScript) return null;
+  const runs = highlightMarkers(text, markers);
+  return (
+    <div className="mt-4 rounded-xl border border-midnight-200 bg-white/70 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-midnight-500">What gave it away</p>
+      {answer.onlyOneInScript ? (
+        <p className="mt-2 text-sm text-midnight-700">
+          In this pool, {answer.scriptName} is written for {answer.name} and nothing else. The alphabet was the whole answer.
+        </p>
+      ) : null}
+      {runs.length ? (
+        <p className="mt-2 break-words text-lg leading-relaxed" lang={script}>
+          {runs.map((run, index) =>
+            run.marker ? (
+              <mark key={index} className="wg-tell">
+                {run.text}
+              </mark>
+            ) : (
+              <span key={index}>{run.text}</span>
+            )
+          )}
+        </p>
+      ) : null}
+      <ul className="mt-2 space-y-1.5">
+        {markers.map((marker) => (
+          <li key={marker.text} className="text-sm text-midnight-600">
+            <span className="wg-tell rounded px-1 font-semibold" lang={script}>
+              {marker.text}
+            </span>{' '}
+            {marker.note}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
