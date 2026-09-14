@@ -68,15 +68,39 @@ route check above was run against `next start`.
 
 ## What launch needs from you
 
-### 1. An Apple MapKit token for the game's domain. Blocking.
+### 1. An Apple MapKit token for the host players actually land on. Blocking, and broken today.
 
 The game is Apple-first (docs/GEO.md, "Apple first"): the lobby opens on
-Look Around and the daily and the cup are played on it. The MapKit token
-in the repository is locked to the reunitepets.org origin, so on the
-game's own domain every Apple round fails until there is one for that
-origin. An Apple Developer account, a MapKit JS key, a token minted for
-the domain, into `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`. Nothing else in the
-game needs Apple's account.
+Look Around and the daily and the cup are played on it.
+
+**Right now every Apple surface on the live site is blank**, and it has
+nothing to do with the game's own domain. The shipped token is minted
+for `reunitepets.org`; the apex 301s to `www.reunitepets.org` at
+Cloudflare; Apple matches a token's origin exactly and answers `401` to
+`www`. Checked against Apple on 2026-09-14:
+
+```
+$ cd frontend && npm run geo:check-mapkit
+  www.reunitepets.org          401 REFUSED
+  reunitepets.org              200 authorized
+```
+
+Two ways out, either is enough:
+
+- Mint a MapKit token for `www.reunitepets.org` and add it to
+  `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`, which takes a list separated by
+  commas or whitespace. Keep the apex token in the list too and both
+  hosts work.
+- Or stop redirecting the apex to `www`, so players land on the host the
+  existing token already covers.
+
+The game's own domain needs the same thing again: a token per host it
+answers on. An Apple Developer account, a MapKit JS key, tokens minted
+per origin. Nothing else in the game needs Apple's account.
+
+Run `npm run geo:check-mapkit` after any change to the domain, the
+redirects or the token. It is the only check that can answer this: a
+refused token does not throw, it just draws nothing.
 
 ### 1b. Google keys with quota caps. Optional, and blocking for the Google modes.
 

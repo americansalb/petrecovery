@@ -22,6 +22,7 @@ import GoogleStreetViewPane from './GoogleStreetViewPane';
 import AppleLookAroundPane from './AppleLookAroundPane';
 import AppleGuessMap from './AppleGuessMap';
 import { ensureLookAround } from '../lib/lookAround';
+import { mapKitAuth, mapKitRefusalMessage, onMapKitAuth } from '../lib/appleMapKit';
 import GoogleGuessMap from './GoogleGuessMap';
 import { Compass, TimerRing } from './GameHud';
 import SetupNotice from './SetupNotice';
@@ -154,6 +155,21 @@ export default function RoomClient({ code }) {
   }, [browserKey, status, isApple]);
 
   useEffect(() => onGoogleMapsAuthFailure((message) => setSdkError(message)), []);
+
+  // The same for Apple, and this one used to be silent. MapKit does not
+  // reject a refused token: it loads, the pane is built, and nothing is
+  // ever drawn in it. A token is refused when its origin claim does not
+  // match the host the page is served from, which is how Apple Maps
+  // went dark on www while the apex worked (app/geo/lib/appleMapKit.js).
+  useEffect(() => {
+    if (!isApple) return undefined;
+    const settle = (state) => {
+      if (state === 'failed') setSdkError(mapKitRefusalMessage());
+    };
+    settle(mapKitAuth());
+    return onMapKitAuth(settle);
+  }, [isApple]);
+
 
   // Arrived with ?name= (a rematch link): join without asking again.
   useEffect(() => {

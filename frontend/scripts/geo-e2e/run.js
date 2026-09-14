@@ -21,7 +21,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -717,11 +717,36 @@ async function scriptFallback(browser) {
   await page.close();
 }
 
+/**
+ * An Apple round with the token refused, which is what every player saw
+ * on www.reunitepets.org while the apex worked: MapKit loads, the pane
+ * is built, and nothing is ever drawn in it. The round has to say so.
+ * A blank rectangle that never explains itself is the bug; the error
+ * panel naming the host and the token's origin is the fix.
+ */
+async function appleRefused(browser) {
+  log('\n== appleRefused ==');
+  const page = await newPage(browser, { width: 1280, height: 800 }, { mapkitAuth: 'failed' });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=e2e-apple-refused&time=0`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('text=Apple Look Around did not load', { timeout: 60000 });
+  const text = await page.evaluate(() => document.body.innerText);
+  log('refusal shown:', /refused this site's MapKit token/.test(text));
+  if (!/refused this site's MapKit token/.test(text)) throw new Error('the round did not say why Apple drew nothing');
+  // The point of the message is that it names the fix, so it has to
+  // name the host that was refused and the origin the token covers.
+  if (!/localhost/.test(text) || !/reunitepets\.org/.test(text)) {
+    throw new Error('the refusal named neither the host nor the token origin: ' + text.slice(0, 300));
+  }
+  await shot(page, 'apple-refused');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, daily, profile, script, scriptFallback };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

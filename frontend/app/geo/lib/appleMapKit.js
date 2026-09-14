@@ -15,18 +15,81 @@
 const MAPKIT_JS_URL = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
 
 /**
- * The JWT MapKit authorizes with. The literal is the one the pet site
- * has shipped to every browser since Apple mode was added, and it is
- * locked to the reunitepets.org origin, so it will not work on a domain
- * of the game's own. Setting NEXT_PUBLIC_APPLE_MAPKIT_TOKEN to a token
- * issued for the game's origin is decision D5 in
- * docs/WANDERGUESSER_SPLIT.md, and it has to happen before the game
- * serves its own domain. Kept here unchanged for now so that phase 1
- * changes no behaviour.
+ * The JWTs MapKit may authorize with.
+ *
+ * A MapKit token carries ONE origin, and Apple matches it exactly: a
+ * token for reunitepets.org is refused with a 401 on
+ * www.reunitepets.org. That is not a footnote, it is how Apple Maps
+ * went dark on this site, because the apex redirects to www and every
+ * player lands there. Verified against Apple's own bootstrap endpoint
+ * on 2026-09-14: apex 200, www 401.
+ *
+ * So NEXT_PUBLIC_APPLE_MAPKIT_TOKEN takes a LIST, separated by commas
+ * or whitespace, and the one whose origin claim matches the host the
+ * page is actually being served from is the one used. Mint one per host
+ * the site answers on and paste them all in; the alternative is a token
+ * with no origin claim at all, which works anywhere and protects
+ * nothing.
+ *
+ * The literal below is the one the pet site has shipped to every
+ * browser since Apple mode was added. It covers the apex and nothing
+ * else. Replacing it for the game's own domain is decision D5 in
+ * docs/WANDERGUESSER_SPLIT.md.
+ *
+ * `scripts/check-mapkit-token.js` asks Apple which hosts these actually
+ * work on, which is the only answer that counts.
  */
-const MAPKIT_TOKEN =
-  process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN ||
+const FALLBACK_TOKEN =
   'eyJraWQiOiI3ODg3N1dWNlo3IiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJCRjIzTjRINjdWIiwiaWF0IjoxNzY3MzA5NTY4LCJvcmlnaW4iOiJyZXVuaXRlcGV0cy5vcmcifQ.zqtlPpm1wfmlfq-BmdxWgsBS9xhAoMQNWFg-ZMzJroyINHPML609QTfjTKAOyX_GrtWoy444YjRt6MnkhUXC5A';
+
+const TOKENS = (process.env.NEXT_PUBLIC_APPLE_MAPKIT_TOKEN || FALLBACK_TOKEN)
+  .split(/[\s,]+/)
+  .filter(Boolean);
+
+/** The origin a token was minted for, or '' if it was minted for any. */
+function originOf(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), '='))).origin || '';
+  } catch {
+    return '';
+  }
+}
+
+/** Every host the tokens on hand cover. Empty means "any host". */
+export function mapKitOrigins() {
+  return TOKENS.map(originOf).filter(Boolean);
+}
+
+/**
+ * The token to authorize with here. An exact origin match first, then a
+ * token minted for no particular origin, then whatever is first: a
+ * token Apple will refuse still beats sending none and getting a
+ * different error.
+ */
+function tokenForHost() {
+  const host = typeof window === 'undefined' ? '' : window.location.hostname;
+  return (
+    TOKENS.find((token) => originOf(token) === host) ||
+    TOKENS.find((token) => !originOf(token)) ||
+    TOKENS[0]
+  );
+}
+
+/**
+ * What to tell a player when Apple has refused. The origin case is
+ * worth naming: it is a one line fix for whoever runs the site, and it
+ * is invisible otherwise, because MapKit answers a refused token by
+ * drawing nothing at all.
+ */
+export function mapKitRefusalMessage() {
+  const host = typeof window === 'undefined' ? '' : window.location.hostname;
+  const origins = mapKitOrigins();
+  if (host && origins.length && !origins.includes(host)) {
+    return `Apple refused this site's MapKit token on ${host}. The token covers ${origins.join(', ')}, and Apple matches the host exactly.`;
+  }
+  return "Apple refused this site's MapKit token. That is usually the day's map quota or a token that has expired.";
+}
 
 let initPromise = null;
 
@@ -149,7 +212,7 @@ export async function initializeMapKit() {
       watchAuth(mapkit);
       if (!window[INIT_FLAG]) {
         mapkit.init({
-          authorizationCallback: (done) => done(MAPKIT_TOKEN),
+          authorizationCallback: (done) => done(tokenForHost()),
           language: 'en',
         });
         window[INIT_FLAG] = true;

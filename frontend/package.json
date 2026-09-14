@@ -24,7 +24,8 @@
     "cap:open:ios": "npx cap open ios",
     "cap:open:android": "npx cap open android",
     "geo:demo": "node scripts/geo-demo.js",
-    "geo:sweep": "node scripts/geo-sweep.js"
+    "geo:sweep": "node scripts/geo-sweep.js",
+    "geo:check-mapkit": "node scripts/check-mapkit-token.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
