@@ -316,29 +316,35 @@ regions fade in, the map flies to fit both, and the score counts up; all
 of it is off under `prefers-reduced-motion`.
 
 **The map is Apple's**
-(`app/geo/components/script/AppleScriptMap.js`): Muted Standard, points
-of interest off, the answer drawn as polygon overlays and the miss as a
-dashed line to the border it was measured to. The camera is held above
-about a 290 km view, which was the old map's limit too. Apple writes its
-own place names and MapKit has no way to turn them off, so holding the
-camera up is the only lever there is for keeping the round about which
-language rather than which suburb; closer than that the round is not
-worth playing anyway. Apple's tiles are Apple's, and their terms do not
-allow storing or re-serving them, so there is no cache to build: every
-view is a view against the 250,000 a day the token covers.
+(`app/geo/components/script/AppleScriptMap.js`): Muted Standard, the
+answer drawn as polygon overlays and the miss as a dashed line to the
+border it was measured to. Apple's tiles are Apple's, and their terms do
+not allow storing or re-serving them, so there is no cache to build:
+every view is a view against the 250,000 a day the token covers.
+
+**Apple writes nothing on it.** `map.labels = false` stops the tiles
+carrying any text at all, and points of interest are off separately.
+This is not a preference, it is what makes Apple's map usable for this
+round: half the South Asia pool is named after the state it is spoken
+in, so a map that writes "Tamil Nadu", "Punjab", "Gujarat", "Karnataka"
+or "West Bengal" on itself has answered the round before the player has.
+The names on the map are the game's own instead, the same 10 KB of
+Natural Earth label anchors the keyless map uses
+(`app/lib/geo/data/country-labels.json`), at the zooms its cartographers
+set: countries, and nothing smaller, on either map. The harness asserts
+it, by reading every name drawn on the map and checking it against that
+file.
 
 **When MapKit will not authorize, the game draws the world itself**
 (`app/geo/components/script/LeafletScriptMap.js`). The shipped token is
 locked to the reunitepets.org origin, so on a clone, on localhost and on
 a preview deployment Apple refuses, and a script round with a dead map
 is a round nobody can finish. The fallback is Leaflet over the same
-Natural Earth polygons the server scores with, with country names from
-Natural Earth's own label anchors at the zooms its cartographers set
-(`app/lib/geo/data/country-labels.json`): no key, no quota, and nothing
-fetched from anyone during a round. Nothing smaller than a country is
-ever named on it, because a state or a city would hand over the answer.
-A refusal is latched for the rest of the game, so a token that recovers
-mid-round does not swap the map out from under a pin.
+Natural Earth polygons the server scores with, and the same country
+names over the top: no key, no quota, and nothing fetched from anyone
+during a round. A refusal is latched for the rest of the game, so a
+token that recovers mid-round does not swap the map out from under a
+pin.
 
 **The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
 

@@ -97,15 +97,17 @@ describe('the script round always has a map it can be played on', () => {
     expect(client).toContain("setProvider((current) => (current === 'leaflet' ? current : 'apple'))");
   });
 
-  test('Apple draws no points of interest', () => {
-    // The round asks which language. Apple writes its own place names
-    // and MapKit has no way to remove them, but the pins for shops and
-    // stations are not names anybody needs here.
+  test("Apple writes nothing on the map of its own", () => {
+    // The round asks which language, and in South Asia the state is the
+    // answer: Tamil Nadu, Punjab, Gujarat, Karnataka, West Bengal. A
+    // map that labels itself hands the round over before the guess.
+    expect(apple).toContain('map.labels = false');
     expect(apple).toContain('map.showsPointsOfInterest = false');
   });
 
-  test('the camera cannot get down to street level', () => {
-    expect(apple).toContain('map.cameraZoomRange = new mapkit.CameraZoomRange(MIN_CAMERA_M)');
+  test('the names on the map are the game\'s own, and are country names', () => {
+    expect(apple).toContain("import('@/app/lib/geo/data/country-labels.json')");
+    expect(apple).toContain('wg-country-label');
   });
 });
 

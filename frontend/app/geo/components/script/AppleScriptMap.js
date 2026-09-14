@@ -15,12 +15,19 @@
  * re-serving them, so there is no cache to build and no static image to
  * bake: a view is a view, which is what the quota is for.
  *
- * Muted Standard with points of interest turned off is as quiet as
- * MapKit gets. Apple still writes its own place names on the map and
- * there is no API to remove them, so the camera is held above
- * MIN_CAMERA_M: far enough out that the names on screen are countries
- * and large regions rather than streets, which is also as close as this
- * round is ever worth playing.
+ * **Apple's own place names are off**, which is the whole reason this
+ * map can be used for this round at all. `map.labels = false` stops the
+ * tiles carrying any text, and points of interest are off separately.
+ * It matters more here than anywhere else in the game: half the answers
+ * in the South Asia pool are named after the state they are spoken in,
+ * so a map that writes "Tamil Nadu", "Punjab" or "Gujarat" on itself
+ * has answered the round before the player has.
+ *
+ * What is written instead are country names, and nothing smaller: the
+ * game's own labels, from Natural Earth's label anchors, at the zooms
+ * its cartographers set. Reading a country from its silhouette is a
+ * different game and a worse one; reading a language off a state label
+ * is not a game at all.
  *
  * Same contract as LeafletScriptMap, which is what the screen falls
  * back to when MapKit will not authorize: tap to pin, and on the reveal
@@ -30,18 +37,23 @@
 
 import { useEffect, useRef } from 'react';
 
+/** The country names, fetched once per page and cached like any chunk. */
+let labelsPromise = null;
+function loadLabels() {
+  if (!labelsPromise) {
+    labelsPromise = import('@/app/lib/geo/data/country-labels.json').then((mod) => (mod.default || mod).labels || []);
+    // A failed load is not cached: the next mount tries again.
+    labelsPromise.catch(() => {
+      labelsPromise = null;
+    });
+  }
+  return labelsPromise;
+}
+
 const ANSWER = '#16a34a';
 const GUESS = '#e08c0a';
 const FILL_OPACITY = 0.22;
 const STROKE_OPACITY = 0.95;
-
-/**
- * The closest the camera may come, in metres from the ground. About a
- * 290 km view, which is where the old map stopped too: closer than that
- * the round stops being about a language and starts being about which
- * suburb, and Apple starts labelling towns.
- */
-const MIN_CAMERA_M = 250000;
 
 /**
  * How much of the bottom of the map the reveal panel owns. Insetting
@@ -99,15 +111,13 @@ export default function AppleScriptMap({
       return undefined;
     }
 
+    // No text from Apple at all, at any zoom. The round is which
+    // language, and in South Asia a state name is the answer.
+    map.labels = false;
     try {
       map.showsPointsOfInterest = false;
     } catch {
       /* not on this build */
-    }
-    try {
-      if (mapkit.CameraZoomRange) map.cameraZoomRange = new mapkit.CameraZoomRange(MIN_CAMERA_M);
-    } catch {
-      /* older MapKit: the round is playable, just zoomier */
     }
     map.region = worldRegion(mapkit);
     setInset(mapkit, map, GUESS_INSET);
@@ -118,7 +128,21 @@ export default function AppleScriptMap({
     });
     mapRef.current = map;
 
+    // The names the map does carry. Loaded late and drawn when they
+    // land, the way tiles stream in: a tap before then is still a tap
+    // on the map, and 10 KB of label anchors holds nothing up.
+    let stopLabels = null;
+    loadLabels()
+      .then((rows) => {
+        if (mapRef.current !== map) return;
+        stopLabels = addLabels(mapkit, map, rows, hostRef.current);
+      })
+      .catch(() => {
+        /* a map with no names is harder, not broken */
+      });
+
     return () => {
+      stopLabels?.();
       stopFadeRef.current?.();
       try {
         map.destroy();
@@ -292,6 +316,86 @@ function fadeIn(mapkit, style, overlays) {
   };
   frame = requestAnimationFrame(step);
   return () => cancelAnimationFrame(frame);
+}
+
+/**
+ * Country names, and only country names.
+ *
+ * The same 10 KB of Natural Earth label anchors the keyless map draws
+ * from, and the same rule: each name appears between the zoom Natural
+ * Earth's cartographers set for it and the zoom they stop it at, so the
+ * world is named at world zoom and a continent is not buried under
+ * every country's name at once.
+ *
+ * Added and removed rather than hidden, so the page holds the few
+ * dozen labels that are on screen instead of all two hundred.
+ */
+function addLabels(mapkit, map, rows, host) {
+  const entries = rows.map((row) => {
+    const annotation = new mapkit.Annotation(
+      new mapkit.Coordinate(row.y, row.x),
+      () => {
+        const el = document.createElement('span');
+        el.className = `wg-country-label wg-country-label--map${row.z <= 2 ? ' wg-country-label--big' : ''}`;
+        el.textContent = row.n;
+        return el;
+      },
+      // Not a thing to tap: a tap anywhere on the map is a pin, and a
+      // label that swallowed one would read as the map ignoring you.
+      { animates: false, enabled: false, calloutEnabled: false }
+    );
+    try {
+      // MapKit hangs a custom annotation by its bottom edge; nudge it
+      // down so the name sits on its anchor rather than above it.
+      annotation.anchorOffset = new DOMPoint(0, 7);
+    } catch {
+      /* no DOMPoint on this browser: the name rides a little high */
+    }
+    return { row, annotation };
+  });
+
+  const shown = new Set();
+  const sync = () => {
+    const zoom = zoomOf(map, host);
+    const add = [];
+    const drop = [];
+    for (const entry of entries) {
+      const wanted = entry.row.z <= zoom && zoom <= (entry.row.u ?? 12);
+      if (wanted === shown.has(entry)) continue;
+      if (wanted) {
+        add.push(entry.annotation);
+        shown.add(entry);
+      } else {
+        drop.push(entry.annotation);
+        shown.delete(entry);
+      }
+    }
+    if (drop.length) map.removeAnnotations(drop);
+    if (add.length) map.addAnnotations(add);
+  };
+
+  map.addEventListener('region-change-end', sync);
+  sync();
+  return () => {
+    try {
+      map.removeEventListener('region-change-end', sync);
+      if (shown.size) map.removeAnnotations([...shown].map((entry) => entry.annotation));
+    } catch {
+      /* the map is already gone */
+    }
+  };
+}
+
+/**
+ * Where the map is on the scale the label rules are written in: the web
+ * mercator tile zoom, where the whole world is 256 * 2^z pixels across.
+ * MapKit thinks in a coordinate span and a camera distance instead, so
+ * this converts, and the answer depends on how wide the map is drawn.
+ */
+function zoomOf(map, host) {
+  const width = host?.clientWidth || 1024;
+  const span = map.region?.span?.longitudeDelta || 360;
+  return Math.log2((360 / Math.max(span, 0.0001)) * (width / 256));
 }
 
 function answerStyle(mapkit, fillOpacity, strokeOpacity) {

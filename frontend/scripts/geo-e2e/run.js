@@ -39,6 +39,10 @@ try {
 
 const FAKE = fs.readFileSync(path.join(__dirname, 'fake-maps.js'), 'utf8');
 const FAKE_MAPKIT = fs.readFileSync(path.join(__dirname, 'fake-mapkit.js'), 'utf8');
+// The only names the script map is allowed to write on itself.
+const COUNTRY_NAMES = new Set(
+  require('../../app/lib/geo/data/country-labels.json').labels.map((row) => row.n)
+);
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const OUT = process.env.GEO_E2E_OUT || os.tmpdir();
 const log = (...args) => console.log(...args);
@@ -580,9 +584,9 @@ const SOUTH_ASIA_SCRIPTS = ['deva', 'beng', 'guru', 'gujr', 'orya', 'taml', 'tel
 /**
  * The script game: read a sentence, pin where the language is spoken.
  * The point of the scenario is that the answer is an area, so it checks
- * the reveal really draws the language's heartlands, and that the round
- * is played on Apple's map like the rest of the game. No imagery, no
- * meter.
+ * the reveal really draws the language's heartlands, that the round is
+ * played on Apple's map like the rest of the game, and that the map
+ * names countries and nothing smaller. No imagery, no meter.
  */
 async function script(browser) {
   log('\n== script ==');
@@ -626,6 +630,19 @@ async function script(browser) {
   // The hint is copy, not a disabled button: a control that tells you
   // what to do should not look broken while it tells you.
   await page.waitForSelector('text=Tap the map where that language is spoken');
+
+  // The map names countries and nothing else. Apple's own labels have
+  // to be off for that: half the South Asia pool is named after the
+  // state it is spoken in, so a map that writes "Tamil Nadu" on itself
+  // has answered the round before the player has.
+  await page.waitForSelector('[data-script-map="apple"] .wg-country-label', { timeout: 15000 });
+  const names = await page.$$eval('[data-script-map="apple"] .wg-country-label', (els) => els.map((el) => el.textContent));
+  const appleLabels = await page.evaluate(() => window.__fakeMaps.map((m) => m.labels));
+  log('country names drawn:', names.length, '| apple labels:', JSON.stringify(appleLabels));
+  if (!names.length) throw new Error('the map wrote no country names');
+  if (appleLabels.some((value) => value !== false)) throw new Error("Apple's own place names were left on");
+  const foreign = names.filter((name) => !COUNTRY_NAMES.has(name));
+  if (foreign.length) throw new Error('the map named something that is not a country: ' + foreign.join(', '));
   // Low on the map: the panels are above it, so a click up there is a
   // click on a panel.
   await page.click('[data-script-map="apple"]', { position: { x: 600, y: 450 } });
