@@ -395,6 +395,42 @@ the canonical parallel text, and Tatoeba, which has millions of
 sentences across four hundred languages tagged with ISO 639-3 codes.
 Either drops into the same shape.
 
+**What gave it away.** The reveal names the answer and then shows why:
+the features in the sentence you just read that separate that language
+from the one you would have confused it with, marked in the sentence
+itself. Marathi's ळ, which Hindi does not have. Assamese ৰ against
+Bengali র, one stroke apart. Azerbaijani ə against Turkish, which has
+no schwa. Indonesian *dingin* against Malay *sejuk*. That is the
+difference between a quiz you pass or fail and a game you get better at:
+being told the name teaches nothing, being shown the letter teaches the
+next round.
+
+The table is `app/lib/geo/server/markers.js`, 236 features across the
+corpus, and it is **server only for the same reason the sentences are**:
+a marker is a string chosen because it identifies one language, so
+shipping the table to the browser would hand over every round before the
+guess. It reaches a browser once, in the guess response, after the
+answer is already out, and `__tests__/geo/script.test.js` checks the
+round payload carries none of it.
+
+Two rules make a marker a marker, and
+`__tests__/geo/markers.test.js` enforces both rather than trusting them:
+
+- **Every sample carries at least one**, so no round reveals with
+  nothing to teach.
+- **No marker appears in another language written in the same script.**
+  A feature shared with exactly the language you would have confused it
+  with is not a marker, it is a red herring. Across scripts there is
+  nothing to check, because the alphabet already answered the round, and
+  where a script belongs to one language in the pool the reveal says so
+  on its own.
+
+That second rule is not decoration. Writing this table, it rejected nine
+markers I had been confident about: Uyghur ھ is also Urdu's, Russian э
+is also Mongolian's, Portuguese ã is also Vietnamese's, Polish ą is also
+Lithuanian's, and Azerbaijani *idi* is inside Turkish *gidiyor* and
+Swahili *baridi*.
+
 **One curation rule matters more than the size of the pool: strip proper
 nouns.** A sentence containing a city name answers itself, and so does a
 digit or a sentence that names its own language. This is checked rather

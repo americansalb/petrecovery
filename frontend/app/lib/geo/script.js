@@ -144,3 +144,44 @@ export function scriptConfigToQuery(config) {
   if (normal.seed) params.set('seed', normal.seed);
   return params.toString();
 }
+
+/**
+ * Split a sentence into runs so the reveal can highlight what gave the
+ * language away.
+ *
+ * Returns `[{ text, marker }]` in order, `marker` being null for the
+ * ordinary stretches. Overlapping markers are resolved by taking the
+ * earliest and, where two start together, the longer: a player reading
+ * the reveal wants one mark per feature, not marks inside marks.
+ *
+ * The markers are passed in rather than looked up, because the table
+ * they come from is server only (app/lib/geo/server/markers.js) and
+ * reaches the browser once, in the guess response, after the answer is
+ * already out.
+ */
+export function highlightMarkers(text, markers = []) {
+  if (!text) return [];
+  const found = [];
+  for (const marker of markers) {
+    if (!marker?.text) continue;
+    let from = 0;
+    for (;;) {
+      const at = text.indexOf(marker.text, from);
+      if (at === -1) break;
+      found.push({ start: at, end: at + marker.text.length, marker });
+      from = at + marker.text.length;
+    }
+  }
+  found.sort((a, b) => a.start - b.start || b.end - a.end);
+
+  const runs = [];
+  let at = 0;
+  for (const hit of found) {
+    if (hit.start < at) continue;
+    if (hit.start > at) runs.push({ text: text.slice(at, hit.start), marker: null });
+    runs.push({ text: text.slice(hit.start, hit.end), marker: hit.marker });
+    at = hit.end;
+  }
+  if (at < text.length) runs.push({ text: text.slice(at), marker: null });
+  return runs;
+}

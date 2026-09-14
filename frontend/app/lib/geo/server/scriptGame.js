@@ -29,6 +29,7 @@ import { languagesForLadder, normalizeScriptConfig } from '../script';
 import { ladderSizeKm, regionsForReveal, scoreScriptGuess } from './regions';
 import { SCRIPTS, languageByCode } from '../languages';
 import { samplesFor } from './samples';
+import { markersIn } from './markers';
 import { getGeoServerConfig } from './config';
 import { openToken, sealToken } from './tokens';
 
@@ -96,10 +97,8 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
   const language = drawLanguages(config, tokenSecret)[index];
   if (!language) throw new ScriptGameError('empty_pool', 'No languages in that pool');
 
-  const samples = samplesFor(language.code);
-  if (!samples.length) throw new ScriptGameError('no_samples', `No sample text for ${language.name}`);
-  const rng = createRng(saltedSeed(roundSeed(config.seed || 'script', index), 'text', tokenSecret));
-  const text = samples[Math.floor(rng() * samples.length)];
+  const text = sentenceFor(language, config.seed, index, tokenSecret);
+  if (!text) throw new ScriptGameError('no_samples', `No sample text for ${language.name}`);
 
   return {
     roundIndex: index,
@@ -122,6 +121,20 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
     text,
     token: sealToken({ c: language.code, l: config.ladder, i: index, seed: config.seed || '' }, { secret: tokenSecret, now }),
   };
+}
+
+/**
+ * Which sentence a round shows. Drawn from the seed, the round index
+ * and the server's secret, so it is the same sentence every time that
+ * round is built: the guess endpoint recomputes it rather than carrying
+ * it in the token, which keeps the token small and keeps the sentence
+ * out of anything the browser could tamper with.
+ */
+function sentenceFor(language, seed, index, tokenSecret) {
+  const samples = samplesFor(language.code);
+  if (!samples.length) return '';
+  const rng = createRng(saltedSeed(roundSeed(seed || 'script', index), 'text', tokenSecret));
+  return samples[Math.floor(rng() * samples.length)];
 }
 
 /**
@@ -148,6 +161,10 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
     ? { lat: Number(guess.lat), lng: Number(guess.lng) }
     : null;
   const scored = pin ? scoreScriptGuess({ guess: pin, language, ladder, sizeKm }) : null;
+  // The sentence that was on screen, so the reveal can point at the
+  // things in it that gave the language away.
+  const text = sentenceFor(language, payload.seed, payload.i, tokenSecret);
+  const rivals = languagesForLadder(ladder).filter((other) => other.script === language.script);
 
   return {
     kind: 'script',
@@ -177,6 +194,17 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
       // (server/regions.js). This is the only place they reach a
       // browser, and only once the answer is already out.
       regions: regionsForReveal(language),
+      // What a player who knew the answer would have known it from,
+      // narrowed to the features actually present in the sentence they
+      // read (server/markers.js). Sent here and nowhere else: a marker
+      // is a string that identifies a language, so shipping the table
+      // to the browser would hand over every round before the guess.
+      markers: markersIn(language.code, text),
+      // Whether the alphabet alone settled it in the pool being played.
+      // Worth saying out loud: a player who does not know that Odia is
+      // the only language in the pool written in Odia has learned the
+      // most useful thing there is to learn about it.
+      onlyOneInScript: rivals.length === 1,
     },
   };
 }

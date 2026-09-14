@@ -182,3 +182,15 @@ path.wg-line {
     stroke-dashoffset: 0;
   }
 }
+
+/* What gave it away: the features in the sentence that separate this
+   language from the one you would have confused it with. Marked in the
+   sentence itself, so the note underneath has something to point at. */
+.wg-tell {
+  background: #fde68a;
+  color: var(--wg-ink);
+  border-radius: 3px;
+  padding: 0 1px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

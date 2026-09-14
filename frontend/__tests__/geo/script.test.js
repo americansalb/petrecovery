@@ -20,6 +20,7 @@
 
 const { LANGUAGES, SCRIPTS, SHARED_CHARS, inScript, languagesInScript, scriptsInCorpus } = require('@/app/lib/geo/languages');
 const { SAMPLES, samplesFor } = require('@/app/lib/geo/server/samples');
+const { markersFor } = require('@/app/lib/geo/server/markers');
 const {
   LADDERS,
   LADDER_ORDER,
@@ -526,6 +527,11 @@ describe('a round', () => {
       for (const giveaway of [answer.name, answer.endonym, answer.family, answer.branch, SCRIPTS[answer.script].name, answer.code]) {
         expect(withoutText).not.toContain(giveaway);
       }
+      // Same rule for the markers, and it bites harder: a marker is a
+      // string chosen because it identifies one language and no other,
+      // so a round carrying them would hand over the whole pool.
+      expect(round.markers).toBeUndefined();
+      for (const marker of markersFor(answer.code)) expect(withoutText).not.toContain(marker.text);
       // The sealed token must not be readable without the secret.
       expect(() => openToken(round.token, { secret: 'a-different-long-secret' })).toThrow();
     }
@@ -615,5 +621,36 @@ describe('the link', () => {
       expect(LADDERS[id].description.length).toBeGreaterThan(20);
     }
     expect(LADDER_ORDER.length).toBe(Object.keys(LADDERS).length);
+  });
+});
+
+describe('what gave it away', () => {
+  test('the reveal carries the features in the sentence that was shown, and nothing from other sentences', () => {
+    for (let i = 0; i < 20; i++) {
+      const config = { ladder: 'world', rounds: 3, seed: `tells-${i}` };
+      const round = createScriptRound({ config, roundIndex: 0, env });
+      const { result } = { result: evaluateScriptGuess({ token: round.token, guess: { lat: 0, lng: 0 }, env }) };
+      // Every marker sent back is really in the sentence the player
+      // read. A note about a letter that was not on screen teaches the
+      // wrong round.
+      expect(result.answer.markers.length).toBeGreaterThan(0);
+      for (const marker of result.answer.markers) {
+        expect(round.text).toContain(marker.text);
+        expect(marker.note.length).toBeGreaterThan(20);
+      }
+      const all = markersFor(result.answer.code);
+      const absent = all.filter((marker) => !round.text.includes(marker.text));
+      for (const marker of absent) expect(result.answer.markers).not.toContain(marker);
+    }
+  });
+
+  test('says when the alphabet alone was the answer, and only when it was', () => {
+    const solo = createScriptRound({ config: { ladder: 'world', rounds: 1, seed: 'alpha-1' }, roundIndex: 0, env });
+    const result = evaluateScriptGuess({ token: solo.token, guess: null, env });
+    const rivals = LANGUAGES.filter((l) => l.script === result.answer.script);
+    // The claim is about the pool being played, so it has to match the
+    // pool: world is every language, and there the shared scripts are
+    // genuinely shared.
+    expect(result.answer.onlyOneInScript).toBe(rivals.length === 1);
   });
 });
