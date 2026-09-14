@@ -18,6 +18,7 @@ import { encodeShare } from '@/app/lib/geo/share';
 import { reducer, createInitialState, isFinished, totalScore, streakLength, buildSummary } from '../lib/gameState';
 import { loadGoogleMaps, onGoogleMapsAuthFailure } from '../lib/googleMaps';
 import { ensureLookAround } from '../lib/lookAround';
+import { mapKitAuth, mapKitRefusalMessage, onMapKitAuth } from '../lib/appleMapKit';
 import { recordGame, bestFor } from '../lib/storage';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName } from '../lib/useRoom';
@@ -188,6 +189,20 @@ export default function PlayClient() {
   // A key rejected after load (referrer, API not enabled) is reported in
   // our words, with the exact line to add, instead of Google's overlay.
   useEffect(() => onGoogleMapsAuthFailure((message) => setSdkError(message)), []);
+
+  // The same for Apple, and this one used to be silent. MapKit does not
+  // reject a refused token: it loads, the pane is built, and nothing is
+  // ever drawn in it. A token is refused when its origin claim does not
+  // match the host the page is served from, which is how Apple Maps
+  // went dark on www while the apex worked (app/geo/lib/appleMapKit.js).
+  useEffect(() => {
+    if (isGoogle) return undefined;
+    const settle = (state) => {
+      if (state === 'failed') setSdkError(mapKitRefusalMessage());
+    };
+    settle(mapKitAuth());
+    return onMapKitAuth(settle);
+  }, [isGoogle]);
 
   const startRound = useCallback(async () => {
     const s = stateRef.current;

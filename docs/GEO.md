@@ -38,12 +38,24 @@ What that buys and what it costs, plainly:
   round is built"). Everywhere and Kidnapped are Google only by nature.
   The Apple world is the city list: adding a covered city to
   `CITY_ROWS` is how it grows.
-- **The token.** MapKit JS needs a token from an Apple Developer account,
-  and the one in the repository is locked to the reunitepets.org origin.
-  On any other domain, make a token for that origin and set
-  `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`. Without it, every Apple round fails
-  in the browser with Look Around's own error, and the game is Script
-  mode and whatever Google keys are set.
+- **The token, and the host it is for.** MapKit JS needs a token from an
+  Apple Developer account, and a token carries **one** origin that Apple
+  matches **exactly**. A token for `reunitepets.org` is refused on
+  `www.reunitepets.org`. `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN` therefore takes
+  a **list**, separated by commas or whitespace, and the token whose
+  origin matches the host the page is served from is the one used: mint
+  one per host the site answers on. The token in the repository covers
+  the apex and nothing else.
+
+  **A refused token is silent.** MapKit does not throw, does not log and
+  does not fail to load: it loads, the pane is built, and no tile ever
+  arrives. That is how every Apple surface on the live site went blank
+  on 2026-09-14 while every test passed, because the apex redirects to
+  `www` and the token was minted for the apex. The game now names it
+  instead: the Apple rounds show which host was refused and which origin
+  the token covers, and `npm run geo:check-mapkit` asks Apple directly
+  and exits non-zero if any host the site serves is refused. Run it
+  after any change to the domain, the redirects or the token.
 - **The primary imagery is one value for a deployment**,
   `NEXT_PUBLIC_GEO_PRIMARY_PROVIDER` (`apple` unless set to `google`),
   inlined at build. Everyone on a daily or cup board has to be on the
@@ -800,9 +812,12 @@ that shares the database, built as the game site:
 3. Add the domain to the Google browser key's website restrictions
    (`https://whereonearth.example/*` and the `www` form). Without this the
    map refuses to load on the new domain.
-4. For the Apple mode, make a MapKit token for the new origin and set it
-   as `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`; the built-in token is locked to
-   reunitepets.org.
+4. For the Apple mode, make a MapKit token for the new origin and add it
+   to `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`, which takes a list; the built-in
+   token is locked to reunitepets.org. **One per host**, including the
+   `www` form, because Apple matches the origin exactly. Then
+   `npm run geo:check-mapkit whereonearth.example www.whereonearth.example`
+   to hear it from Apple rather than from us.
 
 Without a second deployment, the pet site can still answer on the game
 domain: point the domain at it and set
