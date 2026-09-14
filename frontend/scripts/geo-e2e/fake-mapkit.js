@@ -58,6 +58,23 @@
       Object.assign(this, options || {});
     }
   }
+  /**
+   * A custom annotation: a coordinate and a factory that builds the DOM
+   * element for it. The script map writes the country names with these,
+   * so the element is really built and really put on the page, which is
+   * what lets a scenario check what the map does and does not name.
+   */
+  class Annotation {
+    constructor(coordinate, factory, options) {
+      this.coordinate = coordinate;
+      Object.assign(this, options || {});
+      try {
+        this.element = factory ? factory(coordinate, options) : null;
+      } catch {
+        this.element = null;
+      }
+    }
+  }
   class CameraZoomRange {
     constructor(minCameraDistance, maxCameraDistance) {
       Object.assign(this, { minCameraDistance, maxCameraDistance });
@@ -82,6 +99,9 @@
     addEventListener(name, fn) {
       (listeners(this)[name] = listeners(this)[name] || []).push(fn);
     }
+    removeEventListener(name, fn) {
+      listeners(this)[name] = (listeners(this)[name] || []).filter((x) => x !== fn);
+    }
     // Page point to coordinate, linear over the element's box. Good
     // enough that clicking the left half really is a western longitude.
     convertPointOnPageToCoordinate(point) {
@@ -91,17 +111,33 @@
       return new Coordinate(85 - y * 170, -180 + x * 360);
     }
     addAnnotation(a) {
-      this.annotations.push(a);
+      this.addAnnotations([a]);
     }
     addAnnotations(list) {
       this.annotations.push(...list);
+      for (const a of list) if (a?.element) this.el.appendChild(this.place(a));
       this.el.setAttribute('data-fake-annotations', String(this.annotations.length));
     }
+    // Real MapKit puts a custom annotation's element where its
+    // coordinate is. Doing the same here is the inverse of the tap
+    // conversion below, and it is what makes a screenshot of a fake map
+    // worth looking at: country names land on their countries instead
+    // of stacking up in the corner.
+    place(a) {
+      const el = a.element;
+      el.style.position = 'absolute';
+      el.style.left = `${((a.coordinate.longitude + 180) / 360) * 100}%`;
+      el.style.top = `${((85 - a.coordinate.latitude) / 170) * 100}%`;
+      el.style.transform = 'translate(-50%, -50%)';
+      return el;
+    }
     removeAnnotation(a) {
-      this.annotations = this.annotations.filter((x) => x !== a);
+      this.removeAnnotations([a]);
     }
     removeAnnotations(list) {
       this.annotations = this.annotations.filter((x) => !list.includes(x));
+      for (const a of list) a?.element?.remove?.();
+      this.el.setAttribute('data-fake-annotations', String(this.annotations.length));
     }
     addOverlays(list) {
       this.overlays.push(...list);
@@ -187,6 +223,7 @@
     CoordinateSpan,
     CoordinateRegion,
     CameraZoomRange,
+    Annotation,
     Padding,
     Style,
     MarkerAnnotation,

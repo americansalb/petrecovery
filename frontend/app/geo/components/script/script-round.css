@@ -80,12 +80,15 @@
   color: rgba(43, 38, 32, 0.7);
 }
 
-/* Country names. Nothing smaller is ever drawn: a state or a city name
-   would hand over the answer, and the round is which language, not
-   which silhouette. */
-/* The marker itself is a zero-sized anchor Leaflet positions; the span
-   inside it is the label, centred on that point. Putting a transform on
-   the marker would fight the one Leaflet uses to place it. */
+/* Country names. Nothing smaller is ever drawn, on either map: a state
+   or a city name would hand over the answer, and in South Asia it
+   literally is the answer. Apple's own labels are turned off for this
+   (map.labels = false, AppleScriptMap); these are the game's.
+
+   Two maps place them two ways. Leaflet positions a zero-sized marker
+   and the span inside it centres itself on that point; MapKit places
+   the element itself, so the --map modifier takes the positioning back
+   out and leaves only the look. */
 .wg-country-label {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -103,6 +106,12 @@
 .wg-country-label--big {
   font-size: 13px;
   color: #6a6050;
+}
+.wg-country-label--map {
+  position: static;
+  transform: none;
+  /* A tap anywhere on the map is a pin, including on a name. */
+  pointer-events: none;
 }
 
 @keyframes wg-label-in {
