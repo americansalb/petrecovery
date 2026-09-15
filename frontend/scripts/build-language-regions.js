@@ -45,6 +45,13 @@ const SUBDIVIDED = {
   CHN: 'CN', TUR: 'TR', IRQ: 'IQ', IRN: 'IR', SYR: 'SY', AFG: 'AF',
   ESP: 'ES', FRA: 'FR', GBR: 'GB', BEL: 'BE', CHE: 'CH', ROU: 'RO',
   NGA: 'NG', ETH: 'ET', ZAF: 'ZA', CAN: 'CA',
+  // Added in the 2026-09-15 audit. Every one of these replaced a clip
+  // box: a rectangle drawn over a country is not a place, and a region
+  // the size of Tatarstan should have Tatarstan's border rather than a
+  // guess at its corners.
+  RUS: 'RU', USA: 'US', ITA: 'IT', DEU: 'DE', NLD: 'NL',
+  IDN: 'ID', PHL: 'PH', PER: 'PE', BOL: 'BO',
+  GHA: 'GH', UGA: 'UG', MLI: 'ML', GIN: 'GN',
 };
 // South Asia was drawn first and at two kilometres; everywhere else is
 // five, which is still finer than any isogloss is knowable.
@@ -132,12 +139,22 @@ function ringsOf(geometry) {
  * than the subdivisions are: a country is a big thing, and these ship
  * to the browser on a reveal.
  */
+/**
+ * Polygons Natural Earth draws and gives no ISO code, under a code of
+ * our own from the user-assigned range. A place with no code is still a
+ * place where a language is used, and leaving it out scores a player as
+ * wrong for pinning a city the language is written all over. The code
+ * is a key in a data file and says nothing about who governs anything;
+ * the region that uses it is named for its geography, not its politics.
+ */
+const UNCODED = { Somaliland: 'XS' };
+
 async function buildCountries() {
   const collection = await read(COUNTRY_SOURCE);
   const countries = {};
   for (const feature of collection.features) {
     const p = feature.properties || {};
-    const code = p.ISO_A2_EH && p.ISO_A2_EH !== '-99' ? p.ISO_A2_EH : p.ISO_A2;
+    const code = p.ISO_A2_EH && p.ISO_A2_EH !== '-99' ? p.ISO_A2_EH : UNCODED[p.NAME] || p.ISO_A2;
     const name = p.NAME || p.NAME_EN;
     if (!code || code === '-99' || !name) continue;
     const rings = [];

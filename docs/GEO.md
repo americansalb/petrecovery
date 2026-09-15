@@ -331,12 +331,55 @@ Four things follow, and they are the mode:
   be the game answering a question nobody asked it. Where Natural Earth
   draws a border the game draws it too, and where a language crosses
   one, the language crosses it.
+- **Where it is used, not only where it is the mother tongue.** The
+  round shows a sentence and asks where you would find it, so the region
+  is the ground the language is written across: Irish is the whole of
+  Ireland, Tamazight the whole of Morocco, Mandarin the whole of China
+  including Shanghai and Guangzhou, where the mother tongue is Wu and
+  Cantonese and the signage is not. Those overlap, and overlapping is
+  the honest answer.
 - **Three kilometres of grace.** The polygons are simplified to about
   two kilometres, so a coastline is known to about two kilometres, and
   Reykjavik, Montreal and Copenhagen each fell outside their own
   country. A pin within three kilometres of a region counts as inside
   it: that is the error bar on the map, and the score at 3 km is 4,990
   out of 5,000 anyway.
+
+**Every region is pinned to a place, and the places are the test**
+(`__tests__/geo/region-places.test.js`). A wrong subdivision code still
+resolves, a clip box drawn in the wrong place still produces a polygon,
+and both score a round against somewhere the language is not: nothing in
+the corpus notices. So each language names a place a person would really
+encounter it, and a language with no place fails the suite, which means
+the corpus cannot grow without someone saying where the new row belongs.
+A second list names places a language must NOT cover, because no
+positive check finds a region that is too big.
+
+The 2026-09-15 audit is what that test is made of. It found:
+
+- **A subdivision code that meant the wrong province.** Balochi named
+  `IR-11`, which is Zanjan in the north west. Sistan and Baluchestan is
+  `IR-13`. It resolved, drew a polygon, and scored Zahedan as 25 km
+  outside Balochi.
+- **Thirty-three regions that were rectangles**, not places. A clip box
+  over a country is a guess at its corners: Tatarstan was five points,
+  Chuvashia five, Chechnya five, Buganda eight. They are the real
+  boundaries now, from Natural Earth's admin-1 set, and thirteen more
+  countries had to be added to the builder's subdivided list to get
+  them.
+- **Sorani Kurdish drawn over Kurmanji's ground.** Sorani carried
+  south-eastern Anatolia and the Syrian northeast, which was defensible
+  while it was the only Kurdish row in the corpus. It is not now: what
+  is written in Turkey and Syria is Kurmanji, in Latin letters, and
+  Kurmanji has its own row.
+- **Somali stopping at a line Natural Earth draws and does not name.**
+  Hargeisa scored 51 km from anywhere Somali is used, because the
+  polygon north of that line has no ISO code and the builder dropped it.
+  It is in now, under a code from the user-assigned range and a name
+  that is geography rather than politics.
+- **Mandarin excluding the cities it is most written in.** It listed the
+  provinces where it is the mother tongue, which left Shanghai, Guangzhou
+  and Kashgar outside the language every sign in them is written in.
 
 **The polygons never reach the browser except on a reveal**, and then
 only the answer's own, thinned to the region's own scale: Spanish is 186
