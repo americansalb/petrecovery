@@ -156,7 +156,7 @@ describe("the game's old name does not reach people either", () => {
 
   it('the name the game shows is a constant, not a literal in a card', () => {
     const { GAME_NAME } = require('@/app/lib/geo/meta');
-    expect(GAME_NAME).toBe('WanderGuesser');
+    expect(GAME_NAME).toBe('Probably Earth');
     const card = fs.readFileSync(path.join(__dirname, '..', 'app/lib/geo/server/ShareCard.jsx'), 'utf8');
     expect(card).toContain('wordmark = GAME_NAME');
     // The host is a prop too, so a card rendered on the game's own

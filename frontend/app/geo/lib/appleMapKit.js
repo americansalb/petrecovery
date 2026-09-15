@@ -4,7 +4,7 @@
  * MapKit JS, loaded for the game.
  *
  * The game owns this so that app/geo does not import the pet site's map
- * helpers (docs/WANDERGUESSER_SPLIT.md, phase 1.4). The game needs the
+ * helpers (docs/PROBABLY_EARTH_SPLIT.md, phase 1.4). The game needs the
  * loader and nothing else: the pet module's annotation, overlay and
  * place-search wrappers are for the shelter maps.
  *
@@ -34,7 +34,7 @@ const MAPKIT_JS_URL = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
  * The literal below is the one the pet site has shipped to every
  * browser since Apple mode was added. It covers the apex and nothing
  * else. Replacing it for the game's own domain is decision D5 in
- * docs/WANDERGUESSER_SPLIT.md.
+ * docs/PROBABLY_EARTH_SPLIT.md.
  *
  * `scripts/check-mapkit-token.js` asks Apple which hosts these actually
  * work on, which is the only answer that counts.

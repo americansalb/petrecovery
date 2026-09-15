@@ -32,7 +32,7 @@ export async function resolveProfile(store, { token, accountId, name, now = Date
   const hash = token ? hashToken(token) : null;
   // The account is the game's own (server/accounts.js), never a
   // ReunitePets user: that binding was cut deliberately
-  // (docs/WANDERGUESSER_SPLIT.md, D1).
+  // (docs/PROBABLY_EARTH_SPLIT.md, D1).
   const byAccount = accountId ? await store.getProfileByAccountId(accountId) : null;
   const byToken = hash ? await store.getProfileByTokenHash(hash) : null;
   let profile = null;

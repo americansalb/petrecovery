@@ -14,7 +14,7 @@ Disallow: /auth/
 Disallow: /dashboard
 Disallow: /profile
 Disallow: /settings/
-# WanderGuesser: the lobby and the boards are worth indexing, a live
+# Probably Earth: the lobby and the boards are worth indexing, a live
 # game and an account page are not. A room and a share page are not
 # listed here on purpose: they are built to unfurl in chat, the bots
 # that draw those cards honour this file, and their own metadata

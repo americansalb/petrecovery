@@ -95,7 +95,7 @@ describe('profiles', () => {
 
   test('signing in binds the anonymous profile to the account, and the account wins from then on', async () => {
     // The account is the game's own (server/accounts.js), never a
-    // ReunitePets user: docs/WANDERGUESSER_SPLIT.md, D1.
+    // ReunitePets user: docs/PROBABLY_EARTH_SPLIT.md, D1.
     const store = createMemoryRoomStore();
     const anon = await profileFor(store, 'Guest');
     const bound = await resolveProfile(store, { token: anon.token, accountId: 'acct_1', name: 'Guest', now: T0 });

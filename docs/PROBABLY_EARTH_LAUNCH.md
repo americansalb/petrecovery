@@ -1,7 +1,7 @@
-# WanderGuesser: what launch needs
+# Probably Earth: what launch needs
 
 Written 2026-09-11 against `pet_main`. `docs/GEO.md` is what the game
-does, `docs/WANDERGUESSER_SPLIT.md` is how it becomes its own product.
+does, `docs/PROBABLY_EARTH_SPLIT.md` is how it becomes its own product.
 This is only the question "can it go live", answered honestly.
 
 ## Try it first, decide later

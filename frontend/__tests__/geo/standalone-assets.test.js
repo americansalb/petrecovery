@@ -8,7 +8,7 @@
  * the game's. The Dockerfile copies only .next/standalone and runs
  * server.js from it, so in the deployed image the directory held
  * index.js and no .ttf at all: the import threw ENOENT, the OG route's
- * catch swallowed it, and every WanderGuesser share preview was the
+ * catch swallowed it, and every Probably Earth share preview was the
  * site logo. That is exactly what CLAUDE.md's link-preview rule
  * forbids, and og-card.test.js was green throughout because it reads
  * the fonts through __dirname.

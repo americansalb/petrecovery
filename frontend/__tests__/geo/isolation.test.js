@@ -1,7 +1,7 @@
 /**
  * The game imports nothing from the pet site.
  *
- * This is the enforcement behind phase 1 of docs/WANDERGUESSER_SPLIT.md.
+ * This is the enforcement behind phase 1 of docs/PROBABLY_EARTH_SPLIT.md.
  * The game is being made standalone, and the way that stays true while
  * other work carries on is a test that fails the moment a new wire is
  * added. Every import in the game's five directories has to resolve to
@@ -154,7 +154,7 @@ describe('the game stands alone', () => {
   test('the game does not read the pet site\'s session, in any form', () => {
     // next-auth is an npm package, so the import walk above lets it
     // through, but useSession() and getServerSession(authOptions) are
-    // the same wire wearing a different hat: they make a WanderGuesser
+    // the same wire wearing a different hat: they make a Probably Earth
     // player a ReunitePets user. The founder's answer to D1 was that a
     // standalone account is not connected to ReunitePets, so both go.
     // Built at runtime rather than written out, so this file does not

@@ -3,7 +3,7 @@
  *
  * The game owns this file so that nothing under app/geo, app/lib/geo or
  * app/api/geo has to import the pet site's navigation policy
- * (docs/WANDERGUESSER_SPLIT.md, phase 1.6). It is also where the pet
+ * (docs/PROBABLY_EARTH_SPLIT.md, phase 1.6). It is also where the pet
  * site reads the game's routes, rate limits and map hosts from, so the
  * wires that point INWARD are one named import rather than fourteen
  * lines scattered through middleware.js and navChrome.js (phase 2).
@@ -103,7 +103,7 @@ export const GAME_CSP_HOSTS = {
 
 /**
  * Short paths on the game's own domain, so the visible URL is
- * wanderguesser.example/play rather than /geo/play. Only used when this
+ * probablyearth.example/play rather than /geo/play. Only used when this
  * build or this host is the game's site (docs/GEO.md, "Hosting on
  * another domain"); they become plain routes once the game moves out.
  */

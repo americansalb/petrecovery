@@ -5,7 +5,7 @@
  * arrangement where the game has no database of its own yet and its pool
  * points at DATABASE_URL alongside the pet app's, so a version that read
  * only GEO_DATABASE_URL would leave the setting dead in exactly the
- * deployment it was added for (docs/WANDERGUESSER_SPLIT.md, phase 1.1).
+ * deployment it was added for (docs/PROBABLY_EARTH_SPLIT.md, phase 1.1).
  */
 
 jest.mock('@prisma/client', () => ({ PrismaClient: class {} }));
@@ -13,7 +13,7 @@ jest.mock('@prisma/client', () => ({ PrismaClient: class {} }));
 const { connectionUrl, SHARED_POOL_DEFAULT } = require('@/app/lib/geo/server/db');
 
 const SHARED = 'postgresql://user:pw@db.example:5432/petrecovery';
-const OWN = 'postgresql://user:pw@geo.example:5432/wanderguesser';
+const OWN = 'postgresql://user:pw@geo.example:5432/probablyearth';
 
 describe('the connection string', () => {
   test('says nothing when there is no database at all', () => {

@@ -3,7 +3,7 @@
  *
  * A language game that renders tofu boxes is not a hard round, it is a
  * broken one, and it breaks worst on cheap Android hardware in exactly
- * the places this mode exists to represent (docs/WANDERGUESSER_STRATEGY.md,
+ * the places this mode exists to represent (docs/PROBABLY_EARTH_STRATEGY.md,
  * bet 5a: "test Indic, Myanmar and Ethiopic rendering early"). So the
  * font for every non-Latin script in the corpus ships with the page
  * rather than being hoped for on the device.

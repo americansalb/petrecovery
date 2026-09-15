@@ -26,8 +26,8 @@ import { IMMERSIVE_GAME_ROUTES } from '@/app/lib/geo/site';
  * The game's own takeovers come from IMMERSIVE_GAME_ROUTES in
  * app/lib/geo/site.js rather than being listed here, so the pet site
  * does not carry a copy of the game's route map that can drift from it
- * (docs/WANDERGUESSER_SPLIT.md, phase 2.2). Today that is /geo/play,
- * /geo/room and /geo/script/play: WanderGuesser while a round or a
+ * (docs/PROBABLY_EARTH_SPLIT.md, phase 2.2). Today that is /geo/play,
+ * /geo/room and /geo/script/play: Probably Earth while a round or a
  * room is in progress. They cover the screen and carry an X back to the
  * game's lobby. The rest of the game is ordinary pages under the
  * universal bar with the game's own subtabs below it. When the game

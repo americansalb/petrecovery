@@ -2,7 +2,7 @@
  * Link-preview metadata for the game's shareable pages.
  *
  * The game owns this so that nothing under app/geo imports the pet
- * site's share helpers (docs/WANDERGUESSER_SPLIT.md, phase 1.3). The
+ * site's share helpers (docs/PROBABLY_EARTH_SPLIT.md, phase 1.3). The
  * shape is the same one every route on the pet site uses, minus the
  * parts that only make sense for a pet: there is no photo to normalize
  * here, so there is no shareImage.
@@ -19,19 +19,27 @@
  * by __tests__/link-previews.test.js.
  */
 
-export const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'ReunitePets';
+/**
+ * og:site_name for the game's pages. The game's own, not the pet
+ * site's: it is a site of its own on probablyearth.com, and a preview
+ * that says ReunitePets makes it look like somebody else's section.
+ */
+export const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
 /**
  * The game's name, in one place. Renaming it once left the share card
  * painting the old one into every preview PNG for months, because that
  * was a literal in a JSX file nobody greps.
  */
-export const GAME_NAME = 'WanderGuesser';
+export const GAME_NAME = 'Probably Earth';
 
 /** The card a page falls back to when it has no image of its own. */
 export const FALLBACK_SHARE_IMAGE =
   process.env.NEXT_PUBLIC_GEO_SHARE_IMAGE ||
-  'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png';
+  // The game draws its own cards (/api/geo/og); this is the one for a
+  // page with nothing of its own to show. A pet rescue logo on a
+  // geography game was the old answer and it was the wrong one.
+  '/geo-card.svg';
 
 /**
  * Absolute base for resolving relative images. Messengers reject a
@@ -66,12 +74,16 @@ export function buildShareMetadata({
   ogTitle,
   twitterTitle,
   twitterDescription,
+  // The tab icon. The game's pages pass a globe; the pet site's own
+  // pages never call this and keep theirs.
+  icons,
 }) {
   const imageUrl = image || FALLBACK_SHARE_IMAGE;
   return {
     metadataBase: shareMetadataBase(),
     title,
     description,
+    ...(icons ? { icons } : {}),
     ...(keywords ? { keywords } : {}),
     openGraph: {
       title: ogTitle || title,

@@ -18,7 +18,7 @@ import { hashIp } from './meter';
  * they are signed in, and the hashed IP. Never throws: a failed lookup
  * leaves the profile out and the IP in.
  *
- * "Signed in" here means a WanderGuesser account, which is an email
+ * "Signed in" here means a Probably Earth account, which is an email
  * address and nothing else. It has never meant a ReunitePets account
  * since phase 1.7 of the split; the two products do not share identity.
  */

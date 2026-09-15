@@ -84,8 +84,8 @@ const databaseStore = {
   },
 
   // The game's own accounts (server/accounts.js). Not ReunitePets
-  // users: a WanderGuesser player is not a pet-site user and does not
-  // become one (docs/WANDERGUESSER_SPLIT.md, D1).
+  // users: a Probably Earth player is not a pet-site user and does not
+  // become one (docs/PROBABLY_EARTH_SPLIT.md, D1).
   getAccountByEmail(email) {
     return prisma.geoAccount.findUnique({ where: { email } });
   },

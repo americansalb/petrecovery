@@ -167,7 +167,7 @@ export default function GeoLobby() {
   }, []);
 
   // Your rating: this browser gets a profile the first time it joins a
-  // room, and a WanderGuesser account has one across devices. Nobody
+  // room, and a Probably Earth account has one across devices. Nobody
   // else needs a row for looking at the lobby.
   useEffect(() => {
     // A visitor who has never played and is not signed in gets no row.
@@ -251,7 +251,7 @@ export default function GeoLobby() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">WanderGuesser</h1>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Probably Earth</h1>
             <p className="mt-2 max-w-2xl text-midnight-600">
               You are dropped at a random spot with street-level imagery. Look around, then put a pin on the map. Up to 5,000 points a round, depending on how close you are.
             </p>

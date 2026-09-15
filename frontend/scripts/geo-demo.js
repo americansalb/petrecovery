@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Play WanderGuesser with nothing configured.
+ * Play Probably Earth with nothing configured.
  *
  *   npm run geo:demo
  *
@@ -82,7 +82,7 @@ run('metadata', process.execPath, [path.join(here, 'geo-e2e', 'mock-metadata.js'
 });
 
 console.log(`
-  WanderGuesser demo
+  Probably Earth demo
   ------------------
   Play:        http://localhost:${PORT}/geo/script      <- start here, works with no keys
   Everything:  http://localhost:${PORT}/geo

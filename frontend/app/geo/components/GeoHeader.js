@@ -6,7 +6,9 @@
  * permitted variation in app/lib/navChrome.js): Play, Rooms, Rankings,
  * Daily, Profile. On the game's own site (NEXT_PUBLIC_SITE=geo, docs/GEO.md)
  * there is no pet chrome, so the same row is the site's header, with
- * the site's name and a ReunitePets link as the way out. Hidden inside
+ * the site's name and the game's own links. The way back to the pet
+ * site lives in the footer instead: this is a site of its own, and a
+ * link out of it does not belong in its navigation. Hidden inside
  * a round or a room, which cover the screen and carry their own X.
  */
 
@@ -15,7 +17,7 @@ import { usePathname } from 'next/navigation';
 import { Globe2 } from 'lucide-react';
 import { isGameSite } from '@/app/lib/geo/site';
 
-const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'WanderGuesser';
+const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 const HOME_URL = process.env.NEXT_PUBLIC_GEO_HOME_URL || 'https://www.reunitepets.org';
 
 export const GAME_LINKS = [
@@ -58,9 +60,6 @@ export default function GeoHeader() {
                 </Link>
               );
             })}
-            <a href={HOME_URL} className="ml-2 hidden shrink-0 rounded-lg px-3 py-1.5 text-sm text-white/60 hover:text-white sm:inline">
-              ReunitePets
-            </a>
           </nav>
         </div>
       </header>

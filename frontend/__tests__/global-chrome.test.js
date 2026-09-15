@@ -242,7 +242,7 @@ describe('nav components defer to the shared policy', () => {
     // the IMMERSIVE_DIRS list above, then extend this expectation.
     //
     // The game's own takeovers are asserted THROUGH its constant rather
-    // than copied here (docs/WANDERGUESSER_SPLIT.md, phase 2.2): the pet
+    // than copied here (docs/PROBABLY_EARTH_SPLIT.md, phase 2.2): the pet
     // site must not carry a second copy of the game's route map that can
     // drift from it. The pet site's own three are still spelled out,
     // because those are the ones this rule exists to hold still.
