@@ -349,6 +349,81 @@ export const SAMPLES = {
     'Namhlanje ekuseni bekubanda kakhulu, ngakho ngiphuze itiye elishisayo.',
     'Uhamba ngezinyawo eya emsebenzini nsuku zonke.',
   ],
+  mkd: [
+    'Утрово беше многу студено, затоа испив топол чај.',
+    'Тој секој ден оди на работа пешки.',
+    'Не знам каде води овој пат.',
+  ],
+  bel: [
+    'Сёння раніцай было вельмі холадна, таму я выпіў гарачай гарбаты.',
+    'Ён кожны дзень ходзіць на працу пешшу.',
+    'Я не ведаю, куды вядзе гэтая дарога.',
+  ],
+  tgk: [
+    'Имрӯз субҳ ҳаво хеле хунук буд, барои ҳамин чойи гарм нӯшидам.',
+    'Ӯ ҳар рӯз пиёда ба идора меравад.',
+    'Намедонам, ки ин роҳ ба куҷо мебарад.',
+  ],
+  kir: [
+    'Бүгүн эртең менен абдан суук болду, ошондуктан ысык чай ичтим.',
+    'Ал күн сайын жумушка жөө барат.',
+    'Бул жол кайда алып барарын билбейм.',
+  ],
+  slk: [
+    'Dnes ráno bola veľká zima, tak som si dal horúci čaj.',
+    'Chodí do práce pešo každý deň.',
+    'Neviem, kam vedie táto cesta.',
+  ],
+  slv: [
+    'Danes zjutraj je bilo zelo mrzlo, zato sem spil topel čaj.',
+    'Vsak dan hodi v službo peš.',
+    'Ne vem, kam pelje ta cesta.',
+  ],
+  lav: [
+    'Šorīt bija ļoti auksts, tāpēc iedzēru karstu tēju.',
+    'Viņš katru dienu iet uz darbu kājām.',
+    'Es nezinu, kurp ved šis ceļš.',
+  ],
+  glg: [
+    'Esta mañá facía moito frío, así que tomei un té quente.',
+    'Vai andando ao traballo cada día.',
+    'Non sei onde leva este camiño.',
+  ],
+  gle: [
+    'Bhí sé an-fhuar ar maidin, mar sin d’ól mé tae te.',
+    'Siúlann sé chun na hoibre gach lá.',
+    'Cá dtéann an bóthar seo?',
+  ],
+  gla: [
+    'Bha i glè fhuar sa mhadainn, mar sin dh’òl mi tì theth.',
+    'Bidh e a’ coiseachd dhan obair a h-uile latha.',
+    'Càite a bheil an rathad seo a’ dol?',
+  ],
+  mlt: [
+    'Dalgħodu kien kiesaħ ħafna, għalhekk xrobt tè sħun.',
+    'Kuljum jimxi għax-xogħol.',
+    'Ma nafx fejn twassal din it-triq.',
+  ],
+  fao: [
+    'Í morgun var sera kalt, so fekk eg mær heitt te.',
+    'Hann gongur á arbeiði hvønn dag.',
+    'Eg veit ikki, hvar hesin vegurin gongur.',
+  ],
+  ltz: [
+    'De Moien war et ganz kal, dofir hunn ech waarmen Téi gedronk.',
+    'Hie geet all Dag zu Fouss op de Büro.',
+    'Ech weess net, wouhin dëse Wee féiert.',
+  ],
+  bre: [
+    'Yen-tre e oa ar mintin-mañ, setu m’em eus evet te tomm.',
+    'Bemdez ez a da labourat war-droad.',
+    'N’ouzon ket pelec’h ez a an hent-mañ.',
+  ],
+  fry: [
+    'Fanmoarn wie it hiel kâld, dêrom naam ik in bakje waarme tee.',
+    'Alle dagen rint er nei it wurk.',
+    'Ik wit net wêr’t dizze dyk hinne giet.',
+  ],
 };
 
 /** Every sample for a language, or an empty array if it has none. */

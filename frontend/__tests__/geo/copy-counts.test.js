@@ -29,8 +29,11 @@ test('the script preview names the real number of writing systems', () => {
   const scripts = Object.keys(SCRIPTS).length;
   expect(scripts).toBe(25);
   const layout = read('app/geo/script/layout.js');
-  expect(layout).toContain(`${LANGUAGES.length === 76 ? 'Seventy-six' : LANGUAGES.length} languages`);
-  expect(layout).toContain('twenty-five writing systems');
+  // Digits in both, so this check is the data and not a spelling of it:
+  // the corpus grows, and a share card that says seventy-six when there
+  // are ninety-one is a promise the game no longer keeps.
+  expect(layout).toContain(`${LANGUAGES.length} languages`);
+  expect(layout).toContain(`${scripts} writing systems`);
   expect(read('app/geo/components/GeoLobby.js')).toContain(`across ${scripts} writing systems`);
 });
 

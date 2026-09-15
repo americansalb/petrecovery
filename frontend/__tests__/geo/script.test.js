@@ -274,11 +274,26 @@ describe('scoring a pin', () => {
   });
 
   test('a city speaks the language it speaks, everywhere in the world', () => {
-    // The corpus is 76 languages and the map is now every one of them.
-    // These are the checks that would catch a wrong code: each city is
-    // somewhere the language is unarguably spoken, and a wrong unit or
-    // a wrong country would miss it.
+    // The map is every language in the corpus. These are the checks that
+    // would catch a wrong code: each city is somewhere the language is
+    // unarguably spoken, and a wrong unit, a wrong country or a clip box
+    // drawn in the wrong place would miss it.
     const cities = {
+      Skopje: [41.99, 21.43, 'mkd'],
+      Minsk: [53.9, 27.57, 'bel'],
+      Dushanbe: [38.56, 68.79, 'tgk'],
+      Bishkek: [42.87, 74.59, 'kir'],
+      Bratislava: [48.15, 17.11, 'slk'],
+      Ljubljana: [46.06, 14.51, 'slv'],
+      Riga: [56.95, 24.11, 'lav'],
+      'Santiago de Compostela': [42.88, -8.54, 'glg'],
+      Galway: [53.27, -9.05, 'gle'],
+      Stornoway: [58.21, -6.39, 'gla'],
+      Valletta: [35.9, 14.51, 'mlt'],
+      'Torshavn': [62.01, -6.77, 'fao'],
+      Luxembourg: [49.61, 6.13, 'ltz'],
+      Brest: [48.39, -4.49, 'bre'],
+      Leeuwarden: [53.2, 5.79, 'fry'],
       Reykjavik: [64.15, -21.94, 'isl'],
       Lisbon: [38.72, -9.14, 'por'],
       'Sao Paulo': [-23.55, -46.63, 'por'],
@@ -469,11 +484,20 @@ describe('the draw', () => {
   });
 
   test('a ladder smaller than the round count refills instead of refusing', () => {
-    const pool = languagesForLadder('cyrl');
-    const drawn = drawLanguages({ ladder: 'cyrl', rounds: 10, seed: 'sc-3' });
+    // Whichever pool is smallest, rather than a named one: Cyrillic used
+    // to be six languages and a ten round game had to refill, and then
+    // Macedonian, Belarusian, Tajik and Kyrgyz arrived and it did not.
+    // The behaviour under test is the refill, not the size of a pool.
+    const [id] = LADDER_ORDER.map((ladder) => [ladder, languagesForLadder(ladder).length]).sort((a, b) => a[1] - b[1])[0];
+    const pool = languagesForLadder(id);
+    // Ten is the longest game on offer, and the smallest pool has to be
+    // smaller than that or there is no refill to test.
+    expect(pool.length).toBeLessThan(10);
+    const drawn = drawLanguages({ ladder: id, rounds: 10, seed: 'sc-3' });
     expect(drawn.length).toBe(10);
     expect(drawn.length).toBeGreaterThan(pool.length);
-    for (const language of drawn) expect(language.script).toBe('cyrl');
+    const codes = new Set(pool.map((language) => language.code));
+    for (const language of drawn) expect(codes.has(language.code)).toBe(true);
   });
 
   test('the draw stays inside the ladder', () => {
