@@ -449,7 +449,13 @@ describe('a round', () => {
       // The script id is deliberately sent (the browser cannot choose a
       // font without it) and a code can be a substring of one: "tam" is
       // inside "taml". It is checked for what it is instead.
-      const withoutText = JSON.stringify({ ...round, text: '', script: '' });
+      // The sealed token comes out too, and not for tidiness: it is
+      // random base64, so sooner or later three of its characters spell
+      // a language code. `nqo` turned up inside a real token and failed
+      // this test on a change that had nothing to do with it. The token
+      // is checked for what it is, below: unreadable without the
+      // secret. Scanning it for plaintext is scanning noise.
+      const withoutText = JSON.stringify({ ...round, text: '', script: '', token: '' });
       expect(Object.keys(SCRIPTS)).toContain(round.script);
       expect(round.script).toBe(answer.script);
 
