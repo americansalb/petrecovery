@@ -268,14 +268,31 @@ pinned in Tamil Nadu scores full marks. Tamil pinned in Punjab does not.
 Punjabi is spoken on both sides of a border, and pinning either is
 right.
 
-**The corpus is 91 languages across 25 writing systems**, and it grows
+**The corpus is 159 languages across 34 writing systems**, and it grows
 by adding the language next to one already in it rather than the next
 biggest in the world: Macedonian beside Bulgarian, Slovak beside Czech,
 Latvian beside Lithuanian, Galician between Spanish and Portuguese,
-Scottish Gaelic beside Irish, Faroese beside Icelandic, Tajik beside
-Persian in a different alphabet. A round is worth playing when it is a
-decision between two things you can tell apart, and worth nothing when
-the answer is "somewhere in Europe".
+Scottish Gaelic beside Irish, Faroese beside Icelandic, Dari and Tajik
+beside Persian in two other alphabets, Cantonese beside Mandarin in the
+same one. A round is worth playing when it is a decision between two
+things you can tell apart, and worth nothing when the answer is
+"somewhere in Europe".
+
+**Nine of the alphabets are written for a handful of languages each**,
+and every one of them settles a round on sight: Thaana for Dhivehi,
+Tibetan for Tibetan and Dzongkha, Ol Chiki for Santali, Meetei Mayek for
+Manipuri, Cherokee, Canadian syllabics for Inuktitut, N'Ko for Manding,
+Adlam for Pular, Tifinagh for Tamazight. Two of them are younger than
+the people using them: Adlam was invented in the 1980s by two teenage
+brothers in Guinea, Ol Chiki in 1925 by a Santal schoolteacher.
+
+**Nothing in the code caps this.** Every Noto face the remaining scripts
+would need is on Google Fonts, Natural Earth has the boundaries, and the
+builder and the tests scale. The limit is that a sentence has to be
+right: these are hand-written, and the long tail of the corpus deserves
+a native speaker's eye before anyone rates a player on it. Correcting
+one is a single array in `app/lib/geo/server/samples.js` and its markers
+beside it.
 
 **Every language is drawn as real places.** A region is a whole country
 (`{ countries: ['IS'] }`), a set of subdivisions (`{ units: ['IN-TN'] }`,
@@ -285,7 +302,7 @@ admin-0 and admin-1 sets (public domain), built into
 `app/lib/geo/data/language-regions.json` by
 `scripts/build-language-regions.js` and resolved by
 `app/lib/geo/server/regions.js`. The file carries only what the corpus
-names: 135 countries and 262 subdivisions, not Natural Earth's four
+names: 160 countries and 271 subdivisions, not Natural Earth's four
 thousand.
 
 They were discs until 2026-09-12, and the discs were wrong in ways the
@@ -461,7 +478,7 @@ more than the rest put together:**
 game that renders empty boxes is not a hard round, it is an unplayable
 one, and it fails worst on cheap Android hardware in exactly the places
 the mode exists to represent. So `app/geo/script/fonts.js` bundles a
-Noto face for all nineteen non-Latin scripts in the corpus, scoped to
+Noto face for all twenty-eight non-Latin scripts in the corpus, scoped to
 these routes. Han, Hangul and Kana are not bundled: those families are
 megabytes each and system coverage is close to universal. For the
 machines where that bet is wrong, `ScriptSample` measures the text
