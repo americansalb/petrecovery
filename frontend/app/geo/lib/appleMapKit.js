@@ -91,6 +91,35 @@ export function mapKitRefusalMessage() {
   return "Apple refused this site's MapKit token. That is usually the day's map quota or a token that has expired.";
 }
 
+/**
+ * The server will mint a token for whatever host this page is on, if it
+ * has the signing key (app/api/geo/mapkit-token/route.js). That is the
+ * only arrangement that survives a new hostname, and a new hostname is
+ * what broke this: the token below covers the apex, the site redirects
+ * the apex to www, and Apple answers 401 on www.
+ *
+ * Asked for once per page and cached. If the answer is empty, because
+ * no signing key is configured, the literal above is used and nothing
+ * changes.
+ */
+let mintedPromise = null;
+
+function mintedToken() {
+  if (mintedPromise) return mintedPromise;
+  mintedPromise = fetch('/api/geo/mapkit-token')
+    .then((response) => (response.ok ? response.json() : null))
+    .then((body) => {
+      if (body && !body.token && body.reason) {
+        // Said once, where whoever runs the site will see it. A blank
+        // map with no explanation is how this went unnoticed.
+        console.info(`[MapKit] serving the built in token: ${body.reason}`);
+      }
+      return body?.token || '';
+    })
+    .catch(() => '');
+  return mintedPromise;
+}
+
 let initPromise = null;
 
 /**
@@ -212,7 +241,13 @@ export async function initializeMapKit() {
       watchAuth(mapkit);
       if (!window[INIT_FLAG]) {
         mapkit.init({
-          authorizationCallback: (done) => done(tokenForHost()),
+          // Async on purpose: MapKit waits for `done`, and a token cut
+          // to this host beats one that merely exists.
+          authorizationCallback: (done) => {
+            mintedToken()
+              .then((token) => done(token || tokenForHost()))
+              .catch(() => done(tokenForHost()));
+          },
           language: 'en',
         });
         window[INIT_FLAG] = true;

@@ -75,6 +75,10 @@ export const GAME_RATE_LIMITS = {
   '/api/geo/round': { windowMs: 60000, maxRequests: 40 },
   '/api/geo/guess': { windowMs: 60000, maxRequests: 60 },
   '/api/geo/config': { windowMs: 60000, maxRequests: 30 },
+  // A MapKit token, minted per host and cached by the page that asked.
+  // One a page, plus whatever MapKit asks for on refresh, so this is
+  // sized for someone moving around the game rather than sitting still.
+  '/api/geo/mapkit-token': { windowMs: 60000, maxRequests: 30 },
   // The share card is rendered on demand and cached by the browser.
   '/api/geo/og': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/daily': { windowMs: 60000, maxRequests: 30 },
