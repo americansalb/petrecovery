@@ -40,6 +40,7 @@
 
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef, useState } from 'react';
+import { chooseLabels } from '../../lib/countryLabels';
 
 const ANSWER = '#16a34a';
 const GUESS = '#e08c0a';
@@ -145,40 +146,67 @@ function dot(L, color, label) {
   });
 }
 
-/** Country names, shown from the zoom Natural Earth's cartographers set. */
+/**
+ * Country names, shown from the zoom Natural Earth's cartographers set,
+ * and only where there is room for them (app/geo/lib/countryLabels.js).
+ *
+ * Recomputed on pan as well as zoom, because what fits depends on where
+ * the map is looking: two names that collide in the middle of the
+ * screen are two names with space around them once one of them is near
+ * an edge.
+ */
 function addLabels(L, map, rows) {
-  const markers = rows.map((row) => ({
-    zoom: row.z,
-    until: row.u ?? 12,
-    marker: L.marker([row.y, row.x], {
-      icon: L.divIcon({
-        className: '',
-        html: `<span class="wg-country-label${row.z <= 2 ? ' wg-country-label--big' : ''}">${row.n}</span>`,
-        iconSize: [0, 0],
+  const markers = new Map(
+    rows.map((row) => [
+      row,
+      L.marker([row.y, row.x], {
+        icon: L.divIcon({
+          className: '',
+          html: `<span class="wg-country-label${row.z <= 2 ? ' wg-country-label--big' : ''}">${row.n}</span>`,
+          iconSize: [0, 0],
+        }),
+        interactive: false,
+        keyboard: false,
+        pane: 'labels',
       }),
-      interactive: false,
-      keyboard: false,
-      pane: 'labels',
-    }),
-  }));
+    ])
+  );
   const shown = new Set();
   const sync = () => {
-    const zoom = map.getZoom();
-    for (const entry of markers) {
-      const wanted = entry.zoom <= zoom && zoom <= entry.until;
-      if (wanted === shown.has(entry)) continue;
+    const size = map.getSize();
+    const kept = new Set(
+      chooseLabels(rows, {
+        zoom: map.getZoom(),
+        width: size.x,
+        height: size.y,
+        project: (lat, lng) => {
+          try {
+            return map.latLngToContainerPoint([lat, lng]);
+          } catch {
+            return null;
+          }
+        },
+      })
+    );
+    for (const [row, marker] of markers) {
+      const wanted = kept.has(row);
+      if (wanted === shown.has(row)) continue;
       if (wanted) {
-        entry.marker.addTo(map);
-        shown.add(entry);
+        marker.addTo(map);
+        shown.add(row);
       } else {
-        map.removeLayer(entry.marker);
-        shown.delete(entry);
+        map.removeLayer(marker);
+        shown.delete(row);
       }
     }
   };
   map.on('zoomend', sync);
+  map.on('moveend', sync);
   sync();
-  return () => map.off('zoomend', sync);
+  return () => {
+    map.off('zoomend', sync);
+    map.off('moveend', sync);
+  };
 }
 
 export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, nearestPoint = null, mode = 'guess', className = '', onMapTrouble }) {

@@ -397,7 +397,7 @@ export default function GeoLobby() {
                 Script
               </h2>
               <p className="mt-2 text-sm text-gray-600">
-                A second game on the same scoring. You get a sentence and pin where that language is spoken. 159 languages
+                A second game on the same scoring. You get a sentence and pin where that language is used. 159 languages
                 across 34 writing systems, scored by distance, so Tamil and Marathi are different answers.
               </p>
               <p className="mt-2 text-sm text-gray-500">No imagery, so it does not touch your Street View allowance.</p>

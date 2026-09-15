@@ -83,18 +83,32 @@ describe('the script round always has a map it can be played on', () => {
   test('the round is played on Apple, with the keyless map behind it', () => {
     expect(client).toContain('<AppleScriptMap');
     expect(client).toContain('<LeafletScriptMap');
+    // And nothing else. A fallback billed per map load would cost real
+    // money on exactly the days Apple is not drawing, which is a worse
+    // problem than the one it solves.
+    expect(client).not.toContain('GoogleScriptMap');
   });
 
-  test('the clock that gives up on Apple stops once Apple has answered', () => {
-    // It did not, so a round drew Apple's map and then threw it away a
-    // few seconds later and redrew the keyless one, every round, for
-    // everyone: MapKit had authorized and the timer fired regardless.
+  test('Apple answering slowly is not Apple refusing', () => {
+    // The round used to give MapKit three seconds to confirm the token
+    // after the script landed and read the silence as a no. Any page
+    // where the Initialized event had already fired before this screen
+    // mounted, and any connection slow enough to miss the window, drew
+    // the keyless map on a site where Apple works. There is one clock
+    // now and it is for the script never arriving.
+    expect(client).not.toContain('MAPKIT_AUTH_MS');
     const settle = client.slice(client.indexOf('const settle = (state)'));
-    expect(settle.slice(0, settle.indexOf('};'))).toContain('clearTimeout(timer)');
+    const body = settle.slice(0, settle.indexOf('};'));
+    // Only a refusal moves the round. Nothing in here fires on silence.
+    expect(body).toContain("if (state === 'failed') setProvider('leaflet');");
+    expect(body).not.toContain('setTimeout');
   });
 
   test('a refusal is latched, so the map is never swapped out mid-round', () => {
-    expect(client).toContain("setProvider((current) => (current === 'leaflet' ? current : 'apple'))");
+    // Apple is only ever chosen out of 'pending', so an authorization
+    // that lands after a refusal has already moved the round cannot
+    // drag it back to Apple and take the placed pin with it.
+    expect(client).toContain("setProvider((current) => (current === 'pending' ? 'apple' : current))");
   });
 
   test("Apple writes nothing on the map of its own", () => {
