@@ -1,11 +1,16 @@
 /**
- * Country names have to stop landing on each other.
+ * Country names have to stop landing on each other, and stop looking
+ * like the map is choosing favourites.
  *
- * The bug this covers is visible in one screenshot of the world at its
- * starting zoom: UNITED KINGDOM, GERMANY, FRANCE, ITALY and SPAIN all
- * written over the same corner of the map, EGYPT across SAUDI ARABIA,
- * KENYA across DEM. REP. CONGO. Every one of those anchors is correct.
- * Drawing all of them is what is wrong.
+ * First bug, visible in one screenshot of the world at its starting
+ * zoom: UNITED KINGDOM, GERMANY, FRANCE, ITALY and SPAIN written over
+ * the same corner of the map, EGYPT across SAUDI ARABIA, KENYA across
+ * DEM. REP. CONGO. Every anchor is correct; drawing all of them is not.
+ *
+ * Second bug, from the fix for the first: dropping only the losers left
+ * a world where France was named and Germany was not, for no reason a
+ * player could see, and the set changed on every pan. So it is all of
+ * them or none, and "none" is what a zoomed out world gets.
  */
 
 import { chooseLabels, labelBox, LABEL_FONT } from '@/app/geo/lib/countryLabels';
@@ -19,12 +24,12 @@ const view = (rows, zoom, width = 720, height = 360) =>
   chooseLabels(rows, { zoom, project: flat(width, height), width, height });
 
 describe('choosing which country names to draw', () => {
-  test('two names in the same place: the more important one is drawn and the other is not', () => {
+  test('two names in the same place: neither is drawn, because half a map reads as a broken one', () => {
     const rows = [
       { n: 'France', x: 2, y: 47, z: 3 },
       { n: 'Switzerland', x: 8, y: 47, z: 4 },
     ];
-    expect(view(rows, 4).map((row) => row.n)).toEqual(['France']);
+    expect(view(rows, 4)).toEqual([]);
   });
 
   test('the same two are both drawn once there is room for them', () => {
@@ -64,7 +69,7 @@ describe('choosing which country names to draw', () => {
   test('nothing drawn overlaps anything else drawn', () => {
     const width = 1200;
     const height = 600;
-    for (const zoom of [2, 3, 4, 5]) {
+    for (const zoom of [2, 3, 4, 5, 6, 7]) {
       const kept = view(labelData.labels, zoom, width, height);
       const project = flat(width, height);
       const boxes = kept.map((row) => labelBox(row, project(row.y, row.x), row.z <= 2 ? LABEL_FONT.big : LABEL_FONT.small));
@@ -79,16 +84,36 @@ describe('choosing which country names to draw', () => {
     }
   });
 
-  test('the real world at its starting zoom drops the European pile-up', () => {
+  test('the whole world at once is drawn with no names on it', () => {
     // 1200 by 600 is a laptop window. At zoom 2 the whole world is in
-    // it, and western Europe cannot hold five names at once.
-    const kept = view(labelData.labels, 2, 1200, 600).map((row) => row.n);
-    // Three of the five survive and they do not touch, which is what a
-    // map is supposed to look like: the other two arrive on zoom-in.
-    const crowd = ['United Kingdom', 'Germany', 'France', 'Italy', 'Spain'].filter((name) => kept.includes(name));
-    expect(crowd.length).toBeLessThan(5);
-    // It still draws a world map, not an empty one.
-    expect(kept.length).toBeGreaterThan(8);
+    // it and western Europe cannot hold five names, so the map stays
+    // clean rather than naming whichever three happened to win.
+    for (const zoom of [2, 3, 4]) {
+      expect({ zoom, names: view(labelData.labels, zoom, 1200, 600).length }).toEqual({ zoom, names: 0 });
+    }
+  });
+
+  test('zoomed in far enough, every name on screen is drawn', () => {
+    // Around zoom 5 on this window the visible names stop competing,
+    // and from there on the map is fully labelled.
+    const width = 1280;
+    const height = 720;
+    for (const zoom of [5, 6, 7]) {
+      const scale = (256 * 2 ** zoom) / 360;
+      const project = (lat, lng) => ({
+        x: (lng + 180) * scale - (180 * scale - width / 2),
+        y: (90 - lat) * scale - (90 * scale - height / 2),
+      });
+      const onScreen = labelData.labels
+        .filter((row) => row.z <= zoom && zoom <= (row.u ?? 12))
+        .filter((row) => {
+          const p = project(row.y, row.x);
+          return p.x >= -60 && p.y >= -60 && p.x <= width + 60 && p.y <= height + 60;
+        });
+      const kept = chooseLabels(labelData.labels, { zoom, project, width, height });
+      expect({ zoom, drawn: kept.length }).toEqual({ zoom, drawn: onScreen.length });
+      expect(kept.length).toBeGreaterThan(0);
+    }
   });
 
   test('bad input is empty, not a crash', () => {

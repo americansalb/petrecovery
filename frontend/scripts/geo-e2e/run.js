@@ -631,10 +631,20 @@ async function script(browser) {
   // what to do should not look broken while it tells you.
   await page.waitForSelector('text=Tap the map where that language is used');
 
-  // The map names countries and nothing else. Apple's own labels have
-  // to be off for that: half the South Asia pool is named after the
-  // state it is spoken in, so a map that writes "Tamil Nadu" on itself
-  // has answered the round before the player has.
+  // A world view carries no names at all. Western Europe cannot hold
+  // five of them at that zoom, and naming whichever three happened to
+  // win reads as the map choosing at random.
+  const atWorldZoom = await page.locator('[data-script-map="apple"] .wg-country-label').count();
+  log('country names at world zoom:', atWorldZoom);
+  if (atWorldZoom) throw new Error(`the world view drew ${atWorldZoom} country names, and it should draw none`);
+
+  // Zoomed in, they all appear. The map names countries and nothing
+  // else: half the South Asia pool is named after the state it is
+  // spoken in, so a map that writes "Tamil Nadu" on itself has answered
+  // the round before the player has, which is why Apple's own labels
+  // are off.
+  await page.evaluate(() => window.__fakeZoom(40));
+  await page.waitForTimeout(150);
   await page.waitForSelector('[data-script-map="apple"] .wg-country-label', { timeout: 15000 });
   const names = await page.$$eval('[data-script-map="apple"] .wg-country-label', (els) => els.map((el) => el.textContent));
   const appleLabels = await page.evaluate(() => window.__fakeMaps.map((m) => m.labels));
@@ -643,6 +653,10 @@ async function script(browser) {
   if (appleLabels.some((value) => value !== false)) throw new Error("Apple's own place names were left on");
   const foreign = names.filter((name) => !COUNTRY_NAMES.has(name));
   if (foreign.length) throw new Error('the map named something that is not a country: ' + foreign.join(', '));
+  // Back out to the world before pinning. The tap conversion in the
+  // fake is the plain world mapping, and the distance this click scores
+  // is what the rest of the scenario reads.
+  await page.evaluate(() => window.__fakeZoom(360));
   // Low on the map: the panels are above it, so a click up there is a
   // click on a panel.
   await page.click('[data-script-map="apple"]', { position: { x: 600, y: 450 } });

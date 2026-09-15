@@ -442,16 +442,23 @@ recovers mid-round does not swap the map out from under a pin.
 cover, which is the thing to check first if the keyless map is showing
 up where it should not.
 
-**Country names are placed, not just plotted**
+**Country names are all of them or none of them**
 (`app/geo/lib/countryLabels.js`). Natural Earth gives every country an
 anchor and the zoom its cartographers set; drawing all of them at that
 zoom writes UNITED KINGDOM through GERMANY through FRANCE, with ITALY
-and SPAIN underneath. Names are offered in order of importance, each is
-measured, and one whose box touches a box already placed is dropped
-until the player zooms in far enough for it to fit. Nothing moves and
-nothing shrinks. Both maps that draw their own names use it, and
-`__tests__/geo/country-labels.test.js` checks that nothing drawn
-overlaps anything else drawn.
+and SPAIN underneath. Dropping only the losers was worse: the player
+cannot see the boxes, so a world where France is named and Germany is
+not looks like the map choosing at random, and the set changes on every
+pan.
+
+So every name that belongs on screen at this zoom is measured, and if
+they all fit they are all drawn; if even one would land on another, none
+are. A zoomed out world is therefore unlabelled, and the names arrive
+together once there is room, which on a laptop is around zoom 5.
+Nothing is hard coded to that number: a phone reaches it later and a
+wide monitor sooner, because what fits is a question about the screen.
+Both maps that draw their own names use it, and
+`__tests__/geo/country-labels.test.js` holds the rule.
 
 **The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
 

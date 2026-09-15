@@ -8,12 +8,19 @@
  * FRANCE, with ITALY and SPAIN underneath: five countries that are
  * genuinely that close together, and five labels that are not.
  *
- * Real maps solve this by refusing to draw the loser. So does this.
- * Names are offered in order of importance, each one is measured, and a
- * name whose box touches a box already on the map is dropped until the
- * player zooms in far enough for it to fit. Nothing moves and nothing
- * shrinks: a label that is drawn is drawn where it belongs, at the size
- * it belongs, or it is not drawn at all.
+ * A real map drops the loser. Dropping the loser here looked arbitrary
+ * instead of deliberate, because the player cannot see the boxes: they
+ * see a world where France is named and Germany is not, for no reason
+ * they can work out, and the set changes every time they pan.
+ *
+ * So it is all of them or none of them. Every name that belongs on
+ * screen at this zoom is measured, and if they all fit they are all
+ * drawn; if even one would land on another, none are, and the map is
+ * clean until the player zooms in far enough to hold the whole set.
+ * On a laptop that lands around zoom 5, where the visible names stop
+ * competing. Nothing is hard coded to that number: a phone reaches it
+ * later and a wide monitor sooner, which is correct, because what fits
+ * is a question about the screen.
  *
  * Pure on purpose. The projection comes in as a function so this can be
  * tested without a map, and so the two maps that use it (Apple and the
@@ -74,9 +81,14 @@ export function chooseLabels(rows, { zoom, project, width, height, pad = 3, marg
   for (const row of ordered) {
     const point = project(row.y, row.x);
     if (!point) continue;
+    // Off screen is not competing for space, and its name is not one
+    // the player is missing.
     if (point.x < -margin || point.y < -margin || point.x > width + margin || point.y > height + margin) continue;
     const box = labelBox(row, point, row.z <= 2 ? LABEL_FONT.big : LABEL_FONT.small);
-    if (taken.some((other) => overlaps(box, other, pad))) continue;
+    // One collision and the whole view goes quiet. Drawing the winners
+    // and hiding the losers is what made the map look like it was
+    // choosing at random.
+    if (taken.some((other) => overlaps(box, other, pad))) return [];
     taken.push(box);
     kept.push(row);
   }
