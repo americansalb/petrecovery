@@ -20,9 +20,12 @@
  */
 
 import {
+  Noto_Sans_Adlam,
   Noto_Sans_Arabic,
   Noto_Sans_Armenian,
   Noto_Sans_Bengali,
+  Noto_Sans_Canadian_Aboriginal,
+  Noto_Sans_Cherokee,
   Noto_Sans_Devanagari,
   Noto_Sans_Ethiopic,
   Noto_Sans_Georgian,
@@ -33,12 +36,18 @@ import {
   Noto_Sans_Khmer,
   Noto_Sans_Lao,
   Noto_Sans_Malayalam,
+  Noto_Sans_Meetei_Mayek,
   Noto_Sans_Myanmar,
+  Noto_Sans_NKo,
+  Noto_Sans_Ol_Chiki,
   Noto_Sans_Oriya,
   Noto_Sans_Sinhala,
   Noto_Sans_Tamil,
   Noto_Sans_Telugu,
+  Noto_Sans_Thaana,
   Noto_Sans_Thai,
+  Noto_Sans_Tifinagh,
+  Noto_Serif_Tibetan,
 } from 'next/font/google';
 
 // next/font reads these calls at build time, so every argument has to
@@ -61,14 +70,32 @@ const sinhala = Noto_Sans_Sinhala({ display: 'swap', weight: 'variable', subsets
 const tamil = Noto_Sans_Tamil({ display: 'swap', weight: 'variable', subsets: ['tamil'], variable: '--font-s-taml' });
 const telugu = Noto_Sans_Telugu({ display: 'swap', weight: 'variable', subsets: ['telugu'], variable: '--font-s-telu' });
 const thai = Noto_Sans_Thai({ display: 'swap', weight: 'variable', subsets: ['thai'], variable: '--font-s-thai' });
-// The only one Google does not publish as a variable font.
+// Google does not publish these three as variable fonts.
 const myanmar = Noto_Sans_Myanmar({ display: 'swap', weight: ['400', '600'], subsets: ['myanmar'], variable: '--font-s-mymr' });
+const nko = Noto_Sans_NKo({ display: 'swap', weight: ['400'], subsets: ['nko'], variable: '--font-s-nkoo' });
+const tifinagh = Noto_Sans_Tifinagh({ display: 'swap', weight: ['400'], subsets: ['tifinagh'], variable: '--font-s-tfng' });
+
+// Scripts a phone almost certainly does not have. Thaana, Tibetan, Ol
+// Chiki, Meetei Mayek, Cherokee, Canadian syllabics, N'Ko, Adlam and
+// Tifinagh are each written for a handful of languages, and a device
+// that has never needed one will draw empty boxes for the whole round.
+// Bundling them is the difference between a hard round and a broken one.
+const adlam = Noto_Sans_Adlam({ display: 'swap', weight: 'variable', subsets: ['adlam'], variable: '--font-s-adlm' });
+const canadian = Noto_Sans_Canadian_Aboriginal({ display: 'swap', weight: 'variable', subsets: ['canadian-aboriginal'], variable: '--font-s-cans' });
+const cherokee = Noto_Sans_Cherokee({ display: 'swap', weight: 'variable', subsets: ['cherokee'], variable: '--font-s-cher' });
+const meetei = Noto_Sans_Meetei_Mayek({ display: 'swap', weight: 'variable', subsets: ['meetei-mayek'], variable: '--font-s-mtei' });
+const olchiki = Noto_Sans_Ol_Chiki({ display: 'swap', weight: 'variable', subsets: ['ol-chiki'], variable: '--font-s-olck' });
+const thaana = Noto_Sans_Thaana({ display: 'swap', weight: 'variable', subsets: ['thaana'], variable: '--font-s-thaa' });
+const tibetan = Noto_Serif_Tibetan({ display: 'swap', weight: 'variable', subsets: ['tibetan'], variable: '--font-s-tibt' });
 
 /** Put on the wrapper of any subtree that renders sample text. */
 export const scriptFontClasses = [
+  adlam,
   arabic,
   armenian,
   bengali,
+  canadian,
+  cherokee,
   devanagari,
   ethiopic,
   georgian,
@@ -79,12 +106,18 @@ export const scriptFontClasses = [
   khmer,
   lao,
   malayalam,
+  meetei,
   myanmar,
+  nko,
+  olchiki,
   oriya,
   sinhala,
   tamil,
   telugu,
+  thaana,
   thai,
+  tibetan,
+  tifinagh,
 ]
   .map((font) => font.variable)
   .join(' ');
@@ -115,6 +148,15 @@ const STACKS = {
   taml: 'var(--font-s-taml), "Noto Sans Tamil", "Nirmala UI", "Latha", sans-serif',
   telu: 'var(--font-s-telu), "Noto Sans Telugu", "Nirmala UI", "Gautami", sans-serif',
   thai: 'var(--font-s-thai), "Noto Sans Thai", "Thonburi", "Leelawadee UI", sans-serif',
+  adlm: 'var(--font-s-adlm), "Noto Sans Adlam", sans-serif',
+  cans: 'var(--font-s-cans), "Noto Sans Canadian Aboriginal", "Euphemia UCAS", "Euphemia", sans-serif',
+  cher: 'var(--font-s-cher), "Noto Sans Cherokee", "Plantagenet Cherokee", sans-serif',
+  mtei: 'var(--font-s-mtei), "Noto Sans Meetei Mayek", sans-serif',
+  nkoo: 'var(--font-s-nkoo), "Noto Sans NKo", sans-serif',
+  olck: 'var(--font-s-olck), "Noto Sans Ol Chiki", sans-serif',
+  thaa: 'var(--font-s-thaa), "Noto Sans Thaana", "MV Boli", sans-serif',
+  tfng: 'var(--font-s-tfng), "Noto Sans Tifinagh", sans-serif',
+  tibt: 'var(--font-s-tibt), "Noto Serif Tibetan", "Kailasa", "Microsoft Himalaya", serif',
   // Not bundled: several megabytes each, and system coverage is near
   // universal. The tofu check catches the machines where it is not.
   hans: '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif',

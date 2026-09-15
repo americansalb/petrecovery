@@ -26,8 +26,11 @@ const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'e
 const spelled = (n) => WORDS[n] || String(n);
 
 test('the script preview names the real number of writing systems', () => {
+  // Read off the data rather than pinned: the corpus grows, and a share
+  // card that names a number it no longer has is the thing being caught
+  // here, not the number itself.
   const scripts = Object.keys(SCRIPTS).length;
-  expect(scripts).toBe(25);
+  expect(scripts).toBeGreaterThan(20);
   const layout = read('app/geo/script/layout.js');
   // Digits in both, so this check is the data and not a spelling of it:
   // the corpus grows, and a share card that says seventy-six when there

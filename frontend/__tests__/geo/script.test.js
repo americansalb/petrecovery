@@ -113,9 +113,19 @@ describe('the corpus', () => {
     for (const language of LANGUAGES) {
       for (const text of samplesFor(language.code)) {
         if (/[0-9٠-٩۰-۹०-९]/.test(text)) offences.push(`${language.name}: digit in "${text}"`);
-        const lower = text.toLowerCase();
+        // Whole words, not substrings. A plain `includes` said Shona
+        // names Akan because ndakanwa has a-k-a-n in the middle of it,
+        // and that Lingala names Mali because of malili. The rule is
+        // about a sentence naming a place, and a name is a word.
+        const words = new Set(
+          text
+            .toLowerCase()
+            .split(/[^\p{Letter}\p{Mark}]+/u)
+            .filter(Boolean)
+        );
         for (const term of banned) {
-          if (lower.includes(term)) offences.push(`${language.name}: "${term}" in "${text}"`);
+          const named = term.includes(' ') ? text.toLowerCase().includes(term) : words.has(term);
+          if (named) offences.push(`${language.name}: "${term}" in "${text}"`);
         }
       }
     }
@@ -343,8 +353,8 @@ describe('scoring a pin', () => {
       Casablanca: [33.57, -7.59, 'arb'],
       Riyadh: [24.71, 46.68, 'arb'],
       Tehran: [35.69, 51.39, 'pes'],
-      Herat: [34.35, 62.2, 'pes'],
-      Dushanbe: [38.56, 68.79, 'pes'],
+      Herat: [34.35, 62.2, 'prs'],
+      Dushanbe: [38.56, 68.79, 'tgk'],
       Kandahar: [31.62, 65.72, 'pbu'],
       Peshawar: [34.02, 71.58, 'pbu'],
       Erbil: [36.19, 44.01, 'ckb'],
@@ -391,22 +401,27 @@ describe('scoring a pin', () => {
     }
     expect(wrong).toEqual([]);
 
-    // And the corpus does not claim what it does not have. Cantonese
-    // and Cebuano are not in it, so Guangzhou and Cebu speak nothing
-    // the game knows, and neither is quietly handed to a neighbour.
-    expect(languagesAt({ lat: 23.13, lng: 113.26 }).map((l) => l.code)).toEqual([]);
-    expect(languagesAt({ lat: 10.32, lng: 123.89 }).map((l) => l.code)).toEqual([]);
+    // Guangzhou and Cebu used to speak nothing the corpus knew, which
+    // was the honest answer while Cantonese and Cebuano were not in it.
+    // They are now, and neither city is quietly handed to a neighbour:
+    // Guangzhou is Cantonese and not Mandarin, Cebu is Cebuano and not
+    // Tagalog.
+    expect(languagesAt({ lat: 23.13, lng: 113.26 }).map((l) => l.code)).toEqual(['yue']);
+    expect(languagesAt({ lat: 10.32, lng: 123.89 }).map((l) => l.code)).toEqual(['ceb']);
   });
 
   test('the same ground can speak more than one, and often does', () => {
     const at = (lat, lng) => languagesAt({ lat, lng }).map((language) => language.code).sort();
     expect(at(50.85, 4.35)).toEqual(['fra', 'nld']); // Brussels
-    expect(at(43.86, 18.41)).toEqual(['hrv', 'srp']); // Sarajevo
+    expect(at(43.86, 18.41)).toEqual(['bos', 'hrv', 'srp']); // Sarajevo
     expect(at(41.39, 2.17)).toEqual(['cat', 'spa']); // Barcelona
     expect(at(43.26, -2.93)).toEqual(['eus', 'spa']); // Bilbao
     expect(at(36.19, 44.01)).toEqual(['arb', 'ckb']); // Erbil
     expect(at(38.08, 46.29)).toEqual(['azj', 'pes']); // Tabriz
-    expect(at(34.53, 69.17).sort()).toEqual(['pbu', 'pes']); // Kabul
+    // Kabul is Pashto and Dari, not Pashto and Persian: Dari is the
+    // Afghan standard of the same language and has its own row, so the
+    // ground is not given to Iran.
+    expect(at(34.53, 69.17).sort()).toEqual(['pbu', 'prs']); // Kabul
   });
 
   test('languages overlap, because the ground does', () => {

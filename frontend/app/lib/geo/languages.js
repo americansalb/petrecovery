@@ -57,9 +57,17 @@ export const SCRIPTS = {
     // 0x250-0x2af is IPA Extensions, which is not an academic footnote
     // here: Azerbaijani writes its schwa from that block, and several
     // West African orthographies take open e and open o from it.
-    ranges: [[0x41, 0x5a], [0x61, 0x7a], [0xc0, 0x24f], [0x250, 0x2af], [0x300, 0x36f], [0x1e00, 0x1eff], [0x2c60, 0x2c7f]],
+    // 0x2b0-0x2ff is Spacing Modifier Letters, and it is not a footnote
+    // either: Oromo writes its glottal stop as ʼ and Hawaiian writes
+    // the okina as ʻ, both from that block, and both are letters in
+    // those languages rather than punctuation.
+    ranges: [[0x41, 0x5a], [0x61, 0x7a], [0xc0, 0x24f], [0x250, 0x2af], [0x2b0, 0x2ff], [0x300, 0x36f], [0x1e00, 0x1eff], [0x2c60, 0x2c7f]],
   },
-  cyrl: { id: 'cyrl', name: 'Cyrillic', ranges: [[0x400, 0x52f], [0x2de0, 0x2dff], [0xa640, 0xa69f]] },
+  // The two Latin letters are not a mistake: Ossetian's Cyrillic
+  // alphabet includes Æ and æ, borrowed whole, and it is the only
+  // Cyrillic orthography that does. Its most common vowel is a Latin
+  // letter.
+  cyrl: { id: 'cyrl', name: 'Cyrillic', ranges: [[0xc6, 0xc6], [0xe6, 0xe6], [0x400, 0x52f], [0x2de0, 0x2dff], [0xa640, 0xa69f]] },
   grek: { id: 'grek', name: 'Greek', ranges: [[0x370, 0x3ff], [0x1f00, 0x1fff]] },
   arab: { id: 'arab', name: 'Arabic', ranges: [[0x600, 0x6ff], [0x750, 0x77f], [0x8a0, 0x8ff], [0xfb50, 0xfdff], [0xfe70, 0xfeff], [0x200c, 0x200f]] },
   hebr: { id: 'hebr', name: 'Hebrew', ranges: [[0x590, 0x5ff], [0xfb1d, 0xfb4f]] },
@@ -83,6 +91,23 @@ export const SCRIPTS = {
   hans: { id: 'hans', name: 'Han', ranges: [[0x2e80, 0x2fdf], [0x3000, 0x303f], [0x3400, 0x4dbf], [0x4e00, 0x9fff], [0xf900, 0xfaff], [0xff00, 0xffef]] },
   jpan: { id: 'jpan', name: 'Japanese', ranges: [[0x3000, 0x303f], [0x3040, 0x30ff], [0x31f0, 0x31ff], [0x4e00, 0x9fff], [0xff00, 0xffef]] },
   hang: { id: 'hang', name: 'Hangul', ranges: [[0x1100, 0x11ff], [0x3130, 0x318f], [0xa960, 0xa97f], [0xac00, 0xd7af]] },
+  // Nine alphabets each written for a handful of languages, and every
+  // one of them settles a round on sight. Two are younger than the
+  // people using them: Adlam was invented by two teenage brothers in
+  // Guinea in the 1980s, Ol Chiki by a Santal schoolteacher in 1925.
+  // Both borrow Arabic punctuation, which is what they are written with
+  // rather than a stray character: Thaana is written right to left and
+  // came out of Arabic numerals, and N'Ko was designed right to left in
+  // a region that writes Arabic.
+  thaa: { id: 'thaa', name: 'Thaana', ranges: [[0x60c, 0x60c], [0x61b, 0x61f], [0x780, 0x7bf]] },
+  nkoo: { id: 'nkoo', name: 'N\u2019Ko', ranges: [[0x60c, 0x60c], [0x61b, 0x61f], [0x7c0, 0x7ff]] },
+  tibt: { id: 'tibt', name: 'Tibetan', ranges: [[0xf00, 0xfff]] },
+  olck: { id: 'olck', name: 'Ol Chiki', ranges: [[0x1c50, 0x1c7f]] },
+  cans: { id: 'cans', name: 'Canadian syllabics', ranges: [[0x1400, 0x167f], [0x18b0, 0x18ff]] },
+  tfng: { id: 'tfng', name: 'Tifinagh', ranges: [[0x2d30, 0x2d7f]] },
+  cher: { id: 'cher', name: 'Cherokee', ranges: [[0x13a0, 0x13ff], [0xab70, 0xabbf]] },
+  mtei: { id: 'mtei', name: 'Meetei Mayek', ranges: [[0xaae0, 0xaaff], [0xabc0, 0xabff]] },
+  adlm: { id: 'adlm', name: 'Adlam', ranges: [[0x1e900, 0x1e95f]] },
 };
 
 /**
@@ -254,15 +279,13 @@ const LANGUAGE_ROWS = [
   },
   {
     code: 'pes', name: 'Persian', endonym: 'فارسی', script: 'arab',
-    family: 'Indo-European', branch: 'Iranian', speakers: 79,
-    regions: [
-      { name: 'Iran', countries: ['IR'] },
-      // Dari: the north and west of Afghanistan. The south and east
-      // are Pashto, and both are in this corpus, so the country is
-      // split between them rather than given to either.
-      { name: 'northern and western Afghanistan', units: ['AF-HER', 'AF-BDG', 'AF-FRA', 'AF-GHO', 'AF-BAM', 'AF-BAL', 'AF-JOW', 'AF-FYB', 'AF-SAR', 'AF-SAM', 'AF-BGL', 'AF-TAK', 'AF-KDZ', 'AF-BDS', 'AF-PAR', 'AF-KAP', 'AF-KAB'] },
-      { name: 'Tajikistan', countries: ['TJ'] },
-    ],
+    family: 'Indo-European', branch: 'Iranian', speakers: 57,
+    // Iran, and only Iran. Persian in Afghanistan is Dari and Persian
+    // in Tajikistan is Tajik, and both are their own entry here: one
+    // language by any linguistic measure, three standards, and the
+    // round is asking which one you are reading. Giving all three to
+    // this row would make Kabul and Dushanbe unanswerable.
+    regions: [{ name: 'Iran', countries: ['IR'] }],
   },
   {
     code: 'pbu', name: 'Pashto', endonym: 'پښتو', script: 'arab',
@@ -746,6 +769,358 @@ const LANGUAGE_ROWS = [
     code: 'fry', name: 'West Frisian', endonym: 'Frysk', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 0.5,
     regions: [{ name: 'Friesland', countries: ['NL'], clip: { minLat: 52.8, maxLat: 53.5, minLng: 5.3, maxLng: 6.4 } }],
+  },
+  // ---------------------------------------------------------------
+  // Added 2026-09-15. Nine alphabets that were not in the game, and the
+  // languages either side of the ones that were.
+  {
+    code: 'div', name: 'Dhivehi', endonym: 'ދިވެހި', script: 'thaa',
+    family: 'Indo-European', branch: 'Indo-Aryan', speakers: 0.3,
+    regions: [{ name: 'the Maldives', countries: ['MV'] }],
+  },
+  {
+    code: 'bod', name: 'Tibetan', endonym: 'བོད་སྐད།', script: 'tibt',
+    family: 'Sino-Tibetan', branch: 'Tibetic', speakers: 6,
+    regions: [{ name: 'the Tibetan plateau', countries: ['CN'], clip: { minLat: 27.5, maxLat: 37.5, minLng: 78, maxLng: 103 } }],
+  },
+  {
+    code: 'dzo', name: 'Dzongkha', endonym: 'རྫོང་ཁ', script: 'tibt',
+    family: 'Sino-Tibetan', branch: 'Tibetic', speakers: 0.6,
+    regions: [{ name: 'Bhutan', countries: ['BT'] }],
+  },
+  {
+    code: 'sat', name: 'Santali', endonym: 'ᱥᱟᱱᱛᱟᱲᱤ', script: 'olck',
+    family: 'Austroasiatic', branch: 'Munda', speakers: 7,
+    regions: [{ name: 'the Chota Nagpur plateau', units: ['IN-JH'] }, { name: 'northern Odisha and western Bengal', units: ['IN-OR', 'IN-WB'], clip: { minLat: 21.0, maxLat: 24.5, maxLng: 87.6 } }],
+  },
+  {
+    code: 'mni', name: 'Manipuri', endonym: 'ꯃꯤꯇꯩ ꯂꯣꯟ', script: 'mtei',
+    family: 'Sino-Tibetan', branch: 'Kuki-Chin-Naga', speakers: 1.8,
+    regions: [{ name: 'Manipur', units: ['IN-MN'] }],
+  },
+  {
+    code: 'chr', name: 'Cherokee', endonym: 'ᏣᎳᎩ', script: 'cher',
+    family: 'Iroquoian', branch: 'Southern Iroquoian', speakers: 0.002,
+    regions: [
+      { name: 'the Cherokee Nation', countries: ['US'], clip: { minLat: 35.3, maxLat: 37.0, minLng: -96.0, maxLng: -94.4 } },
+      { name: 'the Qualla Boundary', countries: ['US'], clip: { minLat: 35.3, maxLat: 35.6, minLng: -83.6, maxLng: -83.0 } },
+    ],
+  },
+  {
+    code: 'iku', name: 'Inuktitut', endonym: 'ᐃᓄᒃᑎᑐᑦ', script: 'cans',
+    family: 'Eskimo-Aleut', branch: 'Inuit', speakers: 0.04,
+    regions: [{ name: 'the eastern Arctic', countries: ['CA'], clip: { minLat: 58.0, maxLat: 74.0, minLng: -96.0, maxLng: -61.0 } }],
+  },
+  {
+    code: 'nqo', name: 'Manding', endonym: 'ߒߞߏ', script: 'nkoo',
+    family: 'Niger-Congo', branch: 'Mande', speakers: 40,
+    regions: [{ name: 'Guinea', countries: ['GN'] }, { name: 'southern Mali', countries: ['ML'], clip: { maxLat: 15.0 } }],
+  },
+  {
+    code: 'fuf', name: 'Pular', endonym: '𞤆𞤵𞤤𞤢𞤪', script: 'adlm',
+    family: 'Niger-Congo', branch: 'Senegambian', speakers: 5,
+    regions: [{ name: 'the Fouta Djallon', countries: ['GN'], clip: { minLat: 10.0, maxLat: 12.7, minLng: -13.5, maxLng: -10.5 } }],
+  },
+  {
+    code: 'zgh', name: 'Tamazight', endonym: 'ⵜⴰⵎⴰⵣⵉⵖⵜ', script: 'tfng',
+    family: 'Afro-Asiatic', branch: 'Berber', speakers: 14,
+    regions: [{ name: 'the Atlas and the Rif', countries: ['MA'] }],
+  },
+  {
+    code: 'gom', name: 'Konkani', endonym: 'कोंकणी', script: 'deva',
+    family: 'Indo-European', branch: 'Indo-Aryan', speakers: 2.3,
+    regions: [{ name: 'Goa', units: ['IN-GA'] }, { name: 'the Konkan coast', units: ['IN-KA'], clip: { minLat: 13.8, maxLat: 15.0, maxLng: 74.8 } }],
+  },
+  {
+    code: 'doi', name: 'Dogri', endonym: 'डोगरी', script: 'deva',
+    family: 'Indo-European', branch: 'Indo-Aryan', speakers: 2.6,
+    regions: [{ name: 'the Jammu hills', units: ['IN-JK'], clip: { maxLat: 33.5 } }],
+  },
+  {
+    code: 'awa', name: 'Awadhi', endonym: 'अवधी', script: 'deva',
+    family: 'Indo-European', branch: 'Indo-Aryan', speakers: 4,
+    regions: [{ name: 'Awadh', units: ['IN-UP'], clip: { minLng: 79.5, maxLng: 82.2, maxLat: 27.6 } }],
+  },
+  {
+    code: 'new', name: 'Newar', endonym: 'नेपाल भाषा', script: 'deva',
+    family: 'Sino-Tibetan', branch: 'Newaric', speakers: 0.85,
+    regions: [{ name: 'the Kathmandu valley', countries: ['NP'], clip: { minLat: 27.5, maxLat: 27.9, minLng: 85.1, maxLng: 85.6 } }],
+  },
+  {
+    code: 'pnb', name: 'Western Punjabi', endonym: 'پنجابی', script: 'arab',
+    family: 'Indo-European', branch: 'Indo-Aryan', speakers: 92,
+    regions: [{ name: 'Punjab', units: ['PK-PB'] }],
+  },
+  {
+    code: 'prs', name: 'Dari', endonym: 'دری', script: 'arab',
+    family: 'Indo-European', branch: 'Iranian', speakers: 15,
+    regions: [{ name: 'northern and central Afghanistan', countries: ['AF'], clip: { minLat: 33.0 } }],
+  },
+  {
+    code: 'bal', name: 'Balochi', endonym: 'بلۏچی', script: 'arab',
+    family: 'Indo-European', branch: 'Iranian', speakers: 8,
+    regions: [{ name: 'Balochistan', units: ['PK-BA'] }, { name: 'Sistan and Baluchestan', units: ['IR-11'] }],
+  },
+  {
+    code: 'kas', name: 'Kashmiri', endonym: 'كٲشُر', script: 'arab',
+    family: 'Indo-European', branch: 'Dardic', speakers: 7,
+    regions: [{ name: 'the Kashmir valley', units: ['IN-JK'], clip: { minLat: 33.3, maxLat: 34.7, minLng: 74.2, maxLng: 75.5 } }],
+  },
+  {
+    code: 'arz', name: 'Egyptian Arabic', endonym: 'مصري', script: 'arab',
+    family: 'Afro-Asiatic', branch: 'Semitic', speakers: 78,
+    regions: [{ name: 'the Nile valley and delta', countries: ['EG'] }],
+  },
+  {
+    code: 'ary', name: 'Moroccan Arabic', endonym: 'الدارجة', script: 'arab',
+    family: 'Afro-Asiatic', branch: 'Semitic', speakers: 33,
+    regions: [{ name: 'Morocco', countries: ['MA'] }],
+  },
+  {
+    code: 'tat', name: 'Tatar', endonym: 'татарча', script: 'cyrl',
+    family: 'Turkic', branch: 'Kipchak', speakers: 5,
+    regions: [{ name: 'the middle Volga', countries: ['RU'], clip: { minLat: 54.0, maxLat: 56.7, minLng: 47.5, maxLng: 54.0 } }],
+  },
+  {
+    code: 'bak', name: 'Bashkir', endonym: 'башҡортса', script: 'cyrl',
+    family: 'Turkic', branch: 'Kipchak', speakers: 1.2,
+    regions: [{ name: 'the southern Urals', countries: ['RU'], clip: { minLat: 51.8, maxLat: 56.4, minLng: 53.2, maxLng: 60.0 } }],
+  },
+  {
+    code: 'chv', name: 'Chuvash', endonym: 'чӑвашла', script: 'cyrl',
+    family: 'Turkic', branch: 'Oghur', speakers: 1,
+    regions: [{ name: 'the Volga bend', countries: ['RU'], clip: { minLat: 54.6, maxLat: 56.4, minLng: 46.0, maxLng: 48.4 } }],
+  },
+  {
+    code: 'sah', name: 'Sakha', endonym: 'саха тыла', script: 'cyrl',
+    family: 'Turkic', branch: 'Siberian', speakers: 0.45,
+    regions: [{ name: 'the Lena basin', countries: ['RU'], clip: { minLat: 56.0, maxLat: 71.0, minLng: 105.0, maxLng: 145.0 } }],
+  },
+  {
+    code: 'oss', name: 'Ossetian', endonym: 'ирон æвзаг', script: 'cyrl',
+    family: 'Indo-European', branch: 'Iranian', speakers: 0.5,
+    regions: [{ name: 'the central Caucasus', countries: ['RU'], clip: { minLat: 42.6, maxLat: 43.7, minLng: 43.2, maxLng: 45.0 } }],
+  },
+  {
+    code: 'che', name: 'Chechen', endonym: 'нохчийн мотт', script: 'cyrl',
+    family: 'Northeast Caucasian', branch: 'Nakh', speakers: 1.4,
+    regions: [{ name: 'the northeast Caucasus', countries: ['RU'], clip: { minLat: 42.9, maxLat: 44.0, minLng: 45.0, maxLng: 46.7 } }],
+  },
+  {
+    code: 'bos', name: 'Bosnian', endonym: 'bosanski', script: 'latn',
+    family: 'Indo-European', branch: 'Slavic', speakers: 2.5,
+    regions: [{ name: 'Bosnia and Herzegovina', countries: ['BA'] }],
+  },
+  {
+    code: 'oci', name: 'Occitan', endonym: 'occitan', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.5,
+    regions: [{ name: 'the Midi', countries: ['FR'], clip: { maxLat: 45.4, minLat: 42.4 } }],
+  },
+  {
+    code: 'srd', name: 'Sardinian', endonym: 'sardu', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 1,
+    regions: [{ name: 'Sardinia', countries: ['IT'], clip: { minLat: 38.8, maxLat: 41.3, minLng: 8.1, maxLng: 9.9 } }],
+  },
+  {
+    code: 'ast', name: 'Asturian', endonym: 'asturianu', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.6,
+    regions: [{ name: 'Asturias', countries: ['ES'], clip: { minLat: 42.9, maxLat: 43.7, minLng: -7.2, maxLng: -4.5 } }],
+  },
+  {
+    code: 'roh', name: 'Romansh', endonym: 'rumantsch', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.04,
+    regions: [{ name: 'the Grisons valleys', countries: ['CH'], clip: { minLat: 46.3, maxLat: 46.9, minLng: 9.0, maxLng: 10.5 } }],
+  },
+  {
+    code: 'fur', name: 'Friulian', endonym: 'furlan', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.6,
+    regions: [{ name: 'Friuli', countries: ['IT'], clip: { minLat: 45.6, maxLat: 46.6, minLng: 12.4, maxLng: 13.9 } }],
+  },
+  {
+    code: 'sme', name: 'Northern Sami', endonym: 'davvisámegiella', script: 'latn',
+    family: 'Uralic', branch: 'Sami', speakers: 0.025,
+    regions: [{ name: 'Sapmi', countries: ['NO', 'SE', 'FI'], clip: { minLat: 67.5 } }],
+  },
+  {
+    code: 'hsb', name: 'Upper Sorbian', endonym: 'hornjoserbsce', script: 'latn',
+    family: 'Indo-European', branch: 'Slavic', speakers: 0.013,
+    regions: [{ name: 'Lusatia', countries: ['DE'], clip: { minLat: 51.0, maxLat: 51.5, minLng: 14.0, maxLng: 14.8 } }],
+  },
+  {
+    code: 'ibo', name: 'Igbo', endonym: 'Asụsụ Igbo', script: 'latn',
+    family: 'Niger-Congo', branch: 'Volta-Niger', speakers: 31,
+    regions: [{ name: 'Igboland', units: ['NG-EN', 'NG-AN', 'NG-IM', 'NG-AB', 'NG-EB'] }],
+  },
+  {
+    code: 'aka', name: 'Akan', endonym: 'Akan', script: 'latn',
+    family: 'Niger-Congo', branch: 'Kwa', speakers: 11,
+    regions: [{ name: 'southern Ghana', countries: ['GH'], clip: { maxLat: 8.0 } }],
+  },
+  {
+    code: 'wol', name: 'Wolof', endonym: 'Wolof', script: 'latn',
+    family: 'Niger-Congo', branch: 'Senegambian', speakers: 12,
+    regions: [{ name: 'Senegal', countries: ['SN'] }],
+  },
+  {
+    code: 'kin', name: 'Kinyarwanda', endonym: 'Ikinyarwanda', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 12,
+    regions: [{ name: 'Rwanda', countries: ['RW'] }],
+  },
+  {
+    code: 'nya', name: 'Chichewa', endonym: 'Chichewa', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 14,
+    regions: [{ name: 'Malawi', countries: ['MW'] }],
+  },
+  {
+    code: 'sna', name: 'Shona', endonym: 'chiShona', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 11,
+    regions: [{ name: 'Zimbabwe', countries: ['ZW'] }],
+  },
+  {
+    code: 'xho', name: 'Xhosa', endonym: 'isiXhosa', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 8,
+    regions: [{ name: 'the Eastern Cape', units: ['ZA-EC'] }, { name: 'the Cape Town area', units: ['ZA-WC'], clip: { maxLng: 19.5, minLat: -34.4, maxLat: -33.4 } }],
+  },
+  {
+    code: 'sot', name: 'Sesotho', endonym: 'Sesotho', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 6,
+    regions: [{ name: 'Lesotho', countries: ['LS'] }, { name: 'the Free State', units: ['ZA-FS'] }],
+  },
+  {
+    code: 'tsn', name: 'Tswana', endonym: 'Setswana', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 6,
+    regions: [{ name: 'Botswana', countries: ['BW'] }, { name: 'the North West', units: ['ZA-NW'] }],
+  },
+  {
+    code: 'lug', name: 'Luganda', endonym: 'Luganda', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 11,
+    regions: [{ name: 'Buganda', countries: ['UG'], clip: { minLat: -0.6, maxLat: 2.0, minLng: 31.4, maxLng: 34.0 } }],
+  },
+  {
+    code: 'lin', name: 'Lingala', endonym: 'Lingála', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 20,
+    regions: [{ name: 'the Congo river', countries: ['CD'], clip: { minLat: -5.5, maxLat: 4.5, minLng: 15.0, maxLng: 22.5 } }, { name: 'Congo-Brazzaville', countries: ['CG'] }],
+  },
+  {
+    code: 'bam', name: 'Bambara', endonym: 'Bamanankan', script: 'latn',
+    family: 'Niger-Congo', branch: 'Mande', speakers: 15,
+    regions: [{ name: 'southern Mali', countries: ['ML'], clip: { maxLat: 15.0 } }],
+  },
+  {
+    code: 'gaz', name: 'Oromo', endonym: 'Afaan Oromoo', script: 'latn',
+    family: 'Afro-Asiatic', branch: 'Cushitic', speakers: 37,
+    regions: [{ name: 'Oromia', countries: ['ET'], clip: { minLat: 3.5, maxLat: 10.5, minLng: 34.3, maxLng: 42.5 } }],
+  },
+  {
+    code: 'plt', name: 'Malagasy', endonym: 'Malagasy', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 25,
+    regions: [{ name: 'Madagascar', countries: ['MG'] }],
+  },
+  {
+    code: 'jav', name: 'Javanese', endonym: 'basa Jawa', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 82,
+    regions: [{ name: 'central and eastern Java', countries: ['ID'], clip: { minLat: -8.9, maxLat: -5.7, minLng: 107.0, maxLng: 114.7 } }],
+  },
+  {
+    code: 'sun', name: 'Sundanese', endonym: 'basa Sunda', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 32,
+    regions: [{ name: 'western Java', countries: ['ID'], clip: { minLat: -7.9, maxLat: -5.8, minLng: 105.2, maxLng: 108.6 } }],
+  },
+  {
+    code: 'ceb', name: 'Cebuano', endonym: 'Binisaya', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 20,
+    regions: [{ name: 'the Visayas and Mindanao', countries: ['PH'], clip: { maxLat: 11.5 } }],
+  },
+  {
+    code: 'ilo', name: 'Ilocano', endonym: 'Ilokano', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 9,
+    regions: [{ name: 'northern Luzon', countries: ['PH'], clip: { minLat: 15.8, maxLat: 18.7, minLng: 119.8, maxLng: 121.6 } }],
+  },
+  {
+    code: 'kmr', name: 'Kurmanji Kurdish', endonym: 'Kurmancî', script: 'latn',
+    family: 'Indo-European', branch: 'Iranian', speakers: 15,
+    regions: [
+      { name: 'the Kurdish southeast', units: ['TR-21', 'TR-47', 'TR-63', 'TR-72', 'TR-73', 'TR-30', 'TR-65'] },
+      { name: 'the Syrian northeast', countries: ['SY'], clip: { minLat: 36.2, minLng: 40.0 } },
+    ],
+  },
+  {
+    code: 'tuk', name: 'Turkmen', endonym: 'türkmençe', script: 'latn',
+    family: 'Turkic', branch: 'Oghuz', speakers: 7,
+    regions: [{ name: 'Turkmenistan', countries: ['TM'] }],
+  },
+  {
+    code: 'tet', name: 'Tetum', endonym: 'Tetun', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 0.5,
+    regions: [{ name: 'Timor-Leste', countries: ['TL'] }],
+  },
+  {
+    code: 'mri', name: 'Maori', endonym: 'te reo Māori', script: 'latn',
+    family: 'Austronesian', branch: 'Polynesian', speakers: 0.19,
+    regions: [{ name: 'Aotearoa', countries: ['NZ'] }],
+  },
+  {
+    code: 'smo', name: 'Samoan', endonym: 'gagana Samoa', script: 'latn',
+    family: 'Austronesian', branch: 'Polynesian', speakers: 0.5,
+    regions: [{ name: 'the Samoan islands', countries: ['WS'] }],
+  },
+  {
+    code: 'ton', name: 'Tongan', endonym: 'lea faka-Tonga', script: 'latn',
+    family: 'Austronesian', branch: 'Polynesian', speakers: 0.19,
+    regions: [{ name: 'the Tongan islands', countries: ['TO'] }],
+  },
+  {
+    code: 'fij', name: 'Fijian', endonym: 'Na Vosa Vakaviti', script: 'latn',
+    family: 'Austronesian', branch: 'Oceanic', speakers: 0.65,
+    regions: [{ name: 'the Fijian islands', countries: ['FJ'] }],
+  },
+  {
+    code: 'haw', name: 'Hawaiian', endonym: 'ʻōlelo Hawaiʻi', script: 'latn',
+    family: 'Austronesian', branch: 'Polynesian', speakers: 0.025,
+    regions: [{ name: 'the Hawaiian islands', countries: ['US'], clip: { minLat: 18.8, maxLat: 22.3, minLng: -160.4, maxLng: -154.7 } }],
+  },
+  {
+    code: 'tpi', name: 'Tok Pisin', endonym: 'Tok Pisin', script: 'latn',
+    family: 'Creole', branch: 'English-based', speakers: 4,
+    regions: [{ name: 'Papua New Guinea', countries: ['PG'] }],
+  },
+  {
+    code: 'que', name: 'Quechua', endonym: 'Runasimi', script: 'latn',
+    family: 'Quechuan', branch: 'Quechua II', speakers: 8,
+    regions: [
+      { name: 'the southern Peruvian Andes', countries: ['PE'], clip: { minLat: -15.6, maxLat: -8.0, minLng: -77.0, maxLng: -68.5 } },
+      { name: 'the Bolivian highlands', countries: ['BO'], clip: { minLat: -20.5, maxLat: -15.0, minLng: -69.5, maxLng: -64.5 } },
+    ],
+  },
+  {
+    code: 'aym', name: 'Aymara', endonym: 'Aymar aru', script: 'latn',
+    family: 'Aymaran', branch: 'Aymaran', speakers: 1.7,
+    regions: [{ name: 'the altiplano', countries: ['BO'], clip: { minLat: -19.0, maxLat: -15.0, minLng: -70.0, maxLng: -66.5 } }],
+  },
+  {
+    code: 'grn', name: 'Guarani', endonym: 'avañeʼẽ', script: 'latn',
+    family: 'Tupian', branch: 'Tupi-Guarani', speakers: 6,
+    regions: [{ name: 'Paraguay', countries: ['PY'] }],
+  },
+  {
+    code: 'hat', name: 'Haitian Creole', endonym: 'kreyòl ayisyen', script: 'latn',
+    family: 'Creole', branch: 'French-based', speakers: 12,
+    regions: [{ name: 'Haiti', countries: ['HT'] }],
+  },
+  {
+    code: 'pap', name: 'Papiamento', endonym: 'Papiamentu', script: 'latn',
+    family: 'Creole', branch: 'Iberian-based', speakers: 0.3,
+    regions: [{ name: 'the leeward islands', countries: ['AW', 'CW'] }],
+  },
+  {
+    code: 'kal', name: 'Greenlandic', endonym: 'kalaallisut', script: 'latn',
+    family: 'Eskimo-Aleut', branch: 'Inuit', speakers: 0.056,
+    regions: [{ name: 'Greenland', countries: ['GL'] }],
+  },
+  {
+    code: 'yue', name: 'Cantonese', endonym: '廣東話', script: 'hans',
+    family: 'Sino-Tibetan', branch: 'Sinitic', speakers: 85,
+    regions: [{ name: 'the Pearl river delta', countries: ['CN'], clip: { minLat: 20.2, maxLat: 25.5, minLng: 109.5, maxLng: 117.3 } }],
   },
 ];
 
