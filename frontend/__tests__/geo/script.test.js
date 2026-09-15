@@ -284,130 +284,20 @@ describe('scoring a pin', () => {
   });
 
   test('a city speaks the language it speaks, everywhere in the world', () => {
-    // The map is every language in the corpus. These are the checks that
-    // would catch a wrong code: each city is somewhere the language is
-    // unarguably spoken, and a wrong unit, a wrong country or a clip box
-    // drawn in the wrong place would miss it.
-    const cities = {
-      Skopje: [41.99, 21.43, 'mkd'],
-      Minsk: [53.9, 27.57, 'bel'],
-      Dushanbe: [38.56, 68.79, 'tgk'],
-      Bishkek: [42.87, 74.59, 'kir'],
-      Bratislava: [48.15, 17.11, 'slk'],
-      Ljubljana: [46.06, 14.51, 'slv'],
-      Riga: [56.95, 24.11, 'lav'],
-      'Santiago de Compostela': [42.88, -8.54, 'glg'],
-      Galway: [53.27, -9.05, 'gle'],
-      Stornoway: [58.21, -6.39, 'gla'],
-      Valletta: [35.9, 14.51, 'mlt'],
-      'Torshavn': [62.01, -6.77, 'fao'],
-      Luxembourg: [49.61, 6.13, 'ltz'],
-      Brest: [48.39, -4.49, 'bre'],
-      Leeuwarden: [53.2, 5.79, 'fry'],
-      Reykjavik: [64.15, -21.94, 'isl'],
-      Lisbon: [38.72, -9.14, 'por'],
-      'Sao Paulo': [-23.55, -46.63, 'por'],
-      Luanda: [-8.84, 13.23, 'por'],
-      Madrid: [40.42, -3.7, 'spa'],
-      'Mexico City': [19.43, -99.13, 'spa'],
-      'Buenos Aires': [-34.6, -58.38, 'spa'],
-      Bogota: [4.71, -74.07, 'spa'],
-      Paris: [48.86, 2.35, 'fra'],
-      Montreal: [45.5, -73.57, 'fra'],
-      Dakar: [14.72, -17.47, 'fra'],
-      Geneva: [46.2, 6.14, 'fra'],
-      Amsterdam: [52.37, 4.9, 'nld'],
-      Zurich: [47.38, 8.54, 'deu'],
-      Berlin: [52.52, 13.4, 'deu'],
-      Vienna: [48.21, 16.37, 'deu'],
-      Rome: [41.9, 12.5, 'ita'],
-      Lugano: [46.0, 8.95, 'ita'],
-      Cardiff: [51.48, -3.18, 'cym'],
-      Stockholm: [59.33, 18.07, 'swe'],
-      Oslo: [59.91, 10.75, 'nob'],
-      Copenhagen: [55.68, 12.57, 'dan'],
-      Helsinki: [60.17, 24.94, 'fin'],
-      Tallinn: [59.44, 24.75, 'est'],
-      Vilnius: [54.69, 25.28, 'lit'],
-      Warsaw: [52.23, 21.01, 'pol'],
-      Prague: [50.08, 14.44, 'ces'],
-      Budapest: [47.5, 19.04, 'hun'],
-      Bucharest: [44.43, 26.1, 'ron'],
-      Chisinau: [47.01, 28.86, 'ron'],
-      Sofia: [42.7, 23.32, 'bul'],
-      Zagreb: [45.81, 15.98, 'hrv'],
-      Belgrade: [44.79, 20.45, 'srp'],
-      Tirana: [41.33, 19.82, 'sqi'],
-      Pristina: [42.66, 21.17, 'sqi'],
-      Athens: [37.98, 23.73, 'ell'],
-      Istanbul: [41.01, 28.98, 'tur'],
-      Kyiv: [50.45, 30.52, 'ukr'],
-      Moscow: [55.76, 37.62, 'rus'],
-      Minsk: [53.9, 27.57, 'rus'],
-      Tbilisi: [41.72, 44.78, 'kat'],
-      Yerevan: [40.18, 44.51, 'hye'],
-      Baku: [40.41, 49.87, 'azj'],
-      Tabriz: [38.08, 46.29, 'azj'],
-      'Tel Aviv': [32.08, 34.78, 'heb'],
-      Cairo: [30.04, 31.24, 'arb'],
-      Casablanca: [33.57, -7.59, 'arb'],
-      Riyadh: [24.71, 46.68, 'arb'],
-      Tehran: [35.69, 51.39, 'pes'],
-      Herat: [34.35, 62.2, 'prs'],
-      Dushanbe: [38.56, 68.79, 'tgk'],
-      Kandahar: [31.62, 65.72, 'pbu'],
-      Peshawar: [34.02, 71.58, 'pbu'],
-      Erbil: [36.19, 44.01, 'ckb'],
-      Diyarbakir: [37.91, 40.24, 'ckb'],
-      Tashkent: [41.3, 69.24, 'uzn'],
-      Almaty: [43.24, 76.89, 'kaz'],
-      Ulaanbaatar: [47.89, 106.91, 'mon'],
-      Hohhot: [40.84, 111.75, 'mon'],
-      Urumqi: [43.83, 87.62, 'uig'],
-      Beijing: [39.9, 116.41, 'cmn'],
-      Chengdu: [30.57, 104.07, 'cmn'],
-      Tokyo: [35.68, 139.69, 'jpn'],
-      Seoul: [37.57, 126.98, 'kor'],
-      Pyongyang: [39.04, 125.76, 'kor'],
-      Bangkok: [13.75, 100.5, 'tha'],
-      Vientiane: [17.97, 102.6, 'lao'],
-      'Phnom Penh': [11.56, 104.92, 'khm'],
-      Yangon: [16.87, 96.2, 'mya'],
-      Hanoi: [21.03, 105.85, 'vie'],
-      Jakarta: [-6.21, 106.85, 'ind'],
-      'Kuala Lumpur': [3.14, 101.69, 'zsm'],
-      Manila: [14.6, 120.98, 'tgl'],
-      Nairobi: [-1.29, 36.82, 'swh'],
-      'Dar es Salaam': [-6.79, 39.21, 'swh'],
-      Kano: [12.0, 8.52, 'hau'],
-      Zinder: [13.8, 8.99, 'hau'],
-      Lagos: [6.52, 3.38, 'yor'],
-      Mogadishu: [2.05, 45.32, 'som'],
-      'Addis Ababa': [9.03, 38.74, 'amh'],
-      Asmara: [15.34, 38.93, 'tir'],
-      'Cape Town': [-33.92, 18.42, 'afr'],
-      Windhoek: [-22.56, 17.08, 'afr'],
-      Durban: [-29.86, 31.02, 'zul'],
-      Barcelona: [41.39, 2.17, 'cat'],
-      Palma: [39.57, 2.65, 'cat'],
-      Bilbao: [43.26, -2.93, 'eus'],
-    };
-    const wrong = [];
-    for (const [city, [lat, lng, code]] of Object.entries(cities)) {
-      const here = languagesAt({ lat, lng }).map((language) => language.code);
-      if (!here.includes(code)) wrong.push(`${city}: ${code} not spoken here, only ${here.join(',') || 'nothing'}`);
-      const scored = scoreScriptGuess({ guess: { lat, lng }, language: find(code), ladder: 'world' });
-      if (scored.points !== 5000) wrong.push(`${city}: ${code} scored ${scored.points}`);
-    }
-    expect(wrong).toEqual([]);
-
-    // Guangzhou and Cebu used to speak nothing the corpus knew, which
-    // was the honest answer while Cantonese and Cebuano were not in it.
-    // They are now, and neither city is quietly handed to a neighbour:
-    // Guangzhou is Cantonese and not Mandarin, Cebu is Cebuano and not
-    // Tagalog.
-    expect(languagesAt({ lat: 23.13, lng: 113.26 }).map((l) => l.code)).toEqual(['yue']);
-    expect(languagesAt({ lat: 10.32, lng: 123.89 }).map((l) => l.code)).toEqual(['ceb']);
+    // The list this test used to carry is now
+    // __tests__/geo/region-places.test.js, which covers every language
+    // in the corpus rather than the fifty-odd that happened to be here,
+    // and fails the suite if a new language arrives without a place. It
+    // found a wrong province code, a Kurdish region drawn over the
+    // wrong alphabet, and thirty-three regions that were rectangles.
+    //
+    // What stays here is the reason the list exists: a language is an
+    // area, and anywhere inside it is full marks.
+    const kochi = { lat: 9.93, lng: 76.27 };
+    expect(languagesAt(kochi).map((l) => l.code)).toContain('mal');
+    expect(scoreScriptGuess({ guess: kochi, language: find('mal'), ladder: 'world' }).points).toBe(5000);
+    const kasaragod = { lat: 12.5, lng: 74.99 };
+    expect(scoreScriptGuess({ guess: kasaragod, language: find('mal'), ladder: 'world' }).points).toBe(5000);
   });
 
   test('the same ground can speak more than one, and often does', () => {
