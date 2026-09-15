@@ -360,7 +360,7 @@ export default function GeoLobby() {
                     ? 'The weekly cup uses fixed rules so scores compare: 10 rounds, 60 seconds each, No Move.'
                     : config.mode === 'daily'
                       ? 'The daily challenge uses fixed rules so scores compare: 5 rounds, no timer, Moving.'
-                      : 'Kidnapped has its own clock: three minutes a round. The car drives; you can look around but not steer or zoom. Guess whenever you like.'}
+                      : 'Passenger has its own clock: three minutes a round. The car drives; you can look around but not steer or zoom. Guess whenever you like.'}
                 </p>
               ) : null}
               <div className="mt-3 grid gap-5 sm:grid-cols-2">
@@ -408,7 +408,7 @@ export default function GeoLobby() {
             <section className="rounded-2xl border border-midnight-200 bg-white p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
                 <Languages className="h-4 w-4" />
-                Script
+                Babel
               </h2>
               <p className="mt-2 text-sm text-gray-600">
                 A second game on the same scoring. You get a sentence and pin where that language is used. 159 languages

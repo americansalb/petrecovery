@@ -41,7 +41,7 @@ export default function ScriptLobby() {
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex items-center gap-3">
         <Languages className="h-7 w-7 text-flash-500" />
-        <h1 className="text-3xl font-bold">Script</h1>
+        <h1 className="text-3xl font-bold">Babel</h1>
       </div>
       <p className="mt-3 max-w-2xl text-gray-600">
         You get a sentence. You place a pin where that language is used. Points depend on how close you are, the same way a

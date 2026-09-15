@@ -132,7 +132,7 @@ Honest inventory, so the plan starts from the truth.
 | Multiplayer | Rooms on a server-authoritative clock, classic and duel, rematch. Free, which it is not on GeoGuessr |
 | Competitive | Glicko ratings with a deviation, three-month seasons, a weekly cup, formats including No Move and NMPZ |
 | Progression | Points, country badges, cosmetics that cost nothing to serve |
-| Modes | World, balanced, continent, country, city streets, streak, daily, cup, Kidnapped |
+| Modes | Every Country, continent, country, city streets, streak, daily, cup, Passenger |
 | Coverage | 119 countries in the pool. 125 excluded. See bet 2 |
 | Phone | A responsive layout and a map sheet. No installable app, no phone-shaped controls |
 | Integrity | Nothing. The ladder is as forgeable as everyone else's |
@@ -143,7 +143,7 @@ Three of those are worth more than they look.
 **Apple Look Around** means the free tier is not subsidised by anything,
 so it can stay generous without a sponsor or a runway.
 
-**Kidnapped**, built as a fun mode, is the only format in the genre
+**Passenger**, built as a fun mode, is the only format in the genre
 where the player watches motion over time rather than a still panorama.
 That turns out to matter enormously for bet 1.
 
@@ -168,7 +168,7 @@ The insight is that a screen-reading model is very good at one static
 panorama and much worse at everything else. So change what a
 competitive round is.
 
-**Motion over stills.** Kidnapped already does this: three minutes of
+**Motion over stills.** Passenger already does this: three minutes of
 moving imagery with no single frame that answers the question. A screen
 reader has to solve a video, not a screenshot. Make a motion format the
 ranked default rather than a novelty.
@@ -216,8 +216,8 @@ against the 244.)
 
 Which modes that actually binds, since the earlier draft overstated it
 as "every mode except pure-random world": Balanced, the daily, the cup,
-Kidnapped and Streak all draw from `coveredPool()`, Continent filters to
-the covered countries within one, and City streets takes its cities from
+Passenger and Streak all draw from `coveredPool()`, Continent filters to
+the covered countries within one, and City Streets takes its cities from
 the coverage set. Random world samples any land, and Country mode uses
 whatever country was chosen, so neither is capped by the list. What the
 list caps is what the lobby offers and what a random draw is likely to
@@ -255,7 +255,7 @@ change to existing ones:
 - Photo spheres cluster at landmarks, so rounds get either trivial or
   unfair.
 - Quality is wildly uneven.
-- They carry no navigation links, so no walking and no Kidnapped drive.
+- They carry no navigation links, so no walking and no Passenger drive.
 - Attribution is handled by the API, but it is user content and the
   terms should be read before shipping.
 

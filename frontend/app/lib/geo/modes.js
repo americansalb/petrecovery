@@ -43,8 +43,8 @@ export const PRIMARY_PROVIDER = process.env.NEXT_PUBLIC_GEO_PRIMARY_PROVIDER ===
 export const MODES = {
   world: {
     id: 'world',
-    label: 'World, pure random',
-    short: 'World',
+    label: 'Anywhere',
+    short: 'Anywhere',
     providers: ['apple', 'google'],
     description:
       'A random point on land, kept only if it has imagery nearby. Most of the world is countryside, so expect a lot of roads.',
@@ -52,8 +52,8 @@ export const MODES = {
   },
   balanced: {
     id: 'balanced',
-    label: 'World, balanced',
-    short: 'Balanced',
+    label: 'Every Country',
+    short: 'Every Country',
     providers: ['apple', 'google'],
     description:
       'A random country first, weighted so small countries still come up, then a random spot inside it.',
@@ -61,7 +61,7 @@ export const MODES = {
   },
   daily: {
     id: 'daily',
-    label: 'Daily challenge',
+    label: 'Daily',
     short: 'Daily',
     providers: ['apple', 'google'],
     description: 'Five balanced rounds. Everyone gets the same five places today.',
@@ -83,7 +83,7 @@ export const MODES = {
   },
   cup: {
     id: 'cup',
-    label: 'Weekly cup',
+    label: 'Weekly Cup',
     short: 'Cup',
     providers: ['apple', 'google'],
     description: 'Ten balanced rounds, No Move, 60 seconds each. Everyone gets the same ten places this week, and the week ends with prizes.',
@@ -109,7 +109,7 @@ export const MODES = {
   },
   cities: {
     id: 'cities',
-    label: 'City streets',
+    label: 'City Streets',
     short: 'Cities',
     // On Apple every mode is city streets, so World is this mode there.
     providers: ['google'],
@@ -117,8 +117,8 @@ export const MODES = {
   },
   everywhere: {
     id: 'everywhere',
-    label: 'Everywhere',
-    short: 'Everywhere',
+    label: 'Off the Road',
+    short: 'Off the Road',
     providers: ['google'],
     description:
       'The third of the world Street View never drove. China, Iran, Egypt, the Sahara. Photo spheres instead of official coverage, so knowing where the car went is worth nothing.',
@@ -126,15 +126,15 @@ export const MODES = {
   },
   kidnapped: {
     id: 'kidnapped',
-    label: 'Kidnapped',
-    short: 'Kidnapped',
+    label: 'Passenger',
+    short: 'Passenger',
     providers: ['google'],
     description: 'You are driven down the road for up to three minutes. Look out of the window, then guess where you are. No steering, no zoom.',
     fixed: { provider: 'google', time: 180, move: false, pan: true, zoom: false },
   },
   streak: {
     id: 'streak',
-    label: 'Country streak',
+    label: 'Streak',
     short: 'Streak',
     providers: ['apple', 'google'],
     description: 'Name the country instead of placing a pin. The game ends at your first miss.',

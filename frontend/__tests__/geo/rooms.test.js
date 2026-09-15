@@ -86,10 +86,10 @@ describe('rules', () => {
   });
 
   test('the rules line names the places, the format when it is not moving, and Apple imagery', () => {
-    expect(rules.describeRoomRules({ mode: 'balanced', move: true, pan: true, zoom: true })).toBe('World, balanced');
+    expect(rules.describeRoomRules({ mode: 'balanced', move: true, pan: true, zoom: true })).toBe('Every Country');
     expect(rules.describeRoomRules({ mode: 'country', region: 'JP', move: false, pan: true, zoom: true }, { regionLabel: 'Japan' })).toBe('Country: Japan, No Move');
-    expect(rules.describeRoomRules({ provider: 'apple', mode: 'world', move: false, pan: false, zoom: false })).toBe('World, pure random, NMPZ');
-    expect(rules.describeRoomRules({ provider: 'google', mode: 'cities', move: false, pan: false, zoom: false })).toBe('City streets, NMPZ, on Google Street View');
+    expect(rules.describeRoomRules({ provider: 'apple', mode: 'world', move: false, pan: false, zoom: false })).toBe('Anywhere, NMPZ');
+    expect(rules.describeRoomRules({ provider: 'google', mode: 'cities', move: false, pan: false, zoom: false })).toBe('City Streets, NMPZ, on Google Street View');
   });
 
   test('duel damage is the gap to the best guess, scaled every three rounds', () => {
@@ -275,9 +275,9 @@ describe('a classic game', () => {
     await createRoom(pub.store, { name: 'Secret', hostName: 'H', settings: { visibility: 'private' }, now: T0 });
     const list = await listRooms(pub.store, { now: T0 + sec(5) });
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'World, balanced', provider: 'google', rules: 'World, balanced, on Google Street View' });
+    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'Every Country', provider: 'google', rules: 'Every Country, on Google Street View' });
     const nm = await setupRoom({ settings: { move: false, pan: true, zoom: true } });
-    expect((await listRooms(nm.store, { now: T0 }))[0].rules).toBe('World, balanced, No Move, on Google Street View');
+    expect((await listRooms(nm.store, { now: T0 }))[0].rules).toBe('Every Country, No Move, on Google Street View');
     expect(await listRooms(pub.store, { now: T0 + rules.ROOM_LISTING_WINDOW_MS + sec(1) })).toHaveLength(0);
   });
 

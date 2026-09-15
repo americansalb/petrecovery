@@ -78,7 +78,7 @@ describe('normalizeConfig', () => {
     const c = normalizeConfig({ mode: 'kidnapped', rounds: 3, time: 30, move: '1', zoom: '1', radius: 'pure' });
     expect(c).toMatchObject({ provider: 'google', mode: 'kidnapped', rounds: 3, time: 180, move: false, pan: true, zoom: false, radius: 'pure' });
     expect(TIME_OPTIONS).toContain(180);
-    expect(describeConfig({ mode: 'kidnapped', rounds: 3 })).toBe('Kidnapped. 3 rounds. 3 minutes. Google Street View.');
+    expect(describeConfig({ mode: 'kidnapped', rounds: 3 })).toBe('Passenger. 3 rounds. 3 minutes. Google Street View.');
     expect(normalizeConfig({ provider: 'apple', mode: 'kidnapped' }).mode).not.toBe('kidnapped');
     expect(configFromParams(configToParams(c))).toEqual(c);
   });
@@ -146,8 +146,8 @@ describe('formats', () => {
 describe('describeConfig', () => {
   test('says what the game was in one line', () => {
     expect(describeConfig({ mode: 'country', region: 'JP' }, { regionLabel: 'Japan' })).toBe('Country: Japan. 5 rounds. No timer.');
-    expect(describeConfig({ mode: 'streak', time: 60, move: false, pan: false, zoom: false })).toBe('Country streak. Until the first miss. 1 minute. NMPZ.');
-    expect(describeConfig({ mode: 'balanced', time: 60, move: false, pan: true, zoom: true })).toBe('World, balanced. 5 rounds. 1 minute. No Move.');
+    expect(describeConfig({ mode: 'streak', time: 60, move: false, pan: false, zoom: false })).toBe('Streak. Until the first miss. 1 minute. NMPZ.');
+    expect(describeConfig({ mode: 'balanced', time: 60, move: false, pan: true, zoom: true })).toBe('Every Country. 5 rounds. 1 minute. No Move.');
     // The default imagery goes without saying; the other one is named.
     expect(describeConfig({ provider: 'apple', mode: 'world', rounds: 3 })).not.toContain('Apple Look Around');
     expect(describeConfig({ provider: 'google', mode: 'world', rounds: 3 })).toContain('Google Street View');

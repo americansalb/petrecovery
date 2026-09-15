@@ -20,7 +20,7 @@ const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
 export const GAME_LINKS = [
   { href: '/geo', label: 'Play', exact: true },
-  { href: '/geo/script', label: 'Script' },
+  { href: '/geo/script', label: 'Babel' },
   { href: '/geo/rooms', label: 'Rooms' },
   { href: '/geo/leaderboard', label: 'Rankings' },
   { href: '/geo/play?mode=daily', label: 'Daily', never: true },
