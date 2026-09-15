@@ -110,15 +110,24 @@
       const y = Math.min(1, Math.max(0, (point.y - box.top) / (box.height || 1)));
       return new Coordinate(85 - y * 170, -180 + x * 360);
     }
-    // The inverse of the tap conversion, and the same projection place()
-    // uses. The script map asks for this to work out which country
-    // names have room to be drawn, so a fake that cannot answer would
-    // leave every name off the map and the scenario would see none.
+    // Where a coordinate lands on the page, for the region the map is
+    // actually looking at. The script map asks for this to work out
+    // which country names have room to be drawn, and names are only
+    // drawn when the whole visible set fits, so a fake that ignored the
+    // region would answer for the whole world at every zoom and never
+    // show a name.
+    //
+    // The tap conversion below deliberately stays on the plain world
+    // mapping: scenarios click at fixed pixels and assert on the
+    // distance that produces, and those numbers are not what this is
+    // testing.
     convertCoordinateToPointOnPage(coordinate) {
       const box = this.el.getBoundingClientRect();
+      const center = this.region?.center || { latitude: 20, longitude: 0 };
+      const span = this.region?.span || { latitudeDelta: 170, longitudeDelta: 360 };
       return {
-        x: box.left + ((coordinate.longitude + 180) / 360) * box.width,
-        y: box.top + ((85 - coordinate.latitude) / 170) * box.height,
+        x: box.left + ((coordinate.longitude - center.longitude) / span.longitudeDelta + 0.5) * box.width,
+        y: box.top + ((center.latitude - coordinate.latitude) / span.latitudeDelta + 0.5) * box.height,
       };
     }
     addAnnotation(a) {
@@ -201,6 +210,23 @@
 
   window.__fakeMaps = [];
   window.__fakeLookArounds = [];
+  /**
+   * Zoom the last map built, by narrowing the span it is looking at.
+   *
+   * The script map works out its zoom from the region's longitude
+   * delta, and country names are only drawn once the whole visible set
+   * fits, which on a world view it never does. A scenario that wants to
+   * see names has to zoom in first, the way a player would.
+   */
+  window.__fakeZoom = (longitudeDelta) => {
+    const map = window.__fakeMaps[window.__fakeMaps.length - 1];
+    if (!map) return;
+    map.region = {
+      center: map.region?.center || new Coordinate(20, 0),
+      span: { latitudeDelta: longitudeDelta / 2, longitudeDelta },
+    };
+    (listeners(map)['region-change-end'] || []).forEach((fn) => fn({}));
+  };
 
   // MapKit answers about the token on the namespace rather than by
   // rejecting init(), and the game listens for it: an origin-locked
