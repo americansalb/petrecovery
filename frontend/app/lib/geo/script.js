@@ -1,5 +1,5 @@
 /**
- * The script game: read a sentence, pin where that language is spoken.
+ * The script game: read a sentence, pin where that language is used.
  *
  * Why a pin rather than a dropdown of language names. A dropdown makes
  * the game a vocabulary test, and it makes every wrong answer equally

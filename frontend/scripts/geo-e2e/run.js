@@ -629,7 +629,7 @@ async function script(browser) {
   await page.waitForSelector('[data-script-map="apple"] [data-fake-mapkit]', { timeout: 30000 });
   // The hint is copy, not a disabled button: a control that tells you
   // what to do should not look broken while it tells you.
-  await page.waitForSelector('text=Tap the map where that language is spoken');
+  await page.waitForSelector('text=Tap the map where that language is used');
 
   // The map names countries and nothing else. Apple's own labels have
   // to be off for that: half the South Asia pool is named after the
@@ -692,11 +692,12 @@ async function script(browser) {
 }
 
 /**
- * The same round with Apple refusing the token, which is what a clone,
- * a localhost and a preview deployment all look like: the origin-locked
- * token this repository ships does not authorize there. The round has
- * to stay answerable, on the game's own keyless map, because a script
- * round with a dead map is a round nobody can finish.
+ * The same round with Apple refusing outright, which is what a clone
+ * with an empty environment looks like: the origin-locked token this
+ * repository ships does not authorize there, and MapKit says so with an
+ * error rather than by going quiet. The round has to stay answerable on
+ * the game's own keyless map, because a script round with a dead map is
+ * a round nobody can finish.
  */
 async function scriptFallback(browser) {
   log('\n== scriptFallback ==');

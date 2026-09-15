@@ -3,21 +3,22 @@
 /**
  * /geo/script/play: the script game.
  *
- * Read a sentence, pin where that language is spoken. Settings come
+ * Read a sentence, pin where that language is used. Settings come
  * from the query string (app/lib/geo/script.js), so a link is a whole
  * game and a seed replays the same sentences in the same order.
  *
  * Immersive route (app/lib/navChrome.js): the screen is the game's, and
  * the X leads back to the lobby.
  *
- * The map is Apple's, like the rest of the game (AppleScriptMap). It
- * has one thing the panorama rounds do not: a fallback. The shipped
- * MapKit token is locked to the reunitepets.org origin and the quota is
- * a day's worth of views, so on a clone, on localhost, on a preview
- * deployment or on a heavy day Apple says no, and a script round with a
- * dead map is a round that cannot be answered at all. When that
- * happens the game's own keyless map takes over (LeafletScriptMap): the
- * world drawn from polygons in the bundle, no key and no quota.
+ * The map is Apple's, like the rest of the game (AppleScriptMap), and
+ * behind it is the game's own keyless map (LeafletScriptMap), drawn
+ * from polygons already in the bundle. No key, no quota, no account,
+ * and no bill: a clone with an empty environment still plays, and a
+ * fallback that cost money would be a worse problem than the one it
+ * solves.
+ *
+ * The round only falls to it when MapKit says no in as many words, or
+ * never arrives. Apple answering slowly is not Apple refusing.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -39,13 +40,13 @@ import './script-round.css';
 
 // Leaflet touches window on import, so it cannot render on the server.
 // Keyless on purpose: see LeafletScriptMap.
-// How long Apple gets before the round starts on the map that needs no
-// permission. Two clocks, because two different things can be slow:
-// MapKit is 800 KB and may not arrive at all on a bad network, and once
-// it has arrived Apple still has to answer about the token. A refusal
-// arrives as an error and does not wait out either clock.
+// How long MapKit gets to arrive at all. It is 800 KB and a bad enough
+// network never delivers it, which is the one case with no error event
+// to wait for. Once it HAS arrived there is no second clock: Apple
+// answering slowly is not Apple refusing, and treating it as a refusal
+// is what put the keyless map in front of players on a site where Apple
+// works.
 const MAPKIT_LOAD_MS = 12000;
-const MAPKIT_AUTH_MS = 3000;
 // The panorama round's chrome, so the two halves of the game look
 // like one game (app/geo/components/GameHud.js).
 // A script round is the one screen in the game with no imagery on it,
@@ -106,30 +107,47 @@ export default function ScriptPlayClient() {
   const [mapkit, setMapkit] = useState(null);
   const [provider, setProvider] = useState('pending');
 
-  // Which map the round is played on. Apple unless Apple refuses: the
-  // token is origin-locked and the quota is finite, and MapKit does not
-  // fail loudly when either runs out, it just stops drawing
-  // (app/geo/lib/appleMapKit.js). A refusal is latched, so a token that
-  // recovers mid-game does not swap the map out from under a pin.
+  // Which map the round is played on. Apple, unless Apple says no.
+  //
+  // "Says no" has to mean an error and nothing else. This used to give
+  // MapKit three seconds to confirm the token after the script landed
+  // and treat the silence as a refusal, which meant any page where the
+  // Initialized event had already fired before this screen mounted, or
+  // any connection slow enough to miss the window, drew the keyless map
+  // on a site where Apple works perfectly well. Apple is what the rest
+  // of the game runs on and what the pet site has always run on, so the
+  // benefit of the doubt belongs to Apple: the round starts on it as
+  // soon as MapKit loads, and only an actual error moves it.
+  //
+  // The one clock left is for the script never arriving at all, which
+  // is a dead map rather than a slow one.
+  //
+  // A refusal is latched, so a token that recovers mid-game does not
+  // swap the map out from under a pin.
   useEffect(() => {
     let live = true;
     let unwatch = null;
     let timer = 0;
     const settle = (state) => {
-      if (!live || state === 'pending') return;
-      // Whatever Apple said, it said it: the clock below is only for
-      // the case where it says nothing at all.
-      clearTimeout(timer);
+      if (!live) return;
+      // A refusal always moves the round off Apple, including one that
+      // arrives mid-game when the day's quota runs out. Anything else,
+      // 'pending' included, leaves the round where it is: once it has
+      // landed on the keyless map it stays there, because a provider
+      // that changed under a placed pin would lose the pin.
       if (state === 'failed') setProvider('leaflet');
-      else setProvider((current) => (current === 'leaflet' ? current : 'apple'));
     };
-    timer = setTimeout(() => settle('failed'), MAPKIT_LOAD_MS);
+    // The script itself not arriving. Nothing to authorize, nothing to
+    // draw, and no error event to wait for, because MapKit never ran.
+    timer = setTimeout(() => {
+      if (live) setProvider((current) => (current === 'pending' ? 'leaflet' : current));
+    }, MAPKIT_LOAD_MS);
     initializeMapKit()
       .then((sdk) => {
         if (!live) return;
-        setMapkit(sdk);
         clearTimeout(timer);
-        timer = setTimeout(() => settle('failed'), MAPKIT_AUTH_MS);
+        setMapkit(sdk);
+        setProvider((current) => (current === 'pending' ? 'apple' : current));
         settle(mapKitAuth());
         unwatch = onMapKitAuth(settle);
       })
@@ -330,7 +348,7 @@ export default function ScriptPlayClient() {
             <div className="mx-auto max-w-md">
               {!pin && !loading && round ? (
                 <p className="mb-2 text-center text-sm font-medium text-midnight-700">
-                  <span className="rounded-full bg-[#fffdf8]/90 px-3 py-1 shadow-sm">Tap the map where that language is spoken</span>
+                  <span className="rounded-full bg-[#fffdf8]/90 px-3 py-1 shadow-sm">Tap the map where that language is used</span>
                 </p>
               ) : null}
               <button
@@ -370,7 +388,7 @@ function Reveal({ result, round, last, onNext }) {
             ? 'No pin, so no points. The clock ran out.'
             : result.inRegion
               ? `Your pin was inside ${plural(answer.regions)}.`
-              : `Your pin was ${formatDistance(result.distanceKm)} from the nearest place ${answer.name} is spoken.`}
+              : `Your pin was ${formatDistance(result.distanceKm)} from the nearest place ${answer.name} is used.`}
         </p>
         {result.alsoSpokenHere?.length ? (
           <p className="mt-2 text-sm text-midnight-500">
@@ -443,7 +461,7 @@ function Tells({ answer, text, script }) {
 function plural(regions) {
   if (!regions?.length) return 'the right area';
   if (regions.length === 1) return regions[0].name;
-  return `${regions[0].name}, one of ${regions.length} places it is spoken`;
+  return `${regions[0].name}, one of ${regions.length} places it is used`;
 }
 
 /** The end of a game. */

@@ -110,6 +110,17 @@
       const y = Math.min(1, Math.max(0, (point.y - box.top) / (box.height || 1)));
       return new Coordinate(85 - y * 170, -180 + x * 360);
     }
+    // The inverse of the tap conversion, and the same projection place()
+    // uses. The script map asks for this to work out which country
+    // names have room to be drawn, so a fake that cannot answer would
+    // leave every name off the map and the scenario would see none.
+    convertCoordinateToPointOnPage(coordinate) {
+      const box = this.el.getBoundingClientRect();
+      return {
+        x: box.left + ((coordinate.longitude + 180) / 360) * box.width,
+        y: box.top + ((85 - coordinate.latitude) / 170) * box.height,
+      };
+    }
     addAnnotation(a) {
       this.addAnnotations([a]);
     }

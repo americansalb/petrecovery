@@ -416,16 +416,42 @@ set: countries, and nothing smaller, on either map. The harness asserts
 it, by reading every name drawn on the map and checking it against that
 file.
 
-**When MapKit will not authorize, the game draws the world itself**
-(`app/geo/components/script/LeafletScriptMap.js`). The shipped token is
-locked to the reunitepets.org origin, so on a clone, on localhost and on
-a preview deployment Apple refuses, and a script round with a dead map
-is a round nobody can finish. The fallback is Leaflet over the same
+**When MapKit says no, the game draws the world itself**
+(`app/geo/components/script/LeafletScriptMap.js`): Leaflet over the same
 Natural Earth polygons the server scores with, and the same country
-names over the top: no key, no quota, and nothing fetched from anyone
-during a round. A refusal is latched for the rest of the game, so a
-token that recovers mid-round does not swap the map out from under a
-pin.
+names over the top. No key, no quota, no account, and no bill. That last
+one is the reason there is no third map: a fallback billed per load
+would charge for exactly the days Apple is not drawing, which is a worse
+problem than the one it solves.
+
+**"Says no" means an error, not a silence.** This used to give MapKit
+three seconds to confirm the token after the script landed and treat the
+silence as a refusal. Any page where the `Initialized` event had already
+fired before the screen mounted, and any connection slow enough to miss
+the window, drew the keyless map on a site where Apple works perfectly
+well, which is how it came to be in front of real players on
+reunitepets.org. There is one clock now, for MapKit never arriving at
+all, and it only fires while no map has been chosen yet. Apple gets the
+benefit of the doubt, because Apple is what the rest of the game runs
+on.
+
+A refusal is still latched for the rest of the game, so a token that
+recovers mid-round does not swap the map out from under a pin.
+
+`npm run geo:check-mapkit` says which hosts the tokens on hand actually
+cover, which is the thing to check first if the keyless map is showing
+up where it should not.
+
+**Country names are placed, not just plotted**
+(`app/geo/lib/countryLabels.js`). Natural Earth gives every country an
+anchor and the zoom its cartographers set; drawing all of them at that
+zoom writes UNITED KINGDOM through GERMANY through FRANCE, with ITALY
+and SPAIN underneath. Names are offered in order of importance, each is
+measured, and one whose box touches a box already placed is dropped
+until the player zooms in far enough for it to fit. Nothing moves and
+nothing shrinks. Both maps that draw their own names use it, and
+`__tests__/geo/country-labels.test.js` checks that nothing drawn
+overlaps anything else drawn.
 
 **The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
 
@@ -449,7 +475,8 @@ probe, no Google key. That is arithmetic rather than generosity: a text
 round has no marginal cost to meter, and the mode works on a server with
 no Google keys at all. The map is a MapKit view like any other round's,
 counted against the same daily allowance, and the keyless fallback above
-costs nothing at all.
+costs nothing at all. Nothing in this mode is billed per load, in either
+map, on any day.
 
 **The corpus** is `app/lib/geo/server/samples.js`, and it is server only
 on purpose: if the browser held it, it could match the sentence on
@@ -957,12 +984,13 @@ configured**, and that is deliberate. It normally runs on Apple's map
 like the rest of the game, but the MapKit token this repository ships is
 locked to the reunitepets.org origin, so here it does not authorize.
 When it does not, the round falls back to the world drawn from polygons
-the game already ships (Natural Earth 1:110m, the `world-atlas` package,
-the same file the server scores with), one 108 KB chunk of the bundle,
-cached by the browser like any other: no key, no quota, nothing fetched
-from anyone during a round. That fallback was CARTO's raster tiles until
-September 2026, when those started coming back stamped "API KEY
-REQUIRED"; a world outline with no labels never needed a tile server.
+the game already ships
+(Natural Earth 1:110m, the `world-atlas` package, the same file the
+server scores with), one 108 KB chunk of the bundle, cached by the
+browser like any other: no key, no quota, nothing fetched from anyone
+during a round. That fallback was CARTO's raster tiles until September
+2026, when those started coming back stamped "API KEY REQUIRED"; a world
+outline with no labels never needed a tile server.
 
 Rooms, ratings, points, the shop and sign-in all work too, on an
 in-memory store that forgets everything when the process stops **or when

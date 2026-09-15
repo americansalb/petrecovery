@@ -36,6 +36,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { chooseLabels } from '../../lib/countryLabels';
 
 /** The country names, fetched once per page and cached like any chunk. */
 let labelsPromise = null;
@@ -225,7 +226,7 @@ export default function AppleScriptMap({
           new mapkit.MarkerAnnotation(new mapkit.Coordinate(nearest.lat, nearest.lng), {
             color: ANSWER,
             title: answer.name,
-            subtitle: 'Nearest place it is spoken',
+            subtitle: 'Nearest place it is used',
           })
         );
         overlays.push(
@@ -322,10 +323,13 @@ function fadeIn(mapkit, style, overlays) {
  * Country names, and only country names.
  *
  * The same 10 KB of Natural Earth label anchors the keyless map draws
- * from, and the same rule: each name appears between the zoom Natural
- * Earth's cartographers set for it and the zoom they stop it at, so the
- * world is named at world zoom and a continent is not buried under
- * every country's name at once.
+ * from, and the same two rules, both in app/geo/lib/countryLabels.js:
+ * each name appears between the zoom Natural Earth's cartographers set
+ * for it and the zoom they stop it at, and a name whose box would land
+ * on a name already placed is not drawn until there is room. Without
+ * the second rule the world at its starting zoom writes UNITED KINGDOM
+ * through GERMANY through FRANCE, which is where those countries are
+ * and not how a map reads.
  *
  * Added and removed rather than hidden, so the page holds the few
  * dozen labels that are on screen instead of all two hundred.
@@ -356,11 +360,24 @@ function addLabels(mapkit, map, rows, host) {
 
   const shown = new Set();
   const sync = () => {
-    const zoom = zoomOf(map, host);
+    const box = host?.getBoundingClientRect?.() || { left: 0, top: 0, width: 0, height: 0 };
+    // MapKit answers in page coordinates; the chooser works in the
+    // map's own, so the host's corner comes off each point.
+    const project = (lat, lng) => {
+      try {
+        const point = map.convertCoordinateToPointOnPage(new mapkit.Coordinate(lat, lng));
+        return point ? { x: point.x - box.left, y: point.y - box.top } : null;
+      } catch {
+        return null;
+      }
+    };
+    const kept = new Set(
+      chooseLabels(rows, { zoom: zoomOf(map, host), width: box.width, height: box.height, project })
+    );
     const add = [];
     const drop = [];
     for (const entry of entries) {
-      const wanted = entry.row.z <= zoom && zoom <= (entry.row.u ?? 12);
+      const wanted = kept.has(entry.row);
       if (wanted === shown.has(entry)) continue;
       if (wanted) {
         add.push(entry.annotation);
