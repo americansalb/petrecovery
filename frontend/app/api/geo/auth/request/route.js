@@ -67,6 +67,23 @@ export async function POST(request) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
     }
     console.error('[geo/auth/request]', error?.message || error);
-    return NextResponse.json({ error: 'Could not start sign-in', code: 'internal' }, { status: 500 });
+    // Name the failure. "Could not start sign-in" on its own is
+    // unanswerable from outside, and this endpoint 500ing in production
+    // while working locally cost an afternoon of guessing. Prisma's
+    // error codes are not secrets, and P2021 in particular says the
+    // table is not there, which on a deploy whose build only runs
+    // `prisma generate` is the likely answer: nothing creates tables.
+    const code = error?.code || '';
+    const missingTable = code === 'P2021' || /does not exist in the current database/i.test(error?.message || '');
+    return NextResponse.json(
+      {
+        error: missingTable
+          ? 'Sign-in storage is missing on this server. The database has not had the schema applied: run `npm run db:push` (or `db:migrate`) against it.'
+          : 'Could not start sign-in',
+        code: missingTable ? 'schema_missing' : 'internal',
+        cause: code || undefined,
+      },
+      { status: 500 }
+    );
   }
 }

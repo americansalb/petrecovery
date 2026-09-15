@@ -35,6 +35,40 @@ function ordinal(n) {
   return `${v}${suffix[(mod - 20) % 10] || suffix[mod] || suffix[0]}`;
 }
 
+/**
+ * What a finished ranked set did to the rating.
+ *
+ * A number moving is the whole reward, so it is said plainly: where the
+ * rating went, what it was beaten against, and how many placement games
+ * are left before the number becomes a rank.
+ */
+function RankedResult({ rated }) {
+  if (!rated) return null;
+  const up = rated.delta >= 0;
+  return (
+    <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3" data-ranked-result>
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Ranked</p>
+      <p className="mt-1 text-sm text-white/80">
+        {rated.field.players
+          ? `You scored ${formatScore(rated.total)} against ${formatScore(rated.field.total)}, the average of ${rated.field.players} other ${rated.field.players === 1 ? 'player' : 'players'} on these five.`
+          : `You scored ${formatScore(rated.total)}. Nobody else has finished this hour yet, so you were set against par.`}
+      </p>
+      <p className="mt-2 text-lg font-bold tabular-nums">
+        <span className={up ? 'text-emerald-300' : 'text-rose-300'}>
+          {up ? '+' : ''}
+          {Math.round(rated.delta)} rating
+        </span>
+        <span className="ml-2 text-sm font-medium text-white/60">now {Math.round(rated.after)}</span>
+      </p>
+      {rated.provisional ? (
+        <p className="mt-1 text-sm text-white/60">
+          {rated.placements} more {rated.placements === 1 ? 'game' : 'games'} to be placed.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** The shared board under a finished daily or cup: your place, and the top of it. */
 function DailyBoard({ daily, cup = false }) {
   if (!daily) return null;
@@ -70,7 +104,7 @@ function DailyBoard({ daily, cup = false }) {
   );
 }
 
-export default function GameSummary({ summary, code, config, regionLabel, best, daily = null, points = null, onPlayAgain }) {
+export default function GameSummary({ summary, code, config, regionLabel, best, daily = null, rated = null, points = null, onPlayAgain }) {
   const [copied, copy] = useCopy();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/geo/share?s=${encodeURIComponent(code)}`;
@@ -141,6 +175,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
         </ol>
 
         <DailyBoard daily={daily} cup={config.mode === 'cup'} />
+        <RankedResult rated={rated} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => copy('text', text)} className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">

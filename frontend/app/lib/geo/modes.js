@@ -68,6 +68,19 @@ export const MODES = {
     // The board is one board, so the imagery is fixed for everyone.
     fixed: { provider: PRIMARY_PROVIDER, rounds: 5, time: 0, move: true, pan: true, zoom: true, radius: 'standard' },
   },
+  ranked: {
+    id: 'ranked',
+    label: 'Ranked',
+    short: 'Ranked',
+    providers: ['apple', 'google'],
+    description:
+      'Five balanced rounds on a clock. Everyone playing this hour gets the same five places, and the result moves your rating. Five games to be placed.',
+    // A rating compares people, so it can only compare them on the same
+    // places under the same rules: the set, the clock and the imagery
+    // are all fixed, and the seed comes from the hour rather than from
+    // the player.
+    fixed: { provider: PRIMARY_PROVIDER, rounds: 5, time: 60, move: false, pan: true, zoom: true, radius: 'standard' },
+  },
   cup: {
     id: 'cup',
     label: 'Weekly cup',
@@ -244,6 +257,42 @@ export function isCupSeed(seed) {
   return /^cup-\d{4}-W\d{2}$/.test(String(seed || ''));
 }
 
+/**
+ * "ranked-2026-09-15T21": the ranked set for an hour, in UTC.
+ *
+ * An hour rather than a day because a rating wants games, and a day
+ * would cap a player at one rated result. An hour rather than a
+ * minute because the set has to be shared: the whole point is that
+ * everyone playing now is on the same five places, so their scores can
+ * be compared to each other rather than to nothing.
+ */
+export function rankedSeed(date = new Date()) {
+  return `ranked-${new Date(date).toISOString().slice(0, 13)}`;
+}
+
+export function isRankedSeed(seed) {
+  return /^ranked-\d{4}-\d{2}-\d{2}T\d{2}$/.test(String(seed || ''));
+}
+
+/** When a ranked seed's hour starts, in ms, or null. */
+export function rankedSeedAt(seed) {
+  const m = /^ranked-(\d{4})-(\d{2})-(\d{2})T(\d{2})$/.exec(String(seed || ''));
+  if (!m) return null;
+  const at = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]));
+  return Number.isFinite(at) ? at : null;
+}
+
+/**
+ * How far back a ranked seed the caller supplies is still accepted: the
+ * hour it belongs to, and the one before it.
+ *
+ * A game that starts at 20:58 asks for its later rounds after 21:00,
+ * and it has to stay the same set or the five rounds never add up to
+ * one entry. Anything older is a player handing back a set they have
+ * already seen, which is a rating built on a second attempt.
+ */
+const RANKED_SEED_GRACE_MS = 2 * 3600000;
+
 /** When an ISO week ends (the following Monday, 00:00 UTC), from "2026-W37". */
 export function isoWeekEnd(week) {
   const m = /^(\d{4})-W(\d{2})$/.exec(String(week || ''));
@@ -318,6 +367,15 @@ export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
   if (mode === 'cup') {
     Object.assign(config, MODES.cup.fixed);
     config.seed = isCupSeed(seed) ? seed : cupSeed(now);
+  }
+  // Ranked: the seed is the hour, never the player's. A chosen seed
+  // would let someone replay a set they had already seen and submit the
+  // second attempt, which is the whole rating gone.
+  if (mode === 'ranked') {
+    Object.assign(config, MODES.ranked.fixed);
+    const at = rankedSeedAt(seed);
+    const fresh = at !== null && now - at < RANKED_SEED_GRACE_MS && at <= now;
+    config.seed = fresh ? seed : rankedSeed(now);
   }
   // Kidnapped: the clock and the drive are the mode; rounds and the
   // probe radius stay yours.

@@ -13,10 +13,27 @@
  * margin: a narrow win counts less than a rout. Everyone's update is
  * computed from the pre-game numbers, so order does not matter.
  *
- * Ladders are separate (classic, duel). Pure JavaScript.
+ * Ladders are separate (classic, duel, solo). Pure JavaScript.
  */
 
-export const LADDERS = ['classic', 'duel'];
+/**
+ * `classic` and `duel` are rooms: real opponents, rated against each
+ * other. `solo` is the ranked set that turns over every hour, where the
+ * opponent is everyone else who played that same hour, taken together
+ * as one. They are separate ladders because they are separate games.
+ */
+export const LADDERS = ['classic', 'duel', 'solo'];
+/**
+ * What each ladder is called on screen. Room variants have their own
+ * labels in rooms.js, but `solo` is not a room, so the ladders need a
+ * list of their own rather than borrowing that one.
+ */
+export const LADDER_LABELS = Object.freeze({
+  classic: 'Classic',
+  duel: 'Duel',
+  solo: 'Ranked solo',
+});
+
 export const RATING_DEFAULT = 1500;
 export const RD_DEFAULT = 350;
 export const RD_MIN = 30;

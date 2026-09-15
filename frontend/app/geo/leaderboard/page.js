@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Trophy, Users } from 'lucide-react';
-import { LADDERS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
+import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { profileHeaders } from '../lib/profile';
 import PlayerName from '../components/PlayerName';
@@ -60,7 +60,7 @@ export default function GeoLeaderboardPage() {
         <div className="mt-6 inline-flex rounded-xl bg-midnight-100 p-1" role="tablist">
           {LADDERS.map((id) => (
             <button key={id} type="button" role="tab" aria-selected={ladder === id} onClick={() => setLadder(id)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${ladder === id ? 'bg-midnight-900 text-white shadow' : 'text-midnight-700 hover:bg-white'}`}>
-              {VARIANTS[id]?.label || id}
+              {LADDER_LABELS[id] || VARIANTS[id]?.label || id}
             </button>
           ))}
         </div>

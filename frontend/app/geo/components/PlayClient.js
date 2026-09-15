@@ -116,6 +116,8 @@ export default function PlayClient() {
   const [appleAttempt, setAppleAttempt] = useState(0);
   const [share, setShare] = useState(null);
   const [challenge, setChallenge] = useState(null);
+  // What the last round of a ranked set did to the solo rating.
+  const [rated, setRated] = useState(null);
   const [daily, setDaily] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileSettled, setProfileSettled] = useState(false);
@@ -287,6 +289,7 @@ export default function PlayClient() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Could not score the guess');
       if (data.challenge) setChallenge(data.challenge);
+      if (data.rated) setRated(data.rated);
       if (data.points) setPointsByRound((prev) => ({ ...prev, [s.roundIndex]: data.points }));
       dispatch({ type: 'submit_success', result: { ...data.result, timedOut: data.result?.timedOut ?? !guess, roundIndex: s.roundIndex } });
       setMobileMapOpen(false);
@@ -531,6 +534,7 @@ export default function PlayClient() {
           regionLabel={regionLabel}
           best={share.best}
           daily={config.mode === 'daily' || config.mode === 'cup' ? daily : null}
+          rated={rated}
           points={gamePoints}
           onPlayAgain={() => {}}
         />
