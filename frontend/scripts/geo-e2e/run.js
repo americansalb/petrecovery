@@ -21,7 +21,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -564,6 +564,47 @@ async function ranked(browser) {
   }
 }
 
+/**
+ * The lobby a first-time player sees.
+ *
+ * A page full of choices and nothing saying what a round is, which is
+ * how somebody leaves without playing. It has to be there on a fresh
+ * browser and gone once there is a game behind them, because an
+ * explanation that never leaves is worse than none.
+ */
+async function firstRun(browser) {
+  log('\n== firstRun ==');
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-first-run]', { timeout: 30000 });
+  const text = (await page.textContent('[data-first-run]')).replace(/\s+/g, ' ');
+  log('first run panel:', text.slice(0, 140));
+  for (const wanted of ['place a pin', '5,000', 'Ranked']) {
+    if (!text.includes(wanted)) throw new Error(`the first run panel should mention ${wanted}`);
+  }
+
+  // Play one game, and it should not be there afterwards.
+  await page.goto(`${BASE}/geo/play?mode=daily`, { waitUntil: 'domcontentloaded' });
+  for (let i = 0; i < 5; i++) {
+    await waitPlayable(page);
+    await waitForLookAround(page);
+    await pinApple(page);
+    await page.click('button:has-text("Guess")');
+    await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
+    if (i < 4) await page.keyboard.press('Space');
+  }
+  await page.click('button:has-text("See results")');
+  await page.waitForSelector('text=/of 25,000/', { timeout: 20000 });
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-daily-board]', { timeout: 20000 });
+  if (await page.locator('[data-first-run]').count()) {
+    throw new Error('the first run panel is still there after a game');
+  }
+  log('first run panel steps aside once a game is played');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 async function daily(browser) {
   const page = await newPage(browser, { width: 1280, height: 800 });
   // The daily is played on the primary imagery, Apple: the round is a
@@ -842,7 +883,7 @@ async function appleRefused(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, ranked, profile, script, scriptFallback };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {
