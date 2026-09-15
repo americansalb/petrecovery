@@ -32,11 +32,29 @@ export const GAME_ROOT = '/geo';
 export const GAME_API_ROOT = '/api/geo';
 
 /**
- * The game's routes that cover the screen: a round and a room in
- * progress. Each carries an X back to the game's lobby. Everything else
- * the game serves is an ordinary page.
+ * The game's routes that carry no pet chrome, which is all of them.
+ *
+ * It used to be the screens where a round was in progress, and the rest
+ * of the game sat under the pet site's universal bar with its own
+ * subtabs below. That was right while the game was a section of
+ * reunitepets.org and wrong the day it got a name and an address of its
+ * own: nobody arriving at probablyearth.com should be looking at a
+ * navigation bar for a lost pet service.
+ *
+ * The founder rule this answers to (docs/APP_MAP.md, 8.2) allows the
+ * bar to be removed inside an immersive takeover, on one condition:
+ * every such route ships a visible way back out. The game's own header
+ * is that on every page, and its footer carries the link to
+ * ReunitePets.
  */
-export const IMMERSIVE_GAME_ROUTES = ['/geo/play', '/geo/room', '/geo/script/play'];
+export const IMMERSIVE_GAME_ROUTES = ['/geo'];
+
+/**
+ * The screens that cover the whole viewport, where even the game's own
+ * header is gone: a round and a room in progress. Each carries an X
+ * back to the lobby.
+ */
+export const GAME_TAKEOVER_ROUTES = ['/geo/play', '/geo/room', '/geo/script/play'];
 
 /**
  * The game's rate limits, by path prefix. `middleware.js` spreads these

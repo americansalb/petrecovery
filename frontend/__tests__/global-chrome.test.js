@@ -73,18 +73,36 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     // the footer's ReunitePets link is its way back out
   });
 
-  test('the geo game covers the screen only while a round or a room is in progress', () => {
-    // the HUD's X leads back to /geo; a room's X to /geo/rooms
-    expect(isImmersiveRoute('/geo/play')).toBe(true);
-    expect(isImmersiveRoute('/geo/room/ABC123')).toBe(true);
-    // A script round covers the screen; its lobby is an ordinary page.
-    expect(isImmersiveRoute('/geo/script/play')).toBe(true);
-    expect(isImmersiveRoute('/geo/script')).toBe(false);
-    // the lobby, the room browser, the rankings and share pages are
-    // ordinary pages: universal bar on top, the game's subtabs below it
-    for (const route of ['/geo', '/geo/rooms', '/geo/share', '/geo/leaderboard', '/geocode']) {
-      expect(isImmersiveRoute(route)).toBe(false);
+  test('the whole game carries no pet chrome, because it is a site and not a section', () => {
+    // It used to be only the screens with a round in progress, and the
+    // rest of the game sat under the universal bar with its own subtabs
+    // below. That was right while the game lived at reunitepets.org/geo
+    // and wrong the day it got probablyearth.com: nobody arriving there
+    // should be looking at a navigation bar for a lost pet service.
+    //
+    // The rule allows it (docs/APP_MAP.md, 8.2) on one condition, and
+    // the condition is checked below: a visible way back out.
+    for (const route of ['/geo', '/geo/play', '/geo/room/ABC123', '/geo/script', '/geo/script/play', '/geo/rooms', '/geo/share', '/geo/leaderboard']) {
+      expect({ route, immersive: isImmersiveRoute(route) }).toEqual({ route, immersive: true });
     }
+    // /geocode is a PET route that starts with /geo. It keeps the bar.
+    expect(isImmersiveRoute('/geocode')).toBe(false);
+  });
+
+  test('every game page ships a visible way out, which is what buys the takeover', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const root = path.resolve(__dirname, '..');
+    const header = fs.readFileSync(path.join(root, 'app/geo/components/GeoHeader.js'), 'utf8');
+    const footer = fs.readFileSync(path.join(root, 'app/geo/components/GeoFooter.js'), 'utf8');
+    // The game's own bar, on every page that is not a takeover.
+    expect(header).toContain('isGameTakeover(pathname)) return null');
+    expect(header).toContain('<header');
+    // And a link off the game entirely, in the footer.
+    expect(footer).toContain('HOME_URL');
+    expect(footer).toContain('Made by ReunitePets');
+    // The takeovers have their own X instead; the footer stands down.
+    expect(footer).toContain('GAME_TAKEOVER_ROUTES');
   });
 
   test('a build of the game site (NEXT_PUBLIC_SITE=geo) has no pet chrome anywhere', () => {
@@ -103,8 +121,11 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
       if (saved === undefined) delete process.env.NEXT_PUBLIC_SITE;
       else process.env.NEXT_PUBLIC_SITE = saved;
     }
-    // this build is the pet site
-    expect(isImmersiveRoute('/geo')).toBe(false);
+    // On a pet build the game is still a takeover, because the game is
+    // a takeover everywhere now; what a geo build changes is that the
+    // pet site's own pages go too.
+    expect(isImmersiveRoute('/geo')).toBe(true);
+    expect(isImmersiveRoute('/')).toBe(false);
   });
 
   test('the shelter portal is an immersive takeover; its onboarding is not', () => {

@@ -634,9 +634,12 @@ async function profile(browser) {
   await page.waitForSelector('[data-shop] li', { timeout: 30000 });
   const pins = await page.locator('[data-shop] li').count();
   if (pins < 6) throw new Error(`expected the pins in the shop, saw ${pins}`);
-  const headerText = (await page.textContent('header')).replace(/\s+/g, ' ');
-  log('profile header:', headerText.slice(0, 120));
-  if (!/\d+\s*points/.test(headerText)) throw new Error('the profile header should show the points balance');
+  // Not `header`: the game carries its own bar on every page now, so
+  // the first header on this one is the navigation rather than the
+  // profile's own. The balance is what this is about, so read the page.
+  const headerText = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  log('profile page:', headerText.slice(0, 120));
+  if (!/\d+\s*points/.test(headerText)) throw new Error('the profile page should show the points balance');
   await page.fill('input[aria-label="Your name"]', 'Harness Ada');
   await page.click('button:has-text("Save")');
   await page.waitForSelector('button:has-text("Saved")', { timeout: 10000 });

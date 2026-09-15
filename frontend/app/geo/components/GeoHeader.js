@@ -15,10 +15,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Globe2 } from 'lucide-react';
-import { isGameSite } from '@/app/lib/geo/site';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
-const HOME_URL = process.env.NEXT_PUBLIC_GEO_HOME_URL || 'https://www.reunitepets.org';
 
 export const GAME_LINKS = [
   { href: '/geo', label: 'Play', exact: true },
@@ -41,47 +39,35 @@ function isActive(link, pathname) {
 
 export default function GeoHeader() {
   const pathname = usePathname() || '';
+  // A round or a room owns the whole screen, header included.
   if (isGameTakeover(pathname)) return null;
 
-  if (isGameSite()) {
-    return (
-      <header className="border-b border-midnight-800 bg-midnight-950 text-white">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-          <Link href="/geo" className="flex shrink-0 items-center gap-2 font-bold">
-            <Globe2 className="h-5 w-5 text-flash-400" />
-            {SITE_NAME}
-          </Link>
-          <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Game">
-            {GAME_LINKS.map((link) => {
-              const active = isActive(link, pathname);
-              return (
-                <Link key={link.href} href={link.href} className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${active ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-      </header>
-    );
-  }
-
+  // Everywhere else in the game, on both hosts. This used to render the
+  // dark bar only on a NEXT_PUBLIC_SITE=geo build and a row of subtabs
+  // under the pet site's bar otherwise. The game has its own name and
+  // its own domain now, so it carries its own bar wherever it is served.
   return (
-    <nav className="sticky top-16 z-40 border-b border-midnight-200 bg-white/95 backdrop-blur" aria-label="Game">
-      <div className="mx-auto flex h-12 max-w-5xl items-center gap-1 overflow-x-auto px-4">
-        <Link href="/geo" className="mr-2 hidden shrink-0 items-center gap-2 font-bold text-midnight-900 sm:flex">
-          <Globe2 className="h-4 w-4 text-flash-500" />
+    <header className="border-b border-midnight-800 bg-midnight-950 text-white">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
+        <Link href="/geo" className="flex shrink-0 items-center gap-2 font-bold">
+          <Globe2 className="h-5 w-5 text-flash-400" />
           {SITE_NAME}
         </Link>
-        {GAME_LINKS.map((link) => {
-          const active = isActive(link, pathname);
-          return (
-            <Link key={link.href} href={link.href} className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${active ? 'bg-midnight-900 text-white' : 'text-midnight-700 hover:bg-midnight-100'}`}>
-              {link.label}
-            </Link>
-          );
-        })}
+        <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Game">
+          {GAME_LINKS.map((link) => {
+            const active = isActive(link, pathname);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${active ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
-    </nav>
+    </header>
   );
 }
