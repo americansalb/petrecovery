@@ -1013,6 +1013,35 @@ Share cards and room links resolve against the host that served them
 (`app/lib/geo/server/siteBase.js`), so previews on the game domain point
 back to the game domain.
 
+## The schema reaches the database on its own
+
+The build used to run `prisma generate` and nothing else, which builds a
+client that knows the schema and leaves a database that does not have
+it. Tables created by the last hand-run of `db push` worked; anything
+added since answered with Prisma's P2021, "the table does not exist".
+That is how sign-in came to return a 500 on the live site while working
+perfectly in development: `GeoLoginToken` had never been created, and
+the endpoint said only "internal", so there was nothing to go on.
+
+`frontend/scripts/db-sync.js` runs between `prisma generate` and
+`next build`, and three rules keep it safe:
+
+- **Only on Vercel**, or with `FORCE_DB_PUSH=1`. A local build and CI
+  both have a `DATABASE_URL` aimed at something that is not production,
+  CI's deliberately at a dummy, and neither should have a schema pushed
+  at it.
+- **Never `--accept-data-loss`.** Adding tables and columns goes
+  through; a change that would destroy something is refused.
+- **A failure does not fail the build.** The site still deploys, the
+  log carries a banner, and the routes whose tables are missing answer
+  `schema_missing` and name the fix rather than saying "internal".
+
+Pointed at a brand new database this creates all 183 tables on the
+first deploy, which is what makes a fresh Vercel Postgres work with
+nothing typed into a terminal. Verified by dropping a database,
+creating an empty one, and running the whole thirteen-scenario harness
+against it.
+
 ## Going live
 
 `docs/WANDERGUESSER_LAUNCH.md` is the launch checklist: what is
