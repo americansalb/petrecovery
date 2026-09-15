@@ -268,6 +268,15 @@ pinned in Tamil Nadu scores full marks. Tamil pinned in Punjab does not.
 Punjabi is spoken on both sides of a border, and pinning either is
 right.
 
+**The corpus is 91 languages across 25 writing systems**, and it grows
+by adding the language next to one already in it rather than the next
+biggest in the world: Macedonian beside Bulgarian, Slovak beside Czech,
+Latvian beside Lithuanian, Galician between Spanish and Portuguese,
+Scottish Gaelic beside Irish, Faroese beside Icelandic, Tajik beside
+Persian in a different alphabet. A round is worth playing when it is a
+decision between two things you can tell apart, and worth nothing when
+the answer is "somewhere in Europe".
+
 **Every language is drawn as real places.** A region is a whole country
 (`{ countries: ['IS'] }`), a set of subdivisions (`{ units: ['IN-TN'] }`,
 ISO 3166-2), or either of those clipped to a box where the line runs
@@ -276,7 +285,7 @@ admin-0 and admin-1 sets (public domain), built into
 `app/lib/geo/data/language-regions.json` by
 `scripts/build-language-regions.js` and resolved by
 `app/lib/geo/server/regions.js`. The file carries only what the corpus
-names: 126 countries and 262 subdivisions, not Natural Earth's four
+names: 135 countries and 262 subdivisions, not Natural Earth's four
 thousand.
 
 They were discs until 2026-09-12, and the discs were wrong in ways the

@@ -155,7 +155,7 @@ export const MARKERS = {
   rus: [
     { text: 'Сегодня', note: 'Today. Ukrainian Сьогодні, Bulgarian Днес.' },
     { text: 'каждый', note: 'Every. Ukrainian кожен, Serbian сваки.' },
-    { text: 'ё', note: 'Russian yo. Ukrainian and Bulgarian have no ё, Serbian no such letter at all.' },
+    { text: 'куда', note: 'Where to. Ukrainian куди, Belarusian куды, Bulgarian къде.' },
   ],
   ukr: [
     { text: 'Сьогодні', note: 'Today, with the soft sign inside the word. Russian Сегодня.' },
@@ -164,18 +164,16 @@ export const MARKERS = {
   ],
   bul: [
     { text: 'Тази', note: 'This, feminine. Bulgarian dropped noun cases, alone among the Slavic languages here.' },
-    { text: 'беше', note: 'Was. Russian было, Serbian било.' },
+    { text: 'всеки', note: 'Every. Macedonian секој, Serbian сваки, Russian каждый.' },
     { text: 'Той', note: 'He. Russian Он, Serbian Он.' },
   ],
   srp: [
-    { text: 'ј', note: 'Serbian Cyrillic borrowed j straight from Latin. Russian and Bulgarian have no such letter.' },
     { text: 'ћ', note: 'A soft ch, one of five letters Vuk added. Nothing else in Cyrillic here uses it.' },
     { text: 'сваки', note: 'Every. Russian каждый, Bulgarian всеки.' },
     { text: 'посао', note: 'Work, with the l turned to o at the end of a word.' },
   ],
   kaz: [
     { text: 'қ', note: 'A deep k. Kazakh adds nine letters to Russian Cyrillic for Turkic sounds.' },
-    { text: 'ң', note: 'Ng. Mongolian Cyrillic does not have it.' },
     { text: 'ұ', note: 'A barred u, Kazakh only. Mongolian has ү but not ұ.' },
   ],
   mon: [
@@ -212,7 +210,7 @@ export const MARKERS = {
   // smallest. A shared alphabet means the tell is usually one letter
   // nobody else uses, or one word the neighbour spells differently.
   spa: [
-    { text: 'ñ', note: 'Spanish enye. Portuguese writes the same sound nh, Catalan ny.' },
+    { text: 'mañana', note: 'Morning. Galician clips it to mañá, Portuguese turns it into manhã.' },
     { text: 'días', note: 'Days, with the accent. Portuguese writes dias without one.' },
     { text: 'adónde', note: 'Where to. Portuguese aonde, Catalan on.' },
     { text: 'lleva', note: 'The ll, which Portuguese writes lh and Catalan ll as well but rarely here.' },
@@ -251,7 +249,6 @@ export const MARKERS = {
   ],
   nld: [
     { text: 'Vanochtend', note: 'This morning. Afrikaans says Vanoggend, and the ch against gg is the split.' },
-    { text: 'dronk', note: 'Drank. Afrikaans has dropped the strong past entirely and says het gedrink.' },
     { text: 'Hij', note: 'He. Afrikaans Hy: Dutch keeps the ij, Afrikaans cut it to y.' },
   ],
   afr: [
@@ -323,7 +320,6 @@ export const MARKERS = {
     { text: 'kasdien', note: 'Daily, in one word. Polish needs two: codziennie is built the same way but spelled nothing like it.' },
   ],
   sqi: [
-    { text: 'ë', note: 'A schwa written as e with two dots. Albanian is a branch of Indo-European with no close relatives.' },
     { text: 'prandaj', note: 'Therefore. Albanian shares its alphabet with Italian across the water and almost none of its words.' },
     { text: 'shkon', note: 'Goes. Albanian writes sh and ç, which look Italian, over a vocabulary that is not.' },
     { text: 'çdo', note: 'Every. Turkish also has ç, but Albanian pairs it with ë, which Turkish does not have.' },
@@ -407,6 +403,101 @@ export const MARKERS = {
     { text: 'ngiphuze', note: 'I drank: the subject is a prefix, not a separate word.' },
     { text: 'ngezinyawo', note: 'By foot. Zulu nouns carry a class prefix that the rest of the sentence agrees with.' },
     { text: 'emsebenzini', note: 'At work, with a prefix and a suffix wrapped round the stem.' },
+  ],
+  // Added 2026-09-15 with the languages they mark.
+  mkd: [
+    { text: 'Утрово', note: 'This morning, with the demonstrative stuck on the end as -во. Only Macedonian does that.' },
+    { text: 'испив', note: 'I drank. Bulgarian writes изпих, with з where Macedonian has с.' },
+    { text: 'секој', note: 'Every. Bulgarian всеки, Serbian сваки.' },
+    { text: 'пешки', note: 'On foot. Bulgarian пеша.' },
+    { text: 'овој', note: 'This. Macedonian and Bulgarian both dropped noun cases; only Macedonian puts the demonstrative on the end of the noun as well.' },
+  ],
+  bel: [
+    { text: 'ў', note: 'A short u that exists as its own letter. Russian and Ukrainian have no such thing.' },
+    { text: 'гарбат', note: 'Tea, from Polish herbata rather than from Chinese cha. Russian and Ukrainian both say чай.' },
+    { text: 'ведаю', note: 'I know. Russian знаю, Ukrainian знаю.' },
+    { text: 'кожны', note: 'Every. Russian каждый, Ukrainian кожен: Belarusian sits between the two and matches neither.' },
+  ],
+  tgk: [
+    { text: 'ӯ', note: 'A Cyrillic letter invented for Tajik. This is Persian written in Cyrillic, which is why the words look Iranian and the alphabet does not.' },
+    { text: 'ҷ', note: 'J, added to Cyrillic for a sound Russian does not have.' },
+    { text: 'ҳ', note: 'H with a descender. Tajik added six letters to Cyrillic; Kazakh and Kyrgyz added different ones.' },
+  ],
+  kir: [
+    { text: 'Бүгүн', note: 'Today. Kazakh writes Бүгін, with і where Kyrgyz has ү.' },
+    { text: 'ошондуктан', note: 'Therefore. Kazakh сондықтан.' },
+    { text: 'жөө', note: 'On foot. Kazakh жаяу. Kyrgyz also has no қ or ұ, which Kazakh uses constantly.' },
+    { text: 'билбейм', note: 'I do not know, negated inside the verb.' },
+  ],
+  slk: [
+    { text: 'ľ', note: 'A soft l. Czech has no such letter, and this is the quickest way to tell the two apart.' },
+    { text: 'horúci', note: 'Hot. Czech horký: Slovak keeps the -úci ending Czech dropped.' },
+    { text: 'pešo', note: 'On foot. Czech pěšky, Polish pieszo, Slovene peš.' },
+    { text: 'Neviem', note: 'I do not know. Czech nevím.' },
+  ],
+  slv: [
+    { text: 'zjutraj', note: 'This morning. Croatian jutros, from the same root, built differently.' },
+    { text: 'službo', note: 'Work. Croatian posao, Czech práce.' },
+    { text: 'pelje', note: 'Leads. Slovene kept the dual number, a whole grammatical form the others lost.' },
+    { text: 'mrzlo', note: 'Cold. Croatian hladno, Slovak zima: three Slavic languages, three unrelated words.' },
+  ],
+  lav: [
+    { text: 'ī', note: 'A long i written with a macron. Lithuanian marks its long vowels with hooks instead: į, ą, ę.' },
+    { text: 'ļ', note: 'A soft l with a comma under it. Lithuanian has no such letter.' },
+    { text: 'ņ', note: 'A soft n, the same comma. Latvian and Lithuanian are the only two Baltic languages left and they are not mutually intelligible.' },
+    { text: 'ē', note: 'A long e. Lithuanian writes ė, with a dot, for a different sound.' },
+  ],
+  glg: [
+    { text: 'traballo', note: 'Work. Spanish trabajo, Portuguese trabalho: Galician sits between them and spells it a third way.' },
+    { text: 'mañá', note: 'Morning. Spanish mañana, Portuguese manhã.' },
+    { text: 'camiño', note: 'Road. Galician keeps the enye Portuguese turned into nh.' },
+    { text: 'moito', note: 'Much. Spanish mucho, Portuguese muito.' },
+  ],
+  gle: [
+    { text: 'Bhí', note: 'Was, with lenition written as bh. Irish marks long vowels with an acute; Scottish Gaelic uses a grave.' },
+    { text: 'dtéann', note: 'Goes, with eclipsis: the d is written in front and the t goes silent.' },
+    { text: 'Siúlann', note: 'Walks. Irish puts the verb first, and this ending is one Scottish Gaelic does not have.' },
+    { text: 'hoibre', note: 'Of the work, with an h inserted after the article.' },
+  ],
+  gla: [
+    { text: 'glè', note: 'Very, with a grave accent. Irish writes every long vowel with an acute instead.' },
+    { text: 'Càite', note: 'Where. Irish writes cá, and the grave accent here is the giveaway.' },
+    { text: 'coiseachd', note: 'Walking. Irish siúl: the two languages split in the middle ages and kept different words for it.' },
+    { text: 'theth', note: 'Hot, lenited. Irish te.' },
+  ],
+  mlt: [
+    { text: 'għ', note: 'A silent digraph that lengthens the vowel beside it. Maltese only, and it is Arabic ain written in Latin letters.' },
+    { text: 'ħ', note: 'A barred h. Maltese is a Semitic language written in the Latin alphabet, which no other language here is.' },
+    { text: 'Kuljum', note: 'Every day, from Arabic kull yawm. The grammar is Arabic and half the vocabulary is Italian.' },
+    { text: 'nafx', note: 'I do not know. The x is pronounced sh, as in Portuguese.' },
+  ],
+  fao: [
+    { text: 'gongur', note: 'Walks. Icelandic gengur: the two split about a thousand years ago and still look it.' },
+    { text: 'ikki', note: 'Not. Icelandic ekki, Danish ikke.' },
+    { text: 'hvønn', note: 'Each. Faroese uses ø where Icelandic uses ö.' },
+    { text: 'hesin', note: 'This. Icelandic þessi, and Faroese has no thorn at all.' },
+    { text: 'sera', note: 'Very. Icelandic mjög, Danish meget.' },
+    { text: 'mær', note: 'To me. Faroese keeps four cases, as Icelandic does and the mainland does not.' },
+  ],
+  ltz: [
+    { text: 'Ech', note: 'I. German ich, and Luxembourgish spells the sound it actually makes.' },
+    { text: 'dofir', note: 'Therefore. German dafür.' },
+    { text: 'Fouss', note: 'Foot. German Fuß, and Luxembourgish has no sharp s at all.' },
+    { text: 'wouhin', note: 'Where to. German wohin, with an extra u.' },
+  ],
+  bre: [
+    { text: 'c’h', note: 'A trigraph with an apostrophe inside it, for a sound Welsh writes ch. Breton only.' },
+    { text: 'Bemdez', note: 'Every day, in one word. Welsh needs three: bob dydd.' },
+    { text: 'war-droad', note: 'On foot. Welsh would say ar droed, which is the same words and not the same spelling.' },
+    { text: 'mintin', note: 'Morning. Welsh bore: Breton and Welsh are close cousins that stopped being mutually intelligible.' },
+  ],
+  fry: [
+    { text: 'Fanmoarn', note: 'This morning. Dutch vanochtend, and Frisian is closer to English than to Dutch in its oldest words.' },
+    { text: 'dêrom', note: 'Therefore. Dutch daarom, with a circumflex Dutch never uses.' },
+    { text: 'wurk', note: 'Work. Dutch werk, English work.' },
+    { text: 'bakje', note: 'A cup, literally a little tray.' },
+    { text: 'dyk', note: 'Road, and also dyke. Dutch dijk, English dyke: Frisian is the closest living language to English.' },
+    { text: 'wêr', note: 'Where. Dutch waar, with a circumflex Dutch does not use.' },
   ],
 };
 

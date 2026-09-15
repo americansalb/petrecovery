@@ -660,6 +660,93 @@ const LANGUAGE_ROWS = [
     family: 'Niger-Congo', branch: 'Bantu', speakers: 28,
     regions: [{ name: 'KwaZulu-Natal and the Highveld', units: ['ZA-NL', 'ZA-GT', 'ZA-MP'] }],
   },
+  // ---------------------------------------------------------------
+  // Added 2026-09-15. Chosen for what they teach: a language next to
+  // one already in the pool, so the round is a real decision rather
+  // than a guess at a continent. Macedonian against Bulgarian, Slovak
+  // against Czech, Latvian against Lithuanian, Galician between
+  // Spanish and Portuguese, Scottish Gaelic against Irish, Tajik
+  // against Persian in a different alphabet.
+  {
+    code: 'mkd', name: 'Macedonian', endonym: 'македонски', script: 'cyrl',
+    family: 'Indo-European', branch: 'Slavic', speakers: 2,
+    regions: [{ name: 'North Macedonia', countries: ['MK'] }],
+  },
+  {
+    code: 'bel', name: 'Belarusian', endonym: 'беларуская', script: 'cyrl',
+    family: 'Indo-European', branch: 'Slavic', speakers: 5,
+    regions: [{ name: 'Belarus', countries: ['BY'] }],
+  },
+  {
+    code: 'tgk', name: 'Tajik', endonym: 'тоҷикӣ', script: 'cyrl',
+    family: 'Indo-European', branch: 'Iranian', speakers: 8,
+    regions: [{ name: 'Tajikistan', countries: ['TJ'] }],
+  },
+  {
+    code: 'kir', name: 'Kyrgyz', endonym: 'кыргызча', script: 'cyrl',
+    family: 'Turkic', branch: 'Kipchak', speakers: 5,
+    regions: [{ name: 'Kyrgyzstan', countries: ['KG'] }],
+  },
+  {
+    code: 'slk', name: 'Slovak', endonym: 'slovenčina', script: 'latn',
+    family: 'Indo-European', branch: 'Slavic', speakers: 5,
+    regions: [{ name: 'Slovakia', countries: ['SK'] }],
+  },
+  {
+    code: 'slv', name: 'Slovene', endonym: 'slovenščina', script: 'latn',
+    family: 'Indo-European', branch: 'Slavic', speakers: 2,
+    regions: [{ name: 'Slovenia', countries: ['SI'] }],
+  },
+  {
+    code: 'lav', name: 'Latvian', endonym: 'latviešu', script: 'latn',
+    family: 'Indo-European', branch: 'Baltic', speakers: 2,
+    regions: [{ name: 'Latvia', countries: ['LV'] }],
+  },
+  {
+    code: 'glg', name: 'Galician', endonym: 'galego', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 2,
+    // The northwest corner of Spain. The inland edge is a straight line
+    // because the Galician-Portuguese continuum has no border on it.
+    regions: [{ name: 'Galicia', countries: ['ES'], clip: { minLat: 41.8, maxLat: 43.9, maxLng: -6.7 } }],
+  },
+  {
+    code: 'gle', name: 'Irish', endonym: 'Gaeilge', script: 'latn',
+    family: 'Indo-European', branch: 'Celtic', speakers: 2,
+    // The whole island where it is taught and official, rather than the
+    // Gaeltacht alone: a pin anywhere in Ireland is the right answer to
+    // the question this round asks.
+    regions: [{ name: 'Ireland', countries: ['IE'] }],
+  },
+  {
+    code: 'gla', name: 'Scottish Gaelic', endonym: 'Gàidhlig', script: 'latn',
+    family: 'Indo-European', branch: 'Celtic', speakers: 0.1,
+    regions: [{ name: 'the Highlands and Islands', countries: ['GB'], clip: { minLat: 55.9, maxLat: 58.8, maxLng: -4.0 } }],
+  },
+  {
+    code: 'mlt', name: 'Maltese', endonym: 'Malti', script: 'latn',
+    family: 'Afro-Asiatic', branch: 'Semitic', speakers: 0.5,
+    regions: [{ name: 'Malta', countries: ['MT'] }],
+  },
+  {
+    code: 'fao', name: 'Faroese', endonym: 'føroyskt', script: 'latn',
+    family: 'Indo-European', branch: 'Germanic', speakers: 0.07,
+    regions: [{ name: 'the Faroe Islands', countries: ['FO'] }],
+  },
+  {
+    code: 'ltz', name: 'Luxembourgish', endonym: 'Lëtzebuergesch', script: 'latn',
+    family: 'Indo-European', branch: 'Germanic', speakers: 0.4,
+    regions: [{ name: 'Luxembourg', countries: ['LU'] }],
+  },
+  {
+    code: 'bre', name: 'Breton', endonym: 'brezhoneg', script: 'latn',
+    family: 'Indo-European', branch: 'Celtic', speakers: 0.2,
+    regions: [{ name: 'western Brittany', countries: ['FR'], clip: { minLat: 47.2, maxLat: 48.9, maxLng: -2.6 } }],
+  },
+  {
+    code: 'fry', name: 'West Frisian', endonym: 'Frysk', script: 'latn',
+    family: 'Indo-European', branch: 'Germanic', speakers: 0.5,
+    regions: [{ name: 'Friesland', countries: ['NL'], clip: { minLat: 52.8, maxLat: 53.5, minLng: 5.3, maxLng: 6.4 } }],
+  },
 ];
 
 export const LANGUAGES = LANGUAGE_ROWS;
