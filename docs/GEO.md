@@ -485,6 +485,30 @@ counted against the same daily allowance, and the keyless fallback above
 costs nothing at all. Nothing in this mode is billed per load, in either
 map, on any day.
 
+**The corpus is 876 sentences** across the 159 languages, and where
+they come from matters. The first two or three in each language were
+written for the game, all saying the same few things so the content
+could not leak the answer, which also meant anybody who played twice had
+read the lot. The rest come from Tatoeba (CC-BY 2.0 FR, credited in the
+footer), fetched and filtered by `scripts/build-script-corpus.js`.
+
+The filtering is most of that script, because a crowdsourced corpus is
+not a curated one. Every character has to be in the language's own
+script; no digits in any script, no currency, no URLs; every word has to
+be among the commonest few hundred that language has, which is what
+strips names where there are no capital letters to spot them by;
+Tatoeba's stock cast of Tom and Mary is named and refused, because they
+are the commonest words in the corpus rather than rare ones; nothing may
+name a place, a language or a number; and every sentence has to carry
+one of its language's markers and none of a rival's, so the reveal still
+teaches and no feature is handed to the wrong language.
+
+461 sentences survived that, for 75 languages. The other 84 keep what
+they had: Tatoeba is thin in Wolof and Tetum, and a filter loose enough
+to find something there would be loose enough to let a place name
+through somewhere else. `__tests__/geo/corpus-size.test.js` keeps the
+pool from shrinking back.
+
 **The corpus** is `app/lib/geo/server/samples.js`, and it is server only
 on purpose: if the browser held it, it could match the sentence on
 screen against it and read off the answer before the guess, the same way

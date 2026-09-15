@@ -23,7 +23,14 @@ export default function GeoFooter() {
   return (
     <footer className="border-t border-midnight-200 bg-midnight-50 text-xs text-midnight-500">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-4">
-        <p>Imagery from Google Street View and Apple Look Around, shown under their own terms. Country outlines from Natural Earth.</p>
+        <p>
+          Imagery from Google Street View and Apple Look Around, shown under their own terms. Country outlines from Natural
+          Earth. Babel sentences from{' '}
+          <a href="https://tatoeba.org" className="underline hover:text-midnight-700" rel="noreferrer noopener" target="_blank">
+            Tatoeba
+          </a>
+          , CC-BY 2.0 FR.
+        </p>
         <a href={HOME_URL} className="font-semibold text-midnight-700 hover:underline">
           Made by ReunitePets
         </a>
