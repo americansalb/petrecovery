@@ -1,18 +1,20 @@
 /**
- * Shared challenges with a board: the daily (docs/GEO.md, "The daily
- * challenge"). Everyone plays the same five places, so scores compare,
+ * Shared challenges with a board: the daily, the weekly cup, and the
+ * ranked set that turns over every hour (docs/GEO.md). Everyone playing
+ * one of these gets the same places, so scores compare,
  * and the server keeps the score: each round's first guess is recorded
  * against the profile from the sealed token's seed and index, and an
  * entry per profile carries the running total. Ranking is by total,
  * earlier finish first on a tie. Server only.
  */
 
-import { MODES, isDailySeed, isCupSeed, isoWeek, isoWeekEnd } from '../modes';
+import { MODES, isDailySeed, isCupSeed, isRankedSeed, isoWeek, isoWeekEnd } from '../modes';
 import { equippedView } from '../items';
 import { grant } from './points';
 
 export const DAILY_ROUNDS = MODES.daily.fixed.rounds;
 export const CUP_ROUNDS = MODES.cup.fixed.rounds;
+export const RANKED_ROUNDS = MODES.ranked.fixed.rounds;
 
 /** The weekly cup's prizes in points: the top three, the rest of the top ten, everyone who finished. */
 export const CUP_PRIZES = Object.freeze({ podium: Object.freeze([300, 200, 100]), topTen: 50, finished: 20 });
@@ -35,6 +37,16 @@ export function cupKey(seed) {
 /** The cup's board key for a moment (default this week). */
 export function cupKeyFor(date = new Date()) {
   return `cup:${isoWeek(new Date(date))}`;
+}
+
+/** "ranked-2026-09-15T21" (the seed) -> "ranked:2026-09-15T21" (the board key), or null. */
+export function rankedKey(seed) {
+  return isRankedSeed(seed) ? `ranked:${String(seed).slice('ranked-'.length)}` : null;
+}
+
+/** The ranked board key for a moment (default this hour). */
+export function rankedKeyFor(date = new Date()) {
+  return `ranked:${new Date(date).toISOString().slice(0, 13)}`;
 }
 
 /** When a cup's week ends, from "cup:2026-W37". */
@@ -61,6 +73,12 @@ export function challengeWindow(key) {
   if (cup) {
     const end = isoWeekEnd(cup[1]);
     return end ? { start: end - 7 * 86400000, end } : null;
+  }
+  const ranked = /^ranked:(\d{4})-(\d{2})-(\d{2})T(\d{2})$/.exec(String(key || ''));
+  if (ranked) {
+    const start = Date.UTC(Number(ranked[1]), Number(ranked[2]) - 1, Number(ranked[3]), Number(ranked[4]));
+    if (!Number.isFinite(start)) return null;
+    return { start, end: start + 3600000 };
   }
   return null;
 }
@@ -89,6 +107,10 @@ export function challengeFor(result, now = Date.now()) {
   if (result?.mode === 'cup') {
     const key = cupKey(result.seed);
     return key && challengeIsOpen(key, now) ? { key, rounds: CUP_ROUNDS, kind: 'cup' } : null;
+  }
+  if (result?.mode === 'ranked') {
+    const key = rankedKey(result.seed);
+    return key && challengeIsOpen(key, now) ? { key, rounds: RANKED_ROUNDS, kind: 'ranked' } : null;
   }
   return null;
 }

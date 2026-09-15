@@ -260,6 +260,101 @@ export async function applyRoomRatings(store, room, now = Date.now()) {
   return results;
 }
 
+/**
+ * How a ranked solo set is rated.
+ *
+ * There is no opponent in a solo game, so the opponent is everyone else
+ * who played this same hour's five places, taken together as one
+ * player: their average rating, their average deviation, their average
+ * total. Beat the field and you gain, lose to it and you drop, and the
+ * margin is graded exactly as it is in a room, so squeaking past the
+ * average is worth less than doubling it.
+ *
+ * The first person to finish an hour has no field to play. Rather than
+ * leave the game unrated, which would punish playing early, they are
+ * rated against a newcomer sitting on the default rating with the
+ * widest deviation, scoring PAR of a perfect set. A wide deviation
+ * barely moves anybody, which is the honest outcome: nothing is known
+ * about that hour yet.
+ */
+const RANKED_PAR = 0.6;
+
+export async function applyRankedSolo(store, { profileId, key, rounds, now = Date.now() }) {
+  // Without a profile there is nobody to rate, and an undefined id
+  // would key every anonymous player's entry to the same row.
+  if (!profileId || !key || !rounds) return null;
+  const mine = await store.getChallengeEntry(profileId, key);
+  if (!mine || mine.rounds < rounds) return null;
+
+  const board = await store.listChallengeBoard(key, { rounds, limit: 200 });
+  const others = board.filter((entry) => entry.profileId && entry.profileId !== profileId);
+
+  const [myRow] = await ensureSeasonRows(store, [profileId], 'solo', now);
+  const seasonKey = seasonFor(now).key;
+
+  let fieldRating = RATING_DEFAULT;
+  let fieldRd = RD_DEFAULT;
+  let fieldTotal = Math.round(RANKED_PAR * MAX_ROUND_SCORE * rounds);
+  if (others.length) {
+    const rows = await ensureSeasonRows(store, others.map((entry) => entry.profileId), 'solo', now);
+    const mean = (values) => values.reduce((a, b) => a + b, 0) / values.length;
+    fieldRating = mean(rows.map((row) => row.rating ?? RATING_DEFAULT));
+    // Deviations do not average honestly, but the field is a crowd and
+    // a crowd is better known than any one of them: the mean is already
+    // generous here.
+    fieldRd = mean(rows.map((row) => row.rd ?? RD_DEFAULT));
+    fieldTotal = mean(others.map((entry) => entry.total || 0));
+  }
+
+  const won = (mine.total || 0) >= fieldTotal;
+  const scale = 0.2 * MAX_ROUND_SCORE * rounds;
+  const [result] = rateGame(
+    [
+      {
+        id: profileId,
+        rating: myRow?.rating,
+        rd: myRow?.rd,
+        lastPlayedAt: myRow?.lastPlayedAt || null,
+        placement: won ? 1 : 2,
+        measure: mine.total || 0,
+      },
+      { id: '__field__', rating: fieldRating, rd: fieldRd, placement: won ? 2 : 1, measure: fieldTotal },
+    ],
+    { scale, now }
+  );
+
+  await store.upsertRating(
+    profileId,
+    'solo',
+    {
+      rating: result.after,
+      rd: result.rdAfter,
+      games: (myRow?.games || 0) + 1,
+      wins: (myRow?.wins || 0) + (won ? 1 : 0),
+      podiums: myRow?.podiums || 0,
+      peak: Math.max(myRow?.peak ?? RATING_DEFAULT, result.after),
+      streak: won ? (myRow?.streak || 0) + 1 : 0,
+      lastPlayedAt: new Date(now),
+    },
+    seasonKey
+  );
+
+  const games = (myRow?.games || 0) + 1;
+  return {
+    ladder: 'solo',
+    before: result.before,
+    after: result.after,
+    delta: result.after - result.before,
+    games,
+    // A rating built on four games is mostly noise, so it is not shown
+    // as a rank until it has five behind it.
+    placements: Math.max(0, PROVISIONAL_GAMES - games),
+    provisional: games < PROVISIONAL_GAMES,
+    field: { players: others.length, total: Math.round(fieldTotal), rating: Math.round(fieldRating) },
+    total: mine.total || 0,
+  };
+}
+
 /** The ladder table, with the asker's own row even when unranked. */
 export async function leaderboard(store, { ladder = 'classic', limit = 50, profileId = null, now = Date.now() } = {}) {
   const which = LADDERS.includes(ladder) ? ladder : 'classic';

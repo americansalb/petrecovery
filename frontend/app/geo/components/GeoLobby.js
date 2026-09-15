@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CalendarDays, Check, Gauge, Languages, Medal, Play, Trophy, Users } from 'lucide-react';
+import { PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -114,6 +115,7 @@ export default function GeoLobby() {
   const [profile, setProfile] = useState(null);
   const [recentRooms, setRecentRooms] = useState([]);
   const [daily, setDaily] = useState(null);
+  const [solo, setSolo] = useState(null);
   const [cup, setCup] = useState(null);
 
 
@@ -133,6 +135,16 @@ export default function GeoLobby() {
     fetch('/api/geo/cup', { headers: profileHeaders(), cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('cup'))))
       .then((data) => alive && setCup(data))
+      .catch(() => {});
+    // Where the ranked card stands: the solo ladder row for whoever is
+    // playing in this browser.
+    // ensureProfile rather than a bare fetch: it saves the token the
+    // server hands back, so this browser keeps the same profile instead
+    // of being given a fresh one by every screen that asks.
+    ensureProfile()
+      .then((profile) => {
+        if (alive && profile?.ratings?.solo) setSolo(profile.ratings.solo);
+      })
       .catch(() => {});
     const saved = loadSettings();
     if (saved) {
@@ -215,7 +227,7 @@ export default function GeoLobby() {
   }, [provider, mode, server]);
   const countries = server?.countries || [];
   const modeDef = MODES[config.mode];
-  const fixed = config.mode === 'daily' || config.mode === 'cup';
+  const fixed = config.mode === 'daily' || config.mode === 'cup' || config.mode === 'ranked';
   // Kidnapped fixes the clock and the drive; rounds and the radius stay yours.
   const driven = config.mode === 'kidnapped';
   const format = formatOf(config);
@@ -228,7 +240,9 @@ export default function GeoLobby() {
 
   const start = (overrides = {}) => {
     const c = normalizeConfig({ ...config, ...overrides });
-    const seed = c.mode === 'daily' ? c.seed : randomSeedString();
+    // The daily and ranked both play a set the server decides, so their
+    // seed is kept; everything else gets a fresh one.
+    const seed = c.mode === 'daily' || c.mode === 'ranked' ? c.seed : randomSeedString();
     router.push(`/geo/play?${configToParams({ ...c, seed }).toString()}`);
   };
 
@@ -532,6 +546,35 @@ export default function GeoLobby() {
               ) : (
                 <p className="mt-2 text-sm text-midnight-600">{allowanceText({ ...DEFAULT_LIMITS, ...(server?.limits || {}) })}</p>
               )}
+            </section>
+
+            {/* Ranked */}
+            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+                <Trophy className="h-4 w-4" />
+                Ranked
+              </h2>
+              <p className="mt-2 text-sm text-midnight-700">
+                Five places on a 60 second clock, the same for everyone playing this hour. Your score is set against
+                theirs and the result moves your rating. Five games to be placed.
+              </p>
+              <button
+                type="button"
+                onClick={() => start({ mode: 'ranked' })}
+                disabled={!server?.providers?.[PRIMARY_PROVIDER]?.configured}
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50"
+                data-start-ranked
+              >
+                <Play className="h-4 w-4" />
+                Play this hour&apos;s five
+              </button>
+              {solo ? (
+                <p className="mt-3 border-t border-midnight-100 pt-3 text-sm text-midnight-700" data-ranked-standing>
+                  {solo.provisional
+                    ? `${solo.games} of ${PROVISIONAL_GAMES} placement games played.`
+                    : `${solo.tier}, ${Math.round(solo.rating)}. ${solo.games} ranked games.`}
+                </p>
+              ) : null}
             </section>
 
             {/* Daily */}

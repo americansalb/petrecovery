@@ -16,6 +16,7 @@ import { evaluateGuess } from '@/app/lib/geo/server/game';
 import { GeoTokenError } from '@/app/lib/geo/server/tokens';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { challengeFor, recordChallengeRound } from '@/app/lib/geo/server/challenges';
+import { applyRankedSolo } from '@/app/lib/geo/server/profiles';
 import { awardSoloRound } from '@/app/lib/geo/server/points';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
 
@@ -47,12 +48,13 @@ export async function POST(request) {
     const result = evaluateGuess({ token: body.token, guess });
     let challenge = null;
     let points = null;
+    let rated = null;
     // A round token used to be a bearer credential: anyone holding it
     // could read the answer, with no identity and no side effect, and
     // then replay the round under a real profile for a perfect score.
     // A challenge round is now revealed only to the profile that opened
     // it, so the first look is also the guess that counts.
-    if ((result.mode === 'daily' || result.mode === 'cup') && (!profileId || result.subject !== profileId)) {
+    if ((result.mode === 'daily' || result.mode === 'cup' || result.mode === 'ranked') && (!profileId || result.subject !== profileId)) {
       return NextResponse.json(
         { error: 'This round belongs to another player. Start the challenge from the play page.', code: 'wrong_player' },
         { status: 403 }
@@ -62,8 +64,15 @@ export async function POST(request) {
     if (profileId && shared) {
       try {
         challenge = await recordChallengeRound(prismaRoomStore, { profileId, key: shared.key, rounds: shared.rounds, index: result.roundIndex, score: result.score, distanceKm: result.distanceKm });
+        // The set is rated the moment it is completed, and only then.
+        // `recorded` is false for a repeated guess on a round that
+        // already counted, so a player cannot re-post the last round to
+        // be rated twice.
+        if (shared.kind === 'ranked' && challenge?.recorded && challenge?.finished) {
+          rated = await applyRankedSolo(prismaRoomStore, { profileId, key: shared.key, rounds: shared.rounds });
+        }
       } catch (error) {
-        console.error('[geo/guess] daily board', error?.message || error);
+        console.error('[geo/guess] challenge board', error?.message || error);
       }
     }
     if (profileId) {
@@ -75,7 +84,7 @@ export async function POST(request) {
         console.error('[geo/guess] points', error?.message || error);
       }
     }
-    return NextResponse.json({ ok: true, result, challenge, points }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ok: true, result, challenge, points, rated }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoTokenError) {
       const message =

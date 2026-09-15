@@ -21,7 +21,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -493,6 +493,77 @@ async function appleRoom(browser) {
   await guest.close();
 }
 
+/**
+ * A ranked solo set, played to the end, and the rating it moves.
+ *
+ * Solo play used to be unrated: one person on their own had points and
+ * a daily board and nothing to climb. A ranked set is the same five
+ * places for everyone playing that hour, on a clock, and finishing one
+ * compares your total against theirs.
+ *
+ * Two browsers, because the interesting number is the second one's: the
+ * first player of an hour is rated against par, and the second is rated
+ * against a real field.
+ */
+async function ranked(browser) {
+  log('\n== ranked ==');
+  const playSet = async (page, label) => {
+    // Through the lobby, the way a player arrives. Going straight to
+    // the play URL races the profile this browser is about to be given,
+    // and a ranked round is refused to anyone but the profile that
+    // opened it.
+    await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-start-ranked]', { timeout: 30000 });
+    await page.click('[data-start-ranked]');
+    for (let i = 0; i < 5; i++) {
+      await waitPlayable(page);
+      await waitForLookAround(page);
+      await pinApple(page);
+      await page.click('button:has-text("Guess")');
+      await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
+      if (i < 4) await page.keyboard.press('Space');
+    }
+    await page.click('button:has-text("See results")');
+    await page.waitForSelector('[data-ranked-result]', { timeout: 20000 });
+    const text = (await page.textContent('[data-ranked-result]')).replace(/\s+/g, ' ');
+    log(`${label}: ${text.slice(0, 150)}`);
+    return text;
+  };
+
+  const first = await newPage(browser, { width: 1280, height: 800 });
+  const alone = await playSet(first, 'first browser');
+  if (!/[+-]?\d+ rating/.test(alone)) throw new Error('a finished ranked set showed no rating change');
+  // Whether this browser is the first of the hour depends on what is
+  // already in the database, which a re-run changes. Both answers are
+  // correct; saying neither is not.
+  if (!/set against par|average of \d+ other/.test(alone)) throw new Error('the reveal did not say what the score was set against');
+  if (!/to be placed/.test(alone)) throw new Error('a provisional rating should say how many placement games are left');
+
+  const second = await newPage(browser, { width: 1280, height: 800 });
+  const against = await playSet(second, 'second browser');
+  // This one is never first: the browser above just finished the hour.
+  if (!/average of \d+ other/.test(against)) throw new Error('a player with a field ahead of them should be rated against it, not against par');
+
+  // The lobby carries the standing, and the ladder has a tab of its own.
+  await second.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await second.waitForSelector('[data-ranked-standing]', { timeout: 20000 });
+  const standing = (await second.textContent('[data-ranked-standing]')).replace(/\s+/g, ' ');
+  log('lobby ranked standing:', standing);
+  if (!/placement games played/.test(standing)) throw new Error('the lobby should show placement progress');
+
+  await second.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
+  await second.waitForSelector('button[role="tab"]:has-text("Ranked solo")', { timeout: 20000 });
+  await second.click('button[role="tab"]:has-text("Ranked solo")');
+  await second.waitForSelector('[data-season]', { timeout: 20000 });
+  log('solo ladder tab opens');
+
+  await shot(second, 'ranked-summary');
+  for (const page of [first, second]) {
+    if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+    await page.close();
+  }
+}
+
 async function daily(browser) {
   const page = await newPage(browser, { width: 1280, height: 800 });
   // The daily is played on the primary imagery, Apple: the round is a
@@ -768,7 +839,7 @@ async function appleRefused(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, profile, script, scriptFallback };
+    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

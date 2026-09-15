@@ -694,6 +694,50 @@ game's own, never a ReunitePets user (phase 1.7 of the split, D1);
 players with at least 3 rated games; ratings stay "provisional" until 5.
 Tiers (Bronze to Grandmaster) are labels on the number, nothing more.
 
+## Ranked solo
+
+A rating needs an opponent, and solo play had none: one person on their
+own earned points and a place on the day's board and had nothing to
+climb. Ranked solo gives them the field.
+
+**A new set every hour.** `ranked-2026-09-15T21` is the seed, and
+everyone who plays in that hour gets the same five places under the same
+rules: five rounds, 60 seconds each, No Move, on the primary imagery. A
+rating compares people, so it can only compare them on the same places
+under the same rules.
+
+An hour rather than a day because a rating wants games and a day would
+cap a player at one rated result; an hour rather than a minute because
+the set has to be shared for the comparison to mean anything.
+
+**The seed is the hour's, never the player's.** A supplied seed is
+accepted only if it belongs to the current hour or the one before it,
+which is enough to finish a set that started before the clock turned
+over and not enough to hand back a set you have already seen.
+
+**Finishing rates you.** The opponent is everyone else who finished that
+same hour, taken together as one player: their average rating, their
+average deviation, their average total. Beat the field and you gain,
+lose to it and you drop, and the margin is graded as it is in a room, so
+squeaking past the average is worth less than doubling it. The first
+person to finish an hour has no field, so they play a newcomer sitting
+on 1500 with the widest deviation, scoring 60% of a perfect set; a wide
+deviation barely moves anybody, which is the honest outcome when nothing
+is known about that hour yet.
+
+**Five games to be placed.** Until then the screens say how many are
+left rather than showing a rank, because a rating built on four games is
+mostly noise.
+
+It is its own ladder, `solo`, next to `classic` and `duel` on the
+leaderboard, and it runs on the same seasons. Rated once and only once
+per set: the round that completes an entry is the one that rates it, and
+a round already on the board is never recorded again.
+
+None of it needed a new table. The board is `GeoChallengeRound` and
+`GeoChallengeEntry`, the same two the daily and the cup use, and the
+rating is a `GeoSeasonRating` row with `ladder = 'solo'`.
+
 ## The daily challenge
 
 The daily is the front door: five balanced Google rounds, the same for

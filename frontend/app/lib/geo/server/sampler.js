@@ -112,6 +112,7 @@ function appleSource(config, rng, presetKm, holder) {
     case 'balanced':
     case 'daily':
     case 'cup':
+    case 'ranked':
     case 'streak':
       next = fromCountries(getCountries().filter((c) => c.cca2 && hasAppleCoverage(c.cca2)));
       break;
@@ -188,6 +189,10 @@ export function createCandidateSource(config, roundIndex = 0) {
     case 'balanced':
     case 'daily':
     case 'cup':
+    // Ranked draws from the same balanced pool as the daily and the
+    // cup. A rating compares people, so it can only compare them on
+    // places drawn the same way.
+    case 'ranked':
     case 'kidnapped':
     case 'streak': {
       next = fromPool(coveredPool());
