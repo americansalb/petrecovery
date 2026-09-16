@@ -8,6 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { challengeBoard, dailyKeyFor } from '@/app/lib/geo/server/challenges';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
@@ -26,6 +27,6 @@ export async function GET(request) {
     return NextResponse.json({ ok: true, date: day, ...board }, NO_STORE);
   } catch (error) {
     console.error('[geo/daily]', error);
-    return NextResponse.json({ error: "Could not load today's board", code: 'internal' }, { status: 500, ...NO_STORE });
+    return NextResponse.json(schemaErrorBody(error, "Could not load today's board"), { status: 500, ...NO_STORE });
   }
 }

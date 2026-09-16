@@ -10,6 +10,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/geo/server/limiter';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
@@ -30,7 +31,7 @@ export async function GET(request) {
     return NextResponse.json({ ok: true, shop: await shopView(prismaRoomStore, profile) }, NO_STORE);
   } catch (error) {
     console.error('[geo/shop] get', error);
-    return NextResponse.json({ error: 'Could not load the shop', code: 'internal' }, { status: 500, ...NO_STORE });
+    return NextResponse.json(schemaErrorBody(error, 'Could not load the shop'), { status: 500, ...NO_STORE });
   }
 }
 

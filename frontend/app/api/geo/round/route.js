@@ -1,19 +1,19 @@
 /**
  * POST /api/geo/round   { config, roundIndex }
  *
- * Finds imagery for one round and returns it with a sealed answer token.
- * Google: the server probes random points against the free Street View
- * metadata endpoint and returns only a panorama id. Apple: the browser
- * gets a short list of coordinates to try in order, each with its own
- * token. The answer never leaves the server in the clear.
+ * A round and its sealed answer token. The browser gets a short list of
+ * coordinates to try Look Around at, in order, each sealed on its own;
+ * about one casual round in two hundred is a Not Earth panorama and one
+ * token instead (app/lib/geo/notEarth.js). The answer never leaves the
+ * server in the clear.
  *
  * The play meter runs first (docs/GEO.md, "The play meter"): the day's
- * free Google rounds, prepaid rounds, the ceiling, the speed limit and
- * the site's budget. A refusal is a 429 with a code and our words. A
- * round is charged only once imagery was found.
+ * ceiling, the speed limit and the site's day. A refusal is a 429 with a
+ * code and our words.
  */
 
 import { NextResponse } from 'next/server';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { normalizeConfig } from '@/app/lib/geo/modes';
 import { createRound, GeoGameError } from '@/app/lib/geo/server/game';
 import { GeoSamplerError } from '@/app/lib/geo/server/sampler';
@@ -27,10 +27,8 @@ import { maybeSweep } from '@/app/lib/geo/server/sweep';
 export const dynamic = 'force-dynamic';
 
 const STATUS_FOR = {
-  google_not_configured: 503,
   no_secret: 503,
   no_imagery: 422,
-  probe_failed: 502,
   no_candidates: 422,
   unknown_country: 400,
   unknown_continent: 400,
@@ -59,8 +57,10 @@ export async function POST(request) {
   // database (app/lib/geo/server/sweep.js).
   maybeSweep(prismaRoomStore);
 
-  // The meter. A store failure here is logged and the round goes on:
-  // the caps in the Google console are the backstop, not this table.
+  // The meter. A store failure here is logged and the round goes on: a
+  // round that cannot be counted is better than a round that cannot be
+  // played, and the site's day is a shared-quota guard rather than a
+  // bill.
   const subjects = await subjectsFor(request);
   // The daily and the cup are scored on a shared board, so they are
   // played as somebody. Without this, a round could be opened with no
@@ -90,11 +90,11 @@ export async function POST(request) {
       const status = STATUS_FOR[error.code] || 400;
       if (status >= 500) console.error('[geo/round]', error.code, error.message, error.upstream || '');
       return NextResponse.json(
-        { error: error.message, code: error.code, stats: error.stats || null },
+        { error: error.message, code: error.code },
         { status, headers: { 'Cache-Control': 'no-store' } }
       );
     }
     console.error('[geo/round] unexpected', error);
-    return NextResponse.json({ error: 'Could not start the round', code: 'internal' }, { status: 500 });
+    return NextResponse.json(schemaErrorBody(error, 'Could not start the round'), { status: 500 });
   }
 }

@@ -12,6 +12,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { evaluateGuess } from '@/app/lib/geo/server/game';
 import { GeoTokenError } from '@/app/lib/geo/server/tokens';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
@@ -96,6 +97,6 @@ export async function POST(request) {
       return NextResponse.json({ error: message, code: error.code }, { status: error.code === 'no_secret' ? 503 : 400 });
     }
     console.error('[geo/guess] unexpected', error);
-    return NextResponse.json({ error: 'Could not score the guess', code: 'internal' }, { status: 500 });
+    return NextResponse.json(schemaErrorBody(error, 'Could not score the guess'), { status: 500 });
   }
 }

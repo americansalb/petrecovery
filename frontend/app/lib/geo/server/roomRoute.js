@@ -8,6 +8,7 @@ import { NextResponse } from 'next/server';
 import { RoomError } from './rooms';
 import { MeterError } from '../meter';
 import { meterErrorResponse, subjectsFor } from './meterRequest';
+import { schemaErrorBody } from './schemaError';
 
 export const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
 
@@ -17,7 +18,10 @@ export function roomErrorResponse(error, label) {
   }
   if (error instanceof MeterError) return meterErrorResponse(error);
   console.error(`[geo/rooms] ${label}`, error);
-  return NextResponse.json({ error: 'Something went wrong with the room', code: 'internal' }, { status: 500, ...NO_STORE });
+  // A database a schema behind is the likeliest 500 here and the one
+  // that is unanswerable from outside, so it says which column
+  // (app/lib/geo/server/schemaError.js).
+  return NextResponse.json(schemaErrorBody(error, 'Something went wrong with the room'), { status: 500, ...NO_STORE });
 }
 
 /**

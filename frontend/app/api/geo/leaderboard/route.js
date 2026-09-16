@@ -7,6 +7,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { accountFromRequest } from '@/app/lib/geo/server/identity';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { leaderboard, resolveProfile } from '@/app/lib/geo/server/profiles';
@@ -26,6 +27,6 @@ export async function GET(request) {
     return NextResponse.json({ ok: true, ...board }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     console.error('[geo/leaderboard]', error);
-    return NextResponse.json({ error: 'Could not load the leaderboard', code: 'internal' }, { status: 500 });
+    return NextResponse.json(schemaErrorBody(error, 'Could not load the leaderboard'), { status: 500 });
   }
 }

@@ -120,3 +120,43 @@ describe('db-sync tells the operator what is still missing, not just what it ref
     expect(src).toContain('--to-schema-datamodel');
   });
 });
+
+describe('every route that can hit it says so', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const ROOT = path.resolve(__dirname, '../..');
+
+  // Each of these touches a table, and each answered "internal" when the
+  // database was behind. The room routes are the ones that mattered most
+  // on 2026-09-16: profiles named the column and rooms did not, which
+  // made one cause look like two unrelated failures.
+  const ROUTES = [
+    'app/api/geo/profile/route.js',
+    'app/api/geo/auth/request/route.js',
+    'app/lib/geo/server/roomRoute.js',
+    'app/api/geo/round/route.js',
+    'app/api/geo/guess/route.js',
+    'app/api/geo/shop/route.js',
+    'app/api/geo/daily/route.js',
+    'app/api/geo/cup/route.js',
+    'app/api/geo/leaderboard/route.js',
+  ];
+
+  test.each(ROUTES)('%s reports a schema gap instead of "internal"', (rel) => {
+    const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    expect(src).toContain('schemaErrorBody(');
+    expect(src).toMatch(/from '[^']*schemaError'/);
+  });
+
+  test('a use without its import would not have built, so both are checked together', () => {
+    // This was written the other way round once: the body was replaced
+    // and the import skipped, because the guard looked for "schemaError"
+    // in a file that now contained "schemaErrorBody".
+    for (const rel of ROUTES) {
+      const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+      const uses = src.includes('schemaErrorBody(');
+      const imports = /import \{[^}]*schemaErrorBody[^}]*\} from '[^']*schemaError'/.test(src);
+      expect(`${rel} uses=${uses} imports=${imports}`).toBe(`${rel} uses=true imports=true`);
+    }
+  });
+});
