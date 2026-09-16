@@ -102,8 +102,8 @@ export default function ScriptLobby() {
         Play {rounds} rounds
       </button>
       <p className="mt-3 text-sm text-gray-500">
-        {poolSize} languages in this pool. Script rounds use no imagery and no map key, so they do not count against the
-        game&apos;s daily Street View allowance.
+        {poolSize} languages in this pool. Script rounds need no imagery and no map key, so they work everywhere the rest
+        of the game does not.
       </p>
     </div>
   );

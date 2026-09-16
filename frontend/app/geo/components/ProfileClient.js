@@ -18,7 +18,7 @@ import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import SignInCard from './SignInCard';
-import PlanCard from './PlanCard';
+import AccountRole from './AccountRole';
 
 const KIND_ORDER = ['pin', 'color', 'title', 'frame', 'reactions'];
 
@@ -67,7 +67,10 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
         Buy for {formatScore(item.price)}
       </button>
     ) : (
-      <span className="text-xs text-sand-500">{formatScore(item.price)} points, you have {formatScore(points)}</span>
+      // The balance is at the top of the page. Repeating it on every
+      // row of a long list is noise, and it made each row read as a
+      // refusal rather than a price.
+      <span className="text-xs text-sand-500">{formatScore(item.price)} points</span>
     );
   }
   if (tierOnly && !item.usable) buy = <span className="text-xs text-sand-500">Free at {item.requires.tier} on either ladder</span>;
@@ -204,7 +207,7 @@ export default function ProfileClient() {
                 <ShoppingBag className="h-4 w-4" />
                 Shop
               </h2>
-              <p className="mt-2 text-sm text-sand-600">Points buy how you look in the game. Nothing here changes how you play, and points never buy Google rounds.</p>
+              <p className="mt-2 text-sm text-sand-600">Points buy how you look in the game. Nothing here changes how you play.</p>
               <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-sand-100 p-1" role="tablist" aria-label="Shop sections">
                 {KIND_ORDER.map((k) => (
                   <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-ocean-900 text-white shadow' : 'text-sand-700 hover:bg-white'}`}>
@@ -257,7 +260,7 @@ export default function ProfileClient() {
 
             {/* What this account is: tier, and role when it is not the
                 ordinary one. Renders for signed-in players only. */}
-            <PlanCard />
+            <AccountRole />
 
             {/* Name */}
             <section className="rounded-2xl border border-sand-200 bg-white p-5">

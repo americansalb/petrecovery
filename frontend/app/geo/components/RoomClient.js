@@ -395,7 +395,7 @@ export default function RoomClient({ code }) {
         </>
       ) : null}
 
-      {/* The one map: MapKit backs it in an Apple room, Maps in a Google one. */}
+      {/* The one map, moved by class between guessing and the reveal. */}
       {imageryReady && joined ? (
         <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
           <div className="min-h-0 flex-1">

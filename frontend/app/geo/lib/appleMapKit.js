@@ -83,7 +83,7 @@ function loadLibraries(mapkit) {
         return;
       }
       if (Date.now() >= deadline) {
-        reject(new Error('Apple Maps did not finish loading. Try again, or play on Google Street View.'));
+        reject(new Error('Apple Maps did not finish loading. Try again in a moment.'));
         return;
       }
       setTimeout(tick, PROBE_MS);

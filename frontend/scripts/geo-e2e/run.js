@@ -809,14 +809,17 @@ async function admin(browser) {
     if (await theirs.locator('table').count()) throw new Error('a refused player should see no table');
     log('a player is refused and shown why');
 
-    // The same account's profile should name its tier, and should not
-    // claim a role it does not have.
+    // The same account's profile must not claim a role it does not
+    // have. There is no plan card any more: the game is free and has no
+    // tiers to name (app/geo/components/AccountRole.js).
     await theirs.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
-    await theirs.waitForSelector('[data-plan]', { timeout: 20000 });
-    const plan = (await theirs.textContent('[data-plan]')).replace(/\s+/g, ' ');
-    log('plan card:', plan.slice(0, 90));
-    if (!/Supporter/.test(plan)) throw new Error('a supporter should see their tier named');
-    if (/Admin/.test(plan)) throw new Error('an ordinary player should not be shown a role badge');
+    await theirs.waitForSelector('[data-badges]', { timeout: 20000 });
+    const profileText = (await theirs.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+    if (await theirs.locator('[data-account-role]').count()) throw new Error('an ordinary player should be shown no role');
+    for (const word of ['Supporter', 'Your plan', 'Street View']) {
+      if (profileText.includes(word)) throw new Error(`the profile still says "${word}"`);
+    }
+    log('an ordinary player sees no plan and no role');
     await theirs.close();
 
     // The admin gets the real screen.

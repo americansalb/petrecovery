@@ -158,8 +158,8 @@ export default function ColdOpen() {
       <footer className="relative z-10 px-5 pb-5 text-center text-[11px] leading-relaxed text-sand-200/45 sm:px-8 sm:text-xs">
         <p className="inline-flex flex-wrap items-center justify-center gap-1.5">
           <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
-          <span className="hidden sm:inline">Street imagery from Apple Look Around and Google Street View, under their own terms. Country outlines from Natural Earth.</span>
-          <span className="sm:hidden">Imagery: Apple Look Around, Google Street View. Outlines: Natural Earth.</span>
+          <span className="hidden sm:inline">Street imagery from Apple Look Around, under Apple&apos;s terms. Country outlines from Natural Earth.</span>
+          <span className="sm:hidden">Imagery: Apple Look Around. Outlines: Natural Earth.</span>
         </p>
       </footer>
     </main>

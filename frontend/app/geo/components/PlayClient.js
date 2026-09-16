@@ -543,7 +543,7 @@ export default function PlayClient() {
 
       {/* Loading, setup and errors */}
       {showLoading && sdkReady ? (
-        <LoadingSpot provider={config.provider} roundNumber={roundNumber} appleAttempt={appleAttempt} appleTotal={state.current?.candidates?.length || 0} />
+        <LoadingSpot roundNumber={roundNumber} appleAttempt={appleAttempt} appleTotal={state.current?.candidates?.length || 0} />
       ) : null}
       {server && !configured ? (
         <Panel>
