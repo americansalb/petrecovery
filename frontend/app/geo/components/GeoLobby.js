@@ -251,9 +251,10 @@ export default function GeoLobby() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Probably Earth</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-clay-600">Probably Earth</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Set up a game</h1>
             <p className="mt-2 max-w-2xl text-sand-600">
-              You are dropped at a random spot with street-level imagery. Look around, then put a pin on the map. Up to 5,000 points a round, depending on how close you are.
+              Where you get dropped and what the rules are. Kept in this browser, so choosing once is enough.
             </p>
           </div>
           <button
@@ -756,26 +757,6 @@ export default function GeoLobby() {
           </aside>
         </div>
 
-        <section className="mt-10 grid gap-6 rounded-2xl border border-sand-200 bg-white p-5 sm:grid-cols-3">
-          <div>
-            <h3 className="font-semibold">How the spot is picked</h3>
-            <p className="mt-1 text-sm text-sand-600">
-              On Apple Look Around the server draws a covered city, then a spot on its streets, and your browser tries the spots in order until one loads. On Google Street View it draws a random point on the globe, throws it away if it is water, then asks Street View whether official imagery exists within the radius you chose, and keeps drawing until one hits. Nothing is pre-made, so no two games repeat unless you share a seed.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold">How points work</h3>
-            <p className="mt-1 text-sm text-sand-600">
-              5,000 for a guess within 25 metres, falling off with distance. The falloff is scaled to the area you are playing, so a 100 km miss inside one country costs more than a 100 km miss on the whole world.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold">Where the pictures come from</h3>
-            <p className="mt-1 text-sm text-sand-600">
-              Apple Look Around or Google Street View, shown with their own logos and under their own terms. Country outlines are Natural Earth data. The answer never reaches your browser until you have guessed.
-            </p>
-          </div>
-        </section>
       </div>
     </div>
   );
