@@ -393,6 +393,12 @@ async function appleSolo(browser) {
   await page.waitForSelector('text=/of 15,000/', { timeout: 20000 });
   await page.waitForSelector('[data-fake-mapkit]', { timeout: 10000 });
   if (!(await page.getAttribute('a[href*="/geo/share?s="]', 'href'))) throw new Error('no share link on the Apple summary');
+  // The account ask, at the one moment there is something worth keeping
+  // (founder: never force it, always offer it). A guest must see it.
+  await page.waitForSelector('[data-keep-this]', { timeout: 15000 });
+  const keep = await page.textContent('[data-keep-this]');
+  log('account ask on the summary:', /Keep this game/.test(keep || ''));
+  if (!/costs nothing/.test(keep || '')) throw new Error('the account ask does not say what it costs');
   await shot(page, 'apple-solo-summary');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
