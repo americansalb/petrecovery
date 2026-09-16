@@ -51,10 +51,24 @@ export const IMMERSIVE_GAME_ROUTES = ['/geo'];
 
 /**
  * The screens that cover the whole viewport, where even the game's own
- * header is gone: a round and a room in progress. Each carries an X
- * back to the lobby.
+ * header is gone: the front door, a round, and a room in progress.
+ *
+ * `/geo` is here as an EXACT match rather than a prefix, which is why
+ * `isGameTakeover` below exists instead of a plain `startsWith` at each
+ * call site: the front door is a full-screen picture of the world with
+ * its own small header, and a second bar above it would be the thing
+ * the redesign was for. Everything under `/geo/...` that is not listed
+ * keeps the game's normal chrome.
  */
 export const GAME_TAKEOVER_ROUTES = ['/geo/play', '/geo/room', '/geo/script/play'];
+export const GAME_TAKEOVER_EXACT = ['/geo'];
+
+/** Does this path own the whole screen? */
+export function isGameTakeover(pathname) {
+  const path = String(pathname || '');
+  if (GAME_TAKEOVER_EXACT.includes(path)) return true;
+  return GAME_TAKEOVER_ROUTES.some((route) => path.startsWith(route));
+}
 
 /**
  * The game's rate limits, by path prefix. `middleware.js` spreads these
@@ -133,4 +147,5 @@ export const GAME_SHORT_PATHS = {
   '/share': '/geo/share',
   '/leaderboard': '/geo/leaderboard',
   '/daily': '/geo/play?mode=daily',
+  '/setup': '/geo/setup',
 };
