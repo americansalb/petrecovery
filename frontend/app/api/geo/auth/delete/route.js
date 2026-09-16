@@ -7,7 +7,7 @@
  * badges and a record of games played, and until this route there was
  * no way to get rid of any of it (docs/GEO.md, "Signing in"). Deleting
  * needs the session cookie, so only the person holding the account can
- * do it; nothing about the pet site is touched, because a WanderGuesser
+ * do it; nothing about the pet site is touched, because a Probably Earth
  * account is not a ReunitePets one.
  */
 

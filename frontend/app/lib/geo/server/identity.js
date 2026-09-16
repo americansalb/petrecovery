@@ -1,9 +1,9 @@
 /**
  * Who is making this request.
  *
- * The last wire out of the game (docs/WANDERGUESSER_SPLIT.md, phase
+ * The last wire out of the game (docs/PROBABLY_EARTH_SPLIT.md, phase
  * 1.7). Until now this question was answered by the pet site's NextAuth
- * session, which meant a WanderGuesser player was a ReunitePets user.
+ * session, which meant a Probably Earth player was a ReunitePets user.
  * That is no longer true and will not be again: the founder's answer to
  * D1, on 2026-09-10, was that a standalone account means not connected
  * to ReunitePets. So the game answers the question itself.

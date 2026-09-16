@@ -10,7 +10,7 @@
  * The noticing is not defensive padding. A language game that draws
  * empty boxes is not a hard round, it is an unplayable one, and it
  * fails hardest on cheap Android hardware in exactly the places this
- * mode exists to represent (docs/WANDERGUESSER_STRATEGY.md, bet 5a).
+ * mode exists to represent (docs/PROBABLY_EARTH_STRATEGY.md, bet 5a).
  * Telling the player "your device has no font for this alphabet" costs
  * one line and turns a broken round into an explained one.
  *

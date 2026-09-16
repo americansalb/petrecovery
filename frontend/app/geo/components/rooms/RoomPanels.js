@@ -278,7 +278,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
   const standings = sortStandings(players, room.variant);
   const winner = standings[0];
   const text = [
-    `WanderGuesser, room ${room.name}: ${VARIANTS[room.variant]?.label || room.variant}, ${room.roundsTotal} rounds.`,
+    `Probably Earth, room ${room.name}: ${VARIANTS[room.variant]?.label || room.variant}, ${room.roundsTotal} rounds.`,
     ...standings.map((p, i) => `${i + 1}. ${p.name} ${isDuel ? `${p.hp} HP` : `${formatScore(p.score)} points`}`),
   ].join('\n');
   return (

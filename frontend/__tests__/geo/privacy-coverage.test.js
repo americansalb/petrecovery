@@ -2,7 +2,7 @@
  * The game must be named where the commitments live.
  *
  * Found in the deep audit: /privacy and /legal/terms contained not one
- * word about WanderGuesser. Not the geo_session cookie, not email-only
+ * word about Probably Earth. Not the geo_session cookie, not email-only
  * accounts, not hashed-IP metering, not retention, and there was no
  * account-deletion path at all. Every personal-data column in the Geo
  * models is enumerated here, the same shape as link-previews.test.js,
@@ -32,9 +32,9 @@ const PERSONAL_DATA = {
   'GeoRating.rating': 'ratings',
 };
 
-describe('the privacy page covers WanderGuesser', () => {
+describe('the privacy page covers Probably Earth', () => {
   test('it names the game and where it lives', () => {
-    expect(privacy).toContain('WanderGuesser');
+    expect(privacy).toContain('Probably Earth');
     expect(privacy).toContain('reunitepets.org/geo');
   });
 
@@ -64,7 +64,7 @@ describe('the privacy page covers WanderGuesser', () => {
   });
 
   test('the terms say a game account is not a pet account', () => {
-    expect(terms).toContain('WanderGuesser');
+    expect(terms).toContain('Probably Earth');
     expect(terms).toMatch(/separate from a ReunitePets account/);
   });
 

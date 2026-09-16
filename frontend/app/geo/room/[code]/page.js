@@ -14,7 +14,7 @@ import RoomClient from '@/app/geo/components/RoomClient';
 
 export const dynamic = 'force-dynamic';
 
-const FALLBACK_TITLE = 'WanderGuesser rooms | ReunitePets';
+const FALLBACK_TITLE = 'Probably Earth rooms';
 const FALLBACK_DESCRIPTION = 'Play the street-level guessing game with friends: everyone guesses the same places on one clock.';
 
 export async function generateMetadata({ params }) {
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }) {
     ].join(' ');
     return {
       ...buildShareMetadata({
-        title: `Join ${room.name} on WanderGuesser`,
+        title: `Join ${room.name} on Probably Earth`,
         description,
         canonical: `/geo/room/${code}`,
         index: false,

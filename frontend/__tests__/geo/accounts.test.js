@@ -1,9 +1,9 @@
 /**
  * The game's own accounts (docs/GEO.md, "Signing in").
  *
- * A WanderGuesser account is an email address and nothing else, and it
+ * A Probably Earth account is an email address and nothing else, and it
  * is not a ReunitePets account: the two products do not share identity
- * (docs/WANDERGUESSER_SPLIT.md, D1, answered 2026-09-10).
+ * (docs/PROBABLY_EARTH_SPLIT.md, D1, answered 2026-09-10).
  *
  * Most of what is pinned here is security rather than behaviour, and
  * each one is a way this could quietly be wrong:

@@ -10,7 +10,7 @@
  * awarded here. Script rounds are unranked while the corpus is a
  * starting pool rather than a curated one: rating people on content
  * still being written would put noise in the ladder
- * (docs/WANDERGUESSER_STRATEGY.md, bet 1).
+ * (docs/PROBABLY_EARTH_STRATEGY.md, bet 1).
  */
 
 import { NextResponse } from 'next/server';

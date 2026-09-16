@@ -1,4 +1,4 @@
-# WanderGuesser (the geo game)
+# Probably Earth (the geo game)
 
 The game was called "Where on Earth" until 2026-09-11. The route is still
 `/geo` and the code is still `app/geo`; renaming those is part of phase 4
@@ -203,7 +203,7 @@ the Sahara belt and much of Central Asia.
 (This said 130 until review caught it. That number subtracted from all
 249 while the land figure excluded Antarctica, which is two different
 universes in one sentence. Both figures here are measured against the
-244; `docs/WANDERGUESSER_STRATEGY.md` carries the same correction.)
+244; `docs/PROBABLY_EARTH_STRATEGY.md` carries the same correction.)
 
 That has a consequence for the game beyond missing places. If a third of
 the planet can never appear, then memorising the coverage map deletes it
@@ -485,6 +485,30 @@ counted against the same daily allowance, and the keyless fallback above
 costs nothing at all. Nothing in this mode is billed per load, in either
 map, on any day.
 
+**The corpus is 876 sentences** across the 159 languages, and where
+they come from matters. The first two or three in each language were
+written for the game, all saying the same few things so the content
+could not leak the answer, which also meant anybody who played twice had
+read the lot. The rest come from Tatoeba (CC-BY 2.0 FR, credited in the
+footer), fetched and filtered by `scripts/build-script-corpus.js`.
+
+The filtering is most of that script, because a crowdsourced corpus is
+not a curated one. Every character has to be in the language's own
+script; no digits in any script, no currency, no URLs; every word has to
+be among the commonest few hundred that language has, which is what
+strips names where there are no capital letters to spot them by;
+Tatoeba's stock cast of Tom and Mary is named and refused, because they
+are the commonest words in the corpus rather than rare ones; nothing may
+name a place, a language or a number; and every sentence has to carry
+one of its language's markers and none of a rival's, so the reveal still
+teaches and no feature is handed to the wrong language.
+
+461 sentences survived that, for 75 languages. The other 84 keep what
+they had: Tatoeba is thin in Wolof and Tetum, and a filter loose enough
+to find something there would be loose enough to let a place name
+through somewhere else. `__tests__/geo/corpus-size.test.js` keeps the
+pool from shrinking back.
+
 **The corpus** is `app/lib/geo/server/samples.js`, and it is server only
 on purpose: if the browser held it, it could match the sentence on
 screen against it and read off the answer before the guess, the same way
@@ -569,10 +593,10 @@ noise in the ladder.
 ## Signing in
 
 An account here is an email address and nothing else, and it is the
-game's own. A WanderGuesser player is not a ReunitePets user and does
+game's own. A Probably Earth player is not a ReunitePets user and does
 not become one: that was the founder's answer on 2026-09-10 to what a
 standalone account means, and it is what phase 1.7 of the split
-implements (`docs/WANDERGUESSER_SPLIT.md`, D1).
+implements (`docs/PROBABLY_EARTH_SPLIT.md`, D1).
 
 **Playing needs no account.** A browser mints a play token the first
 time it joins a room or asks for a profile, keeps it in localStorage,
@@ -966,6 +990,31 @@ are the backstop, not this table.
 The lobby shows today's numbers from `/api/geo/profile` (`usage`).
 Refusal copy stays plain: "You've played a lot today. Back tomorrow."
 
+## probablyearth.com
+
+The game's own address, built into `middleware.js` rather than read from
+an environment variable: a domain that needs a variable set before it
+works is a domain that is broken on the day it is pointed, and whoever
+pointed it has no way to tell. `GEO_DOMAINS` still adds more.
+
+Point the domain at the existing deployment and the short paths work
+immediately: `/` is the lobby, and `/play`, `/rooms`, `/script`,
+`/leaderboard`, `/daily` and `/room/<code>` all land in the right place.
+What that does **not** change is the chrome, because the chrome is a
+build-time decision (`NEXT_PUBLIC_SITE`) so that the server and the
+browser agree on the first paint. On the shared deployment the pages
+carry the pet site's bar.
+
+For the game's own bar and footer and nothing pet-shaped anywhere, it
+needs a build of its own, which is the section below. On Vercel that is
+a second project from the same repo and branch with
+`NEXT_PUBLIC_SITE=geo` set, sharing the database, with the domain
+pointed at it instead.
+
+Apple needs nothing: `/api/geo/mapkit-token` mints per host and
+probablyearth.com is on its allowlist, so MapKit draws there from the
+first request.
+
 ## Hosting on another domain
 
 The game is self-contained under `/geo` and `/api/geo` with its own tables,
@@ -981,7 +1030,7 @@ that shares the database, built as the game site:
    ```
    NEXT_PUBLIC_SITE=geo
    NEXTAUTH_URL=https://whereonearth.example
-   NEXT_PUBLIC_GEO_SITE_NAME=WanderGuesser        # optional, the header's name
+   NEXT_PUBLIC_GEO_SITE_NAME=Probably Earth        # optional, the header's name
    NEXT_PUBLIC_GEO_HOME_URL=https://www.reunitepets.org   # optional, where its ReunitePets link goes
    ```
 
@@ -1044,7 +1093,7 @@ against it.
 
 ## Going live
 
-`docs/WANDERGUESSER_LAUNCH.md` is the launch checklist: what is
+`docs/PROBABLY_EARTH_LAUNCH.md` is the launch checklist: what is
 finished, what needs a Google project with quota caps, a domain and a
 mail sender, and the two decisions that block later work. The setup
 below is how to run it; that document is whether it can go out.

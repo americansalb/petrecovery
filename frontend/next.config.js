@@ -22,7 +22,7 @@ const nextConfig = {
       // Ensure the vendored flyer/social fonts ship with a standalone
       // build. Both sets are read with readFileSync from process.cwd()
       // at import, and a standalone build copies only what is traced:
-      // without the game's line here every WanderGuesser share preview
+      // without the game's line here every Probably Earth share preview
       // fell back to the site logo in the Docker deploy, because the
       // font module threw ENOENT and the OG route's catch swallowed it.
       // __tests__/geo/standalone-assets.test.js keeps this honest.

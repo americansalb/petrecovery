@@ -1,10 +1,10 @@
 # Beating the incumbents
 
-A product strategy for WanderGuesser and what comes after it, written
+A product strategy for Probably Earth and what comes after it, written
 from what the market actually looks like rather than from a feature
 list. Last revised 2026-09-10.
 
-Companions: `docs/WANDERGUESSER_SPLIT.md` is how the game becomes its own
+Companions: `docs/PROBABLY_EARTH_SPLIT.md` is how the game becomes its own
 product; `docs/GEO.md` is how the game currently works. This document is
 what the product should be for, and it supersedes the shorter draft that
 sat here before.
@@ -422,7 +422,7 @@ next never happens.
 
 | | Step | Why here |
 |---|---|---|
-| 1 | Finish the split (`WANDERGUESSER_SPLIT.md`) | Everything else assumes an independent product |
+| 1 | Finish the split (`PROBABLY_EARTH_SPLIT.md`) | Everything else assumes an independent product |
 | 2 | Check photo sphere density with a live Google key | Half an hour, and it decides whether bet 2 is a mode or a footnote |
 | 3 | Record behavioural signals on rounds, change nothing | Bet 1 needs data before it needs a design. Collecting is cheap and reversible |
 | 4 | Phone pass on the play screen | Largest audience gain per unit of work, unblocks India later |
@@ -441,7 +441,7 @@ claimed step 5 proved the rating layer while also making it unranked.)
 
 ## 6. Naming
 
-**WanderGuesser** stays for the geography game. It is the only candidate
+**Probably Earth** stays for the geography game. It is the only candidate
 that has cleared a conflict check.
 
 **Worldly is occupied.** Two geography games already carry it: a live
@@ -480,7 +480,7 @@ exists is how this loop never ends. Name it when it ships.
 Stated plainly, because the plan turns on these.
 
 - **How many people play this today.** The row counts in
-  `WANDERGUESSER_SPLIT.md` section 7 would say, and they also settle two
+  `PROBABLY_EARTH_SPLIT.md` section 7 would say, and they also settle two
   decisions in that document.
 - **Whether behavioural detection actually separates a good player from
   a good screen-reader** at the sample sizes a small game gets. A

@@ -1,7 +1,7 @@
 /**
  * Housekeeping for the game's tables.
  *
- * Found in the deep audit: nothing in WanderGuesser ever deleted
+ * Found in the deep audit: nothing in Probably Earth ever deleted
  * anything except expired sign-in links. Round-cache rows were filtered
  * by their expiry on read and then left in place forever, usage rows
  * (one per subject per day per provider, and a subject can be a hashed

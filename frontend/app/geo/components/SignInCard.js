@@ -3,7 +3,7 @@
 /**
  * Signing in, which for this game is an email address and nothing else.
  *
- * WanderGuesser accounts are its own (docs/GEO.md, "Signing in"). A
+ * Probably Earth accounts are its own (docs/GEO.md, "Signing in"). A
  * player here is not a ReunitePets user and does not become one: that
  * was the founder's answer on 2026-09-10 to what a standalone account
  * means. So there is no password, no profile to fill in, and nothing

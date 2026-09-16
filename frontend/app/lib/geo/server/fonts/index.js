@@ -2,7 +2,7 @@
  * The faces the game's link-preview card is drawn with.
  *
  * The game owns these so that the OpenGraph route does not import the
- * pet site's font bundle (docs/WANDERGUESSER_SPLIT.md, phase 1.5).
+ * pet site's font bundle (docs/PROBABLY_EARTH_SPLIT.md, phase 1.5).
  *
  * satori and @resvg/resvg-js both need real TTF buffers: neither reads
  * woff2, and neither may fetch a font at render time. So the three

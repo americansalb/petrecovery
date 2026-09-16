@@ -2,7 +2,7 @@
  * The game's rate limiter.
  *
  * The game owns this so that nothing under app/api/geo or app/lib/geo
- * imports the pet site's limiter (docs/WANDERGUESSER_SPLIT.md, phase
+ * imports the pet site's limiter (docs/PROBABLY_EARTH_SPLIT.md, phase
  * 1.2). Same fixed-window shape and the same result object, so callers
  * did not change: { success, remaining, resetAt, blocked, retryAfter }.
  *

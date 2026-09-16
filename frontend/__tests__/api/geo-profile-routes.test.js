@@ -3,7 +3,7 @@
  * token on first call, the account binding when signed in, and a board
  * with your own row.
  *
- * Signed in here means a WanderGuesser account, which is a sealed
+ * Signed in here means a Probably Earth account, which is a sealed
  * cookie the game issues itself (app/lib/geo/server/identity.js). It
  * used to mean a mocked ReunitePets session; phase 1.7 of the split cut
  * that, so the test seals a real cookie rather than mocking anything.

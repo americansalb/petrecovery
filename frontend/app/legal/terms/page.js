@@ -58,9 +58,9 @@ const SECTIONS = [
     ],
   },
   {
-    title: 'WanderGuesser',
+    title: 'Probably Earth',
     body: [
-      'WanderGuesser, the geography game at reunitepets.org/geo, is part of this service and these terms cover it. A WanderGuesser account is separate from a ReunitePets account: one does not sign you in to the other, and neither carries data to the other.',
+      'Probably Earth, the geography game at reunitepets.org/geo, is part of this service and these terms cover it. A Probably Earth account is separate from a ReunitePets account: one does not sign you in to the other, and neither carries data to the other.',
       'Scores, ratings, points and the items points buy exist inside the game. They have no cash value, cannot be exchanged or transferred, and may be adjusted or reset when a scoreboard has been manipulated.',
       'The imagery comes from Google Street View and Apple Look Around and is theirs, subject to their terms. Playing the game does not give you any right to it.',
       'Play is limited per day so the imagery bills stay bounded. The limits are shown in the game and described at reunitepets.org/geo.',

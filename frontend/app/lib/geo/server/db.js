@@ -2,7 +2,7 @@
  * The game's database client.
  *
  * The game owns its own Prisma client so that nothing under app/lib/geo
- * imports the pet site's singleton (docs/WANDERGUESSER_SPLIT.md, phase
+ * imports the pet site's singleton (docs/PROBABLY_EARTH_SPLIT.md, phase
  * 1.1). Until phase 3 gives the game its own schema and its own
  * database, this points at the same Postgres as the pet app, which means
  * a second connection pool on the same server. GEO_DB_POOL caps that

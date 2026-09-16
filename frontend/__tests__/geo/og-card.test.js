@@ -13,7 +13,7 @@
  * this project does not set; the card is checked against the running
  * server instead (docs/GEO.md, local development).
  *
- * Guards phase 1.5 of docs/WANDERGUESSER_SPLIT.md.
+ * Guards phase 1.5 of docs/PROBABLY_EARTH_SPLIT.md.
  */
 
 const fs = require('node:fs');

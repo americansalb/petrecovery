@@ -54,7 +54,7 @@ const EXTRA = (process.env.GEO_MAPKIT_ORIGINS || '')
 // The legacy domain is deliberately absent: middleware redirects it to
 // www.reunitepets.org before any map is drawn, so nothing there ever
 // needs a token.
-const KNOWN = ['reunitepets.org', 'rescueourfamily.org', 'wanderguesser.com', ...EXTRA];
+const KNOWN = ['reunitepets.org', 'rescueourfamily.org', 'probablyearth.com', ...EXTRA];
 
 export function mayMintFor(host) {
   const name = String(host || '')

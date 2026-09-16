@@ -1,10 +1,10 @@
 /**
  * The game's own mailer.
  *
- * Small on purpose. The only mail WanderGuesser sends is a sign-in
+ * Small on purpose. The only mail Probably Earth sends is a sign-in
  * link, so this is one function, and it is here rather than borrowed
  * from the pet site because borrowing it would re-open the wire phase
- * 1.7 exists to close (docs/WANDERGUESSER_SPLIT.md).
+ * 1.7 exists to close (docs/PROBABLY_EARTH_SPLIT.md).
  *
  * With RESEND_API_KEY set it sends. Without one, outside production, it
  * logs the link and says so (`delivered: false`), which is what makes
@@ -19,7 +19,7 @@
  * Server only.
  */
 
-const FROM = process.env.GEO_MAIL_FROM || 'WanderGuesser <onboarding@resend.dev>';
+const FROM = process.env.GEO_MAIL_FROM || 'Probably Earth <onboarding@resend.dev>';
 
 export async function sendSignInEmail({ to, url, env = process.env, sendImpl } = {}) {
   if (!to || !url) return { sent: false, reason: 'missing_arguments' };

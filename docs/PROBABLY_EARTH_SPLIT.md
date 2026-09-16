@@ -1,4 +1,4 @@
-# Splitting WanderGuesser out of ReunitePets
+# Splitting Probably Earth out of ReunitePets
 
 The guessing game at `/geo` is finished enough to stand on its own, and
 it should. This is the plan to make it a separate product: its own
@@ -77,7 +77,7 @@ counts say otherwise, take C. The query to run is in section 7.
 
 | Option | What it means |
 |---|---|
-| A. New repository | `wanderguesser`, its own host project, its own Postgres, its own CI |
+| A. New repository | `probablyearth`, its own host project, its own Postgres, its own CI |
 | B. Monorepo | Two apps in `petrecovery` sharing packages through npm workspaces |
 
 **Recommended: A.** B keeps exactly the coupling this split exists to
@@ -168,7 +168,7 @@ than taking them away.
 ## 4. Target architecture
 
 ```
-wanderguesser/                       (new repository)
+probablyearth/                       (new repository)
   app/
     (game)/            was app/geo,        served at /
     api/               was app/api/geo,    served at /api
@@ -301,7 +301,7 @@ restoring the column, which is why it stays behind a flag.
 6. CI: the same four checks the pet repository runs.
 
 **Deliberately not done here:** renaming the internal `geo` namespace to
-`wanderguesser`. Renaming 14,000 lines of imports during an extraction
+`probablyearth`. Renaming 14,000 lines of imports during an extraction
 buys nothing a user can see and destroys the diff. If it is wanted, it
 is a separate cosmetic pull request afterwards.
 
@@ -377,7 +377,7 @@ SELECT
 | 1. Outward wires | 7 | petrecovery | yes, per pull request |
 | 2. Inward wires | 2 | petrecovery | yes |
 | 3. Data split | 3 | petrecovery | yes until 3.3 |
-| 4. Extraction | 1 plus skeleton | wanderguesser | yes, nothing deleted |
+| 4. Extraction | 1 plus skeleton | probablyearth | yes, nothing deleted |
 | 5. Cutover | 2 | both | yes until 5.5 |
 | 6. Decommission | 1 | petrecovery | no |
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Delete what WanderGuesser no longer needs: expired round-cache rows
+ * Delete what Probably Earth no longer needs: expired round-cache rows
  * and sign-in links, play-meter rows for days long past, and rooms
  * nobody will open again.
  *
@@ -19,7 +19,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.loc
 async function main() {
   const { sweepGeo, RETENTION } = await import('../app/lib/geo/server/sweep.js');
   const { prismaRoomStore } = await import('../app/lib/geo/server/roomStore.js');
-  console.log('Sweeping WanderGuesser tables.');
+  console.log('Sweeping Probably Earth tables.');
   console.log(`  usage rows older than ${RETENTION.usageDays} days`);
   console.log(`  rooms finished over ${RETENTION.finishedRoomDays} days ago, abandoned over ${RETENTION.staleRoomDays}`);
   const swept = await sweepGeo(prismaRoomStore);

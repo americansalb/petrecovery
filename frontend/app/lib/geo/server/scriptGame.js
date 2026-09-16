@@ -59,6 +59,11 @@ function weightFor(language) {
  */
 function saltedSeed(seed, purpose, secret) {
   if (!secret) return `${seed}#${purpose}`;
+  // The literal is the game's old name on purpose. This salt decides
+  // which language a seed draws, so changing it rerolls every seeded
+  // round ever played: today's daily becomes a different five, and
+  // every board recorded against the old ones stops meaning anything.
+  // A name on a screen is worth renaming; a name inside a hash is not.
   return createHash('sha256').update(`wanderguesser-script:${purpose}:${secret}:${seed}`).digest('hex').slice(0, 32);
 }
 

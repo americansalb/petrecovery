@@ -32,7 +32,7 @@ import {
 } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { isSignedIn } from '@/app/geo/lib/session';
-import { formatDistance, formatScore } from '@/app/lib/geo/distance';
+import { MAX_ROUND_SCORE, formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { getHistory, getStats } from '../lib/storage';
 import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile';
@@ -167,7 +167,7 @@ export default function GeoLobby() {
   }, []);
 
   // Your rating: this browser gets a profile the first time it joins a
-  // room, and a WanderGuesser account has one across devices. Nobody
+  // room, and a Probably Earth account has one across devices. Nobody
   // else needs a row for looking at the lobby.
   useEffect(() => {
     // A visitor who has never played and is not signed in gets no row.
@@ -251,7 +251,7 @@ export default function GeoLobby() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">WanderGuesser</h1>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Probably Earth</h1>
             <p className="mt-2 max-w-2xl text-midnight-600">
               You are dropped at a random spot with street-level imagery. Look around, then put a pin on the map. Up to 5,000 points a round, depending on how close you are.
             </p>
@@ -266,6 +266,41 @@ export default function GeoLobby() {
             Play
           </button>
         </header>
+
+        {/* First run. A lobby full of choices and no idea what any of
+            them do is how somebody leaves without playing, and until now
+            nothing on this page said what a round even was. It goes as
+            soon as there is a game in this browser's history, so it is
+            never in the way of somebody who already knows. */}
+        {stats && !stats.games ? (
+          <section className="mt-6 rounded-2xl border border-midnight-200 bg-white p-5" data-first-run>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">How it works</h2>
+            <ol className="mt-3 grid gap-3 sm:grid-cols-3">
+              <li className="rounded-xl bg-midnight-50 p-3">
+                <p className="font-semibold">You are somewhere</p>
+                <p className="mt-1 text-sm text-midnight-600">
+                  A street, anywhere in the world. Look around, walk, read the signs.
+                </p>
+              </li>
+              <li className="rounded-xl bg-midnight-50 p-3">
+                <p className="font-semibold">You place a pin</p>
+                <p className="mt-1 text-sm text-midnight-600">
+                  On the map, where you think you are. There is no wrong answer, only a distance.
+                </p>
+              </li>
+              <li className="rounded-xl bg-midnight-50 p-3">
+                <p className="font-semibold">Closer is worth more</p>
+                <p className="mt-1 text-sm text-midnight-600">
+                  Up to {formatScore(MAX_ROUND_SCORE)} a round. Five rounds a game, so {formatScore(MAX_ROUND_SCORE * 5)} is perfect.
+                </p>
+              </li>
+            </ol>
+            <p className="mt-3 text-sm text-midnight-600">
+              Play as much as you like without an account. Ranked puts you against everyone else playing this hour and
+              gives you a rating; everything else is for fun.
+            </p>
+          </section>
+        ) : null}
 
         {serverError ? <p className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{serverError}</p> : null}
         {server && !configured ? (

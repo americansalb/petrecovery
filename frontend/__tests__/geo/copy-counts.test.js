@@ -58,7 +58,7 @@ test('City streets names the size of the pool it actually draws from', () => {
 });
 
 test('the launch doc counts the modes there are', () => {
-  const launch = fs.readFileSync(path.join(REPO, 'docs/WANDERGUESSER_LAUNCH.md'), 'utf8');
+  const launch = fs.readFileSync(path.join(REPO, 'docs/PROBABLY_EARTH_LAUNCH.md'), 'utf8');
   const count = Object.keys(MODES).length;
   expect(launch).toContain(`The game itself: ${spelled(count)} modes`);
   expect(launch).toContain(`${LANGUAGES.length} languages, ${Object.keys(SCRIPTS).length} writing systems`);
