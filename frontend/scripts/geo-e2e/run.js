@@ -2,7 +2,7 @@
 /**
  * End-to-end run of the geo game in a real browser, with MapKit JS
  * replaced by fake-mapkit.js. Every round is Apple Look Around, because
- * that is the only imagery the game has (docs/GEO.md, "Apple first").
+ * that is the only imagery the game has (docs/GEO.md, "Apple only").
  *
  * Exercises: a three-round pin game with keyboard shortcuts, the summary
  * and its share page, seeded replay, a country streak, a timed NMPZ

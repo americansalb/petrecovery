@@ -5,7 +5,7 @@
  * today's daily seed, the day's per-player limits and the country list
  * for the pickers. Never returns a secret.
  *
- * There is one imagery now (docs/GEO.md, "Apple first"), so there is one
+ * There is one imagery now (docs/GEO.md, "Apple only"), so there is one
  * provider here. The shape is still a map keyed by provider id because
  * the lobby, the room form and the play page all look themselves up in
  * it by the config's provider.

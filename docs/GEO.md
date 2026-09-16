@@ -10,22 +10,26 @@ on how close you are. Built as a side project inside the ReunitePets app;
 it shares the app's chrome rules, share-card rules and API conventions
 but no data models.
 
-## Apple first
+## Apple only
 
-Founder direction, 2026-09-12: the game is Apple-first. Apple Look Around
-is the default imagery, the lobby and the room form open on it, and the
-daily challenge and the weekly cup are played on it. Google Street View
-is the option for what Apple does not have: the countryside, the hundred
-or so other countries, photo spheres (Everywhere) and a car that drives
-itself (Kidnapped).
+Founder direction, 2026-09-12: the game is Apple-first. Hardened on
+2026-09-16: Apple only. Look Around is the imagery, and there is no
+other. Google Street View was the option for what Apple does not have,
+the countryside and the hundred or so other countries, and it is gone
+along with the three modes only its imagery could do, the two keys, the
+billing account and the per-view bill.
+
+The trade is real and was made with open eyes: a Look Around view costs
+nothing per view, and the price is 23 countries of city streets instead
+of most of the world. Script mode, which needs no imagery at all, is
+what covers the rest.
 
 What that buys and what it costs, plainly:
 
 - **Cost.** A Look Around view is not billed per view; MapKit JS runs
   under Apple's daily quota (250,000 map views a day per developer
   account), which the play meter keeps the whole site under. There is no
-  per-player allowance on Apple and none is needed. Google rounds stay
-  metered as before.
+  per-player allowance and none is needed.
 - **Coverage.** City streets in 23 countries (`APPLE_COVERAGE` in
   `app/lib/geo/coverage.js`): the US, Canada, the UK, Ireland, Japan,
   Australia, New Zealand, Singapore, Hong Kong, Israel and thirteen in
@@ -35,7 +39,7 @@ What that buys and what it costs, plainly:
   coverage page when it grows.
 - **What plays on Apple.** World, Balanced, Daily, Cup, Continent,
   Country and Country streak, all as draws of city streets (see "How a
-  round is built"). Everywhere and Kidnapped are Google only by nature.
+  round is built").
   The Apple world is the city list: adding a covered city to
   `CITY_ROWS` is how it grows.
 - **The token, and the host it is for.** MapKit JS needs a token from an
@@ -57,7 +61,7 @@ What that buys and what it costs, plainly:
   and exits non-zero if any host the site serves is refused. Run it
   after any change to the domain, the redirects or the token.
 - **The primary imagery is one value for a deployment**,
-  `NEXT_PUBLIC_GEO_PRIMARY_PROVIDER` (`apple` unless set to `google`),
+  `NEXT_PUBLIC_GEO_PRIMARY_PROVIDER` (`apple`, the only value there is),
   inlined at build. Everyone on a daily or cup board has to be on the
   same places, so this is never a per-player choice; changing it mid-day
   splits that day's board into two sets of places.
@@ -90,8 +94,8 @@ API, all under `frontend/app/api/geo/`:
 
 | Endpoint | Method | Does |
 |---|---|---|
-| `config` | GET | Which providers are set up, the Google browser key, today's daily seed, the country list. Never a server key. |
-| `round` | POST `{ config, roundIndex, attempt }` | Finds imagery for a round and returns it with a sealed answer token. Google: a panorama id. Apple: a short list of coordinates to try. |
+| `config` | GET | Whether the game is set up, today's daily seed, the day's limits, the country list. Never a secret. |
+| `round` | POST `{ config, roundIndex, attempt }` | A round and its sealed answer token: a short list of coordinates to try, or, rarely, a Not Earth panorama. |
 | `guess` | POST `{ token, guess }` | Scores the guess against the token and reveals the answer. `guess` is `{lat,lng}`, `{countryCode}` for streaks, or `null` when the timer ran out. |
 | `og` | GET `?s=<code>` | The 1200x630 link-preview PNG for a share code (satori + resvg, same pipeline as the lost-pet social cards). |
 | `rooms` | GET / POST `{ name, hostName, settings }` | Public rooms active in the last 20 minutes / open a room (returns the host's player token). |
@@ -463,13 +467,11 @@ the pool's answers live in, so a pin on the right continent is worth
 real points in World and almost nothing in South Asia, where every
 answer was already inside that box.
 
-**Script rounds never touch the play meter.** No imagery, no metadata
-probe, no Google key. That is arithmetic rather than generosity: a text
-round has no marginal cost to meter, and the mode works on a server with
-no Google keys at all. The map is a MapKit view like any other round's,
-counted against the same daily allowance, and the keyless fallback above
-costs nothing at all. Nothing in this mode is billed per load, in either
-map, on any day.
+**Script rounds never touch the play meter.** No imagery and no key.
+That is arithmetic rather than generosity: a text round has no marginal
+cost to meter, and the mode works on a server with nothing configured at
+all. Its map is a MapKit view like any other round's, and the keyless
+fallback above needs not even that.
 
 **The corpus is 876 sentences** across the 159 languages, and where
 they come from matters. The first two or three in each language were
@@ -683,7 +685,7 @@ same rounds on the same server clock.
   room offers the next places for the same round (`retries` climbs). The
   round's coordinate is in the poll during `guessing`, as in solo play,
   because the browser has to open the imagery itself. Apple rooms count in
-  the play meter under `apple` and are never refused for the allowance.
+  toward each player's day and the site's, and nothing else.
 
 ## Ratings
 
@@ -750,9 +752,9 @@ rating is a `GeoSeasonRating` row with `ladder = 'solo'`.
 
 ## The daily challenge
 
-The daily is the front door: five balanced Google rounds, the same for
-everyone, free, and outside the play meter's allowance. Same places for
-all is what makes a score worth sharing and a board worth reading, so
+The daily is the front door: five balanced rounds, the same for
+everyone. Same places for all is what makes a score worth sharing and a
+board worth reading, so
 the server keeps the score. `/api/geo/guess` records each round of a
 daily for the profile behind the request (the seed and the round index
 are in the sealed token; the first guess on a round is the one that
@@ -801,10 +803,6 @@ can be closed while the game uses these SDKs:
 - **Apple rounds send the coordinate.** Look Around is opened by the
   browser at a latitude and longitude; there is no id to hand over
   instead. Every Apple round's answer is in the page before the guess.
-- **Google rounds send a panorama id**, and the browser also holds the
-  public Maps key, so `StreetViewService.getPanorama({ pano })` returns
-  that panorama's exact position. The id is not the coordinate, but it
-  is one call away from it.
 
 So the sealed token protects the answer from a casual reader, not from a
 determined one, on any imagery round. That is why rated play is rooms
@@ -860,10 +858,10 @@ rankings show the season and the days left.
 
 ## The weekly cup
 
-The cup is the daily's big sibling: ten balanced Google rounds on a 60
-second clock, the same for everyone in an ISO week (Monday to Sunday,
-UTC), seeded `cup-2026-W37`, free and outside the play meter's
-allowance. Rounds are recorded like the daily's (`GeoChallengeRound`,
+The cup is the daily's big sibling: ten balanced rounds on a 60 second
+clock, the same for everyone in an ISO week (Monday to Sunday, UTC),
+seeded `cup-2026-W37`. Rounds are recorded like the daily's
+(`GeoChallengeRound`,
 `GeoChallengeEntry`, keyed `cup:2026-W37`, first guess per round counts)
 and `/api/geo/cup` serves the week's board, when it ends, the prizes and
 your row. Prizes in points go out once per week, by placement among
@@ -881,10 +879,11 @@ daily's.
 Points are the earned currency (`app/lib/geo/points.js` has the rules,
 `app/lib/geo/server/points.js` applies them). They come from playing and
 from skill, and they buy only things that cost nothing to serve. They
-never buy Google rounds: the moment earned points turned into imagery,
-heavy players would farm them on free Apple play and spend them on rounds
-we pay for. Points earn on the first 50 rounds of the day only, so a
-script running all night gains nothing.
+never buy imagery, and there is none to buy: that rule outlived the
+Google rounds it was written for, and is kept because a currency that
+turns into anything the site pays for is a currency worth farming.
+Points earn on the first 50 rounds of the day only, so a script running
+all night gains nothing.
 
 | Event | Points |
 |---|---|
@@ -917,65 +916,47 @@ meter, recent points, and the shop.
 
 ## The play meter
 
-Every Google Street View round costs money once the month's free calls
-are used (see "What it costs" below); Apple Look Around costs nothing
-per view but the whole site shares a daily quota. So the server meters
-rounds before it fetches imagery (`app/lib/geo/meter.js` has the rules,
+Look Around costs nothing per view, so there is no invoice to bound and
+the meter is not a billing guard any more. What is left is what was
+never about money (`app/lib/geo/meter.js` has the rules,
 `app/lib/geo/server/meter.js` applies them on the store, `GeoUsage`
-holds the counts per subject per UTC day per provider):
+holds the counts per subject per UTC day):
 
-| | Google | Apple |
-|---|---|---|
-| Free per player per day | 25 solo rounds, five games of five (`GEO_FREE_GOOGLE_ROUNDS`), and one room game (`GEO_FREE_GOOGLE_ROOM_GAMES`); the daily challenge and the weekly cup add 10 rounds on top (`GEO_FREE_CHALLENGE_ROUNDS`), after which they draw on the solo allowance like anything else | no limit |
-| After that | prepaid rounds on the profile (`paidRounds`, quota packs bought once; no subscriptions anywhere), then a refusal | |
-| Per player per day, any imagery | 600 anonymous, 2,000 signed in | same |
-| Per address per day | 5,000, and as a backstop for anonymous players who clear the browser: 125 free Google rounds and 50 challenge rounds | same |
-| Per player per minute | 15, by profile or, with no profile, by address | 15 |
-| Whole site per day | 20,000 panorama loads | 200,000, under Apple's 250,000 views |
+| | |
+|---|---|
+| Per player per day | 600 anonymous, 2,000 signed in. An abuse limit shaped like a person: a heavy evening is about a hundred rounds |
+| Per address per day | 5,000, as a backstop for anonymous players who clear the browser |
+| Per player per minute | 15, by profile or, with no profile, by address. This is the one that actually stops a script |
+| Whole site per day | 200,000 views, under Apple's 250,000 |
 
-The site's budget is the one limit counted in panorama loads rather than
-rounds, because it is the one that exists to bound the bill. Every mode
-shows one panorama a round except Kidnapped, where the car drives itself
-and each hop is another billed load: a Kidnapped round is 73 loads
-(`KIDNAPPED_LOADS`, one for the drop and `MAX_DRIVE_HOPS` for the
-drive). The drive stops when those hops are spent.
+The site's day is the only one that is not about abuse. Apple's quota is
+250,000 views **per developer account**, and the same account serves
+ReunitePets' shelter maps, so burning the day here would blank the maps
+there. The game stops first.
+
+**Rooms are not rationed.** A room holds twelve, so metering rooms taxes
+the one thing that brings players in. A seat costs nothing and goes
+through the same door as a solo round: the ceiling and the site's day,
+and nothing else.
+
+What went with Google (2026-09-16): the free daily rounds, the prepaid
+rounds on the profile, the free room game, the challenge allowance and
+a site budget counted in panorama loads. All five existed to bound a
+bill that no longer arrives.
 
 Imagery goes to players only. A spectator on `/geo/room/CODE` gets the
-room, the players and the reveal, but no panorama id and no Look Around
-coordinate: `recordRoomRound` charges the room's players, so a panorama
-loaded by anyone else would be money nothing counted.
+room, the players and the reveal, but no Look Around coordinate.
 
-Anonymous players are tracked by profile and by hashed IP address, so
-clearing the browser does not reset the allowance. Signed-in players are
-tracked by profile, with the address only as a ceiling, so a household or
-an office is not one player. The play page registers a profile on the
-first game (`/api/geo/profile`), so nearly everyone has one.
+Anonymous players are tracked by profile and by hashed IP, so clearing
+the browser does not reset the count. Signed-in players are tracked by
+profile with the address only as a ceiling, so a household or an office
+is not one player. The play page registers a profile on the first game
+(`/api/geo/profile`), so nearly everyone has one.
 
 Where it bites: `/api/geo/round` refuses with a 429 and a code
-(`allowance`, `ceiling`, `budget`, `speed`), and the play page shows the
-refusal in our words with the same game on Apple imagery as the way on
-when the mode has one. A round is charged only once imagery was found.
-
-Rooms have their own door. A seat in a Google room is the day's free
-room game, or prepaid rounds once that is used; opening, joining and a
-rematch refuse (429 `rooms`) only when both are gone, never for the solo
-allowance, so a friend who is out of free rounds still gets in. The seat
-is charged when the first round starts, not at the door
-(`GeoRoomPlayer.entry`: free, paid, apple, over), so a room nobody joins
-costs nothing and a late joiner is charged at their first round. A free
-seat's rounds are counted toward the ceilings but never drawn from the
-solo allowance (`GeoUsage.games` counts the free games); a paid seat draws
-one prepaid round per round; a player whose balance runs out mid-game, or
-whose free game went to another room in between, is simply counted,
-never sent away. A person at the ceiling or a site past its budget cannot
-open or join a room, and a room needs two players to start. Apple rooms
-are counted under `apple` with no allowance. A store failure while
-metering is logged and the round goes on; the caps in the Google console
-are the backstop, not this table.
-
-The lobby shows today's numbers from `/api/geo/profile` (`usage`).
-Refusal copy stays plain: "You've played a lot today. Back tomorrow."
-
+(`ceiling`, `budget`, `speed`), and the play page shows the refusal in
+our words. There is no other imagery to offer as a way on any more, so a
+refusal is the end of the round rather than a fork.
 ## probablyearth.com
 
 The game's own address, built into `middleware.js` rather than read from
@@ -1015,10 +996,12 @@ withheld from a guest: the account is for keeping, not for unlocking.
 **Role**: `player`, `host`, `admin`. What the account may DO. A host can
 run rooms for a group; an admin reaches `/geo/admin`.
 
-**Tier**: `free`, `supporter`. What the account has PAID for. What
-supporter is worth is one table, `TIER_BENEFITS`: more Google rounds,
-more room games, private rooms, longer history. No mode, map or ladder
-sits behind it. A free account and a supporter play the same game.
+**Tier**: `free`, `supporter`. What the account has PAID for, which is
+nothing: the founder settled it on 2026-09-16, "100% free, no paid
+option". The columns and `TIER_BENEFITS` stay because taking them out
+means a migration on the database the pet site shares, and the profile
+no longer draws a plan card at anybody. Everything the tier used to buy
+was a Google limit, and those left with Google.
 
 Role and tier are separate because collapsing them is how "paid for it"
 quietly becomes "allowed to moderate". A teacher running a class is a
@@ -1064,9 +1047,9 @@ this repo (on Render: a second web service from the same repo and branch)
 that shares the database, built as the game site:
 
 1. Create the service and point the domain at it.
-2. Copy the environment from the pet site (`DATABASE_URL`, the Google
-   keys, `GEO_TOKEN_SECRET` or `NEXTAUTH_SECRET`, the Apple token if the
-   Apple mode is on) and add:
+2. Copy the environment from the pet site (`DATABASE_URL`,
+   `GEO_TOKEN_SECRET` or `NEXTAUTH_SECRET`, and the Apple token if one
+   is set) and add:
 
    ```
    NEXT_PUBLIC_SITE=geo
@@ -1082,10 +1065,7 @@ that shares the database, built as the game site:
    anything that is not the game to the pet site. Rooms, ratings and
    profiles are the same rows on both sites because the database is
    shared.
-3. Add the domain to the Google browser key's website restrictions
-   (`https://whereonearth.example/*` and the `www` form). Without this the
-   map refuses to load on the new domain.
-4. For the Apple mode, make a MapKit token for the new origin and add it
+3. Make a MapKit token for the new origin and add it
    to `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`, which takes a list; the built-in
    token is locked to reunitepets.org. **One per host**, including the
    `www` form, because Apple matches the origin exactly. Then
@@ -1139,9 +1119,9 @@ against it.
 ## Going live
 
 `docs/PROBABLY_EARTH_LAUNCH.md` is the launch checklist: what is
-finished, what needs a Google project with quota caps, a domain and a
-mail sender, and the two decisions that block later work. The setup
-below is how to run it; that document is whether it can go out.
+finished, what needs a domain and a mail sender, and the decisions that
+block later work. The setup below is how to run it; that document is
+whether it can go out.
 
 ## Playing it with nothing configured
 
@@ -1149,7 +1129,7 @@ below is how to run it; that document is whether it can go out.
 npm run geo:demo
 ```
 
-No Google project, no database, no mail account, no domain. It starts
+No account with anybody, no database, no mail sender, no domain. It starts
 the mock metadata server and the dev server, mints a throwaway token
 secret, and prints what does and does not work.
 
@@ -1173,11 +1153,11 @@ instead of emailed.
 
 **What cannot work without keys, and why no mock fixes it:**
 
-- **Street View.** The panorama is drawn by Google's own JavaScript SDK
-  in the browser, which needs a Maps browser key. The server side is
-  mocked by `scripts/geo-e2e/mock-metadata.js`, so probing and scoring
-  run, but the round has nothing to look at.
-- **Apple Look Around**, on any origin the MapKit token does not cover.
+- **Look Around**, on any origin the MapKit token does not cover. The
+  imagery is streamed by MapKit itself, so there is no server response
+  to stand in for it. Script mode needs none of this and is the way to
+  exercise the round flow without imagery; the browser harness fakes
+  MapKit outright and is the way to exercise the rest.
 
 Two things are deliberately weakened in development and nowhere else. A
 missing token secret is generated per process rather than refused, and a
@@ -1187,92 +1167,86 @@ refuses a missing secret.
 
 ## Setup
 
-Google (the only errand):
-
-1. In the Cloud project that already holds `GOOGLE_PLACES_API_KEY`,
-   attach billing if it is not attached. Google Maps Platform serves
-   nothing without it, free tier included.
-2. Enable the **Maps JavaScript API** and the **Street View Static API**.
-3. Create a **browser key** restricted by HTTP referrer to the site's
-   domains and localhost, and by API to the Maps JavaScript API.
-4. Create or extend a **server key** with the Street View Static API.
-5. Under APIs & Services, Quotas, set daily caps on both APIs so usage
-   stops instead of billing; add a budget alert under Billing.
-
-Environment:
+Two variables, and one of them is optional.
 
 ```
-GOOGLE_MAPS_BROWSER_KEY=...        # referrer-restricted, sent to the browser by /api/geo/config
-GOOGLE_STREET_VIEW_API_KEY=...     # server only; falls back to GOOGLE_PLACES_API_KEY if that key has the API
-GEO_TOKEN_SECRET=...               # optional; NEXTAUTH_SECRET is used otherwise
-NEXT_PUBLIC_APPLE_MAPKIT_TOKEN=... # a localhost token for local play; the built-in token only works on reunitepets.org
-GEO_STREET_VIEW_METADATA_URL=...   # optional, development only: a local mock of the metadata endpoint
+GEO_TOKEN_SECRET=...               # seals a round's answer; NEXTAUTH_SECRET is used if this is unset
+NEXT_PUBLIC_APPLE_MAPKIT_TOKEN=... # optional: a token for a host the built-in one does not cover
 ```
 
-Free tier (Google, per month, as of March 2025 pricing): metadata probes
-unlimited, 5,000 Dynamic Street View loads, 10,000 Dynamic Maps loads.
-One game of five rounds is five panorama loads and one map load. One
-game of Kidnapped is up to 365, because the car drives.
+A round's answer is encrypted under a key derived from the token secret
+(`app/lib/geo/server/tokens.js`), so nothing starts without one.
+`/api/geo/config` names it when it is missing, and the setup screen
+prints that list verbatim.
 
-Apple: the app already loads MapKit JS. Look Around arrived in MapKit JS
-5.79 but is not in the full `mapkit.js` bundle; the game asks for the
-`look-around` library with `mapkit.load` through its own loader,
-`app/geo/lib/appleMapKit.js` (the game owns it: phase 1.4 of the split).
-If that call is missing in the deployed MapKit build, switch the loader
-in `app/geo/lib/appleMapKit.js` to `mapkit.core.js` with
-`data-libraries="services,full-map,geojson,user-location,look-around"`.
+Apple: the app loads MapKit JS itself. Look Around arrived in MapKit JS
+5.79 and is NOT in the full `mapkit.js` bundle, whatever the version:
+that bundle has no Look Around implementation in it at all. The loader
+(`app/geo/lib/appleMapKit.js`) asks for `mapkit.core.js` and then
+`mapkit.load(['map', 'annotations', 'overlays', 'look-around'])`, which
+is the only combination that works. Loading `mapkit.js` and waiting for
+`mapkit.LookAround` is how this looked broken three times in one day:
+the getter throws rather than returning undefined, so the symptom is a
+pane that loads and never draws.
 
-## Local development without keys
+The token has to cover the host the page is served from. MapKit does
+not reject a refused token; it loads, the pane is built, and nothing is
+ever drawn in it, which is how Apple Maps went dark on `www` while the
+apex worked. `/api/geo/mapkit-token` mints one per host at runtime, and
+`npm run geo:check-mapkit` asks Apple whether a token authorizes a host
+before a deploy has to find out.
 
-The metadata endpoint is overridable and the browser SDK can be faked,
-so the whole game runs locally with no Google account:
+There is no Google errand any more. Street View was the other imagery
+and is gone (2026-09-16), along with its two keys, its billing account
+and its quota caps.
+
+## Local development
+
+Nothing here needs an account with anybody.
 
 ```bash
 cd frontend
-node scripts/geo-e2e/mock-metadata.js &          # fake Street View metadata on :3999
-GOOGLE_STREET_VIEW_API_KEY=x GOOGLE_MAPS_BROWSER_KEY=x \
-GEO_FREE_GOOGLE_ROUNDS=1000 GEO_FREE_GOOGLE_ROUNDS_PER_IP=5000 \
-GEO_FREE_GOOGLE_ROOM_GAMES=100 GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP=500 \
-GEO_STREET_VIEW_METADATA_URL=http://localhost:3999/metadata npm run dev
+GEO_TOKEN_SECRET=anything-long-enough npm run dev
 ```
 
-The meter knobs lift the play meter for one address (otherwise 25 Google
-rounds and one room a day, which the harness's rematch would hit). Put
-them in `frontend/.env` if you prefer, but note that `next/jest` loads
-that file too; the meter tests pin the knobs they depend on.
+That is a playable game. Rooms, profiles, ratings and points fall back
+to an in-memory store when `DATABASE_URL` is unset, and are forgotten
+when the process stops; set `DATABASE_URL` to keep them. Look Around
+itself needs a token that covers `localhost`, which the built-in one
+does not, so without `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN` the panorama will
+refuse and say so. Script mode needs no imagery at all and is the way to
+exercise the round flow without one.
 
-The page will still try to load the real Maps JavaScript API with the
-dummy browser key, so for a full run use the browser harness, which
-serves `scripts/geo-e2e/fake-maps.js` in its place:
+For a full run of every screen, the browser harness replaces MapKit JS
+with a fake, so the imagery is not a dependency:
 
 ```bash
 npm i --no-save playwright-core                  # not a project dependency
+DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
 node scripts/geo-e2e/run.js                      # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
+GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario
 ```
 
-It plays a three-round pin game with the keyboard shortcuts, checks the
-summary, the share page and a seeded replay, then a Kidnapped round
-where the car drives itself and stops at the guess, a country streak, a
-timed NMPZ round that runs out, the mobile map sheet, a two-browser
-room, the daily board and the profile page. It fails on any page error. Unit tests for everything below the browser:
-`npx jest __tests__/geo __tests__/api/geo-routes.test.js`.
-
-The Content Security Policy in `middleware.js` allows the Maps
-JavaScript API hosts (`maps.googleapis.com`, `maps.gstatic.com`); that
-line is what the browser harness caught missing.
+Sixteen scenarios: the cold open, the admin backend, a pin game with
+keyboard shortcuts, a country streak, a timed NMPZ round that runs out,
+the mobile map sheet, a two-browser room played to standings and a
+rematch, a solo game on Look Around, a room on it, a refused token, a
+Not Earth round called right and called wrong, the first-run screen, the
+daily board, the ranked board, the profile and its shop, and a script
+game with and without a map key. The ones that write to the database
+need `DATABASE_URL`.
 
 ## Terms that shape the design
 
-- Google's terms bar showing Street View imagery and a non-Google map on
-  the same screen, so the guess map in Google games is a Google map, and
-  the Apple mode uses a MapKit map. The two never share a screen.
-- Google's logo and copyright line are drawn by the panorama and must stay
-  visible. The HUD keeps clear of the bottom edge; the corner map sits
-  above it.
-- No caching of imagery or panorama ids: every round probes live.
-- Apple Look Around covers city streets in 23 countries and nothing
-  outside them, so every Apple mode is a draw from the city list; "City
-  streets" as a named mode is the Google one.
+- Apple's logo and copyright are drawn by Look Around itself and must
+  stay visible. The HUD keeps clear of the bottom edge; the corner map
+  sits above it.
+- Look Around covers city streets in 23 countries and nothing outside
+  them, so every mode is a draw from the city list. The line that once
+  said the guess map and the panorama had to come from the same company
+  went with the other company.
+- The NASA panoramas a Not Earth round serves are public domain, and the
+  reveal credits them anyway, by name and with a link to the original.
 
 ## Files
 
