@@ -16,8 +16,8 @@ import PlayerName from '../PlayerName';
 
 export function Panel({ children, wide = false }) {
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-midnight-950/95 p-4">
-      <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-2xl border border-white/10 bg-midnight-900 p-5 text-white shadow-2xl sm:p-6`}>{children}</div>
+    <div className="absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-ocean-950/95 p-4">
+      <div className={`w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-2xl border border-white/10 bg-ocean-900 p-5 text-white shadow-2xl sm:p-6`}>{children}</div>
     </div>
   );
 }
@@ -43,7 +43,7 @@ export function RoomSummary({ room, countries }) {
   if (room.config.provider && room.config.provider !== PRIMARY_PROVIDER) parts.push(PROVIDERS[room.config.provider]?.label || room.config.provider);
   return (
     <p className="text-sm text-white/70">
-      <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-flash-300">{VARIANTS[room.variant]?.label || room.variant}</span>{' '}
+      <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-clay-300">{VARIANTS[room.variant]?.label || room.variant}</span>{' '}
       {parts.join('. ')}.
     </p>
   );
@@ -72,7 +72,7 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
         <div className="mt-4">
           <p className="text-white/80">This game is over.</p>
           {room.rematchCode ? (
-            <Link href={`/geo/room/${room.rematchCode}`} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 font-bold text-midnight-900 hover:bg-flash-500">
+            <Link href={`/geo/room/${room.rematchCode}`} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 font-bold text-white hover:bg-clay-600">
               <RefreshCw className="h-4 w-4" />
               Join the rematch
             </Link>
@@ -97,11 +97,11 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
             maxLength={20}
             placeholder="Your name"
             aria-label="Your name"
-            className="flex-1 rounded-xl border border-white/15 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-flash-400 focus:outline-none"
+            className="flex-1 rounded-xl border border-white/15 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-clay-500 focus:outline-none"
             style={{ backgroundColor: 'rgba(2, 6, 23, 0.85)', color: '#ffffff' }}
             autoFocus
           />
-          <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-flash-400 px-5 py-2.5 font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
+          <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-clay-500 px-5 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
             {busy ? 'Joining' : room.status === 'playing' ? 'Jump in' : 'Join'}
           </button>
         </form>
@@ -129,9 +129,9 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
             <RoomSummary room={room} countries={countries} />
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-midnight-950/60 p-3 text-center">
+        <div className="rounded-2xl border border-white/10 bg-ocean-950/60 p-3 text-center">
           <p className="text-[11px] uppercase tracking-wide text-white/50">Join code</p>
-          <p className="text-3xl font-bold tracking-[0.3em] text-flash-300">{room.code}</p>
+          <p className="text-3xl font-bold tracking-[0.3em] text-clay-300">{room.code}</p>
           <div className="mt-2 flex justify-center gap-2">
             <button type="button" onClick={() => copy('code', room.code)} className="flex items-center gap-1 rounded-lg border border-white/20 px-2 py-1 text-xs font-semibold hover:bg-white/10">
               {copied === 'code' ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
@@ -155,7 +155,7 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {me?.isHost ? (
-          <button type="button" onClick={onStart} disabled={busy} className="flex items-center gap-2 rounded-xl bg-flash-400 px-5 py-2.5 font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
+          <button type="button" onClick={onStart} disabled={busy} className="flex items-center gap-2 rounded-xl bg-clay-500 px-5 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
             <Play className="h-4 w-4" />
             {busy ? 'Starting' : state.players.length < 2 ? 'Start anyway' : 'Start the game'}
           </button>
@@ -174,8 +174,8 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
 
 export function LoadingPanel({ state }) {
   return (
-    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-midnight-950/95 text-center text-white" role="status" aria-live="polite">
-      <RefreshCw className="h-9 w-9 animate-spin text-flash-400" />
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center text-white" role="status" aria-live="polite">
+      <RefreshCw className="h-9 w-9 animate-spin text-clay-500" />
       <p className="mt-4 text-lg font-semibold">Round {state.room.roundIndex + 2 > state.room.roundsTotal ? state.room.roundsTotal : state.room.roundIndex + 2}</p>
       <p className="mt-1 text-sm text-white/70">Finding a place with imagery for everyone</p>
     </div>
@@ -186,8 +186,8 @@ export function LoadingPanel({ state }) {
 export function LocatingPanel({ state, attempt = 0 }) {
   const total = state.locating?.candidates?.length || 0;
   return (
-    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-midnight-950/95 text-center text-white" role="status" aria-live="polite">
-      <RefreshCw className="h-9 w-9 animate-spin text-flash-400" />
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center text-white" role="status" aria-live="polite">
+      <RefreshCw className="h-9 w-9 animate-spin text-clay-500" />
       <p className="mt-4 text-lg font-semibold">
         Round {state.room.roundIndex + 1} of {state.room.roundsTotal}
       </p>
@@ -209,7 +209,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
   const mine = reveal?.guesses.find((g) => g.playerId === me?.id);
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-40 max-h-[46%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-midnight-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[40%]">
+    <div className="absolute inset-x-0 bottom-0 z-40 max-h-[46%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[40%]">
       <div className="mx-auto max-w-3xl p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -231,7 +231,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             {onReact ? <ReactionsBar onReact={onReact} disabled={busy} emoji={state.me?.reactions || REACTION_EMOJI} /> : null}
             <span className="text-sm text-white/60">{last ? 'Results' : 'Next round'} in {secondsLeft}s</span>
             {me?.isHost ? (
-              <button type="button" onClick={onNext} disabled={busy} className="flex items-center gap-1 rounded-xl bg-flash-400 px-3 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
+              <button type="button" onClick={onNext} disabled={busy} className="flex items-center gap-1 rounded-xl bg-clay-500 px-3 py-2 text-sm font-bold text-white hover:bg-clay-600 disabled:opacity-50">
                 <SkipForward className="h-4 w-4" />
                 Now
               </button>
@@ -248,7 +248,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
                 <PlayerBadge player={p} size="sm" />
                 <span className="flex-1 truncate">{p.name}</span>
                 <span className="w-24 text-right text-white/70">{g.timedOut ? 'no guess' : formatDistance(g.distanceKm)}</span>
-                <span className="w-16 text-right font-semibold tabular-nums text-flash-300">{formatScore(g.score)}</span>
+                <span className="w-16 text-right font-semibold tabular-nums text-clay-300">{formatScore(g.score)}</span>
                 {isDuel ? <span className={`w-16 text-right text-xs ${g.damage ? 'text-red-300' : 'text-green-400'}`}>{g.damage ? `-${g.damage}` : 'safe'}</span> : null}
               </li>
             );
@@ -289,7 +289,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
         {winner?.you ? '. That is you.' : ''}
       </h1>
       {me && (players.find((p) => p.you)?.pointsEarned || 0) > 0 ? (
-        <p className="mt-1 text-sm text-flash-300">+{players.find((p) => p.you).pointsEarned} points for you this game.</p>
+        <p className="mt-1 text-sm text-clay-300">+{players.find((p) => p.you).pointsEarned} points for you this game.</p>
       ) : null}
       <div className="mt-4 flex items-end justify-center gap-3">
         {standings.slice(0, 3).map((p, i) => (
@@ -307,13 +307,13 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">
         {me?.isHost && !room.rematchCode ? (
-          <button type="button" onClick={onRematch} disabled={busy} className="flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2.5 font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
+          <button type="button" onClick={onRematch} disabled={busy} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
             <RefreshCw className="h-4 w-4" />
             Play again, same settings
           </button>
         ) : null}
         {room.rematchCode ? (
-          <Link href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || '')}`} className="flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2.5 font-bold text-midnight-900 hover:bg-flash-500">
+          <Link href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || '')}`} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 font-bold text-white hover:bg-clay-600">
             <RefreshCw className="h-4 w-4" />
             Join the rematch
           </Link>
@@ -355,7 +355,7 @@ export function ReactionsBar({ onReact, disabled, emoji = REACTION_EMOJI }) {
     }
   };
   return (
-    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-midnight-900/80 p-1 backdrop-blur">
+    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-ocean-900/80 p-1 backdrop-blur">
       {emoji.map((e) => (
         <button
           key={e}
@@ -394,7 +394,7 @@ export function ReactionToasts({ reactions, players }) {
       {shown.map((r, i) => {
         const p = byId[r.p];
         return (
-          <div key={`${r.at}-${i}`} className="flex items-center gap-1.5 rounded-full border border-white/15 bg-midnight-900/85 px-3 py-1 text-sm shadow-lg backdrop-blur">
+          <div key={`${r.at}-${i}`} className="flex items-center gap-1.5 rounded-full border border-white/15 bg-ocean-900/85 px-3 py-1 text-sm shadow-lg backdrop-blur">
             <span className="text-lg">{r.e}</span>
             <span className="font-semibold" style={{ color: p?.color || '#fff' }}>{r.n}</span>
           </div>

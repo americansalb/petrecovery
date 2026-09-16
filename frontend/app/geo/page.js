@@ -1,11 +1,15 @@
 'use client';
 
 /**
- * /geo: the lobby. Pick a provider, a mode and the rules, then play.
+ * /geo: the front door.
+ *
+ * It used to be the lobby, which was a settings form (see
+ * docs/PROBABLY_EARTH_UI.md). The settings moved to /geo/setup and this
+ * is now one button on a picture of the world.
  */
 
-import GeoLobby from './components/GeoLobby';
+import ColdOpen from './components/home/ColdOpen';
 
 export default function GeoPage() {
-  return <GeoLobby />;
+  return <ColdOpen />;
 }

@@ -12,7 +12,7 @@ import PlayClient from '../components/PlayClient';
 
 export default function GeoPlayPage() {
   return (
-    <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center bg-midnight-950 text-white/70">Loading</div>}>
+    <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ocean-950 text-white/70">Loading</div>}>
       <PlayClient />
     </Suspense>
   );

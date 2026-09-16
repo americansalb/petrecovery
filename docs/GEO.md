@@ -1015,6 +1015,61 @@ Apple needs nothing: `/api/geo/mapkit-token` mints per host and
 probablyearth.com is on its allowlist, so MapKit draws there from the
 first request.
 
+
+## Accounts: guest, signed in, role, tier
+
+Three layers, decided by the founder on 2026-09-16, deliberately
+independent of each other (`app/lib/geo/server/roles.js`).
+
+**Guest or signed in.** A browser plays with no account at all. Signing
+in binds that browser's play profile to an email so the history, the
+rating and the badges survive a new device. Nothing about the game is
+withheld from a guest: the account is for keeping, not for unlocking.
+
+**Role**: `player`, `host`, `admin`. What the account may DO. A host can
+run rooms for a group; an admin reaches `/geo/admin`.
+
+**Tier**: `free`, `supporter`. What the account has PAID for. What
+supporter is worth is one table, `TIER_BENEFITS`: more Google rounds,
+more room games, private rooms, longer history. No mode, map or ladder
+sits behind it. A free account and a supporter play the same game.
+
+Role and tier are separate because collapsing them is how "paid for it"
+quietly becomes "allowed to moderate". A teacher running a class is a
+host on the free tier; somebody who plays daily and pays for it is a
+supporter who is still an ordinary player.
+
+Neither is ever sealed into the session cookie. A role inside a token is
+a role somebody keeps after it is revoked, and a tier inside one
+outlives the month it was paid for, so both are read from the row on
+every request. A `tierUntil` in the past is `free` at the moment it
+passes, with no job having to sweep anything.
+
+`suspendedAt` is moderation. A suspended account cannot sign in (the
+link is still burned, so an old one cannot be clicked twice) and can do
+nothing signed in. The browser can still play as a guest, because this
+suspends an account rather than banning a person.
+
+### The backend
+
+`/geo/admin`, served by `/api/geo/admin/*` and guarded by
+`app/lib/geo/server/admin.js`. Site figures, accounts with role, tier
+and suspension, and the rooms being played.
+
+Every route calls `requireAdmin` before it reads anything. The guard
+asks the database rather than the cookie, refuses a suspended account
+before it considers the role at all, and an admin cannot suspend
+themselves out of their own backend. The reads name their columns:
+nothing there returns a token hash, a sealed session or a sign-in link.
+
+**The first admin comes from `GEO_ADMIN_EMAILS`**, because only an admin
+can promote an admin. It is checked live rather than copied into the
+row, so removing an address removes the access.
+
+Covered by `__tests__/geo/roles.test.js` and the harness's `admin`
+scenario, which signs in by following a real link and checks that a
+player who types the URL is refused and shown why.
+
 ## Hosting on another domain
 
 The game is self-contained under `/geo` and `/api/geo` with its own tables,

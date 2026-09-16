@@ -56,8 +56,8 @@ export default function GeoSharePage({ searchParams }) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="text-2xl font-bold">That result link is not one of ours</h1>
-        <p className="mt-2 text-midnight-600">{LOBBY_DESCRIPTION}</p>
-        <Link href="/geo" className="mt-6 inline-block rounded-xl bg-flash-400 px-6 py-3 font-bold text-midnight-900 hover:bg-flash-500">
+        <p className="mt-2 text-sand-600">{LOBBY_DESCRIPTION}</p>
+        <Link href="/geo" className="mt-6 inline-block rounded-xl bg-clay-500 px-6 py-3 font-bold text-white hover:bg-clay-600">
           Play Probably Earth
         </Link>
       </div>
@@ -72,12 +72,12 @@ export default function GeoSharePage({ searchParams }) {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
-      <p className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Probably Earth</p>
+      <p className="text-sm font-semibold uppercase tracking-wide text-sand-500">Probably Earth</p>
       <h1 className="mt-1 text-4xl font-bold tabular-nums">
         {isStreak ? summaryHeadline(summary) : formatScore(summary.total)}
-        {!isStreak ? <span className="text-lg font-medium text-midnight-500"> of {formatScore(max)} points</span> : null}
+        {!isStreak ? <span className="text-lg font-medium text-sand-500"> of {formatScore(max)} points</span> : null}
       </h1>
-      <p className="mt-2 text-midnight-700">
+      <p className="mt-2 text-sand-700">
         {describeConfig(summary.config, { regionLabel })}
         {avg !== null ? ` Average miss ${formatDistance(avg)}.` : ''}
         {summary.date ? ` Played ${summary.date}.` : ''}
@@ -97,11 +97,11 @@ export default function GeoSharePage({ searchParams }) {
 
       <div className="mt-6 flex flex-wrap gap-3">
         {summary.config.seed ? (
-          <Link href={`/geo/play?${sameParams}`} className="rounded-xl bg-flash-400 px-5 py-3 font-bold text-midnight-900 hover:bg-flash-500">
+          <Link href={`/geo/play?${sameParams}`} className="rounded-xl bg-clay-500 px-5 py-3 font-bold text-white hover:bg-clay-600">
             Play these same places
           </Link>
         ) : null}
-        <Link href="/geo" className="rounded-xl border-2 border-midnight-300 px-5 py-3 font-semibold text-midnight-800 hover:bg-midnight-100">
+        <Link href="/geo" className="rounded-xl border-2 border-sand-300 px-5 py-3 font-semibold text-sand-800 hover:bg-sand-100">
           Play Probably Earth
         </Link>
       </div>

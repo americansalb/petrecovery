@@ -72,8 +72,8 @@ function ordinal(n) {
 function Segmented({ options, value, onChange, label, format = (v) => String(v), disabled }) {
   return (
     <div>
-      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-midnight-500">{label}</p>
-      <div className="inline-flex flex-wrap gap-1 rounded-xl bg-midnight-100 p-1" role="radiogroup" aria-label={label}>
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-sand-500">{label}</p>
+      <div className="inline-flex flex-wrap gap-1 rounded-xl bg-sand-100 p-1" role="radiogroup" aria-label={label}>
         {options.map((option) => (
           <button
             key={String(option)}
@@ -82,7 +82,7 @@ function Segmented({ options, value, onChange, label, format = (v) => String(v),
             aria-checked={value === option}
             disabled={disabled}
             onClick={() => onChange(option)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50 ${value === option ? 'bg-midnight-900 text-white shadow' : 'text-midnight-700 hover:bg-white'}`}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50 ${value === option ? 'bg-ocean-900 text-white shadow' : 'text-sand-700 hover:bg-white'}`}
           >
             {format(option)}
           </button>
@@ -247,20 +247,21 @@ export default function GeoLobby() {
   };
 
   return (
-    <div className="min-h-screen bg-midnight-50 text-midnight-900">
+    <div className="min-h-screen bg-sand-50 text-sand-900">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Probably Earth</h1>
-            <p className="mt-2 max-w-2xl text-midnight-600">
-              You are dropped at a random spot with street-level imagery. Look around, then put a pin on the map. Up to 5,000 points a round, depending on how close you are.
+            <p className="text-xs font-semibold uppercase tracking-widest text-clay-600">Probably Earth</p>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Set up a game</h1>
+            <p className="mt-2 max-w-2xl text-sand-600">
+              Where you get dropped and what the rules are. Kept in this browser, so choosing once is enough.
             </p>
           </div>
           <button
             type="button"
             onClick={() => start()}
             disabled={!configured}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-flash-400 px-6 py-3 text-base font-bold text-midnight-900 shadow-sm transition hover:bg-flash-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-clay-500 px-6 py-3 text-base font-bold text-white shadow-sm transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Play className="h-5 w-5" />
             Play
@@ -273,29 +274,29 @@ export default function GeoLobby() {
             soon as there is a game in this browser's history, so it is
             never in the way of somebody who already knows. */}
         {stats && !stats.games ? (
-          <section className="mt-6 rounded-2xl border border-midnight-200 bg-white p-5" data-first-run>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">How it works</h2>
+          <section className="mt-6 rounded-2xl border border-sand-200 bg-white p-5" data-first-run>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">How it works</h2>
             <ol className="mt-3 grid gap-3 sm:grid-cols-3">
-              <li className="rounded-xl bg-midnight-50 p-3">
+              <li className="rounded-xl bg-sand-50 p-3">
                 <p className="font-semibold">You are somewhere</p>
-                <p className="mt-1 text-sm text-midnight-600">
+                <p className="mt-1 text-sm text-sand-600">
                   A street, anywhere in the world. Look around, walk, read the signs.
                 </p>
               </li>
-              <li className="rounded-xl bg-midnight-50 p-3">
+              <li className="rounded-xl bg-sand-50 p-3">
                 <p className="font-semibold">You place a pin</p>
-                <p className="mt-1 text-sm text-midnight-600">
+                <p className="mt-1 text-sm text-sand-600">
                   On the map, where you think you are. There is no wrong answer, only a distance.
                 </p>
               </li>
-              <li className="rounded-xl bg-midnight-50 p-3">
+              <li className="rounded-xl bg-sand-50 p-3">
                 <p className="font-semibold">Closer is worth more</p>
-                <p className="mt-1 text-sm text-midnight-600">
+                <p className="mt-1 text-sm text-sand-600">
                   Up to {formatScore(MAX_ROUND_SCORE)} a round. Five rounds a game, so {formatScore(MAX_ROUND_SCORE * 5)} is perfect.
                 </p>
               </li>
             </ol>
-            <p className="mt-3 text-sm text-midnight-600">
+            <p className="mt-3 text-sm text-sand-600">
               Play as much as you like without an account. Ranked puts you against everyone else playing this hour and
               gives you a rating; everything else is for fun.
             </p>
@@ -312,8 +313,8 @@ export default function GeoLobby() {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="space-y-6">
             {/* Provider */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Imagery</h2>
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Imagery</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {Object.values(PROVIDERS).map((p) => (
                   <button
@@ -321,24 +322,24 @@ export default function GeoLobby() {
                     type="button"
                     onClick={() => setProvider(p.id)}
                     aria-pressed={provider === p.id}
-                    className={`rounded-xl border-2 p-3 text-left transition ${provider === p.id ? 'border-midnight-900 bg-midnight-900 text-white' : 'border-midnight-200 hover:border-midnight-400'}`}
+                    className={`rounded-xl border-2 p-3 text-left transition ${provider === p.id ? 'border-ocean-900 bg-ocean-900 text-white' : 'border-sand-200 hover:border-sand-400'}`}
                   >
                     <p className="font-semibold">
                       {p.label}
-                      {p.beta ? <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${provider === p.id ? 'bg-flash-400 text-midnight-900' : 'bg-midnight-100 text-midnight-600'}`}>beta</span> : null}
+                      {p.beta ? <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${provider === p.id ? 'bg-clay-500 text-white' : 'bg-sand-100 text-sand-600'}`}>beta</span> : null}
                     </p>
-                    <p className={`mt-0.5 text-sm ${provider === p.id ? 'text-white/75' : 'text-midnight-600'}`}>{p.description}</p>
+                    <p className={`mt-0.5 text-sm ${provider === p.id ? 'text-white/75' : 'text-sand-600'}`}>{p.description}</p>
                   </button>
                 ))}
               </div>
-              <p className="mt-3 text-xs text-midnight-600">
+              <p className="mt-3 text-xs text-sand-600">
                 Apple Look Around covers city streets in {APPLE_COVERAGE.size} countries: {appleCoverageSentence()}.
               </p>
             </section>
 
             {/* Mode */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Mode</h2>
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Mode</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Mode">
                 {MODE_ORDER.filter((id) => MODES[id].providers.includes(provider)).map((id) => {
                   const m = MODES[id];
@@ -350,10 +351,10 @@ export default function GeoLobby() {
                       role="radio"
                       aria-checked={active}
                       onClick={() => setMode(id)}
-                      className={`rounded-xl border-2 p-3 text-left transition ${active ? 'border-flash-400 bg-flash-50' : 'border-midnight-200 hover:border-midnight-400'}`}
+                      className={`rounded-xl border-2 p-3 text-left transition ${active ? 'border-clay-500 bg-clay-50' : 'border-sand-200 hover:border-sand-400'}`}
                     >
                       <p className="font-semibold">{m.label}</p>
-                      <p className="mt-0.5 text-sm text-midnight-600">{modeDescription(id, provider)}</p>
+                      <p className="mt-0.5 text-sm text-sand-600">{modeDescription(id, provider)}</p>
                     </button>
                   );
                 })}
@@ -361,7 +362,7 @@ export default function GeoLobby() {
               {modeDef.needs === 'continent' ? (
                 <label className="mt-4 block text-sm">
                   <span className="mb-1 block font-semibold">Continent</span>
-                  <select value={continent} onChange={(e) => setContinent(e.target.value)} className="w-full max-w-xs rounded-xl border border-midnight-300 bg-white px-3 py-2">
+                  <select value={continent} onChange={(e) => setContinent(e.target.value)} className="w-full max-w-xs rounded-xl border border-sand-300 bg-white px-3 py-2">
                     {CONTINENT_ORDER.filter(continentCovered).map((id) => (
                       <option key={id} value={id}>
                         {CONTINENTS[id].label}
@@ -373,7 +374,7 @@ export default function GeoLobby() {
               {modeDef.needs === 'country' ? (
                 <label className="mt-4 block text-sm">
                   <span className="mb-1 block font-semibold">Country</span>
-                  <select value={country} onChange={(e) => setCountry(e.target.value)} className="w-full max-w-xs rounded-xl border border-midnight-300 bg-white px-3 py-2">
+                  <select value={country} onChange={(e) => setCountry(e.target.value)} className="w-full max-w-xs rounded-xl border border-sand-300 bg-white px-3 py-2">
                     {countries.map((c) => (
                       <option key={c.code} value={c.code}>
                         {c.flag} {c.name}
@@ -387,10 +388,10 @@ export default function GeoLobby() {
             </section>
 
             {/* Rules */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Rules</h2>
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Rules</h2>
               {fixed || driven ? (
-                <p className="mt-2 text-sm text-midnight-600">
+                <p className="mt-2 text-sm text-sand-600">
                   {config.mode === 'cup'
                     ? 'The weekly cup uses fixed rules so scores compare: 10 rounds, 60 seconds each, No Move.'
                     : config.mode === 'daily'
@@ -403,17 +404,17 @@ export default function GeoLobby() {
                 <Segmented label="Time per round" options={TIME_OPTIONS} value={config.time} onChange={setTime} format={timeLabel} disabled={fixed || driven} />
                 <div>
                   <Segmented label="Format" options={FORMAT_ORDER} value={format} onChange={setFormat} format={(id) => FORMATS[id].label} disabled={fixed || driven} />
-                  <p className="mt-1.5 text-xs text-midnight-600">{driven ? 'Driven: no steering, look around, no zoom.' : FORMATS[format].description}</p>
+                  <p className="mt-1.5 text-xs text-sand-600">{driven ? 'Driven: no steering, look around, no zoom.' : FORMATS[format].description}</p>
                 </div>
                 {config.provider === 'google' && config.mode !== 'cities' ? (
                   <div>
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-midnight-500">How random</p>
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-sand-500">How random</p>
                     <div className="space-y-1">
                       {Object.values(RADIUS_PRESETS).map((preset) => (
                         <label key={preset.id} className={`flex cursor-pointer items-start gap-2 text-sm ${fixed ? 'opacity-50' : ''}`}>
-                          <input type="radio" name="radius" checked={config.radius === preset.id} disabled={fixed} onChange={() => setRadius(preset.id)} className="mt-1 text-midnight-900 focus:ring-flash-400" />
+                          <input type="radio" name="radius" checked={config.radius === preset.id} disabled={fixed} onChange={() => setRadius(preset.id)} className="mt-1 text-sand-900 focus:ring-clay-500" />
                           <span>
-                            <span className="font-semibold">{preset.label}</span> <span className="text-midnight-600">{preset.description}</span>
+                            <span className="font-semibold">{preset.label}</span> <span className="text-sand-600">{preset.description}</span>
                           </span>
                         </label>
                       ))}
@@ -428,20 +429,20 @@ export default function GeoLobby() {
                 type="button"
                 onClick={() => start()}
                 disabled={!configured}
-                className="inline-flex items-center gap-2 rounded-xl bg-flash-400 px-6 py-3 text-base font-bold text-midnight-900 shadow-sm transition hover:bg-flash-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-clay-500 px-6 py-3 text-base font-bold text-white shadow-sm transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Play className="h-5 w-5" />
                 Play {modeDef.short.toLowerCase()}
               </button>
-              <p className="text-sm text-midnight-600">Every game gets a seed. After it ends you can send a link that plays the same places.</p>
+              <p className="text-sm text-sand-600">Every game gets a seed. After it ends you can send a link that plays the same places.</p>
             </div>
           </div>
 
           <aside className="space-y-6">
             {/* The other game. It was reachable only from the subtab
                 row, which meant most people never found out it existed. */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Languages className="h-4 w-4" />
                 Script
               </h2>
@@ -452,7 +453,7 @@ export default function GeoLobby() {
               <p className="mt-2 text-sm text-gray-500">No imagery, so it does not touch your Street View allowance.</p>
               <Link
                 href="/geo/script"
-                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-bold text-white hover:bg-midnight-800"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ocean-900 px-4 py-2 text-sm font-bold text-white hover:bg-ocean-800"
               >
                 <Languages className="h-4 w-4" />
                 Play Script
@@ -460,14 +461,14 @@ export default function GeoLobby() {
             </section>
 
             {/* Rooms */}
-            <section className="rounded-2xl border border-midnight-900 bg-midnight-900 p-5 text-white">
+            <section className="rounded-2xl border border-ocean-900 bg-ocean-900 p-5 text-white">
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
                 <Users className="h-4 w-4" />
                 Play with friends
               </h2>
               <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP. Rooms on Apple Look Around are free without limit; one room a day on Google Street View is free.</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link href="/geo/rooms" className="inline-flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500">
+                <Link href="/geo/rooms" className="inline-flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600">
                   <Users className="h-4 w-4" />
                   Rooms
                 </Link>
@@ -493,22 +494,22 @@ export default function GeoLobby() {
             </section>
 
             {/* Rating */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Medal className="h-4 w-4" />
                 Your rating
               </h2>
               {profile ? (
                 <>
-                  <p className="mt-2 text-sm text-midnight-700">
-                    <span className="font-semibold text-midnight-900" style={profile.equipped?.color ? { color: profile.equipped.color } : undefined}>
+                  <p className="mt-2 text-sm text-sand-700">
+                    <span className="font-semibold text-sand-900" style={profile.equipped?.color ? { color: profile.equipped.color } : undefined}>
                       {profile.name || 'Player'}
                     </span>
-                    {profile.equipped?.title ? <span className="ml-1.5 rounded-full bg-midnight-100 px-1.5 text-[10px] font-bold uppercase tracking-wide text-midnight-600">{profile.equipped.title}</span> : null}
+                    {profile.equipped?.title ? <span className="ml-1.5 rounded-full bg-sand-100 px-1.5 text-[10px] font-bold uppercase tracking-wide text-sand-600">{profile.equipped.title}</span> : null}
                     {profile.signedIn ? ', on your account' : ', in this browser'}
                   </p>
-                  <p className="mt-1 text-sm text-midnight-700">
-                    <span className="font-semibold text-midnight-900">{formatScore(profile.points || 0)}</span> points
+                  <p className="mt-1 text-sm text-sand-700">
+                    <span className="font-semibold text-sand-900">{formatScore(profile.points || 0)}</span> points
                     {profile.badges?.length ? `, ${profile.badges.length} country ${profile.badges.length === 1 ? 'badge' : 'badges'}` : ''}.{' '}
                     <Link href="/geo/me" className="underline">
                       Profile and shop
@@ -519,11 +520,11 @@ export default function GeoLobby() {
                       const r = profile.ratings?.[ladder] || {};
                       return (
                         <div key={ladder}>
-                          <dt className="text-midnight-500">{VARIANTS[ladder]?.label || ladder}</dt>
+                          <dt className="text-sand-500">{VARIANTS[ladder]?.label || ladder}</dt>
                           <dd className="text-lg font-bold tabular-nums">
-                            {r.value ?? 1500} <span className="text-xs font-semibold text-midnight-500">{r.tier || 'Silver'}</span>
+                            {r.value ?? 1500} <span className="text-xs font-semibold text-sand-500">{r.tier || 'Silver'}</span>
                           </dd>
-                          <dd className="text-xs text-midnight-500">
+                          <dd className="text-xs text-sand-500">
                             {r.games || 0} rated {r.games === 1 ? 'game' : 'games'}
                             {r.provisional ? ', provisional' : ''}
                           </dd>
@@ -532,10 +533,10 @@ export default function GeoLobby() {
                     })}
                   </dl>
                   {profile.recent?.length ? (
-                    <ul className="mt-3 divide-y divide-midnight-100 text-sm">
+                    <ul className="mt-3 divide-y divide-sand-100 text-sm">
                       {profile.recent.slice(0, 5).map((g) => (
                         <li key={g.roomId} className="flex items-center justify-between gap-2 py-1.5">
-                          <span className="truncate text-midnight-700">
+                          <span className="truncate text-sand-700">
                             {VARIANTS[g.ladder]?.label || g.ladder}, {ordinal(g.placement)} of {g.players}
                           </span>
                           <span className={`font-semibold tabular-nums ${g.delta >= 0 ? 'text-green-700' : 'text-red-700'}`}>
@@ -546,11 +547,11 @@ export default function GeoLobby() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-2 text-sm text-midnight-600">No rated games yet. A room counts once it finishes with two or more rated players.</p>
+                    <p className="mt-2 text-sm text-sand-600">No rated games yet. A room counts once it finishes with two or more rated players.</p>
                   )}
                 </>
               ) : (
-                <p className="mt-2 text-sm text-midnight-600">
+                <p className="mt-2 text-sm text-sand-600">
                   Every round earns points, a guess within 100 km earns the country&apos;s badge, and rooms are rated. Your rating, points and badges show here and on the{' '}
                   <Link href="/geo/me" className="underline">
                     profile
@@ -561,35 +562,35 @@ export default function GeoLobby() {
             </section>
 
             {/* Today's meter */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Gauge className="h-4 w-4" />
                 Today
               </h2>
               {profile?.usage ? (
                 <>
-                  <p className="mt-2 text-sm text-midnight-700">
-                    <span className="font-semibold text-midnight-900">
+                  <p className="mt-2 text-sm text-sand-700">
+                    <span className="font-semibold text-sand-900">
                       {profile.usage.google.freeUsed} of {profile.usage.google.freeLimit}
                     </span>{' '}
                     free Google Street View rounds used.
                     {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''}
                   </p>
-                  <p className="mt-1 text-sm text-midnight-700">{roomGamesText(profile.usage.google.roomGames)}</p>
-                  <p className="mt-1 text-sm text-midnight-600">Apple Look Around: no limit. The daily challenge and the weekly cup do not count.</p>
+                  <p className="mt-1 text-sm text-sand-700">{roomGamesText(profile.usage.google.roomGames)}</p>
+                  <p className="mt-1 text-sm text-sand-600">Apple Look Around: no limit. The daily challenge and the weekly cup do not count.</p>
                 </>
               ) : (
-                <p className="mt-2 text-sm text-midnight-600">{allowanceText({ ...DEFAULT_LIMITS, ...(server?.limits || {}) })}</p>
+                <p className="mt-2 text-sm text-sand-600">{allowanceText({ ...DEFAULT_LIMITS, ...(server?.limits || {}) })}</p>
               )}
             </section>
 
             {/* Ranked */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Trophy className="h-4 w-4" />
                 Ranked
               </h2>
-              <p className="mt-2 text-sm text-midnight-700">
+              <p className="mt-2 text-sm text-sand-700">
                 Five places on a 60 second clock, the same for everyone playing this hour. Your score is set against
                 theirs and the result moves your rating. Five games to be placed.
               </p>
@@ -597,14 +598,14 @@ export default function GeoLobby() {
                 type="button"
                 onClick={() => start({ mode: 'ranked' })}
                 disabled={!server?.providers?.[PRIMARY_PROVIDER]?.configured}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50"
                 data-start-ranked
               >
                 <Play className="h-4 w-4" />
                 Play this hour&apos;s five
               </button>
               {solo ? (
-                <p className="mt-3 border-t border-midnight-100 pt-3 text-sm text-midnight-700" data-ranked-standing>
+                <p className="mt-3 border-t border-sand-100 pt-3 text-sm text-sand-700" data-ranked-standing>
                   {solo.provisional
                     ? `${solo.games} of ${PROVISIONAL_GAMES} placement games played.`
                     : `${solo.tier}, ${Math.round(solo.rating)}. ${solo.games} ranked games.`}
@@ -613,12 +614,12 @@ export default function GeoLobby() {
             </section>
 
             {/* Daily */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <CalendarDays className="h-4 w-4" />
                 Daily challenge
               </h2>
-              <p className="mt-2 text-sm text-midnight-700">
+              <p className="mt-2 text-sm text-sand-700">
                 Five places on {PROVIDERS[PRIMARY_PROVIDER].label}, the same for everyone{server?.daily?.date ? ` on ${server.daily.date}` : ' today'}.
                 {PRIMARY_PROVIDER === 'google' ? ' Free, and it does not count against your Google rounds.' : ' Free.'}
               </p>
@@ -626,14 +627,14 @@ export default function GeoLobby() {
                 type="button"
                 onClick={() => start({ mode: 'daily' })}
                 disabled={!server?.providers?.[PRIMARY_PROVIDER]?.configured}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50"
               >
-                {stats?.dailyPlayed ? <Check className="h-4 w-4 text-flash-400" /> : <Play className="h-4 w-4" />}
+                {stats?.dailyPlayed ? <Check className="h-4 w-4 text-clay-500" /> : <Play className="h-4 w-4" />}
                 {stats?.dailyPlayed ? 'Play today again' : "Play today's five"}
               </button>
               {daily ? (
-                <div className="mt-4 border-t border-midnight-100 pt-3" data-daily-board>
-                  <p className="text-sm text-midnight-700">
+                <div className="mt-4 border-t border-sand-100 pt-3" data-daily-board>
+                  <p className="text-sm text-sand-700">
                     {daily.you?.rank
                       ? `You are ${ordinal(daily.you.rank)} of ${daily.finished} who finished today.`
                       : daily.you
@@ -646,8 +647,8 @@ export default function GeoLobby() {
                     <ol className="mt-2 space-y-0.5 text-sm">
                       {daily.board.slice(0, 5).map((row) => (
                         <li key={row.profileId} className="flex items-center gap-2">
-                          <span className="w-5 tabular-nums text-midnight-400">{row.rank}</span>
-                          <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} className="flex-1 text-midnight-800" />
+                          <span className="w-5 tabular-nums text-sand-400">{row.rank}</span>
+                          <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} className="flex-1 text-sand-800" />
                           <span className="font-semibold tabular-nums">{formatScore(row.total)}</span>
                         </li>
                       ))}
@@ -658,29 +659,29 @@ export default function GeoLobby() {
             </section>
 
             {/* Weekly cup */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5" data-cup-board>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5" data-cup-board>
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Trophy className="h-4 w-4" />
                 Weekly cup
               </h2>
-              <p className="mt-2 text-sm text-midnight-700">
+              <p className="mt-2 text-sm text-sand-700">
                 Ten places on {PROVIDERS[PRIMARY_PROVIDER].label}, 60 seconds each, the same for everyone this week.
                 {PRIMARY_PROVIDER === 'google' ? ' Free, outside your Google rounds.' : ' Free.'}
                 {cup?.endsAt ? ` Ends ${untilText(cup.endsAt)}.` : ''}
               </p>
-              <p className="mt-1 text-xs text-midnight-500">Prizes in points: 300, 200 and 100 for the top three, 50 for the rest of the top ten, 20 for finishing.</p>
+              <p className="mt-1 text-xs text-sand-500">Prizes in points: 300, 200 and 100 for the top three, 50 for the rest of the top ten, 20 for finishing.</p>
               <button
                 type="button"
                 onClick={() => start({ mode: 'cup' })}
                 disabled={!server?.providers?.[PRIMARY_PROVIDER]?.configured}
-                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50"
+                className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50"
               >
                 <Play className="h-4 w-4" />
                 {cup?.you ? (cup.you.finished ? 'Play the ten again' : 'Finish the ten') : "Play this week's ten"}
               </button>
               {cup ? (
-                <div className="mt-4 border-t border-midnight-100 pt-3">
-                  <p className="text-sm text-midnight-700">
+                <div className="mt-4 border-t border-sand-100 pt-3">
+                  <p className="text-sm text-sand-700">
                     {cup.you?.rank
                       ? `You are ${ordinal(cup.you.rank)} of ${cup.finished} who finished this week.`
                       : cup.you
@@ -693,8 +694,8 @@ export default function GeoLobby() {
                     <ol className="mt-2 space-y-0.5 text-sm">
                       {cup.board.slice(0, 5).map((row) => (
                         <li key={row.profileId} className="flex items-center gap-2">
-                          <span className="w-5 tabular-nums text-midnight-400">{row.rank}</span>
-                          <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} className="flex-1 text-midnight-800" />
+                          <span className="w-5 tabular-nums text-sand-400">{row.rank}</span>
+                          <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} className="flex-1 text-sand-800" />
                           <span className="font-semibold tabular-nums">{formatScore(row.total)}</span>
                         </li>
                       ))}
@@ -705,44 +706,44 @@ export default function GeoLobby() {
             </section>
 
             {/* Stats */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Trophy className="h-4 w-4" />
                 Your games
               </h2>
               {stats && stats.games ? (
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <dt className="text-midnight-500">Played</dt>
+                    <dt className="text-sand-500">Played</dt>
                     <dd className="text-lg font-bold">{stats.games}</dd>
                   </div>
                   <div>
-                    <dt className="text-midnight-500">Best score</dt>
+                    <dt className="text-sand-500">Best score</dt>
                     <dd className="text-lg font-bold">{formatScore(stats.best)}</dd>
                   </div>
                   <div>
-                    <dt className="text-midnight-500">Average</dt>
+                    <dt className="text-sand-500">Average</dt>
                     <dd className="text-lg font-bold">{formatScore(stats.average)}</dd>
                   </div>
                   <div>
-                    <dt className="text-midnight-500">Best streak</dt>
+                    <dt className="text-sand-500">Best streak</dt>
                     <dd className="text-lg font-bold">{stats.bestStreak}</dd>
                   </div>
                 </dl>
               ) : (
-                <p className="mt-2 text-sm text-midnight-600">Nothing yet. Results stay in this browser.</p>
+                <p className="mt-2 text-sm text-sand-600">Nothing yet. Results stay in this browser.</p>
               )}
               {history.length ? (
-                <ul className="mt-4 divide-y divide-midnight-100 text-sm">
+                <ul className="mt-4 divide-y divide-sand-100 text-sm">
                   {history.map((game, i) => (
                     <li key={i} className="flex items-center justify-between gap-2 py-1.5">
-                      <span className="truncate text-midnight-700">
+                      <span className="truncate text-sand-700">
                         {MODES[game.config?.mode]?.short || game.config?.mode}
                         {game.config?.mode === 'country' ? ` ${game.config.region}` : ''}
-                        {Number.isFinite(game.avgKm) ? <span className="text-midnight-400"> {formatDistance(game.avgKm)} avg</span> : null}
+                        {Number.isFinite(game.avgKm) ? <span className="text-sand-400"> {formatDistance(game.avgKm)} avg</span> : null}
                       </span>
                       {game.code ? (
-                        <Link href={`/geo/share?s=${encodeURIComponent(game.code)}`} className="font-semibold tabular-nums text-midnight-900 underline-offset-2 hover:underline">
+                        <Link href={`/geo/share?s=${encodeURIComponent(game.code)}`} className="font-semibold tabular-nums text-sand-900 underline-offset-2 hover:underline">
                           {game.config?.mode === 'streak' ? `streak ${game.streak}` : formatScore(game.total)}
                         </Link>
                       ) : (
@@ -756,26 +757,6 @@ export default function GeoLobby() {
           </aside>
         </div>
 
-        <section className="mt-10 grid gap-6 rounded-2xl border border-midnight-200 bg-white p-5 sm:grid-cols-3">
-          <div>
-            <h3 className="font-semibold">How the spot is picked</h3>
-            <p className="mt-1 text-sm text-midnight-600">
-              On Apple Look Around the server draws a covered city, then a spot on its streets, and your browser tries the spots in order until one loads. On Google Street View it draws a random point on the globe, throws it away if it is water, then asks Street View whether official imagery exists within the radius you chose, and keeps drawing until one hits. Nothing is pre-made, so no two games repeat unless you share a seed.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold">How points work</h3>
-            <p className="mt-1 text-sm text-midnight-600">
-              5,000 for a guess within 25 metres, falling off with distance. The falloff is scaled to the area you are playing, so a 100 km miss inside one country costs more than a 100 km miss on the whole world.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold">Where the pictures come from</h3>
-            <p className="mt-1 text-sm text-midnight-600">
-              Apple Look Around or Google Street View, shown with their own logos and under their own terms. Country outlines are Natural Earth data. The answer never reaches your browser until you have guessed.
-            </p>
-          </div>
-        </section>
       </div>
     </div>
   );

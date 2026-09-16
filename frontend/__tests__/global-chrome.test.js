@@ -102,7 +102,10 @@ describe('route-chrome policy (app/lib/navChrome.js)', () => {
     expect(footer).toContain('HOME_URL');
     expect(footer).toContain('Made by ReunitePets');
     // The takeovers have their own X instead; the footer stands down.
-    expect(footer).toContain('GAME_TAKEOVER_ROUTES');
+    // Both read the same answer from site.js, so the header and the
+    // footer cannot disagree about which screens own the viewport.
+    expect(footer).toContain('isGameTakeover(pathname)) return null');
+    expect(footer).toContain("from '@/app/lib/geo/site'");
   });
 
   test('a build of the game site (NEXT_PUBLIC_SITE=geo) has no pet chrome anywhere', () => {

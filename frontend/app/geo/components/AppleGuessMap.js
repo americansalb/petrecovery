@@ -117,7 +117,7 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     }
   }, [mapkit, results, mode]);
 
-  return <div ref={containerRef} className={`h-full w-full bg-midnight-900 ${className}`} />;
+  return <div ref={containerRef} className={`h-full w-full bg-ocean-900 ${className}`} />;
 }
 
 function worldRegion(mapkit) {

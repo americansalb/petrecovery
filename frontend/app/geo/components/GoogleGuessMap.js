@@ -170,5 +170,5 @@ export default function GoogleGuessMap({ api, pin, onPin, results = [], mode = '
     }
   }, [api, results, mode, pinStyle?.style, pinStyle?.fill]);
 
-  return <div ref={containerRef} className={`h-full w-full bg-midnight-900 ${className}`} />;
+  return <div ref={containerRef} className={`h-full w-full bg-ocean-900 ${className}`} />;
 }

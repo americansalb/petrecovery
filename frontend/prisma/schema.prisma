@@ -5916,7 +5916,29 @@ model GeoAccount {
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 
+  /// What this account may do: player, host or admin
+  /// (app/lib/geo/server/roles.js). A host can open rooms beyond the
+  /// ordinary limit and run them for a group; an admin reaches
+  /// /geo/admin. Everyone starts a player, and the only way to become
+  /// an admin without one already existing is GEO_ADMIN_EMAILS.
+  role       String   @default("player")
+  /// What this account has paid for: free or supporter. The game is
+  /// playable on free; supporter is what it is worth to somebody who
+  /// plays a lot, and the tier is checked server side on every use.
+  tier       String   @default("free")
+  /// When the current tier lapses. Null on free, and null on a tier
+  /// that does not expire.
+  tierUntil  DateTime?
+  /// Set by an admin. A suspended account cannot sign in or play
+  /// signed in; the browser can still play as a guest, because this is
+  /// moderation rather than a ban on a person.
+  suspendedAt DateTime?
+  suspendedReason String?
+
   profiles GeoProfile[]
+
+  @@index([role])
+  @@index([tier])
 }
 
 /// One emailed sign-in link. The token is stored hashed, so a leak of

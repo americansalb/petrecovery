@@ -47,7 +47,7 @@ export async function generateMetadata({ params }) {
 export default function GeoRoomPage({ params }) {
   const code = normalizeRoomCode(params?.code) || String(params?.code || '').toUpperCase();
   return (
-    <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center bg-midnight-950 text-white/70">Loading the room</div>}>
+    <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ocean-950 text-white/70">Loading the room</div>}>
       <RoomClient code={code} />
     </Suspense>
   );

@@ -14,12 +14,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Globe2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Globe2, ShieldCheck } from 'lucide-react';
+import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
 export const GAME_LINKS = [
-  { href: '/geo', label: 'Play', exact: true },
+  { href: '/geo/setup', label: 'Play' },
   { href: '/geo/script', label: 'Script' },
   { href: '/geo/rooms', label: 'Rooms' },
   { href: '/geo/leaderboard', label: 'Rankings' },
@@ -27,10 +29,14 @@ export const GAME_LINKS = [
   { href: '/geo/me', label: 'Profile' },
 ];
 
-/** A round or a room in progress: the screen is theirs. */
-export function isGameTakeover(pathname) {
-  return pathname.startsWith('/geo/play') || pathname.startsWith('/geo/room/') || pathname.startsWith('/geo/script/play');
-}
+/**
+ * The screens that own the whole viewport. One list, in site.js, so the
+ * header and the footer cannot disagree about what a takeover is. The
+ * front door is one of them now: it is a full-screen picture of the
+ * world with its own small header, and a second bar above that is
+ * exactly the thing the redesign removed.
+ */
+export const isGameTakeover = siteTakeover;
 
 function isActive(link, pathname) {
   if (link.never) return false;
@@ -39,6 +45,24 @@ function isActive(link, pathname) {
 
 export default function GeoHeader() {
   const pathname = usePathname() || '';
+  // Admins get one more link. Asked of the server rather than read from
+  // a cookie: the browser is told its role so it can render, and is
+  // never believed about it. The link is a convenience, and /geo/admin
+  // checks again on every request behind it.
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/geo/auth/me', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (live) setAdmin(data?.account?.role === 'admin');
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+
   // A round or a room owns the whole screen, header included.
   if (isGameTakeover(pathname)) return null;
 
@@ -47,21 +71,22 @@ export default function GeoHeader() {
   // under the pet site's bar otherwise. The game has its own name and
   // its own domain now, so it carries its own bar wherever it is served.
   return (
-    <header className="border-b border-midnight-800 bg-midnight-950 text-white">
+    <header className="border-b border-ocean-800 bg-ocean-950 text-sand-50">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
         <Link href="/geo" className="flex shrink-0 items-center gap-2 font-bold">
-          <Globe2 className="h-5 w-5 text-flash-400" />
+          <Globe2 className="h-5 w-5 text-clay-300" />
           {SITE_NAME}
         </Link>
         <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Game">
-          {GAME_LINKS.map((link) => {
+          {[...GAME_LINKS, ...(admin ? [{ href: '/geo/admin', label: 'Admin', admin: true }] : [])].map((link) => {
             const active = isActive(link, pathname);
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${active ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${active ? 'bg-sand-50/15 text-white' : 'text-sand-100/70 hover:bg-sand-50/10 hover:text-white'}`}
               >
+                {link.admin ? <ShieldCheck className="mr-1 inline h-3.5 w-3.5 align-[-2px]" /> : null}
                 {link.label}
               </Link>
             );

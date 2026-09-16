@@ -31,8 +31,8 @@ export default function LoadingSpot({ provider, roundNumber, appleAttempt, apple
       : GOOGLE_STEPS[step];
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-midnight-950/95 text-center" role="status" aria-live="polite">
-      <Loader2 className="h-10 w-10 animate-spin text-flash-400" />
+    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center" role="status" aria-live="polite">
+      <Loader2 className="h-10 w-10 animate-spin text-clay-500" />
       <p className="mt-5 text-lg font-semibold text-white">Round {roundNumber}</p>
       <p className="mt-1 text-sm text-white/70">{message}</p>
     </div>

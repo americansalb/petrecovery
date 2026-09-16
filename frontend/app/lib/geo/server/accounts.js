@@ -103,6 +103,10 @@ export async function verifySignIn(store, { token, profileToken = '', now = Date
   if (!account) {
     account = await store.createAccount({ email: row.email, createdAt: new Date(now), lastSeenAt: new Date(now) });
   } else {
+    // A suspended account does not get a session. The link was real and
+    // has now been burned, which is right: a suspended person clicking
+    // an old link should not be able to keep clicking it.
+    if (account.suspendedAt) throw new GeoAuthError('suspended', 'This account has been suspended');
     await store.updateAccount(account.id, { lastSeenAt: new Date(now) });
   }
 

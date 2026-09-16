@@ -35,14 +35,14 @@ const DESKTOP_SIZE = {
   medium: 'sm:w-[30rem] sm:h-80',
   large: 'sm:w-[44rem] sm:h-[32rem]',
 };
-const pill = 'rounded-full border border-white/20 bg-midnight-900/80 shadow-lg backdrop-blur';
-const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-white transition hover:bg-midnight-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 disabled:opacity-40`;
+const pill = 'rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur';
+const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-white transition hover:bg-ocean-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500 disabled:opacity-40`;
 
 function MessagePanel({ title, message, children }) {
   return (
     <Panel>
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-flash-400" />
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-500" />
         <div>
           <h2 className="text-lg font-bold">{title}</h2>
           <p className="mt-1 text-sm text-white/80">{message}</p>
@@ -284,8 +284,8 @@ export default function RoomClient({ code }) {
     mapClass = 'absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-24 bottom-[46%] sm:bottom-[40%]';
   } else if (inRound && !iGuessed) {
     mapClass = mobileMapOpen
-      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-midnight-900'
-      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-midnight-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
+      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
+      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
     mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
   }
@@ -301,7 +301,7 @@ export default function RoomClient({ code }) {
   const showApple = isApple && mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
 
   return (
-    <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-midnight-950 text-white">
+    <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
       {showApple ? (
         <AppleLookAroundPane
           ref={paneRef}
@@ -335,7 +335,7 @@ export default function RoomClient({ code }) {
         />
       ) : null}
 
-      {mapMode === 'result' ? <div className="absolute inset-0 z-20 bg-midnight-950/85" /> : null}
+      {mapMode === 'result' ? <div className="absolute inset-0 z-20 bg-ocean-950/85" /> : null}
 
       {/* HUD during a round and the reveal */}
       {joined && (phase === 'guessing' || phase === 'reveal') ? (
@@ -348,7 +348,7 @@ export default function RoomClient({ code }) {
               </div>
               <div className="flex flex-col border-l border-white/15 pl-3 leading-tight">
                 <span className="text-[11px] uppercase tracking-wide text-white/60">{room.variant === 'duel' ? 'Your HP' : 'Your score'}</span>
-                <span className="text-sm font-semibold tabular-nums text-flash-300">{room.variant === 'duel' ? mine?.hp : formatScore(mine?.score || 0)}</span>
+                <span className="text-sm font-semibold tabular-nums text-clay-300">{room.variant === 'duel' ? mine?.hp : formatScore(mine?.score || 0)}</span>
               </div>
             </div>
             <div className="pointer-events-auto flex flex-col items-end gap-2">
@@ -362,7 +362,7 @@ export default function RoomClient({ code }) {
               {inRound && !iGuessed ? (
                 <div className="hidden items-center gap-1 sm:flex">
                   {MAP_SIZES.map((size) => (
-                    <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur transition ${mapSize === size ? 'border-flash-400 bg-flash-400 text-midnight-900' : 'border-white/20 bg-midnight-900/80 text-white hover:bg-midnight-800'}`}>
+                    <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-500 text-white' : 'border-white/20 bg-ocean-900/80 text-white hover:bg-ocean-800'}`}>
                       {size[0].toUpperCase()}
                     </button>
                   ))}
@@ -413,7 +413,7 @@ export default function RoomClient({ code }) {
           ) : null}
 
           {inRound && iGuessed ? (
-            <div className="pointer-events-none absolute bottom-28 right-4 z-30 rounded-2xl border border-white/15 bg-midnight-900/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
+            <div className="pointer-events-none absolute bottom-28 right-4 z-30 rounded-2xl border border-white/15 bg-ocean-900/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
               <p className="font-semibold text-green-400">Guess locked in.</p>
               <p className="text-white/70">
                 {state.players.filter((p) => !p.guessed && !p.eliminated).length
@@ -449,7 +449,7 @@ export default function RoomClient({ code }) {
               type="button"
               onClick={submitGuess}
               disabled={!pin || busy}
-              className="h-12 shrink-0 bg-flash-400 text-base font-bold text-midnight-900 transition hover:bg-flash-500 disabled:cursor-not-allowed disabled:bg-midnight-800 disabled:text-white/50"
+              className="h-12 shrink-0 bg-clay-500 text-base font-bold text-white transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/50"
             >
               {busy ? 'Sending' : pin ? 'Guess' : 'Place your pin on the map'}
             </button>
@@ -458,7 +458,7 @@ export default function RoomClient({ code }) {
       ) : null}
 
       {/* Screens */}
-      {!ready || (!state && !error) ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-midnight-950 text-white/70">Loading the room</div> : null}
+      {!ready || (!state && !error) ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading the room</div> : null}
       {notFound ? <MessagePanel title="No room with that code" message="Codes are six letters and numbers. Check it with whoever sent it, or open a new room." /> : null}
       {error && !notFound ? <MessagePanel title="The room could not be loaded" message={error.message} /> : null}
       {state && !joined && !error ? (
@@ -491,7 +491,7 @@ export default function RoomClient({ code }) {
       ) : null}
       {sdkError ? <MessagePanel title={isApple ? 'Apple Look Around did not load' : 'Google Maps did not load'} message={sdkError} /> : null}
       {joined && status === 'playing' && !imageryReady && !sdkError && googleConfigured && (phase === 'guessing' || phase === 'reveal' || phase === 'locating') ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-midnight-950 text-white/70">{isApple ? 'Loading Look Around' : 'Loading Street View'}</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">{isApple ? 'Loading Look Around' : 'Loading Street View'}</div>
       ) : null}
     </div>
   );

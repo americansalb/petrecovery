@@ -52,8 +52,8 @@ const MAPKIT_LOAD_MS = 12000;
 // A script round is the one screen in the game with no imagery on it,
 // so it is the one screen that is light: a map reads better as paper
 // than as a hole in the dark, and the sentence is there to be read.
-const PILL = 'rounded-full border border-midnight-200 bg-white/95 shadow-sm';
-const ICON_BUTTON = `${PILL} flex h-11 w-11 items-center justify-center text-midnight-700 transition hover:bg-white hover:text-midnight-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-flash-400`;
+const PILL = 'rounded-full border border-sand-200 bg-white/95 shadow-sm';
+const ICON_BUTTON = `${PILL} flex h-11 w-11 items-center justify-center text-sand-700 transition hover:bg-white hover:text-sand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500`;
 
 /**
  * A number that arrives rather than appears. Short enough that nobody
@@ -251,28 +251,28 @@ export default function ScriptPlayClient() {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#f4efe4] text-midnight-900">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-[#f4efe4] text-sand-900">
       {/* The sentence gets the top of the screen and the map gets the
           rest of it. It used to float over the map, which put the thing
           you are reading on top of the thing you answer on. */}
-      <header className="relative z-30 shrink-0 border-b border-midnight-200 bg-[#fffdf8] shadow-sm">
+      <header className="relative z-30 shrink-0 border-b border-sand-200 bg-[#fffdf8] shadow-sm">
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-3 px-3 pt-3 sm:px-4">
           <div className={`flex items-center gap-3 px-4 py-2 ${PILL}`}>
             <div className="flex flex-col leading-tight">
-              <span className="text-[11px] uppercase tracking-wide text-midnight-500">{ladder.short}</span>
+              <span className="text-[11px] uppercase tracking-wide text-sand-500">{ladder.short}</span>
               <span className="text-sm font-semibold">
                 Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}
               </span>
             </div>
-            <div className="flex flex-col border-l border-midnight-200 pl-3 leading-tight">
-              <span className="text-[11px] uppercase tracking-wide text-midnight-500">Score</span>
-              <span className="text-sm font-semibold tabular-nums text-midnight-900">{formatScore(total)}</span>
+            <div className="flex flex-col border-l border-sand-200 pl-3 leading-tight">
+              <span className="text-[11px] uppercase tracking-wide text-sand-500">Score</span>
+              <span className="text-sm font-semibold tabular-nums text-sand-900">{formatScore(total)}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {config.timer ? (
               <div className={`flex items-center gap-2 px-3 py-2 ${secondsLeft <= 10 ? 'rounded-full border border-red-300 bg-red-50 shadow-sm' : PILL}`}>
-                <Clock className={`h-4 w-4 ${secondsLeft <= 10 ? 'text-red-500' : 'text-midnight-400'}`} />
+                <Clock className={`h-4 w-4 ${secondsLeft <= 10 ? 'text-red-500' : 'text-sand-400'}`} />
                 <span className={`min-w-[2ch] text-sm font-semibold tabular-nums ${secondsLeft <= 10 ? 'text-red-600' : ''}`}>{secondsLeft}</span>
               </div>
             ) : null}
@@ -284,13 +284,13 @@ export default function ScriptPlayClient() {
 
         <div className="mx-auto max-w-4xl px-3 pb-4 pt-3 text-center sm:px-4">
           {loading ? (
-            <p className="flex items-center justify-center gap-2 py-3 text-midnight-500">
+            <p className="flex items-center justify-center gap-2 py-3 text-sand-500">
               <Loader2 className="h-4 w-4 animate-spin" /> Finding a sentence
             </p>
           ) : error ? (
             <div className="py-2 text-sm">
               <p className="text-red-600">{error}</p>
-              <Link href="/geo/script" className="mt-3 inline-block rounded-lg bg-midnight-900 px-3 py-1.5 font-semibold text-white hover:bg-midnight-800">
+              <Link href="/geo/script" className="mt-3 inline-block rounded-lg bg-ocean-900 px-3 py-1.5 font-semibold text-white hover:bg-ocean-800">
                 Back to the lobby
               </Link>
             </div>
@@ -326,7 +326,7 @@ export default function ScriptPlayClient() {
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[#dce9f2]">
-            <Loader2 className="h-5 w-5 animate-spin text-midnight-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-sand-400" />
           </div>
         )}
 
@@ -347,7 +347,7 @@ export default function ScriptPlayClient() {
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
             <div className="mx-auto max-w-md">
               {!pin && !loading && round ? (
-                <p className="mb-2 text-center text-sm font-medium text-midnight-700">
+                <p className="mb-2 text-center text-sm font-medium text-sand-700">
                   <span className="rounded-full bg-[#fffdf8]/90 px-3 py-1 shadow-sm">Tap the map where that language is used</span>
                 </p>
               ) : null}
@@ -355,7 +355,7 @@ export default function ScriptPlayClient() {
                 type="button"
                 disabled={!pin || sending || !round}
                 onClick={() => submit(pin)}
-                className="pointer-events-auto w-full rounded-xl bg-flash-500 px-4 py-3.5 text-base font-semibold text-midnight-950 shadow-lg transition enabled:hover:bg-flash-400 enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-midnight-200 disabled:text-midnight-500 disabled:shadow-sm"
+                className="pointer-events-auto w-full rounded-xl bg-clay-600 px-4 py-3.5 text-base font-semibold text-sand-950 shadow-lg transition enabled:hover:bg-clay-500 enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500 disabled:shadow-sm"
               >
                 {sending ? 'Scoring' : 'Guess'}
               </button>
@@ -372,15 +372,15 @@ function Reveal({ result, round, last, onNext }) {
   const { answer } = result;
   const score = useCountUp(result.score);
   return (
-    <div className="wg-panel-in absolute inset-x-0 bottom-0 z-30 max-h-[72%] overflow-y-auto border-t border-midnight-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
+    <div className="wg-panel-in absolute inset-x-0 bottom-0 z-30 max-h-[72%] overflow-y-auto border-t border-sand-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
       <div className="mx-auto max-w-2xl">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-xl font-bold">
-            {answer.name} <span className="font-normal text-midnight-500">{answer.endonym}</span>
+            {answer.name} <span className="font-normal text-sand-500">{answer.endonym}</span>
           </h2>
-          <p className="text-lg font-semibold tabular-nums text-midnight-900">{formatScore(score)} points</p>
+          <p className="text-lg font-semibold tabular-nums text-sand-900">{formatScore(score)} points</p>
         </div>
-        <p className="mt-1 text-sm text-midnight-500">
+        <p className="mt-1 text-sm text-sand-500">
           {answer.scriptName} script, {answer.branch}, {answer.family}. About {answer.speakers} million speakers.
         </p>
         <p className="mt-3 text-sm">
@@ -391,7 +391,7 @@ function Reveal({ result, round, last, onNext }) {
               : `Your pin was ${formatDistance(result.distanceKm)} from the nearest place ${answer.name} is used.`}
         </p>
         {result.alsoSpokenHere?.length ? (
-          <p className="mt-2 text-sm text-midnight-500">
+          <p className="mt-2 text-sm text-sand-500">
             Where you pinned, people speak {result.alsoSpokenHere.map((l) => l.name).join(', ')}.
           </p>
         ) : null}
@@ -399,7 +399,7 @@ function Reveal({ result, round, last, onNext }) {
         <button
           type="button"
           onClick={onNext}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-flash-500 px-4 py-3 font-semibold text-midnight-950 shadow-lg transition hover:bg-flash-400 active:scale-[0.99]"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
         >
           {last ? 'See the results' : 'Next round'} <ArrowRight className="h-4 w-4" />
         </button>
@@ -424,10 +424,10 @@ function Tells({ answer, text, script }) {
   if (!markers.length && !answer.onlyOneInScript) return null;
   const runs = highlightMarkers(text, markers);
   return (
-    <div className="mt-4 rounded-xl border border-midnight-200 bg-white/70 p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-midnight-500">What gave it away</p>
+    <div className="mt-4 rounded-xl border border-sand-200 bg-white/70 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-sand-500">What gave it away</p>
       {answer.onlyOneInScript ? (
-        <p className="mt-2 text-sm text-midnight-700">
+        <p className="mt-2 text-sm text-sand-700">
           In this pool, {answer.scriptName} is written for {answer.name} and nothing else. The alphabet was the whole answer.
         </p>
       ) : null}
@@ -446,7 +446,7 @@ function Tells({ answer, text, script }) {
       ) : null}
       <ul className="mt-2 space-y-1.5">
         {markers.map((marker) => (
-          <li key={marker.text} className="text-sm text-midnight-600">
+          <li key={marker.text} className="text-sm text-sand-600">
             <span className="wg-tell rounded px-1 font-semibold" lang={script}>
               {marker.text}
             </span>{' '}
@@ -469,26 +469,26 @@ function Summary({ config, ladder, history, total }) {
   const replay = `/geo/script/play?${scriptConfigToQuery({ ...config, seed: randomSeedString() })}`;
   const same = `/geo/script/play?${scriptConfigToQuery(config)}`;
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-midnight-900">
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
       <div className="mx-auto max-w-2xl px-5 py-10">
-        <p className="text-sm uppercase tracking-wide text-midnight-500">{ladder.label}</p>
+        <p className="text-sm uppercase tracking-wide text-sand-500">{ladder.label}</p>
         <h1 className="mt-1 text-3xl font-bold">{formatScore(total)} points</h1>
-        <p className="mt-1 text-midnight-500">
+        <p className="mt-1 text-sand-500">
           out of {formatScore(history.length * 5000)} across {history.length} {history.length === 1 ? 'round' : 'rounds'}
         </p>
 
         <ol className="mt-6 space-y-3">
           {history.map((row, index) => (
-            <li key={index} className="wg-panel-in rounded-xl border border-midnight-200 bg-[#fffdf8] p-4 shadow-sm" style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}>
+            <li key={index} className="wg-panel-in rounded-xl border border-sand-200 bg-[#fffdf8] p-4 shadow-sm" style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}>
               <div className="flex flex-wrap items-baseline justify-between gap-x-4">
                 <p className="font-semibold">
-                  {row.answer.name} <span className="font-normal text-midnight-500">{row.answer.endonym}</span>
+                  {row.answer.name} <span className="font-normal text-sand-500">{row.answer.endonym}</span>
                 </p>
                 <p className="text-sm font-semibold tabular-nums">
-                  {formatScore(row.score)} <span className="font-normal text-midnight-400">pts</span>
+                  {formatScore(row.score)} <span className="font-normal text-sand-400">pts</span>
                 </p>
               </div>
-              <p className="mt-1 text-sm text-midnight-500">
+              <p className="mt-1 text-sm text-sand-500">
                 {row.answer.scriptName} script.{' '}
                 {row.guess === null ? 'No pin.' : row.inRegion ? 'You pinned inside it.' : `You were ${formatDistance(row.distanceKm)} off.`}
               </p>
@@ -498,13 +498,13 @@ function Summary({ config, ladder, history, total }) {
         </ol>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href={replay} className="flex items-center gap-2 rounded-xl bg-flash-500 px-4 py-2.5 font-semibold text-midnight-950 hover:bg-flash-400">
+          <Link href={replay} className="flex items-center gap-2 rounded-xl bg-clay-600 px-4 py-2.5 font-semibold text-sand-950 hover:bg-clay-500">
             <RotateCcw className="h-4 w-4" /> New game
           </Link>
-          <Link href={same} className="flex items-center gap-2 rounded-xl border border-midnight-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-midnight-50">
+          <Link href={same} className="flex items-center gap-2 rounded-xl border border-sand-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-sand-50">
             <MapPin className="h-4 w-4" /> Replay these
           </Link>
-          <Link href="/geo/script" className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-midnight-600 hover:text-midnight-900">
+          <Link href="/geo/script" className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sand-600 hover:text-sand-900">
             Change the pool
           </Link>
         </div>
