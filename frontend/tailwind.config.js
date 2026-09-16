@@ -9,8 +9,74 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
-      /* === Custom Colors: Midnight Blue + Flashlight Yellow === */
+      /* === Probably Earth: ocean, forest, clay ===
+         The game's own colours (founder direction, 2026-09-16), chosen
+         rather than inherited. It used to render in midnight and flash,
+         which are the pet site's rescue colours and say nothing about a
+         geography game.
+
+         ocean  is the brand and every primary action.
+         forest is a good guess: close, correct, gained.
+         clay   is warmth and the earth under everything, and carries
+                the second game (Script) so it reads as its own thing.
+         sand   is the neutral. Warm greys, not slate, so a page of text
+                sits on paper rather than on a screenshot of an IDE.
+
+         These belong to /geo. Nothing outside the game uses them, and
+         the game uses nothing else. */
       colors: {
+        ocean: {
+          50: '#f0f7fa',
+          100: '#dcedf4',
+          200: '#bcdcea',
+          300: '#8fc3da',
+          400: '#5aa3c4',
+          500: '#3785aa',
+          600: '#2b6b8f',
+          700: '#265774',
+          800: '#254a61',
+          900: '#233f52',
+          950: '#132937',
+        },
+        forest: {
+          50: '#f1f7f2',
+          100: '#dcebdf',
+          200: '#bcd8c2',
+          300: '#91bd9c',
+          400: '#639c72',
+          500: '#437f54',
+          600: '#316542',
+          700: '#285136',
+          800: '#22412d',
+          900: '#1d3626',
+          950: '#0f1e15',
+        },
+        clay: {
+          50: '#faf5f1',
+          100: '#f3e8df',
+          200: '#e6cfbe',
+          300: '#d6b095',
+          400: '#c68e6b',
+          500: '#ba744f',
+          600: '#ac6044',
+          700: '#8f4c3a',
+          800: '#744035',
+          900: '#5f372e',
+          950: '#331b16',
+        },
+        sand: {
+          50: '#faf9f7',
+          100: '#f2f0eb',
+          200: '#e5e1d8',
+          300: '#d2cbbd',
+          400: '#b6ab98',
+          500: '#9f917b',
+          600: '#8b7c68',
+          700: '#736657',
+          800: '#5f554a',
+          900: '#4f473f',
+          950: '#2a2520',
+        },
         midnight: {
           50: '#f8fafc',
           100: '#f1f5f9',
