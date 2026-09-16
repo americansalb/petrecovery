@@ -32,6 +32,10 @@ describe('which hosts a token may be minted for', () => {
 
   test('preview deployments and local development, which change hostname constantly', () => {
     expect(mayMintFor('petrecovery-git-abc123.vercel.app')).toBe(true);
+    // Both hosts that build this, not just the one somebody had in mind
+    // on the day. The site moved to Render and every preview there was
+    // refused a token while the code still named only Vercel.
+    expect(mayMintFor('probablyearth.onrender.com')).toBe(true);
     expect(mayMintFor('localhost')).toBe(true);
     expect(mayMintFor('localhost:3000')).toBe(true);
     expect(mayMintFor('127.0.0.1')).toBe(true);

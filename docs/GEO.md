@@ -1006,8 +1006,8 @@ browser agree on the first paint. On the shared deployment the pages
 carry the pet site's bar.
 
 For the game's own bar and footer and nothing pet-shaped anywhere, it
-needs a build of its own, which is the section below. On Vercel that is
-a second project from the same repo and branch with
+needs a build of its own, which is the section below. On Vercel or
+Render that is a second service from the same repo and branch with
 `NEXT_PUBLIC_SITE=geo` set, sharing the database, with the domain
 pointed at it instead.
 
@@ -1075,10 +1075,14 @@ the endpoint said only "internal", so there was nothing to go on.
 `frontend/scripts/db-sync.js` runs between `prisma generate` and
 `next build`, and three rules keep it safe:
 
-- **Only on Vercel**, or with `FORCE_DB_PUSH=1`. A local build and CI
-  both have a `DATABASE_URL` aimed at something that is not production,
-  CI's deliberately at a dummy, and neither should have a schema pushed
-  at it.
+- **Only on a host that deploys this**, or with `FORCE_DB_PUSH=1`. A
+  local build and CI both have a `DATABASE_URL` aimed at something that
+  is not production, CI's deliberately at a dummy, and neither should
+  have a schema pushed at it. The host is recognised by the variable it
+  sets for itself: `VERCEL` on Vercel, `RENDER` on Render. Adding a
+  third host means adding it to that list in `db-sync.js`, and
+  `__tests__/geo/deploy-hosts.test.js` is what stops the list going
+  back to naming one.
 - **Never `--accept-data-loss`.** Adding tables and columns goes
   through; a change that would destroy something is refused.
 - **A failure does not fail the build.** The site still deploys, the
@@ -1086,7 +1090,7 @@ the endpoint said only "internal", so there was nothing to go on.
   `schema_missing` and name the fix rather than saying "internal".
 
 Pointed at a brand new database this creates all 183 tables on the
-first deploy, which is what makes a fresh Vercel Postgres work with
+first deploy, which is what makes a fresh managed Postgres work with
 nothing typed into a terminal. Verified by dropping a database,
 creating an empty one, and running the whole thirteen-scenario harness
 against it.
