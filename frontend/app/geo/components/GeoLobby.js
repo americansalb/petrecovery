@@ -37,6 +37,7 @@ import { MAX_ROUND_SCORE, formatDistance, formatScore } from '@/app/lib/geo/dist
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { getHistory, getStats } from '../lib/storage';
 import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile';
+import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
 import { listRecentRooms, loadName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import { untilText } from '@/app/lib/geo/meter';
@@ -97,6 +98,8 @@ export default function GeoLobby() {
   const router = useRouter();
   const [server, setServer] = useState(null);
   const [serverError, setServerError] = useState('');
+  // Bumped by the Try again button, which is what re-runs the fetch.
+  const [configTry, setConfigTry] = useState(0);
   // Apple first: the lobby opens on the primary imagery, whatever the
   // server has keys for. A Google-less server used to greet every first
   // visitor with a setup error for imagery they had not asked for.
@@ -125,10 +128,10 @@ export default function GeoLobby() {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/geo/config')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('config'))))
-      .then((data) => alive && setServer(data))
-      .catch(() => alive && setServerError('Could not load the game settings from the server.'));
+    setServerError('');
+    loadGeoConfig({ shouldStop: () => !alive, force: configTry > 0 })
+      .then((data) => alive && data && setServer(data))
+      .catch((error) => alive && setServerError(configErrorMessage(error)));
     setStats(getStats());
     setHistory(getHistory().slice(0, 8));
     setRecentRooms(listRecentRooms());
@@ -168,7 +171,8 @@ export default function GeoLobby() {
     return () => {
       alive = false;
     };
-  }, []);
+    // configTry is the Try again button: bumping it re-runs this.
+  }, [configTry]);
 
   // Your rating: this browser gets a profile the first time it joins a
   // room, and a Probably Earth account has one across devices. Nobody
@@ -310,7 +314,14 @@ export default function GeoLobby() {
           </section>
         ) : null}
 
-        {serverError ? <p className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{serverError}</p> : null}
+        {serverError ? (
+          <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <p className="flex-1">{serverError}</p>
+            <button type="button" onClick={() => setConfigTry((n) => n + 1)} className="rounded-lg bg-red-700 px-3 py-1.5 font-semibold text-white hover:bg-red-800">
+              Try again
+            </button>
+          </div>
+        ) : null}
         {server && !configured ? (
           <div className="mt-6">
             <SetupNotice provider={provider} missing={providerInfo?.missing || []} compact tone="light" />

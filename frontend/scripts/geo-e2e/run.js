@@ -120,8 +120,9 @@ async function newPage(browser, viewport, options = {}) {
 
 const waitForPano = (page, timeout = 60000) =>
   page.waitForFunction(() => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano'); }, null, { timeout });
-const waitPlayable = (page) => page.waitForSelector('button:has-text("Place your pin on the map")', { timeout: 60000 });
-const waitGuessable = (page) => page.waitForSelector('button:has-text("Guess"):not([disabled])');
+/** The round is up and the guess button exists, pin or no pin. */
+const waitPlayable = (page) => page.waitForSelector('[data-geo-guess]', { timeout: 60000 });
+const waitGuessable = (page) => page.waitForSelector('[data-geo-guess]:not([disabled])');
 
 /** Apple rounds: Look Around has opened, and the MapKit guess map is up. */
 const waitForLookAround = (page, timeout = 60000) => page.waitForFunction(() => Boolean(document.querySelector('[data-fake-lookaround]')), null, { timeout });
@@ -165,10 +166,10 @@ async function pinGame(browser) {
   const pano1 = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
   log('round 1 pano', pano1);
   await shot(page, 'playing');
-  if (!(await page.locator('button:has-text("Place your pin on the map")').isDisabled())) throw new Error('guess must be disabled without a pin');
+  if (!(await page.locator('[data-geo-guess]').isDisabled())) throw new Error('guess must be disabled without a pin');
   await pinApple(page);
   await shot(page, 'pinned');
-  await page.click('button:has-text("Guess")');
+  await page.click('[data-geo-guess]');
   await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
   log('round 1 result:', await page.textContent('text=/away\\.|Time ran out/').catch(() => '(no distance line)'));
   await shot(page, 'result');
@@ -179,7 +180,7 @@ async function pinGame(browser) {
   await page.waitForSelector('text=Round 2 of 3');
   await page.waitForFunction((prev) => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano') !== prev; }, pano1, { timeout: 30000 });
   await pinApple(page);
-  await page.click('button:has-text("Guess")');
+  await page.click('[data-geo-guess]');
   await page.waitForSelector('text=/of 5,000/');
   await page.click('button:has-text("Round 3 of 3")');
   await waitPlayable(page);
@@ -261,7 +262,7 @@ async function mobile(browser) {
   await page.click('button:has-text("Map")');
   await pinApple(page);
   await shot(page, 'mobile');
-  await page.click('button:has-text("Guess")');
+  await page.click('[data-geo-guess]');
   await page.waitForSelector('text=/of 5,000/');
   await shot(page, 'mobile-result');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
@@ -274,7 +275,6 @@ async function rooms(browser) {
   await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
   await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 }); // typed before hydration would be reset
   await host.fill('input[placeholder="What the others will see"]', 'Ada');
-  await host.selectOption('label:has-text("Imagery") select', 'apple');
   await host.selectOption('label:has-text("Rounds") select', '3');
   await host.selectOption('label:has-text("Time per round") select', '60');
   await host.click('button:has-text("Open the room")');
@@ -304,13 +304,13 @@ async function rooms(browser) {
     log(stamp(), `round ${n}: both pages show it`);
     await pinApple(host);
     await waitGuessable(host);
-    await host.click('button:has-text("Guess")');
+    await host.click('[data-geo-guess]');
     log(stamp(), `round ${n}: host clicked guess`);
     await host.waitForSelector('text=Guess locked in', { timeout: 20000 });
     log(stamp(), `round ${n}: host locked in`);
     await pinApple(guest);
     await waitGuessable(guest);
-    await guest.click('button:has-text("Guess")');
+    await guest.click('[data-geo-guess]');
     log(stamp(), `round ${n}: guest clicked guess`);
     for (const p of [host, guest]) await p.waitForSelector('text=/(Next round|Results) in \\d+s/', { timeout: 20000 });
     log(stamp(), `round ${n}: both guessed, reveal on both screens`);
@@ -382,7 +382,7 @@ async function appleSolo(browser) {
       await shot(page, 'apple-solo-playing');
     }
     await pinApple(page);
-    await page.click('button:has-text("Guess")');
+    await page.click('[data-geo-guess]');
     await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
     const line = await page.textContent('text=/away\\.|Time ran out/').catch(() => '');
     if (/Time ran out/.test(line)) throw new Error('an Apple round with a pin was recorded as timed out');
@@ -456,7 +456,7 @@ async function notEarth(browser) {
   await second.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=ne719&time=0`, { waitUntil: 'domcontentloaded' });
   await second.waitForSelector('[data-not-earth-pane]', { timeout: 60000 });
   await pinApple(second);
-  await second.click('button:has-text("Guess")');
+  await second.click('[data-geo-guess]');
   await second.waitForSelector('text=/That was (Mars|the Moon)\\./', { timeout: 20000 });
   // The reveal for a Not Earth round prints the place rather than a
   // distance, so the score to check is the game's running total.
@@ -487,7 +487,6 @@ async function appleRoom(browser) {
   await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
   await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 });
   await host.fill('input[placeholder="What the others will see"]', 'Ada');
-  await host.selectOption('label:has-text("Imagery") select', 'apple');
   await host.selectOption('label:has-text("Rounds") select', '3');
   await host.selectOption('label:has-text("Time per round") select', '60');
   await host.click('button:has-text("Open the room")');
@@ -521,7 +520,7 @@ async function appleRoom(browser) {
     });
     if (!map || map.height < 120 || map.width < 200) throw new Error(`${who} has no guess map in an Apple room: ${JSON.stringify(map)}`);
     log(`${who} guess map:`, map);
-    await p.waitForSelector('button:has-text("Place your pin on the map")', { timeout: 20000 });
+    await p.waitForSelector('[data-geo-guess]', { timeout: 20000 });
   }
 
   const pin = async (p) => {
@@ -532,7 +531,7 @@ async function appleRoom(browser) {
     });
     await p.mouse.click(box.x, box.y);
     await waitGuessable(p);
-    await p.click('button:has-text("Guess")');
+    await p.click('[data-geo-guess]');
   };
 
   await pin(host);
@@ -570,13 +569,17 @@ async function ranked(browser) {
     // and a ranked round is refused to anyone but the profile that
     // opened it.
     await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('[data-start-ranked]', { timeout: 30000 });
+    // Enabled, not merely present: the lobby greys its start buttons
+    // until /api/geo/config answers, and under `next dev` that request
+    // can sit behind a compile for a while. Waiting on the disabled
+    // attribute says what is actually being waited for.
+    await page.waitForSelector('[data-start-ranked]:not([disabled])', { timeout: 60000 });
     await page.click('[data-start-ranked]');
     for (let i = 0; i < 5; i++) {
       await waitPlayable(page);
       await waitForLookAround(page);
       await pinApple(page);
-      await page.click('button:has-text("Guess")');
+      await page.click('[data-geo-guess]');
       await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
       if (i < 4) await page.keyboard.press('Space');
     }
@@ -678,7 +681,7 @@ async function firstRun(browser) {
     await waitPlayable(page);
     await waitForLookAround(page);
     await pinApple(page);
-    await page.click('button:has-text("Guess")');
+    await page.click('[data-geo-guess]');
     await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
     if (i < 4) await page.keyboard.press('Space');
   }
@@ -711,7 +714,7 @@ async function daily(browser) {
     await waitPlayable(page);
     await waitForLookAround(page);
     await pinApple(page);
-    await page.click('button:has-text("Guess")');
+    await page.click('[data-geo-guess]');
     await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
     log(`daily round ${i + 1} scored`);
     if (i < 4) await page.keyboard.press('Space');
@@ -836,7 +839,7 @@ async function profile(browser) {
   await waitPlayable(page);
   await waitForLookAround(page);
   await pinApple(page);
-  await page.click('button:has-text("Guess")');
+  await page.click('[data-geo-guess]');
   await page.waitForSelector('text=/\\+\\d+ points/', { timeout: 20000 });
   log('round points line:', await page.textContent('text=/\\+\\d+ points/'));
   await page.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
@@ -943,8 +946,8 @@ async function script(browser) {
   // Low on the map: the panels are above it, so a click up there is a
   // click on a panel.
   await page.click('[data-script-map="apple"]', { position: { x: 600, y: 450 } });
-  await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
-  await page.click('button:has-text("Guess")');
+  await page.waitForSelector('[data-geo-guess]:not([disabled])', { timeout: 15000 });
+  await page.click('[data-geo-guess]');
 
   await page.waitForSelector('button:has-text("Next round")', { timeout: 30000 });
   const reveal = await page.evaluate(() => document.body.innerText);
@@ -975,7 +978,7 @@ async function script(browser) {
   for (let i = 2; i <= 5; i++) {
     await page.waitForSelector('[data-script-map="apple"] [data-fake-mapkit]', { timeout: 30000 });
     await page.click('[data-script-map="apple"]', { position: { x: 400 + i * 20, y: 430 } });
-    await page.click('button:has-text("Guess")');
+    await page.click('[data-geo-guess]');
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
     await page.click('button:has-text("Next round"), button:has-text("See the results")');
   }
@@ -1006,8 +1009,8 @@ async function scriptFallback(browser) {
   await page.waitForSelector('[data-script-map="leaflet"].leaflet-container', { timeout: 30000 });
   if (await page.locator('[data-script-map="apple"]').count()) throw new Error('a refused token still left the Apple map on screen');
   await page.click('[data-script-map="leaflet"]', { position: { x: 600, y: 450 } });
-  await page.waitForSelector('button:has-text("Guess"):not([disabled])', { timeout: 15000 });
-  await page.click('button:has-text("Guess")');
+  await page.waitForSelector('[data-geo-guess]:not([disabled])', { timeout: 15000 });
+  await page.click('[data-geo-guess]');
 
   await page.waitForSelector('button:has-text("Next round")', { timeout: 30000 });
   // Leaflet draws every region as an SVG path, so counting paths counts

@@ -12,6 +12,7 @@ import { ArrowRight, History, Plus, RefreshCw, Users } from 'lucide-react';
 import { CONTINENTS, CONTINENT_ORDER, FORMATS, FORMAT_ORDER, MODES, PRIMARY_PROVIDER, formatSettings, timeLabel } from '@/app/lib/geo/modes';
 import { MAX_PLAYERS, ROOM_MODES, ROOM_ROUND_OPTIONS, ROOM_TIME_OPTIONS, VARIANTS, describeRoomStatus, normalizeRoomCode } from '@/app/lib/geo/rooms';
 import { listRecentRooms, loadName, saveIdentity, saveName } from '../../lib/useRoom';
+import { configErrorMessage, loadGeoConfig } from '../../lib/serverConfig';
 import { ensureProfile, profileHeaders } from '../../lib/profile';
 import { ago } from '../../lib/time';
 import SetupNotice from '../SetupNotice';
@@ -60,10 +61,9 @@ export default function RoomBrowser() {
     setName(loadName());
     setRecent(listRecentRooms());
     let alive = true;
-    fetch('/api/geo/config')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('config'))))
-      .then((data) => alive && setServer(data))
-      .catch(() => alive && setError('Could not load the game settings from the server.'));
+    loadGeoConfig({ shouldStop: () => !alive })
+      .then((data) => alive && data && setServer(data))
+      .catch((error) => alive && setError(configErrorMessage(error)));
     const load = () =>
       fetch('/api/geo/rooms', { cache: 'no-store' })
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error('rooms'))))
@@ -77,7 +77,7 @@ export default function RoomBrowser() {
     };
   }, []);
 
-  const configured = Boolean(form.provider === 'apple' ? server?.providers?.apple?.configured : server?.providers?.google?.configured);
+  const configured = Boolean(server?.providers?.apple?.configured);
   const modesFor = (provider) => ROOM_MODES.filter((id) => MODES[id]?.providers?.includes(provider));
   const countries = server?.countries || [];
   const update = (patch) => setForm((f) => ({ ...f, ...patch }));
@@ -161,7 +161,7 @@ export default function RoomBrowser() {
         {error ? <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p> : null}
         {server && !configured ? (
           <div className="mt-6">
-            <SetupNotice provider={form.provider} missing={server?.providers?.[form.provider]?.missing || []} compact tone="light" />
+            <SetupNotice provider="apple" missing={server?.providers?.apple?.missing || []} compact tone="light" />
           </div>
         ) : null}
 
@@ -198,24 +198,9 @@ export default function RoomBrowser() {
                   ))}
                 </div>
               </div>
-              <Field label="Imagery" hint={form.provider === 'apple' ? `City streets in ${APPLE_COVERAGE.size} countries. Free without limit.` : 'Covers most of the world. One room a day is free, then bought rounds.'}>
-                <select
-                  value={form.provider}
-                  onChange={(e) => {
-                    const provider = e.target.value;
-                    const modes = modesFor(provider);
-                    update({
-                      provider,
-                      mode: modes.includes(form.mode) ? form.mode : modes[0],
-                    });
-                  }}
-                  className={select}
-                >
-                  <option value="apple">Apple Look Around</option>
-                  <option value="google">Google Street View</option>
-                </select>
-              </Field>
-              <Field label="Places">
+              {/* There is one imagery, so there is no choice to offer.
+                  The line says where a room will actually take people. */}
+              <Field label="Places" hint={`City streets in ${APPLE_COVERAGE.size} countries.`}>
                 <select value={form.mode} onChange={(e) => update({ mode: e.target.value })} className={select}>
                   {modesFor(form.provider).map((id) => (
                     <option key={id} value={id}>
@@ -243,7 +228,7 @@ export default function RoomBrowser() {
                       {countries.map((c) => (
                         <option key={c.code} value={c.code}>
                           {c.flag} {c.name}
-                          {!c.google ? ' (no known imagery)' : ''}
+                          {!c.apple ? ' (no city streets yet)' : ''}
                         </option>
                       ))}
                       {!countries.length ? <option value={form.country}>{form.country}</option> : null}

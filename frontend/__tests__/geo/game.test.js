@@ -1,13 +1,11 @@
 /**
  * Rounds and guesses end to end, on Apple Look Around.
  *
- * The rules under test: the round response never carries the answer,
- * only official outdoor imagery counts, a seed replays the same round,
- * the guess endpoint scores from the sealed token, and a missing key is
- * reported as configuration, not as a crash.
+ * The rules under test: the round response never carries the answer, a
+ * seed replays the same round, and the guess endpoint scores from the
+ * sealed token.
  */
 
-const { probeStreetView, findPanorama, isOfficialCopyright } = require('@/app/lib/geo/server/streetview');
 const { createCandidateSource, radiusForCountry } = require('@/app/lib/geo/server/sampler');
 const { createRound, evaluateGuess, GeoGameError, APPLE_CANDIDATES_PER_ROUND } = require('@/app/lib/geo/server/game');
 const { openToken } = require('@/app/lib/geo/server/tokens');
@@ -15,95 +13,7 @@ const { normalizeConfig } = require('@/app/lib/geo/modes');
 const { countryAt } = require('@/app/lib/geo/server/countries');
 const { hasAppleCoverage } = require('@/app/lib/geo/coverage');
 
-const KEY = 'server-key';
-const ENV = { GOOGLE_STREET_VIEW_API_KEY: KEY, GOOGLE_MAPS_BROWSER_KEY: 'browser-key', NEXTAUTH_SECRET: 'jest-secret-long-enough' };
-
-/** A fake metadata endpoint: every point has official imagery 300 m away. */
-function fetchAlwaysHit(overrides = {}) {
-  return jest.fn(async (url) => {
-    const u = new URL(url);
-    const [lat, lng] = u.searchParams.get('location').split(',').map(Number);
-    return {
-      status: 200,
-      json: async () => ({
-        status: 'OK',
-        pano_id: `pano-${lat.toFixed(3)}-${lng.toFixed(3)}`,
-        location: { lat: lat + 0.002, lng: lng + 0.002 },
-        date: '2023-05',
-        copyright: '© Google',
-        ...overrides,
-      }),
-    };
-  });
-}
-
-function fetchStatus(status, extra = {}) {
-  return jest.fn(async () => ({ status: 200, json: async () => ({ status, ...extra }) }));
-}
-
-describe('probeStreetView', () => {
-  test('sends the right query and recognises official imagery', async () => {
-    const fetchImpl = fetchAlwaysHit();
-    const r = await probeStreetView({ lat: 48.8566, lng: 2.3522, radiusKm: 10, key: KEY, fetchImpl });
-    expect(r.status).toBe('hit');
-    expect(r.panoId).toMatch(/^pano-/);
-    const url = new URL(fetchImpl.mock.calls[0][0]);
-    expect(url.searchParams.get('radius')).toBe('10000');
-    expect(url.searchParams.get('source')).toBe('outdoor');
-    expect(url.searchParams.get('key')).toBe(KEY);
-  });
-
-  test('skips user photo spheres', async () => {
-    const r = await probeStreetView({ lat: 1, lng: 1, key: KEY, fetchImpl: fetchAlwaysHit({ copyright: '© Jane Doe' }) });
-    expect(r).toEqual({ status: 'miss', reason: 'unofficial' });
-    expect(isOfficialCopyright('© 2024 Google')).toBe(true);
-    expect(isOfficialCopyright('© Someone')).toBe(false);
-  });
-
-  test('no imagery is a miss, a bad key is a fatal error, a dead network is a soft error', async () => {
-    expect((await probeStreetView({ lat: 1, lng: 1, key: KEY, fetchImpl: fetchStatus('ZERO_RESULTS') })).status).toBe('miss');
-    const denied = await probeStreetView({ lat: 1, lng: 1, key: KEY, fetchImpl: fetchStatus('REQUEST_DENIED', { error_message: 'API not enabled' }) });
-    expect(denied).toMatchObject({ status: 'error', code: 'REQUEST_DENIED', fatal: true, message: 'API not enabled' });
-    const dead = await probeStreetView({ lat: 1, lng: 1, key: KEY, fetchImpl: jest.fn(async () => { throw new Error('ECONNRESET'); }) });
-    expect(dead).toMatchObject({ status: 'error', code: 'network', fatal: false });
-    expect((await probeStreetView({ lat: 1, lng: 1, key: '', fetchImpl: fetchAlwaysHit() })).code).toBe('no_key');
-  });
-});
-
-describe('findPanorama', () => {
-  function sourceOf(points) {
-    let i = 0;
-    return { next: () => (i < points.length ? points[i++] : null), stats: { skippedWater: 7 } };
-  }
-
-  test('returns the first hit in candidate order and honest stats', async () => {
-    const points = Array.from({ length: 5 }, (_, i) => ({ lat: 10 + i, lng: 20, radiusKm: 10 }));
-    const fetchImpl = jest.fn(async (url) => {
-      const lat = Number(new URL(url).searchParams.get('location').split(',')[0]);
-      return { status: 200, json: async () => (lat === 12 ? { status: 'OK', pano_id: 'p12', location: { lat: 12, lng: 20 }, copyright: '© Google' } : { status: 'ZERO_RESULTS' }) };
-    });
-    const found = await findPanorama({ source: sourceOf(points), key: KEY, fetchImpl, batchSize: 4 });
-    expect(found.hit.panoId).toBe('p12');
-    expect(found.candidate.lat).toBe(12);
-    expect(found.stats).toMatchObject({ probes: 3, misses: 2, water: 7 });
-  });
-
-  test('gives up cleanly when nothing hits', async () => {
-    const points = Array.from({ length: 30 }, (_, i) => ({ lat: i, lng: 0, radiusKm: 2 }));
-    const found = await findPanorama({ source: sourceOf(points), key: KEY, fetchImpl: fetchStatus('ZERO_RESULTS'), maxProbes: 8, batchSize: 4 });
-    expect(found.hit).toBeNull();
-    expect(found.error.code).toBe('no_imagery');
-    expect(found.stats.probes).toBe(8);
-  });
-
-  test('stops at the first fatal error', async () => {
-    const points = Array.from({ length: 30 }, (_, i) => ({ lat: i, lng: 0, radiusKm: 2 }));
-    const fetchImpl = fetchStatus('REQUEST_DENIED');
-    const found = await findPanorama({ source: sourceOf(points), key: KEY, fetchImpl, batchSize: 4 });
-    expect(found.error.code).toBe('REQUEST_DENIED');
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
-  });
-});
+const ENV = { NEXTAUTH_SECRET: 'jest-secret-long-enough' };
 
 describe('createCandidateSource', () => {
   test('world mode draws land points with the preset radius and counts water', () => {

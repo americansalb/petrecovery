@@ -1,9 +1,9 @@
 /**
- * The curated coverage lists: the Apple list has a plain name for every
- * country, so the lobby can say where the free tier plays.
+ * The curated coverage list: every country Apple has driven has a plain
+ * name, so the lobby can say where the game plays.
  */
 
-const { APPLE_COVERAGE, APPLE_COVERAGE_NAMES, GOOGLE_COVERAGE, appleCoverageSentence, hasAppleCoverage, hasGoogleCoverage } = require('@/app/lib/geo/coverage');
+const { APPLE_COVERAGE, APPLE_COVERAGE_NAMES, appleCoverageSentence, hasAppleCoverage } = require('@/app/lib/geo/coverage');
 
 describe('coverage lists', () => {
   test('every Apple country has a name and the sentence reads as one', () => {
@@ -15,10 +15,9 @@ describe('coverage lists', () => {
     expect(sentence.split(', ')).toHaveLength(APPLE_COVERAGE.size - 1);
   });
 
-  test('membership is by ISO code, case-insensitive, and Apple is a subset of Google', () => {
+  test('membership is by ISO code, case-insensitive', () => {
     expect(hasAppleCoverage('us')).toBe(true);
     expect(hasAppleCoverage('BR')).toBe(false);
-    expect(hasGoogleCoverage('br')).toBe(true);
-    for (const cc of APPLE_COVERAGE) expect(GOOGLE_COVERAGE.has(cc)).toBe(true);
+    expect(hasAppleCoverage('Gb')).toBe(true);
   });
 });

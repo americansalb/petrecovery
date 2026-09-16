@@ -16,14 +16,12 @@ import { MODES, configFromParams, configToParams } from '@/app/lib/geo/modes';
 import { METER_CODES, refusalTitle, untilText } from '@/app/lib/geo/meter';
 import { encodeShare } from '@/app/lib/geo/share';
 import { reducer, createInitialState, isFinished, totalScore, streakLength, buildSummary } from '../lib/gameState';
-import { loadGoogleMaps, onGoogleMapsAuthFailure } from '../lib/googleMaps';
 import { ensureLookAround } from '../lib/lookAround';
 import { mapKitAuth, mapKitRefusalMessage, onMapKitAuth } from '../lib/appleMapKit';
 import { recordGame, bestFor } from '../lib/storage';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName } from '../lib/useRoom';
-import GoogleStreetViewPane from './GoogleStreetViewPane';
-import GoogleGuessMap from './GoogleGuessMap';
+import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
 import AppleLookAroundPane from './AppleLookAroundPane';
 import AppleGuessMap from './AppleGuessMap';
 import NotEarthPane from './NotEarthPane';
@@ -42,19 +40,6 @@ const DESKTOP_SIZE = {
   large: 'sm:w-[44rem] sm:h-[32rem]',
 };
 
-/** "Tried 41 random points: 29 in water, 11 without imagery nearby." */
-export function statsSentence(stats) {
-  if (!stats) return '';
-  const tried = (stats.probes || 0) + (stats.water || 0);
-  if (!tried) return '';
-  const details = [];
-  if (stats.water) details.push(`${stats.water} in water`);
-  if (stats.misses) details.push(`${stats.misses} without imagery nearby`);
-  if (stats.unofficial) details.push(`${stats.unofficial} with only user photos`);
-  const head = `Tried ${tried} random ${tried === 1 ? 'point' : 'points'}`;
-  return details.length ? `${head}: ${details.join(', ')}.` : `${head}.`;
-}
-
 function Panel({ children }) {
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950/95 p-4">
@@ -63,7 +48,7 @@ function Panel({ children }) {
   );
 }
 
-function ErrorPanel({ title, message, stats, onRetry, retrying, appleHref, resetAt }) {
+function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
   return (
     <Panel>
       <div className="rounded-2xl border border-white/10 bg-ocean-900 p-5 text-white">
@@ -72,16 +57,10 @@ function ErrorPanel({ title, message, stats, onRetry, retrying, appleHref, reset
           <div className="min-w-0">
             <h2 className="text-lg font-bold">{title}</h2>
             <p className="mt-1 text-sm text-white/80">{message}</p>
-            {resetAt ? <p className="mt-1 text-sm text-white/60">Free rounds come back {untilText(resetAt)}.</p> : null}
-            {stats ? <p className="mt-2 text-xs text-white/50">{statsSentence(stats)}</p> : null}
+            {resetAt ? <p className="mt-1 text-sm text-white/60">Rounds come back {untilText(resetAt)}.</p> : null}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          {appleHref ? (
-            <Link href={appleHref} className="rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600">
-              Play this on Apple imagery
-            </Link>
-          ) : null}
           {onRetry ? (
             <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600 disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
@@ -106,7 +85,6 @@ export default function PlayClient() {
 
   const [server, setServer] = useState(null);
   const [serverError, setServerError] = useState('');
-  const [api, setApi] = useState(null);
   const [mapkit, setMapkit] = useState(null);
   const [sdkError, setSdkError] = useState('');
   const [heading, setHeading] = useState(0);
@@ -129,16 +107,12 @@ export default function PlayClient() {
   const recordedRef = useRef(false);
   const timerFiredRef = useRef(null);
 
-  const isGoogle = config.provider === 'google';
   const isStreak = config.mode === 'streak';
   // A Not Earth round is a NASA panorama and no coordinates at all
   // (app/lib/geo/notEarth.js). The guess map stays exactly where it
   // always is: a round that hid its own map would announce itself.
   const notEarth = state.current?.place || null;
-  const isKidnapped = config.mode === 'kidnapped';
-  const [driven, setDriven] = useState(0);
-  const providerInfo = server?.providers?.[config.provider];
-  const configured = Boolean(providerInfo?.configured);
+  const configured = Boolean(server?.providers?.apple?.configured);
 
   // A new link is a new game.
   useEffect(() => {
@@ -167,10 +141,9 @@ export default function PlayClient() {
   // Server settings: which provider is set up, the browser key, the countries.
   useEffect(() => {
     let alive = true;
-    fetch('/api/geo/config')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('config'))))
-      .then((data) => alive && setServer(data))
-      .catch(() => alive && setServerError('Could not load the game settings from the server.'));
+    loadGeoConfig({ shouldStop: () => !alive })
+      .then((data) => alive && data && setServer(data))
+      .catch((error) => alive && setServerError(configErrorMessage(error)));
     return () => {
       alive = false;
     };
@@ -180,37 +153,26 @@ export default function PlayClient() {
   useEffect(() => {
     if (!server || !configured) return undefined;
     let alive = true;
-    if (isGoogle) {
-      loadGoogleMaps(providerInfo.browserKey)
-        .then((loaded) => alive && setApi(loaded))
-        .catch((error) => alive && setSdkError(error.message));
-    } else {
-      ensureLookAround()
-        .then((loaded) => alive && setMapkit(loaded))
-        .catch((error) => alive && setSdkError(error?.message || 'MapKit JS failed to load'));
-    }
+    ensureLookAround()
+      .then((loaded) => alive && setMapkit(loaded))
+      .catch((error) => alive && setSdkError(error?.message || 'MapKit JS failed to load'));
     return () => {
       alive = false;
     };
-  }, [server, configured, isGoogle, providerInfo?.browserKey]);
+  }, [server, configured]);
 
-  // A key rejected after load (referrer, API not enabled) is reported in
-  // our words, with the exact line to add, instead of Google's overlay.
-  useEffect(() => onGoogleMapsAuthFailure((message) => setSdkError(message)), []);
-
-  // The same for Apple, and this one used to be silent. MapKit does not
-  // reject a refused token: it loads, the pane is built, and nothing is
-  // ever drawn in it. A token is refused when its origin claim does not
-  // match the host the page is served from, which is how Apple Maps
-  // went dark on www while the apex worked (app/geo/lib/appleMapKit.js).
+  // A refused token, which used to be silent. MapKit does not reject
+  // one: it loads, the pane is built, and nothing is ever drawn in it.
+  // A token is refused when its origin claim does not match the host
+  // the page is served from, which is how Apple Maps went dark on www
+  // while the apex worked (app/geo/lib/appleMapKit.js).
   useEffect(() => {
-    if (isGoogle) return undefined;
     const settle = (state) => {
       if (state === 'failed') setSdkError(mapKitRefusalMessage());
     };
     settle(mapKitAuth());
     return onMapKitAuth(settle);
-  }, [isGoogle]);
+  }, []);
 
   const startRound = useCallback(async () => {
     const s = stateRef.current;
@@ -227,15 +189,13 @@ export default function PlayClient() {
       if (!res.ok) {
         const error = new Error(data.error || 'Could not start the round');
         error.code = data.code;
-        error.stats = data.stats;
         error.resetAt = data.resetAt || null;
         throw error;
       }
       dispatch({ type: 'load_success', round: data.round });
-      setNotice(statsSentence(data.round.stats));
     } catch (error) {
       if (id !== requestRef.current) return;
-      dispatch({ type: 'load_error', error: { message: error.message, code: error.code, stats: error.stats, resetAt: error.resetAt || null } });
+      dispatch({ type: 'load_error', error: { message: error.message, code: error.code, resetAt: error.resetAt || null } });
     }
   }, []);
 
@@ -252,13 +212,10 @@ export default function PlayClient() {
   // "No imagery" twice in a row is bad luck; a third time we say so.
   const autoRetrying = state.status === 'error' && state.error?.code === 'no_imagery' && state.attempt < 2;
 
-  // The play meter said no (docs/GEO.md): the same game on Apple imagery
-  // is the way on when the mode has one and Google was the problem.
+  // The play meter said no (docs/GEO.md, "The play meter"). There is
+  // no other imagery to send them to now, so a refusal is the end of
+  // the round rather than a fork.
   const metered = state.status === 'error' && METER_CODES.includes(state.error?.code);
-  const appleHref =
-    metered && isGoogle && ['allowance', 'budget'].includes(state.error.code) && MODES[config.mode]?.providers?.includes('apple')
-      ? `/geo/play?${configToParams({ ...config, provider: 'apple' }).toString()}`
-      : null;
   useEffect(() => {
     if (!autoRetrying) return undefined;
     const id = setTimeout(() => dispatch({ type: 'retry' }), 400);
@@ -424,41 +381,29 @@ export default function PlayClient() {
   } else if (mapMode === 'result') {
     // flex-col so the map's flex-1 fills the frame; without it the map
     // collapses to zero height and the panorama shows through the border.
-    mapClass = `absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-20 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
+    mapClass = `absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl sm:top-24 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
-      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
+      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
     mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
   }
 
-  const sdkReady = isGoogle ? Boolean(api) : Boolean(mapkit);
-  const canZoom = config.zoom && (isGoogle || Boolean(notEarth));
+  const sdkReady = Boolean(mapkit);
+  // Look Around zooms by pinch and wheel only, so there is nothing for
+  // a button to do there. A Not Earth panorama is ours, and it zooms.
+  const canZoom = config.zoom && Boolean(notEarth);
   const showLoading = state.status === 'loading' || state.status === 'locating' || (state.status === 'idle' && configured);
   const roundNumber = state.roundIndex + 1;
 
   return (
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
       {/* Imagery */}
-      {sdkReady && isGoogle ? (
-        <GoogleStreetViewPane
-          ref={paneRef}
-          api={api}
-          panoId={state.current?.panoId || ''}
-          heading={state.current?.heading || 0}
-          allowMove={config.move}
-          allowPan={config.pan}
-          allowZoom={config.zoom}
-          drive={isKidnapped && state.status === 'playing'}
-          onHeading={setHeading}
-          onDrive={setDriven}
-        />
-      ) : null}
       {notEarth ? (
         <NotEarthPane ref={paneRef} place={notEarth} roundKey={state.roundIndex} allowPan={config.pan} allowZoom={config.zoom} />
       ) : null}
-      {sdkReady && !isGoogle && state.current?.candidates ? (
+      {sdkReady && state.current?.candidates ? (
         <AppleLookAroundPane
           ref={paneRef}
           mapkit={mapkit}
@@ -486,14 +431,11 @@ export default function PlayClient() {
           score={totalScore(state)}
           streak={streakLength(state)}
           secondsLeft={inRound ? secondsLeft : NaN}
-          heading={isGoogle ? heading : 0}
+          heading={heading}
           canZoom={canZoom && inRound}
-          canReturn={!isKidnapped}
-          driven={isKidnapped ? driven : null}
+          canPan={config.pan}
           onReturn={() => paneRef.current?.returnToStart?.()}
           onZoom={(delta) => paneRef.current?.zoomBy?.(delta)}
-          mapSize={mapSize}
-          onMapSize={setMapSize}
           mobileMapOpen={mobileMapOpen}
           onToggleMobileMap={() => setMobileMapOpen((open) => !open)}
           notice={inRound ? notice : ''}
@@ -504,22 +446,48 @@ export default function PlayClient() {
       {/* The one map, moved by class */}
       {sdkReady ? (
         <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
-          <div className="min-h-0 flex-1">
-            {isGoogle ? (
-              <GoogleGuessMap api={api} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} pinStyle={profile?.equipped?.pin || null} />
-            ) : (
-              <AppleGuessMap mapkit={mapkit} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} />
-            )}
+          <div className="relative min-h-0 flex-1">
+            <AppleGuessMap mapkit={mapkit} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} />
+            {/* On the card, next to what they change. Under the score
+                they read as part of it. */}
+            {inRound && !isStreak ? (
+              <div className="absolute right-2 top-2 z-10 hidden items-center gap-1 sm:flex">
+                {MAP_SIZES.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setMapSize(size)}
+                    className={`h-7 w-7 rounded-full border text-xs font-semibold shadow backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-500 text-white' : 'border-white/20 bg-ocean-900/85 text-white/80 hover:bg-ocean-800'}`}
+                    aria-pressed={mapSize === size}
+                    title={`${size} map (M cycles)`}
+                  >
+                    {size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
+          {/* The card's own footer: what to do on the left, the one
+              thing to press on the right. The instruction used to BE
+              the button's label, which made the only call to action on
+              the screen change its words under the cursor. */}
           {inRound && !isStreak ? (
-            <button
-              type="button"
-              onClick={() => submitGuess()}
-              disabled={!state.pin || state.status !== 'playing'}
-              className="h-12 shrink-0 bg-clay-500 text-base font-bold text-white transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/50"
-            >
-              {state.status === 'submitting' ? 'Scoring' : state.pin ? 'Guess' : 'Place your pin on the map'}
-            </button>
+            <div className="flex shrink-0 items-center gap-3 border-t border-white/10 bg-ocean-900 px-4 py-3">
+              {/* The smallest card is a peek, and two lines of hint
+                  there squeeze the only button on it. */}
+              <p className={`min-w-0 flex-1 text-xs leading-snug text-sand-300/80 ${effectiveSize === 'small' ? 'hidden' : ''}`}>
+                {state.pin ? 'Space or Enter guesses too.' : 'Tap the map to drop your pin.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => submitGuess()}
+                disabled={!state.pin || state.status !== 'playing'}
+                data-geo-guess
+                className={`rounded-full bg-clay-500 px-8 py-2.5 text-sm font-bold text-white transition hover:bg-clay-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/40 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
+              >
+                {state.status === 'submitting' ? 'Scoring' : 'Guess'}
+              </button>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -579,25 +547,23 @@ export default function PlayClient() {
       ) : null}
       {server && !configured ? (
         <Panel>
-          <SetupNotice provider={config.provider} missing={providerInfo?.missing || []} />
+          <SetupNotice provider="apple" missing={server?.providers?.apple?.missing || []} />
         </Panel>
       ) : null}
       {!server && !serverError ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading</div>
       ) : null}
       {serverError ? <ErrorPanel title="The game cannot start" message={serverError} /> : null}
-      {sdkError ? <ErrorPanel title={isGoogle ? 'Google Maps did not load' : 'Apple Look Around did not load'} message={sdkError} /> : null}
+      {sdkError ? <ErrorPanel title="Apple Look Around did not load" message={sdkError} /> : null}
       {configured && !sdkReady && !sdkError && server ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading {isGoogle ? 'Street View' : 'Look Around'}</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading Look Around</div>
       ) : null}
       {state.status === 'error' && !autoRetrying ? (
         <ErrorPanel
           title={metered ? refusalTitle(state.error.code) : state.error?.code === 'no_imagery' ? 'No imagery found' : 'Could not start the round'}
           message={state.error?.message || 'Something went wrong.'}
-          stats={state.error?.stats}
           onRetry={metered && state.error.code !== 'speed' ? null : () => dispatch({ type: 'retry' })}
-          appleHref={appleHref}
-          resetAt={metered && state.error.code === 'allowance' ? state.error.resetAt : null}
+          resetAt={metered ? state.error.resetAt : null}
         />
       ) : null}
       {state.status === 'playing' && state.error ? (

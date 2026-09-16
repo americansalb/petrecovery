@@ -15,15 +15,13 @@ import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
 import { initials } from '@/app/lib/geo/rooms';
-import { loadGoogleMaps, onGoogleMapsAuthFailure } from '../lib/googleMaps';
 import { useRoom, useNow, loadName, saveIdentity } from '../lib/useRoom';
 import { ensureProfile } from '../lib/profile';
-import GoogleStreetViewPane from './GoogleStreetViewPane';
 import AppleLookAroundPane from './AppleLookAroundPane';
 import AppleGuessMap from './AppleGuessMap';
 import { ensureLookAround } from '../lib/lookAround';
 import { mapKitAuth, mapKitRefusalMessage, onMapKitAuth } from '../lib/appleMapKit';
-import GoogleGuessMap from './GoogleGuessMap';
+import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
 import { Compass, TimerRing } from './GameHud';
 import SetupNotice from './SetupNotice';
 import PlayersPanel from './rooms/PlayersPanel';
@@ -65,7 +63,6 @@ export default function RoomClient({ code }) {
   useNow(250);
 
   const [server, setServer] = useState(null);
-  const [api, setApi] = useState(null);
   const [mapkit, setMapkit] = useState(null);
   const [locateAttempt, setLocateAttempt] = useState(0);
   const [sdkError, setSdkError] = useState('');
@@ -89,9 +86,9 @@ export default function RoomClient({ code }) {
   const phase = room?.phase || '';
   const status = room?.status || '';
   const me = state?.me || null;
-  const browserKey = server?.providers?.google?.browserKey || '';
-  const isApple = room?.config?.provider === 'apple';
-  const googleConfigured = isApple || Boolean(server?.providers?.google?.configured);
+  // Every room is on Look Around; the provider on a room's config is
+  // normalized to apple before it is stored (app/lib/geo/modes.js).
+  const imageryConfigured = Boolean(server?.providers?.apple?.configured);
   if (state?.round) lastRoundRef.current = state.round;
   const shownRound = state?.round || lastRoundRef.current;
   const locating = state?.locating || null;
@@ -100,7 +97,7 @@ export default function RoomClient({ code }) {
   // polls (and, for the browser that found the place, across the change
   // to guessing), so the pane does not restart its search every poll.
   let appleCandidates = null;
-  if (isApple) {
+  {
     let key = '';
     let fresh = null;
     if (phase === 'locating' && locating) {
@@ -127,48 +124,38 @@ export default function RoomClient({ code }) {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/geo/config')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('config'))))
-      .then((data) => alive && setServer(data))
-      .catch(() => alive && setSdkError('Could not load the game settings from the server.'));
+    loadGeoConfig({ shouldStop: () => !alive })
+      .then((data) => alive && data && setServer(data))
+      .catch((error) => alive && setSdkError(configErrorMessage(error)));
     return () => {
       alive = false;
     };
   }, []);
 
-  // The imagery SDK, once a game is on: MapKit for Apple rooms, Maps for Google.
+  // The imagery SDK, once a game is on.
   useEffect(() => {
     if (status !== 'playing') return undefined;
     let alive = true;
-    if (isApple) {
-      ensureLookAround()
-        .then((loaded) => alive && setMapkit(loaded))
-        .catch((e) => alive && setSdkError(e?.message || 'MapKit JS failed to load'));
-    } else if (browserKey) {
-      loadGoogleMaps(browserKey)
-        .then((loaded) => alive && setApi(loaded))
-        .catch((e) => alive && setSdkError(e.message));
-    }
+    ensureLookAround()
+      .then((loaded) => alive && setMapkit(loaded))
+      .catch((e) => alive && setSdkError(e?.message || 'MapKit JS failed to load'));
     return () => {
       alive = false;
     };
-  }, [browserKey, status, isApple]);
+  }, [status]);
 
-  useEffect(() => onGoogleMapsAuthFailure((message) => setSdkError(message)), []);
-
-  // The same for Apple, and this one used to be silent. MapKit does not
-  // reject a refused token: it loads, the pane is built, and nothing is
-  // ever drawn in it. A token is refused when its origin claim does not
-  // match the host the page is served from, which is how Apple Maps
-  // went dark on www while the apex worked (app/geo/lib/appleMapKit.js).
+  // A refused token, which used to be silent. MapKit does not reject
+  // one: it loads, the pane is built, and nothing is ever drawn in it.
+  // A token is refused when its origin claim does not match the host
+  // the page is served from, which is how Apple Maps went dark on www
+  // while the apex worked (app/geo/lib/appleMapKit.js).
   useEffect(() => {
-    if (!isApple) return undefined;
     const settle = (state) => {
       if (state === 'failed') setSdkError(mapKitRefusalMessage());
     };
     settle(mapKitAuth());
     return onMapKitAuth(settle);
-  }, [isApple]);
+  }, []);
 
 
   // Arrived with ?name= (a rematch link): join without asking again.
@@ -292,13 +279,12 @@ export default function RoomClient({ code }) {
 
   const notFound = error?.status === 404;
   const joined = Boolean(identity && me);
-  const imageryReady = isApple ? Boolean(mapkit) : Boolean(api);
+  const imageryReady = Boolean(mapkit);
   // Players only: every panorama a browser opens is a billed load, and
   // the meter charges the room's players. The server withholds the
   // panorama id from anyone who has not joined; this keeps the pane from
   // mounting for them at all.
-  const showImagery = !isApple && api && joined && status === 'playing' && shownRound;
-  const showApple = isApple && mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
+  const showApple = mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
@@ -320,18 +306,6 @@ export default function RoomClient({ code }) {
             }
           }}
           onFailed={() => {}}
-        />
-      ) : null}
-      {showImagery ? (
-        <GoogleStreetViewPane
-          ref={paneRef}
-          api={api}
-          panoId={shownRound.panoId}
-          heading={shownRound.heading || 0}
-          allowMove={room.config.move}
-          allowPan={room.config.pan}
-          allowZoom={room.config.zoom}
-          onHeading={setHeading}
         />
       ) : null}
 
@@ -373,25 +347,12 @@ export default function RoomClient({ code }) {
 
           {phase === 'guessing' ? (
             <div className="pointer-events-none absolute bottom-16 left-3 z-30 flex flex-col items-start gap-2 sm:left-4">
-              {!isApple ? (
-                <div className="pointer-events-auto">
-                  <Compass heading={heading} />
-                </div>
-              ) : null}
               <div className="pointer-events-auto flex items-center gap-2">
                 <button type="button" onClick={() => paneRef.current?.returnToStart?.()} className={iconButton} aria-label="Return to start" title="Return to start (R)">
                   <RotateCcw className="h-5 w-5" />
                 </button>
-                {room.config.zoom && !isApple ? (
-                  <>
-                    <button type="button" onClick={() => paneRef.current?.zoomBy?.(1)} className={iconButton} aria-label="Zoom in">
-                      <Plus className="h-5 w-5" />
-                    </button>
-                    <button type="button" onClick={() => paneRef.current?.zoomBy?.(-1)} className={iconButton} aria-label="Zoom out">
-                      <Minus className="h-5 w-5" />
-                    </button>
-                  </>
-                ) : null}
+                {/* Look Around zooms by pinch and wheel only, so there
+                    is nothing for a zoom button to do in a room. */}
               </div>
             </div>
           ) : null}
@@ -438,21 +399,25 @@ export default function RoomClient({ code }) {
       {imageryReady && joined ? (
         <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
           <div className="min-h-0 flex-1">
-            {isApple ? (
-              <AppleGuessMap mapkit={mapkit} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} />
-            ) : (
-              <GoogleGuessMap api={api} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} pinStyle={mine?.cosmetics?.pin ? { style: mine.cosmetics.pin.style, fill: mine.color } : null} />
-            )}
+            <AppleGuessMap mapkit={mapkit} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} />
           </div>
+          {/* The same footer as a solo round: what to do on the left,
+              the one thing to press on the right. */}
           {inRound && !iGuessed ? (
-            <button
-              type="button"
-              onClick={submitGuess}
-              disabled={!pin || busy}
-              className="h-12 shrink-0 bg-clay-500 text-base font-bold text-white transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/50"
-            >
-              {busy ? 'Sending' : pin ? 'Guess' : 'Place your pin on the map'}
-            </button>
+            <div className="flex shrink-0 items-center gap-3 border-t border-white/10 bg-ocean-900 px-4 py-3">
+              <p className="min-w-0 flex-1 text-xs leading-snug text-sand-300/80">
+                {pin ? 'Space or Enter guesses too.' : 'Tap the map to drop your pin.'}
+              </p>
+              <button
+                type="button"
+                onClick={submitGuess}
+                disabled={!pin || busy}
+                data-geo-guess
+                className="shrink-0 rounded-full bg-clay-500 px-8 py-2.5 text-sm font-bold text-white transition hover:bg-clay-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/40"
+              >
+                {busy ? 'Sending' : 'Guess'}
+              </button>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -484,14 +449,14 @@ export default function RoomClient({ code }) {
         <RevealPanel state={state} secondsLeft={revealLeft ?? 0} onNext={() => run(() => act('next', { phase, roundIndex: room?.roundIndex }))} onReact={(emoji) => act('react', { emoji })} busy={busy} />
       ) : null}
       {joined && status === 'finished' ? <StandingsPanel state={state} onRematch={onRematch} onLeave={onLeave} busy={busy} error={actionError} /> : null}
-      {server && !googleConfigured && joined && status !== 'finished' ? (
+      {server && !imageryConfigured && joined && status !== 'finished' ? (
         <Panel>
-          <SetupNotice provider="google" missing={server?.providers?.google?.missing || []} />
+          <SetupNotice provider="apple" missing={server?.providers?.apple?.missing || []} />
         </Panel>
       ) : null}
-      {sdkError ? <MessagePanel title={isApple ? 'Apple Look Around did not load' : 'Google Maps did not load'} message={sdkError} /> : null}
-      {joined && status === 'playing' && !imageryReady && !sdkError && googleConfigured && (phase === 'guessing' || phase === 'reveal' || phase === 'locating') ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">{isApple ? 'Loading Look Around' : 'Loading Street View'}</div>
+      {sdkError ? <MessagePanel title="Apple Look Around did not load" message={sdkError} /> : null}
+      {joined && status === 'playing' && !imageryReady && !sdkError && imageryConfigured && (phase === 'guessing' || phase === 'reveal' || phase === 'locating') ? (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading Look Around</div>
       ) : null}
     </div>
   );

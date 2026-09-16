@@ -171,15 +171,20 @@ describe('lists', () => {
     expect(countriesInContinent('nowhere')).toEqual([]);
   });
 
-  test('the picker lists every country with a code, flag and coverage flags', () => {
+  test('the picker lists every country with a code, a flag and whether it has imagery', () => {
     const options = countryOptions();
     expect(options.length).toBeGreaterThan(200);
     const us = options.find((o) => o.code === 'US');
-    expect(us).toMatchObject({ name: 'United States', google: true, apple: true });
+    expect(us).toMatchObject({ name: 'United States', apple: true });
     expect(us.flag.length).toBeGreaterThan(0);
     expect(options.find((o) => o.code === 'SG')).toBeTruthy();
     expect(options.find((o) => o.code === 'AQ')).toBeUndefined();
-    expect(options.find((o) => o.code === 'CN').google).toBe(false);
+    // Apple has not driven Brazil, and the picker says so rather than
+    // hiding the country: a country with no city streets is a country
+    // you can still look at on the map.
+    expect(options.find((o) => o.code === 'BR').apple).toBe(false);
+    // There is one imagery, so there is one flag per row.
+    expect(Object.keys(us).sort()).toEqual(['apple', 'code', 'flag', 'name', 'region', 'subregion']);
   });
 
   test('every polygon country has a bounding box and area weights', () => {

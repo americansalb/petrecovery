@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { loadGeoConfig } from '../../lib/serverConfig';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Globe2, Play, Settings2, Sparkles } from 'lucide-react';
@@ -56,11 +57,10 @@ export default function ColdOpen() {
     // first minute. Script needs no key and no quota, so when there is
     // no imagery the button starts the game that works instead of the
     // game that cannot.
-    fetch('/api/geo/config', { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : null))
+    loadGeoConfig({ shouldStop: () => !live })
       .then((data) => {
         if (!live || !data) return;
-        setImagery(Boolean(data.providers?.apple?.configured || data.providers?.google?.configured));
+        setImagery(Boolean(data.providers?.apple?.configured));
       })
       .catch(() => {
         // Unreachable config is not proof of missing imagery, and

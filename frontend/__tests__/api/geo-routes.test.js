@@ -109,24 +109,6 @@ describe('GET /api/geo/config', () => {
     expect(body).not.toContain('browser-key');
     expect(body).not.toMatch(/browserKey|Key|secret/i);
   });
-
-  test('names the one variable an operator has to set, when it is not set', async () => {
-    const saved = { secret: process.env.GEO_TOKEN_SECRET, auth: process.env.NEXTAUTH_SECRET };
-    delete process.env.GEO_TOKEN_SECRET;
-    delete process.env.NEXTAUTH_SECRET;
-    try {
-      const body = await (await getConfig()).json();
-      expect(body.providers.apple.configured).toBe(false);
-      // The game's own variable, not the pet site's: the setup screen
-      // renders this list verbatim.
-      expect(body.providers.apple.missing).toEqual(['GEO_TOKEN_SECRET']);
-    } finally {
-      if (saved.secret === undefined) delete process.env.GEO_TOKEN_SECRET;
-      else process.env.GEO_TOKEN_SECRET = saved.secret;
-      if (saved.auth === undefined) delete process.env.NEXTAUTH_SECRET;
-      else process.env.NEXTAUTH_SECRET = saved.auth;
-    }
-  });
 });
 
 describe('POST /api/geo/round', () => {
@@ -302,5 +284,31 @@ describe('POST /api/geo/guess', () => {
     const refused = await postShop(request({ action: 'buy', itemId: 'pin-star' }, mine));
     expect(refused.status).toBe(402);
     expect((await postShop(request({ action: 'dance', itemId: 'x' }, mine))).status).toBe(400);
+  });
+});
+
+/**
+ * Last on purpose. This is the only test that takes the token secret
+ * out of the environment, and the round route kicks off an unawaited
+ * sweep, so anything running inside that window would see a server with
+ * no secret and fail for a reason that has nothing to do with it.
+ */
+describe('GET /api/geo/config with nothing set up', () => {
+  test('names the one variable an operator has to set, when it is not set', async () => {
+    const saved = { secret: process.env.GEO_TOKEN_SECRET, auth: process.env.NEXTAUTH_SECRET };
+    delete process.env.GEO_TOKEN_SECRET;
+    delete process.env.NEXTAUTH_SECRET;
+    try {
+      const body = await (await getConfig()).json();
+      expect(body.providers.apple.configured).toBe(false);
+      // The game's own variable, not the pet site's: the setup screen
+      // renders this list verbatim.
+      expect(body.providers.apple.missing).toEqual(['GEO_TOKEN_SECRET']);
+    } finally {
+      if (saved.secret === undefined) delete process.env.GEO_TOKEN_SECRET;
+      else process.env.GEO_TOKEN_SECRET = saved.secret;
+      if (saved.auth === undefined) delete process.env.NEXTAUTH_SECRET;
+      else process.env.NEXTAUTH_SECRET = saved.auth;
+    }
   });
 });
