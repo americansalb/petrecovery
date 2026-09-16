@@ -9,6 +9,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { CUP_PRIZES, CUP_ROUNDS, challengeBoard, cupEndsAt, cupKeyFor, finalizeCup } from '@/app/lib/geo/server/challenges';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
@@ -33,6 +34,6 @@ export async function GET(request) {
     return NextResponse.json({ ok: true, week: key.slice(4), endsAt: cupEndsAt(key), prizes: CUP_PRIZES, ...board }, NO_STORE);
   } catch (error) {
     console.error('[geo/cup]', error);
-    return NextResponse.json({ error: "Could not load this week's board", code: 'internal' }, { status: 500, ...NO_STORE });
+    return NextResponse.json(schemaErrorBody(error, "Could not load this week's board"), { status: 500, ...NO_STORE });
   }
 }

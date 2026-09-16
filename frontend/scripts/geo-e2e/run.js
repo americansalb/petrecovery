@@ -37,7 +37,6 @@ try {
   ({ chromium } = require('playwright-core'));
 }
 
-const FAKE = fs.readFileSync(path.join(__dirname, 'fake-maps.js'), 'utf8');
 const FAKE_MAPKIT = fs.readFileSync(path.join(__dirname, 'fake-mapkit.js'), 'utf8');
 // The only names the script map is allowed to write on itself.
 const COUNTRY_NAMES = new Set(
@@ -112,7 +111,6 @@ async function newPage(browser, viewport, options = {}) {
     errors.push(`asset: ${response.status()} ${kind} ${url}`);
   });
   page.on('dialog', (d) => d.dismiss().catch(() => {}));
-  await page.route('https://maps.googleapis.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE }));
   await page.route('https://cdn.apple-mapkit.com/**', (route) => route.fulfill({ contentType: 'application/javascript', body: FAKE_MAPKIT }));
   page.errors = errors;
   return page;
