@@ -64,8 +64,9 @@ export function mayMintFor(host) {
   if (!name) return false;
   if (name === 'localhost' || name === '127.0.0.1' || name.endsWith('.local')) return true;
   // Preview deployments get a fresh hostname per push, which is exactly
-  // the case a hand minted token can never keep up with.
-  if (name.endsWith('.vercel.app')) return true;
+  // the case a hand minted token can never keep up with. One suffix per
+  // host that builds this: Vercel's and Render's.
+  if (name.endsWith('.vercel.app') || name.endsWith('.onrender.com')) return true;
   return KNOWN.some((known) => name === known || name.endsWith(`.${known}`));
 }
 

@@ -13,10 +13,14 @@
  *
  * So the deploy syncs the schema. Three rules keep that safe:
  *
- * 1. **Only on Vercel**, or when FORCE_DB_PUSH is set. A local
- *    `npm run build` and CI both have a DATABASE_URL pointed at
- *    something that is not the production database (CI deliberately
- *    aims at a dummy), and neither should have a schema pushed at it.
+ * 1. **Only on a host that deploys this**, or when FORCE_DB_PUSH is
+ *    set. A local `npm run build` and CI both have a DATABASE_URL
+ *    pointed at something that is not the production database (CI
+ *    deliberately aims at a dummy), and neither should have a schema
+ *    pushed at it. The host is recognised by the variable it sets for
+ *    itself: VERCEL on Vercel, RENDER on Render. Naming only one of
+ *    them is how this came to skip every deploy on the other, which
+ *    looks identical to working until a query hits a missing table.
  * 2. **Never --accept-data-loss.** Prisma refuses a change that would
  *    drop data unless you ask for it, and this never asks. Adding
  *    tables and columns goes through; anything that would destroy
@@ -37,9 +41,15 @@ const skip = (why) => {
 
 if (process.env.SKIP_DB_PUSH) skip('SKIP_DB_PUSH is set');
 if (!process.env.DATABASE_URL) skip('no DATABASE_URL, so there is nothing to sync');
-if (!process.env.VERCEL && !process.env.FORCE_DB_PUSH) {
-  skip('not a Vercel build (set FORCE_DB_PUSH=1 to sync from somewhere else)');
+const HOSTS = [
+  ['VERCEL', 'Vercel'],
+  ['RENDER', 'Render'],
+];
+const platform = HOSTS.find(([variable]) => process.env[variable])?.[1] || '';
+if (!platform && !process.env.FORCE_DB_PUSH) {
+  skip('not a hosted deploy (set FORCE_DB_PUSH=1 to sync from somewhere else)');
 }
+console.log(`[db-sync] ${platform || 'FORCE_DB_PUSH'} deploy`);
 
 console.log('[db-sync] applying prisma/schema.prisma to the database');
 const result = spawnSync('npx', ['prisma', 'db', 'push', '--skip-generate'], {
