@@ -153,9 +153,21 @@ function buildParts(geometry) {
     .filter((part) => part.outer.length >= 3);
 }
 
+/** The smallest a country's disc may be, for microstates and bad data. */
+const MIN_DISK_RADIUS_KM = 4;
+
 function diskFor(meta) {
   if (!meta || !Number.isFinite(meta.lat) || !Number.isFinite(meta.lng)) return null;
-  const radiusKm = Math.max(4, Math.sqrt((meta.area || 0) / Math.PI) * 1.2);
+  // `Math.max(4, x)` looks like it floors this and does not: Math.max
+  // returns NaN if any argument is NaN. Natural Earth records Svalbard
+  // and Jan Mayen with an area of -1, sqrt of a negative is NaN, and
+  // the radius came out NaN. Every comparison against NaN is false, so
+  // nothing threw and nothing logged; the country simply stopped being
+  // playable and its scale stopped counting.
+  //
+  // So the area is validated before the arithmetic rather than after.
+  const area = Number.isFinite(meta.area) && meta.area > 0 ? meta.area : 0;
+  const radiusKm = Math.max(MIN_DISK_RADIUS_KM, Math.sqrt(area / Math.PI) * 1.2);
   return { center: { lat: meta.lat, lng: meta.lng }, radiusKm };
 }
 
