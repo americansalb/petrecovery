@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 import { accountFromRequest } from '@/app/lib/geo/server/identity';
 import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/lib/geo/server/limiter';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
-import { profileSummary, resolveProfile } from '@/app/lib/geo/server/profiles';
+import { GeoSuspended, profileSummary, resolveProfile } from '@/app/lib/geo/server/profiles';
 import { hashIp, usageToday } from '@/app/lib/geo/server/meter';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { getClientIP } from '@/app/lib/geo/server/limiter';
@@ -44,6 +44,14 @@ export async function POST(request) {
     summary.usage = await usageToday(prismaRoomStore, subjects).catch(() => null);
     return NextResponse.json({ ok: true, token: token || undefined, profile: summary }, NO_STORE);
   } catch (error) {
+    // A suspended account is refused rather than failed: 403 with a
+    // reason the screen can show, not a 500 that reads as our fault.
+    if (error instanceof GeoSuspended) {
+      return NextResponse.json(
+        { error: 'This account has been suspended.', code: 'suspended' },
+        { status: 403, ...NO_STORE }
+      );
+    }
     console.error('[geo/profile]', error);
     return NextResponse.json({ error: 'Could not load your profile', code: 'internal' }, { status: 500, ...NO_STORE });
   }

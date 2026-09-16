@@ -16,53 +16,85 @@
 import { initializeMapKit } from './appleMapKit';
 
 const LIBRARY = 'look-around';
+/** How long loadAll() gets before we call it a failure. */
+const LIBRARY_TIMEOUT_MS = 12000;
+const PROBE_MS = 100;
+
 let lookAroundReady = null;
 
 /**
- * Is the library actually loaded?
+ * Is mapkit.LookAround usable yet?
  *
- * NOT `Boolean(mapkit.LookAround)`. MapKit defines that name up front
- * as a placeholder whose constructor throws
+ * It has to be asked in a try/catch, because on MapKit's side it is a
+ * GETTER THAT THROWS until its module has loaded:
+ *
+ *     get FeatureVisibility(){throw gS("FeatureVisibility",["map","look-around"])}
+ *
+ * so merely reading `mapkit.LookAround` raises
  *
  *     [MapKit] mapkit.LookAround is available after loading the
  *     following library: look-around.
  *
- * so the symbol is truthy before the library exists. Checking it was
- * how every Apple round on the live site died: the check passed, the
- * load was skipped, and the throw arrived later from Apple's own code
- * where it read as "Apple Look Around did not load".
+ * That is the whole bug, and it is worth writing down because two
+ * plausible readings of it are both wrong:
  *
- * `mapkit.loadedLibraries` is the honest signal. On a build old enough
- * not to have it, nothing is assumed and the library is requested,
- * which is safe: load() is idempotent.
+ *   - It is not a truthy placeholder. `if (mapkit.LookAround)` does not
+ *     take the wrong branch, it THROWS, and the throw travels up as
+ *     "Apple Look Around did not load".
+ *   - It is not a missing load call. This bundle is
+ *     cdn.apple-mapkit.com/mk/5.x.x/mapkit.js, the legacy full bundle,
+ *     which deletes `mapkit.load`, stubs `loadLibraries` to a console
+ *     warning, leaves `loadedLibraries` an empty getter returning
+ *     undefined, and calls `loadAll()` itself. Everything is already
+ *     being loaded. Asking for it again is impossible and unnecessary.
+ *
+ * What is actually wrong is timing: loadAll() is asynchronous and the
+ * first round asks before it lands. So the only correct thing to do is
+ * wait for the getter to stop throwing.
  */
-function libraryLoaded(mapkit) {
-  const loaded = mapkit?.loadedLibraries;
-  return Array.isArray(loaded) && loaded.includes(LIBRARY);
+function lookAroundUsable(mapkit) {
+  try {
+    return typeof mapkit?.LookAround === 'function';
+  } catch {
+    return false;
+  }
 }
 
 export async function ensureLookAround() {
   const mapkit = await initializeMapKit();
-  if (libraryLoaded(mapkit)) return mapkit;
+  if (lookAroundUsable(mapkit)) return mapkit;
   if (!lookAroundReady) {
-    if (typeof mapkit.load !== 'function') {
-      throw new Error('This MapKit JS build cannot load libraries, so Look Around is unavailable.');
-    }
-    lookAroundReady = Promise.resolve(mapkit.load(LIBRARY)).then(() => mapkit);
-    // A failed load must not be remembered as a failure forever: the
-    // next round asks again.
+    lookAroundReady = new Promise((resolve, reject) => {
+      const deadline = Date.now() + LIBRARY_TIMEOUT_MS;
+      // Some builds do expose a real loader. Use it when it is there,
+      // ignore it when it is the legacy bundle's warning stub, and wait
+      // either way: this bundle is loading the library regardless.
+      try {
+        if (typeof mapkit.loadLibraries === 'function') mapkit.loadLibraries([LIBRARY]);
+        else if (typeof mapkit.load === 'function') mapkit.load(LIBRARY);
+      } catch {
+        /* the stub, or a build that does not want to be asked */
+      }
+      const tick = () => {
+        if (lookAroundUsable(mapkit)) {
+          resolve(mapkit);
+          return;
+        }
+        if (Date.now() >= deadline) {
+          reject(new Error('Apple Look Around did not finish loading. Try again, or play on Google Street View.'));
+          return;
+        }
+        setTimeout(tick, PROBE_MS);
+      };
+      tick();
+    });
+    // A timeout must not be remembered as permanent: the next round asks
+    // again, by which time loadAll() has almost certainly finished.
     lookAroundReady.catch(() => {
       lookAroundReady = null;
     });
   }
-  await lookAroundReady;
-  // Proof, not hope. If Apple resolved the load and still has no usable
-  // constructor, say so here rather than letting the placeholder throw
-  // from inside openLookAround where the message loses its cause.
-  if (!libraryLoaded(mapkit) && !mapkit.LookAround) {
-    throw new Error('MapKit JS loaded but Look Around is unavailable in this browser.');
-  }
-  return mapkit;
+  return lookAroundReady;
 }
 
 /**

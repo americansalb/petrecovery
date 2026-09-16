@@ -119,6 +119,29 @@ function getClientIp(request) {
 }
 
 /**
+ * Who, within one address, is making this request.
+ *
+ * Returns '' when the request carries no player identity, which is the
+ * ordinary case and keeps the old address-only behaviour exactly.
+ *
+ * Only the first 32 characters are used, and only as a bucket name: a
+ * forged value buys a separate bucket and nothing else, which is why
+ * the address ceiling exists alongside it.
+ */
+function playerKey(request) {
+  const token = request.headers.get('x-geo-player') || request.headers.get('x-geo-profile') || '';
+  return token ? token.slice(0, 32) : '';
+}
+
+/**
+ * How much more than one player's allowance a single address may spend
+ * once buckets are split per player. Twelve is a full room; sixteen
+ * leaves room for their guesses, reactions and the room list without
+ * letting one address flood.
+ */
+const ADDRESS_CEILING_FACTOR = 16;
+
+/**
  * Check rate limit
  */
 function checkRateLimit(key, config) {
@@ -351,9 +374,35 @@ export async function middleware(request) {
 
     const config = RATE_LIMIT_CONFIG[configKey || 'default'];
     // Use specific route path for rate limit bucket, not shared "default"
-    const rateLimitKey = `${clientIp}:${configKey || pathname}`;
+    //
+    // Keyed by address AND player, not address alone. A room polls its
+    // state every 1.5 seconds while a game is on, which is 40 requests a
+    // minute per person, against a 180 a minute bucket. Keyed on the
+    // address only, that is four and a half people: five housemates,
+    // five colleagues, or any five players behind one carrier NAT would
+    // have seen the fifth room stop updating, in a game whose rooms hold
+    // twelve.
+    //
+    // The player token is the room secret the client already sends, so
+    // separating buckets by it costs nothing. It is CLIENT SUPPLIED, so
+    // it cannot be the only key: somebody rotating fake tokens would
+    // mint themselves unlimited buckets. Hence the second check below,
+    // which keeps a ceiling on the address itself.
+    const actor = playerKey(request);
+    const rateLimitKey = `${clientIp}:${actor}:${configKey || pathname}`;
 
     const rateLimit = checkRateLimit(rateLimitKey, config);
+
+    // The address ceiling, only where per-player keying widened things:
+    // generous enough for a full room of co-located players and their
+    // guesses, far below what a flood needs.
+    if (rateLimit.allowed && actor) {
+      const ceiling = checkRateLimit(`${clientIp}:__all:${configKey || pathname}`, {
+        windowMs: config.windowMs,
+        maxRequests: config.maxRequests * ADDRESS_CEILING_FACTOR,
+      });
+      if (!ceiling.allowed) rateLimit.allowed = false;
+    }
 
     if (!rateLimit.allowed) {
       return new NextResponse(

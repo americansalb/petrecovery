@@ -237,32 +237,42 @@
   const nsListeners = {};
   const fire = (name, event) => (nsListeners[name] || []).forEach((fn) => fn(event));
 
-  // Apple defines mapkit.LookAround up front as a placeholder that
-  // THROWS when constructed, and only swaps in the real class once the
-  // look-around library is loaded. The fake used to hand out a working
-  // class immediately, so it could not catch the bug where the game
-  // checked `if (mapkit.LookAround)`, found the placeholder, skipped
-  // the load, and died on every Apple round on the live site.
+  // MapKit's own shape, copied rather than imagined.
   //
-  // So the fake throws the same sentence Apple throws, tracks
-  // loadedLibraries the same way, and only becomes usable after load().
-  const loadedLibraries = [];
-  class LookAroundPlaceholder {
-    constructor() {
-      throw new Error('[MapKit] mapkit.LookAround is available after loading the following library: look-around.');
-    }
-  }
+  // In cdn.apple-mapkit.com/mk/5.x.x/mapkit.js, the legacy full bundle
+  // this game loads, mapkit.LookAround is a GETTER THAT THROWS until
+  // its module has landed:
+  //
+  //     get FeatureVisibility(){throw gS("FeatureVisibility",["map","look-around"])}
+  //
+  // The bundle calls loadAll() itself, asynchronously, so the getter
+  // throws for the first few hundred milliseconds and then starts
+  // working. mapkit.load is DELETED in this bundle, loadLibraries is a
+  // stub that logs a warning, and loadedLibraries is an empty getter
+  // returning undefined. There is nothing to request; there is only
+  // something to wait for.
+  //
+  // The fake used to hand out a working LookAround class on the first
+  // tick, which is why the harness passed while every real player got
+  // "Apple Look Around did not load". A fake that is more capable than
+  // the SDK cannot fail, and a test that cannot fail is not a test.
+  let lookAroundLoaded = false;
+  // How long the fake withholds it. Long enough that code which reads
+  // the getter immediately gets the real throw.
+  setTimeout(() => {
+    lookAroundLoaded = true;
+  }, Number(window.__fakeLookAroundDelayMs ?? 250));
+
+  const throwsUntilLoaded = () => {
+    throw new Error('[MapKit] mapkit.LookAround is available after loading the following library: look-around.');
+  };
 
   window.mapkit = {
-    LookAround: LookAroundPlaceholder,
-    loadedLibraries,
-    load: (library) => {
-      const names = String(library || '').split(/[\s,]+/).filter(Boolean);
-      for (const name of names) {
-        if (!loadedLibraries.includes(name)) loadedLibraries.push(name);
-        if (name === 'look-around') window.mapkit.LookAround = LookAround;
-      }
-      return Promise.resolve(names);
+    // `load` is DELETED in the real full bundle, so it is absent here.
+    // `loadLibraries` is a stub that warns. Copying both means code
+    // that tries to call them behaves here as it does in a browser.
+    loadLibraries: () => {
+      console.warn('[MapKit] Loading libraries is not supported in legacy full bundle.');
     },
     addEventListener(name, fn) {
       (nsListeners[name] = nsListeners[name] || []).push(fn);
@@ -293,6 +303,24 @@
     PolygonOverlay,
     FeatureVisibility: { Hidden: 'hidden', Visible: 'visible' },
   };
+
+  // LookAround as a GETTER, because that is what MapKit ships. Reading
+  // it before the module has landed throws; reading it after returns
+  // the class. Any code that treats the name as a plain property, or
+  // tests it for truthiness without a try/catch, fails here exactly as
+  // it fails in a browser.
+  Object.defineProperty(window.mapkit, 'LookAround', {
+    configurable: true,
+    get() {
+      if (!lookAroundLoaded) return throwsUntilLoaded();
+      return LookAround;
+    },
+  });
+
+  // Undefined in the real full bundle, so undefined here: code must not
+  // be able to pass by reading it.
+  Object.defineProperty(window.mapkit, 'loadedLibraries', { configurable: true, get() {} });
+
   Map.ColorSchemes = { Light: 'light', Dark: 'dark' };
   Map.MapTypes = { Standard: 'standard', MutedStandard: 'mutedStandard', Satellite: 'satellite', Hybrid: 'hybrid' };
 })();

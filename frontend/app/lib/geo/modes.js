@@ -238,6 +238,39 @@ export function isDailySeed(seed) {
   return /^daily-\d{4}-\d{2}-\d{2}$/.test(String(seed || ''));
 }
 
+/** Midnight UTC of the day a daily seed names, in ms, or null. */
+export function dailySeedAt(seed) {
+  const m = /^daily-(\d{4})-(\d{2})-(\d{2})$/.exec(String(seed || ''));
+  if (!m) return null;
+  const at = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isFinite(at) ? at : null;
+}
+
+/**
+ * Is a challenge seed one the caller is allowed to play?
+ *
+ * Only the FUTURE is refused, and only the future needs to be.
+ *
+ * `isDailySeed` is a shape test, a regex, so the server used to honour
+ * any date matching the pattern. Asking for `daily-2027-01-01` handed
+ * back next year's five places, and `cup-2099-W01` next century's ten:
+ * read the answers, write them down, come back on the day and post
+ * 25,000. The seed format is visible in every share link, so this
+ * needed no cleverness at all. A shared board that can be played early
+ * is not a board.
+ *
+ * The past stays open on purpose. A share link for yesterday's daily is
+ * the feature that makes the daily worth sharing, and replaying an old
+ * one changes no board: an entry is recorded from the first attempt
+ * only (server/challenges.js), and that day's board is closed anyway.
+ * Refusing the past would have broken every shared link to fix a bug
+ * that only ever pointed forward.
+ */
+function seedIsPlayable(at, now) {
+  if (at === null) return false;
+  return at <= new Date(now).getTime();
+}
+
 /** The ISO week a moment falls in, as "2026-W37" (weeks run Monday to Sunday, UTC). */
 export function isoWeek(date = new Date()) {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -255,6 +288,14 @@ export function cupSeed(date = new Date()) {
 
 export function isCupSeed(seed) {
   return /^cup-\d{4}-W\d{2}$/.test(String(seed || ''));
+}
+
+/** When the week a cup seed names began, in ms, or null. */
+export function cupSeedAt(seed) {
+  const m = /^cup-(\d{4})-W(\d{2})$/.exec(String(seed || ''));
+  if (!m) return null;
+  const end = isoWeekEnd(`${m[1]}-W${m[2]}`);
+  return end === null ? null : end - 7 * 86400000;
 }
 
 /**
@@ -360,13 +401,18 @@ export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
     seed,
   };
 
+  // The shape of a seed is not permission to play it. A caller may hand
+  // back today's seed, or one that has only just rolled over; anything
+  // in the future is somebody reading a board's answers before it opens.
   if (mode === 'daily') {
     Object.assign(config, MODES.daily.fixed);
-    config.seed = isDailySeed(seed) ? seed : dailySeed(now);
+    const at = isDailySeed(seed) ? dailySeedAt(seed) : null;
+    config.seed = seedIsPlayable(at, now) ? seed : dailySeed(now);
   }
   if (mode === 'cup') {
     Object.assign(config, MODES.cup.fixed);
-    config.seed = isCupSeed(seed) ? seed : cupSeed(now);
+    const at = isCupSeed(seed) ? cupSeedAt(seed) : null;
+    config.seed = seedIsPlayable(at, now) ? seed : cupSeed(now);
   }
   // Ranked: the seed is the hour, never the player's. A chosen seed
   // would let someone replay a set they had already seen and submit the

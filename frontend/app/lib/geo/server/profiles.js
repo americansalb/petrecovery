@@ -28,7 +28,36 @@ const toMs = (v) => (v instanceof Date ? v.getTime() : typeof v === 'number' ? v
  * first time they meet. Returns { profile, token, created }; `token` is
  * set only when a new anonymous token was minted.
  */
+/**
+ * Thrown when a suspended account tries to play.
+ *
+ * Suspension used to stop exactly one thing: signing in again. Sessions
+ * last ninety days, so anybody already signed in kept playing, kept
+ * scoring, kept earning points and badges, and kept their place on the
+ * boards. The admin screen said suspended and nothing in the game
+ * agreed, which is the worst kind of moderation control: one that looks
+ * like it worked.
+ *
+ * Play hangs off the PROFILE rather than the session, so this is where
+ * the check belongs. Refusing here takes the rating, the points, the
+ * badges and the boards away at once, and leaves the person able to
+ * play as a guest, which is the intent: this suspends an account, not a
+ * human being.
+ */
+export class GeoSuspended extends Error {
+  constructor(message = 'This account has been suspended') {
+    super(message);
+    this.code = 'suspended';
+  }
+}
+
 export async function resolveProfile(store, { token, accountId, name, now = Date.now(), createIfMissing = true } = {}) {
+  // Asked before anything is read or written, so a suspended account
+  // cannot even refresh its own lastSeenAt.
+  if (accountId && typeof store.getAccountById === 'function') {
+    const account = await store.getAccountById(accountId).catch(() => null);
+    if (account?.suspendedAt) throw new GeoSuspended();
+  }
   const hash = token ? hashToken(token) : null;
   // The account is the game's own (server/accounts.js), never a
   // ReunitePets user: that binding was cut deliberately
