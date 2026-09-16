@@ -14,6 +14,7 @@ import { Award, Gauge, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-rea
 import { formatScore } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
 import { VARIANTS } from '@/app/lib/geo/rooms';
+import { LADDERS, LADDER_LABELS } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
@@ -280,13 +281,16 @@ export default function ProfileClient() {
                 <Medal className="h-4 w-4" />
                 Rating
               </h2>
+              {/* Every ladder, not two of the three. Ranked solo is the
+                  one a player can reach without arranging a room, so
+                  leaving it out hid the rating most people have. */}
               {profile ? (
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  {['classic', 'duel'].map((ladder) => {
+                  {LADDERS.map((ladder) => {
                     const r = profile.ratings?.[ladder] || {};
                     return (
                       <div key={ladder}>
-                        <dt className="text-sand-500">{VARIANTS[ladder]?.label || ladder}</dt>
+                        <dt className="text-sand-500">{LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder}</dt>
                         <dd className="text-lg font-bold tabular-nums">
                           {r.value ?? 1500} <span className="text-xs font-semibold text-sand-500">{r.tier || 'Silver'}</span>
                         </dd>
