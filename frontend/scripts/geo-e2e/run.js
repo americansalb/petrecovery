@@ -627,6 +627,14 @@ async function firstRun(browser) {
   }
   await page.click('button:has-text("See results")');
   await page.waitForSelector('text=/of 25,000/', { timeout: 20000 });
+
+  // The account ask lives here and nowhere earlier: a guest who has
+  // just finished a game is the only person with something to keep.
+  await page.waitForSelector('[data-keep-this]', { timeout: 20000 });
+  const keep = (await page.textContent('[data-keep-this]')).replace(/\s+/g, ' ');
+  log('account ask:', keep.slice(0, 90));
+  if (!/Keep this game/.test(keep)) throw new Error('the summary should offer to keep the game');
+
   await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-daily-board]', { timeout: 20000 });
   if (await page.locator('[data-first-run]').count()) {

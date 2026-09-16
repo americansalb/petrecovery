@@ -134,18 +134,18 @@ export default function ColdOpen() {
           </p>
         ) : null}
 
-        <nav className="geo-rise mt-12 flex flex-wrap items-center justify-center gap-x-1 gap-y-2" style={{ animationDelay: '300ms' }} aria-label="Other ways to play">
+        <nav className="geo-rise mt-10 flex flex-wrap items-center justify-center gap-x-0.5 gap-y-1" style={{ animationDelay: '300ms' }} aria-label="Other ways to play">
           {WAYS.map((way, i) => (
             <span key={way.href} className="flex items-center">
               {i ? <span className="px-1 text-sand-200/30" aria-hidden="true">·</span> : null}
-              <Link href={way.href} className="rounded-lg px-3 py-1.5 text-sm font-semibold text-sand-100/75 transition hover:bg-sand-50/10 hover:text-white">
+              <Link href={way.href} className="rounded-lg px-2.5 py-1.5 text-sm font-semibold text-sand-100/75 transition hover:bg-sand-50/10 hover:text-white">
                 {way.label}
               </Link>
             </span>
           ))}
           <span className="flex items-center">
             <span className="px-1 text-sand-200/30" aria-hidden="true">·</span>
-            <Link href="/geo/setup" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-sand-100/75 transition hover:bg-sand-50/10 hover:text-white">
+            <Link href="/geo/setup" className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-sand-100/75 transition hover:bg-sand-50/10 hover:text-white">
               <Settings2 className="h-3.5 w-3.5" />
               Settings
             </Link>
@@ -153,10 +153,13 @@ export default function ColdOpen() {
         </nav>
       </div>
 
-      <footer className="relative z-10 px-5 pb-6 text-center text-xs text-sand-200/50 sm:px-8">
+      {/* The credits belong on the page and not in the middle of it:
+          small, quiet, and one line wherever there is room for one. */}
+      <footer className="relative z-10 px-5 pb-5 text-center text-[11px] leading-relaxed text-sand-200/45 sm:px-8 sm:text-xs">
         <p className="inline-flex flex-wrap items-center justify-center gap-1.5">
-          <Sparkles className="h-3 w-3" aria-hidden="true" />
-          Street imagery from Apple Look Around and Google Street View, under their own terms. Country outlines from Natural Earth.
+          <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <span className="hidden sm:inline">Street imagery from Apple Look Around and Google Street View, under their own terms. Country outlines from Natural Earth.</span>
+          <span className="sm:hidden">Imagery: Apple Look Around, Google Street View. Outlines: Natural Earth.</span>
         </p>
       </footer>
     </main>

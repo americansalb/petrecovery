@@ -13,6 +13,7 @@ import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/dist
 import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { shareText, summaryHeadline, scoreGlyph } from '@/app/lib/geo/share';
+import KeepThis from './KeepThis';
 
 function useCopy() {
   const [copied, setCopied] = useState('');
@@ -97,7 +98,7 @@ function DailyBoard({ daily, cup = false }) {
           ))}
         </ol>
       ) : null}
-      <Link href="/geo" className="mt-2 inline-block text-xs text-white/60 underline decoration-white/30 hover:text-white">
+      <Link href="/geo/setup" className="mt-2 inline-block text-xs text-white/60 underline decoration-white/30 hover:text-white">
         The whole board is in the lobby
       </Link>
     </div>
@@ -177,6 +178,11 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
         <DailyBoard daily={daily} cup={config.mode === 'cup'} />
         <RankedResult rated={rated} />
 
+        {/* The account ask, at the one moment there is something worth
+            keeping. It renders for guests only and gates nothing: the
+            score above is already recorded in this browser. */}
+        <KeepThis />
+
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => copy('text', text)} className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
             {copied === 'text' ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
@@ -198,7 +204,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
             <RefreshCw className="h-4 w-4" />
             {shared ? 'Play again' : 'New places, same settings'}
           </Link>
-          <Link href="/geo" className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
+          <Link href="/geo/setup" className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
             <Settings2 className="h-4 w-4" />
             Change settings
           </Link>
