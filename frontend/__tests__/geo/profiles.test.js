@@ -11,6 +11,15 @@
 
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 const { createRoom, joinRoom, roomAction, getRoomView, hashToken } = require('@/app/lib/geo/server/rooms');
+
+/**
+ * Apple rooms have no server-side probe: every round is offered as a set
+ * of places and a browser reports the one it managed to open. These
+ * tests are about ratings and points, so they just place the first.
+ */
+async function locate(store, code, token, now) {
+  return roomAction(store, { code, token, action: 'locate', body: { index: 0 }, now, fetchImpl: hitFetch }).catch(() => null);
+}
 const { seasonFor } = require('@/app/lib/geo/season');
 const { resolveProfile, applyRoomRatings, leaderboard, profileSummary, LEADERBOARD_MIN_GAMES } = require('@/app/lib/geo/server/profiles');
 const { RATING_DEFAULT } = require('@/app/lib/geo/rating');
@@ -55,6 +64,7 @@ async function playGame(store, { players, winnerIndex = 0, rounds = 3, now = T0,
     tokens.push(joined.token);
   }
   await roomAction(store, { code: host.room.code, token: tokens[0], action: 'start', now, fetchImpl: hitFetch });
+  await locate(store, host.room.code, tokens[0], now);
   let t = now;
   for (let r = 0; r < rounds; r++) {
     const room = await store.getRoomByCode(host.room.code);
@@ -71,8 +81,10 @@ async function playGame(store, { players, winnerIndex = 0, rounds = 3, now = T0,
     }
     t += sec(31);
     await getRoomView(store, { code: host.room.code, now: t, fetchImpl: hitFetch });
+    await locate(store, host.room.code, typeof tokens === 'undefined' ? host.token : tokens[0], t);
     t += sec(13);
     await getRoomView(store, { code: host.room.code, now: t, fetchImpl: hitFetch });
+    await locate(store, host.room.code, typeof tokens === 'undefined' ? host.token : tokens[0], t);
   }
   const final = await getRoomView(store, { code: host.room.code, token: tokens[0], now: t, fetchImpl: hitFetch });
   return { code: host.room.code, tokens, final, now: t };
@@ -175,6 +187,7 @@ describe('rating a finished room', () => {
     const host = await createRoom(store, { name: 'Duel', hostName: 'Ada', settings: { provider: 'google', variant: 'duel', rounds: 3, time: 30 }, profileId: ada.id, now: T0 });
     const joined = await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.id, now: T0 });
     await roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch });
+  await locate(store, host.room.code, host.token, T0);
     let t = T0;
     for (let r = 0; r < 3; r++) {
       const room = await store.getRoomByCode(host.room.code);
@@ -185,6 +198,7 @@ describe('rating a finished room', () => {
       await roomAction(store, { code: host.room.code, token: joined.token, action: 'guess', body: { lat: round.lat, lng: ((round.lng + 360) % 360) - 180 }, now: t, fetchImpl: hitFetch });
       t += sec(14);
       await getRoomView(store, { code: host.room.code, now: t, fetchImpl: hitFetch });
+    await locate(store, host.room.code, typeof tokens === 'undefined' ? host.token : tokens[0], t);
     }
     const final = await getRoomView(store, { code: host.room.code, token: host.token, now: t, fetchImpl: hitFetch });
     expect(final.room.status).toBe('finished');

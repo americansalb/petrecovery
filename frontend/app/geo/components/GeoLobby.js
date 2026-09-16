@@ -38,7 +38,7 @@ import { getHistory, getStats } from '../lib/storage';
 import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile';
 import { listRecentRooms, loadName } from '../lib/useRoom';
 import { ago } from '../lib/time';
-import { DEFAULT_LIMITS, allowanceText, roomGamesText, untilText } from '@/app/lib/geo/meter';
+import { untilText } from '@/app/lib/geo/meter';
 import { APPLE_COVERAGE, appleCoverageSentence } from '@/app/lib/geo/coverage';
 import SetupNotice from './SetupNotice';
 import PlayerName from './PlayerName';
@@ -567,21 +567,9 @@ export default function GeoLobby() {
                 <Gauge className="h-4 w-4" />
                 Today
               </h2>
-              {profile?.usage ? (
-                <>
-                  <p className="mt-2 text-sm text-sand-700">
-                    <span className="font-semibold text-sand-900">
-                      {profile.usage.google.freeUsed} of {profile.usage.google.freeLimit}
-                    </span>{' '}
-                    free Google Street View rounds used.
-                    {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''}
-                  </p>
-                  <p className="mt-1 text-sm text-sand-700">{roomGamesText(profile.usage.google.roomGames)}</p>
-                  <p className="mt-1 text-sm text-sand-600">Apple Look Around: no limit. The daily challenge and the weekly cup do not count.</p>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-sand-600">{allowanceText({ ...DEFAULT_LIMITS, ...(server?.limits || {}) })}</p>
-              )}
+              <p className="mt-2 text-sm text-sand-700">
+                {profile?.usage ? `${profile.usage.rounds} rounds today.` : ''} Nothing is capped for ordinary play.
+              </p>
             </section>
 
             {/* Ranked */}

@@ -41,7 +41,7 @@ import {
   sanitizeRoomName,
   sortStandings,
 } from '../rooms';
-import { APPLE_CANDIDATES_PER_ROUND, GeoGameError, findRoundImagery } from './game';
+import { APPLE_CANDIDATES_PER_ROUND, GeoGameError } from './game';
 import { createCandidateSource, GeoSamplerError } from './sampler';
 import { checkRoomEntry, recordRoomRound, subjectsForPlayer } from './meter';
 import { awardRoomFinish, awardRoomRound, reactionsForProfile } from './points';
@@ -118,7 +118,7 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
   // budget, or on Google a player whose free room game is used and who
   // has no prepaid rounds, does not open a room. The solo allowance is
   // not checked here.
-  if (subjects) await checkRoomEntry(store, { subjects, provider: config.provider, now });
+  if (subjects) await checkRoomEntry(store, { subjects, now });
   config.seed = randomSeedString();
   let room = null;
   for (let i = 0; i < 6 && !room; i++) {
@@ -162,7 +162,7 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
 export async function joinRoom(store, { code, name, profileId = null, subjects = null, now = Date.now() }) {
   const room = await loadRoom(store, code);
   if (room.status === 'finished') throw new RoomError('finished', 'This game is over', 409);
-  if (subjects) await checkRoomEntry(store, { subjects, provider: room.config?.provider || 'google', now });
+  if (subjects) await checkRoomEntry(store, { subjects, now });
   if (room.status === 'playing' && room.variant === 'duel') {
     throw new RoomError('duel_in_progress', 'A duel is in progress. Ask the host for a rematch when it ends.', 409);
   }
@@ -439,10 +439,10 @@ function appleCandidates(config, index, attempt = 0) {
   return out;
 }
 
-/** Probe for imagery and open the guessing phase. Only the claimant calls this. */
+/** Offer the round's places and wait for a browser to find one. */
 async function buildRound(store, room, index, now, fetchImpl) {
   try {
-    if (room.config?.provider === 'apple') {
+    {
       // No server-side probe exists for Look Around: offer places and let
       // a browser find one (the locate action), then everyone opens it.
       const candidates = appleCandidates(room.config, index, room.retries || 0);
@@ -478,35 +478,6 @@ async function buildRound(store, room, index, now, fetchImpl) {
       });
       return store.getRoomByCode(room.code);
     }
-    const imagery = await findRoundImagery({ config: room.config, roundIndex: index, attempt: room.retries || 0, fetchImpl });
-    const deadline = new Date(now + room.config.time * 1000);
-    await store.createRound({
-      roomId: room.id,
-      index,
-      panoId: imagery.panoId,
-      heading: imagery.heading,
-      lat: imagery.lat,
-      lng: imagery.lng,
-      countryCode: imagery.country?.cca2 || null,
-      countryName: imagery.country?.name || null,
-      countryFlag: imagery.country?.flag || null,
-      city: imagery.city || null,
-      imageDate: imagery.date || null,
-      sizeKm: imagery.sizeKm,
-      stats: imagery.stats || null,
-      startedAt: new Date(now),
-      deadline,
-    });
-    const fresh = await store.getRoomById(room.id);
-    await store.updateRoom(room.id, {
-      status: 'playing',
-      phase: 'guessing',
-      roundIndex: index,
-      phaseEndsAt: deadline,
-      lastError: null,
-      lastActiveAt: new Date(now),
-      version: fresh.version + 1,
-    });
     // Every player present sees this panorama: one round each on the meter.
     await recordRoomRound(store, fresh, now);
   } catch (error) {

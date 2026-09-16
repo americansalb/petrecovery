@@ -78,9 +78,13 @@ describe('rooms API', () => {
     expect(notHost.status).toBe(403);
 
     const started = await (await postRoom(request({ action: 'start' }, host.token), { params: { code: host.code } })).json();
-    expect(started.state.room.phase).toBe('guessing');
-    expect(started.state.round.panoId).toMatch(/^pano-/);
-    expect(JSON.stringify(started.state.round)).not.toMatch(/"lat"/);
+    // Apple has no server-side probe: the room offers places and waits
+    // for a browser to report the one it opened.
+    expect(started.state.room.phase).toBe('locating');
+    const placed = await (await postRoom(request({ action: 'locate', index: 0 }, host.token), { params: { code: host.code } })).json();
+    expect(placed.state.room.phase).toBe('guessing');
+    expect(placed.state.round.coordinate).toBeTruthy();
+    expect(JSON.stringify(placed.state.round)).not.toMatch(/"countryName"/);
 
     const guessed = await (await postRoom(request({ action: 'guess', lat: 10, lng: 10 }, joined.token), { params: { code: host.code } })).json();
     expect(guessed.state.players.find((p) => p.name === 'Grace').guessed).toBe(true);
@@ -98,20 +102,18 @@ describe('rooms API', () => {
   test('bad codes, unknown actions, missing tokens and missing keys have plain answers', async () => {
     expect((await getRoom(request(null), { params: { code: 'nope' } })).status).toBe(404);
     expect((await getRoom(request(null), { params: { code: 'ZZZZZZ' } })).status).toBe(404);
-    const created = await (await createRoom(request({ name: 'X', hostName: 'H', settings: { provider: 'google' } }))).json();
+    const created = await (await createRoom(request({ name: 'X', hostName: 'H', settings: {} }))).json();
     const unknown = await postRoom(request({ action: 'dance' }, created.token), { params: { code: created.code } });
     expect(unknown.status).toBe(400);
     const anonymous = await postRoom(request({ action: 'guess', lat: 1, lng: 1 }), { params: { code: created.code } });
     expect(anonymous.status).toBe(401);
     expect((await postRoom({ json: async () => { throw new Error('bad'); }, headers: new Map() }, { params: { code: created.code } })).status).toBe(400);
+    // No key is needed at all now: Look Around rooms open and start.
     delete process.env.GOOGLE_STREET_VIEW_API_KEY;
-    expect((await createRoom(request({ name: 'X', hostName: 'H', settings: { provider: 'google' } }))).status).toBe(503);
-    expect((await postRoom(request({ action: 'start' }, created.token), { params: { code: created.code } })).status).toBe(503);
-    // Apple Look Around rooms need no Google key: they open, and they start.
-    const apple = await createRoom(request({ name: 'Look', hostName: 'H', settings: { provider: 'apple', mode: 'world', rounds: 3 } }));
+    const apple = await createRoom(request({ name: 'Look', hostName: 'H', settings: { mode: 'balanced', rounds: 3 } }));
     expect(apple.status).toBe(200);
     const appleHost = await apple.json();
-    expect(appleHost.state.room.config).toMatchObject({ provider: 'apple', mode: 'world' });
+    expect(appleHost.state.room.config).toMatchObject({ provider: 'apple', mode: 'balanced' });
     const guest = await (await postRoom(request({ action: 'join', name: 'G' }), { params: { code: appleHost.code } })).json();
     const started = await postRoom(request({ action: 'start' }, appleHost.token), { params: { code: appleHost.code } });
     expect(started.status).toBe(200);
@@ -123,21 +125,15 @@ describe('rooms API', () => {
     expect((await placed.json()).state.round.coordinate).toEqual(state.locating.candidates[0]);
   });
 
-  test('one free Google room a day: the second one is a 429 that says so, Apple rooms stay open', async () => {
-    process.env.GEO_FREE_GOOGLE_ROOM_GAMES = '1';
-    const host = await (await createRoom(request({ name: 'First', hostName: 'Ada', settings: { provider: 'google', rounds: 3 } }, null, '198.51.100.21'))).json();
-    const guest = await (await postRoom(request({ action: 'join', name: 'Grace' }, null, '198.51.100.22'), { params: { code: host.code } })).json();
-    expect(guest.token).toBeTruthy();
+  test('rooms are not rationed: a second room the same day opens like the first', async () => {
+    // Metering rooms taxed the one thing that brings players in, and on
+    // Apple a room costs nothing to serve, so nothing is counted here.
+    const host = await (await createRoom(request({ name: 'First', hostName: 'Ada', settings: { rounds: 3 } }, null, '198.51.100.21'))).json();
+    await postRoom(request({ action: 'join', name: 'Grace' }, null, '198.51.100.22'), { params: { code: host.code } });
     expect((await postRoom(request({ action: 'start' }, host.token), { params: { code: host.code } })).status).toBe(200);
-    const again = await createRoom(request({ name: 'Second', hostName: 'Ada', settings: { provider: 'google' } }, null, '198.51.100.21'));
-    expect(again.status).toBe(429);
-    const body = await again.json();
-    expect(body.code).toBe('rooms');
-    expect(body.error).toMatch(/free multiplayer game/);
-    expect(again.headers.get('Retry-After')).toBeTruthy();
-    const other = await (await createRoom(request({ name: 'Other', hostName: 'Linus', settings: { provider: 'google' } }, null, '198.51.100.23'))).json();
-    expect((await postRoom(request({ action: 'join', name: 'Grace' }, null, '198.51.100.22'), { params: { code: other.code } })).status).toBe(429);
-    const apple = await createRoom(request({ name: 'Cities', hostName: 'Ada', settings: { provider: 'apple', mode: 'balanced' } }, null, '198.51.100.21'));
-    expect(apple.status).toBe(200);
+    const again = await createRoom(request({ name: 'Second', hostName: 'Ada' }, null, '198.51.100.21'));
+    expect(again.status).toBe(200);
+    const third = await createRoom(request({ name: 'Third', hostName: 'Ada' }, null, '198.51.100.21'));
+    expect(third.status).toBe(200);
   });
 });

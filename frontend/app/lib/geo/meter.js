@@ -1,43 +1,38 @@
 /**
- * The play meter: what a player may start today, decided before any
- * imagery is fetched. Pure rules; app/lib/geo/server/meter.js reads the
- * usage rows and applies them.
+ * The play meter: what stops one browser, or one bad day, from taking
+ * the game down.
  *
- * A Google Street View round costs money once the month's free calls
- * are used (docs/GEO.md, "What it costs"). Apple Look Around costs
- * nothing per view but the whole site shares a daily quota. So:
+ * It used to be a billing guard. Google Street View is billed per
+ * panorama load, so the meter counted free rounds, bought rounds, room
+ * games and a site budget denominated in loads, all to bound an invoice.
+ * Apple Look Around is not billed per view, so with Google gone
+ * (2026-09-16) none of that has anything to bound.
  *
- *   - Google rounds: a free allowance per player per day (five games
- *     of five), the daily challenge and the weekly cup on top of it,
- *     then prepaid rounds (quota packs, bought once, never a
- *     subscription), then a refusal.
- *   - Google rooms: one free game a day per player, its rounds outside
- *     the allowance; after that a room costs prepaid rounds.
- *   - Apple rounds and rooms: no allowance.
- *   - Everyone: a daily ceiling shaped like a person rather than a
- *     script, a speed limit per minute, and a daily budget for the
- *     whole site on each provider.
+ * What is left are the two limits that were never about money:
  *
- * Days are UTC. Anonymous players are tracked by profile and by IP
- * address, so clearing the browser does not reset the allowance.
- * Signed-in players are tracked by profile, with the IP only as a
- * ceiling, so a household or an office is not one player.
+ *   ceiling  per player per day. An abuse limit, not pricing: set high
+ *            enough that nobody honest meets it. A heavy evening is
+ *            about a hundred rounds.
+ *   speed    per player per minute. This is the one that actually stops
+ *            a script.
+ *
+ * And one that is about a shared resource rather than a bill:
+ *
+ *   budget   views per day for the whole site. Apple's quota is 250,000
+ *            a day PER DEVELOPER ACCOUNT, and the same account serves
+ *            ReunitePets' shelter maps. Burning the day's quota here
+ *            would blank the maps there, so the site stops first.
+ *
+ * `usage` rows are { profile, ip, site }, each { apple: { rounds } },
+ * per UTC day (app/lib/geo/server/meter.js writes them).
  */
 
-import { PRIMARY_PROVIDER } from './modes';
-
 export const DEFAULT_LIMITS = Object.freeze({
-  freeGoogleRounds: 25, // per player per day; the daily challenge is on top
-  freeGoogleRoundsPerIp: 125, // backstop for anonymous players who clear the browser
-  freeChallengeRounds: 10, // the daily (5) and the cup (5), on top of the allowance
-  freeChallengeRoundsPerIp: 50, // backstop per address for anonymous players
-  freeGoogleRoomGames: 1, // free multiplayer games per player per day on Google
-  freeGoogleRoomGamesPerIp: 5, // backstop per address for anonymous players
-  ceilingAnonymous: 600, // rounds per day, any imagery, per anonymous player
+  ceilingAnonymous: 600, // rounds per day per anonymous player
   ceilingSignedIn: 2000,
   ceilingPerIp: 5000,
   roundsPerMinute: 15, // per player
-  siteBudget: Object.freeze({ google: 20000, apple: 200000 }), // rounds per day, whole site
+  siteBudget: 200000, // views per day, whole site, under Apple's 250,000
 });
 
 function num(value, fallback) {
@@ -48,76 +43,44 @@ function num(value, fallback) {
 
 /** The limits with the environment's overrides (frontend/.env.example). */
 export function limitsFromEnv(env = process.env) {
-  return {
-    freeGoogleRounds: num(env.GEO_FREE_GOOGLE_ROUNDS, DEFAULT_LIMITS.freeGoogleRounds),
-    freeGoogleRoundsPerIp: num(env.GEO_FREE_GOOGLE_ROUNDS_PER_IP, DEFAULT_LIMITS.freeGoogleRoundsPerIp),
-    freeChallengeRounds: num(env.GEO_FREE_CHALLENGE_ROUNDS, DEFAULT_LIMITS.freeChallengeRounds),
-    freeChallengeRoundsPerIp: num(env.GEO_FREE_CHALLENGE_ROUNDS_PER_IP, DEFAULT_LIMITS.freeChallengeRoundsPerIp),
-    freeGoogleRoomGames: num(env.GEO_FREE_GOOGLE_ROOM_GAMES, DEFAULT_LIMITS.freeGoogleRoomGames),
-    freeGoogleRoomGamesPerIp: num(env.GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP, DEFAULT_LIMITS.freeGoogleRoomGamesPerIp),
-    ceilingAnonymous: num(env.GEO_DAILY_CEILING_ANONYMOUS, DEFAULT_LIMITS.ceilingAnonymous),
-    ceilingSignedIn: num(env.GEO_DAILY_CEILING, DEFAULT_LIMITS.ceilingSignedIn),
-    ceilingPerIp: num(env.GEO_DAILY_CEILING_PER_IP, DEFAULT_LIMITS.ceilingPerIp),
+  return Object.freeze({
+    ceilingAnonymous: num(env.GEO_CEILING_ANONYMOUS, DEFAULT_LIMITS.ceilingAnonymous),
+    ceilingSignedIn: num(env.GEO_CEILING_SIGNED_IN, DEFAULT_LIMITS.ceilingSignedIn),
+    ceilingPerIp: num(env.GEO_CEILING_PER_IP, DEFAULT_LIMITS.ceilingPerIp),
     roundsPerMinute: num(env.GEO_ROUNDS_PER_MINUTE, DEFAULT_LIMITS.roundsPerMinute),
-    siteBudget: {
-      google: num(env.GEO_GOOGLE_DAILY_BUDGET, DEFAULT_LIMITS.siteBudget.google),
-      apple: num(env.GEO_APPLE_DAILY_BUDGET, DEFAULT_LIMITS.siteBudget.apple),
-    },
-  };
+    siteBudget: num(env.GEO_SITE_BUDGET, DEFAULT_LIMITS.siteBudget),
+  });
 }
 
-/** "2026-09-07": the UTC day a moment falls in. */
+/** The UTC day a moment falls in, as "2026-09-16". */
 export function dayKey(now = Date.now()) {
   return new Date(now).toISOString().slice(0, 10);
 }
 
-/** The next UTC midnight after a moment, in ms. */
+/** Midnight UTC after `now`, in ms: when the day's counts reset. */
 export function nextDayMs(now = Date.now()) {
   const d = new Date(now);
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
 }
 
 export class MeterError extends Error {
-  constructor(code, message, extra = {}) {
-    super(message);
-    this.name = 'MeterError';
+  constructor(code, message) {
+    super(message || code);
     this.code = code;
-    this.status = 429;
-    Object.assign(this, extra);
   }
 }
 
-export const METER_CODES = ['allowance', 'rooms', 'ceiling', 'budget', 'speed'];
+export const METER_CODES = ['ceiling', 'budget', 'speed'];
 
-/**
- * Panorama loads one round of a mode buys. Every mode shows one
- * panorama; Kidnapped then drives itself, and each hop is another
- * billed load (app/geo/lib/drive.js, MAX_DRIVE_HOPS). The site's daily
- * budget is the one limit denominated in loads rather than rounds,
- * because it is the limit that exists to bound the bill.
- */
-export const KIDNAPPED_LOADS = 73;
+const roundsOf = (bucket) => bucket?.apple?.rounds || 0;
 
-export function roundLoads(mode) {
-  return mode === 'kidnapped' ? KIDNAPPED_LOADS : 1;
-}
-
-const PROVIDERS = ['google', 'apple'];
-const roundsOf = (bucket) => PROVIDERS.reduce((sum, p) => sum + (bucket?.[p]?.rounds || 0), 0);
-
-/** The refusal, in our words. `provider` is the imagery that was asked for. */
-export function refusalMessage(code, provider) {
+/** The refusal, in our words. */
+export function refusalMessage(code) {
   switch (code) {
-    case 'allowance':
-      return "You have used today's free Google Street View rounds. Apple Look Around rounds have no limit, and the free rounds come back tomorrow.";
-    case 'rooms':
-      return "You have used today's free multiplayer game on Google Street View. Rooms on Apple Look Around have no limit, and the free game comes back tomorrow.";
     case 'ceiling':
       return "You've played a lot today. Back tomorrow.";
     case 'budget':
-      return provider === 'apple'
-        ? 'Apple Look Around has had a busy day here. Back tomorrow.'
-        : 'Google Street View has had a busy day here. Apple Look Around is open, or come back tomorrow.';
+      return 'The game has had a busy day here. Back tomorrow.';
     case 'speed':
       return 'That is faster than the game allows. Try again in a minute.';
     default:
@@ -128,172 +91,68 @@ export function refusalMessage(code, provider) {
 /** The refusal's heading on the play page. */
 export function refusalTitle(code) {
   switch (code) {
-    case 'allowance':
-      return 'Free Google rounds used up for today';
-    case 'rooms':
-      return 'Free Google room used up for today';
     case 'ceiling':
-      return "You've played a lot today";
+      return "That's a lot of rounds for one day";
     case 'budget':
-      return 'A busy day here';
+      return 'Busy day';
     case 'speed':
-      return 'Slow down a little';
+      return 'Slow down';
     default:
       return 'Not right now';
   }
 }
 
 /**
- * Decide one round.
+ * Can this round start? The site's day comes first, then the player's.
  *
- * `usage` is { profile, ip, site }; each is undefined or an object with
- * { google: { rounds, free, paid }, apple: { rounds } } for the day.
- * `allowance: false` skips the Google allowance (joining a room: a
- * friend's invitation is never refused for it).
- *
- * Returns { ok: true, source } with source 'free' | 'paid' | 'daily' |
- * 'cup' | 'apple' | 'room', or { ok: false, code }.
+ * Every round is one view now. Kidnapped was the only mode that was
+ * ever more, because the car drove itself and each hop was another
+ * billed load; it went with Google.
  */
-export function decideRound({ provider, mode, signedIn = false, hasProfile = false, paidRounds = 0, usage = {}, limits = DEFAULT_LIMITS, allowance = true }) {
-  const p = provider === 'apple' ? 'apple' : 'google';
-  const loads = roundLoads(mode);
-  // Rows written before loads existed carry only rounds; one round was
-  // one load then. A row that straddles the change carries both, and
-  // loads counts only the rounds since, so the larger of the two is the
-  // day so far (every round is at least one load, so loads never
-  // undercounts once it is the only counter). Reading loads first, with
-  // rounds as the fallback, forgot the whole day before a deploy the
-  // moment the first new load landed.
-  const site = usage.site?.[p] || {};
-  const siteLoads = Math.max(site.loads || 0, site.rounds || 0);
-  if (siteLoads + loads > limits.siteBudget[p]) return { ok: false, code: 'budget' };
+export function decideRound({ signedIn = false, hasProfile = false, usage = {}, limits = DEFAULT_LIMITS } = {}) {
+  const site = usage.site?.apple || {};
+  const siteViews = Math.max(site.loads || 0, site.rounds || 0);
+  if (siteViews + 1 > limits.siteBudget) return { ok: false, code: 'budget' };
 
   const ceiling = signedIn ? limits.ceilingSignedIn : limits.ceilingAnonymous;
   if (hasProfile && roundsOf(usage.profile) >= ceiling) return { ok: false, code: 'ceiling' };
   if (roundsOf(usage.ip) >= (hasProfile ? limits.ceilingPerIp : ceiling)) return { ok: false, code: 'ceiling' };
 
-  if (p === 'apple') return { ok: true, source: 'apple' };
-  if (!allowance) return { ok: true, source: 'room' };
-  // The shared challenges are the front door, so they sit on top of the
-  // allowance. On top of, not instead of: this used to return on the
-  // mode string alone, which made "daily" an unlimited free-Google
-  // switch that skipped the per-address backstop too. A challenge round
-  // past the challenge allowance falls through and competes for the
-  // ordinary free rounds like any other.
-  if (mode === 'daily' || mode === 'cup') {
-    const byProfile = !hasProfile || (usage.profile?.google?.challenge || 0) < limits.freeChallengeRounds;
-    const ipChallengeLimit = hasProfile ? limits.freeChallengeRoundsPerIp : limits.freeChallengeRounds;
-    const byIp = signedIn || (usage.ip?.google?.challenge || 0) < ipChallengeLimit;
-    if (byProfile && byIp) return { ok: true, source: mode };
-  }
-
-  const freeByProfile = !hasProfile || (usage.profile?.google?.free || 0) < limits.freeGoogleRounds;
-  const ipFreeLimit = hasProfile ? limits.freeGoogleRoundsPerIp : limits.freeGoogleRounds;
-  const freeByIp = signedIn || (usage.ip?.google?.free || 0) < ipFreeLimit;
-  if (freeByProfile && freeByIp) return { ok: true, source: 'free' };
-  if (hasProfile && paidRounds > 0) return { ok: true, source: 'paid' };
-  return { ok: false, code: 'allowance' };
+  return { ok: true, source: 'apple' };
 }
 
 /**
- * Decide a seat in a Google or Apple room, at the door (opening, joining,
- * a rematch) and again when the first round starts, when the seat is
- * actually charged. `usage` is as for decideRound, with `games` in the
- * Google bucket counting free room games used today.
+ * A seat in a room, at the door and again when the first round starts.
  *
- * Returns { ok: true, source } with source 'free' (today's free game),
- * 'paid' (rounds drawn from the prepaid balance) or 'apple', or
- * { ok: false, code }. The ceiling and the site budget hold first.
+ * Rooms are not rationed. They are how the game spreads: a room holds
+ * twelve, so metering them would tax the one thing that brings players
+ * in. Only the ceiling and the site's day apply, exactly as for a solo
+ * round.
  */
-export function decideRoomEntry({ provider, signedIn = false, hasProfile = false, paidRounds = 0, usage = {}, limits = DEFAULT_LIMITS }) {
-  const gate = decideRound({ provider, mode: 'balanced', signedIn, hasProfile, paidRounds, usage, limits, allowance: false });
-  if (!gate.ok) return gate;
-  if (gate.source === 'apple') return gate;
-  const freeByProfile = !hasProfile || (usage.profile?.google?.games || 0) < limits.freeGoogleRoomGames;
-  const ipLimit = hasProfile ? limits.freeGoogleRoomGamesPerIp : limits.freeGoogleRoomGames;
-  const freeByIp = signedIn || (usage.ip?.google?.games || 0) < ipLimit;
-  if (freeByProfile && freeByIp) return { ok: true, source: 'free' };
-  if (hasProfile && paidRounds > 0) return { ok: true, source: 'paid' };
-  return { ok: false, code: 'rooms' };
+export function decideRoomEntry({ signedIn = false, hasProfile = false, usage = {}, limits = DEFAULT_LIMITS } = {}) {
+  return decideRound({ signedIn, hasProfile, usage, limits });
 }
 
 /** What a round that started adds to the usage rows. */
-export function usageIncrement(source, mode = '') {
-  return {
-    rounds: 1,
-    free: source === 'free' ? 1 : 0,
-    paid: source === 'paid' ? 1 : 0,
-    games: 0,
-    challenge: source === 'daily' || source === 'cup' ? 1 : 0,
-    loads: roundLoads(mode),
-  };
+export function usageIncrement() {
+  return { rounds: 1, loads: 1 };
 }
 
-/** What taking a seat in a room adds: a free game used, or nothing. */
-export function seatIncrement(source) {
-  return { rounds: 0, free: 0, paid: 0, games: source === 'free' ? 1 : 0, challenge: 0, loads: 0 };
+/** What taking a seat in a room adds. Nothing: seats are not counted. */
+export function seatIncrement() {
+  return { rounds: 0, loads: 0 };
 }
 
-/**
- * The free Google allowance in the lobby's words: "5 free Google Street
- * View games a day (25 rounds) and 1 free room". Games are five rounds;
- * an allowance that is not a multiple of five is said in rounds.
- */
-export function allowanceText(limits = DEFAULT_LIMITS) {
-  const rounds = limits.freeGoogleRounds;
-  const games = limits.freeGoogleRoomGames;
-  const solo = rounds % 5 === 0 && rounds >= 5 ? `${rounds / 5} free Google Street View ${rounds === 5 ? 'game' : 'games'} a day (${rounds} rounds)` : `${rounds} free Google Street View rounds a day`;
-  const room = games > 0 ? ` and ${games} free ${games === 1 ? 'room' : 'rooms'}` : '';
-  // The daily and the cup are on the primary imagery. On Apple that is
-  // simply unmetered; on Google they have their own pool on top.
-  if (PRIMARY_PROVIDER === 'google') return `${solo}${room}, the daily challenge and the weekly cup on top. Apple Look Around: no limit.`;
-  return `${solo}${room}. Apple Look Around, the daily challenge and the weekly cup: no limit.`;
-}
-
-/**
- * The meter as the lobby shows it for one player. Free rounds left is
- * the tightest of the pools that hold this player (the profile's, and
- * the address's for anonymous players), so what the lobby says matches
- * what the round route will do.
- */
-export function meterView({ usage = {}, hasProfile = false, signedIn = false, paidRounds = 0, limits = DEFAULT_LIMITS, now = Date.now() }) {
+/** The day so far, for the profile endpoint and the play page. */
+export function meterView({ usage = {}, hasProfile = false, signedIn = false, limits = DEFAULT_LIMITS, now = Date.now() } = {}) {
   const bucket = hasProfile ? usage.profile : usage.ip;
-  const pools = [];
-  if (hasProfile) pools.push(limits.freeGoogleRounds - (usage.profile?.google?.free || 0));
-  if (!signedIn) pools.push((hasProfile ? limits.freeGoogleRoundsPerIp : limits.freeGoogleRounds) - (usage.ip?.google?.free || 0));
-  const freeLeft = Math.max(0, Math.min(limits.freeGoogleRounds, ...pools));
-  const freeUsed = limits.freeGoogleRounds - freeLeft;
-  const gamePools = [];
-  if (hasProfile) gamePools.push(limits.freeGoogleRoomGames - (usage.profile?.google?.games || 0));
-  if (!signedIn) gamePools.push((hasProfile ? limits.freeGoogleRoomGamesPerIp : limits.freeGoogleRoomGames) - (usage.ip?.google?.games || 0));
-  const gamesLeft = Math.max(0, Math.min(limits.freeGoogleRoomGames, ...gamePools));
-  const challengePools = [];
-  if (hasProfile) challengePools.push(limits.freeChallengeRounds - (usage.profile?.google?.challenge || 0));
-  if (!signedIn) challengePools.push((hasProfile ? limits.freeChallengeRoundsPerIp : limits.freeChallengeRounds) - (usage.ip?.google?.challenge || 0));
-  const challengeLeft = Math.max(0, Math.min(limits.freeChallengeRounds, ...challengePools));
   return {
     day: dayKey(now),
     resetAt: nextDayMs(now),
-    google: {
-      rounds: bucket?.google?.rounds || 0,
-      freeUsed,
-      freeLimit: limits.freeGoogleRounds,
-      freeLeft,
-      paidLeft: Math.max(0, Number(paidRounds) || 0),
-      roomGames: { used: limits.freeGoogleRoomGames - gamesLeft, limit: limits.freeGoogleRoomGames, left: gamesLeft },
-      challenge: { used: limits.freeChallengeRounds - challengeLeft, limit: limits.freeChallengeRounds, left: challengeLeft },
-    },
-    apple: { rounds: bucket?.apple?.rounds || 0 },
+    apple: { rounds: roundsOf(bucket) },
     rounds: roundsOf(bucket),
     ceiling: signedIn ? limits.ceilingSignedIn : limits.ceilingAnonymous,
   };
-}
-
-/** "Free Google room today: not used yet." or "1 of 2 free Google rooms used today." */
-export function roomGamesText(roomGames) {
-  if (!roomGames) return 'One room a day on Google Street View is free.';
-  if (roomGames.limit === 1) return `Free Google room today: ${roomGames.left ? 'not used yet' : 'used'}.`;
-  return `${roomGames.used} of ${roomGames.limit} free Google rooms used today.`;
 }
 
 /** "in 5 h", "in 20 min", "in 6 days": time until something comes back or ends. */

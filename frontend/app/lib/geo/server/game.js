@@ -16,10 +16,8 @@ import { normalizeConfig } from '../modes';
 import { getGeoServerConfig } from './config';
 import { countryAt, publicCountry } from './countries';
 import { createCandidateSource } from './sampler';
-import { findPanorama } from './streetview';
 import { randomBytes } from 'node:crypto';
 import { openToken, sealToken } from './tokens';
-import { roundCacheKey } from './roundCache';
 
 export const APPLE_CANDIDATES_PER_ROUND = 12;
 /** Probes per attempt for Google rounds. */
@@ -101,40 +99,6 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
     return { provider: 'apple', roundIndex, candidates, sizeKm: source.sizeKm };
   }
 
-  const found = await resolveImagery({ source, config, roundIndex, attempt, googleServerKey, fetchImpl, cache, now });
-  const token = sealToken(
-    answerPayload({
-      provider: 'google',
-      config,
-      roundIndex,
-      lat: found.lat,
-      lng: found.lng,
-      country: found.country,
-      sizeKm: found.sizeKm,
-      panoId: found.panoId,
-      city: found.city,
-      date: found.date,
-      subject,
-      roundId,
-    }),
-    { secret: tokenSecret, now }
-  );
-  return { provider: 'google', roundIndex, panoId: found.panoId, heading: found.heading, token, stats: found.stats, sizeKm: found.sizeKm };
-}
-
-/**
- * Cached imagery for seeded games, probing on a miss. Retries (attempt > 0)
- * skip the cache: they exist because the cached sequence had nothing.
- */
-async function resolveImagery({ source, config, roundIndex, attempt, googleServerKey, fetchImpl, cache, now }) {
-  const key = cache && attempt === 0 ? roundCacheKey(config, roundIndex) : null;
-  if (key) {
-    const hit = await cache.get(key, now);
-    if (hit) return { ...hit, stats: { ...(hit.stats || {}), cached: true } };
-  }
-  const found = await probeForImagery({ source, config, roundIndex, googleServerKey, fetchImpl });
-  if (key) await cache.set(key, found, now);
-  return found;
 }
 
 /** Shared by solo rounds (sealed token) and room rounds (stored server-side). */
@@ -186,19 +150,6 @@ async function probeForImagery({ source, config, roundIndex, googleServerKey, fe
   };
 }
 
-/**
- * Imagery for a room round: same sampling and probing as a solo round,
- * but the answer is returned to the caller (the room store keeps it)
- * instead of being sealed into a token.
- */
-export async function findRoundImagery({ config: rawConfig, roundIndex = 0, attempt = 0, fetchImpl, env, cache, now = Date.now() } = {}) {
-  const config = normalizeConfig(rawConfig);
-  const { googleServerKey } = getGeoServerConfig(env);
-  const source = createCandidateSource(config, roundIndex);
-  const skip = Math.max(0, Math.min(20, Math.floor(Number(attempt) || 0))) * MAX_PROBES;
-  for (let i = 0; i < skip; i++) if (!source.next()) break;
-  return resolveImagery({ source, config, roundIndex, attempt, googleServerKey, fetchImpl, cache, now });
-}
 
 /**
  * Score a guess against a sealed token.

@@ -75,7 +75,7 @@ export async function POST(request) {
   }
   let decision = null;
   try {
-    decision = await checkRound(prismaRoomStore, { subjects, provider: config.provider, mode: config.mode, limiter: speedLimiter });
+    decision = await checkRound(prismaRoomStore, { subjects, limiter: speedLimiter });
   } catch (error) {
     if (error instanceof MeterError) return meterErrorResponse(error);
     console.error('[geo/round] meter', error?.message || error);
@@ -83,7 +83,7 @@ export async function POST(request) {
 
   try {
     const round = await createRound({ config, roundIndex, attempt, subject: subjects.profileId || '', cache: prismaRoundCache });
-    if (decision) await recordRound(prismaRoomStore, { subjects, provider: config.provider, source: decision.source, mode: config.mode });
+    if (decision) await recordRound(prismaRoomStore, { subjects });
     return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoGameError || error instanceof GeoSamplerError) {

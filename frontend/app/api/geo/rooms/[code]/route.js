@@ -60,14 +60,6 @@ export async function POST(request, { params }) {
     if (!ACTIONS.has(action)) {
       return NextResponse.json({ error: `Unknown action: ${action || '(none)'}`, code: 'unknown_action' }, { status: 400, ...NO_STORE });
     }
-    if (action === 'start') {
-      // Apple Look Around rooms need no server key; Google rooms do.
-      const cfg = getGeoServerConfig();
-      const room = await prismaRoomStore.getRoomByCode(code);
-      if (room?.config?.provider !== 'apple' && !cfg.googleConfigured) {
-        return NextResponse.json({ error: 'Google Street View is not configured on this server', code: 'google_not_configured' }, { status: 503, ...NO_STORE });
-      }
-    }
     const result = await roomAction(prismaRoomStore, { code, token: playerToken(request, body), action, body });
     return NextResponse.json({ ok: true, ...result }, NO_STORE);
   } catch (error) {

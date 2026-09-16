@@ -109,18 +109,20 @@ describe('GET /api/geo/config', () => {
 });
 
 describe('POST /api/geo/round', () => {
-  test('returns a panorama and token, never the location', async () => {
-    const res = await postRound(request({ config: { provider: 'google', mode: 'balanced', seed: 'api-1' }, roundIndex: 2 }));
+  test('returns the places to try, each with its own sealed answer', async () => {
+    const res = await postRound(request({ config: { mode: 'balanced', seed: 'api-1' }, roundIndex: 2 }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.config.mode).toBe('balanced');
-    expect(body.round).toMatchObject({ provider: 'google', roundIndex: 2 });
-    expect(body.round.panoId).toMatch(/^pano-/);
-    expect(body.round.token).toMatch(/^g1\./);
-    expect(JSON.stringify(body.round)).not.toMatch(/"lat"/);
-    const answer = openToken(body.round.token, { secret: TOKEN_SECRET });
-    expect(answer.pano).toBe(body.round.panoId);
+    expect(body.round).toMatchObject({ provider: 'apple', roundIndex: 2 });
+    // Apple has no metadata endpoint, so the browser gets the places and
+    // opens them itself. What stays sealed is the country and the city.
+    expect(body.round.candidates.length).toBeGreaterThan(0);
+    expect(JSON.stringify(body.round)).not.toMatch(/"countryName"/);
+    const answer = openToken(body.round.candidates[0].token, { secret: TOKEN_SECRET });
+    expect(answer.p).toBe('apple');
+    expect(answer.lat).toBe(body.round.candidates[0].lat);
   });
 
   test('the same seed gives the same panorama on a second call', async () => {
@@ -137,64 +139,27 @@ describe('POST /api/geo/round', () => {
     expect(hitFetch).not.toHaveBeenCalled();
   });
 
-  test('the play meter: free Google rounds run out per address, the daily and Apple do not count, and a profile can be refused too', async () => {
-    process.env.GEO_FREE_GOOGLE_ROUNDS = '2';
-    try {
-      const ip = { 'x-test-ip': '198.51.100.7' };
-      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-1' } }, ip))).status).toBe(200);
-      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-2' } }, ip))).status).toBe(200);
-      const refused = await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-3' } }, ip));
-      expect(refused.status).toBe(429);
-      const body = await refused.json();
-      expect(body.code).toBe('allowance');
-      expect(body.error).toMatch(/free Google Street View rounds/);
-      expect(typeof body.resetAt).toBe('number');
-      expect(refused.headers.get('Retry-After')).toBeTruthy();
-      // the daily challenge is on top of the allowance; Apple has none.
-      // The daily is scored on a board, so it is played as somebody.
-      const dailyProfile = await (await postProfile(request({ name: 'Daily' }, ip))).json();
-      const dailyHeaders = { ...ip, 'x-geo-profile': dailyProfile.token };
-      expect((await postRound(request({ config: { mode: 'daily' } }, dailyHeaders))).status).toBe(200);
-      expect((await postRound(request({ config: { mode: 'daily' } }, ip))).status).toBe(401);
-      expect((await postRound(request({ config: { provider: 'apple', mode: 'cities' } }, ip))).status).toBe(200);
-      // a different address starts fresh
-      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'm-4' } }, { 'x-test-ip': '198.51.100.8' }))).status).toBe(200);
-
-      // a browser with a profile is metered by that profile
-      const registered = await (await postProfile(request({ name: 'Ada' }, { 'x-test-ip': '198.51.100.9' }))).json();
-      const mine = { 'x-test-ip': '198.51.100.9', 'x-geo-profile': registered.token };
-      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'p-1' } }, mine))).status).toBe(200);
-      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'p-2' } }, mine))).status).toBe(200);
-      expect((await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'p-3' } }, mine))).status).toBe(429);
-      const me = await (await postProfile(request({}, mine))).json();
-      expect(me.profile.usage.google).toMatchObject({ freeUsed: 2, freeLimit: 2, freeLeft: 0 });
-    } finally {
-      delete process.env.GEO_FREE_GOOGLE_ROUNDS;
+  test('the play meter now only holds a flood back', async () => {
+    // The Google allowance, the bought rounds and the free room game are
+    // gone with Google. What is left is the ceiling and the speed limit,
+    // and neither is reachable in a handful of requests.
+    const ip = { 'x-test-ip': '198.51.100.7' };
+    for (const seed of ['m-1', 'm-2', 'm-3']) {
+      expect((await postRound(request({ config: { mode: 'balanced', seed } }, ip))).status).toBe(200);
     }
+    // The daily is scored on a board, so it is still played as somebody.
+    const dailyProfile = await (await postProfile(request({ name: 'Daily' }, ip))).json();
+    const dailyHeaders = { ...ip, 'x-geo-profile': dailyProfile.token };
+    expect((await postRound(request({ config: { mode: 'daily' } }, dailyHeaders))).status).toBe(200);
+    expect((await postRound(request({ config: { mode: 'daily' } }, ip))).status).toBe(401);
+    // A retired mode opens the one that replaced it rather than 400ing.
+    expect((await postRound(request({ config: { mode: 'cities' } }, ip))).status).toBe(200);
   });
 
-  test('a missing Google key is a 503 that says so', async () => {
-    delete process.env.GOOGLE_STREET_VIEW_API_KEY;
-    const res = await postRound(request({ config: { provider: 'google', mode: 'world' } }));
-    expect(res.status).toBe(503);
-    expect((await res.json()).code).toBe('google_not_configured');
-  });
 
-  test('bad input is a 400, a dead key is a 502, no imagery is a 422', async () => {
+  test('bad input is a 400', async () => {
     expect((await postRound({ json: async () => { throw new Error('nope'); } })).status).toBe(400);
-    expect((await postRound(request({ config: { provider: 'google', mode: 'country', region: 'ZZ' } }))).status).toBe(400);
-    global.fetch = jest.fn(async () => ({ status: 200, json: async () => ({ status: 'REQUEST_DENIED', error_message: 'Street View Static API has not been used' }) }));
-    const denied = await postRound(request({ config: { provider: 'google', mode: 'world' } }));
-    expect(denied.status).toBe(502);
-    // The player is told the service is unreachable; Google's own text,
-    // which names the key and the project, stays in the server log.
-    const deniedBody = await denied.json();
-    expect(deniedBody.error).not.toContain('has not been used');
-    expect(deniedBody.code).toBe('probe_failed');
-    global.fetch = jest.fn(async () => ({ status: 200, json: async () => ({ status: 'ZERO_RESULTS' }) }));
-    const none = await postRound(request({ config: { provider: 'google', mode: 'world', radius: 'pure' } }));
-    expect(none.status).toBe(422);
-    expect((await none.json()).stats.probes).toBeGreaterThan(0);
+    expect((await postRound(request({ config: { mode: 'country', region: 'ZZ' } }))).status).toBe(400);
   });
 });
 

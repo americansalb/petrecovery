@@ -31,7 +31,7 @@ decision that is not mine to make. Everything marked "code" is done.
 
 | | State |
 |---|---|
-| The game itself: eleven modes, rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge, ranked solo | code, live on `pet_main` |
+| The game itself: seven modes, rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge, ranked solo | code, live on `pet_main` |
 | Script mode: 159 languages, 34 writing systems, region scoring | code, live on `pet_main` |
 | Its own accounts, its own session, its own mailer | code, live on `pet_main` |
 | No import in either direction between the game and the pet site | code, enforced by `__tests__/geo/isolation.test.js` |
@@ -102,25 +102,23 @@ Run `npm run geo:check-mapkit` after any change to the domain, the
 redirects or the token. It is the only check that can answer this: a
 refused token does not throw, it just draws nothing.
 
-### 1b. Google keys with quota caps. Optional, and blocking for the Google modes.
+### 1b. Google keys. No longer needed.
 
-Without them the Google option is off: no countryside, no Everywhere, no
-Kidnapped, and the other hundred-odd countries. With them, **caps**
-matter, because without caps the game cannot be allowed to serve them.
+Founder direction, 2026-09-16: the game is **Apple only**. Google Street
+View is gone, and with it the play meter's allowance, the bought rounds,
+the site's Google budget and the three modes only its imagery could do
+(City streets, Everywhere, Kidnapped).
 
-- In a Google Cloud project, enable **Maps JavaScript API** and **Street
-  View Static API**.
-- A browser key restricted to your domain's referrers and to the Maps
-  JavaScript API, into `GOOGLE_MAPS_BROWSER_KEY`.
-- A server key with the Street View Static API, into
-  `GOOGLE_STREET_VIEW_API_KEY`.
-- **Set daily quota caps on both** so usage stops rather than bills. The
-  play meter is the first line; the console cap is the one that cannot
-  be bypassed by a bug in my code.
+The reason is cost, and it is not close. Apple Look Around is not billed
+per view: it runs under Apple's daily account quota, so a round costs
+nothing to serve. Google's Dynamic Street View is 5,000 free panorama
+loads a month and then $14.00 per thousand, which at three hundred daily
+players is about $560 a month, forever, growing with success. Apple at
+the same size is $0.
 
-A launch without Google keys is the Apple-first game as designed: city
-streets in 23 countries in every mode but Everywhere and Kidnapped, plus
-Script mode, which needs neither.
+What Apple's cars never reached is covered by Script mode, which needs no
+imagery, no key and no quota at all.
+
 
 ### 2. Where it lives. Blocking.
 

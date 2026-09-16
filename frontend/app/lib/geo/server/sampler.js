@@ -12,8 +12,8 @@
 import { createRng, randomPointInDisk, randomSeedString, roundSeed, weightedIndex } from '../random';
 import { WORLD_SIZE_KM, sizeForBox } from '../distance';
 import { CONTINENTS, RADIUS_PRESETS } from '../modes';
-import { citiesFor, citiesOffCoverage, hasAppleCoverage, hasGoogleCoverage } from '../coverage';
-import { countriesInContinent, countryByCode, getCountries, sampleInCountry, sampleOnLand } from './countries';
+import { citiesFor, hasAppleCoverage } from '../coverage';
+import { countriesInContinent, countryByCode, getCountries } from './countries';
 
 export class GeoSamplerError extends Error {
   constructor(code, message) {
@@ -59,11 +59,6 @@ function unionBox(countries) {
   }));
 }
 
-/** Countries a "random country" draw may land on for Google modes. */
-export function coveredPool(countries = getCountries()) {
-  return countries.filter((c) => c.cca2 && c.region !== 'Antarctic' && hasGoogleCoverage(c.cca2));
-}
-
 /**
  * Apple Look Around is city streets, and only city streets: no
  * countryside, no photo spheres, and no server-side probe. So on Apple
@@ -105,10 +100,6 @@ function appleSource(config, rng, presetKm, holder) {
 
   let next = null;
   switch (config.mode) {
-    case 'world':
-    case 'cities':
-      next = fromCities(cities);
-      break;
     case 'balanced':
     case 'daily':
     case 'cup':
@@ -122,7 +113,7 @@ function appleSource(config, rng, presetKm, holder) {
       const covered = all.filter((c) => hasAppleCoverage(c.cca2) && byCountry.has(c.cca2));
       if (!covered.length) {
         const label = CONTINENTS[config.region]?.label || config.region;
-        throw new GeoSamplerError('no_cities', `Apple Look Around has no city streets in ${label} yet. Play that continent on Google Street View.`);
+        throw new GeoSamplerError('no_cities', `There are no city streets in ${label} yet.`);
       }
       holder.sizeKm = sizeForBox(unionBox(covered));
       next = fromCountries(covered);
@@ -132,7 +123,7 @@ function appleSource(config, rng, presetKm, holder) {
       const country = countryByCode(config.region);
       if (!country) throw new GeoSamplerError('unknown_country', `Unknown country: ${config.region}`);
       const list = byCountry.get(country.cca2);
-      if (!list) throw new GeoSamplerError('no_cities', `Apple Look Around has no city streets in ${country.name} yet. Play it on Google Street View.`);
+      if (!list) throw new GeoSamplerError('no_cities', `There are no city streets in ${country.name} yet.`);
       holder.sizeKm = sizeForBox(countryBox(country));
       next = fromCities(list);
       break;
@@ -154,106 +145,11 @@ export function createCandidateSource(config, roundIndex = 0) {
   const presetKm = RADIUS_PRESETS[config.radius]?.km ?? RADIUS_PRESETS.standard.km;
   const stats = { skippedWater: 0 };
 
-  if (config.provider === 'apple') {
-    // sizeKm for a continent or a country is set inside; read it back.
-    const holder = { sizeKm: WORLD_SIZE_KM };
-    const next = appleSource(config, rng, presetKm, holder);
-    return { next, stats, sizeKm: holder.sizeKm, rng };
-  }
-
-  const pointIn = (country) => {
-    const point = sampleInCountry(rng, country);
-    if (!point) return null;
-    return { lat: point.lat, lng: point.lng, country, radiusKm: radiusForCountry(country, presetKm) };
-  };
-
-  const fromPool = (pool) => {
-    if (!pool.length) return null;
-    const weights = pool.map((c) => Math.sqrt(Math.max(1, c.areaKm2 || 1)));
-    return () => pointIn(pool[weightedIndex(rng, weights)]);
-  };
-
-  let next = null;
-  let sizeKm = WORLD_SIZE_KM;
-
-  switch (config.mode) {
-    case 'world': {
-      next = () => {
-        const sample = sampleOnLand(rng);
-        if (!sample) return null;
-        stats.skippedWater += sample.skipped;
-        return { lat: sample.point.lat, lng: sample.point.lng, country: sample.country, radiusKm: presetKm };
-      };
-      break;
-    }
-    case 'balanced':
-    case 'daily':
-    case 'cup':
-    // Ranked draws from the same balanced pool as the daily and the
-    // cup. A rating compares people, so it can only compare them on
-    // places drawn the same way.
-    case 'ranked':
-    case 'kidnapped':
-    case 'streak': {
-      next = fromPool(coveredPool());
-      break;
-    }
-    case 'continent': {
-      const all = countriesInContinent(config.region);
-      if (!all.length) throw new GeoSamplerError('unknown_continent', `Unknown continent: ${config.region}`);
-      const covered = all.filter((c) => hasGoogleCoverage(c.cca2));
-      const pool = covered.length ? covered : all;
-      sizeKm = sizeForBox(unionBox(pool));
-      next = fromPool(pool);
-      break;
-    }
-    case 'country': {
-      const country = countryByCode(config.region);
-      if (!country) throw new GeoSamplerError('unknown_country', `Unknown country: ${config.region}`);
-      sizeKm = sizeForBox(countryBox(country));
-      next = () => pointIn(country);
-      break;
-    }
-    case 'cities': {
-      const cities = citiesFor(config.provider);
-      if (!cities.length) throw new GeoSamplerError('no_cities', 'No cities for this provider');
-      next = () => {
-        const city = cities[Math.floor(rng() * cities.length)];
-        const point = randomPointInDisk(rng, city, city.radiusKm);
-        return {
-          lat: point.lat,
-          lng: point.lng,
-          country: countryByCode(city.country),
-          city: city.name,
-          radiusKm: Math.min(presetKm, 2),
-        };
-      };
-      break;
-    }
-    case 'everywhere': {
-      // Cities in countries with no official coverage. What imagery
-      // exists there is user photo spheres, which are far sparser than
-      // a Street View car's line, so the probe looks further out: two
-      // kilometres would come back empty most of the time.
-      const cities = citiesOffCoverage();
-      if (!cities.length) throw new GeoSamplerError('no_cities', 'No off-coverage cities');
-      next = () => {
-        const city = cities[Math.floor(rng() * cities.length)];
-        const point = randomPointInDisk(rng, city, city.radiusKm);
-        return {
-          lat: point.lat,
-          lng: point.lng,
-          country: countryByCode(city.country),
-          city: city.name,
-          radiusKm: Math.max(presetKm, 10),
-        };
-      };
-      break;
-    }
-    default:
-      throw new GeoSamplerError('unknown_mode', `Unknown mode: ${config.mode}`);
-  }
-
-  if (!next) throw new GeoSamplerError('empty_pool', 'No countries to sample from');
-  return { next, stats, sizeKm, rng };
+  // One imagery, so one source: the curated city list, drawn by mode
+  // (appleSource above). The Google branch that used to live here, with
+  // its land sampler, its off-coverage pool and its covered-country
+  // gate, went with Google.
+  const holder = { sizeKm: WORLD_SIZE_KM };
+  const next = appleSource(config, rng, presetKm, holder);
+  return { next, stats, sizeKm: holder.sizeKm, rng };
 }

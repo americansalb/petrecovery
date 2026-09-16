@@ -14,7 +14,6 @@ import { Award, Gauge, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-rea
 import { formatScore } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
 import { VARIANTS } from '@/app/lib/geo/rooms';
-import { roomGamesText } from '@/app/lib/geo/meter';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
@@ -316,11 +315,8 @@ export default function ProfileClient() {
               </h2>
               {profile?.usage ? (
                 <p className="mt-2 text-sm text-sand-700">
-                  <span className="font-semibold text-sand-900">
-                    {profile.usage.google.freeUsed} of {profile.usage.google.freeLimit}
-                  </span>{' '}
-                  free Google Street View rounds used.
-                  {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''} {roomGamesText(profile.usage.google.roomGames)} Apple Look Around: no limit. Points earn on the first 50 rounds of the day.
+                  <span className="font-semibold text-sand-900">{profile.usage.rounds}</span> rounds today. Nothing is
+                  capped for ordinary play. Points earn on the first 50 rounds of the day.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-sand-500">Loading</p>

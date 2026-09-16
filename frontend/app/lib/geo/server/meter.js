@@ -11,9 +11,12 @@
  */
 
 import { createHash } from 'crypto';
-import { MeterError, dayKey, decideRoomEntry, decideRound, limitsFromEnv, meterView, nextDayMs, refusalMessage, roundLoads, seatIncrement, usageIncrement } from '../meter';
+import { MeterError, dayKey, decideRoomEntry, decideRound, limitsFromEnv, meterView, nextDayMs, refusalMessage, usageIncrement } from '../meter';
 
 export const SITE_SUBJECT = 'site';
+
+/** One imagery, so the usage rows have one bucket. */
+const PROVIDER = 'apple';
 
 /** IPs are stored hashed with the token secret; never the address itself. */
 export function hashIp(ip, secret = '') {
@@ -41,8 +44,8 @@ async function readUsage(store, subjects, day) {
   };
 }
 
-function refuse(code, provider, now, extra = {}) {
-  return new MeterError(code, refusalMessage(code, provider), { provider, resetAt: nextDayMs(now), ...extra });
+function refuse(code, now, extra = {}) {
+  return new MeterError(code, refusalMessage(code), { resetAt: nextDayMs(now), ...extra });
 }
 
 /**
@@ -54,7 +57,7 @@ function refuse(code, provider, now, extra = {}) {
  * `limiter(key, { windowMs, maxRequests, blockDurationMs })` is the
  * per-minute speed check; the routes pass the site's rate limiter.
  */
-export async function checkRound(store, { subjects, provider, mode, now = Date.now(), limits = limitsFromEnv(), limiter = null }) {
+export async function checkRound(store, { subjects, now = Date.now(), limits = limitsFromEnv(), limiter = null }) {
   // The address stands in when there is no profile: the speed limit is
   // the defence against a script, and a script is exactly the caller
   // that sends no profile token.
@@ -62,56 +65,45 @@ export async function checkRound(store, { subjects, provider, mode, now = Date.n
   if (limiter && speedKey && limits.roundsPerMinute > 0) {
     const speed = await limiter(speedKey, { windowMs: 60000, maxRequests: limits.roundsPerMinute, blockDurationMs: 60000 });
     if (speed && speed.success === false) {
-      throw new MeterError('speed', refusalMessage('speed', provider), { provider, resetAt: speed.resetAt || now + 60000 });
+      throw new MeterError('speed', refusalMessage('speed'), { resetAt: speed.resetAt || now + 60000 });
     }
   }
   const usage = await readUsage(store, subjects, dayKey(now));
   const decision = decideRound({
-    provider,
-    mode,
     signedIn: subjects.signedIn,
     hasProfile: Boolean(subjects.profileId),
-    paidRounds: subjects.profile?.paidRounds || 0,
     usage,
     limits,
   });
-  if (!decision.ok) throw refuse(decision.code, provider, now);
+  if (!decision.ok) throw refuse(decision.code, now);
   return decision;
 }
 
 /** Record a solo round that started. Never throws. */
-export async function recordRound(store, { subjects, provider, source, mode = '', now = Date.now() }) {
+export async function recordRound(store, { subjects, now = Date.now() }) {
   try {
     const day = dayKey(now);
-    let actual = source;
-    if (source === 'paid') {
-      // The balance may have gone to zero between the check and now.
-      actual = subjects.profileId && (await store.consumePaidRound(subjects.profileId)) ? 'paid' : 'over';
-    }
-    const inc = usageIncrement(actual, mode);
-    await Promise.all(subjectKeys(subjects).map((subject) => store.bumpUsage(subject, day, provider, inc)));
+    const inc = usageIncrement();
+    await Promise.all(subjectKeys(subjects).map((subject) => store.bumpUsage(subject, day, PROVIDER, inc)));
   } catch (error) {
     console.error('[geo/meter] record', error?.message || error);
   }
 }
 
 /**
- * Opening or joining a room, or a rematch: the ceiling and the site
- * budget apply, then on Google the day's free room game or a prepaid
- * balance. The solo allowance never counts here: a friend's invitation
- * is not refused for it. Throws a MeterError; returns the decision.
+ * Opening or joining a room, or a rematch: only the ceiling and the
+ * site's day apply. Rooms are not rationed, because a room is how the
+ * game spreads. Throws a MeterError; returns the decision.
  */
-export async function checkRoomEntry(store, { subjects, provider = 'google', now = Date.now(), limits = limitsFromEnv() }) {
+export async function checkRoomEntry(store, { subjects, now = Date.now(), limits = limitsFromEnv() }) {
   const usage = await readUsage(store, subjects, dayKey(now));
   const decision = decideRoomEntry({
-    provider,
     signedIn: subjects.signedIn,
     hasProfile: Boolean(subjects.profileId),
-    paidRounds: subjects.profile?.paidRounds || 0,
     usage,
     limits,
   });
-  if (!decision.ok) throw refuse(decision.code, provider, now);
+  if (!decision.ok) throw refuse(decision.code, now);
   return decision;
 }
 
@@ -128,58 +120,25 @@ export async function subjectsForPlayer(store, player) {
 /**
  * A room round started. The first round a player is present for takes
  * their seat: on Google the day's free game (its rounds are then outside
- * the solo allowance) or the prepaid balance, on Apple nothing; a player
- * whose free game went to another room meanwhile and who has no balance
- * is simply counted, never sent away mid-game. Every round is counted
- * toward the day's ceiling for the player and the site. Never throws.
+ * Every round in a room is counted toward the day's ceiling for each
+ * player and for the site, and nothing else. Never throws.
  */
-export async function recordRoomRound(store, room, now = Date.now(), limits = limitsFromEnv()) {
+export async function recordRoomRound(store, room, now = Date.now()) {
   try {
     const day = dayKey(now);
-    const provider = room.config?.provider === 'apple' ? 'apple' : 'google';
     const players = (room.players || []).filter((p) => !p.leftAt);
     if (!players.length) return;
-    const mode = room.config?.mode || '';
-    await store.bumpUsage(SITE_SUBJECT, day, provider, { rounds: players.length, free: 0, paid: 0, games: 0, challenge: 0, loads: players.length * roundLoads(mode) });
+    // Seats are not charged and rooms are not rationed, so a room round
+    // is only counted: once for the site's day, once for each player.
+    await store.bumpUsage(SITE_SUBJECT, day, PROVIDER, { rounds: players.length, loads: players.length });
     for (const player of players) {
       const subjects = [profileSubject(player.profileId), player.ipHash].filter(Boolean);
       if (!subjects.length) continue;
-      let entry = player.entry || null;
-      if (!entry) {
-        entry = await takeSeat(store, player, subjects, provider, day, limits);
-        if (store.updatePlayer) await store.updatePlayer(player.id, { entry });
-      }
-      let source = 'over';
-      if (entry === 'apple') source = 'apple';
-      else if (entry === 'paid' && player.profileId && (await store.consumePaidRound(player.profileId))) source = 'paid';
-      // A free seat's rounds are counted, not drawn from the allowance.
-      await Promise.all(subjects.map((subject) => store.bumpUsage(subject, day, provider, usageIncrement(source, mode))));
+      await Promise.all(subjects.map((subject) => store.bumpUsage(subject, day, PROVIDER, usageIncrement())));
     }
   } catch (error) {
     console.error('[geo/meter] room round', error?.message || error);
   }
-}
-
-async function takeSeat(store, player, subjects, provider, day, limits) {
-  if (provider === 'apple') return 'apple';
-  const rows = await store.listUsage(subjects, day);
-  const gamesOf = (subject) => rows.find((r) => r.subject === subject && r.provider === 'google')?.games || 0;
-  const profileSubj = profileSubject(player.profileId);
-  const profile = player.profileId && store.getProfileById ? await store.getProfileById(player.profileId) : null;
-  const decision = decideRoomEntry({
-    provider,
-    signedIn: Boolean(profile?.accountId),
-    hasProfile: Boolean(player.profileId),
-    paidRounds: profile?.paidRounds || 0,
-    usage: {
-      profile: profileSubj ? { google: { games: gamesOf(profileSubj) } } : undefined,
-      ip: player.ipHash ? { google: { games: gamesOf(player.ipHash) } } : undefined,
-    },
-    limits,
-  });
-  const entry = decision.ok ? decision.source : 'over';
-  if (entry === 'free') await Promise.all(subjects.map((subject) => store.bumpUsage(subject, day, provider, seatIncrement('free'))));
-  return entry;
 }
 
 /** Today's meter for one player, as the lobby shows it. */
@@ -189,7 +148,6 @@ export async function usageToday(store, subjects, { now = Date.now(), limits = l
     usage,
     hasProfile: Boolean(subjects.profileId),
     signedIn: subjects.signedIn,
-    paidRounds: subjects.profile?.paidRounds || 0,
     limits,
     now,
   });
