@@ -237,42 +237,80 @@
   const nsListeners = {};
   const fire = (name, event) => (nsListeners[name] || []).forEach((fn) => fn(event));
 
-  // MapKit's own shape, copied rather than imagined.
+  // MapKit's own shape, copied from the bundle rather than imagined.
   //
-  // In cdn.apple-mapkit.com/mk/5.x.x/mapkit.js, the legacy full bundle
-  // this game loads, mapkit.LookAround is a GETTER THAT THROWS until
-  // its module has landed:
+  // The game loads cdn.apple-mapkit.com/mk/5.x.x/mapkit.core.js. On
+  // core.js NOTHING is on the namespace until the library carrying it
+  // has been loaded: every member is a getter that throws
   //
-  //     get FeatureVisibility(){throw gS("FeatureVisibility",["map","look-around"])}
+  //     get LookAround(){throw gS("LookAround",["look-around"])}
   //
-  // The bundle calls loadAll() itself, asynchronously, so the getter
-  // throws for the first few hundred milliseconds and then starts
-  // working. mapkit.load is DELETED in this bundle, loadLibraries is a
-  // stub that logs a warning, and loadedLibraries is an empty getter
-  // returning undefined. There is nothing to request; there is only
-  // something to wait for.
+  // and load(['map', ...]) fetches the chunks, appends to a real
+  // loadedLibraries array, and swaps the real values in.
   //
-  // The fake used to hand out a working LookAround class on the first
-  // tick, which is why the harness passed while every real player got
-  // "Apple Look Around did not load". A fake that is more capable than
-  // the SDK cannot fail, and a test that cannot fail is not a test.
-  let lookAroundLoaded = false;
-  // How long the fake withholds it. Long enough that code which reads
-  // the getter immediately gets the real throw.
-  setTimeout(() => {
-    lookAroundLoaded = true;
-  }, Number(window.__fakeLookAroundDelayMs ?? 250));
-
-  const throwsUntilLoaded = () => {
-    throw new Error('[MapKit] mapkit.LookAround is available after loading the following library: look-around.');
+  // This fake used to be far kinder than that, and it is why the same
+  // bug shipped three times. It handed out a working LookAround on the
+  // first tick, so the harness passed while every real player got
+  // "Apple Look Around did not load". A fake more capable than the SDK
+  // cannot fail, and a test that cannot fail is not a test.
+  //
+  // So it now refuses exactly what Apple refuses. A library the game
+  // forgets to ask for is a thrown error here, in the harness, rather
+  // than a dead round on the live site.
+  const LIBRARY_OF = {
+    Map: 'map',
+    Coordinate: 'map',
+    CoordinateSpan: 'map',
+    CoordinateRegion: 'map',
+    CameraZoomRange: 'map',
+    Padding: 'map',
+    Style: 'map',
+    FeatureVisibility: 'map',
+    Annotation: 'annotations',
+    MarkerAnnotation: 'annotations',
+    CircleOverlay: 'overlays',
+    PolylineOverlay: 'overlays',
+    PolygonOverlay: 'overlays',
+    LookAround: 'look-around',
   };
+  const REAL = {
+    Map,
+    Coordinate,
+    CoordinateSpan,
+    CoordinateRegion,
+    CameraZoomRange,
+    Padding,
+    Style,
+    FeatureVisibility: { Hidden: 'hidden', Visible: 'visible' },
+    Annotation,
+    MarkerAnnotation,
+    CircleOverlay,
+    PolylineOverlay,
+    PolygonOverlay,
+    LookAround,
+  };
+  // How long the chunks take to arrive. Non-zero on purpose: code that
+  // reads a member in the same tick as load() gets the real throw.
+  const LOAD_MS = Number(window.__fakeLibraryDelayMs ?? 120);
+  const loadedLibraries = [];
 
   window.mapkit = {
-    // `load` is DELETED in the real full bundle, so it is absent here.
-    // `loadLibraries` is a stub that warns. Copying both means code
-    // that tries to call them behaves here as it does in a browser.
-    loadLibraries: () => {
-      console.warn('[MapKit] Loading libraries is not supported in legacy full bundle.');
+    loadedLibraries,
+    /**
+     * The real one on core.js: takes an array, throws on a name it does
+     * not know, and appends to loadedLibraries once the chunk lands.
+     */
+    load(names) {
+      const list = typeof names === 'string' ? [names] : names;
+      if (!Array.isArray(list)) throw new Error('[MapKit] mapkit.load() expects an array of library names.');
+      const known = ['map', 'annotations', 'overlays', 'services', 'geojson', 'user-location', 'look-around', 'full-map', 'legacy'];
+      for (const name of list) {
+        if (!known.includes(name)) throw new Error('[MapKit] Unknown library: ' + name);
+      }
+      setTimeout(() => {
+        for (const name of list) if (!loadedLibraries.includes(name)) loadedLibraries.push(name);
+        fire('load', { libraries: list.slice() });
+      }, LOAD_MS);
     },
     addEventListener(name, fn) {
       (nsListeners[name] = nsListeners[name] || []).push(fn);
@@ -289,37 +327,22 @@
         else fire('configuration-change', { status: 'Initialized' });
       }, 0);
     },
-    Map,
-    Coordinate,
-    CoordinateSpan,
-    CoordinateRegion,
-    CameraZoomRange,
-    Annotation,
-    Padding,
-    Style,
-    MarkerAnnotation,
-    CircleOverlay,
-    PolylineOverlay,
-    PolygonOverlay,
-    FeatureVisibility: { Hidden: 'hidden', Visible: 'visible' },
   };
 
-  // LookAround as a GETTER, because that is what MapKit ships. Reading
-  // it before the module has landed throws; reading it after returns
-  // the class. Any code that treats the name as a plain property, or
-  // tests it for truthiness without a try/catch, fails here exactly as
-  // it fails in a browser.
-  Object.defineProperty(window.mapkit, 'LookAround', {
-    configurable: true,
-    get() {
-      if (!lookAroundLoaded) return throwsUntilLoaded();
-      return LookAround;
-    },
-  });
-
-  // Undefined in the real full bundle, so undefined here: code must not
-  // be able to pass by reading it.
-  Object.defineProperty(window.mapkit, 'loadedLibraries', { configurable: true, get() {} });
+  // Every member behind the library that carries it, with Apple's own
+  // sentence on the way out.
+  for (const [name, library] of Object.entries(LIBRARY_OF)) {
+    Object.defineProperty(window.mapkit, name, {
+      configurable: true,
+      enumerable: false,
+      get() {
+        if (!loadedLibraries.includes(library)) {
+          throw new Error(`[MapKit] mapkit.${name} is available after loading the following library: ${library}.`);
+        }
+        return REAL[name];
+      },
+    });
+  }
 
   Map.ColorSchemes = { Light: 'light', Dark: 'dark' };
   Map.MapTypes = { Standard: 'standard', MutedStandard: 'mutedStandard', Satellite: 'satellite', Hybrid: 'hybrid' };

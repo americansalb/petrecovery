@@ -8,11 +8,89 @@
  * loader and nothing else: the pet module's annotation, overlay and
  * place-search wrappers are for the shelter maps.
  *
- * The Look Around library is not in the core bundle, so lookAround.js
- * asks for it separately once this resolves.
+ * WHICH BUNDLE, and why it is not the obvious one.
+ *
+ * Apple publishes two. `mapkit.js` is the legacy full bundle and is the
+ * one this game used to load. It does NOT contain Look Around. That is
+ * not a race or a missing call: read the file and `LookAround` appears
+ * only as a getter that throws and as a string in a list of names.
+ * There is no implementation in it, `mapkit.load` is deleted, and
+ * `loadLibraries` is a stub that logs a warning. So on that bundle the
+ * getter throws forever and any amount of waiting times out. Three
+ * separate fixes (#264, #277, #278) each mistook the symptom for the
+ * cause and left every Apple round on the live site dead.
+ *
+ * `mapkit.core.js` is the one that ships it: a real `load()`, a real
+ * `loadedLibraries`, and a registry containing map, annotations,
+ * overlays, services, geojson, user-location, look-around and full-map.
+ * Nothing is on the namespace until the library carrying it is loaded,
+ * so LIBRARIES below must name every group this game touches.
  */
 
-const MAPKIT_JS_URL = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js';
+const MAPKIT_JS_URL = 'https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.core.js';
+
+/**
+ * The libraries the game uses, and nothing more.
+ *
+ *   map          Map, Coordinate, CoordinateRegion, CoordinateSpan,
+ *                Padding, Style, FeatureVisibility
+ *   annotations  Annotation, MarkerAnnotation
+ *   overlays     PolylineOverlay, PolygonOverlay, CircleOverlay
+ *   look-around  LookAround
+ *
+ * Every name here is checked by __tests__/geo/mapkit-libraries.test.js
+ * against the mapkit.* members app/geo actually reads, so a new call
+ * site that needs `services` fails the suite rather than the player.
+ */
+const LIBRARIES = ['map', 'annotations', 'overlays', 'look-around'];
+
+/** How long the libraries get before we call it a failure. */
+const LIBRARY_TIMEOUT_MS = 15000;
+const PROBE_MS = 100;
+
+/**
+ * Ask for the libraries and wait for them to land.
+ *
+ * `loadedLibraries` is the honest signal and on THIS bundle it is a
+ * real array, which is the detail #277 got wrong: it read the same
+ * property on the full bundle, where it is an empty getter returning
+ * undefined, and concluded the build could not load libraries at all.
+ */
+function loadLibraries(mapkit) {
+  const loaded = () => {
+    const have = mapkit.loadedLibraries;
+    return Array.isArray(have) && LIBRARIES.every((name) => have.includes(name));
+  };
+  if (loaded()) return Promise.resolve(mapkit);
+
+  return new Promise((resolve, reject) => {
+    if (typeof mapkit.load !== 'function') {
+      // The legacy full bundle deletes `load`. Say so plainly instead
+      // of waiting fifteen seconds for something that cannot arrive.
+      reject(new Error('This MapKit build has no load(), so it is the legacy full bundle, which does not ship Look Around.'));
+      return;
+    }
+    const deadline = Date.now() + LIBRARY_TIMEOUT_MS;
+    try {
+      mapkit.load(LIBRARIES);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    const tick = () => {
+      if (loaded()) {
+        resolve(mapkit);
+        return;
+      }
+      if (Date.now() >= deadline) {
+        reject(new Error('Apple Maps did not finish loading. Try again, or play on Google Street View.'));
+        return;
+      }
+      setTimeout(tick, PROBE_MS);
+    };
+    tick();
+  });
+}
 
 /**
  * The JWTs MapKit may authorize with.
@@ -252,6 +330,10 @@ export async function initializeMapKit() {
         });
         window[INIT_FLAG] = true;
       }
+      // Not before this point: on core.js the namespace is bare until
+      // the libraries land, so a caller resolving early would read
+      // mapkit.Map and get the same throwing getter in a new place.
+      await loadLibraries(mapkit);
       return mapkit;
     } catch (error) {
       initPromise = null;
