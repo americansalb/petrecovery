@@ -103,7 +103,9 @@ export default function GameHud({
           {!isStreak ? (
             <div className="flex flex-col border-l border-white/15 pl-3 leading-tight">
               <span className="text-[11px] uppercase tracking-wide text-white/60">Score</span>
-              <span className="text-sm font-semibold tabular-nums text-clay-300">{formatScore(score)}</span>
+              <span className="text-sm font-semibold tabular-nums text-clay-300" data-geo-score>
+                {formatScore(score)}
+              </span>
             </div>
           ) : null}
           {driven !== null && driven !== undefined ? (

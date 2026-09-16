@@ -12,6 +12,7 @@
 import { hashToken, newPlayerToken } from './rooms';
 import { sanitizeName, sortStandings } from '../rooms';
 import { LADDERS, PROVISIONAL_GAMES, RATING_DEFAULT, RD_DEFAULT, displayRating, isProvisional, placementsFrom, rateGame, tierFor } from '../rating';
+import { bodyByCode } from '../notEarth';
 import { MAX_ROUND_SCORE } from '../distance';
 import { equippedView } from '../items';
 import { countryByCode } from './countries';
@@ -184,8 +185,11 @@ export async function profileSummary(store, profile, { now = Date.now() } = {}) 
     store.listLedger ? store.listLedger(profile.id, 12) : [],
   ]);
   const badges = badgeRows.map((b) => {
-    const country = countryByCode(b.countryCode);
-    return { countryCode: b.countryCode, name: country?.name || b.countryCode, flag: country?.flag || '', bestKm: b.bestKm, at: toMs(b.createdAt) };
+    // XM and XL are Mars and the Moon, from a Not Earth round called
+    // right. They are badge rows like any other, and no country claims
+    // those codes (app/lib/geo/notEarth.js).
+    const country = countryByCode(b.countryCode) || bodyByCode(b.countryCode);
+    return { countryCode: b.countryCode, name: country?.name || b.countryCode, flag: country?.flag || '', bestKm: b.bestKm, at: toMs(b.createdAt), notEarth: Boolean(bodyByCode(b.countryCode)) };
   });
   const ledger = ledgerRows.map((r) => ({ kind: r.kind, amount: r.amount, reason: r.reason, at: toMs(r.createdAt) }));
   return {

@@ -14,10 +14,12 @@ import { PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import {
   CONTINENTS,
   CONTINENT_ORDER,
+  DEFAULT_CONFIG,
   FORMATS,
   FORMAT_ORDER,
   MODES,
   MODE_ORDER,
+  PRIMARY_PROVIDER,
   PROVIDERS,
   RADIUS_PRESETS,
   ROUND_OPTIONS,
@@ -25,10 +27,9 @@ import {
   configToParams,
   formatOf,
   formatSettings,
+  modeDescription,
   normalizeConfig,
   timeLabel,
-  PRIMARY_PROVIDER,
-  modeDescription,
 } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { isSignedIn } from '@/app/geo/lib/session';
@@ -100,7 +101,10 @@ export default function GeoLobby() {
   // server has keys for. A Google-less server used to greet every first
   // visitor with a setup error for imagery they had not asked for.
   const [provider, setProvider] = useState(PRIMARY_PROVIDER);
-  const [mode, setMode] = useState('world');
+  // Not a literal: 'world' was a mode once, and MODES has no entry for
+  // it any more, so the first render read undefined.providers and took
+  // the whole lobby down before the saved settings had even arrived.
+  const [mode, setMode] = useState(DEFAULT_CONFIG.mode);
   const [continent, setContinent] = useState('europe');
   const [country, setCountry] = useState('JP');
   const [rounds, setRounds] = useState(5);
@@ -201,10 +205,11 @@ export default function GeoLobby() {
     if (restored) saveSettings({ ...config, seed: '' });
   }, [config, restored]);
 
-  // Keep the mode valid when the provider changes.
+  // Keep the mode valid when the provider changes, and survive a mode
+  // that no longer exists: a link or a saved setting can still name one.
   useEffect(() => {
-    if (!MODES[mode].providers.includes(provider)) {
-      setMode(MODE_ORDER.find((id) => MODES[id].providers.includes(provider)));
+    if (!MODES[mode]?.providers?.includes(provider)) {
+      setMode(MODE_ORDER.find((id) => MODES[id]?.providers?.includes(provider)) || DEFAULT_CONFIG.mode);
     }
   }, [provider, mode]);
 
@@ -226,7 +231,9 @@ export default function GeoLobby() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, mode, server]);
   const countries = server?.countries || [];
-  const modeDef = MODES[config.mode];
+  // config.mode is normalized, so this is always a real mode; the
+  // fallback is what stops one bad render taking the page down anyway.
+  const modeDef = MODES[config.mode] || MODES[DEFAULT_CONFIG.mode];
   const fixed = config.mode === 'daily' || config.mode === 'cup' || config.mode === 'ranked';
   // Kidnapped fixes the clock and the drive; rounds and the radius stay yours.
   const driven = config.mode === 'kidnapped';
@@ -341,7 +348,7 @@ export default function GeoLobby() {
             <section className="rounded-2xl border border-sand-200 bg-white p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Mode</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Mode">
-                {MODE_ORDER.filter((id) => MODES[id].providers.includes(provider)).map((id) => {
+                {MODE_ORDER.filter((id) => MODES[id]?.providers?.includes(provider)).map((id) => {
                   const m = MODES[id];
                   const active = mode === id;
                   return (

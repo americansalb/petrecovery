@@ -150,3 +150,44 @@ describe('GoogleStreetViewPane: the self-driving car stops', () => {
     expect(src).toContain('trip.hops += 1;');
   });
 });
+
+describe('GeoLobby: no screen may assume a mode still exists', () => {
+  const src = read('app/geo/components/GeoLobby.js');
+  const { MODES, MODE_ORDER, DEFAULT_CONFIG, normalizeConfig } = require('@/app/lib/geo/modes');
+
+  test('the mode state starts at a mode the game still has', () => {
+    // It started at the literal 'world', which stopped being a mode
+    // when Google went. The first render then read
+    // MODES.world.providers, which is a TypeError, and /geo was a white
+    // screen for everyone on their first visit: the saved settings that
+    // would have corrected it are restored in an effect that never ran.
+    expect(src).toContain('useState(DEFAULT_CONFIG.mode)');
+    expect(src).not.toContain("useState('world')");
+    expect(MODES[DEFAULT_CONFIG.mode]).toBeTruthy();
+  });
+
+  test('the mode the form reads can never be undefined', () => {
+    expect(src).toContain('const modeDef = MODES[config.mode] || MODES[DEFAULT_CONFIG.mode];');
+  });
+
+  test('every read of a mode down that path survives one that is gone', () => {
+    for (const line of src.split('\n')) {
+      if (!line.includes('MODES[')) continue;
+      // MODES[<something not a literal>] must be optional-chained.
+      const m = /MODES\[([^\]]+)\]\s*(\??\.)/.exec(line);
+      if (!m || /^'[a-z-]+'$/.test(m[1].trim())) continue;
+      expect(`${line.trim()} :: ${m[2]}`).toContain('?.');
+    }
+  });
+
+  test('a retired mode saved in a browser normalizes to one that plays', () => {
+    // The lobby restores its settings through normalizeConfig, which is
+    // the other half of this: an old browser holding 'kidnapped' opens
+    // on World rather than on nothing.
+    for (const old of ['world', 'cities', 'everywhere', 'kidnapped']) {
+      const mode = normalizeConfig({ mode: old }).mode;
+      expect(MODE_ORDER).toContain(mode);
+      expect(MODES[mode]).toBeTruthy();
+    }
+  });
+});

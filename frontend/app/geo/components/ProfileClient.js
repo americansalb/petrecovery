@@ -227,16 +227,16 @@ export default function ProfileClient() {
             <section className="rounded-2xl border border-sand-200 bg-white p-5" data-badges>
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Award className="h-4 w-4" />
-                Country badges
+                Badges
               </h2>
-              <p className="mt-2 text-sm text-sand-600">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept.</p>
+              <p className="mt-2 text-sm text-sand-600">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept. Mars and the Moon come from calling a Not Earth round right.</p>
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (
-                    <li key={b.countryCode} className="flex items-center gap-2 rounded-xl border border-sand-200 px-3 py-2 text-sm">
+                    <li key={b.countryCode} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-clay-300 bg-clay-50' : 'border-sand-200'}`}>
                       <span className="text-xl">{b.flag}</span>
                       <span className="min-w-0 flex-1 truncate font-semibold">{b.name}</span>
-                      <span className="text-xs text-sand-500">{b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
+                      <span className="text-xs text-sand-500">{b.notEarth ? 'called it' : b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
                     </li>
                   ))}
                 </ul>

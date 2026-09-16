@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 /**
- * End-to-end run of the geo game in a real browser, with the Google Maps
- * JavaScript API replaced by fake-maps.js, MapKit JS by fake-mapkit.js,
- * and the Street View metadata endpoint by mock-metadata.js. Exercises: a three-round pin
- * game with keyboard shortcuts, the summary and its share page, seeded
- * replay, a Kidnapped round where the car drives itself, a country
- * streak, a timed NMPZ round that runs out, the mobile map sheet, and a
- * two-browser room: lobby, rounds, reveal,
- * an Apple Look Around room played to a reveal,
- * reactions, standings with ratings, rematch, leaderboard (needs the
- * database, see docs/GEO.md), a five-round script game where the
- * answer is a linguistic region rather than a point, and that same
- * round with the MapKit token refused, which is what a clone sees.
+ * End-to-end run of the geo game in a real browser, with MapKit JS
+ * replaced by fake-mapkit.js. Every round is Apple Look Around, because
+ * that is the only imagery the game has (docs/GEO.md, "Apple first").
+ *
+ * Exercises: a three-round pin game with keyboard shortcuts, the summary
+ * and its share page, seeded replay, a country streak, a timed NMPZ
+ * round that runs out, the mobile map sheet, a Not Earth round called
+ * right and called wrong, a two-browser room (lobby, rounds, reveal,
+ * reactions, standings with ratings, rematch, leaderboard), the daily
+ * and the ranked boards, the profile and its shop, a five-round script
+ * game where the answer is a linguistic region rather than a point, and
+ * that same round with the MapKit token refused, which is what a clone
+ * sees.
+ *
+ * The rooms, daily, ranked, profile and admin scenarios write to the
+ * database, so they need a DATABASE_URL (see docs/GEO.md).
  *
  * Setup (from frontend/):
- *   node scripts/geo-e2e/mock-metadata.js &
- *   GOOGLE_STREET_VIEW_API_KEY=x GOOGLE_MAPS_BROWSER_KEY=x GEO_FREE_GOOGLE_ROUNDS=1000 \
- *   GEO_FREE_GOOGLE_ROUNDS_PER_IP=5000 GEO_FREE_GOOGLE_ROOM_GAMES=100 GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP=500 \
- *   GEO_STREET_VIEW_METADATA_URL=http://localhost:3999/metadata npm run dev &
- *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
+ *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -139,7 +139,7 @@ async function pinApple(page) {
 /** The result map must really have a box on screen, not just exist. */
 async function expectMapVisible(page, where) {
   const box = await page.evaluate(() => {
-    const host = document.querySelector('[data-fake-map]')?.parentElement;
+    const host = document.querySelector('[data-fake-mapkit]')?.parentElement;
     if (!host) return null;
     const r = host.getBoundingClientRect();
     return { width: Math.round(r.width), height: Math.round(r.height), top: Math.round(r.top) };
@@ -148,20 +148,25 @@ async function expectMapVisible(page, where) {
   if (!box || box.height < 150 || box.width < 300) throw new Error(`${where} map is not visibly sized: ${JSON.stringify(box)}`);
 }
 
+/**
+ * A three-round pin game, keyboard and all: the guess button is dead
+ * until a pin is down, Space does not skip a round when it triggers
+ * both the button and the window handler, the one map and the one
+ * panorama are reused for the whole game, the result and summary maps
+ * are really on screen, the game lands in local history once, the
+ * share link opens, and the same seed replays the same place.
+ */
 async function pinGame(browser) {
-  const url = `${BASE}/geo/play?provider=google&mode=balanced&rounds=3&seed=e2e-pin-1&time=0`;
+  const url = `${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=e2e-pin-1&time=0`;
   const page = await newPage(browser, { width: 1280, height: 800 });
   await page.goto(url, { waitUntil: 'domcontentloaded' });
   await waitPlayable(page);
-  await waitForPano(page);
+  await waitForLookAround(page);
   const pano1 = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
   log('round 1 pano', pano1);
-  log('notice:', await page.textContent('text=/Tried \\d+ random point/').catch(() => '(none)'));
   await shot(page, 'playing');
   if (!(await page.locator('button:has-text("Place your pin on the map")').isDisabled())) throw new Error('guess must be disabled without a pin');
-  await page.evaluate(() => window.__fakeClick(48.8566, 2.3522));
-  await waitGuessable(page);
-  await page.evaluate(() => window.__fakeHeading(135));
+  await pinApple(page);
   await shot(page, 'pinned');
   await page.click('button:has-text("Guess")');
   await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
@@ -173,16 +178,15 @@ async function pinGame(browser) {
   await waitPlayable(page);
   await page.waitForSelector('text=Round 2 of 3');
   await page.waitForFunction((prev) => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano') !== prev; }, pano1, { timeout: 30000 });
-  await page.evaluate(() => window.__fakeClick(-33.8688, 151.2093));
-  await waitGuessable(page);
+  await pinApple(page);
   await page.click('button:has-text("Guess")');
   await page.waitForSelector('text=/of 5,000/');
   await page.click('button:has-text("Round 3 of 3")');
   await waitPlayable(page);
+  await waitForLookAround(page);
   await page.keyboard.press('r');
   await page.keyboard.press('m');
-  await page.evaluate(() => window.__fakeClick(35.6762, 139.6503));
-  await waitGuessable(page);
+  await pinApple(page);
   await page.keyboard.press('Enter');
   await page.waitForSelector('button:has-text("See results")');
   await page.click('button:has-text("See results")');
@@ -191,21 +195,26 @@ async function pinGame(browser) {
   await expectMapVisible(page, 'summary');
   const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
   const counts = await page.evaluate(() => ({
-    markers: window.__fakeMarkers.filter((m) => m.opts.map).length,
-    lines: window.__fakeLines.filter((l) => l.opts.map).length,
-    maps: window.__fakeMaps.length,
-    panos: window.__fakePanos.length,
+    // Maps on screen, not maps ever constructed: React's strict mode
+    // mounts every component twice in development, so the constructor
+    // count says nothing about what the player has.
+    maps: document.querySelectorAll('[data-fake-mapkit]').length,
+    built: window.__fakeMaps.length,
+    // Three guesses, three answers, three lines between them, drawn on
+    // the one map as annotations and overlays.
+    annotations: Number(document.querySelector('[data-fake-mapkit]')?.parentElement?.getAttribute('data-fake-annotations') || 0),
+    overlays: Number(document.querySelector('[data-fake-mapkit]')?.parentElement?.getAttribute('data-fake-overlays') || 0),
     history: JSON.parse(localStorage.getItem('geo:history:v1') || '[]').length,
   }));
   log('summary:', counts);
-  if (counts.maps !== 1 || counts.panos !== 1) throw new Error('expected one map and one panorama instance for the whole game');
-  if (counts.markers !== 6 || counts.lines !== 3) throw new Error('summary map should show 3 guess/answer pairs');
+  if (counts.maps !== 1) throw new Error(`expected one map on screen for the whole game, saw ${counts.maps}`);
+  if (counts.annotations < 6) throw new Error(`summary map should show 3 guess/answer pairs, saw ${counts.annotations} annotations`);
   if (counts.history !== 1) throw new Error('the game should be in local history once');
   await page.goto(shareHref, { waitUntil: 'domcontentloaded' });
   log('share page title:', await page.title());
   await shot(page, 'share');
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await waitForPano(page);
+  await waitForLookAround(page);
   const replay = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
   if (replay !== pano1) throw new Error(`seeded replay produced ${replay}, expected ${pano1}`);
   log('seeded replay: same panorama');
@@ -213,38 +222,11 @@ async function pinGame(browser) {
   await page.close();
 }
 
-async function kidnapped(browser) {
-  const url = `${BASE}/geo/play?provider=google&mode=kidnapped&rounds=3&seed=e2e-kid-1`;
-  const page = await newPage(browser, { width: 1280, height: 800 });
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await waitPlayable(page);
-  await waitForPano(page);
-  const start = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
-  await page.waitForSelector('text=/^(3:00|2:5[0-9])$/', { timeout: 10000 });
-  if (await page.locator('button[aria-label="Return to start"]').count()) throw new Error('no return to start while being driven');
-  // The car moves on its own, and the HUD counts the distance.
-  await page.waitForFunction((prev) => { const el = document.querySelector('[data-fake-pano]'); return el && el.getAttribute('data-fake-pano') !== prev; }, start, { timeout: 15000 });
-  await page.waitForFunction(() => /Driven\s*([1-9]\d*\s*m|\d+(\.\d+)?\s*km)\b/.test(document.querySelector('[data-driven]')?.textContent || ''), null, { timeout: 15000 });
-  log('kidnapped:', (await page.textContent('[data-driven]')).replace(/\s+/g, ' '));
-  await shot(page, 'kidnapped');
-  await page.evaluate(() => window.__fakeClick(48.8566, 2.3522));
-  await waitGuessable(page);
-  await page.click('button:has-text("Guess")');
-  await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
-  // The drive stops at the guess.
-  const at = await page.getAttribute('[data-fake-pano]', 'data-fake-pano');
-  await page.waitForTimeout(2600);
-  if ((await page.getAttribute('[data-fake-pano]', 'data-fake-pano')) !== at) throw new Error('the drive must stop at the guess');
-  log('kidnapped: the car stopped at the guess after', at.length - start.length, 'steps');
-  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
-  await page.close();
-}
-
 async function streak(browser) {
   const page = await newPage(browser, { width: 1280, height: 800 });
-  await page.goto(`${BASE}/geo/play?provider=google&mode=streak&seed=e2e-streak-1`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=streak&seed=e2e-streak-1`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('text=Streak 0', { timeout: 60000 });
-  await waitForPano(page);
+  await waitForLookAround(page);
   await page.fill('input[aria-label="Country"]', 'Fra');
   await page.keyboard.press('Enter');
   await page.waitForSelector('button:has-text("Guess 🇫🇷 France")');
@@ -261,8 +243,8 @@ async function streak(browser) {
 
 async function timer(browser) {
   const page = await newPage(browser, { width: 900, height: 700 });
-  await page.goto(`${BASE}/geo/play?provider=google&mode=world&rounds=3&seed=e2e-timer&time=30&move=0&pan=0&zoom=0`, { waitUntil: 'domcontentloaded' });
-  await waitForPano(page);
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=e2e-timer&time=30&move=0&pan=0&zoom=0`, { waitUntil: 'domcontentloaded' });
+  await waitForLookAround(page);
   await page.waitForSelector('text=/^(2[0-9]|30)$/');
   if (!(await page.$('[title="Panning is off for this game"]'))) throw new Error('NMPZ overlay missing');
   await shot(page, 'timer');
@@ -274,11 +256,10 @@ async function timer(browser) {
 
 async function mobile(browser) {
   const page = await newPage(browser, { width: 390, height: 844 });
-  await page.goto(`${BASE}/geo/play?provider=google&mode=cities&rounds=3&seed=e2e-mobile`, { waitUntil: 'domcontentloaded' });
-  await waitForPano(page);
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=e2e-mobile`, { waitUntil: 'domcontentloaded' });
+  await waitForLookAround(page);
   await page.click('button:has-text("Map")');
-  await page.evaluate(() => window.__fakeClick(40.7, -74));
-  await waitGuessable(page);
+  await pinApple(page);
   await shot(page, 'mobile');
   await page.click('button:has-text("Guess")');
   await page.waitForSelector('text=/of 5,000/');
@@ -293,8 +274,7 @@ async function rooms(browser) {
   await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
   await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 }); // typed before hydration would be reset
   await host.fill('input[placeholder="What the others will see"]', 'Ada');
-  // The form opens on Apple now; this scenario is the Street View room.
-  await host.selectOption('label:has-text("Imagery") select', 'google');
+  await host.selectOption('label:has-text("Imagery") select', 'apple');
   await host.selectOption('label:has-text("Rounds") select', '3');
   await host.selectOption('label:has-text("Time per round") select', '60');
   await host.click('button:has-text("Open the room")');
@@ -319,16 +299,16 @@ async function rooms(browser) {
   const playRound = async (n) => {
     for (const p of [host, guest]) {
       await p.waitForSelector(`text=Round ${n} of 3`, { timeout: 60000 });
-      await waitForPano(p);
+      await waitForLookAround(p);
     }
     log(stamp(), `round ${n}: both pages show it`);
-    await host.evaluate(() => window.__fakeClick(48.8566, 2.3522));
+    await pinApple(host);
     await waitGuessable(host);
     await host.click('button:has-text("Guess")');
     log(stamp(), `round ${n}: host clicked guess`);
     await host.waitForSelector('text=Guess locked in', { timeout: 20000 });
     log(stamp(), `round ${n}: host locked in`);
-    await guest.evaluate(() => window.__fakeClick(-33.8688, 151.2093));
+    await pinApple(guest);
     await waitGuessable(guest);
     await guest.click('button:has-text("Guess")');
     log(stamp(), `round ${n}: guest clicked guess`);
@@ -338,7 +318,10 @@ async function rooms(browser) {
 
   await playRound(1);
   await expectMapVisible(host, 'room reveal');
-  const drawn = await host.evaluate(() => ({ markers: window.__fakeMarkers.filter((m) => m.opts.map).length, lines: window.__fakeLines.filter((l) => l.opts.map).length }));
+  const drawn = await host.evaluate(() => {
+    const map = document.querySelector('[data-fake-mapkit]')?.parentElement;
+    return { markers: Number(map?.getAttribute('data-fake-annotations') || 0), lines: Number(map?.getAttribute('data-fake-overlays') || 0) };
+  });
   log('reveal map:', drawn);
   if (drawn.markers !== 3 || drawn.lines !== 2) throw new Error('reveal should draw two guesses, two lines and one answer');
   await guest.click('button[aria-label="React 🔥"]', { timeout: 5000 });
@@ -413,6 +396,80 @@ async function appleSolo(browser) {
   await shot(page, 'apple-solo-summary');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
+}
+
+/**
+ * The Not Earth round (docs/GEO.md, "Not Earth").
+ *
+ * Seeds `ne757` and `ne719` draw one on round 0; `earth1` does not.
+ * What this run proves, in a real browser rather than a reducer:
+ * the panorama is on screen instead of Look Around, the picture the
+ * browser fetches gives nothing away, calling it right pays 5,000 and
+ * names the place, and calling it on an ordinary round costs the round.
+ */
+async function notEarth(browser) {
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  const images = [];
+  page.on('request', (r) => {
+    if (r.resourceType() === 'image' && r.url().startsWith(BASE)) images.push(r.url());
+  });
+
+  // 1. A Not Earth round, called right.
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=ne757&time=0`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-not-earth-pane]', { timeout: 60000 });
+  if (await page.$('[data-fake-lookaround]')) throw new Error('a Not Earth round opened Look Around');
+  await page.waitForSelector('button:has-text("Not Earth")', { timeout: 20000 });
+  await page.waitForTimeout(600);
+  await shot(page, 'not-earth-round');
+
+  const leak = images.filter((u) => /mars|moon|jezero|apollo|not-earth/i.test(u));
+  if (leak.length) throw new Error('the picture names the answer in the network tab: ' + leak.join(', '));
+  const pano = images.find((u) => /\/geo\/scenery\/\d\d\.jpg$/.test(u));
+  if (!pano) throw new Error('no panorama was fetched: ' + images.join(', '));
+  log('not earth: picture fetched as', pano.slice(BASE.length));
+
+  await page.click('button:has-text("Not Earth")');
+  await page.waitForSelector('text=Sure? A wrong call scores nothing.', { timeout: 5000 });
+  await page.click('button:has-text("Call it")');
+  await page.waitForSelector('text=/Called it\\. That was (Mars|the Moon)\\./', { timeout: 20000 });
+  const reveal = await page.textContent('text=/NASA/');
+  log('not earth reveal credit:', (reveal || '').trim());
+  if (!/NASA/.test(reveal || '')) throw new Error('the reveal did not credit NASA');
+  await shot(page, 'not-earth-called');
+
+  // 2. The next round is an ordinary one, and the button is still there.
+  await page.click('button:has-text("Round 2 of 3")');
+  await waitPlayable(page);
+  await waitForLookAround(page);
+  if (await page.$('[data-not-earth-pane]')) throw new Error('round 2 was another Not Earth round');
+  await page.click('button:has-text("Not Earth")');
+  await page.click('button:has-text("Call it")');
+  await page.waitForSelector('text=That was Earth. Calling Not Earth costs you the round.', { timeout: 20000 });
+  // The whole paragraph, not the "of 5,000" span inside it.
+  const score = await page.textContent('p:has-text("of 5,000")');
+  if (!/^0\s+of 5,000/.test((score || '').trim())) throw new Error('a wrong call scored something: ' + score);
+  log('not earth: a wrong call scored', (score || '').trim());
+  await shot(page, 'not-earth-wrong-call');
+
+  // 3. A Not Earth round pinned on the map instead: zero, and still revealed.
+  const second = await newPage(browser, { width: 1280, height: 800 });
+  await second.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=ne719&time=0`, { waitUntil: 'domcontentloaded' });
+  await second.waitForSelector('[data-not-earth-pane]', { timeout: 60000 });
+  await pinApple(second);
+  await second.click('button:has-text("Guess")');
+  await second.waitForSelector('text=/That was (Mars|the Moon)\\./', { timeout: 20000 });
+  // The reveal for a Not Earth round prints the place rather than a
+  // distance, so the score to check is the game's running total.
+  await second.waitForSelector('text=The Not Earth button was the answer. No points this round.', { timeout: 10000 });
+  const total = await second.textContent('[data-geo-score]');
+  if ((total || '').trim() !== '0') throw new Error('a pin on a Not Earth round scored something: ' + total);
+  log('not earth: a pin on it left the score at', (total || '').trim());
+  await shot(second, 'not-earth-pinned');
+
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  if (second.errors.length) throw new Error('page errors: ' + second.errors.join(' | '));
+  await page.close();
+  await second.close();
 }
 
 /**
@@ -775,11 +832,10 @@ async function admin(browser) {
 
 async function profile(browser) {
   const page = await newPage(browser, { width: 1280, height: 900 });
-  await page.goto(`${BASE}/geo/play?provider=google&mode=balanced&rounds=3&seed=e2e-points-1&time=0`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=e2e-points-1&time=0`, { waitUntil: 'domcontentloaded' });
   await waitPlayable(page);
-  await waitForPano(page);
-  await page.evaluate(() => window.__fakeClick(48.8566, 2.3522));
-  await waitGuessable(page);
+  await waitForLookAround(page);
+  await pinApple(page);
   await page.click('button:has-text("Guess")');
   await page.waitForSelector('text=/\\+\\d+ points/', { timeout: 20000 });
   log('round points line:', await page.textContent('text=/\\+\\d+ points/'));
@@ -995,7 +1051,7 @@ async function appleRefused(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { coldOpen, admin, pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, pinGame, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

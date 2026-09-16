@@ -104,45 +104,35 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
 ## How a round is made
 
 1. **A candidate point.** `app/lib/geo/server/sampler.js` draws from a
-   seeded generator (`app/lib/geo/random.js`) according to the mode:
-   On Apple Look Around every mode is a draw from the curated city list
-   (`app/lib/geo/coverage.js`), because that is the whole of what Apple
-   covers: *World* is any covered city, *Balanced*, *Daily*, *Cup* and
-   *Streak* pick a covered country first (square root of area, so small
-   ones still come up) and then one of its cities, *Continent* and
-   *Country* are the covered cities inside them, and a continent or
-   country Apple has not reached is refused in plain words. The Google
-   draws below are what the Google option does.
-   - *World, pure random*: a point uniformly distributed over the sphere
-     (uniform in the sine of the latitude, so the poles are not
-     over-represented), thrown away if it is not on land. Antarctica is
-     excluded.
-   - *Balanced, daily, cup, kidnapped, streak*: a random country from the
-     Google coverage list, weighted by the square root of its area so
-     small countries still come up, then a random point inside its
-     polygon.
-   - *Continent / country*: the same, restricted.
-   - *Everywhere*: a random spot in one of the cities listed in
-     `coverage.js` for countries with **no** official Street View at all.
-   - *City streets*: a random spot within one of the 185 covered cities
-     (`app/lib/geo/coverage.js`).
-2. **The imagery probe (Google).** `app/lib/geo/server/streetview.js`
-   calls the Street View Static API *metadata* endpoint for each
-   candidate, in parallel batches of 12, up to 96 per attempt. Metadata
-   requests are free and unmetered. A hit must be official Google
-   imagery (the copyright line says Google; user photo spheres are
-   skipped) and outdoor. The first hit in candidate order wins, so a seed
-   reproduces the same round while coverage is unchanged.
-   In every mode but Everywhere a hit must be official Google imagery.
-   Everywhere inverts that, below.
-3. **The imagery probe (Apple).** MapKit JS has no availability call, so
-   the browser creates a Look Around view for each candidate in turn and
-   listens for `load` or `error` (`app/geo/lib/lookAround.js`).
-4. **The sealed token.** The answer (coordinates, country, panorama id,
-   scoring scale) is AES-256-GCM encrypted under a key derived from
-   `NEXTAUTH_SECRET` (`app/lib/geo/server/tokens.js`) and handed to the
-   browser opaque. The guess endpoint opens it. No table, no cleanup,
-   works across instances.
+   seeded generator (`app/lib/geo/random.js`). Every mode is a draw from
+   the curated city list (`app/lib/geo/coverage.js`), because that is
+   the whole of what Apple covers: *World*, *Daily*, *Ranked*, *Cup* and
+   *Streak* pick a covered country first, weighted by the square root of
+   its area so small countries still come up, then one of its cities;
+   *Continent* and *Country* are the covered cities inside them, and a
+   continent or country Apple has not reached is refused in plain words.
+
+   The square root is the lever. Weighting by raw area makes Russia,
+   Canada and the United States almost the whole game; weighting every
+   country equally makes Monaco as likely as Brazil, and the meta
+   becomes learning a list. The square root sits between the two and is
+   the setting the founder signed off on.
+2. **Or no point at all.** About one casual round in two hundred is a
+   Not Earth round, drawn before the sampler runs because there is no
+   point on Earth to draw (below).
+3. **The imagery probe.** MapKit JS has no availability call, so the
+   round goes out as twelve candidate coordinates and the browser
+   creates a Look Around view for each in turn, listening for `load` or
+   `error` (`app/geo/lib/lookAround.js`). The first that opens is the
+   round, and it reports which one back.
+4. **The sealed token.** The answer (coordinates, country, scoring scale,
+   and the Not Earth place when there is one) is AES-256-GCM encrypted
+   under a key derived from `NEXTAUTH_SECRET`
+   (`app/lib/geo/server/tokens.js`) and handed to the browser opaque.
+   The guess endpoint opens it. No table, no cleanup, works across
+   instances. An Apple round issues twelve of them, one per candidate,
+   all carrying the same round id so the points ledger pays for one
+   round rather than twelve.
 5. **The country.** Named from Natural Earth 1:110m polygons
    (`world-atlas`) with metadata from `world-countries`, joined on the ISO
    numeric code (`app/lib/geo/server/countries.js`). No geocoder call.
@@ -152,9 +142,9 @@ Scoring (`app/lib/geo/distance.js`): `5000 * e^(-10 d / size)`, where
 `size` is 14,916 km for the world and the bounding-box diagonal for a
 continent or country (floor 100 km). Within 25 m is 5,000.
 
-Randomness settings ("How random" in the lobby) are the probe radius:
+Randomness settings ("How random" in the lobby) are the search radius:
 2 km (pure), 10 km (standard), 50 km (fast). A small radius is closer to
-uniform over covered land but needs more probes; a large one drifts
+uniform over covered land but needs more candidates; a large one drifts
 toward the edges of covered areas.
 
 Seeds: every game gets one (the lobby generates it), the daily challenge
@@ -180,71 +170,67 @@ Results, room cards, the share text and the OpenGraph card name the
 format whenever it is not Moving. Street names are hidden in every
 format on both providers.
 
-**Kidnapped** is a mode with its own clock rather than a format: three
-minutes a round, Google only, rounds and the probe radius still yours.
-The car drives itself (`app/geo/lib/drive.js`, run by
-`GoogleStreetViewPane` every 1.1 s): each step takes the Street View
-link closest to the direction of travel, never turning back unless the
-road ends, and keeps the way you are looking relative to the road. You
-can look around, not steer or zoom, and guess whenever you like or when
-the clock runs out; the answer is the spot you were dropped at (a few
-hundred metres of road do not move the score), and the HUD counts how
-far you have been driven.
+Kidnapped and Everywhere were two more ways to play, and both needed
+Google: Kidnapped drove the Street View car for you, and Everywhere drew
+from the countries Google never entered, on user photo spheres. Apple
+has neither road links nor photo spheres, so both went when Google did
+(2026-09-16). A link to either opens World.
 
-## Everywhere: the third of the world Street View never drove
+## Not Earth: the round that is not on this planet
 
-Google's coverage stops at a border for reasons of law and business, not
-geography. 119 countries are in `GOOGLE_COVERAGE`. The country metadata
-holds 249 entries, five of them Antarctic, so against the 244 that are
-not, **125 countries are excluded, 34.1% of the world's non-Antarctic
-land**: China, Iran, Egypt, Algeria, Sudan, Libya, Saudi Arabia, most of
-the Sahara belt and much of Central Asia.
+About one casual round in two hundred is a photograph taken on Mars or
+on the Moon, and every round carries a button that says **Not Earth**.
+Calling it right is 5,000 points and the badge for that world. Calling
+it on an ordinary round costs you the round: no pin, no distance, no
+score, and in a streak it is the miss that ends the run. That cost is
+the whole design. A free button gets pressed every round and means
+nothing; a button that can lose you 5,000 points makes a round in the
+Atacama or in Iceland a decision instead of a shrug.
 
-(This said 130 until review caught it. That number subtracted from all
-249 while the land figure excluded Antarctica, which is two different
-universes in one sentence. Both figures here are measured against the
-244; `docs/PROBABLY_EARTH_STRATEGY.md` carries the same correction.)
+Founder direction, 2026-09-16: **real NASA panoramas, not invented
+places.** Nothing here is generated and nothing is a painting of
+somewhere that does not exist. There are ten of them in
+`app/lib/geo/notEarth.js`, six from Mars and four from the Moon: the
+Mastcam-Z and Curiosity panoramas of Jezero and Gale, Opportunity in
+Marathon Valley, Spirit on Low Ridge, and Apollo 11, 15 and 16 on the
+surface. Every one is public domain, was checked against the NASA image
+library on 2026-09-16, and is served from our own `/public` so a round
+never waits on a third party. The reveal prints the mission, the date,
+NASA's own credit line and a link to the original.
 
-That has a consequence for the game beyond missing places. If a third of
-the planet can never appear, then memorising the coverage map deletes it
-from the answer space before the player has looked at anything. A large
-part of what looks like expertise in this genre is knowing where a
-company chose to drive.
+**Where it can happen.** `NOT_EARTH_MODES` lists World, Continent,
+Country and Streak. Ranked, the daily and the weekly cup are excluded by
+being left off that list, on purpose: those are one set of places shared
+by everyone playing them, and a surprise that lands for one player and
+not the next is not a shared set. The list names the modes that CAN
+serve one rather than the ones that cannot, so a mode added later has to
+be added there deliberately.
 
-**Everywhere** is the mode that makes that knowledge worth nothing.
+**How it is drawn.** From the round's seed where there is one, so a
+challenge link surprises everyone who opens it in the same place, and
+fresh where there is not.
 
-- **Where it draws from.** Cities in countries with no official coverage
-  (`citiesOffCoverage()` in `app/lib/geo/coverage.js`). It is a city list
-  rather than a country pool because the imagery that exists in those
-  countries is user photo spheres, and those cluster in cities.
-- **What counts as a hit.** The probe normally rejects anything whose
-  copyright line is not Google. Everywhere passes `allowUnofficial` and
-  takes the sphere, because there is nothing else there. No other mode
-  is affected: the flag is derived from the mode inside
-  `probeForImagery`.
-- **A wider probe radius.** Spheres are far sparser than a Street View
-  car's line, so candidates carry at least a 10 km radius rather than the
-  2 km City streets uses. Metadata requests are free and unmetered, so a
-  mode that probes harder costs nothing extra; only the round itself
-  counts against the play meter.
-- **No movement.** A photo sphere is one viewpoint with no links, so
-  there is nothing to walk to. The mode fixes `move: false` and leaves
-  pan and zoom on. Rounds, timer and probe radius stay the player's.
-- **The answer is still named by the polygons.** `countryAt` decides the
-  country from Natural Earth, not from the city label, so a sphere in the
-  wrong place cannot mislabel a round.
+**What the browser is told.** The picture, its width and its height. Not
+the id, not the title, not the world. On the wire the round's provider
+is `photo`, which is what the browser has to do with it, and the file is
+`/geo/scenery/04.jpg` rather than anything reading `mars-gale-crater`.
+The browser has to fetch the picture to show it, so the filename is in
+the network tab of every player who opens one; a round that announced
+itself there would be over before the picture finished decoding. The
+answer lives in the sealed token and comes back with the reveal.
 
-The city coordinates were written by hand, so
-`__tests__/geo/off-coverage.test.js` checks every one against the same
-polygons that name the answer. A digit in the wrong place fails the
-build rather than putting a round in Mongolia and calling it Beijing.
-That test caught one on the way in: Tripoli's centre sits just outside
-the 1:110m coastline and had to move inland.
+**The badge.** Mars is `XM` and the Moon is `XL`, which are in the ISO
+3166-1 user-assigned range (XA to XZ). No country will ever be given
+those, so a Not Earth badge is an ordinary `GeoBadge` row and the
+feature needed no migration on the database ReunitePets shares.
 
-**Known limit.** How dense photo spheres actually are in Chad or Sudan is
-unmeasured. The mode is built and correct; whether every city in the list
-can reliably produce a round needs a live Google key and a real run. If
-some cannot, the fix is to trim the list, not to change the mechanism.
+**The picture.** `NotEarthPane` scales the panorama to fill the height
+and drags it sideways, with the far edge wrapping round to the near one.
+Every one of these was shot as a full circle from a fixed spot, so
+sideways is the only direction there is to look, which is the same thing
+Look Around gives you on a No Move round. It answers the same handle as
+the Look Around pane, so the HUD's return-to-start and zoom work without
+knowing which kind of round is on.
 
 ## Script: pin the language, not the country
 

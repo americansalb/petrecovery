@@ -26,6 +26,8 @@ import GoogleStreetViewPane from './GoogleStreetViewPane';
 import GoogleGuessMap from './GoogleGuessMap';
 import AppleLookAroundPane from './AppleLookAroundPane';
 import AppleGuessMap from './AppleGuessMap';
+import NotEarthPane from './NotEarthPane';
+import NotEarthButton from './NotEarthButton';
 import GameHud from './GameHud';
 import CountryPicker from './CountryPicker';
 import LoadingSpot from './LoadingSpot';
@@ -129,6 +131,10 @@ export default function PlayClient() {
 
   const isGoogle = config.provider === 'google';
   const isStreak = config.mode === 'streak';
+  // A Not Earth round is a NASA panorama and no coordinates at all
+  // (app/lib/geo/notEarth.js). The guess map stays exactly where it
+  // always is: a round that hid its own map would announce itself.
+  const notEarth = state.current?.place || null;
   const isKidnapped = config.mode === 'kidnapped';
   const [driven, setDriven] = useState(0);
   const providerInfo = server?.providers?.[config.provider];
@@ -300,6 +306,9 @@ export default function PlayClient() {
 
   const next = useCallback(() => dispatch({ type: 'next' }), []);
 
+  /** The Not Earth button, on every round. */
+  const callNotEarth = useCallback(() => submitGuess({ notEarth: true }), [submitGuess]);
+
   // The round timer.
   useEffect(() => {
     if (state.status !== 'playing' || !config.time || !state.roundStartedAt) return undefined;
@@ -382,11 +391,13 @@ export default function PlayClient() {
   const lastResult = state.rounds[state.rounds.length - 1];
   const mapMode = state.status === 'result' || state.status === 'summary' ? 'result' : 'guess';
   const mapResults = useMemo(() => {
+    // A Not Earth round has no answer on this map, so it plots none.
+    const answerOf = (r) => (Number.isFinite(r?.answer?.lat) && Number.isFinite(r?.answer?.lng) ? { lat: r.answer.lat, lng: r.answer.lng } : null);
     if (state.status === 'result' && lastResult) {
-      return [{ guess: lastResult.guess, answer: lastResult.answer ? { lat: lastResult.answer.lat, lng: lastResult.answer.lng } : null, label: '' }];
+      return [{ guess: lastResult.guess, answer: answerOf(lastResult), label: '' }];
     }
     if (state.status === 'summary') {
-      return state.rounds.map((r, i) => ({ guess: r.guess, answer: r.answer ? { lat: r.answer.lat, lng: r.answer.lng } : null, label: String(i + 1) }));
+      return state.rounds.map((r, i) => ({ guess: r.guess, answer: answerOf(r), label: String(i + 1) }));
     }
     return [];
   }, [state.status, state.rounds, lastResult]);
@@ -403,8 +414,14 @@ export default function PlayClient() {
     };
   }, [pointsByRound, profile]);
   const effectiveSize = mapHover && mapSize === 'small' ? 'medium' : mapSize;
+  // A Not Earth round has no answer to plot, so its reveal keeps the
+  // picture on screen instead of a map with one pin and nothing to
+  // compare it to.
+  const notEarthResult = state.status === 'result' && lastResult?.kind === 'not-earth';
   let mapClass;
-  if (mapMode === 'result') {
+  if (notEarthResult) {
+    mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
+  } else if (mapMode === 'result') {
     // flex-col so the map's flex-1 fills the frame; without it the map
     // collapses to zero height and the panorama shows through the border.
     mapClass = `absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-20 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
@@ -417,7 +434,7 @@ export default function PlayClient() {
   }
 
   const sdkReady = isGoogle ? Boolean(api) : Boolean(mapkit);
-  const canZoom = config.zoom && isGoogle;
+  const canZoom = config.zoom && (isGoogle || Boolean(notEarth));
   const showLoading = state.status === 'loading' || state.status === 'locating' || (state.status === 'idle' && configured);
   const roundNumber = state.roundIndex + 1;
 
@@ -438,6 +455,9 @@ export default function PlayClient() {
           onDrive={setDriven}
         />
       ) : null}
+      {notEarth ? (
+        <NotEarthPane ref={paneRef} place={notEarth} roundKey={state.roundIndex} allowPan={config.pan} allowZoom={config.zoom} />
+      ) : null}
       {sdkReady && !isGoogle && state.current?.candidates ? (
         <AppleLookAroundPane
           ref={paneRef}
@@ -453,8 +473,9 @@ export default function PlayClient() {
         />
       ) : null}
 
-      {/* Backdrop behind results */}
-      {mapMode === 'result' ? <div className="absolute inset-0 z-20 bg-ocean-950/85" /> : null}
+      {/* Backdrop behind results. Lighter over a Not Earth reveal, which
+          has the place itself behind it rather than a map. */}
+      {mapMode === 'result' ? <div className={`absolute inset-0 z-20 ${notEarthResult ? 'bg-ocean-950/45' : 'bg-ocean-950/85'}`} /> : null}
 
       {/* HUD */}
       {(inRound || mapMode === 'result') && state.status !== 'summary' ? (
@@ -507,6 +528,13 @@ export default function PlayClient() {
       {inRound && isStreak ? (
         <div className={mobileMapOpen ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 rounded-t-2xl border-t border-white/10 bg-ocean-900/95 p-3 backdrop-blur' : 'absolute bottom-14 right-4 z-30 hidden h-[26rem] w-80 rounded-2xl border border-white/10 bg-ocean-900/90 p-3 shadow-2xl backdrop-blur sm:block'}>
           <CountryPicker countries={server?.countries || []} provider={config.provider} value={state.pin?.countryCode || ''} onChange={(code) => dispatch({ type: 'pin', pin: { countryCode: code } })} onSubmit={() => submitGuess()} disabled={state.status !== 'playing'} />
+        </div>
+      ) : null}
+
+      {/* The Not Earth button, on every round */}
+      {inRound ? (
+        <div className="pointer-events-none absolute bottom-16 left-1/2 z-30 flex -translate-x-1/2 justify-center">
+          <NotEarthButton onCall={callNotEarth} disabled={state.status !== 'playing'} roundKey={state.roundIndex} />
         </div>
       ) : null}
 

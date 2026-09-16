@@ -89,22 +89,43 @@ afterEach(() => {
 });
 
 describe('GET /api/geo/config', () => {
-  test('reports configured providers with the browser key only', async () => {
+  test('there is one imagery, and it is set up', async () => {
     const res = await getConfig();
     const body = await res.json();
-    expect(body.providers.google).toMatchObject({ configured: true, browserKey: 'browser-key', missing: [] });
-    expect(JSON.stringify(body)).not.toContain('sv-key');
+    expect(Object.keys(body.providers)).toEqual(['apple']);
+    expect(body.providers.apple).toMatchObject({ configured: true, missing: [] });
+    expect(body.primary).toBe('apple');
     expect(body.daily.seed).toMatch(/^daily-\d{4}-\d{2}-\d{2}$/);
     expect(body.countries.length).toBeGreaterThan(200);
     expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 
-  test('names what is missing, and withholds the browser key until both keys exist', async () => {
-    delete process.env.GOOGLE_STREET_VIEW_API_KEY;
-    const body = await (await getConfig()).json();
-    expect(body.providers.google.configured).toBe(false);
-    expect(body.providers.google.browserKey).toBe('');
-    expect(body.providers.google.missing).toEqual(['GOOGLE_STREET_VIEW_API_KEY']);
+  test('no key of any kind is ever in the reply', async () => {
+    // The Google browser key used to be here, public by design and
+    // locked to this site's referrers. There is no key to send now, and
+    // nothing here should ever carry one again.
+    const body = JSON.stringify(await (await getConfig()).json());
+    expect(body).not.toContain('sv-key');
+    expect(body).not.toContain('browser-key');
+    expect(body).not.toMatch(/browserKey|Key|secret/i);
+  });
+
+  test('names the one variable an operator has to set, when it is not set', async () => {
+    const saved = { secret: process.env.GEO_TOKEN_SECRET, auth: process.env.NEXTAUTH_SECRET };
+    delete process.env.GEO_TOKEN_SECRET;
+    delete process.env.NEXTAUTH_SECRET;
+    try {
+      const body = await (await getConfig()).json();
+      expect(body.providers.apple.configured).toBe(false);
+      // The game's own variable, not the pet site's: the setup screen
+      // renders this list verbatim.
+      expect(body.providers.apple.missing).toEqual(['GEO_TOKEN_SECRET']);
+    } finally {
+      if (saved.secret === undefined) delete process.env.GEO_TOKEN_SECRET;
+      else process.env.GEO_TOKEN_SECRET = saved.secret;
+      if (saved.auth === undefined) delete process.env.NEXTAUTH_SECRET;
+      else process.env.NEXTAUTH_SECRET = saved.auth;
+    }
   });
 });
 
@@ -125,10 +146,14 @@ describe('POST /api/geo/round', () => {
     expect(answer.lat).toBe(body.round.candidates[0].lat);
   });
 
-  test('the same seed gives the same panorama on a second call', async () => {
-    const a = await (await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'twice' } }))).json();
-    const b = await (await postRound(request({ config: { provider: 'google', mode: 'world', seed: 'twice' } }))).json();
-    expect(a.round.panoId).toBe(b.round.panoId);
+  test('the same seed gives the same places on a second call', async () => {
+    const a = await (await postRound(request({ config: { mode: 'balanced', seed: 'twice' } }))).json();
+    const b = await (await postRound(request({ config: { mode: 'balanced', seed: 'twice' } }))).json();
+    // The coordinates, not panoId: Apple has no panorama id to compare,
+    // and comparing two undefineds passed whatever the sampler did.
+    const places = (r) => r.round.candidates.map((c) => `${c.lat},${c.lng}`);
+    expect(places(a).length).toBeGreaterThan(0);
+    expect(places(a)).toEqual(places(b));
   });
 
   test('Apple rounds are candidate lists', async () => {
