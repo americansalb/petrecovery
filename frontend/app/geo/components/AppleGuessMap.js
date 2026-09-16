@@ -3,7 +3,7 @@
 /**
  * The guess map for Apple games: a MapKit map, tap to place the pin,
  * result pairs drawn as annotations and a polyline. Same contract as
- * GoogleGuessMap so the play page does not care which it has.
+ * the play page and a room, so neither has to know how a map is made.
  */
 
 import { useEffect, useRef } from 'react';

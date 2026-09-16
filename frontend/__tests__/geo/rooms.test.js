@@ -43,10 +43,48 @@ const sec = (n) => n * 1000;
 async function setupRoom({ settings = {}, players = ['Ada', 'Grace'], now = T0 } = {}) {
   const store = createMemoryRoomStore();
   // Google unless a test says Apple: the fake fetch is a Street View probe.
-  const host = await createRoom(store, { name: 'Friday night', hostName: players[0], settings: { provider: 'google', rounds: 3, time: 60, ...settings }, now });
+  const host = await createRoom(store, { name: 'Friday night', hostName: players[0], settings: { rounds: 3, time: 60, ...settings }, now });
   const others = [];
   for (const name of players.slice(1)) others.push(await joinRoom(store, { code: host.room.code, name, now }));
   return { store, code: host.room.code, host, others, tokens: [host.token, ...others.map((o) => o.token)] };
+}
+
+/**
+ * Start a room the way an Apple one really starts: the host presses
+ * start, the room sits in `locating` while the browsers try the places
+ * the server offered, and the first to load one claims it.
+ */
+async function startAndLocate(store, code, token, now = T0) {
+  return act(store, { code, token, action: 'start', now, fetchImpl: hitFetch });
+}
+
+/** Every round begins in `locating`, not just the first. */
+async function locate(store, code, token, now = T0) {
+  return roomAction(store, { code, token, action: 'locate', body: { index: 0 }, now, fetchImpl: hitFetch });
+}
+
+/**
+ * An action, followed by what a browser would do next: if it left the
+ * room in `locating`, open one of the places offered. Tests that are
+ * about the locating mechanic itself call roomAction directly.
+ */
+async function act(store, args) {
+  const out = await roomAction(store, { fetchImpl: hitFetch, ...args });
+  if (out?.state?.room?.phase !== 'locating' || !args.token) return out;
+  return locate(store, args.code, args.token, args.now).catch(() => out);
+}
+
+/**
+ * The room as a browser sees it, having done what a browser does: if the
+ * round is still `locating`, open one of the places offered and report
+ * it. An Apple room has no server-side probe, so every round waits for a
+ * browser to find imagery before its clock starts.
+ */
+async function viewAs(store, args) {
+  const seen = await getRoomView(store, { fetchImpl: hitFetch, ...args });
+  if (seen.room?.phase !== 'locating' || !args.token) return seen;
+  await locate(store, args.code, args.token, args.now).catch(() => {});
+  return getRoomView(store, { fetchImpl: hitFetch, ...args });
 }
 
 async function answerOf(store, code) {
@@ -80,16 +118,17 @@ describe('rules', () => {
     expect(rules.normalizeRoomConfig({ mode: 'country', region: 'jp', time: 90, rounds: 10 }).config).toMatchObject({ mode: 'country', region: 'JP', time: 90, rounds: 10 });
     // Apple Look Around rooms play the modes Apple imagery covers; City
     // streets is Google's name for what every Apple mode already is.
-    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'world', time: 90 }).config).toMatchObject({ provider: 'apple', mode: 'world', time: 90 });
+    expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'balanced', time: 90 }).config).toMatchObject({ provider: 'apple', mode: 'balanced', time: 90 });
     expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'cities' }).config).toMatchObject({ provider: 'apple', mode: 'balanced' });
-    expect(rules.normalizeRoomConfig({ provider: 'google', mode: 'cities' }).config).toMatchObject({ provider: 'google', mode: 'cities' });
+    // retired modes open the one that replaced them
+    expect(rules.normalizeRoomConfig({ provider: 'google', mode: 'cities' }).config).toMatchObject({ provider: 'apple', mode: 'balanced' });
   });
 
   test('the rules line names the places, the format when it is not moving, and Apple imagery', () => {
-    expect(rules.describeRoomRules({ mode: 'balanced', move: true, pan: true, zoom: true })).toBe('World, balanced');
+    expect(rules.describeRoomRules({ mode: 'balanced', move: true, pan: true, zoom: true })).toBe('World');
     expect(rules.describeRoomRules({ mode: 'country', region: 'JP', move: false, pan: true, zoom: true }, { regionLabel: 'Japan' })).toBe('Country: Japan, No Move');
-    expect(rules.describeRoomRules({ provider: 'apple', mode: 'world', move: false, pan: false, zoom: false })).toBe('World, pure random, NMPZ');
-    expect(rules.describeRoomRules({ provider: 'google', mode: 'cities', move: false, pan: false, zoom: false })).toBe('City streets, NMPZ, on Google Street View');
+    expect(rules.describeRoomRules({ provider: 'apple', mode: 'balanced', move: false, pan: false, zoom: false })).toBe('World, NMPZ');
+    expect(rules.describeRoomRules({ provider: 'apple', mode: 'streak', move: false, pan: false, zoom: false })).toBe('Country streak, NMPZ');
   });
 
   test('duel damage is the gap to the best guess, scaled every three rounds', () => {
@@ -126,14 +165,14 @@ describe('a classic game', () => {
     expect(host.player.isHost).toBe(true);
     expect(others[0].player.isHost).toBe(false);
     expect(others[0].player.color).not.toBe(host.player.color);
-    const view = await getRoomView(store, { code, token: others[0].token, now: T0 + sec(1) });
+    const view = await viewAs(store, { code, token: others[0].token, now: T0 + sec(1) });
     expect(view.room).toMatchObject({ status: 'lobby', phase: 'lobby', variant: 'classic', roundsTotal: 3 });
     expect(view.players.map((p) => p.name)).toEqual(['Ada', 'Grace']);
     expect(view.players.find((p) => p.you).name).toBe('Grace');
     expect(view.me.isHost).toBe(false);
     expect(view.round).toBeNull();
     expect(JSON.stringify(view)).not.toContain('tokenHash');
-    const anonymous = await getRoomView(store, { code, now: T0 });
+    const anonymous = await viewAs(store, { code, now: T0 });
     expect(anonymous.me).toBeNull();
   });
 
@@ -143,14 +182,14 @@ describe('a classic game', () => {
     // without joining used to be handed the panorama id and mount a
     // pane with it, costing money that nothing counted.
     const { store, code, tokens } = await setupRoom();
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
-    const player = await getRoomView(store, { code, token: tokens[0], now: T0 + sec(2), fetchImpl: hitFetch });
-    expect(player.round.panoId).toBeTruthy();
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    const player = await viewAs(store, { code, token: tokens[0], now: T0 + sec(2), fetchImpl: hitFetch });
+    expect(player.round.coordinate).toBeTruthy();
 
-    const spectator = await getRoomView(store, { code, now: T0 + sec(2), fetchImpl: hitFetch });
+    const spectator = await viewAs(store, { code, now: T0 + sec(2), fetchImpl: hitFetch });
     expect(spectator.me).toBeNull();
     expect(spectator.round).not.toBeNull();
-    expect(spectator.round.panoId).toBeNull();
+    expect(spectator.round.coordinate).toBeFalsy();
     expect(spectator.round.coordinate).toBeNull();
     expect(spectator.players.map((p) => p.name)).toEqual(['Ada', 'Grace']);
   });
@@ -168,7 +207,7 @@ describe('a classic game', () => {
     const { store, code, tokens } = await setupRoom({ players: ['Solo'] });
     await expect(roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch })).rejects.toMatchObject({ code: 'need_players', status: 409 });
     await joinRoom(store, { code, name: 'Friend', now: T0 });
-    const started = await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    const started = await startAndLocate(store, code, tokens[0]);
     expect(started.state.room.status).toBe('playing');
   });
 
@@ -183,20 +222,22 @@ describe('a classic game', () => {
     const { store, code, tokens } = await setupRoom();
     const [ada, grace] = tokens;
 
-    const started = await roomAction(store, { code, token: ada, action: 'start', now: T0, fetchImpl: hitFetch });
+    const started = await startAndLocate(store, code, ada);
     expect(started.state.room).toMatchObject({ status: 'playing', phase: 'guessing', roundIndex: 0 });
-    expect(started.state.round.panoId).toMatch(/^pano-/);
+    expect(started.state.round.coordinate).toBeTruthy();
     expect(started.state.round.deadline).toBe(T0 + sec(60));
-    expect(JSON.stringify(started.state.round)).not.toMatch(/"lat"/);
+    // An Apple round must send the coordinate: the browser opens the
+    // imagery itself. What stays sealed is the country and the city.
+    expect(JSON.stringify(started.state.round)).not.toMatch(/"countryName"/);
 
     const answer = await answerOf(store, code);
-    const first = await roomAction(store, { code, token: ada, action: 'guess', body: answer, now: T0 + sec(5), fetchImpl: hitFetch });
+    const first = await act(store, { code, token: ada, action: 'guess', body: answer, now: T0 + sec(5), fetchImpl: hitFetch });
     expect(first.state.room.phase).toBe('guessing');
     expect(first.state.players.find((p) => p.name === 'Ada').guessed).toBe(true);
     expect(first.state.players.find((p) => p.name === 'Grace').guessed).toBe(false);
     await expect(roomAction(store, { code, token: ada, action: 'guess', body: answer, now: T0 + sec(6) })).rejects.toMatchObject({ code: 'already_guessed' });
 
-    const second = await roomAction(store, { code, token: grace, action: 'guess', body: { lat: answer.lat, lng: ((answer.lng + 360) % 360) - 180 }, now: T0 + sec(9), fetchImpl: hitFetch });
+    const second = await act(store, { code, token: grace, action: 'guess', body: { lat: answer.lat, lng: ((answer.lng + 360) % 360) - 180 }, now: T0 + sec(9), fetchImpl: hitFetch });
     expect(second.state.room.phase).toBe('reveal');
     expect(second.state.reveal.answer).toMatchObject({ lat: answer.lat, lng: answer.lng });
     const ranked = second.state.reveal.guesses;
@@ -206,29 +247,29 @@ describe('a classic game', () => {
     expect(second.state.room.phaseEndsAt).toBe(T0 + sec(9) + rules.REVEAL_SECONDS * 1000);
 
     // Nobody moves on until the reveal has been on screen long enough.
-    const early = await getRoomView(store, { code, token: grace, now: T0 + sec(12), fetchImpl: hitFetch });
+    const early = await viewAs(store, { code, token: grace, now: T0 + sec(12), fetchImpl: hitFetch });
     expect(early.room.phase).toBe('reveal');
-    const later = await getRoomView(store, { code, token: grace, now: T0 + sec(22), fetchImpl: hitFetch });
+    const later = await viewAs(store, { code, token: grace, now: T0 + sec(22), fetchImpl: hitFetch });
     expect(later.room).toMatchObject({ phase: 'guessing', roundIndex: 1 });
-    expect(later.round.panoId).not.toBe(started.state.round.panoId);
+    expect(later.round.coordinate).not.toEqual(started.state.round.coordinate);
     expect(later.history).toHaveLength(1);
 
     // The host can cut a round short; round two ends with one timeout.
     const t2 = T0 + sec(30);
     const a2 = await answerOf(store, code);
-    await roomAction(store, { code, token: ada, action: 'guess', body: a2, now: t2, fetchImpl: hitFetch });
-    const forced = await roomAction(store, { code, token: ada, action: 'next', now: t2 + sec(1), fetchImpl: hitFetch });
+    await act(store, { code, token: ada, action: 'guess', body: a2, now: t2, fetchImpl: hitFetch });
+    const forced = await act(store, { code, token: ada, action: 'next', now: t2 + sec(1), fetchImpl: hitFetch });
     expect(forced.state.room.phase).toBe('reveal');
     const graceGuess = forced.state.reveal.guesses.find((g) => g.playerId === forced.state.players.find((p) => p.name === 'Grace').id);
     expect(graceGuess).toMatchObject({ timedOut: true, score: 0 });
 
     // Skip the reveal, play the last round out by the deadline, finish.
-    const skipped = await roomAction(store, { code, token: ada, action: 'next', now: t2 + sec(2), fetchImpl: hitFetch });
+    const skipped = await act(store, { code, token: ada, action: 'next', now: t2 + sec(2), fetchImpl: hitFetch });
     expect(skipped.state.room).toMatchObject({ phase: 'guessing', roundIndex: 2 });
-    const expired = await getRoomView(store, { code, token: grace, now: t2 + sec(2) + sec(61), fetchImpl: hitFetch });
+    const expired = await viewAs(store, { code, token: grace, now: t2 + sec(2) + sec(61), fetchImpl: hitFetch });
     expect(expired.room.phase).toBe('reveal');
     expect(expired.room.phaseEndsAt).toBe(t2 + sec(63) + rules.FINAL_REVEAL_SECONDS * 1000);
-    const done = await getRoomView(store, { code, token: grace, now: t2 + sec(80), fetchImpl: hitFetch });
+    const done = await viewAs(store, { code, token: grace, now: t2 + sec(80), fetchImpl: hitFetch });
     expect(done.room).toMatchObject({ status: 'finished', phase: 'finished' });
     expect(done.history).toHaveLength(3);
     expect(done.players[0].name).toBe('Ada');
@@ -237,7 +278,7 @@ describe('a classic game', () => {
 
   test('guesses are refused after the deadline plus grace, and with bad coordinates', async () => {
     const { store, code, tokens } = await setupRoom({ players: ['Solo', 'Other'] });
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     await expect(roomAction(store, { code, token: tokens[0], action: 'guess', body: { lat: 'x', lng: 1 }, now: T0 + sec(1) })).rejects.toMatchObject({ code: 'bad_guess' });
     // Past the deadline the tick reveals first, so the guess meets a closed round.
     await expect(roomAction(store, { code, token: tokens[0], action: 'guess', body: { lat: 1, lng: 1 }, now: T0 + sec(70), fetchImpl: hitFetch })).rejects.toMatchObject({ code: 'not_guessing' });
@@ -245,10 +286,10 @@ describe('a classic game', () => {
 
   test('late joiners are allowed in classic, refused in a duel, and full or finished rooms refuse', async () => {
     const { store, code, tokens } = await setupRoom();
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     const late = await joinRoom(store, { code, name: 'Late', now: T0 + sec(10) });
     expect(late.state.players).toHaveLength(3);
-    expect(late.state.round.panoId).toBeTruthy();
+    expect(late.state.round.coordinate).toBeTruthy();
 
     const duel = await setupRoom({ settings: { variant: 'duel' } });
     await roomAction(duel.store, { code: duel.code, token: duel.tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
@@ -261,10 +302,10 @@ describe('a classic game', () => {
 
   test('the host leaving hands the room to the next player; reactions are kept in order', async () => {
     const { store, code, tokens } = await setupRoom({ players: ['Ada', 'Grace', 'Linus'] });
-    const reacted = await roomAction(store, { code, token: tokens[1], action: 'react', body: { emoji: '🔥' }, now: T0 });
+    const reacted = await act(store, { code, token: tokens[1], action: 'react', body: { emoji: '🔥' }, now: T0 });
     expect(reacted.state.reactions).toEqual([{ p: expect.any(String), n: 'Grace', e: '🔥', at: T0 }]);
     await expect(roomAction(store, { code, token: tokens[1], action: 'react', body: { emoji: 'nope' }, now: T0 })).rejects.toMatchObject({ code: 'bad_reaction' });
-    const left = await roomAction(store, { code, token: tokens[0], action: 'leave', now: T0 + sec(1) });
+    const left = await act(store, { code, token: tokens[0], action: 'leave', now: T0 + sec(1) });
     expect(left.state.players.map((p) => p.name)).toEqual(['Grace', 'Linus']);
     expect(left.state.room.hostId).toBe(left.state.players.find((p) => p.name === 'Grace').id);
     await expect(getRoomView(store, { code, token: tokens[0], now: T0 + sec(2) })).resolves.toMatchObject({ me: null });
@@ -275,46 +316,46 @@ describe('a classic game', () => {
     await createRoom(pub.store, { name: 'Secret', hostName: 'H', settings: { visibility: 'private' }, now: T0 });
     const list = await listRooms(pub.store, { now: T0 + sec(5) });
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'World, balanced', provider: 'google', rules: 'World, balanced, on Google Street View' });
+    expect(list[0]).toMatchObject({ code: pub.code, name: 'Friday night', players: 2, status: 'lobby', mode: 'World', provider: 'apple', rules: 'World' });
     const nm = await setupRoom({ settings: { move: false, pan: true, zoom: true } });
-    expect((await listRooms(nm.store, { now: T0 }))[0].rules).toBe('World, balanced, No Move, on Google Street View');
+    expect((await listRooms(nm.store, { now: T0 }))[0].rules).toBe('World, No Move');
     expect(await listRooms(pub.store, { now: T0 + rules.ROOM_LISTING_WINDOW_MS + sec(1) })).toHaveLength(0);
   });
 
   test('a rematch opens a new room with the same settings and links it from the old one', async () => {
-    const { store, code, tokens } = await setupRoom({ settings: { rounds: 3, time: 30, mode: 'world' } });
+    const { store, code, tokens } = await setupRoom({ settings: { rounds: 3, time: 30, mode: 'balanced' } });
     await expect(roomAction(store, { code, token: tokens[0], action: 'rematch', now: T0 })).rejects.toMatchObject({ code: 'not_finished' });
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     let now = T0;
     for (let i = 0; i < 3; i++) {
       now += sec(31);
-      await getRoomView(store, { code, now, fetchImpl: hitFetch });
+      await viewAs(store, { code, token: tokens[0], now, fetchImpl: hitFetch });
       now += sec(13);
-      await getRoomView(store, { code, now, fetchImpl: hitFetch });
+      await viewAs(store, { code, token: tokens[0], now, fetchImpl: hitFetch });
     }
-    const finished = await getRoomView(store, { code, token: tokens[0], now, fetchImpl: hitFetch });
+    const finished = await viewAs(store, { code, token: tokens[0], now, fetchImpl: hitFetch });
     expect(finished.room.status).toBe('finished');
-    const again = await roomAction(store, { code, token: tokens[0], action: 'rematch', now });
+    const again = await act(store, { code, token: tokens[0], action: 'rematch', now });
     expect(again.rematch.code).toMatch(/^[A-Z0-9]{6}$/);
     expect(again.rematch.token).toBeTruthy();
     expect(again.state.room.rematchCode).toBe(again.rematch.code);
-    const next = await getRoomView(store, { code: again.rematch.code, token: again.rematch.token, now });
-    expect(next.room).toMatchObject({ name: 'Friday night', status: 'lobby', config: { mode: 'world', time: 30, rounds: 3 } });
+    const next = await viewAs(store, { code: again.rematch.code, token: again.rematch.token, now });
+    expect(next.room).toMatchObject({ name: 'Friday night', status: 'lobby', config: { mode: 'balanced', time: 30, rounds: 3 } });
     expect(next.me.isHost).toBe(true);
-    const twice = await roomAction(store, { code, token: tokens[1], action: 'rematch', now }).catch((e) => e);
+    const twice = await act(store, { code, token: tokens[1], action: 'rematch', now }).catch((e) => e);
     expect(twice).toBeInstanceOf(RoomError); // only the host
   });
 });
 
 describe('an Apple Look Around room', () => {
-  const apple = { provider: 'apple', mode: 'world', rounds: 2, time: 60 };
+  const apple = { provider: 'apple', mode: 'balanced', rounds: 2, time: 60 };
 
   test('a round offers places, the first browser to find imagery places it for everyone, then the clock runs', async () => {
     const { store, code, tokens } = await setupRoom({ settings: apple });
     const [ada, grace] = tokens;
 
     const started = await roomAction(store, { code, token: ada, action: 'start', now: T0 });
-    expect(started.state.room).toMatchObject({ status: 'playing', phase: 'locating', roundIndex: 0, config: { provider: 'apple', mode: 'world' } });
+    expect(started.state.room).toMatchObject({ status: 'playing', phase: 'locating', roundIndex: 0, config: { provider: 'apple', mode: 'balanced' } });
     expect(started.state.room.phaseEndsAt).toBe(T0 + LOCATING_TIMEOUT_MS);
     expect(started.state.round).toBeNull();
     const offered = started.state.locating;
@@ -380,15 +421,15 @@ describe('a duel', () => {
   test('damage, elimination, and the end at the last player standing', async () => {
     const { store, code, tokens } = await setupRoom({ settings: { variant: 'duel', rounds: 10, time: 30 } });
     const [ada, grace] = tokens;
-    await roomAction(store, { code, token: ada, action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: ada, action: 'start', now: T0, fetchImpl: hitFetch });
     let now = T0;
     let view;
     for (let round = 0; round < 10; round++) {
       const answer = await answerOf(store, code);
       now += sec(2);
-      await roomAction(store, { code, token: ada, action: 'guess', body: answer, now, fetchImpl: hitFetch });
+      await act(store, { code, token: ada, action: 'guess', body: answer, now, fetchImpl: hitFetch });
       now += sec(1);
-      view = (await roomAction(store, { code, token: grace, action: 'guess', body: { lat: answer.lat, lng: ((answer.lng + 360) % 360) - 180 }, now, fetchImpl: hitFetch })).state;
+      view = (await act(store, { code, token: grace, action: 'guess', body: { lat: answer.lat, lng: ((answer.lng + 360) % 360) - 180 }, now, fetchImpl: hitFetch })).state;
       expect(view.room.phase).toBe('reveal');
       const graceView = view.players.find((p) => p.name === 'Grace');
       const graceGuess = view.reveal.guesses.find((g) => g.playerId === graceView.id);
@@ -396,7 +437,7 @@ describe('a duel', () => {
       expect(view.players.find((p) => p.name === 'Ada').hp).toBe(rules.DUEL_START_HP);
       if (view.room.status === 'finished') break;
       now += sec(rules.REVEAL_SECONDS + 1);
-      view = await getRoomView(store, { code, token: ada, now, fetchImpl: hitFetch });
+      view = await viewAs(store, { code, token: ada, now, fetchImpl: hitFetch });
       if (view.room.status === 'finished') break;
     }
     expect(view.room.status).toBe('finished');
@@ -409,7 +450,7 @@ describe('a duel', () => {
 describe('robustness', () => {
   test('two polls racing at the deadline reveal the round exactly once', async () => {
     const { store, code, tokens } = await setupRoom();
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     const stale = await store.getRoomByCode(code);
     const late = T0 + sec(61);
     const [a, b] = await Promise.all([tick(store, stale, late, hitFetch), tick(store, stale, late, hitFetch)]);
@@ -428,7 +469,7 @@ describe('robustness', () => {
     // zero for a guess their browser had been told was accepted, and in
     // a duel they took full damage for it.
     const { store, code, tokens } = await setupRoom();
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     const room = await store.getRoomByCode(code);
     const round = room.rounds.find((r) => r.index === room.roundIndex);
     const grace = room.players.find((p) => p.name === 'Grace');
@@ -444,9 +485,9 @@ describe('robustness', () => {
       }
       return result;
     };
-    await roomAction(store, { code, token: tokens[0], action: 'guess', body: { lat: round.lat, lng: round.lng }, now: T0 + sec(2), fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'guess', body: { lat: round.lat, lng: round.lng }, now: T0 + sec(2), fetchImpl: hitFetch });
     // Ada guessed, Grace has not, so the host skips to the reveal.
-    await roomAction(store, { code, token: tokens[0], action: 'next', now: T0 + sec(3), fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'next', now: T0 + sec(3), fetchImpl: hitFetch });
     store.updateRoom = realUpdateRoom;
     expect(slipped).toBe(true);
 
@@ -465,14 +506,14 @@ describe('robustness', () => {
     // skipped straight past it: a brand-new round revealed with nobody
     // having seen the panorama and everyone written down as timed out.
     const { store, code, tokens } = await setupRoom();
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     expect((await store.getRoomByCode(code)).phase).toBe('guessing');
 
     // Skipping the round the host is looking at works, whatever the
     // version has done meanwhile: another player's guess moves it, and
     // pinning to the version refused ordinary clicks.
-    await roomAction(store, { code, token: tokens[1], action: 'guess', body: { lat: 0, lng: 0 }, now: T0 + sec(1), fetchImpl: hitFetch });
-    await roomAction(store, { code, token: tokens[0], action: 'next', body: { phase: 'guessing', roundIndex: 0 }, now: T0 + sec(2), fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[1], action: 'guess', body: { lat: 0, lng: 0 }, now: T0 + sec(1), fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'next', body: { phase: 'guessing', roundIndex: 0 }, now: T0 + sec(2), fetchImpl: hitFetch });
     expect((await store.getRoomByCode(code)).phase).toBe('reveal');
 
     // The host's browser is still showing the round it already skipped.
@@ -508,13 +549,13 @@ describe('robustness', () => {
     // token nobody held. The orphan also burned a room game from her
     // daily allowance.
     const { store, code, tokens } = await setupRoom({ settings: { rounds: 3, time: 30 } });
-    await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
+    await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     let now = T0;
     for (let i = 0; i < 3; i++) {
       now += sec(31);
-      await getRoomView(store, { code, now, fetchImpl: hitFetch });
+      await viewAs(store, { code, token: tokens[0], now, fetchImpl: hitFetch });
       now += sec(13);
-      await getRoomView(store, { code, now, fetchImpl: hitFetch });
+      await viewAs(store, { code, token: tokens[0], now, fetchImpl: hitFetch });
     }
     expect((await store.getRoomByCode(code)).status).toBe('finished');
 
@@ -530,15 +571,14 @@ describe('robustness', () => {
     expect(opened.filter(Boolean).length).toBe(1);
   });
 
-  test('a round build that finds no imagery sends the lobby back with a reason, and retries move on', async () => {
-    const { store, code, tokens } = await setupRoom();
-    const failed = await roomAction(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: noFetch });
+  test('a round with no places to offer sends the lobby back with a reason', async () => {
+    // Apple never probes, so a start cannot fail for want of imagery.
+    // What can fail is a mode with nowhere to draw from: a country with
+    // no city streets in the list.
+    const { store, code, tokens } = await setupRoom({ settings: { mode: 'country', region: 'CN' } });
+    const failed = await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     expect(failed.state.room).toMatchObject({ status: 'lobby', phase: 'lobby' });
-    expect(failed.state.room.lastError).toMatch(/No Street View imagery/);
-    const dump = store._dump();
-    expect(dump.rooms[0].retries).toBe(1);
-    const ok = await roomAction(store, { code, token: tokens[0], action: 'start', now: T0 + sec(5), fetchImpl: hitFetch });
-    expect(ok.state.room.phase).toBe('guessing');
+    expect(failed.state.room.lastError).toMatch(/no city streets/i);
   });
 
   test('a build that never finished is handed back after the loading timeout', async () => {
@@ -559,34 +599,3 @@ describe('robustness', () => {
   });
 });
 
-describe('the seeded round cache', () => {
-  const ENV = { ...ENV_KEYS, NEXTAUTH_SECRET: 'jest-secret-long-enough' };
-
-  test('a seeded round is probed once and served from the cache after that', async () => {
-    const cache = createMemoryRoundCache();
-    const fetchImpl = jest.fn(hitFetch);
-    const first = await createRound({ config: { provider: 'google', mode: 'balanced', seed: 'cache-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
-    const calls = fetchImpl.mock.calls.length;
-    expect(calls).toBeGreaterThan(0);
-    const second = await createRound({ config: { provider: 'google', mode: 'balanced', seed: 'cache-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 + sec(60) });
-    expect(fetchImpl.mock.calls.length).toBe(calls);
-    expect(second.panoId).toBe(first.panoId);
-    expect(second.heading).toBe(first.heading);
-    expect(second.stats.cached).toBe(true);
-    expect(cache.size()).toBe(1);
-  });
-
-  test('retries skip the cache and expired entries are ignored', async () => {
-    const cache = createMemoryRoundCache();
-    const fetchImpl = jest.fn(hitFetch);
-    await createRound({ config: { provider: 'google', mode: 'world', seed: 'link-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
-    const before = fetchImpl.mock.calls.length;
-    await createRound({ config: { provider: 'google', mode: 'world', seed: 'link-1' }, roundIndex: 0, attempt: 1, fetchImpl, env: ENV, cache, now: T0 });
-    expect(fetchImpl.mock.calls.length).toBeGreaterThan(before);
-    const afterRetry = fetchImpl.mock.calls.length;
-    await createRound({ config: { provider: 'google', mode: 'world', seed: 'link-1' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 + 25 * 3600 * 1000 });
-    expect(fetchImpl.mock.calls.length).toBeGreaterThan(afterRetry);
-    const unseeded = await createRound({ config: { provider: 'google', mode: 'world' }, roundIndex: 0, fetchImpl, env: ENV, cache, now: T0 });
-    expect(unseeded.stats.cached).toBeUndefined();
-  });
-});

@@ -1,387 +1,175 @@
 /**
  * The play meter (app/lib/geo/meter.js, app/lib/geo/server/meter.js).
  *
- * Pinned: the free Google allowance per day with the daily on top,
- * prepaid rounds after it, no allowance on Apple, the ceilings per
- * person and per address, the site's budget, the speed limit, rooms
- * counted per player without ever refusing an invitation for the
- * allowance, and two to start.
+ * It used to guard an invoice: a free Google allowance, prepaid rounds,
+ * free room games and a budget denominated in panorama loads. Apple is
+ * not billed per view, so with Google gone none of that survives.
+ *
+ * Pinned here is what is left, and why each one exists:
+ *
+ *   ceiling  an abuse limit shaped like a person, per profile and per
+ *            address, set high enough nobody honest meets it
+ *   speed    the one that actually stops a script
+ *   budget   the whole site's day, because Apple's quota is per
+ *            DEVELOPER ACCOUNT and ReunitePets' maps share it
+ *
+ * And one thing that must never come back: rooms are not rationed.
  */
 
-const { DEFAULT_LIMITS, decideRound, decideRoomEntry, limitsFromEnv, meterView, dayKey, nextDayMs, untilText, allowanceText, roomGamesText, refusalMessage, refusalTitle, usageIncrement, roundLoads, KIDNAPPED_LOADS, MeterError } = require('@/app/lib/geo/meter');
-const { checkRound, recordRound, checkRoomEntry, recordRoomRound, usageToday, hashIp, SITE_SUBJECT } = require('@/app/lib/geo/server/meter');
+const { DEFAULT_LIMITS, decideRound, decideRoomEntry, limitsFromEnv, meterView, dayKey, nextDayMs, untilText, refusalMessage, refusalTitle, usageIncrement, seatIncrement, METER_CODES, MeterError } = require('@/app/lib/geo/meter');
+const { checkRound, recordRound, checkRoomEntry, usageToday, hashIp, SITE_SUBJECT } = require('@/app/lib/geo/server/meter');
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
-const { MAX_DRIVE_HOPS } = require('@/app/geo/lib/drive');
-const { createRoom, joinRoom, roomAction, getRoomView } = require('@/app/lib/geo/server/rooms');
-const { resolveProfile } = require('@/app/lib/geo/server/profiles');
 
 const T0 = Date.parse('2026-09-07T12:00:00Z');
-const hitFetch = async (url) => {
-  const [lat, lng] = new URL(url).searchParams.get('location').split(',').map(Number);
-  return { status: 200, json: async () => ({ status: 'OK', pano_id: `pano-${lat.toFixed(3)}-${lng.toFixed(3)}`, location: { lat, lng }, copyright: '© Google' }) };
-};
 
-const ENV_KEYS = { GOOGLE_STREET_VIEW_API_KEY: 'sv', GOOGLE_MAPS_BROWSER_KEY: 'browser' };
-const savedEnv = {};
-beforeAll(() => {
-  for (const [k, v] of Object.entries(ENV_KEYS)) {
-    savedEnv[k] = process.env[k];
-    process.env[k] = v;
-  }
-});
-afterAll(() => {
-  for (const k of Object.keys(ENV_KEYS)) {
-    if (savedEnv[k] === undefined) delete process.env[k];
-    else process.env[k] = savedEnv[k];
-  }
-});
-
-const limits = { ...DEFAULT_LIMITS, freeGoogleRounds: 3, freeGoogleRoundsPerIp: 5, freeChallengeRounds: 2, freeChallengeRoundsPerIp: 4, ceilingAnonymous: 8, ceilingSignedIn: 12, ceilingPerIp: 20, siteBudget: { google: 50, apple: 60 } };
-const bucket = (google = {}, apple = {}) => ({ google: { rounds: 0, free: 0, paid: 0, challenge: 0, ...google }, apple: { rounds: 0, ...apple } });
+const limits = { ...DEFAULT_LIMITS, ceilingAnonymous: 8, ceilingSignedIn: 12, ceilingPerIp: 20, siteBudget: 60 };
+const bucket = (apple = {}) => ({ apple: { rounds: 0, loads: 0, ...apple } });
 
 describe('decideRound', () => {
-  test('free rounds, then prepaid, then a refusal; the daily and Apple never draw on the allowance', () => {
-    const fresh = { profile: bucket(), ip: bucket(), site: bucket() };
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: fresh, limits })).toEqual({ ok: true, source: 'free' });
-    const spent = { profile: bucket({ rounds: 3, free: 3 }), ip: bucket({ rounds: 3, free: 3 }), site: bucket() };
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: spent, limits })).toEqual({ ok: false, code: 'allowance' });
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, paidRounds: 2, usage: spent, limits })).toEqual({ ok: true, source: 'paid' });
-    expect(decideRound({ provider: 'google', mode: 'daily', hasProfile: true, usage: spent, limits })).toEqual({ ok: true, source: 'daily' });
-    expect(decideRound({ provider: 'apple', mode: 'cities', hasProfile: true, usage: spent, limits })).toEqual({ ok: true, source: 'apple' });
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: spent, limits, allowance: false })).toEqual({ ok: true, source: 'room' });
+  test('an ordinary round is allowed, and costs one view', () => {
+    const d = decideRound({ hasProfile: true, usage: {}, limits });
+    expect(d).toEqual({ ok: true, source: 'apple' });
+    expect(usageIncrement()).toEqual({ rounds: 1, loads: 1 });
   });
 
-  test('the daily and the cup sit on top of the allowance, but are themselves bounded', () => {
-    // This was the hole: decideRound returned on the mode string alone,
-    // so any round that claimed to be a daily was free, forever, and it
-    // skipped the per-address backstop on the way out.
-    const spent = { profile: bucket({ rounds: 3, free: 3 }), ip: bucket({ rounds: 3, free: 3 }), site: bucket() };
-    expect(decideRound({ provider: 'google', mode: 'daily', hasProfile: true, usage: spent, limits })).toEqual({ ok: true, source: 'daily' });
-    const challengeSpent = {
-      profile: bucket({ rounds: 5, free: 3, challenge: 2 }),
-      ip: bucket({ rounds: 5, free: 3, challenge: 2 }),
-      site: bucket(),
-    };
-    expect(decideRound({ provider: 'google', mode: 'daily', hasProfile: true, usage: challengeSpent, limits })).toEqual({ ok: false, code: 'allowance' });
-    expect(decideRound({ provider: 'google', mode: 'cup', hasProfile: true, usage: challengeSpent, limits })).toEqual({ ok: false, code: 'allowance' });
-    // with free rounds still in hand, a further challenge round draws on them
-    const onlyChallengeSpent = { profile: bucket({ rounds: 2, challenge: 2 }), ip: bucket({ rounds: 2, challenge: 2 }), site: bucket() };
-    expect(decideRound({ provider: 'google', mode: 'daily', hasProfile: true, usage: onlyChallengeSpent, limits })).toEqual({ ok: true, source: 'free' });
-    // the address holds an anonymous player even across profiles
-    const ipChallengeSpent = { profile: bucket(), ip: bucket({ challenge: 4 }), site: bucket() };
-    expect(decideRound({ provider: 'google', mode: 'daily', hasProfile: true, usage: ipChallengeSpent, limits })).toEqual({ ok: true, source: 'free' });
-    expect(usageIncrement('daily')).toMatchObject({ rounds: 1, free: 0, challenge: 1 });
-    expect(usageIncrement('cup')).toMatchObject({ rounds: 1, free: 0, challenge: 1 });
-    expect(usageIncrement('free')).toMatchObject({ rounds: 1, free: 1, challenge: 0 });
+  test('the ceiling is shaped like a person: higher when signed in', () => {
+    const at = (n) => ({ profile: bucket({ rounds: n }) });
+    expect(decideRound({ hasProfile: true, usage: at(7), limits }).ok).toBe(true);
+    expect(decideRound({ hasProfile: true, usage: at(8), limits })).toEqual({ ok: false, code: 'ceiling' });
+    // the same day, signed in, still has room
+    expect(decideRound({ hasProfile: true, signedIn: true, usage: at(8), limits }).ok).toBe(true);
+    expect(decideRound({ hasProfile: true, signedIn: true, usage: at(12), limits })).toEqual({ ok: false, code: 'ceiling' });
   });
 
-  test('anonymous players are held by the address too; signed-in players by the profile only', () => {
-    const ipSpent = { profile: bucket(), ip: bucket({ rounds: 5, free: 5 }), site: bucket() };
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: ipSpent, limits }).code).toBe('allowance');
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, signedIn: true, usage: ipSpent, limits }).ok).toBe(true);
-    // no profile at all: the address is the player, at the player's allowance
-    const noProfile = { ip: bucket({ rounds: 3, free: 3 }), site: bucket() };
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: false, usage: noProfile, limits }).code).toBe('allowance');
+  test('an address with no profile is held at the anonymous ceiling, with a profile at the wider one', () => {
+    const ip = (n) => ({ ip: bucket({ rounds: n }) });
+    expect(decideRound({ hasProfile: false, usage: ip(8), limits })).toEqual({ ok: false, code: 'ceiling' });
+    expect(decideRound({ hasProfile: true, usage: ip(8), limits }).ok).toBe(true);
+    expect(decideRound({ hasProfile: true, usage: ip(20), limits })).toEqual({ ok: false, code: 'ceiling' });
   });
 
-  test("the site's budget is counted in panorama loads, so a driven round costs what it costs", () => {
-    // Kidnapped drives itself, and every hop is another billed panorama
-    // load. The meter recorded one round for up to 163 of them; the
-    // budget that exists to bound the bill now counts the loads.
-    expect(KIDNAPPED_LOADS).toBe(1 + MAX_DRIVE_HOPS);
-    expect(roundLoads('world')).toBe(1);
-    expect(roundLoads('kidnapped')).toBe(KIDNAPPED_LOADS);
-    expect(usageIncrement('free', 'kidnapped')).toMatchObject({ rounds: 1, free: 1, loads: KIDNAPPED_LOADS });
-    expect(usageIncrement('free', 'world')).toMatchObject({ rounds: 1, free: 1, loads: 1 });
-
-    const tight = { ...limits, siteBudget: { google: 100, apple: 100 } };
-    const nearly = { profile: bucket(), ip: bucket(), site: { google: { rounds: 2, free: 0, paid: 0, loads: 90 }, apple: { rounds: 0 } } };
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: nearly, limits: tight }).ok).toBe(true);
-    expect(decideRound({ provider: 'google', mode: 'kidnapped', hasProfile: true, usage: nearly, limits: tight })).toEqual({ ok: false, code: 'budget' });
-
-    // Rows written before loads existed carry only rounds, and one
-    // round was one load then.
-    const legacy = { profile: bucket(), ip: bucket(), site: { google: { rounds: 100, free: 0, paid: 0 }, apple: { rounds: 0 } } };
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: legacy, limits: tight })).toEqual({ ok: false, code: 'budget' });
-    // A row that straddles the deploy: a day of rounds, then the first
-    // few loads. Reading loads alone forgot the day and reopened the
-    // budget; the larger of the two counters is the day so far.
-    const straddling = { profile: bucket(), ip: bucket(), site: { google: { rounds: 100, free: 0, paid: 0, loads: 3 }, apple: { rounds: 0 } } };
-    expect(decideRound({ provider: 'google', mode: 'world', hasProfile: true, usage: straddling, limits: tight })).toEqual({ ok: false, code: 'budget' });
+  test("the site's day closes before anybody's, because Apple's quota is shared with the pet site", () => {
+    const site = (n) => ({ site: bucket({ rounds: n }) });
+    expect(decideRound({ hasProfile: true, usage: site(59), limits }).ok).toBe(true);
+    expect(decideRound({ hasProfile: true, usage: site(60), limits })).toEqual({ ok: false, code: 'budget' });
+    // even for a signed-in player who has played nothing
+    expect(decideRound({ hasProfile: true, signedIn: true, usage: site(60), limits })).toEqual({ ok: false, code: 'budget' });
   });
 
-  test('ceilings shaped like a person, the site budget above everything', () => {
-    const tired = { profile: bucket({ rounds: 4 }, { rounds: 4 }), ip: bucket(), site: bucket() };
-    expect(decideRound({ provider: 'apple', mode: 'cities', hasProfile: true, usage: tired, limits }).code).toBe('ceiling');
-    expect(decideRound({ provider: 'apple', mode: 'cities', hasProfile: true, signedIn: true, usage: tired, limits }).ok).toBe(true);
-    const busyAddress = { profile: bucket(), ip: bucket({ rounds: 20 }), site: bucket() };
-    expect(decideRound({ provider: 'apple', mode: 'cities', hasProfile: true, signedIn: true, usage: busyAddress, limits }).code).toBe('ceiling');
-    const busySite = { profile: bucket(), ip: bucket(), site: bucket({ rounds: 50 }) };
-    expect(decideRound({ provider: 'google', mode: 'daily', hasProfile: true, usage: busySite, limits }).code).toBe('budget');
-    expect(decideRound({ provider: 'apple', mode: 'cities', hasProfile: true, usage: busySite, limits }).ok).toBe(true);
-  });
-
-  test('a room seat: the free game, then prepaid rounds, then a refusal; Apple always; the ceiling first', () => {
-    const entry = (extra = {}) => decideRoomEntry({ provider: 'google', hasProfile: true, usage: { profile: bucket(), ip: bucket(), site: bucket() }, limits, ...extra });
-    expect(entry()).toEqual({ ok: true, source: 'free' });
-    expect(entry({ usage: { profile: bucket({ games: 1 }), ip: bucket() } })).toEqual({ ok: false, code: 'rooms' });
-    expect(entry({ usage: { profile: bucket({ games: 1 }), ip: bucket() }, paidRounds: 2 })).toEqual({ ok: true, source: 'paid' });
-    // the address backstop holds anonymous players: five with a profile, one without; signed in, the profile alone
-    expect(entry({ usage: { profile: bucket(), ip: bucket({ games: 5 }) } })).toEqual({ ok: false, code: 'rooms' });
-    expect(entry({ signedIn: true, usage: { profile: bucket(), ip: bucket({ games: 5 }) } })).toEqual({ ok: true, source: 'free' });
-    expect(entry({ hasProfile: false, usage: { ip: bucket({ games: 1 }) } })).toEqual({ ok: false, code: 'rooms' });
-    expect(entry({ hasProfile: false, usage: { ip: bucket() } })).toEqual({ ok: true, source: 'free' });
-    expect(entry({ provider: 'apple', usage: { profile: bucket({ games: 1 }), ip: bucket({ games: 9 }) } })).toEqual({ ok: true, source: 'apple' });
-    expect(entry({ usage: { profile: bucket({ rounds: 8 }), ip: bucket() } })).toEqual({ ok: false, code: 'ceiling' });
-    expect(entry({ usage: { profile: bucket(), ip: bucket(), site: bucket({ rounds: 50 }) } })).toEqual({ ok: false, code: 'budget' });
-    expect(refusalMessage('rooms')).toMatch(/free multiplayer game/);
-    expect(refusalTitle('rooms')).toBe('Free Google room used up for today');
-    expect(meterView({ usage: { profile: bucket({ games: 1 }), ip: bucket() }, hasProfile: true, limits }).google.roomGames).toEqual({ used: 1, limit: 1, left: 0 });
-    expect(meterView({ usage: { profile: bucket(), ip: bucket() }, hasProfile: true, limits }).google.roomGames).toEqual({ used: 0, limit: 1, left: 1 });
-    expect(roomGamesText({ used: 0, limit: 1, left: 1 })).toBe('Free Google room today: not used yet.');
-    expect(roomGamesText({ used: 1, limit: 1, left: 0 })).toBe('Free Google room today: used.');
-    expect(roomGamesText({ used: 1, limit: 2, left: 1 })).toBe('1 of 2 free Google rooms used today.');
-    // The daily and the cup are on Apple now, so they are simply unmetered.
-    expect(allowanceText(DEFAULT_LIMITS)).toBe('5 free Google Street View games a day (25 rounds) and 1 free room. Apple Look Around, the daily challenge and the weekly cup: no limit.');
-    expect(allowanceText({ ...DEFAULT_LIMITS, freeGoogleRounds: 12, freeGoogleRoomGames: 0 })).toBe('12 free Google Street View rounds a day. Apple Look Around, the daily challenge and the weekly cup: no limit.');
-  });
-
-  test('limits come from the environment with the defaults behind them', () => {
-    expect(limitsFromEnv({})).toEqual(DEFAULT_LIMITS);
-    const custom = limitsFromEnv({ GEO_FREE_GOOGLE_ROUNDS: '40', GEO_APPLE_DAILY_BUDGET: '1000', GEO_ROUNDS_PER_MINUTE: 'nope' });
-    expect(custom.freeGoogleRounds).toBe(40);
-    expect(custom.siteBudget.apple).toBe(1000);
-    expect(custom.roundsPerMinute).toBe(DEFAULT_LIMITS.roundsPerMinute);
-  });
-
-  test('days are UTC and the view says what is left', () => {
-    expect(dayKey(T0)).toBe('2026-09-07');
-    expect(nextDayMs(T0)).toBe(Date.parse('2026-09-08T00:00:00Z'));
-    expect(untilText(nextDayMs(T0), T0)).toBe('in 12 h');
-    expect(untilText(T0 + 5 * 60000, T0)).toBe('in 5 min');
-    const view = meterView({ usage: { profile: bucket({ rounds: 2, free: 2 }, { rounds: 7 }) }, hasProfile: true, paidRounds: 4, limits, now: T0 });
-    expect(view).toMatchObject({ day: '2026-09-07', google: { rounds: 2, freeUsed: 2, freeLimit: 3, freeLeft: 1, paidLeft: 4 }, apple: { rounds: 7 }, rounds: 9, ceiling: 8 });
+  test('a row written before loads existed still counts: the larger of the two is the day', () => {
+    expect(decideRound({ usage: { site: { apple: { rounds: 60, loads: 0 } } }, limits })).toEqual({ ok: false, code: 'budget' });
+    expect(decideRound({ usage: { site: { apple: { rounds: 0, loads: 60 } } }, limits })).toEqual({ ok: false, code: 'budget' });
   });
 });
 
-describe('the meter on the store', () => {
-  // The engine reads its limits from the environment; a developer's
-  // frontend/.env (next/jest loads it) must not change what is pinned here.
-  const ROOM_ENV = { GEO_FREE_GOOGLE_ROOM_GAMES: '1', GEO_FREE_GOOGLE_ROOM_GAMES_PER_IP: '5', GEO_FREE_GOOGLE_ROUNDS_PER_IP: '125' };
-  const savedRoomEnv = {};
-  beforeEach(() => {
-    for (const [k, v] of Object.entries(ROOM_ENV)) {
-      savedRoomEnv[k] = process.env[k];
-      process.env[k] = v;
-    }
-  });
-  afterEach(() => {
-    for (const k of Object.keys(ROOM_ENV)) {
-      if (savedRoomEnv[k] === undefined) delete process.env[k];
-      else process.env[k] = savedRoomEnv[k];
-    }
+describe('rooms are not rationed', () => {
+  test('a seat is the same gate as a solo round, and costs nothing extra', () => {
+    expect(decideRoomEntry({ hasProfile: true, usage: {}, limits })).toEqual({ ok: true, source: 'apple' });
+    expect(seatIncrement()).toEqual({ rounds: 0, loads: 0 });
   });
 
-  async function subjectsFor(store, name, extra = {}) {
-    const { profile } = await resolveProfile(store, { name, now: T0 });
-    return { profile, profileId: profile.id, signedIn: false, ipHash: hashIp('203.0.113.5', 'secret'), ...extra };
-  }
-  const google = (subjects, mode = 'world') => ({ subjects, provider: 'google', mode, now: T0, limits });
+  test('a tenth room in a day is as free as the first', () => {
+    // A room holds twelve, so metering rooms taxes the one thing that
+    // brings players in. Only the ceiling and the site's day apply.
+    const usage = { profile: bucket({ rounds: 3 }) };
+    for (let i = 0; i < 10; i++) expect(decideRoomEntry({ hasProfile: true, usage, limits }).ok).toBe(true);
+  });
 
-  test('checkRound refuses after the free rounds are recorded, counts prepaid rounds down, and reads the paid balance fresh', async () => {
+  test('the ceiling still holds at the door', () => {
+    expect(decideRoomEntry({ hasProfile: true, usage: { profile: bucket({ rounds: 8 }) }, limits })).toEqual({ ok: false, code: 'ceiling' });
+  });
+});
+
+describe('limits, days and words', () => {
+  test('limits come from the environment with the defaults behind them', () => {
+    expect(limitsFromEnv({})).toEqual(DEFAULT_LIMITS);
+    const l = limitsFromEnv({ GEO_CEILING_ANONYMOUS: '40', GEO_SITE_BUDGET: '900', GEO_ROUNDS_PER_MINUTE: 'junk' });
+    expect(l.ceilingAnonymous).toBe(40);
+    expect(l.siteBudget).toBe(900);
+    expect(l.roundsPerMinute).toBe(DEFAULT_LIMITS.roundsPerMinute);
+  });
+
+  test('the site budget sits under Apple’s daily account quota', () => {
+    // Apple allows 250,000 views a day per developer account, and that
+    // account also serves the pet site's shelter maps.
+    expect(DEFAULT_LIMITS.siteBudget).toBeLessThan(250000);
+  });
+
+  test('days are UTC, and the view says the day and the ceiling', () => {
+    expect(dayKey(T0)).toBe('2026-09-07');
+    expect(nextDayMs(T0)).toBe(Date.parse('2026-09-08T00:00:00Z'));
+    const view = meterView({ usage: { profile: bucket({ rounds: 4 }) }, hasProfile: true, limits, now: T0 });
+    expect(view).toMatchObject({ day: '2026-09-07', rounds: 4, ceiling: limits.ceilingAnonymous });
+    expect(view.apple.rounds).toBe(4);
+    expect(meterView({ usage: {}, hasProfile: true, signedIn: true, limits, now: T0 }).ceiling).toBe(limits.ceilingSignedIn);
+  });
+
+  test('every refusal has words, and there are only three of them', () => {
+    expect(METER_CODES).toEqual(['ceiling', 'budget', 'speed']);
+    for (const code of METER_CODES) {
+      expect(refusalMessage(code).length).toBeGreaterThan(8);
+      expect(refusalTitle(code).length).toBeGreaterThan(3);
+    }
+    // nothing left that mentions the imagery nobody plays on
+    for (const code of METER_CODES) expect(refusalMessage(code)).not.toMatch(/Google/i);
+  });
+
+  test('untilText counts down in the units a person would use', () => {
+    expect(untilText(T0 + 20 * 60000, T0)).toBe('in 20 min');
+    expect(untilText(T0 + 5 * 3600000, T0)).toBe('in 5 h');
+    expect(untilText(T0 - 1000, T0)).toBe('any moment now');
+  });
+});
+
+describe('on the store', () => {
+  test('checkRound refuses once the ceiling is reached, and recording is what gets it there', async () => {
     const store = createMemoryRoomStore();
-    const me = await subjectsFor(store, 'Ada');
-    for (let i = 0; i < 3; i++) {
-      const decision = await checkRound(store, google(me));
-      expect(decision.source).toBe('free');
-      await recordRound(store, { subjects: me, provider: 'google', source: decision.source, now: T0 });
+    const subjects = { profileId: 'p1', signedIn: false, ipHash: hashIp('1.2.3.4', 's') };
+    const small = { ...limits, ceilingAnonymous: 2 };
+    for (let i = 0; i < 2; i++) {
+      await expect(checkRound(store, { subjects, now: T0, limits: small })).resolves.toMatchObject({ ok: true });
+      await recordRound(store, { subjects, source: 'apple', now: T0 });
     }
-    await expect(checkRound(store, google(me))).rejects.toMatchObject({ code: 'allowance', status: 429, provider: 'google', resetAt: nextDayMs(T0) });
-    await expect(checkRound(store, google(me))).rejects.toBeInstanceOf(MeterError);
-    expect((await checkRound(store, google(me, 'daily'))).source).toBe('daily');
+    await expect(checkRound(store, { subjects, now: T0, limits: small })).rejects.toThrow(MeterError);
+  });
 
-    await store.updateProfile(me.profileId, { paidRounds: 1 });
-    const paidMe = { ...me, profile: await store.getProfileById(me.profileId) };
-    const paid = await checkRound(store, google(paidMe));
-    expect(paid.source).toBe('paid');
-    await recordRound(store, { subjects: paidMe, provider: 'google', source: 'paid', now: T0 });
-    expect((await store.getProfileById(me.profileId)).paidRounds).toBe(0);
-    const view = await usageToday(store, { ...paidMe, profile: await store.getProfileById(me.profileId) }, { now: T0, limits });
-    expect(view.google).toMatchObject({ rounds: 4, freeUsed: 3, freeLeft: 0, paidLeft: 0 });
-
-    // every subject was charged, the site included
-    const rows = await store.listUsage([`profile:${me.profileId}`, me.ipHash, SITE_SUBJECT], '2026-09-07');
-    expect(rows.map((r) => [r.subject.split(':')[0], r.rounds, r.free, r.paid]).sort()).toEqual([
-      ['ip', 4, 3, 1],
-      ['profile', 4, 3, 1],
-      ['site', 4, 3, 1],
-    ]);
+  test('a new day starts over', async () => {
+    const store = createMemoryRoomStore();
+    const subjects = { profileId: 'p2', signedIn: false, ipHash: hashIp('5.6.7.8', 's') };
+    const small = { ...limits, ceilingAnonymous: 1 };
+    await recordRound(store, { subjects, source: 'apple', now: T0 });
+    await expect(checkRound(store, { subjects, now: T0, limits: small })).rejects.toThrow(MeterError);
+    const tomorrow = T0 + 24 * 3600000;
+    await expect(checkRound(store, { subjects, now: tomorrow, limits: small })).resolves.toMatchObject({ ok: true });
   });
 
   test('the speed limit uses the limiter it is given, per profile', async () => {
     const store = createMemoryRoomStore();
-    const me = await subjectsFor(store, 'Ada');
-    const calls = [];
-    const limiter = async (key, options) => {
-      calls.push([key, options.maxRequests]);
-      return { success: calls.length < 3, resetAt: T0 + 30000 };
-    };
-    await checkRound(store, { ...google(me), limiter });
-    await checkRound(store, { ...google(me), limiter });
-    await expect(checkRound(store, { ...google(me), limiter })).rejects.toMatchObject({ code: 'speed', resetAt: T0 + 30000 });
-    expect(calls[0]).toEqual([`geo-speed:${me.profileId}`, limits.roundsPerMinute]);
-  });
-
-  test('a caller with no profile is still speed limited, by address', async () => {
-    // The speed limit is the defence against a script, and a script is
-    // exactly the caller that sends no profile token. It used to be
-    // skipped for them entirely.
-    const store = createMemoryRoomStore();
-    const anon = { profile: null, profileId: null, signedIn: false, ipHash: hashIp('203.0.113.9', 's') };
-    const calls = [];
+    const seen = [];
     const limiter = async (key) => {
-      calls.push(key);
-      return { success: calls.length < 2, resetAt: T0 + 30000 };
+      seen.push(key);
+      return { success: seen.length <= 1 };
     };
-    await checkRound(store, { subjects: anon, provider: 'google', mode: 'world', now: T0, limits, limiter });
-    await expect(checkRound(store, { subjects: anon, provider: 'google', mode: 'world', now: T0, limits, limiter })).rejects.toMatchObject({ code: 'speed' });
-    expect(calls[0]).toBe(`geo-speed:${anon.ipHash}`);
+    const subjects = { profileId: 'p3', signedIn: false, ipHash: hashIp('9.9.9.9', 's') };
+    await expect(checkRound(store, { subjects, now: T0, limits, limiter })).resolves.toMatchObject({ ok: true });
+    await expect(checkRound(store, { subjects, now: T0, limits, limiter })).rejects.toMatchObject({ code: 'speed' });
+    expect(seen[0]).toBe('geo-speed:p3');
   });
 
-  test('a new day starts the allowance over', async () => {
+  test('a round is counted against the player, the address and the site', async () => {
     const store = createMemoryRoomStore();
-    const me = await subjectsFor(store, 'Ada');
-    for (let i = 0; i < 3; i++) await recordRound(store, { subjects: me, provider: 'google', source: 'free', now: T0 });
-    await expect(checkRound(store, google(me))).rejects.toMatchObject({ code: 'allowance' });
-    expect((await checkRound(store, { ...google(me), now: nextDayMs(T0) + 1000 })).source).toBe('free');
+    const subjects = { profileId: 'p4', signedIn: false, ipHash: hashIp('4.4.4.4', 's') };
+    await recordRound(store, { subjects, source: 'apple', now: T0 });
+    const mine = await usageToday(store, subjects, { now: T0 });
+    expect(mine.rounds).toBe(1);
+    const [site] = await store.listUsage([SITE_SUBJECT], dayKey(T0));
+    expect(Math.max(site?.rounds || 0, site?.loads || 0)).toBe(1);
+    expect(site.provider).toBe('apple');
   });
 
-  test('rooms: the free game is the seat, its rounds stay outside the allowance, the next room costs prepaid rounds, Apple is open', async () => {
-    // The engine reads its limits from the environment.
-    process.env.GEO_FREE_GOOGLE_ROUNDS = '3';
-    process.env.GEO_DAILY_CEILING_ANONYMOUS = '8';
-    process.env.GEO_GOOGLE_DAILY_BUDGET = '50';
-    try {
-      await roomsScenario();
-    } finally {
-      delete process.env.GEO_FREE_GOOGLE_ROUNDS;
-      delete process.env.GEO_DAILY_CEILING_ANONYMOUS;
-      delete process.env.GEO_GOOGLE_DAILY_BUDGET;
-    }
-  });
-
-  async function roomsScenario() {
+  test('a room seat goes through the same door', async () => {
     const store = createMemoryRoomStore();
-    const ada = await subjectsFor(store, 'Ada');
-    const grace = await subjectsFor(store, 'Grace', { ipHash: hashIp('203.0.113.6', 'secret') });
-    for (let i = 0; i < 3; i++) await recordRound(store, { subjects: ada, provider: 'google', source: 'free', now: T0 });
-    await expect(checkRound(store, google(ada))).rejects.toMatchObject({ code: 'allowance' });
-
-    // out of free rounds, still welcome in a room: the seat is today's free room game
-    const host = await createRoom(store, { name: 'Ranked', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.profileId, subjects: ada, now: T0 });
-    await expect(roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch })).rejects.toMatchObject({ code: 'need_players', status: 409 });
-    const joined = await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.profileId, subjects: grace, now: T0 });
-    expect(joined.player.name).toBe('Grace');
-    // nothing is charged at the door: a room nobody starts costs nothing
-    expect(store._dump().usage.find((r) => r.subject === `profile:${grace.profileId}`)).toBeUndefined();
-    await roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch });
-
-    // round one took both seats: counted toward the day, never drawn from the solo allowance
-    const rowFor = (subjects, provider = 'google') => store._dump().usage.find((r) => r.subject === `profile:${subjects.profileId}` && r.provider === provider);
-    expect(rowFor(ada)).toMatchObject({ rounds: 4, free: 3, paid: 0, games: 1 });
-    expect(rowFor(grace)).toMatchObject({ rounds: 1, free: 0, paid: 0, games: 1 });
-    expect(store._dump().usage.find((r) => r.subject === grace.ipHash && r.provider === 'google')).toMatchObject({ rounds: 1, games: 1 });
-    expect(store._dump().usage.find((r) => r.subject === SITE_SUBJECT && r.provider === 'google').rounds).toBe(5);
-    expect(store._dump().players.map((p) => p.entry)).toEqual(['free', 'free']);
-    expect((await usageToday(store, grace, { now: T0 })).google.roomGames).toEqual({ used: 1, limit: 1, left: 0 });
-    // Grace's solo rounds are untouched by the room
-    expect((await checkRound(store, google(grace))).source).toBe('free');
-
-    // a second Google room today needs prepaid rounds; Apple rooms are open
-    await expect(createRoom(store, { name: 'Again', hostName: 'Ada', settings: { provider: 'google' }, profileId: ada.profileId, subjects: ada, now: T0 })).rejects.toMatchObject({ code: 'rooms', status: 429 });
-    const other = await createRoom(store, { name: 'Open', hostName: 'Nobody', settings: { provider: 'google' }, now: T0 });
-    await expect(joinRoom(store, { code: other.room.code, name: 'Grace', profileId: grace.profileId, subjects: grace, now: T0 })).rejects.toMatchObject({ code: 'rooms' });
-    const lookAround = await createRoom(store, { name: 'Cities', hostName: 'Grace', settings: { provider: 'apple', mode: 'cities' }, profileId: grace.profileId, subjects: grace, now: T0 });
-    expect(lookAround.room.config.provider).toBe('apple');
-
-    // with prepaid rounds the seat is paid, one round at a time, and the balance reads fresh
-    await store.updateProfile(ada.profileId, { paidRounds: 2 });
-    const paidSubjects = { ...ada, profile: await store.getProfileById(ada.profileId) };
-    const second = await createRoom(store, { name: 'Again', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.profileId, subjects: paidSubjects, now: T0 });
-    const linus = await subjectsFor(store, 'Linus', { ipHash: hashIp('203.0.113.8', 'secret') });
-    await joinRoom(store, { code: second.room.code, name: 'Linus', profileId: linus.profileId, subjects: linus, now: T0 });
-    await roomAction(store, { code: second.room.code, token: second.token, action: 'start', now: T0, fetchImpl: hitFetch });
-    expect(rowFor(ada)).toMatchObject({ rounds: 5, free: 3, paid: 1, games: 1 });
-    expect((await store.getProfileById(ada.profileId)).paidRounds).toBe(1);
-    expect(rowFor(linus)).toMatchObject({ rounds: 1, free: 0, paid: 0, games: 1 });
-    const seats = store._dump().players.filter((p) => p.roomId === second.room.id).map((p) => p.entry);
-    expect(seats).toEqual(['paid', 'free']);
-
-    // someone at the day's ceiling cannot open or join a room
-    const tired = await subjectsFor(store, 'Tired', { ipHash: hashIp('203.0.113.7', 'secret') });
-    for (let i = 0; i < 8; i++) await recordRound(store, { subjects: tired, provider: 'apple', source: 'apple', now: T0 });
-    await expect(joinRoom(store, { code: host.room.code, name: 'Tired', profileId: tired.profileId, subjects: tired, now: T0 })).rejects.toMatchObject({ code: 'ceiling', status: 429 });
-    await expect(createRoom(store, { name: 'Mine', hostName: 'Tired', settings: { provider: 'google' }, profileId: tired.profileId, subjects: tired, now: T0 })).rejects.toMatchObject({ code: 'ceiling' });
-    await expect(checkRoomEntry(store, { subjects: tired, now: T0, limits })).rejects.toMatchObject({ code: 'ceiling' });
-  }
-
-  test('a rematch is a new game: it goes through the same door, and a paid seat runs out gracefully', async () => {
-    const store = createMemoryRoomStore();
-    const ada = await subjectsFor(store, 'Ada');
-    const grace = await subjectsFor(store, 'Grace', { ipHash: hashIp('203.0.113.6', 'secret') });
-    await store.updateProfile(grace.profileId, { paidRounds: 1 });
-    const host = await createRoom(store, { name: 'Friday', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.profileId, subjects: ada, now: T0 });
-    await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.profileId, subjects: grace, now: T0 });
-    await roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch });
-    let now = T0;
-    for (let i = 0; i < 3; i++) {
-      now += 31000;
-      await getRoomView(store, { code: host.room.code, now, fetchImpl: hitFetch });
-      now += 13000;
-      await getRoomView(store, { code: host.room.code, now, fetchImpl: hitFetch });
-    }
-    const done = await getRoomView(store, { code: host.room.code, token: host.token, now, fetchImpl: hitFetch });
-    expect(done.room.status).toBe('finished');
-    // three rounds each: Grace's seat was her free game, so her single prepaid round is still there
-    expect((await store.getProfileById(grace.profileId)).paidRounds).toBe(1);
-    // Ada's free game is used and she has no balance: the rematch door refuses
-    await expect(roomAction(store, { code: host.room.code, token: host.token, action: 'rematch', now })).rejects.toMatchObject({ code: 'rooms', status: 429 });
-    // Ada buys rounds: the rematch opens, and her seat there is paid until the balance is gone
-    await store.updateProfile(ada.profileId, { paidRounds: 1 });
-    const again = await roomAction(store, { code: host.room.code, token: host.token, action: 'rematch', now });
-    expect(again.rematch.code).toMatch(/^[A-Z0-9]{6}$/);
-    await joinRoom(store, { code: again.rematch.code, name: 'Grace', profileId: grace.profileId, subjects: { ...grace, profile: await store.getProfileById(grace.profileId) }, now });
-    await roomAction(store, { code: again.rematch.code, token: again.rematch.token, action: 'start', now, fetchImpl: hitFetch });
-    now += 31000;
-    await getRoomView(store, { code: again.rematch.code, now, fetchImpl: hitFetch });
-    now += 13000;
-    await getRoomView(store, { code: again.rematch.code, now, fetchImpl: hitFetch });
-    const rows = store._dump().usage;
-    const adaRow = rows.find((r) => r.subject === `profile:${ada.profileId}` && r.provider === 'google');
-    // round one paid, round two counted: the balance hit zero and nobody was sent away
-    expect(adaRow).toMatchObject({ rounds: 5, paid: 1, games: 1 });
-    expect((await store.getProfileById(ada.profileId)).paidRounds).toBe(0);
-    // Grace's free game went to the first room too; her one prepaid round paid her seat here
-    const rematchRoom = await store.getRoomByCode(again.rematch.code);
-    expect(rematchRoom.players.map((p) => [p.name, p.entry])).toEqual([['Ada', 'paid'], ['Grace', 'paid']]);
-    expect((await store.getProfileById(grace.profileId)).paidRounds).toBe(0);
-    const view = await getRoomView(store, { code: again.rematch.code, token: again.rematch.token, now, fetchImpl: hitFetch });
-    expect(view.room.status).toBe('playing');
-  });
-
-  test('the site budget closes the door on that imagery only', async () => {
-    const store = createMemoryRoomStore();
-    const me = await subjectsFor(store, 'Ada');
-    await store.bumpUsage(SITE_SUBJECT, '2026-09-07', 'google', { rounds: 50, free: 0, paid: 0 });
-    await expect(checkRound(store, google(me, 'daily'))).rejects.toMatchObject({ code: 'budget', provider: 'google' });
-    expect((await checkRound(store, { ...google(me), provider: 'apple', mode: 'cities' })).source).toBe('apple');
-    await expect(checkRoomEntry(store, { subjects: me, now: T0, limits })).rejects.toMatchObject({ code: 'budget' });
-    // accounting that fails never stops a round
-    const broken = { ...store, bumpUsage: async () => { throw new Error('db gone'); } };
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    await expect(recordRound(broken, { subjects: me, provider: 'google', source: 'free', now: T0 })).resolves.toBeUndefined();
-    await recordRoomRound(broken, { config: { provider: 'google' }, players: [{ profileId: me.profileId }] }, T0, limits);
-    expect(spy).toHaveBeenCalled();
-    spy.mockRestore();
+    const subjects = { profileId: 'p5', signedIn: false, ipHash: hashIp('7.7.7.7', 's') };
+    await expect(checkRoomEntry(store, { subjects, now: T0, limits })).resolves.toMatchObject({ ok: true });
   });
 });

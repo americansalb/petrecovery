@@ -14,12 +14,12 @@ import { Award, Gauge, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-rea
 import { formatScore } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
 import { VARIANTS } from '@/app/lib/geo/rooms';
-import { roomGamesText } from '@/app/lib/geo/meter';
+import { LADDERS, LADDER_LABELS } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import SignInCard from './SignInCard';
-import PlanCard from './PlanCard';
+import AccountRole from './AccountRole';
 
 const KIND_ORDER = ['pin', 'color', 'title', 'frame', 'reactions'];
 
@@ -68,7 +68,10 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
         Buy for {formatScore(item.price)}
       </button>
     ) : (
-      <span className="text-xs text-sand-500">{formatScore(item.price)} points, you have {formatScore(points)}</span>
+      // The balance is at the top of the page. Repeating it on every
+      // row of a long list is noise, and it made each row read as a
+      // refusal rather than a price.
+      <span className="text-xs text-sand-500">{formatScore(item.price)} points</span>
     );
   }
   if (tierOnly && !item.usable) buy = <span className="text-xs text-sand-500">Free at {item.requires.tier} on either ladder</span>;
@@ -205,7 +208,7 @@ export default function ProfileClient() {
                 <ShoppingBag className="h-4 w-4" />
                 Shop
               </h2>
-              <p className="mt-2 text-sm text-sand-600">Points buy how you look in the game. Nothing here changes how you play, and points never buy Google rounds.</p>
+              <p className="mt-2 text-sm text-sand-600">Points buy how you look in the game. Nothing here changes how you play.</p>
               <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-sand-100 p-1" role="tablist" aria-label="Shop sections">
                 {KIND_ORDER.map((k) => (
                   <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-ocean-900 text-white shadow' : 'text-sand-700 hover:bg-white'}`}>
@@ -228,16 +231,16 @@ export default function ProfileClient() {
             <section className="rounded-2xl border border-sand-200 bg-white p-5" data-badges>
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Award className="h-4 w-4" />
-                Country badges
+                Badges
               </h2>
-              <p className="mt-2 text-sm text-sand-600">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept.</p>
+              <p className="mt-2 text-sm text-sand-600">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept. Mars and the Moon come from calling a Not Earth round right.</p>
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (
-                    <li key={b.countryCode} className="flex items-center gap-2 rounded-xl border border-sand-200 px-3 py-2 text-sm">
+                    <li key={b.countryCode} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-clay-300 bg-clay-50' : 'border-sand-200'}`}>
                       <span className="text-xl">{b.flag}</span>
                       <span className="min-w-0 flex-1 truncate font-semibold">{b.name}</span>
-                      <span className="text-xs text-sand-500">{b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
+                      <span className="text-xs text-sand-500">{b.notEarth ? 'called it' : b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
                     </li>
                   ))}
                 </ul>
@@ -258,7 +261,7 @@ export default function ProfileClient() {
 
             {/* What this account is: tier, and role when it is not the
                 ordinary one. Renders for signed-in players only. */}
-            <PlanCard />
+            <AccountRole />
 
             {/* Name */}
             <section className="rounded-2xl border border-sand-200 bg-white p-5">
@@ -278,13 +281,16 @@ export default function ProfileClient() {
                 <Medal className="h-4 w-4" />
                 Rating
               </h2>
+              {/* Every ladder, not two of the three. Ranked solo is the
+                  one a player can reach without arranging a room, so
+                  leaving it out hid the rating most people have. */}
               {profile ? (
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  {['classic', 'duel'].map((ladder) => {
+                  {LADDERS.map((ladder) => {
                     const r = profile.ratings?.[ladder] || {};
                     return (
                       <div key={ladder}>
-                        <dt className="text-sand-500">{VARIANTS[ladder]?.label || ladder}</dt>
+                        <dt className="text-sand-500">{LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder}</dt>
                         <dd className="text-lg font-bold tabular-nums">
                           {r.value ?? 1500} <span className="text-xs font-semibold text-sand-500">{r.tier || 'Silver'}</span>
                         </dd>
@@ -316,11 +322,8 @@ export default function ProfileClient() {
               </h2>
               {profile?.usage ? (
                 <p className="mt-2 text-sm text-sand-700">
-                  <span className="font-semibold text-sand-900">
-                    {profile.usage.google.freeUsed} of {profile.usage.google.freeLimit}
-                  </span>{' '}
-                  free Google Street View rounds used.
-                  {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''} {roomGamesText(profile.usage.google.roomGames)} Apple Look Around: no limit. Points earn on the first 50 rounds of the day.
+                  <span className="font-semibold text-sand-900">{profile.usage.rounds}</span> rounds today. Nothing is
+                  capped for ordinary play. Points earn on the first 50 rounds of the day.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-sand-500">Loading</p>

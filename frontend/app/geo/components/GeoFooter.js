@@ -24,8 +24,8 @@ export default function GeoFooter() {
     <footer className="border-t border-sand-200 bg-sand-100 text-xs text-sand-700">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-5">
         <p>
-          Imagery from Google Street View and Apple Look Around, shown under their own terms. Country outlines from Natural
-          Earth. Script sentences from{' '}
+          Imagery from Apple Look Around, shown under Apple&apos;s terms. Not Earth panoramas from NASA, public domain.
+          Country outlines from Natural Earth. Script sentences from{' '}
           <a href="https://tatoeba.org" className="underline hover:text-ocean-700" rel="noreferrer noopener" target="_blank">
             Tatoeba
           </a>

@@ -355,6 +355,7 @@ export default function ScriptPlayClient() {
                 type="button"
                 disabled={!pin || sending || !round}
                 onClick={() => submit(pin)}
+                data-geo-guess
                 className="pointer-events-auto w-full rounded-xl bg-clay-600 px-4 py-3.5 text-base font-semibold text-sand-950 shadow-lg transition enabled:hover:bg-clay-500 enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500 disabled:shadow-sm"
               >
                 {sending ? 'Scoring' : 'Guess'}

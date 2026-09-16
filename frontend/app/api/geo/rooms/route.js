@@ -37,11 +37,11 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Send a JSON body with the room name and your name' }, { status: 400, ...NO_STORE });
   }
 
-  // Apple Look Around rooms need no server key; Google rooms do.
+  // Look Around needs no imagery key at all. The only thing a room
+  // cannot open without is the secret its answers are sealed with.
   const cfg = getGeoServerConfig();
-  const provider = body?.settings?.provider === 'apple' || body?.provider === 'apple' ? 'apple' : 'google';
-  if (!cfg.tokenSecret || (provider === 'google' && !cfg.googleConfigured)) {
-    return NextResponse.json({ error: 'Google Street View is not configured on this server', code: 'google_not_configured' }, { status: 503, ...NO_STORE });
+  if (!cfg.tokenSecret) {
+    return NextResponse.json({ error: 'This server is missing its round secret', code: 'no_secret' }, { status: 503, ...NO_STORE });
   }
 
   try {

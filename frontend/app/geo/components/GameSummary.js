@@ -105,6 +105,18 @@ function DailyBoard({ daily, cup = false }) {
   );
 }
 
+/**
+ * The middle column of a round's row. A Not Earth round has no distance
+ * to print, and neither has a round the player threw away by calling it
+ * (app/lib/geo/notEarth.js).
+ */
+function roundNote(round) {
+  if (round.notEarth) return round.score > 0 ? 'called it' : 'missed it';
+  if (round.calledNotEarth) return 'wrong call';
+  if (round.timedOut) return 'no guess';
+  return formatDistance(round.distanceKm);
+}
+
 export default function GameSummary({ summary, code, config, regionLabel, best, daily = null, rated = null, points = null, onPlayAgain }) {
   const [copied, copy] = useCopy();
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -167,7 +179,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
                 <span className={round.correct ? 'font-semibold text-green-400' : 'font-semibold text-red-400'}>{round.correct ? 'Right' : 'Miss'}</span>
               ) : (
                 <>
-                  <span className="w-24 text-right text-white/70">{round.timedOut ? 'no guess' : formatDistance(round.distanceKm)}</span>
+                  <span className="w-24 text-right text-white/70">{roundNote(round)}</span>
                   <span className="w-16 text-right font-semibold tabular-nums text-clay-300">{formatScore(round.score)}</span>
                 </>
               )}

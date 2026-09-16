@@ -7,9 +7,8 @@
  * photographs of the earth, made entirely of text. This is the earth.
  *
  * It needs no key and no tile server, which is the point. Apple's token
- * is not set on every deployment, Google's costs money per view, and a
- * front page that is blank until a third party answers is a front page
- * that is sometimes blank. The outline here is the same Natural Earth
+ * is not set on every deployment, and a front page that is blank until
+ * a third party answers is a front page that is sometimes blank. The outline here is the same Natural Earth
  * 1:110m polygon set the game already scores against, already in the
  * bundle for the keyless round map, projected by hand: equirectangular
  * is four lines of arithmetic and exact enough for something nobody

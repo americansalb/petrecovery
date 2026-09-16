@@ -21,8 +21,10 @@ it with nothing configured".
 
 ## The short answer
 
-**The game is ready. The deployment is not, and most of what is left is
-yours rather than mine.**
+**The game is ready. One thing in the deployment is not: the production
+database is a schema behind, so profiles cannot be created and the
+scored modes cannot be played. Everything else left is yours rather
+than mine.**
 
 Everything below marked "you" needs an account, a card, a domain or a
 decision that is not mine to make. Everything marked "code" is done.
@@ -31,12 +33,13 @@ decision that is not mine to make. Everything marked "code" is done.
 
 | | State |
 |---|---|
-| The game itself: eleven modes, rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge, ranked solo | code, live on `pet_main` |
+| The game itself: seven modes, rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge, ranked solo | code, live on `pet_main` |
+| Not Earth: one casual round in two hundred is a NASA panorama from Mars or the Moon, with a button to call it | code |
 | Script mode: 159 languages, 34 writing systems, region scoring | code, live on `pet_main` |
 | Its own accounts, its own session, its own mailer | code, live on `pet_main` |
 | No import in either direction between the game and the pet site | code, enforced by `__tests__/geo/isolation.test.js` |
-| Cost control: the play meter, per-day and per-address caps, a site budget | code |
-| 1,186 tests, a twelve-scenario browser harness that passes against a production build | code |
+| Abuse control: the play meter's per-day and per-address ceilings, a speed limit, and a site budget under Apple's account quota | code |
+| 1,341 tests, a sixteen-scenario browser harness driven against a real browser and a real database | code |
 
 Driven on a production build, desktop and phone, every route: no page
 errors, no horizontal overflow, chrome present, no missing link
@@ -68,70 +71,66 @@ route check above was run against `next start`.
 
 ## What launch needs from you
 
-### 1. An Apple MapKit token for the host players actually land on. Blocking, and broken today.
+### 1. An Apple MapKit token per host. Was blocking. Closed.
 
-The game is Apple-first (docs/GEO.md, "Apple first"): the lobby opens on
-Look Around and the daily and the cup are played on it.
+Look Around is the imagery (docs/GEO.md, "Apple only"), and Apple
+matches a token's origin exactly, so every host that serves a page needs
+its own token. A refused token does not throw: MapKit loads, the pane is
+built, and nothing is ever drawn in it, which is why this was invisible
+until somebody checked.
 
-**Right now every Apple surface on the live site is blank**, and it has
-nothing to do with the game's own domain. The shipped token is minted
-for `reunitepets.org`; the apex 301s to `www.reunitepets.org` at
-Cloudflare; Apple matches a token's origin exactly and answers `401` to
-`www`. Checked against Apple on 2026-09-14:
+It was genuinely broken on 2026-09-14: the shipped token was minted for
+the apex, the apex 301s to `www` at Cloudflare, and Apple answered `401`
+to `www`, so every Apple surface on the live site was blank.
+
+The server now mints a token per host at request time
+(`/api/geo/mapkit-token`). Asked of Apple directly on 2026-09-16, with
+the token each host actually serves:
 
 ```
-$ cd frontend && npm run geo:check-mapkit
-  www.reunitepets.org          401 REFUSED
-  reunitepets.org              200 authorized
+www.reunitepets.org       200 authorized
+probablyearth.com         200 authorized
+reunitepets.org           301 to www, serves no page
+www.probablyearth.com     301 to the apex, serves no page
 ```
 
-Two ways out, either is enough:
+Both hosts that serve the game are authorized, and the two that are pure
+redirects never need a token. Nothing to do here.
 
-- Mint a MapKit token for `www.reunitepets.org` and add it to
-  `NEXT_PUBLIC_APPLE_MAPKIT_TOKEN`, which takes a list separated by
-  commas or whitespace. Keep the apex token in the list too and both
-  hosts work.
-- Or stop redirecting the apex to `www`, so players land on the host the
-  existing token already covers.
+Re-run `npm run geo:check-mapkit` after any change to a domain, a
+redirect or the token. It is the only check that can answer this
+question, because the failure is silent.
 
-The game's own domain needs the same thing again: a token per host it
-answers on. An Apple Developer account, a MapKit JS key, tokens minted
-per origin. Nothing else in the game needs Apple's account.
+### 1b. Google keys. No longer needed.
 
-Run `npm run geo:check-mapkit` after any change to the domain, the
-redirects or the token. It is the only check that can answer this: a
-refused token does not throw, it just draws nothing.
+Founder direction, 2026-09-16: the game is **Apple only**. Google Street
+View is gone, and with it the play meter's allowance, the bought rounds,
+the site's Google budget and the three modes only its imagery could do
+(City streets, Everywhere, Kidnapped).
 
-### 1b. Google keys with quota caps. Optional, and blocking for the Google modes.
+The reason is cost, and it is not close. Apple Look Around is not billed
+per view: it runs under Apple's daily account quota, so a round costs
+nothing to serve. Google's Dynamic Street View is 5,000 free panorama
+loads a month and then $14.00 per thousand, which at three hundred daily
+players is about $560 a month, forever, growing with success. Apple at
+the same size is $0.
 
-Without them the Google option is off: no countryside, no Everywhere, no
-Kidnapped, and the other hundred-odd countries. With them, **caps**
-matter, because without caps the game cannot be allowed to serve them.
+What Apple's cars never reached is covered by Script mode, which needs no
+imagery, no key and no quota at all.
 
-- In a Google Cloud project, enable **Maps JavaScript API** and **Street
-  View Static API**.
-- A browser key restricted to your domain's referrers and to the Maps
-  JavaScript API, into `GOOGLE_MAPS_BROWSER_KEY`.
-- A server key with the Street View Static API, into
-  `GOOGLE_STREET_VIEW_API_KEY`.
-- **Set daily quota caps on both** so usage stops rather than bills. The
-  play meter is the first line; the console cap is the one that cannot
-  be bypassed by a bug in my code.
 
-A launch without Google keys is the Apple-first game as designed: city
-streets in 23 countries in every mode but Everywhere and Kidnapped, plus
-Script mode, which needs neither.
+### 2. Where it lives. Answered.
 
-### 2. Where it lives. Blocking.
+**probablyearth.com** (founder, 2026-09-16: "this is not a nonprofit, I
+already transferred it to probablyearth.com"). Checked live on the same
+day: `probablyearth.com/` redirects to `/geo`, the short paths redirect
+into the game, and the host has a MapKit token Apple authorizes.
 
-Decisions D3 and D4 in the split document, both unanswered:
-
-- **A domain.** `GEO_DOMAINS` already routes a host on the shared
-  deployment to the game, and `NEXT_PUBLIC_SITE=geo` builds it as its
-  own site with no pet chrome. Either works today; the name has not been
-  bought.
-- **Does `/geo` keep working on reunitepets.org** once the game has its
-  own home, or does it redirect? Both are one line; nobody has picked.
+`/geo` still works on `www.reunitepets.org` and serves the same game off
+the same rows, which is the only part of D3 that was ever a real choice.
+Nobody has said whether that should eventually redirect to the game's own
+domain; nothing depends on the answer, and it is one line whenever it is
+wanted.
 
 ### 3. A mail sender. Blocking for accounts, not for play.
 
@@ -185,7 +184,15 @@ In order, and each is useful even if the next never happens.
 
 ## The honest summary
 
-Nothing in the code is holding this up. What is holding it up is a
-Google project with caps on it, a domain, a mail sender, and two
-decisions. The first three are an afternoon of account admin between
-them.
+The domain is bought and live, the MapKit tokens are authorized on every
+host that serves a page, and Google is gone along with the project, the
+caps and the bill. What is left is a mail sender, without which nobody
+can sign in, and two decisions that block later work rather than launch.
+
+One thing in the code's way, and it is not the code: **the production
+database is behind this schema**, so creating a play profile 500s for
+every visitor. Reads work, which is why it looks like one broken
+feature. The deploy that carries this branch will name the column in the
+error and print the missing SQL in the `[db-sync]` banner; until then
+ranked, the daily and the cup cannot be played live, because all three
+are scored as somebody.

@@ -14,10 +14,12 @@ import { PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import {
   CONTINENTS,
   CONTINENT_ORDER,
+  DEFAULT_CONFIG,
   FORMATS,
   FORMAT_ORDER,
   MODES,
   MODE_ORDER,
+  PRIMARY_PROVIDER,
   PROVIDERS,
   RADIUS_PRESETS,
   ROUND_OPTIONS,
@@ -25,10 +27,9 @@ import {
   configToParams,
   formatOf,
   formatSettings,
+  modeDescription,
   normalizeConfig,
   timeLabel,
-  PRIMARY_PROVIDER,
-  modeDescription,
 } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { isSignedIn } from '@/app/geo/lib/session';
@@ -36,9 +37,10 @@ import { MAX_ROUND_SCORE, formatDistance, formatScore } from '@/app/lib/geo/dist
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { getHistory, getStats } from '../lib/storage';
 import { ensureProfile, loadProfileToken, profileHeaders } from '../lib/profile';
+import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
 import { listRecentRooms, loadName } from '../lib/useRoom';
 import { ago } from '../lib/time';
-import { DEFAULT_LIMITS, allowanceText, roomGamesText, untilText } from '@/app/lib/geo/meter';
+import { untilText } from '@/app/lib/geo/meter';
 import { APPLE_COVERAGE, appleCoverageSentence } from '@/app/lib/geo/coverage';
 import SetupNotice from './SetupNotice';
 import PlayerName from './PlayerName';
@@ -96,11 +98,16 @@ export default function GeoLobby() {
   const router = useRouter();
   const [server, setServer] = useState(null);
   const [serverError, setServerError] = useState('');
+  // Bumped by the Try again button, which is what re-runs the fetch.
+  const [configTry, setConfigTry] = useState(0);
   // Apple first: the lobby opens on the primary imagery, whatever the
   // server has keys for. A Google-less server used to greet every first
   // visitor with a setup error for imagery they had not asked for.
   const [provider, setProvider] = useState(PRIMARY_PROVIDER);
-  const [mode, setMode] = useState('world');
+  // Not a literal: 'world' was a mode once, and MODES has no entry for
+  // it any more, so the first render read undefined.providers and took
+  // the whole lobby down before the saved settings had even arrived.
+  const [mode, setMode] = useState(DEFAULT_CONFIG.mode);
   const [continent, setContinent] = useState('europe');
   const [country, setCountry] = useState('JP');
   const [rounds, setRounds] = useState(5);
@@ -121,10 +128,10 @@ export default function GeoLobby() {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/geo/config')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('config'))))
-      .then((data) => alive && setServer(data))
-      .catch(() => alive && setServerError('Could not load the game settings from the server.'));
+    setServerError('');
+    loadGeoConfig({ shouldStop: () => !alive, force: configTry > 0 })
+      .then((data) => alive && data && setServer(data))
+      .catch((error) => alive && setServerError(configErrorMessage(error)));
     setStats(getStats());
     setHistory(getHistory().slice(0, 8));
     setRecentRooms(listRecentRooms());
@@ -164,7 +171,8 @@ export default function GeoLobby() {
     return () => {
       alive = false;
     };
-  }, []);
+    // configTry is the Try again button: bumping it re-runs this.
+  }, [configTry]);
 
   // Your rating: this browser gets a profile the first time it joins a
   // room, and a Probably Earth account has one across devices. Nobody
@@ -201,10 +209,11 @@ export default function GeoLobby() {
     if (restored) saveSettings({ ...config, seed: '' });
   }, [config, restored]);
 
-  // Keep the mode valid when the provider changes.
+  // Keep the mode valid when the provider changes, and survive a mode
+  // that no longer exists: a link or a saved setting can still name one.
   useEffect(() => {
-    if (!MODES[mode].providers.includes(provider)) {
-      setMode(MODE_ORDER.find((id) => MODES[id].providers.includes(provider)));
+    if (!MODES[mode]?.providers?.includes(provider)) {
+      setMode(MODE_ORDER.find((id) => MODES[id]?.providers?.includes(provider)) || DEFAULT_CONFIG.mode);
     }
   }, [provider, mode]);
 
@@ -226,10 +235,11 @@ export default function GeoLobby() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, mode, server]);
   const countries = server?.countries || [];
-  const modeDef = MODES[config.mode];
+  // config.mode is normalized, so this is always a real mode; the
+  // fallback is what stops one bad render taking the page down anyway.
+  const modeDef = MODES[config.mode] || MODES[DEFAULT_CONFIG.mode];
   const fixed = config.mode === 'daily' || config.mode === 'cup' || config.mode === 'ranked';
   // Kidnapped fixes the clock and the drive; rounds and the radius stay yours.
-  const driven = config.mode === 'kidnapped';
   const format = formatOf(config);
   const setFormat = (id) => {
     const f = formatSettings(id);
@@ -303,7 +313,14 @@ export default function GeoLobby() {
           </section>
         ) : null}
 
-        {serverError ? <p className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{serverError}</p> : null}
+        {serverError ? (
+          <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <p className="flex-1">{serverError}</p>
+            <button type="button" onClick={() => setConfigTry((n) => n + 1)} className="rounded-lg bg-red-700 px-3 py-1.5 font-semibold text-white hover:bg-red-800">
+              Try again
+            </button>
+          </div>
+        ) : null}
         {server && !configured ? (
           <div className="mt-6">
             <SetupNotice provider={provider} missing={providerInfo?.missing || []} compact tone="light" />
@@ -341,7 +358,7 @@ export default function GeoLobby() {
             <section className="rounded-2xl border border-sand-200 bg-white p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Mode</h2>
               <div className="mt-3 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Mode">
-                {MODE_ORDER.filter((id) => MODES[id].providers.includes(provider)).map((id) => {
+                {MODE_ORDER.filter((id) => MODES[id]?.providers?.includes(provider)).map((id) => {
                   const m = MODES[id];
                   const active = mode === id;
                   return (
@@ -390,23 +407,23 @@ export default function GeoLobby() {
             {/* Rules */}
             <section className="rounded-2xl border border-sand-200 bg-white p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Rules</h2>
-              {fixed || driven ? (
+              {fixed ? (
                 <p className="mt-2 text-sm text-sand-600">
                   {config.mode === 'cup'
                     ? 'The weekly cup uses fixed rules so scores compare: 10 rounds, 60 seconds each, No Move.'
                     : config.mode === 'daily'
                       ? 'The daily challenge uses fixed rules so scores compare: 5 rounds, no timer, Moving.'
-                      : 'Kidnapped has its own clock: three minutes a round. The car drives; you can look around but not steer or zoom. Guess whenever you like.'}
+                      : 'Ranked uses fixed rules so scores compare: 5 rounds, 60 seconds each, No Move.'}
                 </p>
               ) : null}
               <div className="mt-3 grid gap-5 sm:grid-cols-2">
                 {config.mode !== 'streak' ? <Segmented label="Rounds" options={ROUND_OPTIONS} value={config.rounds} onChange={setRounds} disabled={fixed} /> : null}
-                <Segmented label="Time per round" options={TIME_OPTIONS} value={config.time} onChange={setTime} format={timeLabel} disabled={fixed || driven} />
+                <Segmented label="Time per round" options={TIME_OPTIONS} value={config.time} onChange={setTime} format={timeLabel} disabled={fixed} />
                 <div>
-                  <Segmented label="Format" options={FORMAT_ORDER} value={format} onChange={setFormat} format={(id) => FORMATS[id].label} disabled={fixed || driven} />
-                  <p className="mt-1.5 text-xs text-sand-600">{driven ? 'Driven: no steering, look around, no zoom.' : FORMATS[format].description}</p>
+                  <Segmented label="Format" options={FORMAT_ORDER} value={format} onChange={setFormat} format={(id) => FORMATS[id].label} disabled={fixed} />
+                  <p className="mt-1.5 text-xs text-sand-600">{FORMATS[format].description}</p>
                 </div>
-                {config.provider === 'google' && config.mode !== 'cities' ? (
+                {!fixed ? (
                   <div>
                     <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-sand-500">How random</p>
                     <div className="space-y-1">
@@ -450,7 +467,6 @@ export default function GeoLobby() {
                 A second game on the same scoring. You get a sentence and pin where that language is used. 159 languages
                 across 34 writing systems, scored by distance, so Tamil and Marathi are different answers.
               </p>
-              <p className="mt-2 text-sm text-gray-500">No imagery, so it does not touch your Street View allowance.</p>
               <Link
                 href="/geo/script"
                 className="mt-3 inline-flex items-center gap-2 rounded-xl bg-ocean-900 px-4 py-2 text-sm font-bold text-white hover:bg-ocean-800"
@@ -466,7 +482,7 @@ export default function GeoLobby() {
                 <Users className="h-4 w-4" />
                 Play with friends
               </h2>
-              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP. Rooms on Apple Look Around are free without limit; one room a day on Google Street View is free.</p>
+              <p className="mt-2 text-sm text-white/80">Open a room, share the code, and everyone guesses the same places on one clock. Classic scoring or a duel with HP.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href="/geo/rooms" className="inline-flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600">
                   <Users className="h-4 w-4" />
@@ -567,21 +583,9 @@ export default function GeoLobby() {
                 <Gauge className="h-4 w-4" />
                 Today
               </h2>
-              {profile?.usage ? (
-                <>
-                  <p className="mt-2 text-sm text-sand-700">
-                    <span className="font-semibold text-sand-900">
-                      {profile.usage.google.freeUsed} of {profile.usage.google.freeLimit}
-                    </span>{' '}
-                    free Google Street View rounds used.
-                    {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''}
-                  </p>
-                  <p className="mt-1 text-sm text-sand-700">{roomGamesText(profile.usage.google.roomGames)}</p>
-                  <p className="mt-1 text-sm text-sand-600">Apple Look Around: no limit. The daily challenge and the weekly cup do not count.</p>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-sand-600">{allowanceText({ ...DEFAULT_LIMITS, ...(server?.limits || {}) })}</p>
-              )}
+              <p className="mt-2 text-sm text-sand-700">
+                {profile?.usage ? `${profile.usage.rounds} rounds today.` : ''} Nothing is capped for ordinary play.
+              </p>
             </section>
 
             {/* Ranked */}
@@ -621,7 +625,6 @@ export default function GeoLobby() {
               </h2>
               <p className="mt-2 text-sm text-sand-700">
                 Five places on {PROVIDERS[PRIMARY_PROVIDER].label}, the same for everyone{server?.daily?.date ? ` on ${server.daily.date}` : ' today'}.
-                {PRIMARY_PROVIDER === 'google' ? ' Free, and it does not count against your Google rounds.' : ' Free.'}
               </p>
               <button
                 type="button"
@@ -666,7 +669,6 @@ export default function GeoLobby() {
               </h2>
               <p className="mt-2 text-sm text-sand-700">
                 Ten places on {PROVIDERS[PRIMARY_PROVIDER].label}, 60 seconds each, the same for everyone this week.
-                {PRIMARY_PROVIDER === 'google' ? ' Free, outside your Google rounds.' : ' Free.'}
                 {cup?.endsAt ? ` Ends ${untilText(cup.endsAt)}.` : ''}
               </p>
               <p className="mt-1 text-xs text-sand-500">Prizes in points: 300, 200 and 100 for the top three, 50 for the rest of the top ten, 20 for finishing.</p>

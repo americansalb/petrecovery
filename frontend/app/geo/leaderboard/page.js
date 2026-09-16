@@ -52,9 +52,11 @@ export default function GeoLeaderboardPage() {
             <Trophy className="h-7 w-7 text-clay-600" />
             Rankings
           </h1>
-          <p className="mt-2 max-w-2xl text-sand-600">
-            Every finished room rates everyone in it against everyone else, with margin of victory counted. New players move fast and settle down. A rating shows once you have played {board?.minGames || 3} rated games; it stays provisional until {PROVISIONAL_GAMES}.
-          </p>
+          <ul className="mt-3 max-w-2xl space-y-1 text-sm text-sand-600">
+            <li>Classic and Duel rate you against everyone else in a finished room.</li>
+            <li>Ranked solo rates this hour&apos;s five places against everyone who played them.</li>
+            <li>A rating appears after {board?.minGames || 3} rated games and settles by {PROVISIONAL_GAMES}.</li>
+          </ul>
         </header>
 
         <div className="mt-6 inline-flex rounded-xl bg-sand-100 p-1" role="tablist">
@@ -66,7 +68,8 @@ export default function GeoLeaderboardPage() {
         </div>
         {board?.season ? (
           <p className="mt-2 text-sm text-sand-600" data-season>
-            {board.season.label}. {board.season.daysLeft} {board.season.daysLeft === 1 ? 'day' : 'days'} left. Ratings carry over softly, and finishing a season Silver or better on a ladder with three or more rated games pays points.
+            {board.season.label}. {board.season.daysLeft} {board.season.daysLeft === 1 ? 'day' : 'days'} left. Finishing Silver or better
+            on a ladder, with three rated games on it, pays points.
           </p>
         ) : null}
 
@@ -106,19 +109,22 @@ export default function GeoLeaderboardPage() {
 
         {error ? <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p> : null}
 
+        {/* Rank, player and rating on a phone; the rest as the screen
+            allows. Nine columns behind a sideways scroll meant the one
+            number this page is about was the one you could not see. */}
         <section className="mt-6 overflow-x-auto rounded-2xl border border-sand-200 bg-white">
           <table className="w-full text-sm">
             <thead className="bg-sand-50 text-left text-xs uppercase tracking-wide text-sand-500">
               <tr>
                 <th className="px-4 py-2">#</th>
                 <th className="px-4 py-2">Player</th>
-                <th className="px-4 py-2">Tier</th>
+                <th className="hidden px-4 py-2 sm:table-cell">Tier</th>
                 <th className="px-4 py-2">Rating</th>
-                <th className="px-4 py-2 text-right">Games</th>
-                <th className="px-4 py-2 text-right">Wins</th>
-                <th className="px-4 py-2 text-right">Podiums</th>
-                <th className="px-4 py-2 text-right">Peak</th>
-                <th className="px-4 py-2 text-right">Streak</th>
+                <th className="hidden px-4 py-2 text-right sm:table-cell">Games</th>
+                <th className="hidden px-4 py-2 text-right sm:table-cell">Wins</th>
+                <th className="hidden px-4 py-2 text-right lg:table-cell">Podiums</th>
+                <th className="hidden px-4 py-2 text-right lg:table-cell">Peak</th>
+                <th className="hidden px-4 py-2 text-right lg:table-cell">Streak</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-sand-100">
@@ -140,13 +146,13 @@ export default function GeoLeaderboardPage() {
                   <td className="px-4 py-2 font-semibold">
                     <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} />
                   </td>
-                  <td className="px-4 py-2 text-sand-600">{row.tier}</td>
+                  <td className="hidden px-4 py-2 text-sand-600 sm:table-cell">{row.tier}</td>
                   <td className="px-4 py-2"><RatingCell row={row} /></td>
-                  <td className="px-4 py-2 text-right tabular-nums">{row.games}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{row.wins}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{row.games ? `${Math.round((100 * row.podiums) / row.games)}%` : '0%'}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{row.peak}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{row.streak ? `${row.streak}` : ''}</td>
+                  <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{row.games}</td>
+                  <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{row.wins}</td>
+                  <td className="hidden px-4 py-2 text-right tabular-nums lg:table-cell">{row.games ? `${Math.round((100 * row.podiums) / row.games)}%` : '0%'}</td>
+                  <td className="hidden px-4 py-2 text-right tabular-nums lg:table-cell">{row.peak}</td>
+                  <td className="hidden px-4 py-2 text-right tabular-nums lg:table-cell">{row.streak ? `${row.streak}` : ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -155,7 +161,7 @@ export default function GeoLeaderboardPage() {
 
         <p className="mt-4 flex items-center gap-2 text-sm text-sand-600">
           <Users className="h-4 w-4" />
-          Ratings come from rooms only. Solo games and the daily challenge are not rated.
+          Nothing else is rated: the daily challenge, the weekly cup and an ordinary game are for fun.
         </p>
       </div>
     </div>

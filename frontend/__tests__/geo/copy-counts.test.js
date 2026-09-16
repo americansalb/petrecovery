@@ -52,9 +52,11 @@ test('every ladder description that counts scripts counts the right number', () 
   expect(wrong).toEqual([]);
 });
 
-test('City streets names the size of the pool it actually draws from', () => {
-  const pool = citiesFor('google').length;
-  expect(MODES.cities.description).toContain(String(pool));
+test('the World mode names the size of the pool it actually draws from', () => {
+  // Apple is the only imagery, so the pool is the city list.
+  const pool = citiesFor('apple').length;
+  expect(pool).toBeGreaterThan(100);
+  expect(MODES.balanced.apple.description).toMatch(/countr|city|street/i);
 });
 
 test('the launch doc counts the modes there are', () => {

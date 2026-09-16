@@ -194,17 +194,32 @@
     constructor(el, coordinate) {
       this.el = el;
       this.coordinate = coordinate;
+      this.panoId = `look-${coordinate.latitude.toFixed(3)}-${coordinate.longitude.toFixed(3)}`;
       window.__fakeLookArounds.push(this);
       el.innerHTML =
         `<div data-fake-lookaround="1" style="position:absolute;inset:0;background:linear-gradient(#2d3f52,#4a6076);color:#dbe7f3;font:14px monospace;display:flex;align-items:center;justify-content:center">LOOK AROUND ${coordinate.latitude.toFixed(3)}, ${coordinate.longitude.toFixed(3)}</div>`;
-      el.setAttribute('data-fake-pano', `look-${coordinate.latitude.toFixed(3)}-${coordinate.longitude.toFixed(3)}`);
+      el.setAttribute('data-fake-pano', this.panoId);
+      // Which view the container currently belongs to. The pane builds
+      // the view it keeps at the same coordinate as the one it tried,
+      // so the id alone cannot tell them apart.
+      el.__fakeOwner = this;
       setTimeout(() => (listeners(this).load || []).forEach((fn) => fn({})), 20);
     }
     addEventListener(name, fn) {
       (listeners(this)[name] = listeners(this)[name] || []).push(fn);
     }
+    /**
+     * Every view of a round is built in the same container, and the
+     * pane opens the one it keeps before dropping the one it tried. So
+     * only clear the marker if it is still this view's, or tidying up a
+     * dead view erases the live one and the round looks like it never
+     * opened.
+     */
     destroy() {
-      this.el?.removeAttribute?.('data-fake-pano');
+      if (this.el && this.el.__fakeOwner === this) {
+        this.el.removeAttribute('data-fake-pano');
+        this.el.__fakeOwner = null;
+      }
     }
   }
 

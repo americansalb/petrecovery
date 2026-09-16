@@ -6,28 +6,23 @@
 import { APPLE_COVERAGE } from './coverage';
 
 /**
- * The imagery the game plays on, in the order the lobby offers it.
+ * The imagery the game plays on.
  *
- * Apple first (founder direction, 2026-09-12). Look Around covers city
- * streets in the countries Apple has driven, costs nothing per view
- * under Apple's daily quota, and needs no probe budget, so it is the
- * default game and the imagery the shared boards are played on. Google
- * Street View is the option for the countryside, the hundred-odd other
- * countries, and the two modes only its imagery can do (Everywhere,
- * Kidnapped); it is metered (docs/GEO.md, "The play meter").
+ * Apple only (founder direction, 2026-09-16). Look Around covers city
+ * streets in the countries Apple has driven and is not billed per view:
+ * it runs under Apple's daily account quota, so a round costs nothing to
+ * serve and nothing needs metering. Google Street View was the other
+ * option and is gone, along with the play meter, the site budget, the
+ * bought rounds, and the three modes only its imagery could do
+ * (City streets, Everywhere, Kidnapped). What Apple's cars never reached
+ * is covered by Script mode, which needs no imagery at all.
  */
 export const PROVIDERS = {
   apple: {
     id: 'apple',
     label: 'Apple Look Around',
     short: 'Apple',
-    description: `City streets in ${APPLE_COVERAGE.size} countries. No limit on rounds.`,
-  },
-  google: {
-    id: 'google',
-    label: 'Google Street View',
-    short: 'Google',
-    description: 'Most of the world, countryside included. A free allowance of rounds a day, then bought rounds.',
+    description: `City streets in ${APPLE_COVERAGE.size} countries.`,
   },
 };
 
@@ -38,23 +33,14 @@ export const PROVIDERS = {
  * set at build (NEXT_PUBLIC_GEO_PRIMARY_PROVIDER), never a choice a
  * player makes.
  */
-export const PRIMARY_PROVIDER = process.env.NEXT_PUBLIC_GEO_PRIMARY_PROVIDER === 'google' ? 'google' : 'apple';
+export const PRIMARY_PROVIDER = 'apple';
 
 export const MODES = {
-  world: {
-    id: 'world',
-    label: 'World, pure random',
-    short: 'World',
-    providers: ['apple', 'google'],
-    description:
-      'A random point on land, kept only if it has imagery nearby. Most of the world is countryside, so expect a lot of roads.',
-    apple: { description: 'A random street in any city Apple covers, every city as likely as the next.' },
-  },
   balanced: {
     id: 'balanced',
-    label: 'World, balanced',
-    short: 'Balanced',
-    providers: ['apple', 'google'],
+    label: 'World',
+    short: 'World',
+    providers: ['apple'],
     description:
       'A random country first, weighted so small countries still come up, then a random spot inside it.',
     apple: { description: 'A random covered country first, weighted so small ones still come up, then a random street in one of its cities.' },
@@ -63,7 +49,7 @@ export const MODES = {
     id: 'daily',
     label: 'Daily challenge',
     short: 'Daily',
-    providers: ['apple', 'google'],
+    providers: ['apple'],
     description: 'Five balanced rounds. Everyone gets the same five places today.',
     // The board is one board, so the imagery is fixed for everyone.
     fixed: { provider: PRIMARY_PROVIDER, rounds: 5, time: 0, move: true, pan: true, zoom: true, radius: 'standard' },
@@ -72,7 +58,7 @@ export const MODES = {
     id: 'ranked',
     label: 'Ranked',
     short: 'Ranked',
-    providers: ['apple', 'google'],
+    providers: ['apple'],
     description:
       'Five balanced rounds on a clock. Everyone playing this hour gets the same five places, and the result moves your rating. Five games to be placed.',
     // A rating compares people, so it can only compare them on the same
@@ -85,7 +71,7 @@ export const MODES = {
     id: 'cup',
     label: 'Weekly cup',
     short: 'Cup',
-    providers: ['apple', 'google'],
+    providers: ['apple'],
     description: 'Ten balanced rounds, No Move, 60 seconds each. Everyone gets the same ten places this week, and the week ends with prizes.',
     fixed: { provider: PRIMARY_PROVIDER, rounds: 10, time: 60, move: false, pan: true, zoom: true, radius: 'standard' },
   },
@@ -93,7 +79,7 @@ export const MODES = {
     id: 'continent',
     label: 'Continent',
     short: 'Continent',
-    providers: ['apple', 'google'],
+    providers: ['apple'],
     needs: 'continent',
     description: 'Random countries within one continent.',
     apple: { description: 'Random covered countries within one continent. Apple has no city streets in Africa or South America yet.' },
@@ -102,41 +88,16 @@ export const MODES = {
     id: 'country',
     label: 'Country',
     short: 'Country',
-    providers: ['apple', 'google'],
+    providers: ['apple'],
     needs: 'country',
     description: 'Random spots inside one country.',
     apple: { description: 'Random streets in the cities of one covered country.' },
-  },
-  cities: {
-    id: 'cities',
-    label: 'City streets',
-    short: 'Cities',
-    // On Apple every mode is city streets, so World is this mode there.
-    providers: ['google'],
-    description: 'A random spot in one of 185 large cities with Street View coverage.',
-  },
-  everywhere: {
-    id: 'everywhere',
-    label: 'Everywhere',
-    short: 'Everywhere',
-    providers: ['google'],
-    description:
-      'The third of the world Street View never drove. China, Iran, Egypt, the Sahara. Photo spheres instead of official coverage, so knowing where the car went is worth nothing.',
-    fixed: { provider: 'google', move: false, pan: true, zoom: true },
-  },
-  kidnapped: {
-    id: 'kidnapped',
-    label: 'Kidnapped',
-    short: 'Kidnapped',
-    providers: ['google'],
-    description: 'You are driven down the road for up to three minutes. Look out of the window, then guess where you are. No steering, no zoom.',
-    fixed: { provider: 'google', time: 180, move: false, pan: true, zoom: false },
   },
   streak: {
     id: 'streak',
     label: 'Country streak',
     short: 'Streak',
-    providers: ['apple', 'google'],
+    providers: ['apple'],
     description: 'Name the country instead of placing a pin. The game ends at your first miss.',
   },
 };
@@ -156,7 +117,19 @@ export function modeDescription(id, provider = PRIMARY_PROVIDER) {
   return base;
 }
 
-export const MODE_ORDER = ['world', 'balanced', 'daily', 'cup', 'continent', 'country', 'cities', 'everywhere', 'kidnapped', 'streak'];
+export const MODE_ORDER = ['balanced', 'daily', 'ranked', 'cup', 'continent', 'country', 'streak'];
+
+/**
+ * Modes that no longer exist, and what a link to one opens instead.
+ *
+ * `world` drew uniformly from the typed city list, so the United States
+ * came up 45 times as often as Zambia and the meta was "learn the list"
+ * rather than anything about the world. It is gone; `balanced` weights
+ * the country by the square root of its area first, which is the same
+ * game with an honest distribution, and now wears the name World.
+ * The other three needed Google.
+ */
+const RETIRED_MODES = { world: 'balanced', cities: 'balanced', everywhere: 'balanced', kidnapped: 'balanced' };
 
 /**
  * The three formats competitive play knows (docs/GEO.md, "Formats"):
@@ -218,7 +191,7 @@ export const TIME_OPTIONS = [0, 30, 60, 120, 180, 300];
 
 export const DEFAULT_CONFIG = Object.freeze({
   provider: PRIMARY_PROVIDER,
-  mode: 'world',
+  mode: 'balanced',
   region: '',
   rounds: 5,
   time: 0,
@@ -367,16 +340,10 @@ function pick(value, options, fallback) {
  */
 export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
   const input = raw || {};
-  let mode = MODES[input.mode] ? input.mode : DEFAULT_CONFIG.mode;
-  // A named imagery wins over the mode: asking for Apple and a Google-only
-  // mode drops the mode. With no imagery named, the mode picks it, so a
-  // link to Kidnapped or Everywhere still opens on Google when the default
-  // imagery is Apple.
-  let provider = PROVIDERS[input.provider] ? input.provider : DEFAULT_CONFIG.provider;
-  if (!MODES[mode].providers.includes(provider)) {
-    if (PROVIDERS[input.provider]) mode = MODE_ORDER.find((id) => MODES[id].providers.includes(provider)) || 'world';
-    else provider = MODES[mode].providers[0];
-  }
+  const asked = String(input.mode || '');
+  let mode = MODES[asked] ? asked : RETIRED_MODES[asked] || DEFAULT_CONFIG.mode;
+  // One imagery, so nothing to reconcile: every mode is Apple.
+  const provider = 'apple';
 
   let region = '';
   if (MODES[mode].needs === 'continent') {

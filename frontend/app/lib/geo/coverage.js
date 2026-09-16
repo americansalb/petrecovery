@@ -1,37 +1,17 @@
 /**
- * Where street-level imagery exists, by country, plus the city list the
- * "City streets" mode draws from.
+ * Where Look Around exists, by country, plus the city list every mode
+ * draws from.
  *
- * These lists are curated, not fetched: neither Google nor Apple
- * publishes a machine-readable coverage map. They only steer sampling;
- * the real test is the imagery probe, so a wrong entry costs a few
- * retries, never a wrong answer. Edit freely as coverage changes.
+ * The list is curated, not fetched: Apple publishes no machine-readable
+ * coverage map. It only steers sampling; the real test is the browser
+ * opening a view, so a wrong entry costs a few retries, never a wrong
+ * answer. Edit freely as coverage changes.
+ *
+ * The matching Google list was here until 2026-09-16 and went with
+ * Google.
  *
  * Pure data, safe to import from client and server code.
  */
-
-/**
- * Countries and territories with official Google Street View car or
- * trekker coverage (ISO 3166-1 alpha-2). Countries missing here can
- * still be picked in Country mode; the probe decides.
- */
-export const GOOGLE_COVERAGE = new Set([
-  // Americas
-  'US', 'CA', 'MX', 'GT', 'CR', 'PA', 'CO', 'EC', 'PE', 'BO', 'CL', 'AR', 'UY', 'BR',
-  'PR', 'VI', 'DO', 'CW', 'GP', 'MQ', 'BM', 'PM', 'GL',
-  // Europe
-  'AD', 'AL', 'AT', 'BE', 'BG', 'CH', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR',
-  'GB', 'GI', 'GR', 'HR', 'HU', 'IE', 'IS', 'IT', 'LI', 'LT', 'LU', 'LV', 'MC', 'ME',
-  'MK', 'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'RS', 'RU', 'SE', 'SI', 'SK', 'SM', 'TR',
-  'UA', 'FO', 'AX', 'GG', 'JE', 'IM', 'SJ',
-  // Asia
-  'JP', 'KR', 'TW', 'HK', 'MO', 'MN', 'SG', 'MY', 'TH', 'KH', 'LA', 'VN', 'PH', 'ID',
-  'BD', 'BT', 'LK', 'IN', 'KG', 'KZ', 'IL', 'JO', 'PS', 'LB', 'AE', 'QA',
-  // Africa
-  'ZA', 'LS', 'SZ', 'BW', 'NG', 'GH', 'SN', 'KE', 'UG', 'RW', 'TZ', 'TN', 'MG', 'RE',
-  // Oceania
-  'AU', 'NZ', 'PF', 'NC', 'GU', 'MP', 'AS',
-]);
 
 /** Countries where Apple Look Around has coverage (mostly cities). */
 export const APPLE_COVERAGE = new Set([
@@ -225,26 +205,13 @@ export const CITIES = CITY_ROWS.map(([name, country, lat, lng, radiusKm]) => ({
   radiusKm,
 }));
 
-/** Cities usable for a provider. */
-export function citiesFor(provider) {
-  const set = provider === 'apple' ? APPLE_COVERAGE : GOOGLE_COVERAGE;
-  return CITIES.filter((city) => set.has(city.country));
-}
-
 /**
- * Cities in countries with no official Street View at all: the pool the
- * "Everywhere" mode draws from (docs/GEO.md). Official coverage stops at
- * a border for reasons of law and business, not geography, and a third
- * of the world's land sits behind that line. What does exist there is
- * user photo spheres, and those cluster in cities, which is why this is
- * a city list rather than a country pool.
+ * The cities a round can be drawn in. The provider argument is kept
+ * because every caller passes one and there is exactly one to pass; it
+ * is the seam where a second imagery would come back.
  */
-export function citiesOffCoverage() {
-  return CITIES.filter((city) => !GOOGLE_COVERAGE.has(city.country));
-}
-
-export function hasGoogleCoverage(cca2) {
-  return GOOGLE_COVERAGE.has(String(cca2 || '').toUpperCase());
+export function citiesFor() {
+  return CITIES.filter((city) => APPLE_COVERAGE.has(city.country));
 }
 
 export function hasAppleCoverage(cca2) {

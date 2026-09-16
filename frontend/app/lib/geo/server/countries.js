@@ -21,7 +21,7 @@ import topology from 'world-atlas/countries-110m.json';
 import { feature } from 'topojson-client';
 import META from '../data/countries-meta.json';
 import { CONTINENTS } from '../modes';
-import { hasAppleCoverage, hasGoogleCoverage } from '../coverage';
+import { hasAppleCoverage } from '../coverage';
 import { randomPointInBox, randomPointInDisk, randomPointOnSphere, weightedIndex } from '../random';
 
 const toRad = (deg) => (deg * Math.PI) / 180;
@@ -331,7 +331,6 @@ export function countryOptions() {
       flag: c.flag,
       region: c.region,
       subregion: c.subregion,
-      google: hasGoogleCoverage(c.cca2),
       apple: hasAppleCoverage(c.cca2),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));

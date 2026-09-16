@@ -44,8 +44,16 @@ writing, and everything below depends on them.
 - **Cold open: one big button, then a round.** A full-bleed screen with
   the game behind it and a single Play. One click to a street. Nothing
   to configure, no account, no form.
-- **Accounts, all three layers**: guest, signed in, and a paid tier;
-  plus host and admin roles.
+- **Accounts: guest and signed in.** No paid tier (founder, 2026-09-16:
+  "100% free, no paid option"). This replaces an earlier three-layer
+  plan that had a paid tier in it; what is recorded here is the
+  decision, and only the decision. Host and admin are roles, not tiers.
+- **Never force an account, always offer one.** Founder, 2026-09-16:
+  "when we say no account needed, that is not the same as not giving
+  them the option or not encouraging them to make one", and "it should
+  be very easy to sign up". So the ask is one field and one button, it
+  appears at the end of a game and nowhere earlier, and it gates
+  nothing: a guest and a signed-in player play the same game.
 - **An admin account that manages everything**, with the full backend
   behind it.
 
@@ -96,15 +104,29 @@ them are what the founder is reacting to. This is the interface only.
   nothing, rather than leading to a dead end. Harness scenario:
   `coldOpen`, which asserts the page has exactly one button and asks
   for nothing.
+- **3. The round screen.** Done. Three labelled pills across the top
+  (what you are playing and how to change it, which round this is, the
+  score and the clock), one cluster bottom left for looking around with
+  a line of words under it that says only what is true for the format
+  being played, and the map as a card whose footer carries the hint on
+  the left and the one button on the right. The instruction used to be
+  the button's label, so the only call to action on the screen changed
+  its words under the cursor. Harness scenarios: `appleSolo`, `pinGame`,
+  `notEarth`.
+- **4. The end of a game.** Done. Score, the rounds, then the account
+  ask (`KeepThis`), then the share actions. The ask renders for guests
+  only, says what an account is for rather than what it unlocks, and
+  gates nothing. `appleSolo` asserts a guest sees it.
 - **5. Accounts.** Done, ahead of 3 and 4 because the founder asked for
   the account layers directly. Guest, signed in, role and tier: see
   `docs/GEO.md`, "Accounts".
 - **6. The admin backend.** Done. `/geo/admin`.
 
-Still to do, in order: **3, the round screen**, and **4, the end of a
-game**, where the account ask belongs. Then **7**, the remaining
-screens, which are repainted but not yet redesigned: rooms, rankings
-and the profile still have the old shapes under the new colours.
+
+Still to do: **7**, the remaining screens. Rooms and the room browser
+have been taken off Google and share the round screen's map card, but
+rankings and the profile still have the old shapes under the new
+colours.
 
 ## What this replaces
 

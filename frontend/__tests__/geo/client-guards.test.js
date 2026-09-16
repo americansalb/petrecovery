@@ -27,17 +27,23 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
     expect(src).not.toContain('{api && joined ? (');
   });
 
-  test('imageryReady answers for the provider the room is actually on', () => {
-    expect(src).toMatch(/const imageryReady = isApple \? Boolean\(mapkit\) : Boolean\(api\);/);
+  test('imageryReady is the handle the room actually draws with', () => {
+    // It used to read the Google handle, which an Apple room never
+    // sets. There is one imagery now, so there is one handle, and
+    // nothing here may reach for a second.
+    expect(src).toMatch(/const imageryReady = Boolean\(mapkit\);/);
+    expect(src).not.toMatch(/Boolean\(api\)/);
   });
 
-  test('the map block still holds both maps and the submit button', () => {
+  test('the map block still holds the map and the submit button', () => {
     const block = src.slice(src.indexOf('{imageryReady && joined ? ('));
     const end = block.indexOf('{/* Screens */}');
     const map = block.slice(0, end);
     expect(map).toContain('<AppleGuessMap');
-    expect(map).toContain('<GoogleGuessMap');
     expect(map).toContain('onClick={submitGuess}');
+    // The harness clicks this rather than the label, which now changes
+    // with the pin ("Guess" / "Sending") while the hook does not.
+    expect(map).toContain('data-geo-guess');
   });
 });
 
@@ -133,20 +139,47 @@ describe('RoomClient: only players load billed imagery', () => {
     // map) and missed on the expensive one, so anyone who opened the
     // room link mounted a Street View pane and loaded a panorama for
     // every round, charged to nobody.
-    expect(src).toMatch(/const showImagery = !isApple && api && joined &&/);
-    expect(src).toMatch(/const showApple = isApple && mapkit && joined &&/);
+    expect(src).toMatch(/const showApple = mapkit && joined &&/);
   });
 });
 
-describe('GoogleStreetViewPane: the self-driving car stops', () => {
-  const src = read('app/geo/components/GoogleStreetViewPane.js');
+describe('GeoLobby: no screen may assume a mode still exists', () => {
+  const src = read('app/geo/components/GeoLobby.js');
+  const { MODES, MODE_ORDER, DEFAULT_CONFIG, normalizeConfig } = require('@/app/lib/geo/modes');
 
-  test('the drive is bounded by a hop count, not only by the clock', () => {
-    // Each hop is a setPano, which is a billed panorama load. An
-    // unattended interval over a three-minute round bought about 163 of
-    // them while the meter recorded one round.
-    expect(src).toContain('MAX_DRIVE_HOPS');
-    expect(src).toMatch(/if \(trip\.hops >= MAX_DRIVE_HOPS\) \{\s*\n\s*clearInterval\(id\);/);
-    expect(src).toContain('trip.hops += 1;');
+  test('the mode state starts at a mode the game still has', () => {
+    // It started at the literal 'world', which stopped being a mode
+    // when Google went. The first render then read
+    // MODES.world.providers, which is a TypeError, and /geo was a white
+    // screen for everyone on their first visit: the saved settings that
+    // would have corrected it are restored in an effect that never ran.
+    expect(src).toContain('useState(DEFAULT_CONFIG.mode)');
+    expect(src).not.toContain("useState('world')");
+    expect(MODES[DEFAULT_CONFIG.mode]).toBeTruthy();
+  });
+
+  test('the mode the form reads can never be undefined', () => {
+    expect(src).toContain('const modeDef = MODES[config.mode] || MODES[DEFAULT_CONFIG.mode];');
+  });
+
+  test('every read of a mode down that path survives one that is gone', () => {
+    for (const line of src.split('\n')) {
+      if (!line.includes('MODES[')) continue;
+      // MODES[<something not a literal>] must be optional-chained.
+      const m = /MODES\[([^\]]+)\]\s*(\??\.)/.exec(line);
+      if (!m || /^'[a-z-]+'$/.test(m[1].trim())) continue;
+      expect(`${line.trim()} :: ${m[2]}`).toContain('?.');
+    }
+  });
+
+  test('a retired mode saved in a browser normalizes to one that plays', () => {
+    // The lobby restores its settings through normalizeConfig, which is
+    // the other half of this: an old browser holding 'kidnapped' opens
+    // on World rather than on nothing.
+    for (const old of ['world', 'cities', 'everywhere', 'kidnapped']) {
+      const mode = normalizeConfig({ mode: old }).mode;
+      expect(MODE_ORDER).toContain(mode);
+      expect(MODES[mode]).toBeTruthy();
+    }
   });
 });

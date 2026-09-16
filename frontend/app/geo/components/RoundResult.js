@@ -3,9 +3,12 @@
 /**
  * After a guess: how far, how many points, which country, and the way
  * on. The map above this panel is the shared guess map in result mode.
+ *
+ * A Not Earth round reveals something else entirely: which world that
+ * was, who took the picture and when (app/lib/geo/notEarth.js).
  */
 
-import { ArrowRight, Flag } from 'lucide-react';
+import { ArrowRight, Flag, Rocket } from 'lucide-react';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
 
 function scoreWord(score) {
@@ -17,18 +20,63 @@ function scoreWord(score) {
   return 'No points this round.';
 }
 
+/**
+ * The reveal for a round that was not on this planet: what it was, and
+ * the picture's provenance, which is the whole reason to use real NASA
+ * panoramas rather than something invented.
+ */
+function NotEarthReveal({ result, points }) {
+  const place = result.place;
+  if (!place) return null;
+  return (
+    <div className="min-w-0">
+      <p className={`text-2xl font-bold sm:text-3xl ${result.correct ? 'text-green-400' : 'text-red-400'}`}>
+        {result.correct ? `Called it. That was ${place.bodyInSentence}.` : `That was ${place.bodyInSentence}.`}
+      </p>
+      <p className="mt-1 flex items-center gap-2 text-white/85">
+        <Rocket className="h-4 w-4 shrink-0 text-clay-500" />
+        <span className="font-semibold">{place.title}</span>
+      </p>
+      <p className="mt-1 max-w-xl text-sm text-white/70">{place.note}</p>
+      <p className="mt-1 text-xs text-white/45">
+        {place.mission}, {place.taken}. Picture:{' '}
+        <a href={place.nasaUrl} target="_blank" rel="noreferrer" className="underline hover:text-white/70">
+          {place.credit}
+        </a>
+      </p>
+      {result.correct ? (
+        <p className="mt-2 text-sm font-semibold text-clay-300">
+          {formatScore(result.score)} points
+          {points?.badge ? `. New badge: ${points.badge.flag} ${points.badge.name}` : ''}
+        </p>
+      ) : (
+        <p className="mt-2 text-sm text-white/60">
+          {result.timedOut ? 'Time ran out.' : 'The Not Earth button was the answer. No points this round.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function RoundResult({ result, roundNumber, roundsTotal, isLast, isStreak, streak, onNext, countryName, points = null }) {
   const country = result.answer?.country;
   const place = [result.answer?.city, country?.name].filter(Boolean).join(', ');
+  const isNotEarth = result.kind === 'not-earth';
+  // Not Earth called on an ordinary round. The round is gone, and the
+  // player is told plainly why rather than shown a score of zero with
+  // no explanation.
+  const wrongCall = !isNotEarth && Boolean(result.calledNotEarth);
 
   return (
     <div className="absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-white/10 bg-ocean-950/95 p-4 text-white shadow-2xl backdrop-blur sm:p-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {isNotEarth ? <NotEarthReveal result={result} points={points} /> : null}
+        {isNotEarth ? null : (
         <div className="min-w-0">
           {isStreak ? (
             <>
               <p className={`text-2xl font-bold ${result.correct ? 'text-green-400' : 'text-red-400'}`}>
-                {result.correct ? `Right. Streak ${streak}.` : `Not ${countryName || result.guessCountry || 'that'}.`}
+                {result.correct ? `Right. Streak ${streak}.` : wrongCall ? 'That was Earth.' : `Not ${countryName || result.guessCountry || 'that'}.`}
               </p>
               <p className="mt-1 flex items-center gap-2 text-white/80">
                 <Flag className="h-4 w-4 text-clay-500" />
@@ -43,8 +91,9 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                 {formatScore(result.score)} <span className="text-base font-medium text-white/60">of {formatScore(MAX_ROUND_SCORE)}</span>
               </p>
               <p className="mt-1 text-white/80">
-                {result.timedOut ? 'Time ran out before a guess. ' : Number.isFinite(result.distanceKm) ? `${formatDistance(result.distanceKm)} away. ` : ''}
-                {scoreWord(result.score)}
+                {wrongCall
+                  ? 'That was Earth. Calling Not Earth costs you the round.'
+                  : `${result.timedOut ? 'Time ran out before a guess. ' : Number.isFinite(result.distanceKm) ? `${formatDistance(result.distanceKm)} away. ` : ''}${scoreWord(result.score)}`}
               </p>
               {points && (points.earned > 0 || points.badge) ? (
                 <p className="mt-1 text-sm text-clay-300">
@@ -63,6 +112,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
             </>
           )}
         </div>
+        )}
         <button
           type="button"
           onClick={onNext}

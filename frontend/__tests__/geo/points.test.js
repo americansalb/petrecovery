@@ -14,6 +14,15 @@ const { grant, spend, awardSoloRound, awardRoomRound, awardRoomFinish, shopView,
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 const { resolveProfile } = require('@/app/lib/geo/server/profiles');
 const { createRoom, joinRoom, roomAction, getRoomView } = require('@/app/lib/geo/server/rooms');
+
+/**
+ * Apple rooms have no server-side probe: every round is offered as a set
+ * of places and a browser reports the one it managed to open. These
+ * tests are about ratings and points, so they just place the first.
+ */
+async function locate(store, code, token, now) {
+  return roomAction(store, { code, token, action: 'locate', body: { index: 0 }, now, fetchImpl: hitFetch }).catch(() => null);
+}
 const { recordRound } = require('@/app/lib/geo/server/meter');
 const { REACTION_EMOJI } = require('@/app/lib/geo/rooms');
 
@@ -211,6 +220,7 @@ describe('the ledger', () => {
     const host = await createRoom(store, { name: 'Pts', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 30 }, profileId: ada.id, now: T0 });
     const joined = await joinRoom(store, { code: host.room.code, name: 'Grace', profileId: grace.id, now: T0 });
     await roomAction(store, { code: host.room.code, token: host.token, action: 'start', now: T0, fetchImpl: hitFetch });
+  await locate(store, host.room.code, host.token, T0);
     let t = T0;
     for (let r = 0; r < 3; r++) {
       // both browsers poll, so nobody counts as away when the other guesses
@@ -222,8 +232,10 @@ describe('the ledger', () => {
       if (r < 2) await roomAction(store, { code: host.room.code, token: joined.token, action: 'guess', body: { lat: round.lat, lng: ((round.lng + 360) % 360) - 180 }, now: t, fetchImpl: hitFetch });
       t += 31000;
       await getRoomView(store, { code: host.room.code, now: t, fetchImpl: hitFetch });
+    await locate(store, host.room.code, typeof tokens === 'undefined' ? host.token : tokens[0], t);
       t += 13000;
       await getRoomView(store, { code: host.room.code, now: t, fetchImpl: hitFetch });
+    await locate(store, host.room.code, typeof tokens === 'undefined' ? host.token : tokens[0], t);
     }
     const final = await getRoomView(store, { code: host.room.code, token: host.token, now: t, fetchImpl: hitFetch });
     expect(final.room.status).toBe('finished');

@@ -16,6 +16,7 @@ import { GeoSuspended, profileSummary, resolveProfile } from '@/app/lib/geo/serv
 import { hashIp, usageToday } from '@/app/lib/geo/server/meter';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { getClientIP } from '@/app/lib/geo/server/limiter';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,10 @@ export async function POST(request) {
       );
     }
     console.error('[geo/profile]', error);
-    return NextResponse.json({ error: 'Could not load your profile', code: 'internal' }, { status: 500, ...NO_STORE });
+    // Name a missing table rather than saying "internal". This endpoint
+    // 500ing for every visitor, while working locally, is exactly the
+    // shape scripts/db-sync.js exists to prevent, and the generic
+    // message gave nobody a way to tell.
+    return NextResponse.json(schemaErrorBody(error, 'Could not load your profile'), { status: 500, ...NO_STORE });
   }
 }

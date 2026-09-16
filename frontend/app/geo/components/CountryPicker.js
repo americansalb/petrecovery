@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 
-export default function CountryPicker({ countries = [], value, onChange, onSubmit, disabled, provider = 'google' }) {
+export default function CountryPicker({ countries = [], value, onChange, onSubmit, disabled, provider = 'apple' }) {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef(null);

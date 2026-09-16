@@ -29,7 +29,12 @@
  *    is worse than one that can, but it is far better than no deploy at
  *    all: the site keeps serving, and the endpoints whose tables are
  *    missing say so in as many words rather than answering "internal".
- *    The banner below is what to look for in the deploy log.
+ *    The banner below is what to look for in the deploy log, and it now
+ *    prints the SQL the database is still missing rather than only the
+ *    one change that was refused. Those are not the same list: Prisma
+ *    applies a push whole or not at all, so one refusable change leaves
+ *    every safe addition behind it unapplied as well, quietly, on every
+ *    deploy from then on.
  */
 
 const { spawnSync } = require('node:child_process');
@@ -62,17 +67,57 @@ if (result.status === 0) {
   process.exit(0);
 }
 
+/**
+ * What the database is still missing, as SQL.
+ *
+ * `db push` prints its refusal and stops, and the refusal is about the
+ * one change it will not make. It says nothing about everything else in
+ * the same push, which is also now unapplied: Prisma applies a push
+ * whole or not at all. So one column that cannot be dropped safely
+ * leaves every new table and every new column behind it missing too,
+ * on every deploy from then on, and the only visible symptom is one
+ * endpoint answering 500 while the rest of the site looks fine.
+ *
+ * `migrate diff` answers the question that actually matters, which is
+ * what the gap IS. It is read-only and touches nothing.
+ */
+const diff = spawnSync(
+  'npx',
+  ['prisma', 'migrate', 'diff', '--from-schema-datasource', 'prisma/schema.prisma', '--to-schema-datamodel', 'prisma/schema.prisma', '--script'],
+  { encoding: 'utf8', env: process.env }
+);
+const pending = diff.status === 0 ? String(diff.stdout || '').trim() : '';
+
 console.error('');
 console.error('==========================================================');
 console.error('[db-sync] THE SCHEMA WAS NOT APPLIED.');
 console.error('');
-console.error('The build carries on and the site will deploy, but any');
-console.error('table this schema adds is missing, and the routes that');
-console.error('need one will answer schema_missing until it is there.');
+console.error('The build carries on and the site will deploy, but every');
+console.error('table and column this schema adds is missing, and the');
+console.error('routes that need one answer schema_missing until it is');
+console.error('there. Reads of a table that is only missing a column go');
+console.error('on working, so this can look like one broken endpoint');
+console.error('rather than a database a whole deploy behind.');
 console.error('');
 console.error('Prisma refuses a change that would lose data unless it is');
-console.error('asked to, and this never asks. If that is what happened,');
-console.error('the diff above says which column or table it is about.');
+console.error('asked to, and this never asks. It refuses the WHOLE push');
+console.error('when it does, so one refusable change blocks all the safe');
+console.error('ones with it. The refusal above names that one change.');
+if (pending) {
+  console.error('');
+  console.error('This is everything the database is still missing. Each');
+  console.error('statement is safe to run by hand except a DROP, which is');
+  console.error('the one to look at first:');
+  console.error('');
+  console.error(pending);
+} else {
+  console.error('');
+  console.error('`prisma migrate diff` could not read the database to say');
+  console.error('what is missing, so run it by hand:');
+  console.error('');
+  console.error('  npx prisma migrate diff --from-schema-datasource prisma/schema.prisma \\');
+  console.error('    --to-schema-datamodel prisma/schema.prisma --script');
+}
 console.error('==========================================================');
 console.error('');
 process.exit(0);

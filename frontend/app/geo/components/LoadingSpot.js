@@ -1,34 +1,21 @@
 'use client';
 
 /**
- * Between rounds: what the server is doing, in plain words, with a
- * counter for Apple attempts.
+ * Between rounds: what is happening, in plain words.
+ *
+ * A round is a list of places the browser tries in turn until Look
+ * Around opens at one (app/geo/lib/lookAround.js), so the honest thing
+ * to show is which one it is on. It used to cycle four invented steps
+ * about probing Street View, which described the server's old Google
+ * work and, once that went, described nothing at all.
  */
 
-import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-const GOOGLE_STEPS = [
-  'Picking a random point on Earth',
-  'Checking whether it is land',
-  'Asking Street View for imagery nearby',
-  'Trying more points',
-];
-
-export default function LoadingSpot({ provider, roundNumber, appleAttempt, appleTotal }) {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    setStep(0);
-    const id = setInterval(() => setStep((s) => Math.min(GOOGLE_STEPS.length - 1, s + 1)), 1400);
-    return () => clearInterval(id);
-  }, [roundNumber]);
-
-  const message =
-    provider === 'apple'
-      ? appleTotal
-        ? `Trying spot ${Math.min(appleTotal, (appleAttempt || 0) + 1)} of ${appleTotal} for Look Around imagery`
-        : 'Picking random city streets'
-      : GOOGLE_STEPS[step];
+export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal }) {
+  const message = appleTotal
+    ? `Trying spot ${Math.min(appleTotal, (appleAttempt || 0) + 1)} of ${appleTotal}`
+    : 'Picking a street';
 
   return (
     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center" role="status" aria-live="polite">
