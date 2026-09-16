@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Pull real sentences for Babel out of Tatoeba.
+ * Pull real sentences for Script mode out of Tatoeba.
  *
  * The corpus started as three sentences per language, written for the
  * game, saying the same three things in all 159: a cold morning, hot

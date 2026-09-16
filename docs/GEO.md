@@ -16,8 +16,8 @@ Founder direction, 2026-09-12: the game is Apple-first. Apple Look Around
 is the default imagery, the lobby and the room form open on it, and the
 daily challenge and the weekly cup are played on it. Google Street View
 is the option for what Apple does not have: the countryside, the hundred
-or so other countries, photo spheres (Off the Road) and a car that drives
-itself (Passenger).
+or so other countries, photo spheres (Everywhere) and a car that drives
+itself (Kidnapped).
 
 What that buys and what it costs, plainly:
 
@@ -26,7 +26,7 @@ What that buys and what it costs, plainly:
   account), which the play meter keeps the whole site under. There is no
   per-player allowance on Apple and none is needed. Google rounds stay
   metered as before.
-- **Coverage.** City Streets in 23 countries (`APPLE_COVERAGE` in
+- **Coverage.** City streets in 23 countries (`APPLE_COVERAGE` in
   `app/lib/geo/coverage.js`): the US, Canada, the UK, Ireland, Japan,
   Australia, New Zealand, Singapore, Hong Kong, Israel and thirteen in
   Europe. No countryside anywhere, no Africa, no South America, no Asia
@@ -34,8 +34,8 @@ What that buys and what it costs, plainly:
   list is maintained by hand and should be checked against Apple's
   coverage page when it grows.
 - **What plays on Apple.** World, Balanced, Daily, Cup, Continent,
-  Country and Streak, all as draws of city streets (see "How a
-  round is built"). Off the Road and Passenger are Google only by nature.
+  Country and Country streak, all as draws of city streets (see "How a
+  round is built"). Everywhere and Kidnapped are Google only by nature.
   The Apple world is the city list: adding a covered city to
   `CITY_ROWS` is how it grows.
 - **The token, and the host it is for.** MapKit JS needs a token from an
@@ -113,7 +113,7 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    *Country* are the covered cities inside them, and a continent or
    country Apple has not reached is refused in plain words. The Google
    draws below are what the Google option does.
-   - *Anywhere*: a point uniformly distributed over the sphere
+   - *World, pure random*: a point uniformly distributed over the sphere
      (uniform in the sine of the latitude, so the poles are not
      over-represented), thrown away if it is not on land. Antarctica is
      excluded.
@@ -122,9 +122,9 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
      small countries still come up, then a random point inside its
      polygon.
    - *Continent / country*: the same, restricted.
-   - *Off the Road*: a random spot in one of the cities listed in
+   - *Everywhere*: a random spot in one of the cities listed in
      `coverage.js` for countries with **no** official Street View at all.
-   - *City Streets*: a random spot within one of the 185 covered cities
+   - *City streets*: a random spot within one of the 185 covered cities
      (`app/lib/geo/coverage.js`).
 2. **The imagery probe (Google).** `app/lib/geo/server/streetview.js`
    calls the Street View Static API *metadata* endpoint for each
@@ -133,8 +133,8 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    imagery (the copyright line says Google; user photo spheres are
    skipped) and outdoor. The first hit in candidate order wins, so a seed
    reproduces the same round while coverage is unchanged.
-   In every mode but Off the Road a hit must be official Google imagery.
-   Off the Road inverts that, below.
+   In every mode but Everywhere a hit must be official Google imagery.
+   Everywhere inverts that, below.
 3. **The imagery probe (Apple).** MapKit JS has no availability call, so
    the browser creates a Look Around view for each candidate in turn and
    listens for `load` or `error` (`app/geo/lib/lookAround.js`).
@@ -180,7 +180,7 @@ Results, room cards, the share text and the OpenGraph card name the
 format whenever it is not Moving. Street names are hidden in every
 format on both providers.
 
-**Passenger** is a mode with its own clock rather than a format: three
+**Kidnapped** is a mode with its own clock rather than a format: three
 minutes a round, Google only, rounds and the probe radius still yours.
 The car drives itself (`app/geo/lib/drive.js`, run by
 `GoogleStreetViewPane` every 1.1 s): each step takes the Street View
@@ -191,7 +191,7 @@ the clock runs out; the answer is the spot you were dropped at (a few
 hundred metres of road do not move the score), and the HUD counts how
 far you have been driven.
 
-## Off the Road: the third of the world Street View never drove
+## Everywhere: the third of the world Street View never drove
 
 Google's coverage stops at a border for reasons of law and business, not
 geography. 119 countries are in `GOOGLE_COVERAGE`. The country metadata
@@ -211,20 +211,20 @@ from the answer space before the player has looked at anything. A large
 part of what looks like expertise in this genre is knowing where a
 company chose to drive.
 
-**Off the Road** is the mode that makes that knowledge worth nothing.
+**Everywhere** is the mode that makes that knowledge worth nothing.
 
 - **Where it draws from.** Cities in countries with no official coverage
   (`citiesOffCoverage()` in `app/lib/geo/coverage.js`). It is a city list
   rather than a country pool because the imagery that exists in those
   countries is user photo spheres, and those cluster in cities.
 - **What counts as a hit.** The probe normally rejects anything whose
-  copyright line is not Google. Off the Road passes `allowUnofficial` and
+  copyright line is not Google. Everywhere passes `allowUnofficial` and
   takes the sphere, because there is nothing else there. No other mode
   is affected: the flag is derived from the mode inside
   `probeForImagery`.
 - **A wider probe radius.** Spheres are far sparser than a Street View
   car's line, so candidates carry at least a 10 km radius rather than the
-  2 km City Streets uses. Metadata requests are free and unmetered, so a
+  2 km City streets uses. Metadata requests are free and unmetered, so a
   mode that probes harder costs nothing extra; only the round itself
   counts against the play meter.
 - **No movement.** A photo sphere is one viewpoint with no links, so
@@ -949,8 +949,8 @@ holds the counts per subject per UTC day per provider):
 
 The site's budget is the one limit counted in panorama loads rather than
 rounds, because it is the one that exists to bound the bill. Every mode
-shows one panorama a round except Passenger, where the car drives itself
-and each hop is another billed load: a Passenger round is 73 loads
+shows one panorama a round except Kidnapped, where the car drives itself
+and each hop is another billed load: a Kidnapped round is 73 loads
 (`KIDNAPPED_LOADS`, one for the drop and `MAX_DRIVE_HOPS` for the
 drive). The drive stops when those hops are spent.
 
@@ -1167,7 +1167,7 @@ GEO_STREET_VIEW_METADATA_URL=...   # optional, development only: a local mock of
 Free tier (Google, per month, as of March 2025 pricing): metadata probes
 unlimited, 5,000 Dynamic Street View loads, 10,000 Dynamic Maps loads.
 One game of five rounds is five panorama loads and one map load. One
-game of Passenger is up to 365, because the car drives.
+game of Kidnapped is up to 365, because the car drives.
 
 Apple: the app already loads MapKit JS. Look Around arrived in MapKit JS
 5.79 but is not in the full `mapkit.js` bundle; the game asks for the
@@ -1206,7 +1206,7 @@ node scripts/geo-e2e/run.js                      # BASE_URL, CHROME_PATH, GEO_E2
 ```
 
 It plays a three-round pin game with the keyboard shortcuts, checks the
-summary, the share page and a seeded replay, then a Passenger round
+summary, the share page and a seeded replay, then a Kidnapped round
 where the car drives itself and stops at the guess, a country streak, a
 timed NMPZ round that runs out, the mobile map sheet, a two-browser
 room, the daily board and the profile page. It fails on any page error. Unit tests for everything below the browser:

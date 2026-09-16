@@ -25,7 +25,7 @@ export default function GeoFooter() {
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-4">
         <p>
           Imagery from Google Street View and Apple Look Around, shown under their own terms. Country outlines from Natural
-          Earth. Babel sentences from{' '}
+          Earth. Script sentences from{' '}
           <a href="https://tatoeba.org" className="underline hover:text-midnight-700" rel="noreferrer noopener" target="_blank">
             Tatoeba
           </a>

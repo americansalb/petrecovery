@@ -152,7 +152,7 @@ async function probeForImagery({ source, config, roundIndex, googleServerKey, fe
     const message =
       code === 'no_imagery'
         ? allowUnofficial
-          ? 'No photo spheres turned up near the places tried. Off the Road runs on imagery people uploaded themselves, so it is thinner than the rest of the game. Try again.'
+          ? 'No photo spheres turned up near the places tried. Everywhere runs on imagery people uploaded themselves, so it is thinner than the rest of the game. Try again.'
           : 'No Street View imagery turned up near the random points. Try again or widen the search radius.'
         // Google's own error_message names the key and the project
         // state ("The provided API key is invalid", "This API project

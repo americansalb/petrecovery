@@ -104,8 +104,8 @@ refused token does not throw, it just draws nothing.
 
 ### 1b. Google keys with quota caps. Optional, and blocking for the Google modes.
 
-Without them the Google option is off: no countryside, no Off the Road, no
-Passenger, and the other hundred-odd countries. With them, **caps**
+Without them the Google option is off: no countryside, no Everywhere, no
+Kidnapped, and the other hundred-odd countries. With them, **caps**
 matter, because without caps the game cannot be allowed to serve them.
 
 - In a Google Cloud project, enable **Maps JavaScript API** and **Street
@@ -119,7 +119,7 @@ matter, because without caps the game cannot be allowed to serve them.
   be bypassed by a bug in my code.
 
 A launch without Google keys is the Apple-first game as designed: city
-streets in 23 countries in every mode but Off the Road and Passenger, plus
+streets in 23 countries in every mode but Everywhere and Kidnapped, plus
 Script mode, which needs neither.
 
 ### 2. Where it lives. Blocking.
@@ -158,7 +158,7 @@ the mail lands in spam.
 In order, and each is useful even if the next never happens.
 
 1. **Measure photo-sphere density with a live key.** Half an hour. It
-   decides whether Off the Road is a mode or a footnote, and I have never
+   decides whether Everywhere is a mode or a footnote, and I have never
    been able to run it: this environment has no key and the proxy blocks
    the endpoint.
 2. **A phone pass on the play screen.** The audit above says the lobby

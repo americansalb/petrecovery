@@ -711,7 +711,7 @@ async function script(browser) {
   // until it times out, so "idle" never arrives on a page that is
   // perfectly usable. The selector below is the real readiness signal.
   await page.goto(`${BASE}/geo/script`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('h1:has-text("Babel")', { timeout: 30000 });
+  await page.waitForSelector('h1:has-text("Script")', { timeout: 30000 });
 
   // The lobby renders on the server, so a click can land before React
   // has hydrated and be swallowed. Press until the button says it took:

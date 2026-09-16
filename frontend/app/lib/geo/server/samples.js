@@ -1,5 +1,5 @@
 /**
- * The sample sentences a Babel round shows.
+ * The sample sentences a Script round shows.
  *
  * Server only, and that is a rule rather than a habit: if the browser
  * held the whole corpus it could match the text on screen against it and
