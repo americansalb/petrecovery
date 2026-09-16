@@ -237,9 +237,33 @@
   const nsListeners = {};
   const fire = (name, event) => (nsListeners[name] || []).forEach((fn) => fn(event));
 
+  // Apple defines mapkit.LookAround up front as a placeholder that
+  // THROWS when constructed, and only swaps in the real class once the
+  // look-around library is loaded. The fake used to hand out a working
+  // class immediately, so it could not catch the bug where the game
+  // checked `if (mapkit.LookAround)`, found the placeholder, skipped
+  // the load, and died on every Apple round on the live site.
+  //
+  // So the fake throws the same sentence Apple throws, tracks
+  // loadedLibraries the same way, and only becomes usable after load().
+  const loadedLibraries = [];
+  class LookAroundPlaceholder {
+    constructor() {
+      throw new Error('[MapKit] mapkit.LookAround is available after loading the following library: look-around.');
+    }
+  }
+
   window.mapkit = {
-    LookAround,
-    load: (library) => Promise.resolve(library),
+    LookAround: LookAroundPlaceholder,
+    loadedLibraries,
+    load: (library) => {
+      const names = String(library || '').split(/[\s,]+/).filter(Boolean);
+      for (const name of names) {
+        if (!loadedLibraries.includes(name)) loadedLibraries.push(name);
+        if (name === 'look-around') window.mapkit.LookAround = LookAround;
+      }
+      return Promise.resolve(names);
+    },
     addEventListener(name, fn) {
       (nsListeners[name] = nsListeners[name] || []).push(fn);
     },
