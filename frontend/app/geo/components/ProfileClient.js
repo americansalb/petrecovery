@@ -19,6 +19,7 @@ import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import SignInCard from './SignInCard';
+import PlanCard from './PlanCard';
 
 const KIND_ORDER = ['pin', 'color', 'title', 'frame', 'reactions'];
 
@@ -254,6 +255,10 @@ export default function ProfileClient() {
                 <SignInCard />
               </div>
             </section>
+
+            {/* What this account is: tier, and role when it is not the
+                ordinary one. Renders for signed-in players only. */}
+            <PlanCard />
 
             {/* Name */}
             <section className="rounded-2xl border border-sand-200 bg-white p-5">

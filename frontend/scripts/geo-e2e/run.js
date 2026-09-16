@@ -730,7 +730,9 @@ async function admin(browser) {
 
   try {
     await prisma.geoAccount.create({ data: { email, role: 'admin' } });
-    await prisma.geoAccount.create({ data: { email: player } });
+    // A supporter, so the profile's plan card has something to say
+    // beyond the default.
+    await prisma.geoAccount.create({ data: { email: player, tier: 'supporter' } });
 
     // An ordinary player is refused, and the page says so rather than
     // rendering an empty dashboard.
@@ -740,6 +742,15 @@ async function admin(browser) {
     await theirs.waitForSelector('text=This account is not an admin', { timeout: 20000 });
     if (await theirs.locator('table').count()) throw new Error('a refused player should see no table');
     log('a player is refused and shown why');
+
+    // The same account's profile should name its tier, and should not
+    // claim a role it does not have.
+    await theirs.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
+    await theirs.waitForSelector('[data-plan]', { timeout: 20000 });
+    const plan = (await theirs.textContent('[data-plan]')).replace(/\s+/g, ' ');
+    log('plan card:', plan.slice(0, 90));
+    if (!/Supporter/.test(plan)) throw new Error('a supporter should see their tier named');
+    if (/Admin/.test(plan)) throw new Error('an ordinary player should not be shown a role badge');
     await theirs.close();
 
     // The admin gets the real screen.
