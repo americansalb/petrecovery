@@ -21,7 +21,7 @@
  *   (the play meter would otherwise stop one address at 25 Google rounds and one room a day)
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=rooms node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -512,7 +512,7 @@ async function ranked(browser) {
     // the play URL races the profile this browser is about to be given,
     // and a ranked round is refused to anyone but the profile that
     // opened it.
-    await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('[data-start-ranked]', { timeout: 30000 });
     await page.click('[data-start-ranked]');
     for (let i = 0; i < 5; i++) {
@@ -545,7 +545,7 @@ async function ranked(browser) {
   if (!/average of \d+ other/.test(against)) throw new Error('a player with a field ahead of them should be rated against it, not against par');
 
   // The lobby carries the standing, and the ladder has a tab of its own.
-  await second.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await second.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
   await second.waitForSelector('[data-ranked-standing]', { timeout: 20000 });
   const standing = (await second.textContent('[data-ranked-standing]')).replace(/\s+/g, ' ');
   log('lobby ranked standing:', standing);
@@ -572,10 +572,42 @@ async function ranked(browser) {
  * browser and gone once there is a game behind them, because an
  * explanation that never leaves is worse than none.
  */
+/**
+ * The front door (docs/PROBABLY_EARTH_UI.md).
+ *
+ * The thing worth asserting is the thing that was wrong before: a
+ * stranger arriving here should find exactly one way to start, and
+ * pressing it should put them in a round without asking them anything.
+ */
+async function coldOpen(browser) {
+  log('\n== coldOpen ==');
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-cold-open-play]', { timeout: 30000 });
+
+  // One start, not eight. Every other control on this page is a link to
+  // somewhere else, and none of them says Play.
+  const starts = await page.locator('button:visible').count();
+  log('buttons on the front door:', starts);
+  if (starts !== 1) throw new Error(`the front door should have one button, found ${starts}`);
+
+  // Nothing to configure: no select, no radio, no text input.
+  const fields = await page.locator('select, input, [role="radio"]').count();
+  if (fields) throw new Error(`the front door should ask for nothing, found ${fields} fields`);
+
+  await shot(page, 'cold-open');
+  await page.click('[data-cold-open-play]');
+  await page.waitForSelector('text=Round 1 of 5', { timeout: 45000 });
+  await waitPlayable(page);
+  log('the front door button lands in a round');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 async function firstRun(browser) {
   log('\n== firstRun ==');
   const page = await newPage(browser, { width: 1280, height: 800 });
-  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-first-run]', { timeout: 30000 });
   const text = (await page.textContent('[data-first-run]')).replace(/\s+/g, ' ');
   log('first run panel:', text.slice(0, 140));
@@ -595,7 +627,7 @@ async function firstRun(browser) {
   }
   await page.click('button:has-text("See results")');
   await page.waitForSelector('text=/of 25,000/', { timeout: 20000 });
-  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-daily-board]', { timeout: 20000 });
   if (await page.locator('[data-first-run]').count()) {
     throw new Error('the first run panel is still there after a game');
@@ -627,7 +659,7 @@ async function daily(browser) {
   await shot(page, 'daily-summary');
   const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
 
-  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-daily-board]', { timeout: 20000 });
   const board = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
   log('lobby daily board:', board.slice(0, 160));
@@ -661,6 +693,67 @@ async function daily(browser) {
  * result and the summary; /geo/me shows the balance, the shop with its
  * pins, and the name can be changed.
  */
+/**
+ * The admin backend (app/lib/geo/server/admin.js).
+ *
+ * The thing worth proving in a browser rather than in a unit test is
+ * the refusal: a player who types /geo/admin should be told no and see
+ * nothing, and the screen should not render a single figure before the
+ * server has agreed. Needs the database, like the leaderboard scenario.
+ *
+ * It signs in the way a person does, by following a link, because a
+ * session minted any other way would not be testing the path that
+ * matters.
+ */
+async function admin(browser) {
+  log('\n== admin ==');
+  const { PrismaClient } = require('@prisma/client');
+  const { createHash, randomUUID } = require('node:crypto');
+  const prisma = new PrismaClient();
+  const hash = (token) => createHash('sha256').update(`reunitepets-geo-login:${token}`).digest('hex');
+  const email = `harness-admin-${Date.now()}@localdev.test`;
+  const player = `harness-player-${Date.now()}@localdev.test`;
+
+  const link = async (address) => {
+    const token = randomUUID().replace(/-/g, '');
+    await prisma.geoLoginToken.create({ data: { tokenHash: hash(token), email: address, expiresAt: new Date(Date.now() + 600000) } });
+    return `${BASE}/api/geo/auth/verify?token=${token}`;
+  };
+
+  try {
+    await prisma.geoAccount.create({ data: { email, role: 'admin' } });
+    await prisma.geoAccount.create({ data: { email: player } });
+
+    // An ordinary player is refused, and the page says so rather than
+    // rendering an empty dashboard.
+    const theirs = await newPage(browser, { width: 1280, height: 900 });
+    await theirs.goto(await link(player), { waitUntil: 'domcontentloaded' });
+    await theirs.goto(`${BASE}/geo/admin`, { waitUntil: 'domcontentloaded' });
+    await theirs.waitForSelector('text=This account is not an admin', { timeout: 20000 });
+    if (await theirs.locator('table').count()) throw new Error('a refused player should see no table');
+    log('a player is refused and shown why');
+    await theirs.close();
+
+    // The admin gets the real screen.
+    const page = await newPage(browser, { width: 1280, height: 900 });
+    await page.goto(await link(email), { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/geo/admin`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('text=Accounts', { timeout: 20000 });
+    await page.waitForSelector('table', { timeout: 20000 });
+    const rows = await page.locator('table tbody tr').count();
+    log('admin sees', rows, 'rows');
+    if (!rows) throw new Error('the admin screen should list the accounts that exist');
+    await shot(page, 'admin');
+    if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+    await page.close();
+  } finally {
+    await prisma.geoLoginToken.deleteMany({ where: { email: { endsWith: '@localdev.test' } } });
+    await prisma.geoProfile.deleteMany({ where: { account: { email: { endsWith: '@localdev.test' } } } });
+    await prisma.geoAccount.deleteMany({ where: { email: { endsWith: '@localdev.test' } } });
+    await prisma.$disconnect();
+  }
+}
+
 async function profile(browser) {
   const page = await newPage(browser, { width: 1280, height: 900 });
   await page.goto(`${BASE}/geo/play?provider=google&mode=balanced&rounds=3&seed=e2e-points-1&time=0`, { waitUntil: 'domcontentloaded' });
@@ -883,7 +976,7 @@ async function appleRefused(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, pinGame, kidnapped, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

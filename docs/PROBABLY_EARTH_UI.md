@@ -82,6 +82,30 @@ The game underneath. Sampling, scoring, rounds, rooms, ratings, seasons,
 the meter and the Script corpus are all working and tested, and none of
 them are what the founder is reacting to. This is the interface only.
 
+## Progress
+
+- **1. The design system.** Done. `ocean`, `forest`, `clay` and `sand`
+  are in `tailwind.config.js`, guarded by
+  `__tests__/geo/palette.test.js`, and every one of the game's 28
+  screens is off `midnight`/`flash`.
+- **2. The cold open.** Done. `/geo` is one button on the world; the
+  settings moved to `/geo/setup`. The backdrop is the Natural Earth
+  polygon set already in the bundle, so the front page needs no key and
+  cannot be blank while a third party decides whether to answer. If no
+  imagery is configured at all the button starts Script, which needs
+  nothing, rather than leading to a dead end. Harness scenario:
+  `coldOpen`, which asserts the page has exactly one button and asks
+  for nothing.
+- **5. Accounts.** Done, ahead of 3 and 4 because the founder asked for
+  the account layers directly. Guest, signed in, role and tier: see
+  `docs/GEO.md`, "Accounts".
+- **6. The admin backend.** Done. `/geo/admin`.
+
+Still to do, in order: **3, the round screen**, and **4, the end of a
+game**, where the account ask belongs. Then **7**, the remaining
+screens, which are repainted but not yet redesigned: rooms, rankings
+and the profile still have the old shapes under the new colours.
+
 ## What this replaces
 
 `app/geo/components/GeoLobby.js` is the main casualty. The lobby's job
