@@ -15,7 +15,7 @@ export function PlayerBadge({ player, size = 'md' }) {
   const dims = size === 'sm' ? 'h-7 w-7 text-[10px]' : size === 'lg' ? 'h-12 w-12 text-base' : 'h-9 w-9 text-xs';
   return (
     <span
-      className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-midnight-900 ring-2 ring-midnight-950/60`}
+      className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-sand-900 ring-2 ring-ocean-950/60`}
       style={{
         backgroundColor: player.color,
         opacity: player.eliminated ? 0.45 : 1,
@@ -25,7 +25,7 @@ export function PlayerBadge({ player, size = 'md' }) {
       title={player.name}
     >
       {initials(player.name)}
-      {player.online === false ? <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-midnight-500 ring-2 ring-midnight-950" title="Away" /> : null}
+      {player.online === false ? <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-sand-500 ring-2 ring-ocean-950" title="Away" /> : null}
     </span>
   );
 }
@@ -48,9 +48,9 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
     return (
       <div className="flex max-w-[60vw] flex-wrap items-center justify-end gap-1.5">
         {players.map((p) => (
-          <div key={p.id} className="flex items-center gap-1 rounded-full border border-white/15 bg-midnight-900/80 py-0.5 pl-0.5 pr-2 backdrop-blur" title={`${p.name}: ${isDuel ? `${p.hp} HP` : `${formatScore(p.score)} points`}`}>
+          <div key={p.id} className="flex items-center gap-1 rounded-full border border-white/15 bg-ocean-900/80 py-0.5 pl-0.5 pr-2 backdrop-blur" title={`${p.name}: ${isDuel ? `${p.hp} HP` : `${formatScore(p.score)} points`}`}>
             <PlayerBadge player={p} size="sm" />
-            <span className={`text-xs font-semibold ${p.you ? 'text-flash-300' : 'text-white'}`}>{isDuel ? p.hp : formatScore(p.score)}</span>
+            <span className={`text-xs font-semibold ${p.you ? 'text-clay-300' : 'text-white'}`}>{isDuel ? p.hp : formatScore(p.score)}</span>
             {phase === 'guessing' ? (
               <span className={`text-xs ${p.guessed ? 'text-green-400' : 'text-white/30'}`} aria-label={p.guessed ? 'guessed' : 'still guessing'}>
                 {p.guessed ? '✓' : '·'}
@@ -69,8 +69,8 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
           <PlayerBadge player={p} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <PlayerName name={p.name} cosmetics={p.cosmetics} you={p.you} className={`font-semibold ${p.you && !p.cosmetics?.color ? 'text-flash-300' : 'text-white'}`} />
-              {p.isHost ? <Crown className="h-3.5 w-3.5 text-flash-400" aria-label="Host" /> : null}
+              <PlayerName name={p.name} cosmetics={p.cosmetics} you={p.you} className={`font-semibold ${p.you && !p.cosmetics?.color ? 'text-clay-300' : 'text-white'}`} />
+              {p.isHost ? <Crown className="h-3.5 w-3.5 text-clay-500" aria-label="Host" /> : null}
               {p.eliminated ? <span className="rounded-full bg-red-500/20 px-1.5 text-[10px] font-bold uppercase text-red-300">out</span> : null}
               {p.online === false ? <span className="text-[10px] uppercase tracking-wide text-white/40">away</span> : null}
             </div>

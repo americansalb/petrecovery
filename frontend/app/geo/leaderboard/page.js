@@ -17,7 +17,7 @@ function RatingCell({ row }) {
   return (
     <span className="tabular-nums">
       <span className="font-semibold">{row.value}</span>
-      <span className="text-midnight-400"> ±{Math.round(row.rd * 2)}</span>
+      <span className="text-sand-400"> ±{Math.round(row.rd * 2)}</span>
     </span>
   );
 }
@@ -42,40 +42,40 @@ export default function GeoLeaderboardPage() {
   const you = board?.you;
 
   return (
-    <div className="min-h-screen bg-midnight-50 text-midnight-900">
+    <div className="min-h-screen bg-sand-50 text-sand-900">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
         <header>
-          <p className="text-sm font-semibold uppercase tracking-wide text-midnight-500">
+          <p className="text-sm font-semibold uppercase tracking-wide text-sand-500">
             <Link href="/geo" className="hover:underline">Probably Earth</Link>
           </p>
           <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
-            <Trophy className="h-7 w-7 text-flash-500" />
+            <Trophy className="h-7 w-7 text-clay-600" />
             Rankings
           </h1>
-          <p className="mt-2 max-w-2xl text-midnight-600">
+          <p className="mt-2 max-w-2xl text-sand-600">
             Every finished room rates everyone in it against everyone else, with margin of victory counted. New players move fast and settle down. A rating shows once you have played {board?.minGames || 3} rated games; it stays provisional until {PROVISIONAL_GAMES}.
           </p>
         </header>
 
-        <div className="mt-6 inline-flex rounded-xl bg-midnight-100 p-1" role="tablist">
+        <div className="mt-6 inline-flex rounded-xl bg-sand-100 p-1" role="tablist">
           {LADDERS.map((id) => (
-            <button key={id} type="button" role="tab" aria-selected={ladder === id} onClick={() => setLadder(id)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${ladder === id ? 'bg-midnight-900 text-white shadow' : 'text-midnight-700 hover:bg-white'}`}>
+            <button key={id} type="button" role="tab" aria-selected={ladder === id} onClick={() => setLadder(id)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${ladder === id ? 'bg-ocean-900 text-white shadow' : 'text-sand-700 hover:bg-white'}`}>
               {LADDER_LABELS[id] || VARIANTS[id]?.label || id}
             </button>
           ))}
         </div>
         {board?.season ? (
-          <p className="mt-2 text-sm text-midnight-600" data-season>
+          <p className="mt-2 text-sm text-sand-600" data-season>
             {board.season.label}. {board.season.daysLeft} {board.season.daysLeft === 1 ? 'day' : 'days'} left. Ratings carry over softly, and finishing a season Silver or better on a ladder with three or more rated games pays points.
           </p>
         ) : null}
 
         {you ? (
-          <section className="mt-6 rounded-2xl border border-midnight-900 bg-midnight-900 p-5 text-white">
+          <section className="mt-6 rounded-2xl border border-ocean-900 bg-ocean-900 p-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/60">You, {you.name}</p>
             <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-2">
               <div>
-                <p className="text-4xl font-bold tabular-nums text-flash-300">{you.value}</p>
+                <p className="text-4xl font-bold tabular-nums text-clay-300">{you.value}</p>
                 <p className="text-sm text-white/70">
                   {you.tier}
                   {you.provisional ? ', provisional' : ''} · likely between {you.low} and {you.high}
@@ -106,9 +106,9 @@ export default function GeoLeaderboardPage() {
 
         {error ? <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p> : null}
 
-        <section className="mt-6 overflow-x-auto rounded-2xl border border-midnight-200 bg-white">
+        <section className="mt-6 overflow-x-auto rounded-2xl border border-sand-200 bg-white">
           <table className="w-full text-sm">
-            <thead className="bg-midnight-50 text-left text-xs uppercase tracking-wide text-midnight-500">
+            <thead className="bg-sand-50 text-left text-xs uppercase tracking-wide text-sand-500">
               <tr>
                 <th className="px-4 py-2">#</th>
                 <th className="px-4 py-2">Player</th>
@@ -121,26 +121,26 @@ export default function GeoLeaderboardPage() {
                 <th className="px-4 py-2 text-right">Streak</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-midnight-100">
+            <tbody className="divide-y divide-sand-100">
               {board === null && !error ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-midnight-500">Loading</td>
+                  <td colSpan={9} className="px-4 py-6 text-center text-sand-500">Loading</td>
                 </tr>
               ) : null}
               {board && !board.rows.length ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-midnight-600">
+                  <td colSpan={9} className="px-4 py-6 text-center text-sand-600">
                     Nobody has {board.minGames} rated games on this ladder yet.
                   </td>
                 </tr>
               ) : null}
               {(board?.rows || []).map((row) => (
-                <tr key={row.profileId} className={row.profileId === you?.profileId ? 'bg-flash-50' : ''}>
-                  <td className="px-4 py-2 tabular-nums text-midnight-500">{row.rank}</td>
+                <tr key={row.profileId} className={row.profileId === you?.profileId ? 'bg-clay-50' : ''}>
+                  <td className="px-4 py-2 tabular-nums text-sand-500">{row.rank}</td>
                   <td className="px-4 py-2 font-semibold">
                     <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} />
                   </td>
-                  <td className="px-4 py-2 text-midnight-600">{row.tier}</td>
+                  <td className="px-4 py-2 text-sand-600">{row.tier}</td>
                   <td className="px-4 py-2"><RatingCell row={row} /></td>
                   <td className="px-4 py-2 text-right tabular-nums">{row.games}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{row.wins}</td>
@@ -153,7 +153,7 @@ export default function GeoLeaderboardPage() {
           </table>
         </section>
 
-        <p className="mt-4 flex items-center gap-2 text-sm text-midnight-600">
+        <p className="mt-4 flex items-center gap-2 text-sm text-sand-600">
           <Users className="h-4 w-4" />
           Ratings come from rooms only. Solo games and the daily challenge are not rated.
         </p>

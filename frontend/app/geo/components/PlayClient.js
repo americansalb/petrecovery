@@ -55,7 +55,7 @@ export function statsSentence(stats) {
 
 function Panel({ children }) {
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-midnight-950/95 p-4">
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950/95 p-4">
       <div className="w-full max-w-lg">{children}</div>
     </div>
   );
@@ -64,9 +64,9 @@ function Panel({ children }) {
 function ErrorPanel({ title, message, stats, onRetry, retrying, appleHref, resetAt }) {
   return (
     <Panel>
-      <div className="rounded-2xl border border-white/10 bg-midnight-900 p-5 text-white">
+      <div className="rounded-2xl border border-white/10 bg-ocean-900 p-5 text-white">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-flash-400" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-500" />
           <div className="min-w-0">
             <h2 className="text-lg font-bold">{title}</h2>
             <p className="mt-1 text-sm text-white/80">{message}</p>
@@ -76,12 +76,12 @@ function ErrorPanel({ title, message, stats, onRetry, retrying, appleHref, reset
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {appleHref ? (
-            <Link href={appleHref} className="rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500">
+            <Link href={appleHref} className="rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600">
               Play this on Apple imagery
             </Link>
           ) : null}
           {onRetry ? (
-            <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2 text-sm font-bold text-midnight-900 hover:bg-flash-500 disabled:opacity-50">
+            <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600 disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
               {retrying ? 'Trying again' : 'Try again'}
             </button>
@@ -410,8 +410,8 @@ export default function PlayClient() {
     mapClass = `absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-20 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
-      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-midnight-900'
-      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-midnight-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
+      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
+      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
     mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
   }
@@ -422,7 +422,7 @@ export default function PlayClient() {
   const roundNumber = state.roundIndex + 1;
 
   return (
-    <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-midnight-950 text-white">
+    <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
       {/* Imagery */}
       {sdkReady && isGoogle ? (
         <GoogleStreetViewPane
@@ -454,7 +454,7 @@ export default function PlayClient() {
       ) : null}
 
       {/* Backdrop behind results */}
-      {mapMode === 'result' ? <div className="absolute inset-0 z-20 bg-midnight-950/85" /> : null}
+      {mapMode === 'result' ? <div className="absolute inset-0 z-20 bg-ocean-950/85" /> : null}
 
       {/* HUD */}
       {(inRound || mapMode === 'result') && state.status !== 'summary' ? (
@@ -495,7 +495,7 @@ export default function PlayClient() {
               type="button"
               onClick={() => submitGuess()}
               disabled={!state.pin || state.status !== 'playing'}
-              className="h-12 shrink-0 bg-flash-400 text-base font-bold text-midnight-900 transition hover:bg-flash-500 disabled:cursor-not-allowed disabled:bg-midnight-800 disabled:text-white/50"
+              className="h-12 shrink-0 bg-clay-500 text-base font-bold text-white transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/50"
             >
               {state.status === 'submitting' ? 'Scoring' : state.pin ? 'Guess' : 'Place your pin on the map'}
             </button>
@@ -505,7 +505,7 @@ export default function PlayClient() {
 
       {/* Streak: the country picker instead of a map */}
       {inRound && isStreak ? (
-        <div className={mobileMapOpen ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 rounded-t-2xl border-t border-white/10 bg-midnight-900/95 p-3 backdrop-blur' : 'absolute bottom-14 right-4 z-30 hidden h-[26rem] w-80 rounded-2xl border border-white/10 bg-midnight-900/90 p-3 shadow-2xl backdrop-blur sm:block'}>
+        <div className={mobileMapOpen ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 rounded-t-2xl border-t border-white/10 bg-ocean-900/95 p-3 backdrop-blur' : 'absolute bottom-14 right-4 z-30 hidden h-[26rem] w-80 rounded-2xl border border-white/10 bg-ocean-900/90 p-3 shadow-2xl backdrop-blur sm:block'}>
           <CountryPicker countries={server?.countries || []} provider={config.provider} value={state.pin?.countryCode || ''} onChange={(code) => dispatch({ type: 'pin', pin: { countryCode: code } })} onSubmit={() => submitGuess()} disabled={state.status !== 'playing'} />
         </div>
       ) : null}
@@ -540,7 +540,7 @@ export default function PlayClient() {
         />
       ) : null}
       {state.status === 'summary' ? (
-        <Link href="/geo" className="absolute right-4 top-4 z-50 rounded-full border border-white/20 bg-midnight-900/80 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-midnight-800">
+        <Link href="/geo" className="absolute right-4 top-4 z-50 rounded-full border border-white/20 bg-ocean-900/80 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-ocean-800">
           Leave
         </Link>
       ) : null}
@@ -555,12 +555,12 @@ export default function PlayClient() {
         </Panel>
       ) : null}
       {!server && !serverError ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-midnight-950 text-white/70">Loading</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading</div>
       ) : null}
       {serverError ? <ErrorPanel title="The game cannot start" message={serverError} /> : null}
       {sdkError ? <ErrorPanel title={isGoogle ? 'Google Maps did not load' : 'Apple Look Around did not load'} message={sdkError} /> : null}
       {configured && !sdkReady && !sdkError && server ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-midnight-950 text-white/70">Loading {isGoogle ? 'Street View' : 'Look Around'}</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading {isGoogle ? 'Street View' : 'Look Around'}</div>
       ) : null}
       {state.status === 'error' && !autoRetrying ? (
         <ErrorPanel

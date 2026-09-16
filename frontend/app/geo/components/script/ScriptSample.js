@@ -133,7 +133,7 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
         dir={rtl ? 'rtl' : 'ltr'}
         lang={script}
         style={{ fontFamily: stack }}
-        className={`select-none break-words text-midnight-900 ${textSize} ${rtl ? 'text-right' : ''}`}
+        className={`select-none break-words text-sand-900 ${textSize} ${rtl ? 'text-right' : ''}`}
       >
         {text}
       </p>

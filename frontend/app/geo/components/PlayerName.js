@@ -16,7 +16,7 @@ export default function PlayerName({ name, cosmetics = null, you = false, dark =
         {you ? ' (you)' : ''}
       </span>
       {title ? (
-        <span className={`shrink-0 rounded-full px-1.5 text-[10px] font-bold uppercase tracking-wide ${dark ? 'bg-white/10 text-white/70' : 'bg-midnight-100 text-midnight-600'}`}>{title}</span>
+        <span className={`shrink-0 rounded-full px-1.5 text-[10px] font-bold uppercase tracking-wide ${dark ? 'bg-white/10 text-white/70' : 'bg-sand-100 text-sand-600'}`}>{title}</span>
       ) : null}
     </span>
   );

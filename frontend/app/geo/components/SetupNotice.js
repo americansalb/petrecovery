@@ -9,12 +9,12 @@ import Link from 'next/link';
 export default function SetupNotice({ provider = 'google', missing = [], compact = false, tone = 'dark' }) {
   const list = missing.length ? missing : ['GOOGLE_STREET_VIEW_API_KEY', 'GOOGLE_MAPS_BROWSER_KEY'];
   const light = tone === 'light';
-  const body = light ? 'text-midnight-700' : 'text-white/80';
-  const code = light ? 'text-midnight-900' : 'text-flash-200';
-  const faint = light ? 'text-midnight-500' : 'text-white/60';
+  const body = light ? 'text-sand-700' : 'text-white/80';
+  const code = light ? 'text-sand-900' : 'text-clay-200';
+  const faint = light ? 'text-sand-500' : 'text-white/60';
   return (
     <div
-      className={`rounded-2xl border ${light ? 'border-flash-500/60 bg-flash-50 text-midnight-900' : 'border-flash-400/40 bg-flash-400/10 text-white'} ${compact ? 'p-4' : 'p-5 sm:p-6'}`}
+      className={`rounded-2xl border ${light ? 'border-clay-600/60 bg-clay-50 text-sand-900' : 'border-clay-500/40 bg-clay-500/10 text-white'} ${compact ? 'p-4' : 'p-5 sm:p-6'}`}
     >
       <h2 className="text-lg font-bold">{provider === 'google' ? 'Google Street View is not set up on this server' : 'Apple Look Around is not available'}</h2>
       {provider === 'google' ? (
@@ -42,7 +42,7 @@ export default function SetupNotice({ provider = 'google', missing = [], compact
         </p>
       )}
       {!compact ? (
-        <Link href="/geo" className={`mt-4 inline-block rounded-xl border px-4 py-2 text-sm font-semibold ${light ? 'border-midnight-300 hover:bg-white' : 'border-white/20 hover:bg-white/10'}`}>
+        <Link href="/geo" className={`mt-4 inline-block rounded-xl border px-4 py-2 text-sm font-semibold ${light ? 'border-sand-300 hover:bg-white' : 'border-white/20 hover:bg-white/10'}`}>
           Back to the lobby
         </Link>
       ) : null}

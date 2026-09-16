@@ -69,7 +69,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Which country is this?"
-          className="w-full rounded-xl border border-white/15 py-2.5 pl-9 pr-3 text-sm placeholder:text-white/40 focus:border-flash-400 focus:outline-none"
+          className="w-full rounded-xl border border-white/15 py-2.5 pl-9 pr-3 text-sm placeholder:text-white/40 focus:border-clay-500 focus:outline-none"
           // globals.css paints every input white for the light pages; this one sits on the dark HUD
           style={{ backgroundColor: 'rgba(2, 6, 23, 0.85)', color: '#ffffff' }}
           autoComplete="off"
@@ -89,7 +89,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
                 onSubmit?.();
               }}
               onMouseEnter={() => setActive(i)}
-              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${value === country.code ? 'bg-flash-400 text-midnight-900' : i === active ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/10'}`}
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${value === country.code ? 'bg-clay-500 text-white' : i === active ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/10'}`}
             >
               <span className="w-6 text-base leading-none">{country.flag}</span>
               <span className="flex-1 truncate">{country.name}</span>
@@ -103,7 +103,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
         type="button"
         onClick={onSubmit}
         disabled={!selected || disabled}
-        className="mt-2 w-full rounded-xl bg-flash-400 py-3 text-sm font-bold text-midnight-900 transition hover:bg-flash-500 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-2 w-full rounded-xl bg-clay-500 py-3 text-sm font-bold text-white transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {selected ? `Guess ${selected.flag} ${selected.name}` : 'Pick a country'}
       </button>

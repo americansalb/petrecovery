@@ -16,9 +16,31 @@
  * would only be describing work already planned.
  */
 
-const tailwind = require('../../tailwind.config.js');
+/**
+ * Read rather than required, deliberately.
+ *
+ * `__tests__/geo` counts as the game for isolation.test.js, and that
+ * test's allowance list is empty on purpose: the game imports nothing
+ * outside its own tree, so it stays one file move from its own
+ * repository. Reading the config as text keeps that true while still
+ * checking the thing that matters, which is what is actually declared.
+ */
+const fs = require('fs');
+const path = require('path');
 
-const colors = tailwind.theme.extend.colors;
+const source = fs.readFileSync(path.resolve(__dirname, '../../tailwind.config.js'), 'utf8');
+
+/** The steps of one ramp, pulled out of the config's text. */
+function ramp(name) {
+  const start = source.indexOf(`${name}: {`);
+  if (start === -1) return null;
+  const body = source.slice(start, source.indexOf('}', start));
+  const steps = {};
+  for (const [, step, hex] of body.matchAll(/(\d{2,3}):\s*'(#[0-9a-fA-F]{6})'/g)) steps[step] = hex.toLowerCase();
+  return Object.keys(steps).length ? steps : null;
+}
+
+const colors = Object.fromEntries(['ocean', 'forest', 'clay', 'sand', 'midnight', 'flash'].map((name) => [name, ramp(name)]));
 const RAMP = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
 
 describe('the game has a palette of its own', () => {

@@ -40,7 +40,7 @@ export default function ScriptLobby() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex items-center gap-3">
-        <Languages className="h-7 w-7 text-flash-500" />
+        <Languages className="h-7 w-7 text-clay-600" />
         <h1 className="text-3xl font-bold">Script</h1>
       </div>
       <p className="mt-3 max-w-2xl text-gray-600">
@@ -55,7 +55,7 @@ export default function ScriptLobby() {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {SHOWCASE.map((row) => (
-          <div key={row.script} className="rounded-xl border border-midnight-200 bg-[#fffdf8] p-4 shadow-sm">
+          <div key={row.script} className="rounded-xl border border-sand-200 bg-[#fffdf8] p-4 shadow-sm">
             <ScriptSample text={row.text} script={row.script} size="sm" />
           </div>
         ))}
@@ -73,7 +73,7 @@ export default function ScriptLobby() {
                 type="button"
                 onClick={() => setLadder(id)}
                 aria-pressed={active}
-                className={`w-full rounded-xl border p-3 text-left transition ${active ? 'border-flash-500 bg-flash-50' : 'border-gray-200 hover:border-gray-300'}`}
+                className={`w-full rounded-xl border p-3 text-left transition ${active ? 'border-clay-600 bg-clay-50' : 'border-gray-200 hover:border-gray-300'}`}
               >
                 <span className="font-semibold text-gray-900">{option.label}</span>
                 <span className="ml-2 text-sm text-gray-500">{languagesForLadder(id).length} languages</span>
@@ -97,7 +97,7 @@ export default function ScriptLobby() {
       <button
         type="button"
         onClick={start}
-        className="mt-8 w-full rounded-xl bg-flash-500 px-4 py-3 text-lg font-semibold text-midnight-950 transition hover:bg-flash-400 sm:w-auto sm:px-8"
+        className="mt-8 w-full rounded-xl bg-clay-600 px-4 py-3 text-lg font-semibold text-sand-950 transition hover:bg-clay-500 sm:w-auto sm:px-8"
       >
         Play {rounds} rounds
       </button>
@@ -121,7 +121,7 @@ function Choice({ label, value, options, onChange }) {
             onClick={() => onChange(option.value)}
             aria-pressed={value === option.value}
             className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-              value === option.value ? 'border-flash-500 bg-flash-50 text-gray-900' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              value === option.value ? 'border-clay-600 bg-clay-50 text-gray-900' : 'border-gray-200 text-gray-600 hover:border-gray-300'
             }`}
           >
             {option.label}

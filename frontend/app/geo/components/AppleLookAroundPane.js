@@ -96,7 +96,7 @@ const AppleLookAroundPane = forwardRef(function AppleLookAroundPane(
 
   return (
     <div className="absolute inset-0">
-      <div ref={containerRef} className="absolute inset-0 bg-midnight-950" />
+      <div ref={containerRef} className="absolute inset-0 bg-ocean-950" />
       {!allowPan ? <div className="absolute inset-0 z-10 cursor-not-allowed" aria-hidden="true" title="Panning is off for this game" /> : null}
     </div>
   );

@@ -16,16 +16,16 @@ import { MODES } from '@/app/lib/geo/modes';
 export function Compass({ heading = 0 }) {
   return (
     <div
-      className="relative h-14 w-14 rounded-full border border-white/20 bg-midnight-900/80 shadow-lg backdrop-blur"
+      className="relative h-14 w-14 rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur"
       aria-label={`Facing ${Math.round(heading)} degrees`}
       role="img"
     >
       <div className="absolute inset-0 transition-transform duration-150" style={{ transform: `rotate(${-heading}deg)` }}>
-        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-flash-400">N</span>
+        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-clay-500">N</span>
         <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white/60">S</span>
         <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">E</span>
         <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">W</span>
-        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-flash-400" />
+        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-clay-500" />
         <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 rounded bg-white/40" />
       </div>
       <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
@@ -42,7 +42,7 @@ export function TimerRing({ secondsLeft, total }) {
   const seconds = secondsLeft % 60;
   const label = minutes > 0 ? `${minutes}:${String(seconds).padStart(2, '0')}` : `${seconds}`;
   return (
-    <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-lg backdrop-blur ${urgent ? 'border-red-400/60 bg-red-950/70' : 'border-white/20 bg-midnight-900/80'}`}>
+    <div className={`flex items-center gap-2 rounded-full border px-3 py-1.5 shadow-lg backdrop-blur ${urgent ? 'border-red-400/60 bg-red-950/70' : 'border-white/20 bg-ocean-900/80'}`}>
       <svg width="24" height="24" viewBox="0 0 40 40" aria-hidden="true">
         <circle cx="20" cy="20" r={radius} stroke="rgba(255,255,255,0.15)" strokeWidth="4" fill="none" />
         <circle
@@ -63,8 +63,8 @@ export function TimerRing({ secondsLeft, total }) {
   );
 }
 
-const pill = 'rounded-full border border-white/20 bg-midnight-900/80 shadow-lg backdrop-blur';
-const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-white transition hover:bg-midnight-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 disabled:opacity-40`;
+const pill = 'rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur';
+const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-white transition hover:bg-ocean-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500 disabled:opacity-40`;
 
 export default function GameHud({
   config,
@@ -103,7 +103,7 @@ export default function GameHud({
           {!isStreak ? (
             <div className="flex flex-col border-l border-white/15 pl-3 leading-tight">
               <span className="text-[11px] uppercase tracking-wide text-white/60">Score</span>
-              <span className="text-sm font-semibold tabular-nums text-flash-300">{formatScore(score)}</span>
+              <span className="text-sm font-semibold tabular-nums text-clay-300">{formatScore(score)}</span>
             </div>
           ) : null}
           {driven !== null && driven !== undefined ? (
@@ -123,7 +123,7 @@ export default function GameHud({
 
       {/* Notice: how the spot was found */}
       {notice ? (
-        <div className="pointer-events-none absolute left-1/2 top-20 z-30 max-w-[90vw] -translate-x-1/2 rounded-full border border-white/15 bg-midnight-900/85 px-4 py-1.5 text-center text-xs text-white/80 shadow-lg backdrop-blur sm:text-sm">
+        <div className="pointer-events-none absolute left-1/2 top-20 z-30 max-w-[90vw] -translate-x-1/2 rounded-full border border-white/15 bg-ocean-900/85 px-4 py-1.5 text-center text-xs text-white/80 shadow-lg backdrop-blur sm:text-sm">
           {notice}
         </div>
       ) : null}
@@ -167,7 +167,7 @@ export default function GameHud({
                 key={size}
                 type="button"
                 onClick={() => onMapSize(size)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur transition ${mapSize === size ? 'border-flash-400 bg-flash-400 text-midnight-900' : 'border-white/20 bg-midnight-900/80 text-white hover:bg-midnight-800'}`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-500 text-white' : 'border-white/20 bg-ocean-900/80 text-white hover:bg-ocean-800'}`}
                 aria-pressed={mapSize === size}
                 title={`${size} map (M cycles)`}
               >

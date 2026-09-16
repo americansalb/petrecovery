@@ -42,10 +42,33 @@ export default function ColdOpen() {
   const [signedIn, setSignedIn] = useState(false);
   const [stats, setStats] = useState(null);
   const [starting, setStarting] = useState(false);
+  // null while the answer is unknown, which is not the same as "no".
+  const [imagery, setImagery] = useState(null);
 
   useEffect(() => {
     setSignedIn(isSignedIn());
     setStats(getStats());
+    let live = true;
+    // Whether ANY street imagery is available. Neither Apple nor Google
+    // is guaranteed: a deployment without those keys used to send every
+    // visitor from this button to a dead end reading "Apple Look Around
+    // did not load. Back to the lobby", which is the worst possible
+    // first minute. Script needs no key and no quota, so when there is
+    // no imagery the button starts the game that works instead of the
+    // game that cannot.
+    fetch('/api/geo/config', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!live || !data) return;
+        setImagery(Boolean(data.providers?.apple?.configured || data.providers?.google?.configured));
+      })
+      .catch(() => {
+        // Unreachable config is not proof of missing imagery, and
+        // guessing "no" here would send a working site to Script.
+      });
+    return () => {
+      live = false;
+    };
   }, []);
 
   // The default game, which is the whole point: no choices on the way
@@ -53,10 +76,15 @@ export default function ColdOpen() {
   // settings are remembered there rather than asked for here.
   const start = () => {
     setStarting(true);
+    if (imagery === false) {
+      router.push('/geo/script/play?ladder=world&rounds=5');
+      return;
+    }
     router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
 
   const played = stats?.games || 0;
+  const scriptOnly = imagery === false;
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col overflow-hidden text-sand-50">
@@ -80,7 +108,9 @@ export default function ColdOpen() {
           Probably Earth
         </h1>
         <p className="geo-rise mt-4 max-w-md text-balance text-lg text-sand-100/85 sm:text-xl" style={{ animationDelay: '80ms' }}>
-          You are standing on a street somewhere on Earth. Work out where, and put a pin on it.
+          {scriptOnly
+            ? 'You are given a sentence in one of 159 languages. Work out where it is spoken, and put a pin on it.'
+            : 'You are standing on a street somewhere on Earth. Work out where, and put a pin on it.'}
         </p>
 
         <button
@@ -98,6 +128,11 @@ export default function ColdOpen() {
         <p className="geo-rise mt-4 text-sm text-sand-200/70" style={{ animationDelay: '220ms' }}>
           {played ? `${played} ${played === 1 ? 'game' : 'games'} played in this browser.` : 'No account needed.'}
         </p>
+        {scriptOnly ? (
+          <p className="geo-rise mt-2 max-w-sm text-xs text-sand-200/55" style={{ animationDelay: '240ms' }}>
+            Street imagery is off on this deployment, so Play starts the language game. Everything else works.
+          </p>
+        ) : null}
 
         <nav className="geo-rise mt-12 flex flex-wrap items-center justify-center gap-x-1 gap-y-2" style={{ animationDelay: '300ms' }} aria-label="Other ways to play">
           {WAYS.map((way, i) => (

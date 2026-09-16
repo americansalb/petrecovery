@@ -14,7 +14,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Globe2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Globe2, ShieldCheck } from 'lucide-react';
 import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
@@ -44,6 +45,24 @@ function isActive(link, pathname) {
 
 export default function GeoHeader() {
   const pathname = usePathname() || '';
+  // Admins get one more link. Asked of the server rather than read from
+  // a cookie: the browser is told its role so it can render, and is
+  // never believed about it. The link is a convenience, and /geo/admin
+  // checks again on every request behind it.
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/geo/auth/me', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (live) setAdmin(data?.account?.role === 'admin');
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+
   // A round or a room owns the whole screen, header included.
   if (isGameTakeover(pathname)) return null;
 
@@ -59,7 +78,7 @@ export default function GeoHeader() {
           {SITE_NAME}
         </Link>
         <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Game">
-          {GAME_LINKS.map((link) => {
+          {[...GAME_LINKS, ...(admin ? [{ href: '/geo/admin', label: 'Admin', admin: true }] : [])].map((link) => {
             const active = isActive(link, pathname);
             return (
               <Link
@@ -67,6 +86,7 @@ export default function GeoHeader() {
                 href={link.href}
                 className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${active ? 'bg-sand-50/15 text-white' : 'text-sand-100/70 hover:bg-sand-50/10 hover:text-white'}`}
               >
+                {link.admin ? <ShieldCheck className="mr-1 inline h-3.5 w-3.5 align-[-2px]" /> : null}
                 {link.label}
               </Link>
             );

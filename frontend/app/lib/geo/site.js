@@ -96,6 +96,11 @@ export const GAME_RATE_LIMITS = {
   // Deleting an account is not something a person does twice.
   '/api/geo/auth/delete': { windowMs: 60000, maxRequests: 5 },
   '/api/geo/auth': { windowMs: 60000, maxRequests: 60 },
+  // The backend. Every request here is refused outright unless the
+  // session belongs to an admin, so the bucket is not what protects it;
+  // it is here so an unauthenticated flood costs a cheap 403 rather
+  // than a database round trip each time.
+  '/api/geo/admin': { windowMs: 60000, maxRequests: 120 },
   // Script rounds are text out of a file: no upstream call, no key, no
   // cost, so they get a looser bucket than a panorama round. The limit
   // is here to slow a scraper walking the corpus, not to ration play.

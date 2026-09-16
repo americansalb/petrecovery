@@ -55,7 +55,7 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
     action = <span className="text-xs font-semibold text-green-700">Wearing</span>;
   } else if (item.usable) {
     action = (
-      <button type="button" disabled={busy} onClick={() => onEquip(item.id)} className="rounded-lg border border-midnight-300 px-3 py-1.5 text-xs font-semibold hover:bg-midnight-100 disabled:opacity-50">
+      <button type="button" disabled={busy} onClick={() => onEquip(item.id)} className="rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold hover:bg-sand-100 disabled:opacity-50">
         Wear
       </button>
     );
@@ -63,26 +63,26 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
   let buy = null;
   if (!item.owned && !item.free && !tierOnly) {
     buy = item.affordable ? (
-      <button type="button" disabled={busy} onClick={() => onBuy(item.id)} className="rounded-lg bg-midnight-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-midnight-800 disabled:opacity-50">
+      <button type="button" disabled={busy} onClick={() => onBuy(item.id)} className="rounded-lg bg-ocean-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-ocean-800 disabled:opacity-50">
         Buy for {formatScore(item.price)}
       </button>
     ) : (
-      <span className="text-xs text-midnight-500">{formatScore(item.price)} points, you have {formatScore(points)}</span>
+      <span className="text-xs text-sand-500">{formatScore(item.price)} points, you have {formatScore(points)}</span>
     );
   }
-  if (tierOnly && !item.usable) buy = <span className="text-xs text-midnight-500">Free at {item.requires.tier} on either ladder</span>;
+  if (tierOnly && !item.usable) buy = <span className="text-xs text-sand-500">Free at {item.requires.tier} on either ladder</span>;
   return (
-    <li className={`flex items-center gap-3 rounded-xl border p-3 ${wearing ? 'border-midnight-900 bg-midnight-50' : 'border-midnight-200 bg-white'}`}>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-midnight-100">
+    <li className={`flex items-center gap-3 rounded-xl border p-3 ${wearing ? 'border-ocean-900 bg-sand-50' : 'border-sand-200 bg-white'}`}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sand-100">
         {item.kind === 'pin' ? <PinPreview style={item.style} fill={item.fill} /> : null}
-        {item.kind === 'color' ? <span className="h-5 w-5 rounded-full border border-midnight-300" style={{ backgroundColor: item.value || '#ffffff' }} /> : null}
-        {item.kind === 'title' ? <Tag className="h-4 w-4 text-midnight-600" /> : null}
-        {item.kind === 'frame' ? <span className="h-6 w-6 rounded-full bg-midnight-300" style={item.value ? { boxShadow: `0 0 0 3px ${item.value}` } : undefined} /> : null}
+        {item.kind === 'color' ? <span className="h-5 w-5 rounded-full border border-sand-300" style={{ backgroundColor: item.value || '#ffffff' }} /> : null}
+        {item.kind === 'title' ? <Tag className="h-4 w-4 text-sand-600" /> : null}
+        {item.kind === 'frame' ? <span className="h-6 w-6 rounded-full bg-sand-300" style={item.value ? { boxShadow: `0 0 0 3px ${item.value}` } : undefined} /> : null}
         {item.kind === 'reactions' ? <span className="text-sm">{(item.emoji || []).slice(0, 2).join('')}</span> : null}
       </span>
       <div className="min-w-0 flex-1">
         <p className="font-semibold">{item.name}</p>
-        <p className="truncate text-xs text-midnight-600">{item.description}</p>
+        <p className="truncate text-xs text-sand-600">{item.description}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         {action}
@@ -168,29 +168,29 @@ export default function ProfileClient() {
   const points = shop?.points ?? profile?.points ?? 0;
 
   return (
-    <div className="min-h-screen bg-midnight-50 text-midnight-900">
+    <div className="min-h-screen bg-sand-50 text-sand-900">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-flash-400 text-xl font-bold text-midnight-900"
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-clay-500 text-xl font-bold text-white"
             style={view?.frame ? { boxShadow: `0 0 0 4px ${view.frame}` } : undefined}
             aria-hidden="true"
           >
             {initialsOf(profile?.name || name)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Your profile</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-sand-500">Your profile</p>
             <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
               <span style={view?.color ? { color: view.color } : undefined}>{profile?.name || name || 'Player'}</span>
-              {view?.title ? <span className="rounded-full bg-midnight-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-midnight-600">{view.title}</span> : null}
+              {view?.title ? <span className="rounded-full bg-sand-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-sand-600">{view.title}</span> : null}
             </h1>
-            <p className="mt-1 text-sm text-midnight-600">
+            <p className="mt-1 text-sm text-sand-600">
               {profile ? (profile.signedIn ? 'On your Probably Earth account, so it follows you to other devices.' : 'In this browser only. Sign in below to keep it across devices.') : 'Loading'}
             </p>
           </div>
           <div className="text-right">
             <p className="text-3xl font-bold tabular-nums">{formatScore(points)}</p>
-            <p className="text-sm text-midnight-600">points</p>
+            <p className="text-sm text-sand-600">points</p>
           </div>
         </header>
 
@@ -199,15 +199,15 @@ export default function ProfileClient() {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="space-y-6">
             {/* Shop */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5" data-shop>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5" data-shop>
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <ShoppingBag className="h-4 w-4" />
                 Shop
               </h2>
-              <p className="mt-2 text-sm text-midnight-600">Points buy how you look in the game. Nothing here changes how you play, and points never buy Google rounds.</p>
-              <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-midnight-100 p-1" role="tablist" aria-label="Shop sections">
+              <p className="mt-2 text-sm text-sand-600">Points buy how you look in the game. Nothing here changes how you play, and points never buy Google rounds.</p>
+              <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-sand-100 p-1" role="tablist" aria-label="Shop sections">
                 {KIND_ORDER.map((k) => (
-                  <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-midnight-900 text-white shadow' : 'text-midnight-700 hover:bg-white'}`}>
+                  <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-ocean-900 text-white shadow' : 'text-sand-700 hover:bg-white'}`}>
                     {ITEM_KINDS[k]}
                   </button>
                 ))}
@@ -219,57 +219,57 @@ export default function ProfileClient() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-midnight-500">{error ? 'The shop is closed for now.' : 'Loading the shop'}</p>
+                <p className="mt-3 text-sm text-sand-500">{error ? 'The shop is closed for now.' : 'Loading the shop'}</p>
               )}
             </section>
 
             {/* Badges */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5" data-badges>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5" data-badges>
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Award className="h-4 w-4" />
                 Country badges
               </h2>
-              <p className="mt-2 text-sm text-midnight-600">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept.</p>
+              <p className="mt-2 text-sm text-sand-600">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept.</p>
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (
-                    <li key={b.countryCode} className="flex items-center gap-2 rounded-xl border border-midnight-200 px-3 py-2 text-sm">
+                    <li key={b.countryCode} className="flex items-center gap-2 rounded-xl border border-sand-200 px-3 py-2 text-sm">
                       <span className="text-xl">{b.flag}</span>
                       <span className="min-w-0 flex-1 truncate font-semibold">{b.name}</span>
-                      <span className="text-xs text-midnight-500">{b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
+                      <span className="text-xs text-sand-500">{b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-midnight-500">None yet.</p>
+                <p className="mt-3 text-sm text-sand-500">None yet.</p>
               )}
             </section>
           </div>
 
           <aside className="space-y-6">
             {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Account</h2>
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Account</h2>
               <div className="mt-3">
                 <SignInCard />
               </div>
             </section>
 
             {/* Name */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Your name</h2>
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Your name</h2>
               <form method="post" onSubmit={saveTheName} className="mt-3 flex gap-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="Your name" className="w-full rounded-xl border border-midnight-300 bg-white px-3 py-2 text-sm" />
-                <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-midnight-900 px-4 py-2 text-sm font-semibold text-white hover:bg-midnight-800 disabled:opacity-50">
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="Your name" className="w-full rounded-xl border border-sand-300 bg-white px-3 py-2 text-sm" />
+                <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50">
                   {savedName ? 'Saved' : 'Save'}
                 </button>
               </form>
-              <p className="mt-2 text-xs text-midnight-500">What rooms and the boards show.</p>
+              <p className="mt-2 text-xs text-sand-500">What rooms and the boards show.</p>
             </section>
 
             {/* Rating */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Medal className="h-4 w-4" />
                 Rating
               </h2>
@@ -279,11 +279,11 @@ export default function ProfileClient() {
                     const r = profile.ratings?.[ladder] || {};
                     return (
                       <div key={ladder}>
-                        <dt className="text-midnight-500">{VARIANTS[ladder]?.label || ladder}</dt>
+                        <dt className="text-sand-500">{VARIANTS[ladder]?.label || ladder}</dt>
                         <dd className="text-lg font-bold tabular-nums">
-                          {r.value ?? 1500} <span className="text-xs font-semibold text-midnight-500">{r.tier || 'Silver'}</span>
+                          {r.value ?? 1500} <span className="text-xs font-semibold text-sand-500">{r.tier || 'Silver'}</span>
                         </dd>
-                        <dd className="text-xs text-midnight-500">
+                        <dd className="text-xs text-sand-500">
                           {r.games || 0} rated {r.games === 1 ? 'game' : 'games'}
                         </dd>
                       </div>
@@ -292,11 +292,11 @@ export default function ProfileClient() {
                 </dl>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link href="/geo/leaderboard" className="inline-flex items-center gap-1.5 rounded-lg border border-midnight-300 px-3 py-1.5 text-xs font-semibold hover:bg-midnight-100">
+                <Link href="/geo/leaderboard" className="inline-flex items-center gap-1.5 rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold hover:bg-sand-100">
                   <Trophy className="h-3.5 w-3.5" />
                   Rankings
                 </Link>
-                <Link href="/geo/rooms" className="inline-flex items-center gap-1.5 rounded-lg border border-midnight-300 px-3 py-1.5 text-xs font-semibold hover:bg-midnight-100">
+                <Link href="/geo/rooms" className="inline-flex items-center gap-1.5 rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold hover:bg-sand-100">
                   <Users className="h-3.5 w-3.5" />
                   Rooms
                 </Link>
@@ -304,35 +304,35 @@ export default function ProfileClient() {
             </section>
 
             {/* Today */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-midnight-500">
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
                 <Gauge className="h-4 w-4" />
                 Today
               </h2>
               {profile?.usage ? (
-                <p className="mt-2 text-sm text-midnight-700">
-                  <span className="font-semibold text-midnight-900">
+                <p className="mt-2 text-sm text-sand-700">
+                  <span className="font-semibold text-sand-900">
                     {profile.usage.google.freeUsed} of {profile.usage.google.freeLimit}
                   </span>{' '}
                   free Google Street View rounds used.
                   {profile.usage.google.paidLeft ? ` ${profile.usage.google.paidLeft} bought rounds left.` : ''} {roomGamesText(profile.usage.google.roomGames)} Apple Look Around: no limit. Points earn on the first 50 rounds of the day.
                 </p>
               ) : (
-                <p className="mt-2 text-sm text-midnight-500">Loading</p>
+                <p className="mt-2 text-sm text-sand-500">Loading</p>
               )}
             </section>
 
             {/* Recent points */}
-            <section className="rounded-2xl border border-midnight-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-midnight-500">Recent points</h2>
+            <section className="rounded-2xl border border-sand-200 bg-white p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Recent points</h2>
               {profile?.ledger?.length ? (
-                <ul className="mt-3 divide-y divide-midnight-100 text-sm">
+                <ul className="mt-3 divide-y divide-sand-100 text-sm">
                   {profile.ledger.map((row, i) => (
                     <li key={i} className="flex items-center justify-between gap-2 py-1.5">
-                      <span className="min-w-0 flex-1 truncate text-midnight-700">
-                        {row.reason} <span className="text-midnight-400">{ago(row.at)}</span>
+                      <span className="min-w-0 flex-1 truncate text-sand-700">
+                        {row.reason} <span className="text-sand-400">{ago(row.at)}</span>
                       </span>
-                      <span className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-green-700' : 'text-midnight-900'}`}>
+                      <span className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-green-700' : 'text-sand-900'}`}>
                         {row.kind === 'earn' ? '+' : '-'}
                         {row.amount}
                       </span>
@@ -340,7 +340,7 @@ export default function ProfileClient() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-sm text-midnight-500">Nothing yet. Every scored round earns some.</p>
+                <p className="mt-2 text-sm text-sand-500">Nothing yet. Every scored round earns some.</p>
               )}
             </section>
           </aside>

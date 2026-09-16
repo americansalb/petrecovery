@@ -92,7 +92,7 @@ function DailyBoard({ daily, cup = false }) {
             <li key={row.profileId} className="flex items-center gap-2">
               <span className="w-6 tabular-nums text-white/50">{row.rank}</span>
               <span className="flex-1 truncate">{row.name}</span>
-              <span className="font-semibold tabular-nums text-flash-300">{formatScore(row.total)}</span>
+              <span className="font-semibold tabular-nums text-clay-300">{formatScore(row.total)}</span>
             </li>
           ))}
         </ol>
@@ -126,17 +126,17 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
   const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}`;
 
   return (
-    <div className="absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-midnight-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">
+    <div className="absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">
       <div className="mx-auto max-w-3xl p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-white/60">{describeConfig(config, { regionLabel })}</p>
-            <p className="mt-1 text-4xl font-bold tabular-nums text-flash-300">
+            <p className="mt-1 text-4xl font-bold tabular-nums text-clay-300">
               {isStreak ? `Streak of ${summary.streak}` : formatScore(summary.total)}
               {!isStreak ? <span className="text-lg font-medium text-white/60"> of {formatScore(max)}</span> : null}
             </p>
             {points && (points.earned > 0 || points.badges?.length) ? (
-              <p className="mt-1 text-sm text-flash-300">
+              <p className="mt-1 text-sm text-clay-300">
                 {points.earned > 0 ? `+${points.earned} points this game, ${formatScore(points.balance)} in all.` : ''}
                 {points.badges?.length ? ` New ${points.badges.length === 1 ? 'badge' : 'badges'}: ${points.badges.map((b) => `${b.flag} ${b.name}`).join(', ')}.` : ''}{' '}
                 <Link href="/geo/me" className="underline decoration-white/30 hover:text-white">
@@ -167,7 +167,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
               ) : (
                 <>
                   <span className="w-24 text-right text-white/70">{round.timedOut ? 'no guess' : formatDistance(round.distanceKm)}</span>
-                  <span className="w-16 text-right font-semibold tabular-nums text-flash-300">{formatScore(round.score)}</span>
+                  <span className="w-16 text-right font-semibold tabular-nums text-clay-300">{formatScore(round.score)}</span>
                 </>
               )}
             </li>
@@ -194,7 +194,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
               {copied === 'challenge' ? 'Link copied' : 'Challenge a friend'}
             </button>
           ) : null}
-          <Link href={newSeedUrl} onClick={onPlayAgain} className="flex items-center gap-2 rounded-xl bg-flash-400 px-4 py-2.5 text-sm font-bold text-midnight-900 hover:bg-flash-500">
+          <Link href={newSeedUrl} onClick={onPlayAgain} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-clay-600">
             <RefreshCw className="h-4 w-4" />
             {shared ? 'Play again' : 'New places, same settings'}
           </Link>
