@@ -105,7 +105,7 @@ export default function ColdOpen() {
           Probably Earth
         </span>
         <Link
-          href={signedIn ? '/geo/me' : '/geo/me?signin=1'}
+          href={signedIn ? '/geo/me' : '/geo/signin'}
           className="rounded-full px-4 py-2 text-sm font-semibold text-sand-100/80 transition hover:bg-sand-50/10 hover:text-white"
         >
           {signedIn ? 'Your profile' : 'Sign in'}
@@ -121,8 +121,8 @@ export default function ColdOpen() {
         </h1>
         <p className="geo-rise mt-4 max-w-md text-balance text-lg text-sand-100/85 sm:text-xl" style={{ animationDelay: '80ms' }}>
           {scriptOnly
-            ? 'You are given a sentence in one of 159 languages. Work out where it is spoken, and put a pin on it.'
-            : 'You are standing on a street somewhere on Earth. Work out where, and put a pin on it.'}
+            ? 'You get a sentence in one of 159 languages. Put a pin where you think it is spoken.'
+            : 'You get dropped on a street somewhere in the world. Put a pin where you think you are.'}
         </p>
 
         <button
@@ -137,20 +137,30 @@ export default function ColdOpen() {
           {starting ? 'Finding a street' : played ? 'Play again' : 'Play'}
         </button>
 
-        {/* This said "No account needed", which sells the opposite of
-            what is wanted: an account is never required and always
-            worth having, so the line under Play offers one instead of
-            talking people out of it (founder, 2026-09-16). */}
+        {/* "One email, no password" answered a question nobody asks.
+            Nobody wonders whether it might be two emails, and nobody
+            was worried about a password. The thing worth saying is the
+            price, and the house rule allows it in the present tense
+            (CLAUDE.md: "free, no card") - so it says free (founder,
+            2026-09-17: "WHY NOT SAY FREE"). */}
         <p className="geo-rise mt-4 text-sm text-sand-200/70" style={{ animationDelay: '220ms' }}>
           {signedIn ? (
             played ? `${played} ${played === 1 ? 'game' : 'games'} played.` : 'Signed in. Your scores follow you.'
+          ) : played ? (
+            <>
+              {`${played} ${played === 1 ? 'game' : 'games'} in this browser. `}
+              <Link href="/geo/signin" className="pointer-events-auto font-semibold text-sand-100 underline decoration-sand-200/40 underline-offset-4 hover:decoration-sand-100">
+                Sign in
+              </Link>
+              {' and they follow you to your phone.'}
+            </>
           ) : (
             <>
-              {played ? `${played} ${played === 1 ? 'game' : 'games'} in this browser. ` : ''}
-              <Link href="/geo/me?signin=1" className="pointer-events-auto font-semibold text-sand-100 underline decoration-sand-200/40 underline-offset-4 hover:decoration-sand-100">
-                {played ? 'Sign in to keep them' : 'Sign in to keep your scores'}
+              {"It's free. "}
+              <Link href="/geo/signin" className="pointer-events-auto font-semibold text-sand-100 underline decoration-sand-200/40 underline-offset-4 hover:decoration-sand-100">
+                Sign in
               </Link>
-              . One email, no password.
+              {' and your scores follow you to your phone.'}
             </>
           )}
         </p>

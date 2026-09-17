@@ -6,8 +6,9 @@
  * Probably Earth accounts are its own (docs/GEO.md, "Signing in"). A
  * player here is not a ReunitePets user and does not become one: that
  * was the founder's answer on 2026-09-10 to what a standalone account
- * means. So there is no password, no profile to fill in, and nothing
- * shared with the pet site.
+ * means. There is no password and nothing shared with the pet site,
+ * neither of which is worth telling a player: nobody arrives worried
+ * about a password (founder, 2026-09-17).
  *
  * The only thing an account buys is that your profile follows you to
  * another device and survives a cleared browser. Playing needs no
@@ -146,7 +147,7 @@ export default function SignInCard() {
       <p className="font-semibold text-white">Keep this profile across devices</p>
       <p className="mt-1 text-sm text-white/60">
         Your rating, points and badges live in this browser. An email address moves them to your phone too, and brings
-        them back if you clear it. We send a link; there is no password.
+        them back if you clear it.
       </p>
       {/* method="post" so a submit before hydration does not put the address in the URL (__tests__/form-method.test.js). */}
       <form method="post" onSubmit={request} className="mt-3 flex flex-wrap gap-2">
