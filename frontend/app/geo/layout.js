@@ -35,6 +35,15 @@ export const metadata = buildShareMetadata({
 export default function GeoLayout({ children }) {
   return (
     <div className="geo-surface min-h-[100dvh] bg-ocean-950 text-sand-50">
+      {/* The pet site's <main> carries `pb-16` for its mobile tab bar,
+          which the game does not render. That padding is outside this
+          div, so on a phone every page in the game ended in a 64px
+          band of the body's near-white under the footer. The root
+          layout's class is unconditional and belongs to the pet site,
+          so the game paints behind it instead: one fixed sheet under
+          everything, which also covers a short page and the overscroll
+          at either end. */}
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-ocean-950" aria-hidden="true" />
       <GeoHeader />
       {children}
       <GeoFooter />
