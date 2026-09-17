@@ -69,7 +69,9 @@ export function TimerRing({ secondsLeft, total }) {
           transform="rotate(-90 20 20)"
         />
       </svg>
-      <span className="min-w-[2ch] text-sm font-semibold tabular-nums">{label}</span>
+      <span className="min-w-[2ch] text-sm font-semibold tabular-nums" data-geo-clock={secondsLeft}>
+        {label}
+      </span>
     </div>
   );
 }

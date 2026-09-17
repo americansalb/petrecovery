@@ -21,7 +21,7 @@
  *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -1249,11 +1249,178 @@ async function duel(browser) {
   await guest.close();
 }
 
+
+/**
+ * The three formats, enforced rather than described.
+ *
+ * A format is move/pan/zoom, and the game applies it two ways: the
+ * three switches on the Look Around view, and a sheet over the pane
+ * for NMPZ so a wheel or a drag or a finger reaches nothing. Only the
+ * sheet had ever been checked, and the sheet is the easy half - the
+ * switches are what stops a keyboard, a trackpad pinch and MapKit's
+ * own controls, and they were being set on a view the harness had not
+ * given them to, so the assertion passed on a view nobody had told.
+ *
+ * Also checks the way out matches: "return to start" is drawn for a
+ * format that can leave its start, and not for the one that cannot.
+ */
+async function formats(browser) {
+  // The view the container actually kept, not the last one built: the
+  // pane races candidates and opens a second view for "return to
+  // start", so the newest in the list is often one that was discarded.
+  const rules = async (page) =>
+    page.evaluate(() => {
+      const view = document.querySelector('[data-fake-pano]')?.__fakeOwner;
+      if (!view) return null;
+      return {
+        move: view.isNavigationEnabled,
+        zoom: view.isZoomEnabled,
+        pan: view.isScrollEnabled,
+        roadLabels: view.showsRoadLabels,
+        pointsOfInterest: view.showsPointsOfInterest,
+      };
+    });
+
+  const cases = [
+    { name: 'Moving', params: 'move=1&pan=1&zoom=1', want: { move: true, pan: true, zoom: true }, sheet: false, canReturn: true },
+    { name: 'No Move', params: 'move=0&pan=1&zoom=1', want: { move: false, pan: true, zoom: true }, sheet: false, canReturn: true },
+    { name: 'NMPZ', params: 'move=0&pan=0&zoom=0', want: { move: false, pan: false, zoom: false }, sheet: true, canReturn: false },
+  ];
+
+  for (const c of cases) {
+    const page = await newPage(browser, { width: 1000, height: 760 });
+    await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=1&time=0&seed=e2e-format-${c.name}&${c.params}`, { waitUntil: 'domcontentloaded' });
+    await waitForLookAround(page);
+    // The pane paints the container in the constructor and applies the
+    // rules after the view's load event, so the marker is on screen a
+    // beat before the format has been applied to anything. Road labels
+    // go off for every format, which makes them the signal that the
+    // rules have run.
+    await page.waitForFunction(() => document.querySelector('[data-fake-pano]')?.__fakeOwner?.showsRoadLabels === false, null, { timeout: 30000 });
+    const got = await rules(page);
+    if (!got) throw new Error(`${c.name}: no Look Around view on the page to read the rules off`);
+    for (const key of ['move', 'pan', 'zoom']) {
+      if (got[key] !== c.want[key]) throw new Error(`${c.name}: ${key} should be ${c.want[key]} on the view, it is ${got[key]}`);
+    }
+    // Street signs and shop names are the answer written down.
+    if (got.roadLabels || got.pointsOfInterest) throw new Error(`${c.name}: the imagery should not label the answer`);
+    const sheet = Boolean(await page.$('[title="Panning is off for this game"]'));
+    if (sheet !== c.sheet) throw new Error(`${c.name}: the blocking sheet should be ${c.sheet ? 'there' : 'absent'}`);
+    const back = Boolean(await page.$('button[aria-label="Return to start"]'));
+    if (back !== c.canReturn) throw new Error(`${c.name}: "return to start" should be ${c.canReturn ? 'offered' : 'absent'}`);
+    log(`${c.name}: view move=${got.move} pan=${got.pan} zoom=${got.zoom}, sheet=${sheet}, return=${back}`);
+    if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+    await page.close();
+  }
+}
+
+/**
+ * A timed round that runs out while the tab is in the background.
+ *
+ * The clock is drawn from an interval, and browsers throttle or suspend
+ * intervals in a tab nobody is looking at - so a round whose remaining
+ * time is counted down tick by tick quietly gains however long the
+ * player was away, and a timed ladder stops being timed. This one is
+ * computed from the wall clock each tick, which is the part worth
+ * holding: the round is expected to be over when the tab comes back,
+ * not to have paused politely.
+ */
+async function backgrounded(browser) {
+  const page = await newPage(browser, { width: 900, height: 700 });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=2&seed=e2e-background&time=30`, { waitUntil: 'domcontentloaded' });
+  await waitForLookAround(page);
+  await waitPlayable(page);
+  const clock = () => page.evaluate(() => Number(document.querySelector('[data-geo-clock]')?.getAttribute('data-geo-clock') ?? NaN));
+  const started = await clock();
+  if (!(started > 0 && started <= 30)) throw new Error(`the round should be counting down from 30, the clock reads ${started}`);
+  log(`a 30 second round is on, clock reads ${started}`);
+
+  // A second page takes the foreground, which is what puts the first
+  // one under the throttle.
+  const front = await browser.newPage();
+  await front.goto('about:blank');
+  await front.bringToFront();
+  const away = Date.now();
+  await front.waitForTimeout(40000);
+  await front.close();
+  await page.bringToFront();
+  log(`came back after ${Math.round((Date.now() - away) / 1000)}s`);
+
+  // The round is over: it was scored with no guess, and the game moved
+  // on rather than sitting on a clock that owes the player time.
+  await page.waitForSelector('text=Out of time.', { timeout: 15000 });
+  const text = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  if (!/of 5,000/.test(text)) throw new Error('a backgrounded round should have been scored: ' + text.slice(0, 200));
+  log('the round expired while the tab was away, and was scored on return');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
+/**
+ * A whole game from the keyboard, no pointer at all.
+ *
+ * Placing a pin on a map wants a pointer, so the keyboard-playable game
+ * is the country streak: type the country, Enter to pick it, Enter to
+ * guess, Enter to go on. This plays two rounds that way and never calls
+ * mouse.click, so a regression that makes any step pointer-only fails
+ * here rather than in somebody's hands.
+ */
+async function keyboard(browser) {
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=streak&seed=e2e-keyboard`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('text=Streak 0', { timeout: 60000 });
+  await waitForLookAround(page);
+
+  // Tab from the top of the document until the country field has focus:
+  // reaching it at all is the thing being tested, so it is not focused
+  // by selector.
+  let tabs = 0;
+  await page.evaluate(() => document.body.focus());
+  while (tabs < 40) {
+    const label = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || '');
+    if (label === 'Country') break;
+    await page.keyboard.press('Tab');
+    tabs += 1;
+  }
+  if (tabs >= 40) throw new Error('forty tabs and the country field never took focus');
+  // The sixty options in the list used to be tabbable, which put the
+  // field sixty presses from anywhere and the Guess button sixty past
+  // that. The picker is a combobox now and the arrows do that work, so
+  // a handful of stops is the budget.
+  if (tabs > 10) throw new Error(`the country field should be a few tabs in, it is ${tabs}`);
+  log(`the country field is ${tabs} tabs from the top of the round`);
+
+  for (const round of [1, 2]) {
+    await page.keyboard.type('Jap');
+    await page.waitForSelector('[role="option"], li:has-text("Japan")', { timeout: 10000 }).catch(() => {});
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('button:has-text("Guess 🇯🇵 Japan")', { timeout: 10000 });
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('text=/Right\\. Streak|Not 🇯🇵 Japan/', { timeout: 20000 });
+    const verdict = await page.textContent('text=/Right\\. Streak|Not 🇯🇵 Japan/');
+    log(`keyboard round ${round}: ${verdict}`);
+    // Space or Enter continues, the same as the button beside it.
+    await page.keyboard.press('Enter');
+    const over = await page.waitForSelector('text=/Streak of \\d+|Which country is this/', { timeout: 60000 });
+    if (/Streak of/.test(await over.textContent())) {
+      log('the streak ended on a miss, which is the game');
+      break;
+    }
+    await waitForLookAround(page);
+    await page.focus('input[aria-label="Country"]');
+  }
+
+  // And out again without a pointer.
+  await shot(page, 'keyboard');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { coldOpen, admin, pinGame, streak, timer, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

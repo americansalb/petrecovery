@@ -4,6 +4,13 @@
  * Country streak input: type a few letters, pick with the arrows or the
  * mouse, submit with Enter. Lists every country the picker knows, with
  * the ones that have imagery first.
+ *
+ * It is a combobox, so the sixty options are not in the tab order. They
+ * used to be: a keyboard player who tabbed once past the field had
+ * sixty more presses before reaching the Guess button, which made the
+ * one mode of this game that can be played without a pointer the
+ * hardest one to play with a keyboard. The arrows move through the
+ * list and aria-activedescendant is what a screen reader follows.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -57,6 +64,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
   };
 
   const selected = countries.find((c) => c.code === value);
+  const optionId = (code) => `geo-country-${code}`;
 
   return (
     <div className="flex h-full flex-col">
@@ -76,13 +84,19 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
           spellCheck={false}
           disabled={disabled}
           aria-label="Country"
+          role="combobox"
+          aria-expanded={matches.length > 0}
+          aria-controls="geo-country-list"
+          aria-autocomplete="list"
+          aria-activedescendant={matches[active] ? optionId(matches[active].code) : undefined}
         />
       </label>
-      <ul ref={listRef} className="mt-2 flex-1 space-y-0.5 overflow-y-auto pr-1" role="listbox" aria-label="Countries">
+      <ul id="geo-country-list" ref={listRef} className="mt-2 flex-1 space-y-0.5 overflow-y-auto pr-1" role="listbox" aria-label="Countries">
         {matches.map((country, i) => (
-          <li key={country.code} role="option" aria-selected={value === country.code}>
+          <li key={country.code} id={optionId(country.code)} role="option" aria-selected={value === country.code}>
             <button
               type="button"
+              tabIndex={-1}
               onClick={() => choose(country)}
               onDoubleClick={() => {
                 choose(country);

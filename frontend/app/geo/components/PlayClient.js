@@ -328,8 +328,10 @@ export default function PlayClient() {
           next();
         }
       } else if (event.key === 'r' || event.key === 'R') {
-        // Not in Kidnapped: the car decides where you are.
-        if (s.config.mode !== 'kidnapped') paneRef.current?.returnToStart?.();
+        // Same rule as the button: a format with one view has no start
+        // to return to. The old guard named a mode ('kidnapped') the
+        // game has not had for months, so it never stopped anything.
+        if (s.config.pan || s.config.move) paneRef.current?.returnToStart?.();
       } else if (event.key === 'm' || event.key === 'M') {
         setMapSize((size) => MAP_SIZES[(MAP_SIZES.indexOf(size) + 1) % MAP_SIZES.length]);
       } else if (event.key === 'Escape') {
@@ -401,6 +403,10 @@ export default function PlayClient() {
   // Look Around zooms by pinch and wheel only, so there is nothing for
   // a button to do there. A Not Earth panorama is ours, and it zooms.
   const canZoom = config.zoom && Boolean(notEarth);
+  // Nothing to go back to when the view cannot leave where it started.
+  // The button was always drawn, so NMPZ shipped a "return to start"
+  // above a line that says you get one view.
+  const canReturn = config.pan || config.move;
   const showLoading = state.status === 'loading' || state.status === 'locating' || (state.status === 'idle' && configured);
   const roundNumber = state.roundIndex + 1;
 
@@ -451,6 +457,7 @@ export default function PlayClient() {
           secondsLeft={inRound ? secondsLeft : NaN}
           heading={heading}
           canZoom={canZoom && inRound}
+          canReturn={canReturn}
           canPan={config.pan}
           onReturn={() => paneRef.current?.returnToStart?.()}
           onZoom={(delta) => paneRef.current?.zoomBy?.(delta)}
