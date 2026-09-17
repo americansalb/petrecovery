@@ -22,13 +22,22 @@ const WHY = {
   used: 'that-link-was-already-used',
 };
 
+function safeReturnTo(value) {
+  if (typeof value !== 'string' || !value.startsWith('/geo')) return '/geo/me';
+  if (value.startsWith('//') || /[\\n]/.test(value)) return '/geo/me';
+  return value.slice(0, 500);
+}
+
 export async function GET(request) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
+  const returnTo = safeReturnTo(url.searchParams.get('next'));
 
   try {
     const { account, profile } = await verifySignIn(prismaRoomStore, { token });
-    const done = NextResponse.redirect(new URL('/geo/me?signed-in=1', url.origin));
+    const target = new URL(returnTo, url.origin);
+    target.searchParams.set('signed-in', '1');
+    const done = NextResponse.redirect(target);
     applySession(done, { accountId: account.id, email: account.email });
     // The browser keeps playing as whichever profile the account owns.
     done.headers.set('x-geo-profile-id', profile?.id || '');
