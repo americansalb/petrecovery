@@ -93,8 +93,11 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
               {points && (points.earned > 0 || points.badge) ? (
                 <p className="mt-1 text-sm text-clay-300">
                   {points.earned > 0 ? `+${points.earned} points` : ''}
+                  {/* What the total is made of, not more on top of it:
+                      "+12 points +2 round, +10 first of the day" read
+                      as 24. */}
                   {points.lines?.length > 1 ? (
-                    <span className="text-white/60"> {points.lines.map((line) => `+${line.amount} ${line.reason.toLowerCase()}`).join(', ')}</span>
+                    <span className="text-white/60"> ({points.lines.map((line) => `${line.amount} ${line.reason.toLowerCase()}`).join(' + ')})</span>
                   ) : null}
                   {points.badge ? `${points.earned > 0 ? '. ' : ''}New badge: ${points.badge.flag} ${points.badge.name}` : ''}
                 </p>

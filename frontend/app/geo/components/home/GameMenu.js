@@ -93,6 +93,11 @@ export default function GameMenu() {
   const [cup, setCup] = useState(null);
   const [solo, setSolo] = useState(null);
   const [openRooms, setOpenRooms] = useState(null);
+  // Which status endpoints have answered. Without it a board that is
+  // still loading and a board nobody has played look the same, and the
+  // menu prints "Nobody has finished today" at somebody on a slow
+  // connection or after the request failed.
+  const [answered, setAnswered] = useState({});
   const [continent, setContinent] = useState('europe');
   const [country, setCountry] = useState('JP');
 
@@ -100,17 +105,23 @@ export default function GameMenu() {
     setSignedIn(isSignedIn());
     setStats(getStats());
     let live = true;
-    const get = (url, set, pick = (d) => d) =>
+    const get = (name, url, set, pick = (d) => d) =>
       fetch(url, { headers: profileHeaders(), cache: 'no-store' })
         .then((r) => (r.ok ? r.json() : null))
         // A status that will not load is a status that is not shown.
         // The way in beside it still works, which is the part that matters.
-        .then((d) => live && d && set(pick(d)))
+        .then((d) => {
+          if (!live || !d) return;
+          set(pick(d));
+          setAnswered((was) => ({ ...was, [name]: true }));
+        })
         .catch(() => {});
-    get('/api/geo/daily', setDaily);
-    get('/api/geo/cup', setCup);
-    get('/api/geo/leaderboard?ladder=solo', setSolo, (d) => d.you || null);
-    get('/api/geo/rooms', setOpenRooms, (d) => (Array.isArray(d.rooms) ? d.rooms.length : null));
+    get('daily', '/api/geo/daily', setDaily);
+    get('cup', '/api/geo/cup', setCup);
+    // A player with no rated games has no `you`, so the value alone
+    // cannot say whether the board answered.
+    get('solo', '/api/geo/leaderboard?ladder=solo', setSolo, (d) => d.you || null);
+    get('rooms', '/api/geo/rooms', setOpenRooms, (d) => (Array.isArray(d.rooms) ? d.rooms.length : null));
     loadGeoConfig({ shouldStop: () => !live })
       .then((data) => live && data && setImagery(Boolean(data.providers?.apple?.configured)))
       .catch(() => {});
@@ -229,11 +240,13 @@ export default function GameMenu() {
             name="Daily"
             chips={[`${MODES.daily.fixed.rounds} rounds`, 'No timer', 'Same for everyone']}
             status={
-              daily?.you?.rank
-                ? `You are ${ordinal(daily.you.rank)} of ${daily.finished} today.`
-                : daily?.finished
-                  ? `${daily.finished} finished today.`
-                  : 'Nobody has finished today.'
+              !answered.daily
+                ? ''
+                : daily?.you?.rank
+                  ? `You are ${ordinal(daily.you.rank)} of ${daily.finished} today.`
+                  : daily?.finished
+                    ? `${daily.finished} finished today.`
+                    : 'Nobody has finished today.'
             }
             href="/geo/play?mode=daily"
             cta="Play today's five"
@@ -248,9 +261,11 @@ export default function GameMenu() {
             // one game reads as an accomplishment nobody has; placement
             // progress is the honest status until the ladder places you.
             status={
-              solo?.games >= PROVISIONAL_GAMES
-                ? `${solo.tier}, ${solo.value}. ${solo.games} rated.`
-                : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games played`
+              !answered.solo
+                ? ''
+                : solo?.games >= PROVISIONAL_GAMES
+                  ? `${solo.tier}, ${solo.value}. ${solo.games} rated.`
+                  : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games played`
             }
             href="/geo/play?mode=ranked"
             cta="Play this hour's five"
