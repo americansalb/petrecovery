@@ -464,6 +464,7 @@ export default function PlayClient() {
           canZoom={canZoom && inRound}
           canReturn={canReturn}
           canPan={config.pan}
+          regionLabel={regionLabel}
           onReturn={() => paneRef.current?.returnToStart?.()}
           onZoom={(delta) => paneRef.current?.zoomBy?.(delta)}
           mobileMapOpen={mobileMapOpen}
