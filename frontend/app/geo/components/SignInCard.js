@@ -97,7 +97,7 @@ export default function SignInCard() {
     return (
       <div className="rounded-xl border border-white/10 p-4">
         <p className="flex items-center gap-2 font-semibold text-white">
-          <Check className="h-4 w-4 text-green-600" /> Signed in as {account.email}
+          <Check className="h-4 w-4 text-green-400" /> Signed in as {account.email}
         </p>
         <p className="mt-1 text-sm text-white/60">Your profile follows you to any device you sign in on.</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -108,16 +108,16 @@ export default function SignInCard() {
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/60 hover:bg-red-50 hover:text-red-700"
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/60 hover:bg-red-950/60 hover:text-red-300"
             >
               <Trash2 className="h-4 w-4" /> Delete account
             </button>
           )}
         </div>
         {confirmDelete ? (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
-            <p className="text-sm font-semibold text-red-900">Delete this account?</p>
-            <p className="mt-1 text-sm text-red-800">
+          <div className="mt-3 rounded-lg border border-red-400/40 bg-red-950/60 p-3">
+            <p className="text-sm font-semibold text-red-100">Delete this account?</p>
+            <p className="mt-1 text-sm text-red-200">
               This removes your email address, your profile, your rating, points, badges and results, and your scores on
               the daily and cup boards. It cannot be undone.
             </p>
@@ -170,7 +170,7 @@ export default function SignInCard() {
           <Mail className="h-4 w-4" /> {state === 'sending' ? 'Sending' : 'Send link'}
         </button>
       </form>
-      {message ? <p className={`mt-2 text-sm ${state === 'error' ? 'text-red-600' : 'text-white/60'}`}>{message}</p> : null}
+      {message ? <p className={`mt-2 text-sm ${state === 'error' ? 'text-red-300' : 'text-white/60'}`}>{message}</p> : null}
     </div>
   );
 }

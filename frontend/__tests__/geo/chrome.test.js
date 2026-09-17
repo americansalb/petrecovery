@@ -158,6 +158,30 @@ describe('every mode the game has is reachable from a page in the navigation', (
     }
   });
 
+  test('every mode the game defines can be started from somewhere', () => {
+    // MODE_ORDER is what the game says it offers. A mode in it that no
+    // page can start is a feature that exists only in the code: streak,
+    // continent and country were all three of those after the setup
+    // page went, while MODES kept describing them.
+    const { MODE_ORDER } = require('@/app/lib/geo/modes');
+    const starters = [contests, read('app/geo/components/OtherModes.js'), coldOpen].join('\n');
+    for (const mode of MODE_ORDER) {
+      // The default is the Play button itself, which takes no mode.
+      if (mode === 'balanced') continue;
+      expect({ mode, startable: starters.includes(`mode=${mode}`) }).toEqual({ mode, startable: true });
+    }
+  });
+
+  test('the two modes that need a region ask for one, and the rest do not', () => {
+    const other = read('app/geo/components/OtherModes.js');
+    // "One country" is not a mode until you say which, so this is the
+    // one place in the game where a control is the honest answer.
+    expect(other).toContain('mode=continent&region=');
+    expect(other).toContain('mode=country&region=');
+    // A streak needs nothing, so it is a link and not a form.
+    expect(other).toContain("href=\"/geo/play?mode=streak\"");
+  });
+
   test('the front door still leads to every one of them', () => {
     for (const href of ['/geo/rooms', '/geo/play?mode=daily', '/geo/leaderboard', '/geo/script']) {
       expect({ href, linked: coldOpen.includes(`'${href}'`) }).toEqual({ href, linked: true });

@@ -49,7 +49,7 @@ function Board({ rows }) {
     <ol className="mt-3 space-y-1 border-t border-white/10 pt-3 text-sm">
       {rows.slice(0, 5).map((row) => (
         <li key={row.profileId} className="flex items-center gap-2">
-          <span className="w-5 shrink-0 tabular-nums text-white/40">{row.rank}</span>
+          <span className="w-5 shrink-0 tabular-nums text-white/60">{row.rank}</span>
           <PlayerName name={row.name} cosmetics={row.cosmetics} className="min-w-0 flex-1" />
           <span className="shrink-0 font-semibold tabular-nums">{formatScore(row.total)}</span>
         </li>

@@ -158,7 +158,7 @@ export default function RoomBrowser() {
           </p>
         </header>
 
-        {error ? <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p> : null}
+        {error ? <p className="mt-4 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">{error}</p> : null}
         {server && !configured ? (
           <div className="mt-6">
             <SetupNotice provider="apple" missing={server?.providers?.apple?.missing || []} compact tone="light" />

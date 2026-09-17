@@ -26,8 +26,17 @@
 
 const { spawnSync } = require('node:child_process');
 
-/** Statements that can only ever add. Anything else is left alone. */
-const ADDITIVE_STATEMENT = /^\s*(CREATE\s+(TABLE|UNIQUE\s+INDEX|INDEX|TYPE|SEQUENCE|SCHEMA)\b|COMMENT\s+ON\b)/i;
+/**
+ * Statements that can only ever add. Anything else is left alone.
+ *
+ * `ALTER TYPE ... ADD VALUE` is here because a new enum member is an
+ * addition like any other and the repo already ships one
+ * (prisma/migrations/20260610_add_pet_shares_and_guest_role). It is
+ * spelled out to the ADD VALUE, so ALTER TYPE ... RENAME and
+ * ALTER TYPE ... DROP ATTRIBUTE match nothing and are skipped with
+ * everything else destructive.
+ */
+const ADDITIVE_STATEMENT = /^\s*(CREATE\s+(TABLE|UNIQUE\s+INDEX|INDEX|TYPE|SEQUENCE|SCHEMA)\b|COMMENT\s+ON\b|ALTER\s+TYPE\s+(?:"[^"]*"|[\w.]+)\s+ADD\s+VALUE\b)/i;
 /** Actions inside an ALTER TABLE that can only ever add. */
 const ADDITIVE_ACTION = /^\s*ADD\s+(COLUMN\b|CONSTRAINT\b)/i;
 const ALTER_TABLE = /^\s*ALTER\s+TABLE\s+((?:"[^"]*"|[\w.]+)(?:\s*\.\s*(?:"[^"]*"|[\w.]+))?)\s+([\s\S]+)$/i;
@@ -57,8 +66,13 @@ function splitTop(text, sep) {
       current += ch;
       continue;
     }
-    if (ch === '(') depth++;
-    if (ch === ')') depth--;
+    // Brackets as well as parentheses: a scalar list with a default
+    // arrives as `ADD COLUMN "tags" TEXT[] DEFAULT ARRAY['a', 'b']`,
+    // and that comma is inside neither quotes nor parentheses. Without
+    // this the action was cut in half and the truncated front of it -
+    // `... DEFAULT ARRAY['a'` - was executed as valid.
+    if (ch === '(' || ch === '[') depth++;
+    if (ch === ')' || ch === ']') depth--;
     if (ch === sep && depth === 0) {
       parts.push(current);
       current = '';
@@ -99,7 +113,10 @@ function additiveOnly(sql) {
       // A CREATE cannot carry a DROP, but a belt-and-braces check costs
       // nothing and this is running against somebody's live data.
       if (/\bDROP\b/i.test(statement)) skip.push(statement);
-      else apply.push(statement);
+      // IF NOT EXISTS for the same reason ADD COLUMN gets it: this runs
+      // on every boot, and a second one must be a no-op rather than an
+      // error about a value that is already there.
+      else apply.push(statement.replace(/\bADD\s+VALUE\s+(?!IF\s+NOT\s+EXISTS)/i, 'ADD VALUE IF NOT EXISTS '));
       continue;
     }
     const alter = ALTER_TABLE.exec(statement);

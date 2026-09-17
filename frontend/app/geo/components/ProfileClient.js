@@ -198,7 +198,7 @@ export default function ProfileClient() {
           </div>
         </header>
 
-        {error ? <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p> : null}
+        {error ? <p className="mt-4 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">{error}</p> : null}
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="space-y-6">
@@ -237,7 +237,7 @@ export default function ProfileClient() {
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (
-                    <li key={b.countryCode} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-clay-300 bg-clay-500/10' : 'border-white/10'}`}>
+                    <li key={b.countryCode} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-clay-400/40 bg-clay-500/10' : 'border-white/10'}`}>
                       <span className="text-xl">{b.flag}</span>
                       <span className="min-w-0 flex-1 truncate font-semibold">{b.name}</span>
                       <span className="text-xs text-white/60">{b.notEarth ? 'called it' : b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>

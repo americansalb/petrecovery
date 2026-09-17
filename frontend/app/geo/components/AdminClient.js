@@ -121,7 +121,7 @@ export default function AdminClient() {
       <section className="mt-10" aria-label="Accounts">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="flex items-center gap-2 text-lg font-bold text-white">
-            <Users className="h-5 w-5 text-ocean-600" />
+            <Users className="h-5 w-5 text-ocean-300" />
             Accounts
           </h2>
           <label className="flex items-center gap-2 rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2">
@@ -136,7 +136,7 @@ export default function AdminClient() {
           </label>
         </div>
 
-        {note ? <p className="mt-3 rounded-xl border border-clay-300 bg-clay-500/10 px-3 py-2 text-sm text-clay-800">{note}</p> : null}
+        {note ? <p className="mt-3 rounded-xl border border-clay-400/40 bg-clay-500/10 px-3 py-2 text-sm text-clay-200">{note}</p> : null}
 
         <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
           <table className="w-full min-w-[54rem] text-sm">
@@ -236,7 +236,7 @@ export default function AdminClient() {
                   <td className="px-4 py-2 font-mono font-semibold text-white">{room.code}</td>
                   <td className="px-4 py-2 text-white/70">{room.name}</td>
                   <td className="px-4 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${room.status === 'playing' ? 'bg-forest-100 text-forest-800' : room.status === 'lobby' ? 'bg-white/10 text-ocean-200' : 'bg-white/10 text-white/70'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${room.status === 'playing' ? 'bg-forest-500/20 text-forest-200' : room.status === 'lobby' ? 'bg-white/10 text-ocean-200' : 'bg-white/10 text-white/70'}`}>
                       {room.status}
                     </span>
                   </td>

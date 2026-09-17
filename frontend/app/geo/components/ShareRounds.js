@@ -44,7 +44,7 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
             <span className="w-7 text-lg leading-none">{revealed ? round.flag || '' : ''}</span>
             <span className="flex-1 truncate">{revealed ? round.name || 'Somewhere' : 'Hidden'}</span>
             {isStreak ? (
-              <span className={round.correct ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>{round.correct ? 'Right' : 'Miss'}</span>
+              <span className={round.correct ? 'font-semibold text-green-400' : 'font-semibold text-red-300'}>{round.correct ? 'Right' : 'Miss'}</span>
             ) : (
               <>
                 <span className="w-24 text-right text-white/60">{round.distanceKm === null ? 'no guess' : formatDistance(round.distanceKm)}</span>
