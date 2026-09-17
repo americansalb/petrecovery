@@ -11,6 +11,7 @@
 import { MODES, isDailySeed, isCupSeed, isRankedSeed, isoWeek, isoWeekEnd } from '../modes';
 import { equippedView } from '../items';
 import { grant } from './points';
+import { isChallengeMode } from '@/app/lib/geo/modes';
 
 export const DAILY_ROUNDS = MODES.daily.fixed.rounds;
 export const CUP_ROUNDS = MODES.cup.fixed.rounds;
@@ -100,6 +101,12 @@ export function challengeIsOpen(key, now = Date.now()) {
  * days exist, and top up old ones forever.
  */
 export function challengeFor(result, now = Date.now()) {
+  // The modes below are CHALLENGE_MODES in app/lib/geo/modes.js, which
+  // is the one list the browser and the guess route also read. Adding
+  // a mode here without adding it there is how `ranked` came to be a
+  // challenge everywhere except in the browser that had to wait for a
+  // profile before starting one.
+  if (!isChallengeMode(result?.mode)) return null;
   if (result?.mode === 'daily') {
     const key = dailyKey(result.seed);
     return key && challengeIsOpen(key, now) ? { key, rounds: DAILY_ROUNDS, kind: 'daily' } : null;

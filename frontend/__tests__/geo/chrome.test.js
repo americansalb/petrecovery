@@ -117,3 +117,50 @@ describe('every field in the game is dark, because the pet site forces them whit
     expect(geo).toContain('select:not([data-paper]) option');
   });
 });
+
+describe('every mode the game has is reachable from a page in the navigation', () => {
+  const contests = read('app/geo/components/Contests.js');
+  const rankings = read('app/geo/leaderboard/page.js');
+  const coldOpen = read('app/geo/components/home/ColdOpen.js');
+
+  test('Rankings carries ranked, the daily and the cup', () => {
+    // These lived on /geo/setup, which was deleted for being a settings
+    // form. Three whole modes went with it: the only button in the game
+    // that started a ranked round, the only one that started the cup,
+    // and both boards. The endpoints kept answering and nothing called
+    // them, so the game quietly lost a third of itself.
+    expect(rankings).toContain('<Contests');
+    for (const mode of ['ranked', 'daily', 'cup']) {
+      expect({ mode, started: contests.includes(`/geo/play?mode=${mode}`) }).toEqual({ mode, started: true });
+    }
+  });
+
+  test('and shows where you came in each, which is the reason to press the button', () => {
+    for (const marker of ['data-ranked-standing', 'data-daily-board', 'data-cup-board']) {
+      expect({ marker, present: contests.includes(marker) }).toEqual({ marker, present: true });
+    }
+  });
+
+  test('no page in the game links to the deleted setup form', () => {
+    // It is gone, and a link to it is a 404 wearing a button. Matched
+    // on the path in a string or a template rather than anywhere in the
+    // file, because the comment explaining where these moved FROM names
+    // it, and prose is not navigation.
+    const LINK = /['"`}]\/geo\/setup/;
+    for (const file of ['app/geo/components/Contests.js', 'app/geo/leaderboard/page.js', 'app/geo/components/home/ColdOpen.js', 'app/geo/components/GeoHeader.js', 'app/geo/components/PlayClient.js', 'scripts/geo-e2e/run.js']) {
+      expect({ file, links: LINK.test(read(file)) }).toEqual({ file, links: false });
+    }
+  });
+
+  test('and nothing offers to go "back to the lobby", because there is not one', () => {
+    for (const file of ['app/geo/components/PlayClient.js', 'app/geo/components/SetupNotice.js', 'app/geo/components/script/ScriptPlayClient.js']) {
+      expect({ file, stale: /Back to the lobby/.test(read(file)) }).toEqual({ file, stale: false });
+    }
+  });
+
+  test('the front door still leads to every one of them', () => {
+    for (const href of ['/geo/rooms', '/geo/play?mode=daily', '/geo/leaderboard', '/geo/script']) {
+      expect({ href, linked: coldOpen.includes(`'${href}'`) }).toEqual({ href, linked: true });
+    }
+  });
+});

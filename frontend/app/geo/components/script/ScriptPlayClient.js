@@ -291,7 +291,7 @@ export default function ScriptPlayClient() {
             <div className="py-2 text-sm">
               <p className="text-red-600">{error}</p>
               <Link href="/geo/script" className="mt-3 inline-block rounded-lg bg-ocean-900 px-3 py-1.5 font-semibold text-white hover:bg-ocean-800">
-                Back to the lobby
+                Back to Script
               </Link>
             </div>
           ) : round ? (

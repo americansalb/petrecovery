@@ -33,7 +33,7 @@ export default function SetupNotice({ provider = 'apple', missing = [], compact 
       <p className={`mt-3 text-xs ${faint}`}>Full steps: docs/GEO.md in the repository.</p>
       {!compact ? (
         <Link href="/geo" className={`mt-4 inline-block rounded-xl border px-4 py-2 text-sm font-semibold ${light ? 'border-white/15 hover:bg-ocean-900/60' : 'border-white/20 hover:bg-white/10'}`}>
-          Back to the lobby
+          Back to Probably Earth
         </Link>
       ) : null}
     </div>

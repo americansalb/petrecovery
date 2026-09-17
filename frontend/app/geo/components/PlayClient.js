@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'r
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { MODES, configFromParams, configToParams } from '@/app/lib/geo/modes';
+import { MODES, configFromParams, configToParams, isChallengeMode } from '@/app/lib/geo/modes';
 import { METER_CODES, refusalTitle, untilText } from '@/app/lib/geo/meter';
 import { encodeShare } from '@/app/lib/geo/share';
 import { reducer, createInitialState, isFinished, totalScore, streakLength, buildSummary } from '../lib/gameState';
@@ -68,7 +68,7 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
             </button>
           ) : null}
           <Link href="/geo" className="rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/10">
-            Back to the lobby
+            Back to Probably Earth
           </Link>
         </div>
       </div>
@@ -199,10 +199,14 @@ export default function PlayClient() {
     }
   }, []);
 
-  // The daily and the cup are scored on a board, so the server plays
-  // them as somebody: wait for this browser's profile before asking for
-  // the first round, rather than racing it and being refused.
-  const needsProfile = config.mode === 'daily' || config.mode === 'cup';
+  // A challenge is scored on a board, so the server plays it as
+  // somebody: wait for this browser's profile before asking for the
+  // first round, rather than racing it and being refused. The list is
+  // shared with the guess route (app/lib/geo/modes.js); written out
+  // here it said daily and cup, while the server also meant ranked, so
+  // a ranked round opened from anywhere that had not already made a
+  // profile was handed over and then refused a score.
+  const needsProfile = isChallengeMode(config.mode);
   useEffect(() => {
     if (!configured || state.status !== 'idle') return;
     if (needsProfile && !profileSettled) return;
@@ -529,6 +533,10 @@ export default function PlayClient() {
           config={config}
           regionLabel={regionLabel}
           best={share.best}
+          /* Not isChallengeMode: a finished daily or cup shows the board
+             it was played against, and a finished ranked set shows the
+             rating it moved instead. Different question, different two
+             modes. */
           daily={config.mode === 'daily' || config.mode === 'cup' ? daily : null}
           rated={rated}
           points={gamePoints}

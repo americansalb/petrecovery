@@ -16,6 +16,7 @@ import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { evaluateGuess } from '@/app/lib/geo/server/game';
 import { GeoTokenError } from '@/app/lib/geo/server/tokens';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
+import { isChallengeMode } from '@/app/lib/geo/modes';
 import { challengeFor, recordChallengeRound } from '@/app/lib/geo/server/challenges';
 import { applyRankedSolo } from '@/app/lib/geo/server/profiles';
 import { awardSoloRound } from '@/app/lib/geo/server/points';
@@ -55,7 +56,7 @@ export async function POST(request) {
     // then replay the round under a real profile for a perfect score.
     // A challenge round is now revealed only to the profile that opened
     // it, so the first look is also the guess that counts.
-    if ((result.mode === 'daily' || result.mode === 'cup' || result.mode === 'ranked') && (!profileId || result.subject !== profileId)) {
+    if (isChallengeMode(result.mode) && (!profileId || result.subject !== profileId)) {
       return NextResponse.json(
         { error: 'This round belongs to another player. Start the challenge from the play page.', code: 'wrong_player' },
         { status: 403 }

@@ -12,6 +12,7 @@ import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating'
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { profileHeaders } from '../lib/profile';
 import PlayerName from '../components/PlayerName';
+import Contests from '../components/Contests';
 
 function RatingCell({ row }) {
   return (
@@ -25,6 +26,7 @@ function RatingCell({ row }) {
 export default function GeoLeaderboardPage() {
   const [ladder, setLadder] = useState('classic');
   const [board, setBoard] = useState(null);
+  const [solo, setSolo] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -38,6 +40,19 @@ export default function GeoLeaderboardPage() {
       alive = false;
     };
   }, [ladder]);
+
+  // Asked for once, not per tab: the Ranked panel below shows the solo
+  // standing whichever ladder is on screen.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/geo/leaderboard?ladder=solo', { headers: profileHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => alive && setSolo(data?.you || null))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const you = board?.you;
 
@@ -161,8 +176,10 @@ export default function GeoLeaderboardPage() {
 
         <p className="mt-4 flex items-center gap-2 text-sm text-white/60">
           <Users className="h-4 w-4" />
-          Nothing else is rated: the daily challenge, the weekly cup and an ordinary game are for fun.
+          Nothing else is rated: the daily challenge, the weekly cup and an ordinary game are for the board and for points.
         </p>
+
+        <Contests solo={solo} />
       </div>
     </div>
   );
