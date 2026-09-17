@@ -307,8 +307,8 @@ export default function GeoLobby() {
               </li>
             </ol>
             <p className="mt-3 text-sm text-sand-600">
-              Play as much as you like without an account. Ranked puts you against everyone else playing this hour and
-              gives you a rating; everything else is for fun.
+              Ranked puts you against everyone else playing this hour and gives you a rating; everything else is for
+              fun. An email address keeps your rating, points and badges when you change browser or phone.
             </p>
           </section>
         ) : null}

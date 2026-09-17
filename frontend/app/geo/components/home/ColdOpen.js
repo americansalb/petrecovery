@@ -128,8 +128,22 @@ export default function ColdOpen() {
           {starting ? 'Finding a street' : played ? 'Play again' : 'Play'}
         </button>
 
+        {/* This said "No account needed", which sells the opposite of
+            what is wanted: an account is never required and always
+            worth having, so the line under Play offers one instead of
+            talking people out of it (founder, 2026-09-16). */}
         <p className="geo-rise mt-4 text-sm text-sand-200/70" style={{ animationDelay: '220ms' }}>
-          {played ? `${played} ${played === 1 ? 'game' : 'games'} played in this browser.` : 'No account needed.'}
+          {signedIn ? (
+            played ? `${played} ${played === 1 ? 'game' : 'games'} played.` : 'Signed in. Your scores follow you.'
+          ) : (
+            <>
+              {played ? `${played} ${played === 1 ? 'game' : 'games'} in this browser. ` : ''}
+              <Link href="/geo/me?signin=1" className="pointer-events-auto font-semibold text-sand-100 underline decoration-sand-200/40 underline-offset-4 hover:decoration-sand-100">
+                {played ? 'Sign in to keep them' : 'Sign in to keep your scores'}
+              </Link>
+              . One email, no password.
+            </>
+          )}
         </p>
         {scriptOnly ? (
           <p className="geo-rise mt-2 max-w-sm text-xs text-sand-200/55" style={{ animationDelay: '240ms' }}>
