@@ -1012,10 +1012,23 @@ async function script(browser) {
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
     await page.click('button:has-text("Next round"), button:has-text("See the results")');
   }
-  await page.waitForSelector('a:has-text("New game")', { timeout: 30000 });
+  // "Play again" for fresh content, "Replay this set" for the same one:
+  // two different things, and the labels have to say which is which.
+  await page.waitForSelector('a:has-text("Play again")', { timeout: 30000 });
+  await page.waitForSelector('a:has-text("Replay this set")', { timeout: 10000 });
   const summary = await page.evaluate(() => document.body.innerText);
   log('summary reached:', /out of 25,000 across 5 rounds/.test(summary));
   log('summary lists every round:', await page.locator('ol > li').count());
+  // The outcome and the way on come before the recap, at a desktop
+  // height: five sentences used to push the next game off the screen.
+  const order = await page.evaluate(() => {
+    const again = document.querySelector('a[href*="/geo/script/play"]');
+    const firstRecap = document.querySelector('ol > li');
+    return { againTop: Math.round(again.getBoundingClientRect().top), recapTop: Math.round(firstRecap.getBoundingClientRect().top), viewport: window.innerHeight };
+  });
+  log('replay at', order.againTop + 'px, recap starts at', order.recapTop + 'px, viewport', order.viewport);
+  if (order.againTop >= order.recapTop) throw new Error('the recap comes before the way on');
+  if (order.againTop > order.viewport) throw new Error('the replay action is below the first viewport');
   await shot(page, 'script-summary');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
