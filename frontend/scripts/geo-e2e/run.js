@@ -890,22 +890,32 @@ async function profile(browser) {
     return node ? node.innerText.replace(/\s+/g, ' ').trim() : '';
   }));
   log('round points line:', pointsLine);
-  // The breakdown has to add up to the total it is a breakdown of. It
-  // used to render as "+12 points +2 round, +10 first of the day",
-  // which reads as 24.
-  const total = Number(pointsLine.match(/^\+(\d+) points/)[1]);
-  const parts = [...pointsLine.matchAll(/(\d+) [a-z]/g)].map((m) => Number(m[1]));
-  const breakdown = pointsLine.includes('(') ? pointsLine.slice(pointsLine.indexOf('(') + 1, pointsLine.indexOf(')')) : '';
-  if (breakdown) {
-    const sum = [...breakdown.matchAll(/(\d+)/g)].map((m) => Number(m[1])).reduce((a, b) => a + b, 0);
-    if (sum !== total) throw new Error(`the award breakdown should sum to the total: ${pointsLine}`);
-    if (/\+/.test(breakdown)) {
-      // A '+' inside the parentheses is the addition sign between the
-      // parts, not a fourth award: "(2 round + 10 first of the day)".
-      if (/\+\d/.test(breakdown)) throw new Error(`a part inside the breakdown should not carry its own plus: ${pointsLine}`);
-    }
-  }
-  if (!parts.length) throw new Error('the points line should carry numbers: ' + pointsLine);
+  // The line has exactly one of two shapes, and anything else fails.
+  // Gating the arithmetic on "if there are parentheses" was the whole
+  // weakness of the first version of this check: the rendering it
+  // exists to reject - "+12 points +2 round, +10 first of the day" -
+  // has no parentheses, so it skipped every assertion and passed.
+  //
+  //   +12 points                              one award
+  //   +12 points (2 round + 10 first of day)  several, and they sum
+  const shape = /^\+(\d+) points(?: \(([^)]*)\))?$/.exec(pointsLine);
+  if (!shape) throw new Error(`the points line is neither a total nor a total with a breakdown: "${pointsLine}"`);
+  const total = Number(shape[1]);
+  const breakdown = shape[2] || '';
+  // A fresh profile's first scored round earns the round award and the
+  // first-of-the-day award, so this one must carry a breakdown. Without
+  // this the old rendering would simply fail the shape above and, if
+  // somebody dropped the breakdown entirely, pass it.
+  if (!breakdown) throw new Error(`the first round of the day earns two awards, so the line should itemise them: "${pointsLine}"`);
+  const parts = [...breakdown.matchAll(/(\d+)/g)].map((m) => Number(m[1]));
+  if (parts.length < 2) throw new Error(`the breakdown should name every award: "${pointsLine}"`);
+  const sum = parts.reduce((a, b) => a + b, 0);
+  if (sum !== total) throw new Error(`the breakdown should sum to the total it breaks down: "${pointsLine}"`);
+  // No part carries its own plus: inside the parentheses a '+' is the
+  // addition sign between parts, never a fourth award.
+  // \s* would have matched the separator itself (" + 10"), so this is
+  // a plus glued to a digit, which is what "+2 round" looks like.
+  if (/\+\d/.test(breakdown)) throw new Error(`a part inside the breakdown should not carry its own plus: "${pointsLine}"`);
   await page.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
   // The page opens on the record: rating, last games, badges, today.
   // The shop is a tab, because a price list is not what a profile is.
@@ -919,13 +929,18 @@ async function profile(browser) {
   for (const ladder of ['Classic', 'Duel', 'Ranked solo']) {
     if (!new RegExp(ladder, 'i').test(record)) throw new Error(`the record tab should name every ladder, missing ${ladder}`);
   }
-  // Badge progress counts countries against countries. Mars and the
-  // Moon are badge rows too, so counting them in the numerator against
-  // the street pool could print 24 of 23.
+  // Badge progress counts countries against countries. This browser
+  // has no badges, so all it can check is the shape when there are
+  // none; the counting itself, including a player holding Mars, is
+  // __tests__/geo/badges.test.js, which can build that profile without
+  // waiting for a 0.5% round to come up.
   const badges = await page.evaluate(() => document.querySelector('[data-badges]')?.innerText.replace(/\s+/g, ' ') || '');
+  if (!badges) throw new Error('the record tab should carry the badges card');
   const progress = badges.match(/(\d+) of (\d+) countries/i);
-  if (progress && Number(progress[1]) > Number(progress[2])) {
-    throw new Error(`badge progress cannot exceed its denominator: ${progress[0]}`);
+  if (progress) {
+    if (Number(progress[1]) > Number(progress[2])) throw new Error(`badge progress cannot exceed its denominator: ${progress[0]}`);
+  } else if (!/None yet/i.test(badges)) {
+    throw new Error(`a badges card with no progress line should say there are none: ${badges.slice(0, 120)}`);
   }
   log('badges:', badges.slice(0, 80));
   await page.click('[data-profile-tab="shop"]');
