@@ -12,6 +12,7 @@ import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
+import { safeReturnTo } from '@/app/lib/geo/authReturn';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,12 +21,10 @@ const SAME_ANSWER = {
   message: 'If that address can receive mail, a sign-in link is on its way. It expires in fifteen minutes.',
 };
 
-function safeReturnTo(value) {
-  if (typeof value !== 'string' || !value.startsWith('/geo')) return '';
-  if (value.startsWith('//') || /[\
-]/.test(value)) return '';
-  return value.slice(0, 500);
-}
+// A sign-in link may return somebody to the game screen that asked for
+// it, but never to another origin. This is deliberately a path rather
+// than a generic URL parser so `//elsewhere.test` cannot become an open
+// redirect.
 
 export async function POST(request) {
   let body;
@@ -35,6 +34,8 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Send a JSON body with an email address' }, { status: 400 });
   }
 
+  // The play profile this browser is asking from, so the link can bind
+  // it to the account. A failure here only costs the binding.
   let profileId = null;
   try {
     ({ profileId } = await subjectsFor(request));
@@ -49,6 +50,8 @@ export async function POST(request) {
       profileId,
       returnTo: safeReturnTo(body?.returnTo),
     });
+    // A mail failure is worth saying out loud: silently claiming to have
+    // sent something we did not would leave the player waiting forever.
     if (!result.sent) {
       const noKey = result.reason === 'no_mail_key';
       return NextResponse.json(
@@ -61,6 +64,9 @@ export async function POST(request) {
         { status: noKey ? 503 : 502 }
       );
     }
+    // Outside production a server with no mail key writes the link to
+    // the log instead of sending it. Say so rather than telling the
+    // player to watch an inbox nothing is coming to.
     if (!result.delivered) {
       return NextResponse.json(
         { ok: true, message: 'No mail account is set up here, so the sign-in link was written to the server log.', code: 'logged_not_sent' },
@@ -73,6 +79,8 @@ export async function POST(request) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
     }
     console.error('[geo/auth/request]', error?.message || error);
+    // Shared with every other geo route, and it names the table:
+    // app/lib/geo/server/schemaError.js.
     return NextResponse.json(schemaErrorBody(error, 'Could not start sign-in'), { status: 500 });
   }
 }

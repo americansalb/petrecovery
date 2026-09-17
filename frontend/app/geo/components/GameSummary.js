@@ -281,7 +281,7 @@ export default function GameSummary({
         {/* The account ask, at the one moment there is something worth
             keeping. It renders for guests only and gates nothing: the
             score above is already recorded in this browser. */}
-        <KeepThis />
+        <KeepThis returnTo={`/geo/share?s=${encodeURIComponent(code)}`} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button

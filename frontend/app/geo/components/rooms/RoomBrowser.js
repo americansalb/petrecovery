@@ -39,6 +39,7 @@ import { configErrorMessage, loadGeoConfig } from "../../lib/serverConfig";
 import { ensureProfile, profileHeaders } from "../../lib/profile";
 import { ago } from "../../lib/time";
 import SetupNotice from "../SetupNotice";
+import AccountDialog from "../AccountDialog";
 import { APPLE_COVERAGE } from "@/app/lib/geo/coverage";
 
 function Field({ label, hint, children }) {
@@ -58,6 +59,34 @@ function Field({ label, hint, children }) {
 
 const select =
   "w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm";
+
+const ROOM_DRAFT_KEY = "geo:pending-room:v1";
+
+function rememberDraft(draft) {
+  try {
+    window.localStorage.setItem(ROOM_DRAFT_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }));
+  } catch {
+    /* A private browser can still use rooms, it just cannot resume a draft. */
+  }
+}
+
+function loadDraft() {
+  try {
+    const raw = window.localStorage.getItem(ROOM_DRAFT_KEY);
+    const draft = raw ? JSON.parse(raw) : null;
+    return draft && Date.now() - draft.savedAt < 86400000 ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function forgetDraft() {
+  try {
+    window.localStorage.removeItem(ROOM_DRAFT_KEY);
+  } catch {
+    /* Nothing to clear when browser storage is unavailable. */
+  }
+}
 
 export default function RoomBrowser({ initialVariant = "classic" }) {
   const router = useRouter();
@@ -81,11 +110,21 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
   const [error, setError] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [recent, setRecent] = useState([]);
+  const [signedIn, setSignedIn] = useState(null);
+  const [accountGate, setAccountGate] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
     setName(loadName());
     setRecent(listRecentRooms());
+    const draft = loadDraft();
+    if (draft?.name) setName(draft.name);
+    if (draft?.form) setForm((current) => ({ ...current, ...draft.form }));
+    if (draft?.code) setCode(draft.code);
+    fetch('/api/geo/auth/me', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => setSignedIn(Boolean(data?.signedIn)))
+      .catch(() => setSignedIn(false));
     let alive = true;
     loadGeoConfig({ shouldStop: () => !alive })
       .then((data) => alive && data && setServer(data))
@@ -135,6 +174,11 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
       setError("Type your name first.");
       return;
     }
+    if (!signedIn) {
+      rememberDraft({ name: hostName, form });
+      setAccountGate(true);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -156,6 +200,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
         playerId: json.playerId,
         name: hostName,
       });
+      forgetDraft();
       router.push(`/geo/room/${json.code}`);
     } catch (e) {
       setError(e.message);
@@ -170,7 +215,13 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
       setError("A room code is six letters and numbers.");
       return;
     }
+    if (!signedIn) {
+      rememberDraft({ name: name.trim(), form, code: normalized });
+      setAccountGate(true);
+      return;
+    }
     if (name.trim()) saveName(name.trim());
+    forgetDraft();
     router.push(
       `/geo/room/${normalized}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ""}`,
     );
@@ -178,6 +229,22 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
 
   return (
     <main className="pe-rooms-page pe-page">
+      {accountGate ? (
+        <AccountDialog
+          onClose={() => setAccountGate(false)}
+          name={name}
+          onNameChange={(value) => {
+            setName(value);
+            saveName(value);
+            rememberDraft({ name: value, form, code });
+          }}
+          returnTo={code ? `/geo/room/${normalizeRoomCode(code)}` : `/geo/rooms?variant=${form.variant}`}
+          onAuthenticated={() => {
+            setSignedIn(true);
+            setAccountGate(false);
+          }}
+        />
+      ) : null}
       <header className="pe-rooms-heading">
         <div>
           <p className="pe-eyebrow">Play together · All modes free</p>

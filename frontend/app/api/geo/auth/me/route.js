@@ -12,7 +12,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import prisma from '@/app/lib/geo/server/db';
+import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { accountFromRequest } from '@/app/lib/geo/server/identity';
 import { accountView } from '@/app/lib/geo/server/roles';
 
@@ -36,7 +36,7 @@ export async function GET(request) {
   // all, where the session cookie is still perfectly valid.
   let reachable = true;
   try {
-    account = await prisma.geoAccount.findUnique({ where: { id: accountId } });
+    account = await prismaRoomStore.getAccountById(accountId);
   } catch (error) {
     reachable = false;
     console.error('[geo/auth/me]', error?.message || error);

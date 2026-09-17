@@ -31,7 +31,7 @@ export default function GeoSignInPage() {
           and a page that says it first makes the screen read the same
           sentence twice. */}
       <div className="mt-6">
-        <SignInCard />
+        <SignInCard requireName />
       </div>
     </main>
   );

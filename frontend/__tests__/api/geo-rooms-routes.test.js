@@ -7,6 +7,12 @@
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
 
 const memoryStore = createMemoryRoomStore();
+const { sealSession, SESSION_COOKIE } = require('@/app/lib/geo/server/identity');
+let accountCookie;
+beforeAll(async () => {
+  const account = await memoryStore.createAccount({ email: 'rooms@example.test', createdAt: new Date(), lastSeenAt: new Date() });
+  accountCookie = `${SESSION_COOKIE}=${sealSession({ accountId: account.id, email: account.email })}`;
+});
 jest.mock('@/app/lib/geo/server/roomStore', () => ({ prismaRoomStore: memoryStore }));
 jest.mock('@/app/lib/geo/server/limiter', () => ({
   withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
@@ -29,6 +35,7 @@ const saved = {};
 
 function request(body, token, ip) {
   const headers = new Map();
+  if (accountCookie) headers.set('cookie', accountCookie);
   if (token) headers.set('x-geo-player', token);
   if (ip) headers.set('x-test-ip', ip);
   return { json: async () => body, headers, url: 'http://localhost/api/geo/rooms' };
@@ -55,6 +62,14 @@ afterEach(() => {
 });
 
 describe('rooms API', () => {
+  test('guests cannot create a room or join through a direct room URL', async () => {
+    const guest = request({ hostName: 'Guest' });
+    guest.headers.delete('cookie');
+    expect((await createRoom(guest)).status).toBe(401);
+    const joining = request({ action: 'join', name: 'Guest' });
+    joining.headers.delete('cookie');
+    expect((await postRoom(joining, { params: { code: 'ABC123' } })).status).toBe(401);
+  });
   test('a whole game over the routes', async () => {
     const created = await createRoom(request({ name: 'Office', hostName: 'Ada', settings: { provider: 'google', rounds: 3, time: 60, variant: 'classic' } }));
     expect(created.status).toBe(200);

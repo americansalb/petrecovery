@@ -400,6 +400,13 @@ export default function ProfileClient() {
           </div>
         </header>
 
+        {profile && !profile.signedIn ? (
+          <div className="mt-5 flex items-center justify-between gap-4 border-b border-white/15 pb-5">
+            <p className="text-sm text-white/75">Keep your games on every device.</p>
+            <Link href="/geo/signin" className="pe-button pe-button--primary min-h-[44px] px-4 py-3">Save your player</Link>
+          </div>
+        ) : null}
+
         {error ? (
           <p className="mt-4 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">
             {error}

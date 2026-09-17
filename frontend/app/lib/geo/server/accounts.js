@@ -57,7 +57,7 @@ export function looksLikeEmail(value) {
  * Always reports the same thing whether or not an account exists, so
  * this endpoint cannot be used to find out who has one.
  */
-export async function requestSignIn(store, { email: raw, baseUrl, profileId = null, now = Date.now(), sendImpl, env } = {}) {
+export async function requestSignIn(store, { email: raw, baseUrl, profileId = null, returnTo = '', now = Date.now(), sendImpl, env } = {}) {
   const email = normalizeEmail(raw);
   if (!looksLikeEmail(email)) throw new GeoAuthError('bad_email', 'That does not look like an email address');
 
@@ -74,7 +74,12 @@ export async function requestSignIn(store, { email: raw, baseUrl, profileId = nu
     createdAt: new Date(now),
   });
 
-  const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/geo/auth/verify?token=${encodeURIComponent(token)}`;
+  // `returnTo` has already been restricted to an internal game path by
+  // the route. Keeping it on the link lets a player come back to the room
+  // or screen that asked them to sign in, rather than dropping them on a
+  // profile page and making them find their way back.
+  const next = returnTo ? `&next=${encodeURIComponent(returnTo)}` : '';
+  const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/geo/auth/verify?token=${encodeURIComponent(token)}${next}`;
   const result = await sendSignInEmail({ to: email, url, sendImpl, env });
   return { email, sent: result.sent, delivered: Boolean(result.delivered), reason: result.reason || '', url };
 }

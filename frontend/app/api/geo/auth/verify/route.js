@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 import { GeoAuthError, verifySignIn } from '@/app/lib/geo/server/accounts';
 import { applySession } from '@/app/lib/geo/server/identity';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
+import { safeReturnTo } from '@/app/lib/geo/authReturn';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +23,6 @@ const WHY = {
   used: 'that-link-was-already-used',
 };
 
-function safeReturnTo(value) {
-  if (typeof value !== 'string' || !value.startsWith('/geo')) return '/geo/me';
-  if (value.startsWith('//') || /[\\n]/.test(value)) return '/geo/me';
-  return value.slice(0, 500);
-}
 
 export async function GET(request) {
   const url = new URL(request.url);

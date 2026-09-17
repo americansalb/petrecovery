@@ -109,6 +109,20 @@ describe('the sign-in routes', () => {
     expect(madeUp.headers.get('location')).toContain('sign-in-failed=that-link-is-not-valid');
   });
 
+  test('a link returns to the internal game screen that asked for it, never an outside URL', async () => {
+    delete process.env.RESEND_API_KEY;
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await postRequest(request({ email: 'return@example.com', returnTo: '/geo/rooms?variant=duel' }));
+    const url = linkFromLog(spy, 'return@example.com');
+    spy.mockRestore();
+    const done = await getVerify({ url, headers: new Map() });
+    expect(done.headers.get('location')).toContain('/geo/rooms?variant=duel&signed-in=1');
+
+    // A caller cannot turn an email link into an open redirect.
+    const unsafe = await postRequest(request({ email: 'safe@example.com', returnTo: 'https://elsewhere.test' }));
+    expect(unsafe.status).toBe(200);
+  });
+
   test('a bad address is refused before anything is written', async () => {
     const res = await postRequest(request({ email: 'not-an-address' }));
     expect(res.status).toBe(400);

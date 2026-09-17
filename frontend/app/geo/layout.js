@@ -12,6 +12,7 @@ import './geo.css';
 import './experience.css';
 import './home.css';
 import './match.css';
+import './accounts.css';
 import { scriptShowcaseFonts } from './script/fonts';
 
 export const metadata = buildShareMetadata({

@@ -24,6 +24,7 @@ import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
 import MatchHud from './rooms/MatchHud';
 import './round.css';
 import SetupNotice from './SetupNotice';
+import AccountDialog from './AccountDialog';
 import { JoinPanel, LobbyPanel, LoadingPanel, Panel, ReactionToasts, ReactionsBar, RevealPanel, StandingsPanel, LocatingPanel } from './rooms/RoomPanels';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
@@ -73,6 +74,13 @@ export default function RoomClient({ code }) {
   const [mapHover, setMapHover] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const [defaultName, setDefaultName] = useState('');
+  const [accountGate, setAccountGate] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/geo/auth/me', { cache: 'no-store' }).then(r => r.json()).then(d => { if (live) setSignedIn(Boolean(d.signedIn)); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
   const paneRef = useRef(null);
   const lastRoundRef = useRef(null);
   const myLocateRef = useRef(null);
@@ -159,14 +167,14 @@ export default function RoomClient({ code }) {
 
   // Arrived with ?name= (a rematch link): join without asking again.
   useEffect(() => {
-    if (!ready || !state || identity || !presetName || autoJoinedRef.current) return;
+    if (!signedIn || !ready || !state || identity || !presetName || autoJoinedRef.current) return;
     if (state.room.status === 'finished') return;
     autoJoinedRef.current = true;
     ensureProfile(presetName)
       .catch(() => null)
       .then(() => join(presetName))
       .catch((e) => setActionError(e.message));
-  }, [ready, state, identity, presetName, join]);
+  }, [ready, state, identity, presetName, join, signedIn]);
 
   // A new round or phase clears the local guess.
   const roundIndex = state?.round?.index;
@@ -394,6 +402,7 @@ export default function RoomClient({ code }) {
       ) : null}
 
       {/* Screens */}
+      {accountGate ? <AccountDialog name={defaultName} onNameChange={setDefaultName} returnTo={`/geo/room/${code}?name=${encodeURIComponent(defaultName)}`} onClose={() => setAccountGate(false)} onAuthenticated={() => { setSignedIn(true); setAccountGate(false); }} /> : null}
       {!ready || (!state && !error) ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading the room</div> : null}
       {notFound ? <MessagePanel title="No room with that code" message="Codes are six letters and numbers. Check it with whoever sent it, or open a new room." /> : null}
       {error && !notFound ? <MessagePanel title="The room could not be loaded" message={error.message} /> : null}
@@ -403,6 +412,7 @@ export default function RoomClient({ code }) {
           defaultName={defaultName}
           onJoin={(name) =>
             run(async () => {
+              if (!signedIn) { setDefaultName(name); setAccountGate(true); return; }
               await ensureProfile(name).catch(() => null);
               await join(name);
             })

@@ -16,6 +16,7 @@ import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { getRoomView, joinRoom, roomAction } from '@/app/lib/geo/server/rooms';
 import { NO_STORE, playerSubjects, roomErrorResponse } from '@/app/lib/geo/server/roomRoute';
+import { requireAccount } from '@/app/lib/geo/server/requireAccount';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,8 @@ export async function POST(request, { params }) {
 
   try {
     if (action === 'join') {
+      const denied = await requireAccount(request);
+      if (denied) return denied;
       const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'geo-room-join');
       if (!limit.success) return rateLimitResponse(limit);
       const subjects = await playerSubjects(request, body?.name);

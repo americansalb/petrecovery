@@ -16,7 +16,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Check, LogOut, Mail, Trash2 } from 'lucide-react';
+import { ArrowRight, Check, LogOut, Mail, Trash2, UserRound } from 'lucide-react';
+import { ensureProfile, profileHeaders } from '../lib/profile';
 
 const WHY = {
   'that-link-is-not-valid': 'That link was not valid. Ask for a new one.',
@@ -25,12 +26,33 @@ const WHY = {
   unknown: 'That did not work. Ask for a new link.',
 };
 
-export default function SignInCard() {
+export default function SignInCard({ returnTo = '/geo/me', requireName = false, playerName, onPlayerNameChange, onAuthenticated, compact = false }) {
   const [email, setEmail] = useState('');
+  const [localName, setLocalName] = useState('');
   const [state, setState] = useState('idle');
   const [message, setMessage] = useState('');
   const [account, setAccount] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const name = playerName === undefined ? localName : playerName;
+  const setName = (value) => {
+    if (onPlayerNameChange) onPlayerNameChange(value);
+    else setLocalName(value);
+  };
+
+  useEffect(() => {
+    if (state !== 'sent' || !onAuthenticated) return;
+    let alive = true;
+    const check = async () => {
+      try {
+        const response = await fetch('/api/geo/auth/me', { cache: 'no-store' });
+        const data = response.ok ? await response.json() : null;
+        if (alive && data?.signedIn) onAuthenticated();
+      } catch { /* Try again when the player returns from email. */ }
+    };
+    window.addEventListener('focus', check);
+    const timer = setInterval(check, 4000);
+    return () => { alive = false; clearInterval(timer); window.removeEventListener('focus', check); };
+  }, [state, onAuthenticated]);
 
   useEffect(() => {
     let alive = true;
@@ -57,10 +79,15 @@ export default function SignInCard() {
     setState('sending');
     setMessage('');
     try {
+      if (requireName && !name.trim()) throw new Error('Choose a player name first.');
+      // Mint the browser profile before asking for mail. The request route
+      // records that profile, so following the link keeps this player\'s
+      // score, badges and room identity instead of making a blank one.
+      await ensureProfile(name.trim());
       const response = await fetch('/api/geo/auth/request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        headers: { 'Content-Type': 'application/json', ...profileHeaders() },
+        body: JSON.stringify({ email, returnTo }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || 'Could not send that link');
@@ -100,7 +127,7 @@ export default function SignInCard() {
         <p className="flex items-center gap-2 font-semibold text-white">
           <Check className="h-4 w-4 text-green-400" /> Signed in as {account.email}
         </p>
-        <p className="mt-1 text-sm text-white/60">Your profile follows you to any device you sign in on.</p>
+        <p className="mt-1 text-sm text-white/60">Your profile follows you to any device you sign in on. This device stays signed in for 90 days.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={signOut} className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/20">
             <LogOut className="h-4 w-4" /> Sign out
@@ -142,36 +169,71 @@ export default function SignInCard() {
     );
   }
 
+  if (state === 'sent') return (
+    <div className="mt-6" role="status" aria-live="polite">
+      <Mail size={36} className="mb-4 text-clay-300" aria-hidden="true" />
+      <h3 className="text-xl font-semibold">Check your email</h3>
+      <p className="mt-2 break-words text-white/80">{email}</p>
+      <p className="mt-2 text-sm text-white/70">{message}</p>
+      <p className="mt-2 text-sm text-white/70">Open the link to continue. Your progress stays here.</p>
+      <button type="button" className="mt-4 min-h-[44px] text-sm underline" onClick={() => setState('idle')}>Change email or resend</button>
+    </div>
+  );
+
   return (
-    <div className="rounded-xl border border-white/10 p-4">
-      <p className="font-semibold text-white">Keep this profile across devices</p>
+    <div className={compact ? '' : 'rounded-xl border border-white/10 p-4'}>
+      {!compact ? <>
+      <p className="font-semibold text-white">{requireName ? 'Make this your player' : 'Keep this profile across devices'}</p>
       <p className="mt-1 text-sm text-white/60">
-        Your rating, points and badges live in this browser. An email address moves them to your phone too, and brings
-        them back if you clear it.
+        {requireName
+          ? 'One link keeps your name, games and progress on this device and the next one.'
+          : 'Your rating, points and badges live in this browser. An email address moves them to your phone too, and brings them back if you clear it.'}
       </p>
+      </> : null}
       {/* method="post" so a submit before hydration does not put the address in the URL (__tests__/form-method.test.js). */}
-      <form method="post" onSubmit={request} className="mt-3 flex flex-wrap gap-2">
-        <label className="sr-only" htmlFor="geo-signin-email">
-          Email address
-        </label>
+      <form method="post" onSubmit={request} className="pe-account-form">
+        {requireName ? (
+          <label className="w-full text-sm font-semibold text-white/80" htmlFor="geo-signin-name">
+            <span className="flex items-center gap-2"><UserRound size={16} aria-hidden="true" /> Player name</span>
+            <input
+              id="geo-signin-name"
+              type="text"
+              required
+              maxLength={20}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="What should we call you?"
+              autoComplete="nickname"
+              className="mt-1 w-full rounded-lg border border-white/15 px-3 py-2 text-sm"
+            />
+          </label>
+        ) : null}
+        <label htmlFor="geo-signin-email">
+          <span className="flex items-center gap-2"><Mail size={16} aria-hidden="true" /> Email</span>
         <input
           id="geo-signin-email"
           type="email"
+          autoComplete="email"
+          autoCapitalize="none"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
           className="min-w-0 flex-1 rounded-lg border border-white/15 px-3 py-2 text-sm"
         />
+        </label>
         <button
           type="submit"
           disabled={state === 'sending'}
           className="flex items-center gap-2 rounded-lg bg-clay-400 px-4 py-2 text-sm font-semibold text-ocean-950 transition enabled:hover:bg-clay-300 disabled:opacity-60"
         >
-          <Mail className="h-4 w-4" /> {state === 'sending' ? 'Sending' : 'Send link'}
+          {state === 'sending' ? 'Sending…' : 'Continue'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </form>
-      {message ? <p className={`mt-2 text-sm ${state === 'error' ? 'text-red-300' : 'text-white/60'}`}>{message}</p> : null}
+      <p className="mt-2 text-xs text-white/50">
+        {state === 'sent' && requireName ? 'Check your email. The link brings you straight back here.' : 'No password. This device stays signed in for 90 days.'}
+      </p>
+      {message ? <p role="alert" className={`mt-2 text-sm ${state === 'error' ? 'text-red-300' : 'text-white/60'}`}>{message}</p> : null}
     </div>
   );
 }
