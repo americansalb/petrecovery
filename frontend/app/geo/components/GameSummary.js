@@ -98,9 +98,6 @@ function DailyBoard({ daily, cup = false }) {
           ))}
         </ol>
       ) : null}
-      <Link href="/geo/setup" className="mt-2 inline-block text-xs text-white/60 underline decoration-white/30 hover:text-white">
-        The whole board is in the lobby
-      </Link>
     </div>
   );
 }
@@ -215,10 +212,6 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
           <Link href={newSeedUrl} onClick={onPlayAgain} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-clay-600">
             <RefreshCw className="h-4 w-4" />
             {shared ? 'Play again' : 'New places, same settings'}
-          </Link>
-          <Link href="/geo/setup" className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10">
-            <Settings2 className="h-4 w-4" />
-            Change settings
           </Link>
         </div>
         <p className="mt-3 text-xs text-white/40">

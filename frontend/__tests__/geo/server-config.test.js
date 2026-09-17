@@ -80,7 +80,6 @@ describe('every screen loads it the same way', () => {
   const path = require('path');
   const ROOT = path.resolve(__dirname, '../..');
   const SCREENS = [
-    'app/geo/components/GeoLobby.js',
     'app/geo/components/PlayClient.js',
     'app/geo/components/RoomClient.js',
     'app/geo/components/rooms/RoomBrowser.js',
@@ -95,12 +94,6 @@ describe('every screen loads it the same way', () => {
     }
   });
 
-  test('the lobby offers a way to ask again, because it is the screen that stops working', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'app/geo/components/GeoLobby.js'), 'utf8');
-    expect(src).toContain('Try again');
-    expect(src).toContain('setConfigTry');
-    expect(src).toContain('}, [configTry]);');
-  });
 });
 
 describe('it is asked for once a session, not once a screen', () => {

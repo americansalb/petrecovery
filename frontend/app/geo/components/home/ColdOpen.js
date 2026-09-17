@@ -151,23 +151,6 @@ export default function ColdOpen() {
           </p>
         ) : null}
 
-        <nav className="geo-rise pointer-events-auto mt-10 flex flex-wrap items-center justify-center gap-x-0.5 gap-y-1" style={{ animationDelay: '300ms' }} aria-label="Other ways to play">
-          {WAYS.map((way, i) => (
-            <span key={way.href} className="flex items-center">
-              {i ? <span className="px-1 text-sand-200/30" aria-hidden="true">·</span> : null}
-              <Link href={way.href} className="rounded-lg px-2.5 py-1.5 text-sm font-semibold text-sand-100/75 transition hover:bg-sand-50/10 hover:text-white">
-                {way.label}
-              </Link>
-            </span>
-          ))}
-          <span className="flex items-center">
-            <span className="px-1 text-sand-200/30" aria-hidden="true">·</span>
-            <Link href="/geo/setup" className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-sand-100/75 transition hover:bg-sand-50/10 hover:text-white">
-              <Settings2 className="h-3.5 w-3.5" />
-              Settings
-            </Link>
-          </span>
-        </nav>
       </div>
 
       {/* The credits belong on the page and not in the middle of it:
