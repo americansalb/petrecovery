@@ -39,14 +39,23 @@ test('the script preview names the real number of writing systems', () => {
   expect(layout).toContain(`${scripts} writing systems`);
 });
 
-test('every ladder description that counts scripts counts the right number', () => {
+test('no ladder description carries a count at all', () => {
+  // Stronger than checking that a written count is currently right,
+  // which is what this used to do. Every one of them had drifted anyway
+  // - Devanagari promised "five answers" for a pool of nine, Arabic
+  // named seven of thirteen, Cyrillic "two that are not Slavic" of nine
+  // - because a number in prose has no reason to follow the array.
+  //
+  // The screen renders languagesForLadder(id).length, which cannot
+  // drift, so the description says what the pool IS and never how big.
+  const COUNTING = /\b(\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/i;
   const wrong = [];
   for (const [id, ladder] of Object.entries(LADDERS)) {
-    const languages = languagesForLadder(id);
-    const scripts = new Set(languages.map((l) => l.script)).size;
-    const match = /(\w+) scripts/.exec(ladder.description || '');
-    if (!match) continue;
-    if (match[1].toLowerCase() !== spelled(scripts)) wrong.push(`${id}: says ${match[1]}, has ${scripts}`);
+    const match = COUNTING.exec(ladder.description || '');
+    if (match) wrong.push(`${id}: "${ladder.description}" counts with "${match[0]}"`);
+    // And the pool has to be non-empty, or the count the screen shows
+    // would be the drift instead.
+    expect({ id, size: languagesForLadder(id).length > 0 }).toEqual({ id, size: true });
   }
   expect(wrong).toEqual([]);
 });

@@ -87,7 +87,7 @@ export default function KeepThis({ compact = false }) {
     <div className={`rounded-2xl border border-white/10 bg-white/5 p-4 ${compact ? '' : 'mt-4'}`} data-keep-this>
       <p className="text-sm font-semibold text-white">Keep this game</p>
       <p className="mt-1 text-sm text-white/70">
-        It's free. Your score, rating and badges live in this browser, and an email address moves them to your phone too
+        It&apos;s free. Your score, rating and badges live in this browser, and an email address moves them to your phone too
         and brings them back if you clear it.
       </p>
       {/* method="post" is not decoration: a submit before React has

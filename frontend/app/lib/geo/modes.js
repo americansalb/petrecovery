@@ -164,7 +164,7 @@ const RETIRED_MODES = { world: 'balanced', cities: 'balanced', everywhere: 'bala
  */
 export const FORMATS = {
   moving: { id: 'moving', label: 'Moving', short: 'Moving', description: 'Walk, look around and zoom.', move: true, pan: true, zoom: true },
-  nm: { id: 'nm', label: 'No Move', short: 'NM', description: 'Look around and zoom from one spot. The format the pros play.', move: false, pan: true, zoom: true },
+  nm: { id: 'nm', label: 'No Move', short: 'NM', description: 'Look around and zoom from one spot. No walking.', move: false, pan: true, zoom: true },
   nmpz: { id: 'nmpz', label: 'NMPZ', short: 'NMPZ', description: 'No move, pan or zoom. One view, that is all you get.', move: false, pan: false, zoom: false },
 };
 export const FORMAT_ORDER = ['moving', 'nm', 'nmpz'];

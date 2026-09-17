@@ -214,6 +214,9 @@ export default function PlayClient() {
   }, [configured, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
+  // An unresponsive provider is not bad luck and is never retried: it
+  // already went silent on every spot in the round, and retrying is how
+  // one dead round became five minutes of a loading label.
   const autoRetrying = state.status === 'error' && state.error?.code === 'no_imagery' && state.attempt < 2;
 
   // The play meter said no (docs/GEO.md, "The play meter"). There is
@@ -418,7 +421,18 @@ export default function PlayClient() {
           allowZoom={config.zoom}
           onAttempt={setAppleAttempt}
           onLocated={(index) => dispatch({ type: 'located', index })}
-          onFailed={(error) => dispatch({ type: 'load_error', error: { message: error?.message || 'No Look Around imagery at any of the spots tried', code: 'no_imagery' } })}
+          onFailed={(error) =>
+            dispatch({
+              type: 'load_error',
+              error: {
+                message: error?.message || 'No Look Around imagery at any of the spots tried',
+                // 'unresponsive' means the service never answered, so a
+                // retry asks the same silent thing again. Only a real
+                // "nothing here" is worth another draw.
+                code: error?.kind === 'unresponsive' ? 'imagery_unresponsive' : 'no_imagery',
+              },
+            })
+          }
         />
       ) : null}
 
@@ -551,7 +565,15 @@ export default function PlayClient() {
 
       {/* Loading, setup and errors */}
       {showLoading && sdkReady ? (
-        <LoadingSpot roundNumber={roundNumber} appleAttempt={appleAttempt} appleTotal={state.current?.candidates?.length || 0} />
+        /* The key restarts the "taking too long" clock for each new
+           round and each retry, rather than letting it run from the
+           first one. */
+        <LoadingSpot
+          key={`${state.roundIndex}:${state.attempt}`}
+          roundNumber={roundNumber}
+          appleAttempt={appleAttempt}
+          appleTotal={state.current?.candidates?.length || 0}
+        />
       ) : null}
       {server && !configured ? (
         <Panel>
@@ -568,7 +590,15 @@ export default function PlayClient() {
       ) : null}
       {state.status === 'error' && !autoRetrying ? (
         <ErrorPanel
-          title={metered ? refusalTitle(state.error.code) : state.error?.code === 'no_imagery' ? 'No imagery found' : 'Could not start the round'}
+          title={
+            metered
+              ? refusalTitle(state.error.code)
+              : state.error?.code === 'imagery_unresponsive'
+                ? 'Look Around is not answering'
+                : state.error?.code === 'no_imagery'
+                  ? 'No imagery found'
+                  : 'Could not start the round'
+          }
           message={state.error?.message || 'Something went wrong.'}
           onRetry={metered && state.error.code !== 'speed' ? null : () => dispatch({ type: 'retry' })}
           resetAt={metered ? state.error.resetAt : null}

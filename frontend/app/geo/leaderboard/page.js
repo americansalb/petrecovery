@@ -116,8 +116,20 @@ export default function GeoLeaderboardPage() {
               </dl>
             </div>
             {!you.games ? (
+              /* The destination has to match the ladder on screen. This
+                 said "open a room with a friend" on every tab including
+                 Ranked solo, which is a solo ladder a room cannot rate
+                 (founder, 2026-09-17). */
               <p className="mt-3 text-sm text-white/70">
-                No rated games yet. <Link href="/geo/rooms" className="underline">Open a room</Link> with a friend to get one.
+                {ladder === 'solo' ? (
+                  <>
+                    No rated games yet. <Link href="/geo/play?mode=ranked" className="underline">Play this hour&apos;s five</Link> to start placing.
+                  </>
+                ) : (
+                  <>
+                    No rated games yet. <Link href="/geo/rooms" className="underline">Open a {LADDER_LABELS[ladder]?.toLowerCase() || ''} room</Link> with a friend to get one.
+                  </>
+                )}
               </p>
             ) : null}
           </section>

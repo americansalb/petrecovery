@@ -396,7 +396,9 @@ async function appleSolo(browser) {
   await page.waitForSelector('[data-keep-this]', { timeout: 15000 });
   const keep = await page.textContent('[data-keep-this]');
   log('account ask on the summary:', /Keep this game/.test(keep || ''));
-  if (!/costs nothing/.test(keep || '')) throw new Error('the account ask does not say what it costs');
+  // "free", not "costs nothing" (founder, 2026-09-17: "WHY NOT SAY
+  // FREE"). The house rule allows the price in the present tense.
+  if (!/\bfree\b/i.test(keep || '')) throw new Error('the account ask does not say it is free');
   await shot(page, 'apple-solo-summary');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
@@ -674,7 +676,7 @@ async function firstRun(browser) {
   log('front door:', text.slice(0, 140));
   // What the game is, and how to reach the rest of it, in the words a
   // stranger meets first.
-  for (const wanted of ['put a pin on it', 'Play with friends', 'Rankings']) {
+  for (const wanted of ['Put a pin where you think you are', 'Play with friends', 'Rankings']) {
     if (!text.includes(wanted)) throw new Error(`the front door should say ${wanted}`);
   }
 
