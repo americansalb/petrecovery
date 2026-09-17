@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
 /** The game hub: choose company, choose a game, play. Live status is never invented. */
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   CalendarDays,
@@ -16,32 +16,32 @@ import {
   Trophy,
   UserRound,
   Users,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   CONTINENTS,
   CONTINENT_ORDER,
   configToParams,
   DEFAULT_CONFIG,
   MODES,
-} from '@/app/lib/geo/modes';
-import { PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
-import { ordinal } from '@/app/lib/geo/distance';
-import { untilText } from '@/app/lib/geo/meter';
-import { APPLE_COVERAGE_NAMES } from '@/app/lib/geo/coverage';
-import { profileHeaders } from '../../lib/profile';
-import { loadGeoConfig } from '../../lib/serverConfig';
-import ScriptArtwork from './ScriptArtwork';
-import Button from '../ui/Button';
+} from "@/app/lib/geo/modes";
+import { PROVISIONAL_GAMES } from "@/app/lib/geo/rating";
+import { ordinal } from "@/app/lib/geo/distance";
+import { untilText } from "@/app/lib/geo/meter";
+import { APPLE_COVERAGE_NAMES } from "@/app/lib/geo/coverage";
+import { profileHeaders } from "../../lib/profile";
+import { loadGeoConfig } from "../../lib/serverConfig";
+import ScriptArtwork from "./ScriptArtwork";
+import Button from "../ui/Button";
 
 const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
-  .map(([code, name]) => ({ code, name: name.replace(/^the /, '') }))
+  .map(([code, name]) => ({ code, name: name.replace(/^the /, "") }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
 export default function GameMenu() {
   const router = useRouter();
-  const [company, setCompany] = useState('solo');
-  const [game, setGame] = useState('street');
-  const [variant, setVariant] = useState('classic');
+  const [company, setCompany] = useState("multi");
+  const [game, setGame] = useState("street");
+  const [variant, setVariant] = useState("classic");
   const [starting, setStarting] = useState(false);
   const [imagery, setImagery] = useState(null);
   const [daily, setDaily] = useState(null);
@@ -49,15 +49,15 @@ export default function GameMenu() {
   const [solo, setSolo] = useState(null);
   const [openRooms, setOpenRooms] = useState(null);
   const [answered, setAnswered] = useState({});
-  const [continent, setContinent] = useState('europe');
-  const [country, setCountry] = useState('JP');
-  const multiplayer = company === 'multi';
-  const script = !multiplayer && game === 'script';
+  const [continent, setContinent] = useState("europe");
+  const [country, setCountry] = useState("JP");
+  const multiplayer = company === "multi";
+  const script = !multiplayer && game === "script";
 
   useEffect(() => {
     let live = true;
     const get = (name, url, set, pick = (d) => d) =>
-      fetch(url, { headers: profileHeaders(), cache: 'no-store' })
+      fetch(url, { headers: profileHeaders(), cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (!live || !d) return;
@@ -65,15 +65,15 @@ export default function GameMenu() {
           setAnswered((was) => ({ ...was, [name]: true }));
         })
         .catch(() => {});
-    get('daily', '/api/geo/daily', setDaily);
-    get('cup', '/api/geo/cup', setCup);
+    get("daily", "/api/geo/daily", setDaily);
+    get("cup", "/api/geo/cup", setCup);
     get(
-      'solo',
-      '/api/geo/leaderboard?ladder=solo',
+      "solo",
+      "/api/geo/leaderboard?ladder=solo",
       setSolo,
       (d) => d.you || null,
     );
-    get('rooms', '/api/geo/rooms', setOpenRooms, (d) =>
+    get("rooms", "/api/geo/rooms", setOpenRooms, (d) =>
       Array.isArray(d.rooms) ? d.rooms.length : null,
     );
     loadGeoConfig({ shouldStop: () => !live })
@@ -89,53 +89,190 @@ export default function GameMenu() {
   const start = () => {
     setStarting(true);
     if (multiplayer) router.push(`/geo/rooms?variant=${variant}`);
-    else if (script) router.push('/geo/script/play?ladder=world&rounds=5');
+    else if (script) router.push("/geo/script/play?ladder=world&rounds=5");
     else router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
 
   return (
-    <main className="pe-home">
+    <main className="pe-home pe-home--immersive">
       <section
-        className={`pe-world pe-enter ${script ? 'pe-world--script' : ''}`}
+        className={`pe-world pe-enter ${script ? "pe-world--script" : ""}`}
         aria-labelledby="world-title"
       >
         <div className="pe-world-art" aria-hidden="true" />
         <div className="pe-world-shade" aria-hidden="true" />
-        <div className="pe-hero-copy">
-          <p className="pe-eyebrow">
-            <span className="pe-spark" /> A little curiosity. A whole planet.
-          </p>
-          <h1 id="world-title">
-            {multiplayer ? (
-              <>
-                Same world.
-                <br />
-                <em>Game on.</em>
-              </>
-            ) : script ? (
-              <>
-                Every script
-                <br />
-                <em>tells a story.</em>
-              </>
-            ) : (
-              <>
-                Go on.
-                <br />
-                <em>Get a little lost.</em>
-              </>
-            )}
-          </h1>
-          <p className="pe-hero-description">
-            {multiplayer
-              ? 'Bring your friends. Read the clues. Find out who really knows their way around.'
-              : script
-                ? 'A sentence. A writing system. Somewhere in the world. Where would you put your pin?'
-                : 'Find the clues. Trust your instinct. Drop a pin somewhere on this extraordinary planet.'}
-          </p>
-          <span className="pe-free">
-            <span /> All modes free to play
-          </span>
+        <div className="pe-stage-content">
+          <div className="pe-hero-copy">
+            <p className="pe-eyebrow">
+              <span className="pe-spark" /> The geography game · Free to play
+            </p>
+            <h1 id="world-title">
+              {script ? (
+                <>
+                  Read the
+                  <br />
+                  <em>world.</em>
+                </>
+              ) : multiplayer ? (
+                <>
+                  Know your
+                  <br />
+                  <em>world?</em>
+                </>
+              ) : (
+                <>
+                  Where on
+                  <br />
+                  <em>Earth?</em>
+                </>
+              )}
+            </h1>
+            <p className="pe-hero-description">
+              {script
+                ? "Follow the letters. Find the language. Place your pin."
+                : multiplayer
+                  ? "Same places. Different guesses. Take on your friends."
+                  : "Look around, find the clues, and put yourself on the map."}
+            </p>
+          </div>
+          <section
+            className="pe-play-dock pe-enter"
+            aria-label="Choose how to play"
+          >
+            <div className="pe-dock-heading">
+              <div className="pe-company" role="group" aria-label="Play with">
+                <button
+                  type="button"
+                  aria-pressed={!multiplayer}
+                  onClick={() => setCompany("solo")}
+                >
+                  <UserRound size={18} /> Solo
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={multiplayer}
+                  onClick={() => setCompany("multi")}
+                >
+                  <Users size={19} /> Multiplayer
+                </button>
+              </div>
+              <span className="pe-dock-note">
+                {multiplayer ? "Classic or Duel" : "Street or Script"}
+              </span>
+            </div>
+            <div className="pe-dock-body">
+              <div
+                className="pe-game-choices"
+                role="group"
+                aria-label={multiplayer ? "Multiplayer game" : "Solo game"}
+              >
+                {multiplayer ? (
+                  <>
+                    <button
+                      type="button"
+                      className="pe-mode-choice"
+                      aria-pressed={variant === "classic"}
+                      onClick={() => setVariant("classic")}
+                    >
+                      <span className="pe-mode-icon">
+                        <Trophy />
+                      </span>
+                      <span>
+                        <strong>Classic</strong>
+                        <small>Highest total score wins.</small>
+                      </span>
+                      <span className="pe-choice-dot" />
+                    </button>
+                    <button
+                      type="button"
+                      className="pe-mode-choice"
+                      aria-pressed={variant === "duel"}
+                      onClick={() => setVariant("duel")}
+                    >
+                      <span className="pe-mode-icon pe-mode-icon--duel">
+                        <Swords />
+                      </span>
+                      <span>
+                        <strong>Duel</strong>
+                        <small>Last player standing wins.</small>
+                      </span>
+                      <span className="pe-choice-dot" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="pe-mode-choice"
+                      aria-pressed={game === "street"}
+                      onClick={() => setGame("street")}
+                    >
+                      <span className="pe-mode-thumb" />
+                      <span>
+                        <strong>Street</strong>
+                        <small>Look around. Find your place.</small>
+                      </span>
+                      <span className="pe-choice-dot" />
+                    </button>
+                    <button
+                      type="button"
+                      className="pe-mode-choice"
+                      aria-pressed={game === "script"}
+                      onClick={() => setGame("script")}
+                    >
+                      <span className="pe-mode-glyph" lang="ja">
+                        あ
+                      </span>
+                      <span>
+                        <strong>Script</strong>
+                        <small>Find a place from its language.</small>
+                      </span>
+                      <span className="pe-choice-dot" />
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="pe-launch">
+                <Button
+                  onClick={start}
+                  disabled={
+                    starting || (!multiplayer && !script && imagery === false)
+                  }
+                  size="lg"
+                  data-cold-open-play
+                  className="pe-play-button"
+                >
+                  <Play size={19} fill="currentColor" />
+                  {starting
+                    ? "Let’s go…"
+                    : multiplayer
+                      ? `Play ${variant === "duel" ? "Duel" : "Classic"}`
+                      : `Play ${script ? "Script" : "Street"}`}
+                  <ArrowRight size={20} />
+                </Button>
+                <p>
+                  {multiplayer
+                    ? openRooms === null
+                      ? "Create a room or join with a code"
+                      : openRooms
+                        ? `${openRooms} open ${openRooms === 1 ? "room" : "rooms"} · or create your own`
+                        : "Start a room. Invite your first rival."
+                    : imagery === false && !script
+                      ? "Street is unavailable here. Try Script."
+                      : `${DEFAULT_CONFIG.rounds} rounds · No timer · No account needed`}
+                </p>
+              </div>
+            </div>
+            <div className="pe-dock-foot">
+              <Link href="/geo/script" data-menu-script>
+                <Languages size={15} /> All Script languages{" "}
+                <ArrowRight size={14} />
+              </Link>
+              <Link href="/geo/rooms" data-menu-friends>
+                <Users size={15} /> Have a room code? <ArrowRight size={14} />
+              </Link>
+            </div>
+          </section>
         </div>
         {script ? (
           <ScriptArtwork />
@@ -144,162 +281,46 @@ export default function GameMenu() {
             <div className="pe-marker-pin">
               <Compass size={32} strokeWidth={1.5} />
             </div>
-            <span>Your next discovery</span>
             <i />
           </div>
         )}
-        <span className="pe-art-caption">
-          {script ? 'Words are places, too.' : 'A world worth getting lost in.'}
-        </span>
-      </section>
-
-      <section
-        className="pe-play-dock pe-enter"
-        aria-label="Choose how to play"
-      >
-        <div className="pe-dock-heading">
-          <div className="pe-company" role="group" aria-label="Play with">
-            <button
-              type="button"
-              aria-pressed={!multiplayer}
-              onClick={() => setCompany('solo')}
-            >
-              <UserRound size={18} /> Solo
-            </button>
-            <button
-              type="button"
-              aria-pressed={multiplayer}
-              onClick={() => setCompany('multi')}
-            >
-              <Users size={19} /> Multiplayer
-            </button>
-          </div>
-          <span className="pe-dock-note">
-            {multiplayer
-              ? 'Real players. Shared rounds.'
-              : 'Your world. Your pace.'}
+        <div className="pe-scene-caption" aria-hidden="true">
+          <span className="pe-scene-coordinate">
+            {script ? "LANGUAGE / LETTERS / LOCATION" : "EXPLORE / GUESS / DISCOVER"}
           </span>
-        </div>
-        <div className="pe-dock-body">
-          <div
-            className="pe-game-choices"
-            role="group"
-            aria-label={multiplayer ? 'Multiplayer game' : 'Solo game'}
-          >
-            {multiplayer ? (
+          <p>
+            {script ? (
               <>
-                <button
-                  type="button"
-                  className="pe-mode-choice"
-                  aria-pressed={variant === 'classic'}
-                  onClick={() => setVariant('classic')}
-                >
-                  <span className="pe-mode-icon">
-                    <Trophy />
-                  </span>
-                  <span>
-                    <strong>Classic</strong>
-                    <small>Every guess counts. Highest score wins.</small>
-                  </span>
-                  <span className="pe-choice-dot" />
-                </button>
-                <button
-                  type="button"
-                  className="pe-mode-choice"
-                  aria-pressed={variant === 'duel'}
-                  onClick={() => setVariant('duel')}
-                >
-                  <span className="pe-mode-icon pe-mode-icon--duel">
-                    <Swords />
-                  </span>
-                  <span>
-                    <strong>Duel</strong>
-                    <small>Outguess your rivals. Last player standing.</small>
-                  </span>
-                  <span className="pe-choice-dot" />
-                </button>
+                A world of words.
+                <br />
+                <em>One place to find.</em>
+              </>
+            ) : multiplayer ? (
+              <>
+                A little closer.
+                <br />
+                <em>A little more glory.</em>
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="pe-mode-choice"
-                  aria-pressed={game === 'street'}
-                  onClick={() => setGame('street')}
-                >
-                  <span className="pe-mode-thumb" />
-                  <span>
-                    <strong>Street</strong>
-                    <small>Look around. Find your place.</small>
-                  </span>
-                  <span className="pe-choice-dot" />
-                </button>
-                <button
-                  type="button"
-                  className="pe-mode-choice"
-                  aria-pressed={game === 'script'}
-                  onClick={() => setGame('script')}
-                >
-                  <span className="pe-mode-glyph" lang="ja">
-                    あ
-                  </span>
-                  <span>
-                    <strong>Script</strong>
-                    <small>Read the world, one sentence at a time.</small>
-                  </span>
-                  <span className="pe-choice-dot" />
-                </button>
+                Follow your curiosity.
+                <br />
+                <em>See where it takes you.</em>
               </>
             )}
-          </div>
-          <div className="pe-launch">
-            <Button
-              onClick={start}
-              disabled={
-                starting || (!multiplayer && !script && imagery === false)
-              }
-              size="lg"
-              data-cold-open-play
-              className="pe-play-button"
-            >
-              <Play size={19} fill="currentColor" />
-              {starting
-                ? 'Let’s go…'
-                : multiplayer
-                  ? 'Find your room'
-                  : `Play ${script ? 'Script' : 'Street'}`}
-              <ArrowRight size={20} />
-            </Button>
-            <p>
-              {multiplayer
-                ? openRooms === null
-                  ? 'Create a room or join with a code'
-                  : openRooms
-                    ? `${openRooms} open ${openRooms === 1 ? 'room' : 'rooms'} · or create your own`
-                    : 'Start a room. Invite your first rival.'
-                : imagery === false && !script
-                  ? 'Street is unavailable here. Try Script.'
-                  : `${DEFAULT_CONFIG.rounds} rounds · No timer · No account needed`}
-            </p>
-          </div>
+          </p>
+          <span className="pe-scene-line" />
         </div>
-        <div className="pe-dock-foot">
-          <Link href="/geo/script" data-menu-script>
-            <Languages size={15} /> Explore Script languages{' '}
-            <ArrowRight size={14} />
-          </Link>
-          <Link href="/geo/rooms" data-menu-friends>
-            <Users size={15} /> Join friends with a code{' '}
-            <ArrowRight size={14} />
-          </Link>
-        </div>
+        <a className="pe-scene-next" href="#compete-title">
+          Daily challenges & rankings <ArrowRight size={15} />
+        </a>
       </section>
 
       <section className="pe-competition" aria-labelledby="compete-title">
         <div className="pe-section-heading">
           <div>
-            <p className="pe-eyebrow">A little friendly competition</p>
-            <h2 id="compete-title">Make your mark.</h2>
+            <p className="pe-eyebrow">Play for a personal best</p>
+            <h2 id="compete-title">Today’s challenges.</h2>
           </div>
           <Link href="/geo/leaderboard">
             The rankings <ArrowRight size={16} />
@@ -323,7 +344,7 @@ export default function GameMenu() {
                   ? `You’re ${ordinal(daily.you.rank)} of ${daily.finished} today`
                   : answered.daily && daily?.finished
                     ? `${daily.finished} explorers finished today`
-                    : 'Take your time. Find your best guess.'}
+                    : "Take your time. Find your best guess."}
               </small>
             </div>
             <ArrowRight className="pe-event-arrow" size={20} />
@@ -337,10 +358,10 @@ export default function GameMenu() {
               <Compass size={29} />
             </span>
             <div>
-              <span className="pe-event-type">Your solo ladder</span>
-              <h3>Ranked expedition</h3>
+              <span className="pe-event-type">Ranked solo</span>
+              <h3>The ranked challenge</h3>
               <p>
-                {MODES.ranked.fixed.rounds} rounds. {MODES.ranked.fixed.time}{' '}
+                {MODES.ranked.fixed.rounds} rounds. {MODES.ranked.fixed.time}{" "}
                 seconds. No moving.
               </p>
               <small>
@@ -348,7 +369,7 @@ export default function GameMenu() {
                   ? solo?.games >= PROVISIONAL_GAMES
                     ? `${solo.tier} · ${solo.value} rating`
                     : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games`
-                  : 'A new challenge every hour.'}
+                  : "A new challenge every hour."}
               </small>
             </div>
             <ArrowRight className="pe-event-arrow" size={20} />
@@ -358,13 +379,13 @@ export default function GameMenu() {
               <Trophy size={28} />
             </span>
             <div>
-              <span className="pe-event-type">One week. One shot.</span>
+              <span className="pe-event-type">Weekly competition</span>
               <h3>The weekly cup</h3>
               <p>{MODES.cup.fixed.rounds} places to climb the board.</p>
               <small>
                 {cup?.endsAt
                   ? `Ends ${untilText(cup.endsAt)}`
-                  : 'One scored entry. Make it count.'}
+                  : "One scored entry. Make it count."}
               </small>
             </div>
             <ArrowRight className="pe-event-arrow" size={20} />

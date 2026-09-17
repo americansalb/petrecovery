@@ -35,3 +35,7 @@ The normal lockfile is unchanged. Install with `npm ci`, generate Prisma, and ru
 Validated paths: desktop hub and Script visuals; mobile hub and a full five-round Script game with multilingual rendering, guesses, reveals, final results and replay choices; selected Duel routing; room creation and waiting-lobby state; rank boundaries, cosmetics compatibility, room service, and reduced motion. Apple street imagery still requires an authorized provider origin; live Street rounds need a deployment smoke test.
 
 Final checks: 131 Jest suites, 1,432 passing tests (10 existing todos); scoped ESLint clean; full production compilation, type validation and static generation completed successfully. The final browser pass also verified the unboxed room selector, disabled one-player start, phone invite screen, profile badge legibility and five-league path.
+
+## Main-page refinement
+
+The homepage is now one full-width scene rather than an artwork banner above a control panel. Multiplayer is selected on first entry, Solo remains adjacent, and the primary action names the chosen game. Script replaces the landscape with real writing-system artwork. The controls, supporting links and daily-challenge navigation sit directly on the scene without another container. Daily, ranked solo and weekly cup entries use open sections below it. The presentation is isolated in `frontend/app/geo/home.css`. Desktop and phone layouts, mode selection, Duel routing, motion preferences and menu availability were checked; 37 focused tests and scoped lint pass.

@@ -1,0 +1,521 @@
+/* The front door is one playable scene. No panel around the play controls. */
+.geo-surface .pe-home--immersive {
+  max-width: none;
+  padding: 0 0 48px;
+}
+.geo-surface .pe-home--immersive .pe-world {
+  min-height: 700px;
+  min-height: clamp(700px, calc(100svh - 80px), 880px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+.geo-surface .pe-home--immersive .pe-world-art {
+  background-position: 70% 45%;
+  animation: pe-home-arrive 1.6s ease-out both;
+}
+.geo-surface .pe-home--immersive .pe-world-shade {
+  background:
+    linear-gradient(
+      90deg,
+      #072630 0%,
+      #072630f2 24%,
+      #072630b5 41%,
+      #07263016 68%
+    ),
+    linear-gradient(0deg, #072630 0%, #07263055 22%, transparent 70%);
+}
+.geo-surface .pe-stage-content {
+  position: relative;
+  z-index: 3;
+  width: 54%;
+  max-width: 690px;
+  min-width: 525px;
+  padding: 48px 0 85px clamp(32px, 5.3vw, 88px);
+}
+.geo-surface .pe-home--immersive .pe-hero-copy {
+  padding: 0;
+  max-width: none;
+}
+.geo-surface .pe-home--immersive .pe-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+.geo-surface .pe-home--immersive .pe-hero-copy h1 {
+  margin: 25px 0 18px;
+  font-size: clamp(76px, 7.2vw, 108px);
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+  font-weight: 800;
+}
+.geo-surface .pe-home--immersive .pe-hero-copy h1 em {
+  color: #d2e8b0;
+}
+.geo-surface .pe-home--immersive .pe-hero-description {
+  max-width: 370px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #c4d5ce;
+}
+.geo-surface .pe-home--immersive .pe-play-dock {
+  margin: 30px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  animation: none;
+}
+.geo-surface .pe-home--immersive .pe-dock-heading {
+  display: block;
+}
+.geo-surface .pe-home--immersive .pe-company {
+  display: flex;
+  width: max-content;
+  gap: 26px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid #a9c7b644;
+  border-radius: 0;
+  background: none;
+}
+.geo-surface .pe-home--immersive .pe-company button {
+  min-width: 0;
+  min-height: 47px;
+  padding: 0 0 13px;
+  font-size: 14px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #aac1b9;
+  position: relative;
+}
+.geo-surface .pe-home--immersive .pe-company button[aria-pressed="true"] {
+  color: #dbedc6;
+}
+.geo-surface .pe-home--immersive .pe-company button[aria-pressed="true"]:after {
+  content: "";
+  position: absolute;
+  height: 3px;
+  bottom: -1px;
+  inset-inline: 0;
+  background: #c3dda2;
+}
+.geo-surface .pe-home--immersive .pe-dock-note {
+  display: none;
+}
+.geo-surface .pe-home--immersive .pe-dock-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 17px 0 0;
+  align-items: stretch;
+}
+.geo-surface .pe-home--immersive .pe-game-choices {
+  gap: 25px;
+}
+.geo-surface .pe-home--immersive .pe-mode-choice {
+  min-height: 76px;
+  padding: 6px 0 14px;
+  border-bottom: 1px solid #a9c7b633;
+  gap: 13px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.geo-surface .pe-home--immersive .pe-mode-choice[aria-pressed="true"] {
+  border-bottom-color: #c3dda2;
+}
+.geo-surface .pe-home--immersive .pe-mode-choice strong {
+  font-size: 20px;
+  font-weight: 750;
+  color: #abc1b7;
+}
+.geo-surface .pe-home--immersive .pe-mode-choice[aria-pressed="true"] strong {
+  color: #eef3df;
+}
+.geo-surface .pe-home--immersive .pe-mode-choice small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #b1c8bc;
+  max-width: 150px;
+}
+.geo-surface .pe-home--immersive .pe-choice-dot {
+  display: none;
+}
+.geo-surface .pe-home--immersive .pe-mode-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid #c8dcb677;
+  box-shadow:
+    inset 0 0 0 4px #0c303655,
+    inset 0 0 0 5px #a7c89f44,
+    0 4px 0 #041e25,
+    0 8px 12px #041e2555;
+}
+.geo-surface .pe-home--immersive .pe-mode-icon--duel {
+  border-color: #e5ba9677;
+  box-shadow:
+    inset 0 0 0 4px #55372b66,
+    inset 0 0 0 5px #d8af8755,
+    0 4px 0 #3d3026,
+    0 8px 12px #041e2555;
+}
+.geo-surface .pe-home--immersive .pe-mode-thumb,
+.geo-surface .pe-home--immersive .pe-mode-glyph {
+  width: 42px;
+  height: 49px;
+}
+.geo-surface .pe-home--immersive .pe-launch {
+  max-width: 100%;
+}
+.geo-surface .pe-home--immersive .pe-play-button {
+  min-height: 57px;
+  font-size: 17px;
+  max-width: 100%;
+  padding-inline: 24px;
+  border-radius: 5px;
+}
+.geo-surface .pe-home--immersive .pe-launch > p {
+  text-align: left;
+  color: #b4c9bb;
+  margin-top: 13px;
+  font-size: 11px;
+}
+.geo-surface .pe-home--immersive .pe-dock-foot {
+  border: 0;
+  padding: 12px 0 0;
+  margin: 0;
+  gap: 20px;
+  justify-content: flex-start;
+}
+.geo-surface .pe-home--immersive .pe-dock-foot a {
+  font-size: 10px;
+  color: #c1d5be;
+  min-height: 35px;
+}
+.geo-surface .pe-home--immersive .pe-dock-foot a > svg:first-child {
+  display: none;
+}
+.geo-surface .pe-home--immersive .pe-world-marker {
+  top: 35%;
+  left: 78%;
+  transform: rotate(7deg) scale(0.9);
+}
+.geo-surface .pe-home--immersive .pe-world-marker i {
+  top: 128px;
+}
+.geo-surface .pe-scene-caption {
+  position: absolute;
+  z-index: 1;
+  right: 6%;
+  bottom: 18%;
+  width: 31%;
+  padding-left: 24px;
+  border-left: 1px solid #dce9c660;
+  color: #f2f1da;
+  text-shadow: 0 2px 14px #123235;
+}
+.geo-surface .pe-scene-coordinate {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: #d1dfc3;
+}
+.geo-surface .pe-scene-caption p {
+  font-size: clamp(20px, 2.15vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  font-weight: 650;
+  margin-top: 15px;
+}
+.geo-surface .pe-scene-caption em {
+  color: #cfe4b8;
+  font-style: normal;
+}
+.geo-surface .pe-scene-line {
+  display: block;
+  height: 1px;
+  width: 42px;
+  background: #cde3b0;
+  margin-top: 22px;
+}
+.geo-surface .pe-scene-next {
+  position: absolute;
+  z-index: 3;
+  bottom: 25px;
+  left: clamp(32px, 5.3vw, 88px);
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 44px;
+  color: #adc8b5;
+  font-size: 11px;
+}
+.geo-surface .pe-scene-next svg {
+  transform: rotate(90deg);
+}
+.geo-surface .pe-home--immersive .pe-script-art {
+  top: 13%;
+  right: 5%;
+  transform: rotate(3deg);
+}
+.geo-surface .pe-home--immersive .pe-world--script .pe-world-shade {
+  background:
+    radial-gradient(ellipse at 75% 45%, #467c6675, transparent 62%),
+    linear-gradient(95deg, #072630 35%, #12474a);
+}
+.geo-surface .pe-home--immersive .pe-competition,
+.geo-surface .pe-home--immersive .pe-expeditions,
+.geo-surface .pe-home--immersive .pe-profile-invite {
+  max-width: 1360px;
+  margin-inline: auto;
+  padding-inline: clamp(24px, 5.3vw, 88px);
+}
+.geo-surface .pe-home--immersive .pe-competition {
+  padding-top: 38px;
+}
+.geo-surface .pe-home--immersive .pe-section-heading h2 {
+  font-size: 36px;
+}
+.geo-surface .pe-home--immersive .pe-event-list {
+  border: 0;
+  gap: 30px;
+}
+.geo-surface .pe-home--immersive .pe-event {
+  border: 0;
+  border-top: 1px solid #b9ceab44;
+  padding: 25px 0;
+  align-items: flex-start;
+}
+.geo-surface .pe-home--immersive .pe-event:hover {
+  background: none;
+  border-color: #c8e0af;
+}
+.geo-surface .pe-home--immersive .pe-event-emblem {
+  width: 44px;
+  height: 54px;
+}
+.geo-surface .pe-home--immersive .pe-event h3 {
+  font-size: 19px;
+}
+.geo-surface .pe-home--immersive .pe-event p {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.geo-surface .pe-home--immersive .pe-event small {
+  font-size: 10px;
+  line-height: 1.6;
+}
+.geo-surface .pe-home--immersive .pe-event-arrow {
+  display: none;
+}
+.geo-surface .pe-home--immersive .pe-profile-invite {
+  border-radius: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+@keyframes pe-home-arrive {
+  from {
+    transform: scale(1.035);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (min-width: 1500px) {
+  .geo-surface .pe-stage-content {
+    margin-left: calc((100vw - 1500px) / 2);
+  }
+}
+@media (max-width: 1100px) {
+  .geo-surface .pe-stage-content {
+    width: 56%;
+    min-width: 460px;
+    padding-top: 40px;
+    padding-left: 32px;
+  }
+  .geo-surface .pe-home--immersive .pe-world {
+    min-height: 720px;
+  }
+  .geo-surface .pe-home--immersive .pe-hero-copy h1 {
+    font-size: 82px;
+  }
+  .geo-surface .pe-home--immersive .pe-script-art {
+    right: -15px;
+    transform: scale(0.8) rotate(3deg);
+    transform-origin: right top;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-choice {
+    gap: 10px;
+  }
+  .geo-surface .pe-home--immersive .pe-game-choices {
+    gap: 18px;
+  }
+  .geo-surface .pe-scene-next {
+    left: 32px;
+  }
+  .geo-surface .pe-scene-caption {
+    right: 4%;
+    width: 32%;
+    bottom: 19%;
+    padding-left: 18px;
+  }
+  .geo-surface .pe-home--immersive .pe-dock-foot {
+    gap: 15px;
+  }
+}
+@media (max-width: 760px) {
+  .geo-surface .pe-stage-content {
+    width: 100%;
+    max-width: 560px;
+    min-width: 0;
+    padding: 36px 24px 82px;
+  }
+  .geo-surface .pe-home--immersive .pe-world {
+    min-height: 0;
+  }
+  .geo-surface .pe-home--immersive .pe-world-art {
+    background-position: 70% top;
+  }
+  .geo-surface .pe-home--immersive .pe-world-shade {
+    background:
+      linear-gradient(90deg, #072630eb 0%, #072630a6 58%, #0726303a),
+      linear-gradient(0deg, #072630 16%, #072630d9 50%, transparent 100%);
+  }
+  .geo-surface .pe-home--immersive .pe-hero-copy h1 {
+    font-size: 78px;
+  }
+  .geo-surface .pe-home--immersive .pe-hero-description {
+    max-width: 305px;
+    font-size: 13px;
+  }
+  .geo-surface .pe-home--immersive .pe-eyebrow {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+  }
+  .geo-surface .pe-home--immersive .pe-play-dock {
+    margin-top: 25px;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-choice {
+    gap: 10px;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-choice strong {
+    font-size: 18px;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-choice small {
+    font-size: 10px;
+  }
+  .geo-surface .pe-home--immersive .pe-dock-foot {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+  .geo-surface .pe-home--immersive .pe-world-marker,
+  .geo-surface .pe-scene-caption {
+    display: none;
+  }
+  .geo-surface .pe-scene-next {
+    left: 24px;
+    bottom: 18px;
+    font-size: 10px;
+  }
+  .geo-surface .pe-home--immersive .pe-script-art {
+    top: 50px;
+    right: -180px;
+    transform: scale(0.57) rotate(5deg);
+    opacity: 0.7;
+  }
+  .geo-surface .pe-home--immersive .pe-world--script .pe-hero-copy {
+    max-width: 270px;
+  }
+  .geo-surface .pe-home--immersive .pe-world--script .pe-world-shade {
+    background: linear-gradient(95deg, #072630 40%, #174c4c);
+  }
+  .geo-surface .pe-home--immersive .pe-section-heading h2 {
+    font-size: 29px;
+  }
+  .geo-surface .pe-home--immersive .pe-event-list {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .geo-surface .pe-home--immersive .pe-event {
+    padding: 23px 0;
+    gap: 20px;
+  }
+  .geo-surface .pe-home--immersive .pe-event-emblem {
+    width: 52px;
+    height: 62px;
+  }
+  .geo-surface .pe-home--immersive .pe-event-arrow {
+    display: block;
+    margin-left: auto;
+    align-self: center;
+  }
+}
+@media (max-width: 370px) {
+  .geo-surface .pe-stage-content {
+    padding-inline: 18px;
+  }
+  .geo-surface .pe-home--immersive .pe-hero-copy h1 {
+    font-size: 70px;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-icon svg {
+    width: 19px;
+  }
+  .geo-surface .pe-home--immersive .pe-game-choices {
+    gap: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .geo-surface .pe-home--immersive .pe-world-art {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-choice {
+    transition: none;
+    transform: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .geo-surface .pe-home--immersive .pe-hero-copy h1 {
+    font-size: 68px;
+  }
+  .geo-surface .pe-home--immersive .pe-world--script .pe-hero-copy h1 {
+    font-size: 64px;
+  }
+  .geo-surface .pe-home--immersive .pe-world--script .pe-hero-copy {
+    max-width: 270px;
+  }
+  .geo-surface .pe-home--immersive .pe-mode-choice {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  .geo-surface .pe-home--immersive .pe-script-art {
+    right: -115px;
+    transform: scale(0.48) rotate(5deg);
+  }
+}
+
+.geo-surface .pe-home--immersive .pe-mode-choice > span:nth-child(2) {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .geo-surface .pe-home--immersive .pe-play-dock {
+    animation: none;
+  }
+}

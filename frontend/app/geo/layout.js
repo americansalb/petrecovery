@@ -10,6 +10,7 @@ import GeoHeader from './components/GeoHeader';
 import GeoFooter from './components/GeoFooter';
 import './geo.css';
 import './experience.css';
+import './home.css';
 import { scriptShowcaseFonts } from './script/fonts';
 
 export const metadata = buildShareMetadata({
