@@ -1,115 +1,64 @@
 'use client';
 
-/**
- * /geo: the game menu.
- *
- * It was one enormous Play button on a globe and a row of four text
- * links. Quick to enter and impossible to understand: nothing on it
- * said the game had a second family (Script), that you could play with
- * people, or that there were competitions running right now. Those
- * lived on Rankings, which is a standings page, so the only way to find
- * Country Streak was to read a leaderboard (founder, 2026-09-17: "I
- * should never have to dig through a ranking report to find a casual
- * mode").
- *
- * So this is a menu. The quick start stays the biggest thing on it -
- * one click to a street, no account, no form - and the rest of the
- * product is visible beside it rather than described somewhere else.
- *
- * Every status on it is real or absent. Nothing here invents a player
- * count, a rank or a streak for atmosphere.
- */
-
+/** The game hub: choose company, choose a game, play. Live status is never invented. */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CalendarDays, Flag, Globe2, Languages, MapPin, Play, Timer, Trophy, Users } from 'lucide-react';
-import { CONTINENTS, CONTINENT_ORDER, configToParams, DEFAULT_CONFIG, FORMATS, formatOf, MODES } from '@/app/lib/geo/modes';
+import {
+  ArrowRight,
+  CalendarDays,
+  Compass,
+  Flame,
+  Globe2,
+  Languages,
+  Play,
+  Swords,
+  Trophy,
+  UserRound,
+  Users,
+} from 'lucide-react';
+import {
+  CONTINENTS,
+  CONTINENT_ORDER,
+  configToParams,
+  DEFAULT_CONFIG,
+  MODES,
+} from '@/app/lib/geo/modes';
 import { PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { ordinal } from '@/app/lib/geo/distance';
 import { untilText } from '@/app/lib/geo/meter';
-import { APPLE_COVERAGE_NAMES, citiesFor } from '@/app/lib/geo/coverage';
-import { isSignedIn } from '@/app/geo/lib/session';
+import { APPLE_COVERAGE_NAMES } from '@/app/lib/geo/coverage';
 import { profileHeaders } from '../../lib/profile';
-import { getStats } from '../../lib/storage';
 import { loadGeoConfig } from '../../lib/serverConfig';
-import Card from '../ui/Card';
-import ScriptSample from '../script/ScriptSample';
-import WorldBackdrop from './WorldBackdrop';
-import './home.css';
+import ScriptArtwork from './ScriptArtwork';
+import Button from '../ui/Button';
 
-/** A real sentence from the corpus, so the Script card shows the game. */
-const SCRIPT_SAMPLE = { script: 'taml', text: 'இன்று காலை மிகவும் குளிராக இருந்தது' };
-
-const FIELD = 'rounded-xl border border-white/15 bg-ocean-950/60 px-3 py-2 text-sm text-white';
-const GO = 'inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10';
-
-/** The covered countries by name, so the list reads as places. */
 const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
   .map(([code, name]) => ({ code, name: name.replace(/^the /, '') }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-/** Rule chips for the default game, read from the config rather than typed. */
-function defaultChips() {
-  const c = DEFAULT_CONFIG;
-  return [`${c.rounds} rounds`, c.time ? `${c.time}s a round` : 'No timer', FORMATS[formatOf(c)]?.label].filter(Boolean);
-}
-
-function Chips({ items }) {
-  if (!items?.length) return null;
-  return (
-    <ul className="mt-3 flex flex-wrap gap-1.5">
-      {items.map((chip) => (
-        <li key={chip} className="rounded-full border border-white/15 px-2.5 py-1 text-xs font-semibold text-white/70">
-          {chip}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** A competition tile: what it is, where you stand, one way in. */
-function Compete({ icon: Icon, name, chips, status, href, cta, marker }) {
-  return (
-    <Card href={href} pad="sm" className="group flex flex-col" {...(marker ? { [marker]: true } : {})}>
-      <p className="flex items-center gap-2 text-sm font-semibold text-white">
-        <Icon className="h-4 w-4 text-clay-300" />
-        {name}
-      </p>
-      <Chips items={chips} />
-      <p className="mt-3 flex-1 text-sm text-white/60">{status}</p>
-      <span className="mt-3 text-sm font-semibold text-clay-300 group-hover:text-clay-200">{cta} &rarr;</span>
-    </Card>
-  );
-}
-
 export default function GameMenu() {
   const router = useRouter();
-  const [signedIn, setSignedIn] = useState(false);
-  const [stats, setStats] = useState(null);
+  const [company, setCompany] = useState('solo');
+  const [game, setGame] = useState('street');
+  const [variant, setVariant] = useState('classic');
   const [starting, setStarting] = useState(false);
   const [imagery, setImagery] = useState(null);
   const [daily, setDaily] = useState(null);
   const [cup, setCup] = useState(null);
   const [solo, setSolo] = useState(null);
   const [openRooms, setOpenRooms] = useState(null);
-  // Which status endpoints have answered. Without it a board that is
-  // still loading and a board nobody has played look the same, and the
-  // menu prints "Nobody has finished today" at somebody on a slow
-  // connection or after the request failed.
   const [answered, setAnswered] = useState({});
   const [continent, setContinent] = useState('europe');
   const [country, setCountry] = useState('JP');
+  const multiplayer = company === 'multi';
+  const script = !multiplayer && game === 'script';
 
   useEffect(() => {
-    setSignedIn(isSignedIn());
-    setStats(getStats());
     let live = true;
     const get = (name, url, set, pick = (d) => d) =>
       fetch(url, { headers: profileHeaders(), cache: 'no-store' })
         .then((r) => (r.ok ? r.json() : null))
-        // A status that will not load is a status that is not shown.
-        // The way in beside it still works, which is the part that matters.
         .then((d) => {
           if (!live || !d) return;
           set(pick(d));
@@ -118,251 +67,394 @@ export default function GameMenu() {
         .catch(() => {});
     get('daily', '/api/geo/daily', setDaily);
     get('cup', '/api/geo/cup', setCup);
-    // A player with no rated games has no `you`, so the value alone
-    // cannot say whether the board answered.
-    get('solo', '/api/geo/leaderboard?ladder=solo', setSolo, (d) => d.you || null);
-    get('rooms', '/api/geo/rooms', setOpenRooms, (d) => (Array.isArray(d.rooms) ? d.rooms.length : null));
+    get(
+      'solo',
+      '/api/geo/leaderboard?ladder=solo',
+      setSolo,
+      (d) => d.you || null,
+    );
+    get('rooms', '/api/geo/rooms', setOpenRooms, (d) =>
+      Array.isArray(d.rooms) ? d.rooms.length : null,
+    );
     loadGeoConfig({ shouldStop: () => !live })
-      .then((data) => live && data && setImagery(Boolean(data.providers?.apple?.configured)))
+      .then(
+        (d) => live && d && setImagery(Boolean(d.providers?.apple?.configured)),
+      )
       .catch(() => {});
     return () => {
       live = false;
     };
   }, []);
 
-  const scriptOnly = imagery === false;
-  const played = stats?.games || 0;
-
   const start = () => {
     setStarting(true);
-    if (scriptOnly) {
-      router.push('/geo/script/play?ladder=world&rounds=5');
-      return;
-    }
-    router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
+    if (multiplayer) router.push(`/geo/rooms?variant=${variant}`);
+    else if (script) router.push('/geo/script/play?ladder=world&rounds=5');
+    else router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
 
-  // Real places from the pool a round actually draws from, so the Street
-  // card shows the game rather than another globe. Apple's imagery
-  // cannot be redistributed as a still, so the honest sample is where
-  // you might land.
-  //
-  // One per country: the list is in file order and its first six rows
-  // are all American, which is the opposite of what this mode does.
-  const places = (() => {
-    const seen = new Set();
-    const picked = [];
-    for (const city of citiesFor()) {
-      if (seen.has(city.country)) continue;
-      seen.add(city.country);
-      picked.push(city.name);
-      if (picked.length === 6) break;
-    }
-    return picked.join(' · ');
-  })();
-
   return (
-    <main className="relative min-h-[100dvh] overflow-hidden">
-      <WorldBackdrop />
-      {/* The globe is the brand, not the page. Everything below sits on
-          a scrim so the menu is readable over it. */}
-      <div className="pointer-events-none absolute inset-0 bg-ocean-950/70" />
-
-      <div className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:py-12">
-        <header className="geo-rise">
-          <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">Probably Earth</h1>
-          <p className="mt-2 max-w-xl text-white/70">
-            {scriptOnly
-              ? 'Read the sentence. Pin where the language is used.'
-              : 'You get dropped on a street somewhere in the world. Put a pin where you think you are.'}
+    <main className="pe-home">
+      <section
+        className={`pe-world pe-enter ${script ? 'pe-world--script' : ''}`}
+        aria-labelledby="world-title"
+      >
+        <div className="pe-world-art" aria-hidden="true" />
+        <div className="pe-world-shade" aria-hidden="true" />
+        <div className="pe-hero-copy">
+          <p className="pe-eyebrow">
+            <span className="pe-spark" /> A little curiosity. A whole planet.
           </p>
-        </header>
+          <h1 id="world-title">
+            {multiplayer ? (
+              <>
+                Same world.
+                <br />
+                <em>Game on.</em>
+              </>
+            ) : script ? (
+              <>
+                Every script
+                <br />
+                <em>tells a story.</em>
+              </>
+            ) : (
+              <>
+                Go on.
+                <br />
+                <em>Get a little lost.</em>
+              </>
+            )}
+          </h1>
+          <p className="pe-hero-description">
+            {multiplayer
+              ? 'Bring your friends. Read the clues. Find out who really knows their way around.'
+              : script
+                ? 'A sentence. A writing system. Somewhere in the world. Where would you put your pin?'
+                : 'Find the clues. Trust your instinct. Drop a pin somewhere on this extraordinary planet.'}
+          </p>
+          <span className="pe-free">
+            <span /> All modes free to play
+          </span>
+        </div>
+        {script ? (
+          <ScriptArtwork />
+        ) : (
+          <div className="pe-world-marker" aria-hidden="true">
+            <div className="pe-marker-pin">
+              <Compass size={32} strokeWidth={1.5} />
+            </div>
+            <span>Your next discovery</span>
+            <i />
+          </div>
+        )}
+        <span className="pe-art-caption">
+          {script ? 'Words are places, too.' : 'A world worth getting lost in.'}
+        </span>
+      </section>
 
-        {/* Quick start, then the other two ways to play. The primary
-            action is the only one this size. */}
-        <div className="geo-rise mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]" style={{ animationDelay: '60ms' }}>
-          <Card tone="marked" className="flex flex-col border-clay-400/40 bg-ocean-900/70">
-            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-              <Globe2 className="h-4 w-4 text-clay-300" />
-              Street
-            </p>
-            <p className="mt-2 text-white/70">Look around. Place your pin. See how close you get.</p>
-            <Chips items={defaultChips()} />
-            <p className="mt-3 flex-1 truncate text-xs text-white/60" title={places}>
-              {places}
-            </p>
+      <section
+        className="pe-play-dock pe-enter"
+        aria-label="Choose how to play"
+      >
+        <div className="pe-dock-heading">
+          <div className="pe-company" role="group" aria-label="Play with">
             <button
               type="button"
-              onClick={start}
-              disabled={starting}
-              className="mt-4 inline-flex items-center justify-center gap-3 rounded-xl bg-clay-400 px-8 py-4 text-xl font-bold text-ocean-950 transition hover:bg-clay-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clay-200 disabled:opacity-70"
-              data-cold-open-play
+              aria-pressed={!multiplayer}
+              onClick={() => setCompany('solo')}
             >
-              <Play className="h-5 w-5 fill-current" />
-              {starting ? 'Finding a street' : played ? 'Play again' : 'Play'}
+              <UserRound size={18} /> Solo
             </button>
-            {scriptOnly ? (
-              <p className="mt-2 text-xs text-white/50">Street imagery is off here, so Play starts Script.</p>
-            ) : null}
-          </Card>
-
-          <Card href="/geo/script" className="group flex flex-col" data-menu-script>
-            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-              <Languages className="h-4 w-4 text-clay-300" />
-              Script
-            </p>
-            <p className="mt-2 text-white/70">Read the sentence. Pin where the language is used.</p>
-            <div className="mt-3 flex-1 rounded-xl border border-sand-300 bg-[#fffdf8] p-3">
-              <ScriptSample text={SCRIPT_SAMPLE.text} script={SCRIPT_SAMPLE.script} size="sm" />
-            </div>
-            <span className="mt-4 text-sm font-semibold text-clay-300 group-hover:text-clay-200">Choose a pool &rarr;</span>
-          </Card>
-
-          <Card href="/geo/rooms" className="group flex flex-col" data-menu-friends>
-            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-              <Users className="h-4 w-4 text-clay-300" />
-              Friends
-            </p>
-            <p className="mt-2 text-white/70">Same places, same clock, everyone at once.</p>
-            <p className="mt-3 flex-1 text-sm text-white/60">
-              {openRooms === null ? '' : openRooms ? `${openRooms} open ${openRooms === 1 ? 'room' : 'rooms'}.` : 'No open rooms. Start one.'}
-            </p>
-            <span className="mt-4 text-sm font-semibold text-clay-300 group-hover:text-clay-200">Create or join &rarr;</span>
-          </Card>
+            <button
+              type="button"
+              aria-pressed={multiplayer}
+              onClick={() => setCompany('multi')}
+            >
+              <Users size={19} /> Multiplayer
+            </button>
+          </div>
+          <span className="pe-dock-note">
+            {multiplayer
+              ? 'Real players. Shared rounds.'
+              : 'Your world. Your pace.'}
+          </span>
         </div>
+        <div className="pe-dock-body">
+          <div
+            className="pe-game-choices"
+            role="group"
+            aria-label={multiplayer ? 'Multiplayer game' : 'Solo game'}
+          >
+            {multiplayer ? (
+              <>
+                <button
+                  type="button"
+                  className="pe-mode-choice"
+                  aria-pressed={variant === 'classic'}
+                  onClick={() => setVariant('classic')}
+                >
+                  <span className="pe-mode-icon">
+                    <Trophy />
+                  </span>
+                  <span>
+                    <strong>Classic</strong>
+                    <small>Every guess counts. Highest score wins.</small>
+                  </span>
+                  <span className="pe-choice-dot" />
+                </button>
+                <button
+                  type="button"
+                  className="pe-mode-choice"
+                  aria-pressed={variant === 'duel'}
+                  onClick={() => setVariant('duel')}
+                >
+                  <span className="pe-mode-icon pe-mode-icon--duel">
+                    <Swords />
+                  </span>
+                  <span>
+                    <strong>Duel</strong>
+                    <small>Outguess your rivals. Last player standing.</small>
+                  </span>
+                  <span className="pe-choice-dot" />
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="pe-mode-choice"
+                  aria-pressed={game === 'street'}
+                  onClick={() => setGame('street')}
+                >
+                  <span className="pe-mode-thumb" />
+                  <span>
+                    <strong>Street</strong>
+                    <small>Look around. Find your place.</small>
+                  </span>
+                  <span className="pe-choice-dot" />
+                </button>
+                <button
+                  type="button"
+                  className="pe-mode-choice"
+                  aria-pressed={game === 'script'}
+                  onClick={() => setGame('script')}
+                >
+                  <span className="pe-mode-glyph" lang="ja">
+                    あ
+                  </span>
+                  <span>
+                    <strong>Script</strong>
+                    <small>Read the world, one sentence at a time.</small>
+                  </span>
+                  <span className="pe-choice-dot" />
+                </button>
+              </>
+            )}
+          </div>
+          <div className="pe-launch">
+            <Button
+              onClick={start}
+              disabled={
+                starting || (!multiplayer && !script && imagery === false)
+              }
+              size="lg"
+              data-cold-open-play
+              className="pe-play-button"
+            >
+              <Play size={19} fill="currentColor" />
+              {starting
+                ? 'Let’s go…'
+                : multiplayer
+                  ? 'Find your room'
+                  : `Play ${script ? 'Script' : 'Street'}`}
+              <ArrowRight size={20} />
+            </Button>
+            <p>
+              {multiplayer
+                ? openRooms === null
+                  ? 'Create a room or join with a code'
+                  : openRooms
+                    ? `${openRooms} open ${openRooms === 1 ? 'room' : 'rooms'} · or create your own`
+                    : 'Start a room. Invite your first rival.'
+                : imagery === false && !script
+                  ? 'Street is unavailable here. Try Script.'
+                  : `${DEFAULT_CONFIG.rounds} rounds · No timer · No account needed`}
+            </p>
+          </div>
+        </div>
+        <div className="pe-dock-foot">
+          <Link href="/geo/script" data-menu-script>
+            <Languages size={15} /> Explore Script languages{' '}
+            <ArrowRight size={14} />
+          </Link>
+          <Link href="/geo/rooms" data-menu-friends>
+            <Users size={15} /> Join friends with a code{' '}
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </section>
 
-        <h2 className="geo-rise mt-8 text-sm font-semibold uppercase tracking-wide text-white/60" style={{ animationDelay: '120ms' }}>
-          Compete
-        </h2>
-        <div className="geo-rise mt-3 grid gap-4 sm:grid-cols-3" style={{ animationDelay: '140ms' }}>
-          <Compete
-            icon={CalendarDays}
-            name="Daily"
-            chips={[`${MODES.daily.fixed.rounds} rounds`, 'No timer', 'Same for everyone']}
-            status={
-              !answered.daily
-                ? ''
-                : daily?.you?.rank
-                  ? `You are ${ordinal(daily.you.rank)} of ${daily.finished} today.`
-                  : daily?.finished
-                    ? `${daily.finished} finished today.`
-                    : 'Nobody has finished today.'
-            }
+      <section className="pe-competition" aria-labelledby="compete-title">
+        <div className="pe-section-heading">
+          <div>
+            <p className="pe-eyebrow">A little friendly competition</p>
+            <h2 id="compete-title">Make your mark.</h2>
+          </div>
+          <Link href="/geo/leaderboard">
+            The rankings <ArrowRight size={16} />
+          </Link>
+        </div>
+        <div className="pe-event-list">
+          <Link
             href="/geo/play?mode=daily"
-            cta="Play today's five"
-            marker="data-menu-daily"
-          />
-          <Compete
-            icon={Timer}
-            name="Ranked"
-            chips={[`${MODES.ranked.fixed.rounds} rounds`, `${MODES.ranked.fixed.time}s`, 'No Move']}
-            // A rating is not shown until it means something. 1500 is
-            // where everyone starts, so printing "Silver, 1500" after
-            // one game reads as an accomplishment nobody has; placement
-            // progress is the honest status until the ladder places you.
-            status={
-              !answered.solo
-                ? ''
-                : solo?.games >= PROVISIONAL_GAMES
-                  ? `${solo.tier}, ${solo.value}. ${solo.games} rated.`
-                  : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games played`
-            }
+            data-menu-daily
+            className="pe-event"
+          >
+            <span className="pe-event-emblem">
+              <CalendarDays size={25} />
+            </span>
+            <div>
+              <span className="pe-event-type">New every day</span>
+              <h3>Daily discovery</h3>
+              <p>{MODES.daily.fixed.rounds} places. One shared challenge.</p>
+              <small>
+                {answered.daily && daily?.you?.rank
+                  ? `You’re ${ordinal(daily.you.rank)} of ${daily.finished} today`
+                  : answered.daily && daily?.finished
+                    ? `${daily.finished} explorers finished today`
+                    : 'Take your time. Find your best guess.'}
+              </small>
+            </div>
+            <ArrowRight className="pe-event-arrow" size={20} />
+          </Link>
+          <Link
             href="/geo/play?mode=ranked"
-            cta="Play this hour's five"
-            marker="data-menu-ranked"
-          />
-          <Compete
-            icon={Trophy}
-            name="Weekly cup"
-            chips={[`${MODES.cup.fixed.rounds} rounds`, `${MODES.cup.fixed.time}s`, 'No Move']}
-            status={
-              cup?.endsAt
-                ? cup.you?.rank
-                  ? `You are ${ordinal(cup.you.rank)} of ${cup.finished}. Ends ${untilText(cup.endsAt)}.`
-                  : `Ends ${untilText(cup.endsAt)}.`
-                : ''
-            }
-            href="/geo/play?mode=cup"
-            cta="Play this week's ten"
-            marker="data-menu-cup"
-          />
+            data-menu-ranked
+            className="pe-event"
+          >
+            <span className="pe-event-emblem pe-event-emblem--rank">
+              <Compass size={29} />
+            </span>
+            <div>
+              <span className="pe-event-type">Your solo ladder</span>
+              <h3>Ranked expedition</h3>
+              <p>
+                {MODES.ranked.fixed.rounds} rounds. {MODES.ranked.fixed.time}{' '}
+                seconds. No moving.
+              </p>
+              <small>
+                {answered.solo
+                  ? solo?.games >= PROVISIONAL_GAMES
+                    ? `${solo.tier} · ${solo.value} rating`
+                    : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games`
+                  : 'A new challenge every hour.'}
+              </small>
+            </div>
+            <ArrowRight className="pe-event-arrow" size={20} />
+          </Link>
+          <Link href="/geo/play?mode=cup" data-menu-cup className="pe-event">
+            <span className="pe-event-emblem pe-event-emblem--cup">
+              <Trophy size={28} />
+            </span>
+            <div>
+              <span className="pe-event-type">One week. One shot.</span>
+              <h3>The weekly cup</h3>
+              <p>{MODES.cup.fixed.rounds} places to climb the board.</p>
+              <small>
+                {cup?.endsAt
+                  ? `Ends ${untilText(cup.endsAt)}`
+                  : 'One scored entry. Make it count.'}
+              </small>
+            </div>
+            <ArrowRight className="pe-event-arrow" size={20} />
+          </Link>
         </div>
+      </section>
 
-        <h2 className="geo-rise mt-8 text-sm font-semibold uppercase tracking-wide text-white/60" style={{ animationDelay: '180ms' }}>
-          More ways to play
-        </h2>
-        <div className="geo-rise mt-3 grid gap-3 sm:grid-cols-3" style={{ animationDelay: '200ms' }}>
-          {/* Cards, like the row above it. These were three things on
-              one line with two unlabelled selects between them, so the
-              second picker had nothing saying what it picked. */}
-          <Card pad="sm" className="flex flex-col">
-            <p className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Flag className="h-4 w-4 text-clay-300" />
-              Country streak
-            </p>
-            <p className="mt-2 flex-1 text-sm text-white/60">Name the country. One miss ends it.</p>
-            <Link href="/geo/play?mode=streak" className={`${GO} mt-3 justify-center`} data-menu-streak>
-              Play
-            </Link>
-          </Card>
-
-          {/* A region, because "one continent" is not a mode until you
-              say which. These were selects on the Rankings page; moving
-              the catalogue into Play must not cost the choice. */}
-          <Card pad="sm" className="flex flex-col">
-            <p className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Globe2 className="h-4 w-4 text-clay-300" />
-              One continent
-            </p>
-            <p className="mt-2 flex-1 text-sm text-white/60">Every round inside the continent you pick.</p>
-            <div className="mt-3 flex gap-2">
-              <select value={continent} onChange={(e) => setContinent(e.target.value)} aria-label="Continent" className={`${FIELD} min-w-0 flex-1`}>
+      <section className="pe-expeditions" aria-labelledby="explore-title">
+        <div>
+          <p className="pe-eyebrow">Follow your curiosity</p>
+          <h2 id="explore-title">Take the scenic route.</h2>
+          <p>Keep a streak alive, or get to know one corner of the world.</p>
+        </div>
+        <div className="pe-expedition-options">
+          <Link
+            href="/geo/play?mode=streak"
+            data-menu-streak
+            className="pe-streak"
+          >
+            <Flame size={24} />
+            <span>
+              <strong>Country streak</strong>
+              <small>One wrong country ends the run.</small>
+            </span>
+            <ArrowRight size={18} />
+          </Link>
+          <div className="pe-region">
+            <Globe2 size={21} />
+            <label>
+              <span>One continent</span>
+              <select
+                value={continent}
+                onChange={(e) => setContinent(e.target.value)}
+                aria-label="Continent"
+              >
                 {CONTINENT_ORDER.map((id) => (
                   <option key={id} value={id}>
                     {CONTINENTS[id].label}
                   </option>
                 ))}
               </select>
-              <Link href={`/geo/play?mode=continent&region=${continent}`} className={GO} data-menu-continent>
-                Play
-              </Link>
-            </div>
-          </Card>
-
-          <Card pad="sm" className="flex flex-col">
-            <p className="flex items-center gap-2 text-sm font-semibold text-white">
-              <MapPin className="h-4 w-4 text-clay-300" />
-              One country
-            </p>
-            <p className="mt-2 flex-1 text-sm text-white/60">Every round inside the country you pick.</p>
-            <div className="mt-3 flex gap-2">
-              <select value={country} onChange={(e) => setCountry(e.target.value)} aria-label="Country" className={`${FIELD} min-w-0 flex-1`}>
+            </label>
+            <Link
+              href={`/geo/play?mode=continent&region=${continent}`}
+              data-menu-continent
+              aria-label="Play continent"
+            >
+              <ArrowRight size={20} />
+            </Link>
+          </div>
+          <div className="pe-region">
+            <Compass size={21} />
+            <label>
+              <span>One country</span>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                aria-label="Country"
+              >
                 {COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>
                     {c.name}
                   </option>
                 ))}
               </select>
-              <Link href={`/geo/play?mode=country&region=${country}`} className={GO} data-menu-country>
-                Play
-              </Link>
-            </div>
-          </Card>
+            </label>
+            <Link
+              href={`/geo/play?mode=country&region=${country}`}
+              data-menu-country
+              aria-label="Play country"
+            >
+              <ArrowRight size={20} />
+            </Link>
+          </div>
         </div>
-
-        <p className="geo-rise mt-8 text-sm text-white/60" style={{ animationDelay: '240ms' }}>
-          {signedIn ? (
-            played ? `${played} ${played === 1 ? 'game' : 'games'} played.` : 'Signed in. Your scores follow you.'
-          ) : (
-            <>
-              {"It's free. "}
-              <Link href="/geo/signin" className="font-semibold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white">
-                Sign in
-              </Link>
-              {' and your scores follow you to your phone.'}
-            </>
-          )}
-        </p>
+      </section>
+      <div className="pe-profile-invite">
+        <span className="pe-avatar">
+          <Compass size={24} />
+        </span>
+        <div>
+          <strong>Every explorer starts somewhere.</strong>
+          <p>
+            Make your profile. Keep your discoveries, records, and rivalries
+            together.
+          </p>
+        </div>
+        <Button href="/geo/me" variant="quiet">
+          Your explorer profile <ArrowRight size={16} />
+        </Button>
       </div>
     </main>
   );

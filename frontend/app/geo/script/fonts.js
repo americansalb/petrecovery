@@ -88,6 +88,8 @@ const olchiki = Noto_Sans_Ol_Chiki({ display: 'swap', weight: 'variable', subset
 const thaana = Noto_Sans_Thaana({ display: 'swap', weight: 'variable', subsets: ['thaana'], variable: '--font-s-thaa' });
 const tibetan = Noto_Serif_Tibetan({ display: 'swap', weight: 'variable', subsets: ['tibetan'], variable: '--font-s-tibt' });
 
+export const scriptShowcaseFonts = [devanagari, tamil, ethiopic].map((font) => font.variable).join(' ');
+
 /** Put on the wrapper of any subtree that renders sample text. */
 export const scriptFontClasses = [
   adlam,

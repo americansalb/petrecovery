@@ -9,6 +9,8 @@ import { buildShareMetadata } from '@/app/lib/geo/meta';
 import GeoHeader from './components/GeoHeader';
 import GeoFooter from './components/GeoFooter';
 import './geo.css';
+import './experience.css';
+import { scriptShowcaseFonts } from './script/fonts';
 
 export const metadata = buildShareMetadata({
   // A globe, because the pet site's logo on a geography game was the
@@ -34,7 +36,9 @@ export const metadata = buildShareMetadata({
  */
 export default function GeoLayout({ children }) {
   return (
-    <div className="geo-surface min-h-[100dvh] bg-ocean-950 text-sand-50">
+    <div
+      className={`geo-surface min-h-[100dvh] bg-ocean-950 text-sand-50 ${scriptShowcaseFonts}`}
+    >
       {/* The pet site's <main> carries `pb-16` for its mobile tab bar,
           which the game does not render. That padding is outside this
           div, so on a phone every page in the game ended in a 64px
@@ -43,7 +47,10 @@ export default function GeoLayout({ children }) {
           so the game paints behind it instead: one fixed sheet under
           everything, which also covers a short page and the overscroll
           at either end. */}
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-ocean-950" aria-hidden="true" />
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-ocean-950"
+        aria-hidden="true"
+      />
       <GeoHeader />
       {children}
       <GeoFooter />

@@ -78,7 +78,9 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            // Development chunks keep their filenames across edits. Caching them
+            // pairs fresh server HTML with stale client UI after a reload.
+            value: process.env.NODE_ENV === 'development' ? 'no-store' : 'public, max-age=31536000, immutable',
           },
         ],
       },

@@ -15,7 +15,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Globe2, ShieldCheck } from 'lucide-react';
+import { Compass, ShieldCheck } from 'lucide-react';
 import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
@@ -82,27 +82,39 @@ export default function GeoHeader() {
   // under the pet site's bar otherwise. The game has its own name and
   // its own domain now, so it carries its own bar wherever it is served.
   return (
-    <header className="border-b border-ocean-800 bg-ocean-950 text-sand-50">
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
-        <Link href="/geo" className="flex shrink-0 items-center gap-2 font-bold">
-          <Globe2 className="h-5 w-5 text-clay-300" />
+    <header className="pe-header">
+      <div className="pe-header-inner">
+        <Link href="/geo" className="pe-brand">
+          <span className="pe-brand-mark">
+            <Compass size={25} strokeWidth={1.5} />
+          </span>
           {SITE_NAME}
         </Link>
-        <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Game">
-          {[...GAME_LINKS, ...(admin ? [{ href: '/geo/admin', label: 'Admin', admin: true }] : [])].map((link) => {
+        <nav className="pe-nav" aria-label="Game">
+          {[
+            ...GAME_LINKS,
+            ...(admin
+              ? [{ href: '/geo/admin', label: 'Admin', admin: true }]
+              : []),
+          ].map((link) => {
             const active = isActive(link, pathname);
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${active ? 'bg-sand-50/15 text-white' : 'text-sand-100/70 hover:bg-sand-50/10 hover:text-white'}`}
+                aria-current={active ? 'page' : undefined}
               >
-                {link.admin ? <ShieldCheck className="mr-1 inline h-3.5 w-3.5 align-[-2px]" /> : null}
+                {link.admin ? (
+                  <ShieldCheck className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />
+                ) : null}
                 {link.label}
               </Link>
             );
           })}
         </nav>
+        <span className="pe-header-free">
+          <span /> FREE TO PLAY
+        </span>
       </div>
     </header>
   );

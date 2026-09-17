@@ -31,11 +31,22 @@ export function Compass({ heading = 0 }) {
       aria-label={`Facing ${Math.round(heading)} degrees`}
       role="img"
     >
-      <div className="absolute inset-0 transition-transform duration-150" style={{ transform: `rotate(${-heading}deg)` }}>
-        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-clay-300">N</span>
-        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white/60">S</span>
-        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">E</span>
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">W</span>
+      <div
+        className="absolute inset-0 transition-transform duration-150"
+        style={{ transform: `rotate(${-heading}deg)` }}
+      >
+        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-clay-300">
+          N
+        </span>
+        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white/60">
+          S
+        </span>
+        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">
+          E
+        </span>
+        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">
+          W
+        </span>
         <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-clay-300" />
         <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 rounded bg-white/40" />
       </div>
@@ -45,17 +56,30 @@ export function Compass({ heading = 0 }) {
 }
 
 export function TimerRing({ secondsLeft, total }) {
-  const fraction = total > 0 ? Math.max(0, Math.min(1, secondsLeft / total)) : 0;
+  const fraction =
+    total > 0 ? Math.max(0, Math.min(1, secondsLeft / total)) : 0;
   const urgent = secondsLeft <= 10;
   const radius = 16;
   const circumference = 2 * Math.PI * radius;
   const minutes = Math.floor(secondsLeft / 60);
   const seconds = secondsLeft % 60;
-  const label = minutes > 0 ? `${minutes}:${String(seconds).padStart(2, '0')}` : `${seconds}`;
+  const label =
+    minutes > 0
+      ? `${minutes}:${String(seconds).padStart(2, '0')}`
+      : `${seconds}`;
   return (
-    <div className={`flex items-center gap-2 ${urgent ? 'text-red-200' : 'text-white'}`}>
+    <div
+      className={`flex items-center gap-2 ${urgent ? 'text-red-200' : 'text-white'}`}
+    >
       <svg width="24" height="24" viewBox="0 0 40 40" aria-hidden="true">
-        <circle cx="20" cy="20" r={radius} stroke="rgba(255,255,255,0.15)" strokeWidth="4" fill="none" />
+        <circle
+          cx="20"
+          cy="20"
+          r={radius}
+          stroke="rgba(255,255,255,0.15)"
+          strokeWidth="4"
+          fill="none"
+        />
         <circle
           cx="20"
           cy="20"
@@ -69,21 +93,27 @@ export function TimerRing({ secondsLeft, total }) {
           transform="rotate(-90 20 20)"
         />
       </svg>
-      <span className="min-w-[2ch] text-sm font-semibold tabular-nums" data-geo-clock={secondsLeft}>
+      <span
+        className="min-w-[2ch] text-sm font-semibold tabular-nums"
+        data-geo-clock={secondsLeft}
+      >
         {label}
       </span>
     </div>
   );
 }
 
-const pill = 'rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur';
+const pill =
+  'pe-hud-pill rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur';
 const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-white transition hover:bg-ocean-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500 disabled:opacity-40`;
 
 /** A small label above a value, which is the only shape the top row uses. */
 function Stat({ label, children }) {
   return (
     <div className="flex flex-col leading-tight">
-      <span className="text-[11px] uppercase tracking-wide text-white/55">{label}</span>
+      <span className="text-[11px] uppercase tracking-wide text-white/55">
+        {label}
+      </span>
       {children}
     </div>
   );
@@ -109,7 +139,8 @@ export default function GameHud({
   showMapControls,
 }) {
   const isStreak = config.mode === 'streak';
-  const modeLabel = MODES[config.mode]?.label || MODES[config.mode]?.short || config.mode;
+  const modeLabel =
+    MODES[config.mode]?.label || MODES[config.mode]?.short || config.mode;
   const timed = config.time > 0 && Number.isFinite(secondsLeft);
   // The pill's second line is what you are playing. For a mode with a
   // region that is the region: "CONTINENT / City streets" named every
@@ -127,9 +158,13 @@ export default function GameHud({
     <>
       {/* Top left: what you are playing */}
       <div className="pointer-events-none absolute left-3 top-3 z-30 sm:left-4 sm:top-4">
-        <div className={`pointer-events-auto flex items-center gap-3 py-1.5 pl-4 pr-1.5 ${pill}`}>
+        <div
+          className={`pointer-events-auto flex items-center gap-3 py-1.5 pl-4 pr-1.5 ${pill}`}
+        >
           <Stat label={isStreak ? 'Country streak' : modeLabel}>
-            <span className="text-sm font-semibold text-white">{isStreak ? `Streak ${streak}` : playing}</span>
+            <span className="text-sm font-semibold text-white">
+              {isStreak ? `Streak ${streak}` : playing}
+            </span>
           </Stat>
         </div>
       </div>
@@ -141,6 +176,11 @@ export default function GameHud({
         <div className="pointer-events-none absolute left-1/2 top-3 z-30 hidden -translate-x-1/2 sm:top-4 sm:block">
           <div className={`px-6 py-3 text-sm font-semibold text-white ${pill}`}>
             Round {roundNumber} of {roundsTotal}
+            <div className="pe-round-progress" aria-hidden="true">
+              {Array.from({ length: roundsTotal }, (_, i) => (
+                <span key={i} data-complete={i < roundNumber} />
+              ))}
+            </div>
           </div>
         </div>
       ) : null}
@@ -148,22 +188,34 @@ export default function GameHud({
       {/* Top right: the score, the clock, and the way out */}
       <div className="pointer-events-none absolute right-3 top-3 z-30 flex items-center gap-2 sm:right-4 sm:top-4">
         {!isStreak ? (
-          <div className={`pointer-events-auto flex items-center gap-4 px-5 py-2 ${pill}`}>
+          <div
+            className={`pointer-events-auto flex items-center gap-4 px-5 py-2 ${pill}`}
+          >
             <Stat label="Score">
-              <span className="text-lg font-semibold tabular-nums text-clay-300" data-geo-score>
+              <span
+                className="text-lg font-semibold tabular-nums text-clay-300"
+                data-geo-score
+              >
                 {formatScore(score)}
               </span>
             </Stat>
-            {timed ? <div className="border-l border-white/15 pl-4">
-              <TimerRing secondsLeft={secondsLeft} total={config.time} />
-            </div> : null}
+            {timed ? (
+              <div className="border-l border-white/15 pl-4">
+                <TimerRing secondsLeft={secondsLeft} total={config.time} />
+              </div>
+            ) : null}
           </div>
         ) : timed ? (
           <div className={`pointer-events-auto px-5 py-3 ${pill}`}>
             <TimerRing secondsLeft={secondsLeft} total={config.time} />
           </div>
         ) : null}
-        <Link href="/geo" className={`pointer-events-auto ${iconButton}`} aria-label="Leave the game" title="Leave the game">
+        <Link
+          href="/geo"
+          className={`pointer-events-auto ${iconButton}`}
+          aria-label="Leave the game"
+          title="Leave the game"
+        >
           <X className="h-5 w-5" />
         </Link>
       </div>
@@ -179,40 +231,65 @@ export default function GameHud({
           the round is on: during the reveal the imagery is behind a
           panel, and a compass ghosting through it was the giveaway. */}
       {showMapControls ? (
-      <div className="pointer-events-none absolute bottom-16 left-3 z-30 flex flex-col items-start gap-3 sm:left-4">
-        <div className="pointer-events-auto">
-          <Compass heading={heading} />
-        </div>
-        <div className="pointer-events-auto flex items-center gap-2">
-          {canReturn ? (
-            <button type="button" onClick={onReturn} className={iconButton} aria-label="Return to start" title="Return to start (R)">
-              <RotateCcw className="h-5 w-5" />
-            </button>
-          ) : null}
-          {canZoom ? (
-            <>
-              <button type="button" onClick={() => onZoom(1)} className={iconButton} aria-label="Zoom in" title="Zoom in">
-                <Plus className="h-5 w-5" />
+        <div className="pointer-events-none absolute bottom-16 left-3 z-30 flex flex-col items-start gap-3 sm:left-4">
+          <div className="pointer-events-auto">
+            <Compass heading={heading} />
+          </div>
+          <div className="pointer-events-auto flex items-center gap-2">
+            {canReturn ? (
+              <button
+                type="button"
+                onClick={onReturn}
+                className={iconButton}
+                aria-label="Return to start"
+                title="Return to start (R)"
+              >
+                <RotateCcw className="h-5 w-5" />
               </button>
-              <button type="button" onClick={() => onZoom(-1)} className={iconButton} aria-label="Zoom out" title="Zoom out">
-                <Minus className="h-5 w-5" />
-              </button>
-            </>
-          ) : null}
-        </div>
-        {/* One line, and only the part that is true for this game: an
+            ) : null}
+            {canZoom ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onZoom(1)}
+                  className={iconButton}
+                  aria-label="Zoom in"
+                  title="Zoom in"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onZoom(-1)}
+                  className={iconButton}
+                  aria-label="Zoom out"
+                  title="Zoom out"
+                >
+                  <Minus className="h-5 w-5" />
+                </button>
+              </>
+            ) : null}
+          </div>
+          {/* One line, and only the part that is true for this game: an
             NMPZ round that says "drag to look around" is a lie. */}
-        <p className="hidden max-w-[10rem] text-xs leading-snug text-sand-300/80 sm:block">
-          {canPan ? 'Drag to look around. R goes back to where you started.' : 'One view, no looking around. That is the format.'}
-        </p>
-      </div>
+          <p className="hidden max-w-[10rem] text-xs leading-snug text-sand-300/80 sm:block">
+            {canPan
+              ? 'Drag to look around. R goes back to where you started.'
+              : 'One view, no looking around. That is the format.'}
+          </p>
+        </div>
       ) : null}
 
       {/* The map, on a phone, where it lives behind a button. The size
           controls are on the card itself, next to what they change. */}
       {showMapControls ? (
         <div className="pointer-events-auto absolute bottom-16 right-3 z-30 flex items-center gap-2 sm:hidden">
-          <button type="button" onClick={onToggleMobileMap} className={`${pill} flex h-12 items-center gap-2 px-4 text-sm font-semibold text-white`} aria-expanded={mobileMapOpen}>
+          <button
+            type="button"
+            onClick={onToggleMobileMap}
+            className={`${pill} flex h-12 items-center gap-2 px-4 text-sm font-semibold text-white`}
+            aria-expanded={mobileMapOpen}
+          >
             <MapIcon className="h-5 w-5" />
             {mobileMapOpen ? 'Hide map' : 'Map'}
           </button>

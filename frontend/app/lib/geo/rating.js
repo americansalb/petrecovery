@@ -164,14 +164,13 @@ export function displayRating(rating, rd) {
   return { value: Math.round(rating), low: Math.round(rating - 2 * rd), high: Math.round(rating + 2 * rd) };
 }
 
+// Five leagues, independent on each ladder. The underlying rating is unchanged.
 export const TIERS = [
-  { name: 'Bronze', min: -Infinity },
-  { name: 'Silver', min: 1400 },
-  { name: 'Gold', min: 1550 },
-  { name: 'Platinum', min: 1700 },
-  { name: 'Diamond', min: 1850 },
-  { name: 'Master', min: 2000 },
-  { name: 'Grandmaster', min: 2200 },
+  { name: 'Copper', min: -Infinity, color: '#d79a75' },
+  { name: 'Silver', min: 1400, color: '#d3dfdc' },
+  { name: 'Platinum', min: 1550, color: '#a9d5d3' },
+  { name: 'Gold', min: 1700, color: '#ecd18e' },
+  { name: 'Sapphire', min: 1850, color: '#72bbdc' },
 ];
 
 export function tierFor(rating) {

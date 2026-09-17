@@ -368,12 +368,16 @@ const databaseStore = {
 function chooseStore() {
   const hasDatabase = Boolean(process.env.GEO_DATABASE_URL || process.env.DATABASE_URL);
   if (hasDatabase || process.env.NODE_ENV === 'production') return databaseStore;
+  // Next dev evaluates this module in multiple route bundles and on hot reload.
+  // Keep one process-local store so a room created by /rooms is visible at /rooms/:code.
+  if (globalThis.__probablyEarthDevStore) return globalThis.__probablyEarthDevStore;
   console.warn(
     '[geo] No DATABASE_URL, so the game is running on an in-memory store.\n' +
       '      Rooms, profiles, ratings and points all work and are forgotten when this process stops.\n' +
       '      Set DATABASE_URL to keep anything.'
   );
-  return createMemoryRoomStore();
+  globalThis.__probablyEarthDevStore = createMemoryRoomStore();
+  return globalThis.__probablyEarthDevStore;
 }
 
 export const prismaRoomStore = chooseStore();

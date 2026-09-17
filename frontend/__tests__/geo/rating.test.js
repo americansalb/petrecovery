@@ -139,10 +139,16 @@ describe('a whole game', () => {
 
   test('tiers, display and provisional flags read sensibly', () => {
     expect(tierFor(1500)).toBe('Silver');
-    expect(tierFor(1200)).toBe('Bronze');
-    expect(tierFor(2250)).toBe('Grandmaster');
+    expect(tierFor(1200)).toBe('Copper');
+    expect(tierFor(2250)).toBe('Sapphire');
     expect(displayRating(1512.4, 100)).toEqual({ value: 1512, low: 1312, high: 1712 });
     expect(isProvisional(2)).toBe(true);
     expect(isProvisional(5)).toBe(false);
   });
+});
+
+// League boundaries agree across independent ladders without resetting skill.
+test('five elemental leagues use explicit, inclusive boundaries', () => {
+  expect([1399, 1400, 1549, 1550, 1699, 1700, 1849, 1850, 2400].map(tierFor))
+    .toEqual(['Copper', 'Silver', 'Silver', 'Platinum', 'Platinum', 'Gold', 'Gold', 'Sapphire', 'Sapphire']);
 });

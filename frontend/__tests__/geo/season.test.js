@@ -44,12 +44,12 @@ test('first sight in a new season carries last season in and pays its reward onc
   const adaRow = rows.find((r) => r.profileId === ada.id);
   expect(adaRow).toMatchObject({ season: 's1', rating: 1610, rd: 200, games: 0, wins: 0, streak: 0 });
   expect(rows.find((r) => r.profileId === grace.id)).toMatchObject({ season: 's1', rating: 1575, rd: 200, games: 0 });
-  // Ada was Platinum with enough games: 200 points; Grace played two games: nothing
-  expect((await store.getProfileById(ada.id)).points).toBe(SEASON_REWARDS.Platinum);
+  // Ada was Gold with enough games: 200 points; Grace played two games: nothing
+  expect((await store.getProfileById(ada.id)).points).toBe(SEASON_REWARDS.Gold);
   expect((await store.getProfileById(grace.id)).points).toBe(0);
   const ledger = store._dump().ledger;
   expect(ledger).toHaveLength(1);
-  expect(ledger[0]).toMatchObject({ profileId: ada.id, amount: 200, ref: 'season:s0:classic', reason: 'Season 0 classic: Platinum' });
+  expect(ledger[0]).toMatchObject({ profileId: ada.id, amount: 200, ref: 'season:s0:classic', reason: 'Season 0 classic: Gold' });
 
   // seen again: nothing changes, nothing is paid twice
   const again = await ensureSeasonRows(store, [ada.id], 'classic', T0 + 1000);

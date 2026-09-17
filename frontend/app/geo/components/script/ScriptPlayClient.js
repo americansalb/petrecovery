@@ -27,9 +27,18 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowRight, Clock, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { randomSeedString } from '@/app/lib/geo/random';
-import { LADDERS, highlightMarkers, normalizeScriptConfig, scriptConfigToQuery } from '@/app/lib/geo/script';
+import {
+  LADDERS,
+  highlightMarkers,
+  normalizeScriptConfig,
+  scriptConfigToQuery,
+} from '@/app/lib/geo/script';
 import dynamic from 'next/dynamic';
-import { initializeMapKit, mapKitAuth, onMapKitAuth } from '../../lib/appleMapKit';
+import {
+  initializeMapKit,
+  mapKitAuth,
+  onMapKitAuth,
+} from '../../lib/appleMapKit';
 import AppleScriptMap from './AppleScriptMap';
 import ScriptSample from './ScriptSample';
 // The screen's own stylesheet: the light palette the map is drawn in,
@@ -62,7 +71,8 @@ const ICON_BUTTON = `${PILL} flex h-11 w-11 items-center justify-center text-san
 function useCountUp(value, duration = 650) {
   const [shown, setShown] = useState(0);
   useEffect(() => {
-    if (typeof window === 'undefined' || !Number.isFinite(value)) return undefined;
+    if (typeof window === 'undefined' || !Number.isFinite(value))
+      return undefined;
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
       setShown(value);
       return undefined;
@@ -140,7 +150,8 @@ export default function ScriptPlayClient() {
     // The script itself not arriving. Nothing to authorize, nothing to
     // draw, and no error event to wait for, because MapKit never ran.
     timer = setTimeout(() => {
-      if (live) setProvider((current) => (current === 'pending' ? 'leaflet' : current));
+      if (live)
+        setProvider((current) => (current === 'pending' ? 'leaflet' : current));
     }, MAPKIT_LOAD_MS);
     initializeMapKit()
       .then((sdk) => {
@@ -180,7 +191,8 @@ export default function ScriptPlayClient() {
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data?.error || 'Could not start the round');
+        if (!response.ok)
+          throw new Error(data?.error || 'Could not start the round');
         if (live) {
           setRound(data.round);
           setSecondsLeft(config.timer || 0);
@@ -204,16 +216,20 @@ export default function ScriptPlayClient() {
           body: JSON.stringify({ token: round.token, guess }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data?.error || 'Could not score the guess');
+        if (!response.ok)
+          throw new Error(data?.error || 'Could not score the guess');
         setResult(data.result);
-        setHistory((rows) => [...rows, { ...data.result, text: round.text, script: round.script }]);
+        setHistory((rows) => [
+          ...rows,
+          { ...data.result, text: round.text, script: round.script },
+        ]);
       } catch (guessError) {
         setError(guessError.message);
       } finally {
         setSending(false);
       }
     },
-    [round, sending, result]
+    [round, sending, result],
   );
 
   // The clock. Running out submits whatever pin is on the map, which
@@ -247,39 +263,66 @@ export default function ScriptPlayClient() {
   };
 
   if (done) {
-    return <Summary config={config} ladder={ladder} history={history} total={total} />;
+    return (
+      <Summary
+        config={config}
+        ladder={ladder}
+        history={history}
+        total={total}
+      />
+    );
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-[#f4efe4] text-sand-900">
+    <div className="pe-script-round fixed inset-0 z-[60] flex flex-col bg-[#f4efe4] text-sand-900">
       {/* The sentence gets the top of the screen and the map gets the
           rest of it. It used to float over the map, which put the thing
           you are reading on top of the thing you answer on. */}
-      <header className="relative z-30 shrink-0 border-b border-sand-200 bg-[#fffdf8] shadow-sm">
+      <header className="pe-sentence-stage relative z-30 shrink-0 border-b border-sand-200 bg-[#fffdf8] shadow-sm">
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-3 px-3 pt-3 sm:px-4">
           <div className={`flex items-center gap-3 px-4 py-2 ${PILL}`}>
             <div className="flex flex-col leading-tight">
               {/* "Script - World", not "World": the street game has a
                   World mode too, and a header that says only the pool
                   does not say which game you are in. */}
-              <span className="text-[11px] uppercase tracking-wide text-sand-500">Script &middot; {ladder.short}</span>
+              <span className="text-[11px] uppercase tracking-wide text-sand-500">
+                Script &middot; {ladder.short}
+              </span>
               <span className="text-sm font-semibold">
-                Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}
+                Round {Math.min(roundIndex + 1, config.rounds)} of{' '}
+                {config.rounds}
               </span>
             </div>
             <div className="flex flex-col border-l border-sand-200 pl-3 leading-tight">
-              <span className="text-[11px] uppercase tracking-wide text-sand-500">Score</span>
-              <span className="text-sm font-semibold tabular-nums text-sand-900">{formatScore(total)}</span>
+              <span className="text-[11px] uppercase tracking-wide text-sand-500">
+                Score
+              </span>
+              <span className="text-sm font-semibold tabular-nums text-sand-900">
+                {formatScore(total)}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {config.timer ? (
-              <div className={`flex items-center gap-2 px-3 py-2 ${secondsLeft <= 10 ? 'rounded-full border border-red-300 bg-red-50 shadow-sm' : PILL}`}>
-                <Clock className={`h-4 w-4 ${secondsLeft <= 10 ? 'text-red-500' : 'text-sand-400'}`} />
-                <span className={`min-w-[2ch] text-sm font-semibold tabular-nums ${secondsLeft <= 10 ? 'text-red-600' : ''}`}>{secondsLeft}</span>
+              <div
+                className={`flex items-center gap-2 px-3 py-2 ${secondsLeft <= 10 ? 'rounded-full border border-red-300 bg-red-50 shadow-sm' : PILL}`}
+              >
+                <Clock
+                  className={`h-4 w-4 ${secondsLeft <= 10 ? 'text-red-500' : 'text-sand-400'}`}
+                />
+                <span
+                  className={`min-w-[2ch] text-sm font-semibold tabular-nums ${secondsLeft <= 10 ? 'text-red-600' : ''}`}
+                >
+                  {secondsLeft}
+                </span>
               </div>
             ) : null}
-            <Link href="/geo/script" className={ICON_BUTTON} aria-label="Leave the game" title="Leave the game">
+            <Link
+              href="/geo/script"
+              className={ICON_BUTTON}
+              aria-label="Leave the game"
+              title="Leave the game"
+            >
               <X className="h-5 w-5" />
             </Link>
           </div>
@@ -293,7 +336,10 @@ export default function ScriptPlayClient() {
           ) : error ? (
             <div className="py-2 text-sm">
               <p className="text-red-600">{error}</p>
-              <Link href="/geo/script" className="mt-3 inline-block rounded-lg bg-ocean-900 px-3 py-1.5 font-semibold text-white hover:bg-ocean-800">
+              <Link
+                href="/geo/script"
+                className="mt-3 inline-block rounded-lg bg-ocean-900 px-3 py-1.5 font-semibold text-white hover:bg-ocean-800"
+              >
                 Back to Script
               </Link>
             </div>
@@ -339,19 +385,27 @@ export default function ScriptPlayClient() {
         {mapTrouble && !result ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-24 z-20 flex justify-center px-3">
             <p className="pointer-events-auto max-w-md rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-center text-xs text-amber-800 shadow-sm">
-              The world outline did not load on this network, so you are placing a pin on a bare grid. The round still scores.
+              The world outline did not load on this network, so you are placing
+              a pin on a bare grid. The round still scores.
             </p>
           </div>
         ) : null}
 
         {result ? (
-          <Reveal result={result} round={round} last={history.length >= config.rounds} onNext={next} />
+          <Reveal
+            result={result}
+            round={round}
+            last={history.length >= config.rounds}
+            onNext={next}
+          />
         ) : (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
             <div className="mx-auto max-w-md">
               {!pin && !loading && round ? (
                 <p className="mb-2 text-center text-sm font-medium text-sand-700">
-                  <span className="rounded-full bg-[#fffdf8]/90 px-3 py-1 shadow-sm">Tap the map where that language is used</span>
+                  <span className="rounded-full bg-[#fffdf8]/90 px-3 py-1 shadow-sm">
+                    Tap the map where that language is used
+                  </span>
                 </p>
               ) : null}
               <button
@@ -359,9 +413,13 @@ export default function ScriptPlayClient() {
                 disabled={!pin || sending || !round}
                 onClick={() => submit(pin)}
                 data-geo-guess
-                className="pointer-events-auto w-full rounded-xl bg-clay-600 px-4 py-3.5 text-base font-semibold text-sand-950 shadow-lg transition enabled:hover:bg-clay-500 enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500 disabled:shadow-sm"
+                className="pe-button pe-button--primary pointer-events-auto min-h-[52px] w-full rounded-xl bg-clay-600 px-4 py-3.5 text-base font-semibold text-sand-950 shadow-lg transition enabled:hover:bg-clay-500 enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500 disabled:shadow-sm"
               >
-                {sending ? 'Scoring' : 'Guess'}
+                {sending
+                  ? 'Finding out…'
+                  : pin
+                    ? 'Lock in your guess'
+                    : 'Place your pin to guess'}
               </button>
             </div>
           </div>
@@ -376,16 +434,20 @@ function Reveal({ result, round, last, onNext }) {
   const { answer } = result;
   const score = useCountUp(result.score);
   return (
-    <div className="wg-panel-in absolute inset-x-0 bottom-0 z-30 max-h-[72%] overflow-y-auto border-t border-sand-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
+    <div className="pe-script-reveal wg-panel-in absolute inset-x-0 bottom-0 z-30 max-h-[72%] overflow-y-auto border-t border-sand-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
       <div className="mx-auto max-w-2xl">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-xl font-bold">
-            {answer.name} <span className="font-normal text-sand-500">{answer.endonym}</span>
+            {answer.name}{' '}
+            <span className="font-normal text-sand-500">{answer.endonym}</span>
           </h2>
-          <p className="text-lg font-semibold tabular-nums text-sand-900">{formatScore(score)} points</p>
+          <p className="text-lg font-semibold tabular-nums text-sand-900">
+            {formatScore(score)} points
+          </p>
         </div>
         <p className="mt-1 text-sm text-sand-500">
-          {answer.scriptName} script, {answer.branch}, {answer.family}. About {answer.speakers} million speakers.
+          {answer.scriptName} script, {answer.branch}, {answer.family}. About{' '}
+          {answer.speakers} million speakers.
         </p>
         <p className="mt-3 text-sm">
           {result.guess === null
@@ -396,16 +458,18 @@ function Reveal({ result, round, last, onNext }) {
         </p>
         {result.alsoSpokenHere?.length ? (
           <p className="mt-2 text-sm text-sand-500">
-            Where you pinned, people speak {result.alsoSpokenHere.map((l) => l.name).join(', ')}.
+            Where you pinned, people speak{' '}
+            {result.alsoSpokenHere.map((l) => l.name).join(', ')}.
           </p>
         ) : null}
         <Tells answer={answer} text={round?.text} script={round?.script} />
         <button
           type="button"
           onClick={onNext}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
+          className="pe-button pe-button--primary mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
         >
-          {last ? 'See the results' : 'Next round'} <ArrowRight className="h-4 w-4" />
+          {last ? 'See the results' : 'Next round'}{' '}
+          <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -428,11 +492,14 @@ function Tells({ answer, text, script }) {
   if (!markers.length && !answer.onlyOneInScript) return null;
   const runs = highlightMarkers(text, markers);
   return (
-    <div className="mt-4 rounded-xl border border-sand-200 bg-white/70 p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-sand-500">What gave it away</p>
+    <div className="pe-script-tells mt-4 rounded-xl border border-sand-200 bg-white/70 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-sand-500">
+        What gave it away
+      </p>
       {answer.onlyOneInScript ? (
         <p className="mt-2 text-sm text-sand-700">
-          In this pool, {answer.scriptName} is written for {answer.name} and nothing else. The alphabet was the whole answer.
+          In this pool, {answer.scriptName} is written for {answer.name} and
+          nothing else. The alphabet was the whole answer.
         </p>
       ) : null}
       {runs.length ? (
@@ -444,7 +511,7 @@ function Tells({ answer, text, script }) {
               </mark>
             ) : (
               <span key={index}>{run.text}</span>
-            )
+            ),
           )}
         </p>
       ) : null}
@@ -473,48 +540,77 @@ function Summary({ config, ladder, history, total }) {
   const replay = `/geo/script/play?${scriptConfigToQuery({ ...config, seed: randomSeedString() })}`;
   const same = `/geo/script/play?${scriptConfigToQuery(config)}`;
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
+    <div className="pe-script-summary fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
       <div className="mx-auto max-w-2xl px-5 py-10">
-        <p className="text-sm uppercase tracking-wide text-sand-500">Script &middot; {ladder.label}</p>
-        <h1 className="mt-1 text-3xl font-bold">{formatScore(total)} points</h1>
+        <p className="text-sm uppercase tracking-wide text-sand-500">
+          Script &middot; {ladder.label}
+        </p>
+        <h1 className="pe-script-total mt-1 text-3xl font-bold">
+          {formatScore(total)}
+          <span> points</span>
+        </h1>
         <p className="mt-1 text-sand-500">
-          out of {formatScore(history.length * 5000)} across {history.length} {history.length === 1 ? 'round' : 'rounds'}
+          out of {formatScore(history.length * 5000)} across {history.length}{' '}
+          {history.length === 1 ? 'round' : 'rounds'}
         </p>
 
         {/* The way on, before the recap rather than under it. Five
             sentences used to sit between the score and these, which put
             the next game off the bottom of a desktop viewport. */}
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link href={replay} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 font-semibold text-ocean-950 hover:bg-clay-300">
+          <Link
+            href={replay}
+            className="pe-button pe-button--primary flex min-h-[48px] items-center gap-2 rounded-xl bg-clay-400 px-5 py-3 font-semibold text-ocean-950 hover:bg-clay-300"
+          >
             <RotateCcw className="h-4 w-4" /> Play again
           </Link>
-          <Link href={same} className="flex items-center gap-2 rounded-xl border border-sand-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-sand-50">
+          <Link
+            href={same}
+            className="flex items-center gap-2 rounded-xl border border-sand-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-sand-50"
+          >
             <MapPin className="h-4 w-4" /> Replay this set
           </Link>
-          <Link href="/geo/script" className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sand-600 hover:text-sand-900">
+          <Link
+            href="/geo/script"
+            className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sand-600 hover:text-sand-900"
+          >
             Change the pool
           </Link>
         </div>
 
-        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-sand-500">Your rounds</h2>
+        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-sand-500">
+          Your rounds
+        </h2>
         <ol className="mt-3 space-y-3">
           {history.map((row, index) => (
             /* Three blocks, each with its own space. The name, the
                numbers and the sentence used to share one flow, and a
                script with tall marks - Dzongkha, Devanagari - grew up
                into the metadata above it. */
-            <li key={index} className="wg-panel-in rounded-xl border border-sand-200 bg-[#fffdf8] p-4 shadow-sm" style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}>
+            <li
+              key={index}
+              className="wg-panel-in rounded-xl border border-sand-200 bg-[#fffdf8] p-4 shadow-sm"
+              style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}
+            >
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <p className="font-semibold">
-                  {row.answer.name} <span className="font-normal text-sand-500">{row.answer.endonym}</span>
+                  {row.answer.name}{' '}
+                  <span className="font-normal text-sand-500">
+                    {row.answer.endonym}
+                  </span>
                 </p>
                 <p className="text-sm font-semibold tabular-nums">
-                  {formatScore(row.score)} <span className="font-normal text-sand-400">pts</span>
+                  {formatScore(row.score)}{' '}
+                  <span className="font-normal text-sand-400">pts</span>
                 </p>
               </div>
               <p className="mt-1 text-sm text-sand-500">
                 {row.answer.scriptName} script.{' '}
-                {row.guess === null ? 'No pin.' : row.inRegion ? 'You pinned inside it.' : `You were ${formatDistance(row.distanceKm)} off.`}
+                {row.guess === null
+                  ? 'No pin.'
+                  : row.inRegion
+                    ? 'You pinned inside it.'
+                    : `You were ${formatDistance(row.distanceKm)} off.`}
               </p>
               <div className="mt-3 border-t border-sand-200 pt-3">
                 <ScriptSample text={row.text} script={row.script} size="sm" />
@@ -522,7 +618,6 @@ function Summary({ config, ladder, history, total }) {
             </li>
           ))}
         </ol>
-
       </div>
     </div>
   );

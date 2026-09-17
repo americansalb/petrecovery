@@ -18,7 +18,8 @@ const VARIANTS = {
     'bg-clay-400 text-ocean-950 font-bold hover:bg-clay-300 disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-sand-300',
   quiet:
     'border border-white/15 text-white font-semibold hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50',
-  ghost: 'text-white/70 font-semibold hover:bg-white/5 hover:text-white disabled:opacity-50',
+  ghost:
+    'text-white/70 font-semibold hover:bg-white/5 hover:text-white disabled:opacity-50',
 };
 
 const SIZES = {
@@ -36,6 +37,7 @@ export default function Button({
 }) {
   const classes = [
     'inline-flex items-center justify-center gap-2 rounded-xl transition focus:outline-none focus-visible:ring-2 focus-visible:ring-white',
+    `pe-button pe-button--${variant}`,
     VARIANTS[variant] || VARIANTS.primary,
     SIZES[size] || SIZES.md,
     className,

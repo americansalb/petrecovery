@@ -36,12 +36,12 @@ export const ITEMS = Object.freeze([
   { id: 'title-navigator', kind: 'title', name: 'Navigator', price: 400, value: 'Navigator', description: 'Finds the way.' },
   { id: 'title-cartographer', kind: 'title', name: 'Cartographer', price: 1000, value: 'Cartographer', description: 'Draws the map.' },
   { id: 'title-globetrotter', kind: 'title', name: 'Globetrotter', price: 2500, value: 'Globetrotter', description: 'Has been everywhere.' },
-  { id: 'title-gold', kind: 'title', name: 'Gold', price: 0, value: 'Gold', requires: { tier: 'Gold' }, description: 'Free at Gold on either ladder.' },
-  { id: 'title-master', kind: 'title', name: 'Master', price: 0, value: 'Master', requires: { tier: 'Master' }, description: 'Free at Master on either ladder.' },
-  { id: 'title-grandmaster', kind: 'title', name: 'Grandmaster', price: 0, value: 'Grandmaster', requires: { tier: 'Grandmaster' }, description: 'Free at Grandmaster on either ladder.' },
+  { id: 'title-gold', kind: 'title', name: 'Platinum', price: 0, value: 'Platinum', requires: { tier: 'Platinum' }, description: 'Free at Platinum on any ladder.' },
+  { id: 'title-master', kind: 'title', name: 'Sapphire', price: 0, value: 'Sapphire', requires: { tier: 'Sapphire' }, description: 'Free at Sapphire on any ladder.' },
+  { id: 'title-grandmaster', kind: 'title', name: 'Wayfinder', price: 0, value: 'Wayfinder', requires: { tier: 'Sapphire' }, description: 'An alternate title, free at Sapphire on any ladder.' },
   // Frames around the badge on the profile and in rooms.
   { id: 'frame-none', kind: 'frame', name: 'No frame', price: 0, free: true, value: '', description: 'Plain.' },
-  { id: 'frame-bronze', kind: 'frame', name: 'Bronze', price: 300, value: '#b45309', description: 'A bronze ring.' },
+  { id: 'frame-bronze', kind: 'frame', name: 'Copper', price: 300, value: '#b87751', description: 'A warm copper ring.' },
   { id: 'frame-silver', kind: 'frame', name: 'Silver', price: 600, value: '#94a3b8', description: 'A silver ring.' },
   { id: 'frame-gold', kind: 'frame', name: 'Gold', price: 1200, value: '#facc15', description: 'A gold ring.' },
   // Reaction packs: more emoji in rooms.
@@ -49,6 +49,7 @@ export const ITEMS = Object.freeze([
   { id: 'reactions-party', kind: 'reactions', name: 'Party', price: 250, emoji: ['🎉', '🍕', '🚀', '🐢'], description: 'Four for a good night.' },
 ]);
 
+// Legacy item IDs stay stable so existing ownership and equipped slots survive.
 const BY_ID = new Map(ITEMS.map((item) => [item.id, item]));
 
 export function itemById(id) {
@@ -65,11 +66,11 @@ export function defaultEquipped() {
 const tierIndex = (tier) => TIERS.findIndex((t) => t.name === tier);
 
 export function tierAtLeast(tier, wanted) {
-  return tierIndex(tier) >= 0 && tierIndex(tier) >= tierIndex(wanted);
+  return tierIndex(tier) >= 0 && tierIndex(wanted) >= 0 && tierIndex(tier) >= tierIndex(wanted);
 }
 
 /** Free, bought, or unlocked by rating tier. `tier` is the best tier across ladders. */
-export function canUse(item, { owned = [], tier = 'Bronze' } = {}) {
+export function canUse(item, { owned = [], tier = 'Copper' } = {}) {
   if (!item) return false;
   if (item.free) return true;
   if (owned.includes(item.id)) return true;
@@ -85,7 +86,7 @@ export function canBuy(item, { owned = [], points = 0 } = {}) {
 }
 
 /** Only ids the profile may actually wear, slot by slot, defaults otherwise. */
-export function normalizeEquipped(raw, { owned = [], tier = 'Bronze' } = {}) {
+export function normalizeEquipped(raw, { owned = [], tier = 'Copper' } = {}) {
   const out = defaultEquipped();
   if (raw && typeof raw === 'object') {
     for (const slot of SLOTS) {

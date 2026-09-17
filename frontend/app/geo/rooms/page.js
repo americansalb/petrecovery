@@ -7,6 +7,6 @@
 
 import RoomBrowser from '../components/rooms/RoomBrowser';
 
-export default function GeoRoomsPage() {
-  return <RoomBrowser />;
+export default function GeoRoomsPage({ searchParams }) {
+  return <RoomBrowser initialVariant={searchParams?.variant} />;
 }

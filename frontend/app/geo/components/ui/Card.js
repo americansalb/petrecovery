@@ -38,8 +38,10 @@ export default function Card({
   children,
   ...rest
 }) {
-  const base = `rounded-2xl border ${TONES[tone] || TONES.panel} ${PADS[pad] ?? PADS.md}`;
-  const classes = [base, href ? HOVER : '', className].filter(Boolean).join(' ');
+  const base = `pe-panel rounded-2xl border ${TONES[tone] || TONES.panel} ${PADS[pad] ?? PADS.md}`;
+  const classes = [base, href ? HOVER : '', className]
+    .filter(Boolean)
+    .join(' ');
   if (href) {
     return (
       <Link href={href} className={classes} {...rest}>
@@ -60,7 +62,11 @@ export function CardTitle({ icon: Icon, children, trailing = null }) {
     <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
       {Icon ? <Icon className="h-4 w-4 text-clay-300" /> : null}
       {children}
-      {trailing ? <span className="font-normal normal-case tracking-normal text-white/50">{trailing}</span> : null}
+      {trailing ? (
+        <span className="font-normal normal-case tracking-normal text-white/50">
+          {trailing}
+        </span>
+      ) : null}
     </h2>
   );
 }
