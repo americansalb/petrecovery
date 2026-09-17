@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import Card from './ui/Card';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
@@ -51,7 +52,7 @@ function Panel({ children }) {
 function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
   return (
     <Panel>
-      <div className="rounded-2xl border border-white/10 bg-ocean-900 p-5 text-white">
+      <Card tone="panel" className="bg-ocean-900 text-white">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-300" />
           <div className="min-w-0">
@@ -71,7 +72,7 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
             Back to Probably Earth
           </Link>
         </div>
-      </div>
+      </Card>
     </Panel>
   );
 }

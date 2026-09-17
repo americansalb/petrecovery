@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import Card from './ui/Card';
 import { Ban, Check, Loader2, RefreshCw, Search, ShieldAlert, Users } from 'lucide-react';
 import { ROLES, TIERS } from '@/app/lib/geo/server/roles';
 
@@ -26,11 +27,11 @@ const DENIALS = {
 
 function Figure({ label, value, hint }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+    <Card pad="sm">
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
       <p className="mt-1 text-3xl font-bold tabular-nums text-white">{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-white/60">{hint}</p> : null}
-    </div>
+    </Card>
   );
 }
 
@@ -138,7 +139,7 @@ export default function AdminClient() {
 
         {note ? <p className="mt-3 rounded-xl border border-clay-400/40 bg-clay-500/10 px-3 py-2 text-sm text-clay-200">{note}</p> : null}
 
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
+        <Card pad="none" className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[54rem] text-sm">
             <thead className="bg-white/5 text-left text-xs font-semibold uppercase tracking-wide text-white/60">
               <tr>
@@ -213,12 +214,12 @@ export default function AdminClient() {
               ) : null}
             </tbody>
           </table>
-        </div>
+        </Card>
       </section>
 
       <section className="mt-10" aria-label="Rooms">
         <h2 className="text-lg font-bold text-white">Rooms</h2>
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
+        <Card pad="none" className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[40rem] text-sm">
             <thead className="bg-white/5 text-left text-xs font-semibold uppercase tracking-wide text-white/60">
               <tr>
@@ -254,7 +255,7 @@ export default function AdminClient() {
               ) : null}
             </tbody>
           </table>
-        </div>
+        </Card>
       </section>
     </main>
   );

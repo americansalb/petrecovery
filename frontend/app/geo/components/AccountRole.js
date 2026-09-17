@@ -24,6 +24,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import Card from './ui/Card';
 import { ShieldCheck } from 'lucide-react';
 
 const LABELS = { admin: 'Admin', host: 'Host' };
@@ -49,7 +50,7 @@ export default function AccountRole() {
   if (!LABELS[role]) return null;
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-account-role>
+    <Card data-account-role>
       <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
         <ShieldCheck className="h-4 w-4" />
         Role
@@ -63,6 +64,6 @@ export default function AccountRole() {
       <p className="mt-2 text-sm text-white/60">
         {role === 'admin' ? 'You can open the backend at /geo/admin.' : 'You can open private rooms.'}
       </p>
-    </section>
+    </Card>
   );
 }

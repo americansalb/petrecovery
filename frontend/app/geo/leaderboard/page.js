@@ -11,6 +11,9 @@ import { Trophy, Users } from 'lucide-react';
 import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { profileHeaders } from '../lib/profile';
+import Card from '../components/ui/Card';
+import Tabs from '../components/ui/Tabs';
+import Button from '../components/ui/Button';
 import PlayerName from '../components/PlayerName';
 
 function RatingCell({ row }) {
@@ -66,23 +69,19 @@ export default function GeoLeaderboardPage() {
         </header>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl bg-white/5 p-1" role="tablist">
-          {LADDERS.map((id) => (
-            <button key={id} type="button" role="tab" aria-selected={ladder === id} onClick={() => setLadder(id)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${ladder === id ? 'bg-ocean-900 text-white shadow' : 'text-white/70 hover:bg-ocean-900/60'}`}>
-              {LADDER_LABELS[id] || VARIANTS[id]?.label || id}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          items={LADDERS.map((id) => ({ id, label: LADDER_LABELS[id] || VARIANTS[id]?.label || id }))}
+          value={ladder}
+          onChange={setLadder}
+          label="Ladders"
+          marker="ladder-tab"
+        />
         {/* The way into the ladder on screen. Solo is a solo ladder: it
             can only be entered by playing the ranked hour, and sending
             an unplaced player to open a room was the bug. */}
-        <Link
-          href={ladder === 'solo' ? '/geo/play?mode=ranked' : '/geo/rooms'}
-          className="inline-flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2 text-sm font-bold text-ocean-950 transition hover:bg-clay-300"
-          data-ladder-play
-        >
+        <Button href={ladder === 'solo' ? '/geo/play?mode=ranked' : '/geo/rooms'} data-ladder-play>
           {ladder === 'solo' ? "Play this hour's five" : `Open a ${LADDER_LABELS[ladder]?.toLowerCase() || ''} room`}
-        </Link>
+        </Button>
         </div>
         {board?.season ? (
           <p className="mt-2 text-sm text-white/60" data-season>
@@ -91,7 +90,7 @@ export default function GeoLeaderboardPage() {
         ) : null}
 
         {you ? (
-          <section className="mt-6 rounded-2xl border border-clay-400 bg-ocean-900 p-5 text-white">
+          <Card tone="marked" className="mt-6 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/60">You, {you.name}</p>
             <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-2">
               {/* 1500 is where everyone starts, not something earned.
@@ -145,7 +144,7 @@ export default function GeoLeaderboardPage() {
                 )}
               </p>
             ) : null}
-          </section>
+          </Card>
         ) : null}
 
         {error ? <p className="mt-6 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">{error}</p> : null}
@@ -153,7 +152,7 @@ export default function GeoLeaderboardPage() {
         {/* Rank, player and rating on a phone; the rest as the screen
             allows. Nine columns behind a sideways scroll meant the one
             number this page is about was the one you could not see. */}
-        <section className="mt-6 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
+        <Card pad="none" className="mt-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-ocean-950 text-left text-xs uppercase tracking-wide text-white/60">
               <tr>
@@ -198,7 +197,7 @@ export default function GeoLeaderboardPage() {
               ))}
             </tbody>
           </table>
-        </section>
+        </Card>
 
         <p className="mt-4 flex items-center gap-2 text-sm text-white/60">
           <Users className="h-4 w-4" />

@@ -33,6 +33,7 @@ import { isSignedIn } from '@/app/geo/lib/session';
 import { profileHeaders } from '../../lib/profile';
 import { getStats } from '../../lib/storage';
 import { loadGeoConfig } from '../../lib/serverConfig';
+import Card from '../ui/Card';
 import ScriptSample from '../script/ScriptSample';
 import WorldBackdrop from './WorldBackdrop';
 import './home.css';
@@ -70,11 +71,7 @@ function Chips({ items }) {
 /** A competition tile: what it is, where you stand, one way in. */
 function Compete({ icon: Icon, name, chips, status, href, cta, marker }) {
   return (
-    <Link
-      href={href}
-      className="group flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-4 transition hover:border-white/25 hover:bg-ocean-900/80"
-      {...(marker ? { [marker]: true } : {})}
-    >
+    <Card href={href} pad="sm" className="group flex flex-col" {...(marker ? { [marker]: true } : {})}>
       <p className="flex items-center gap-2 text-sm font-semibold text-white">
         <Icon className="h-4 w-4 text-clay-300" />
         {name}
@@ -82,7 +79,7 @@ function Compete({ icon: Icon, name, chips, status, href, cta, marker }) {
       <Chips items={chips} />
       <p className="mt-3 flex-1 text-sm text-white/60">{status}</p>
       <span className="mt-3 text-sm font-semibold text-clay-300 group-hover:text-clay-200">{cta} &rarr;</span>
-    </Link>
+    </Card>
   );
 }
 
@@ -173,7 +170,7 @@ export default function GameMenu() {
         {/* Quick start, then the other two ways to play. The primary
             action is the only one this size. */}
         <div className="geo-rise mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr_1fr]" style={{ animationDelay: '60ms' }}>
-          <section className="flex flex-col rounded-2xl border border-clay-400/40 bg-ocean-900/70 p-5">
+          <Card tone="marked" className="flex flex-col border-clay-400/40 bg-ocean-900/70">
             <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
               <Globe2 className="h-4 w-4 text-clay-300" />
               Street
@@ -196,13 +193,9 @@ export default function GameMenu() {
             {scriptOnly ? (
               <p className="mt-2 text-xs text-white/50">Street imagery is off here, so Play starts Script.</p>
             ) : null}
-          </section>
+          </Card>
 
-          <Link
-            href="/geo/script"
-            className="group flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-5 transition hover:border-white/25 hover:bg-ocean-900/80"
-            data-menu-script
-          >
+          <Card href="/geo/script" className="group flex flex-col" data-menu-script>
             <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
               <Languages className="h-4 w-4 text-clay-300" />
               Script
@@ -212,13 +205,9 @@ export default function GameMenu() {
               <ScriptSample text={SCRIPT_SAMPLE.text} script={SCRIPT_SAMPLE.script} size="sm" />
             </div>
             <span className="mt-4 text-sm font-semibold text-clay-300 group-hover:text-clay-200">Choose a pool &rarr;</span>
-          </Link>
+          </Card>
 
-          <Link
-            href="/geo/rooms"
-            className="group flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-5 transition hover:border-white/25 hover:bg-ocean-900/80"
-            data-menu-friends
-          >
+          <Card href="/geo/rooms" className="group flex flex-col" data-menu-friends>
             <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
               <Users className="h-4 w-4 text-clay-300" />
               Friends
@@ -228,7 +217,7 @@ export default function GameMenu() {
               {openRooms === null ? '' : openRooms ? `${openRooms} open ${openRooms === 1 ? 'room' : 'rooms'}.` : 'No open rooms. Start one.'}
             </p>
             <span className="mt-4 text-sm font-semibold text-clay-300 group-hover:text-clay-200">Create or join &rarr;</span>
-          </Link>
+          </Card>
         </div>
 
         <h2 className="geo-rise mt-8 text-sm font-semibold uppercase tracking-wide text-white/60" style={{ animationDelay: '120ms' }}>
@@ -291,7 +280,7 @@ export default function GameMenu() {
           {/* Cards, like the row above it. These were three things on
               one line with two unlabelled selects between them, so the
               second picker had nothing saying what it picked. */}
-          <div className="flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+          <Card pad="sm" className="flex flex-col">
             <p className="flex items-center gap-2 text-sm font-semibold text-white">
               <Flag className="h-4 w-4 text-clay-300" />
               Country streak
@@ -300,12 +289,12 @@ export default function GameMenu() {
             <Link href="/geo/play?mode=streak" className={`${GO} mt-3 justify-center`} data-menu-streak>
               Play
             </Link>
-          </div>
+          </Card>
 
           {/* A region, because "one continent" is not a mode until you
               say which. These were selects on the Rankings page; moving
               the catalogue into Play must not cost the choice. */}
-          <div className="flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+          <Card pad="sm" className="flex flex-col">
             <p className="flex items-center gap-2 text-sm font-semibold text-white">
               <Globe2 className="h-4 w-4 text-clay-300" />
               One continent
@@ -323,9 +312,9 @@ export default function GameMenu() {
                 Play
               </Link>
             </div>
-          </div>
+          </Card>
 
-          <div className="flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+          <Card pad="sm" className="flex flex-col">
             <p className="flex items-center gap-2 text-sm font-semibold text-white">
               <MapPin className="h-4 w-4 text-clay-300" />
               One country
@@ -343,7 +332,7 @@ export default function GameMenu() {
                 Play
               </Link>
             </div>
-          </div>
+          </Card>
         </div>
 
         <p className="geo-rise mt-8 text-sm text-white/60" style={{ animationDelay: '240ms' }}>

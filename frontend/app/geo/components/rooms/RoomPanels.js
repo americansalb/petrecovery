@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Card from '../ui/Card';
 import Link from 'next/link';
 import { Check, Copy, Link2, LogOut, Play, RefreshCw, Share2, SkipForward, Users } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
@@ -129,7 +130,7 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
             <RoomSummary room={room} countries={countries} />
           </div>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-ocean-950/60 p-3 text-center">
+        <Card tone="sunken" pad="none" className="p-3 text-center">
           <p className="text-[11px] uppercase tracking-wide text-white/60">Join code</p>
           <p className="text-3xl font-bold tracking-[0.3em] text-clay-300">{room.code}</p>
           <div className="mt-2 flex justify-center gap-2">
@@ -142,7 +143,7 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
               Link
             </button>
           </div>
-        </div>
+        </Card>
       </div>
 
       <h2 className="mt-5 text-sm font-semibold uppercase tracking-wide text-white/60">

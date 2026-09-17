@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import Card from './ui/Card';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { getHistory } from '../lib/storage';
 
@@ -37,7 +38,7 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
           </button>
         </p>
       ) : null}
-      <ol className={`${hideUntilPlayed && !revealed ? 'mt-3' : 'mt-6'} divide-y divide-white/10 rounded-2xl border border-white/10 bg-ocean-900/60`}>
+      <Card as="ol" pad="none" className={`${hideUntilPlayed && !revealed ? 'mt-3' : 'mt-6'} divide-y divide-white/10 bg-transparent bg-ocean-900/60`}>
         {rounds.map((round, i) => (
           <li key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
             <span className="w-6 text-white/40">{i + 1}</span>
@@ -53,7 +54,7 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
             )}
           </li>
         ))}
-      </ol>
+      </Card>
       {hideUntilPlayed && played ? <p className="mt-2 text-xs text-white/60">You have played this one, so the places are shown.</p> : null}
     </>
   );

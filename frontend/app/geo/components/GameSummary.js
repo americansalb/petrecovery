@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react';
+import Card from './ui/Card';
 import Link from 'next/link';
 import { Check, Copy, Link2, RefreshCw, Settings2, Share2 } from 'lucide-react';
 import { MAX_ROUND_SCORE, formatDistance, formatScore, ordinal } from '@/app/lib/geo/distance';
@@ -69,7 +70,7 @@ function DailyBoard({ daily, cup = false }) {
   const you = daily.you;
   const what = cup ? "this week's ten" : "today's five";
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+    <Card pad="sm" className="mt-4 border-white/10 bg-white/5">
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{cup ? "This week's board" : "Today's board"}</p>
       <p className="mt-1 text-sm text-white/90">
         {you?.rank
@@ -91,7 +92,7 @@ function DailyBoard({ daily, cup = false }) {
           ))}
         </ol>
       ) : null}
-    </div>
+    </Card>
   );
 }
 
@@ -156,7 +157,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
           {!isStreak ? <p className="text-2xl tracking-wider">{summary.rounds.map((r) => scoreGlyph(r.score)).join('')}</p> : null}
         </div>
 
-        <ol className="mt-4 divide-y divide-white/10 rounded-2xl border border-white/10">
+        <Card as="ol" pad="none" className="mt-4 divide-y divide-white/10 bg-transparent">
           {summary.rounds.map((round, i) => (
             <li key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
               <span className="w-6 text-white/60">{i + 1}</span>
@@ -175,7 +176,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
               )}
             </li>
           ))}
-        </ol>
+        </Card>
 
         <DailyBoard daily={daily} cup={config.mode === 'cup'} />
         <RankedResult rated={rated} />

@@ -19,11 +19,13 @@ import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating'
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
+import Card, { CardTitle } from './ui/Card';
+import Tabs from './ui/Tabs';
 import SignInCard from './SignInCard';
 import AccountRole from './AccountRole';
 
 const KIND_ORDER = ['pin', 'color', 'title', 'frame', 'reactions'];
-const TABS = [['record', 'Record'], ['shop', 'Shop'], ['settings', 'Settings']];
+const TABS = [{ id: 'record', label: 'Record' }, { id: 'shop', label: 'Shop' }, { id: 'settings', label: 'Settings' }];
 // What a badge can be earned in: the countries the game actually drops
 // you in. The badge model covers every country, which made "12 badges"
 // read against a denominator nobody can reach.
@@ -36,15 +38,15 @@ function LadderCard({ ladder, rating, provisionalGames }) {
   const placements = Math.max(0, provisionalGames - games);
   if (!games) {
     return (
-      <div className="rounded-xl border border-white/10 bg-ocean-950/40 p-4">
+      <Card tone="sunken" pad="sm" className="rounded-xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
         <p className="mt-1 text-2xl font-bold text-white/70">Unplaced</p>
         <p className="mt-1 text-xs text-white/60">0 of {provisionalGames} placement games</p>
-      </div>
+      </Card>
     );
   }
   return (
-    <div className="rounded-xl border border-white/10 bg-ocean-950/40 p-4">
+    <Card tone="sunken" pad="sm" className="rounded-xl">
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums text-clay-300">{rating.value}</p>
       <p className="text-xs text-white/70">
@@ -66,7 +68,7 @@ function LadderCard({ ladder, rating, provisionalGames }) {
         </div>
       </dl>
       {rating.streak > 1 ? <p className="mt-2 text-xs font-semibold text-forest-300">{rating.streak} in a row</p> : null}
-    </div>
+    </Card>
   );
 }
 
@@ -264,31 +266,14 @@ export default function ProfileClient() {
             player saw about themselves was a price list. Each tab is
             one job (founder, 2026-09-17: the page has to know what it
             is for). */}
-        <div className="mt-6 inline-flex rounded-xl bg-white/5 p-1" role="tablist" aria-label="Profile sections">
-          {TABS.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => setTab(id)}
-              data-profile-tab={id}
-              className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${tab === id ? 'bg-ocean-900 text-white shadow' : 'text-white/70 hover:bg-ocean-900/60'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Tabs items={TABS} value={tab} onChange={setTab} label="Profile sections" marker="profile-tab" className="mt-6" />
 
         {tab === 'record' ? (
           <div className="mt-6 space-y-6">
             {/* Rating: every ladder, with what a player earned on it
                 rather than the word for where it sits. */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-ratings>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <Medal className="h-4 w-4" />
-                Rating
-              </h2>
+            <Card data-ratings>
+              <CardTitle icon={Medal}>Rating</CardTitle>
               {profile ? (
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   {LADDERS.map((ladder) => (
@@ -308,15 +293,12 @@ export default function ProfileClient() {
                   Friends
                 </Link>
               </div>
-            </section>
+            </Card>
 
             {/* Recent rated games. The server has sent these with every
                 profile since ratings shipped and nothing read them. */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-recent>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <History className="h-4 w-4" />
-                Last games
-              </h2>
+            <Card data-recent>
+              <CardTitle icon={History}>Last games</CardTitle>
               {profile?.recent?.length ? (
                 <ul className="mt-3 divide-y divide-white/10 text-sm">
                   {profile.recent.map((row, i) => (
@@ -340,15 +322,13 @@ export default function ProfileClient() {
                   No rated games yet. <Link href="/geo/rooms" className="underline hover:text-white">Open a room</Link> or <Link href="/geo/play?mode=ranked" className="underline hover:text-white">play the ranked hour</Link>.
                 </p>
               )}
-            </section>
+            </Card>
 
             {/* Badges */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-badges>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <Award className="h-4 w-4" />
+            <Card data-badges>
+              <CardTitle icon={Award} trailing={profile?.badges?.length ? `${profile.badges.length} of ${PLAYABLE_COUNTRIES}` : null}>
                 Badges
-                <span className="font-normal normal-case tracking-normal text-white/40">{profile?.badges?.length ? `${profile.badges.length} of ${PLAYABLE_COUNTRIES}` : ''}</span>
-              </h2>
+              </CardTitle>
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (
@@ -362,14 +342,11 @@ export default function ProfileClient() {
               ) : (
                 <p className="mt-3 text-sm text-white/60">None yet. A guess within 100 km earns that country&apos;s badge.</p>
               )}
-            </section>
+            </Card>
 
             {/* Today */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <Gauge className="h-4 w-4" />
-                Today
-              </h2>
+            <Card>
+              <CardTitle icon={Gauge}>Today</CardTitle>
               {profile?.usage ? (
                 <p className="mt-2 text-sm text-white/70">
                   <span className="font-semibold text-white">{profile.usage.rounds}</span> rounds today. Points earn on the first 50.
@@ -377,25 +354,16 @@ export default function ProfileClient() {
               ) : (
                 <p className="mt-2 text-sm text-white/60">Loading</p>
               )}
-            </section>
+            </Card>
           </div>
         ) : null}
 
         {tab === 'shop' ? (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-shop>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <ShoppingBag className="h-4 w-4" />
-                Shop
-              </h2>
+            <Card data-shop>
+              <CardTitle icon={ShoppingBag}>Shop</CardTitle>
               <p className="mt-2 text-sm text-white/60">Points buy how you look. Nothing here changes how you play.</p>
-              <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-white/5 p-1" role="tablist" aria-label="Shop sections">
-                {KIND_ORDER.map((k) => (
-                  <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-ocean-900 text-white shadow' : 'text-white/70 hover:bg-ocean-900/60'}`}>
-                    {ITEM_KINDS[k]}
-                  </button>
-                ))}
-              </div>
+              <Tabs items={KIND_ORDER.map((k) => ({ id: k, label: ITEM_KINDS[k] }))} value={kind} onChange={setKind} label="Shop sections" marker="shop-kind" className="mt-3" />
               {shop ? (
                 <ul className="mt-3 space-y-2">
                   {items.map((item) => (
@@ -405,12 +373,12 @@ export default function ProfileClient() {
               ) : (
                 <p className="mt-3 text-sm text-white/60">{error ? 'The shop is closed for now.' : 'Loading the shop'}</p>
               )}
-            </section>
+            </Card>
 
             {/* Where the points came from, beside what they buy. */}
             <aside>
-              <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-ledger>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Recent points</h2>
+              <Card data-ledger>
+                <CardTitle>Recent points</CardTitle>
                 {profile?.ledger?.length ? (
                   <ul className="mt-3 divide-y divide-white/10 text-sm">
                     {profile.ledger.map((row, i) => (
@@ -428,7 +396,7 @@ export default function ProfileClient() {
                 ) : (
                   <p className="mt-2 text-sm text-white/60">Nothing yet. Every scored round earns some.</p>
                 )}
-              </section>
+              </Card>
             </aside>
           </div>
         ) : null}
@@ -436,23 +404,23 @@ export default function ProfileClient() {
         {tab === 'settings' ? (
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
             {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Account</h2>
+            <Card>
+              <CardTitle>Account</CardTitle>
               <p className="mt-2 text-sm text-white/60">
                 {profile?.signedIn ? 'Signed in, so this profile follows you to other devices.' : 'This profile lives in this browser.'}
               </p>
               <div className="mt-3">
                 <SignInCard />
               </div>
-            </section>
+            </Card>
 
             <div className="space-y-6">
               {/* What this account is: tier, and role when it is not the
                   ordinary one. Renders for signed-in players only. */}
               <AccountRole />
 
-              <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Your name</h2>
+              <Card>
+                <CardTitle>Your name</CardTitle>
                 <form method="post" onSubmit={saveTheName} className="mt-3 flex gap-2">
                   <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="Your name" className="w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm" />
                   <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50">
@@ -460,7 +428,7 @@ export default function ProfileClient() {
                   </button>
                 </form>
                 <p className="mt-2 text-xs text-white/60">What rooms and the boards show.</p>
-              </section>
+              </Card>
             </div>
           </div>
         ) : null}
