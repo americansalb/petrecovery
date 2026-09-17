@@ -19,7 +19,12 @@ export const MAX_PLAYERS = 12;
 export const MAX_NAME_LENGTH = 20;
 export const MAX_ROOM_NAME_LENGTH = 40;
 
-export const ROOM_MODES = ['balanced', 'world', 'continent', 'country', 'cities'];
+// The modes a room can be set to. 'world' and 'cities' were in this
+// list long after MODES stopped having them, and survived only because
+// roomConfig filters the list against MODES before using it - so the
+// dead ids were invisible here and a real one added to MODES would not
+// have been.
+export const ROOM_MODES = ['balanced', 'continent', 'country'];
 export const ROOM_ROUND_OPTIONS = [3, 5, 10];
 export const ROOM_TIME_OPTIONS = [30, 60, 90, 120, 180];
 export const DEFAULT_ROOM_TIME = 60;

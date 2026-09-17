@@ -50,7 +50,13 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
         {players.map((p) => (
           <div key={p.id} className="flex items-center gap-1 rounded-full border border-white/15 bg-ocean-900/80 py-0.5 pl-0.5 pr-2 backdrop-blur" title={`${p.name}: ${isDuel ? `${p.hp} HP` : `${formatScore(p.score)} points`}`}>
             <PlayerBadge player={p} size="sm" />
-            <span className={`text-xs font-semibold ${p.you ? 'text-clay-300' : 'text-white'}`}>{isDuel ? p.hp : formatScore(p.score)}</span>
+            <span
+              className={`text-xs font-semibold ${p.you ? 'text-clay-300' : 'text-white'}`}
+              data-player={p.name}
+              data-player-hp={isDuel ? p.hp : undefined}
+            >
+              {isDuel ? p.hp : formatScore(p.score)}
+            </span>
             {phase === 'guessing' ? (
               <span className={`text-xs ${p.guessed ? 'text-green-400' : 'text-white/30'}`} aria-label={p.guessed ? 'guessed' : 'still guessing'}>
                 {p.guessed ? '✓' : '·'}
@@ -76,8 +82,14 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
             </div>
             {p.rating ? (
               <div className="text-[11px] text-white/60">
-                {p.rating.tier} {p.rating.value}
-                {p.rating.provisional ? ' (provisional)' : ''}
+                {/* 1500 is where everyone starts, not something earned.
+                    "Silver 1500 (provisional)" beside a player who has
+                    never been rated reads as a rank they hold, which is
+                    the same thing the rankings page was fixed for
+                    (founder, 2026-09-17). */}
+                {p.rating.games
+                  ? `${p.rating.tier} ${p.rating.value}${p.rating.provisional ? ' (provisional)' : ''}`
+                  : 'Unplaced'}
               </div>
             ) : p.rated === false ? (
               <div className="text-[11px] text-white/40">unrated</div>
@@ -85,7 +97,9 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
             {isDuel ? <div className="mt-1 w-40 max-w-full"><HpBar hp={p.hp} color={p.color} /></div> : null}
           </div>
           <div className="text-right">
-            <div className="font-semibold tabular-nums text-white">{isDuel ? `${p.hp} HP` : formatScore(p.score)}</div>
+            <div className="font-semibold tabular-nums text-white" data-player={p.name} data-player-hp={isDuel ? p.hp : undefined}>
+              {isDuel ? `${p.hp} HP` : formatScore(p.score)}
+            </div>
             {phase === 'finished' && Number.isFinite(p.ratingDelta) ? (
               <div className={`text-[11px] font-semibold tabular-nums ${p.ratingDelta >= 0 ? 'text-green-400' : 'text-red-300'}`}>
                 {p.ratingDelta >= 0 ? '+' : ''}

@@ -21,7 +21,7 @@
  *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -41,6 +41,13 @@ const FAKE_MAPKIT = fs.readFileSync(path.join(__dirname, 'fake-mapkit.js'), 'utf
 // The only names the script map is allowed to write on itself.
 const COUNTRY_NAMES = new Set(
   require('../../app/lib/geo/data/country-labels.json').labels.map((row) => row.n)
+);
+// What a duel starts everyone on. Read out of the source rather than
+// typed here, because a harness that carries its own copy of a game
+// constant stops testing the game the day the constant changes.
+// rooms.js is ESM and this runner is CommonJS, hence the regex.
+const DUEL_START_HP = Number(
+  fs.readFileSync(path.join(__dirname, '../../app/lib/geo/rooms.js'), 'utf8').match(/DUEL_START_HP\s*=\s*(\d+)/)[1]
 );
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const OUT = process.env.GEO_E2E_OUT || os.tmpdir();
@@ -1113,11 +1120,140 @@ async function appleRefused(browser) {
   await page.close();
 }
 
+
+/**
+ * A duel room, two browsers.
+ *
+ * Classic and duel are different games behind the same lobby - duel
+ * starts everyone at 6,000 HP and the round's best guess deals the gap
+ * as damage - and only classic had ever been played in a browser. What
+ * this checks is the part classic cannot: that the panel counts HP
+ * rather than points, that damage lands each round, that the standings
+ * are read in HP, and that a finished duel moves the duel ladder.
+ *
+ * Elimination itself is not driven from here. Damage is the gap between
+ * the round's best score and yours, so two browsers clicking blind on
+ * the fake map produce a gap of tens of points against 6,000 HP and
+ * nobody would ever be knocked out. That path is covered where it can
+ * be driven honestly: __tests__/geo/rooms.test.js, "damage, elimination,
+ * and the end at the last player standing".
+ */
+async function duel(browser) {
+  const host = await newPage(browser, { width: 1280, height: 800 });
+  await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
+  await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 });
+  await host.fill('input[placeholder="What the others will see"]', 'Duelist');
+  await host.click('button[role="radio"]:has-text("Duel")');
+  await host.selectOption('label:has-text("Rounds") select', '3');
+  await host.selectOption('label:has-text("Time per round") select', '60');
+  await host.click('button:has-text("Open the room")');
+  await host.waitForURL(/\/geo\/room\/[A-Z0-9]{6}/, { timeout: 60000 });
+  const code = host.url().match(/room\/([A-Z0-9]{6})/)[1];
+  await host.waitForSelector('text=Join code', { timeout: 60000 });
+  log('duel room opened', code);
+
+  const guest = await newPage(browser, { width: 1280, height: 800 });
+  await guest.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
+  await guest.waitForSelector(`a[href*="/geo/room/${code}"]`, { timeout: 20000 });
+  const listed = await guest.evaluate((c) => {
+    const row = document.querySelector(`a[href*="/geo/room/${c}"]`)?.closest('li, div');
+    return row ? row.innerText.replace(/\s+/g, ' ') : '';
+  }, code);
+  log('listed as:', listed.slice(0, 100));
+  if (!/duel/i.test(listed)) throw new Error('the browser should say a duel room is a duel: ' + listed);
+
+  await guest.goto(`${BASE}/geo/room/${code}`, { waitUntil: 'domcontentloaded' });
+  await guest.fill('input[aria-label="Your name"]', 'Second');
+  await guest.click('button:has-text("Join")');
+  await guest.waitForSelector('text=Waiting for Duelist to start', { timeout: 20000 });
+  await host.waitForSelector('text=Second', { timeout: 20000 });
+
+  // The lobby counts everyone in HP, and nobody who has never played a
+  // duel is given a tier for turning up.
+  const lobby = (await host.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  if (!/6000 HP[\s\S]*6000 HP/.test(lobby)) throw new Error('both duelists should start on 6000 HP: ' + lobby.slice(0, 200));
+  if (/\(provisional\)/.test(lobby)) throw new Error('an unplaced player should read Unplaced, not a tier: ' + lobby.slice(0, 200));
+  await host.click('button:has-text("Start the game")');
+
+  // In the round the panel counts HP where a classic room counts points.
+  for (const p of [host, guest]) await p.waitForSelector('text=Your HP', { timeout: 60000 });
+
+  // Off-centre, so the two browsers do not send the identical pin the
+  // fake map gives for the identical click: with no gap between the
+  // scores nobody takes damage and the scenario would pass on a duel
+  // that never happened.
+  const pinAwayFromCentre = async (page) => {
+    await page.waitForSelector('[data-fake-mapkit]', { timeout: 20000 });
+    const at = await page.evaluate(() => {
+      const r = document.querySelector('[data-fake-mapkit]').getBoundingClientRect();
+      return { x: Math.round(r.left + r.width * 0.15), y: Math.round(r.top + r.height * 0.15) };
+    });
+    await page.mouse.click(at.x, at.y);
+    await waitGuessable(page);
+  };
+
+  // The players panel carries HP through the reveal, where the round
+  // HUD does not. Read off the row rather than the page text: the
+  // reveal prints a distance in km beside it and a regex over the words
+  // happily read 11,716 km as a health bar.
+  const hpOf = (page, who) =>
+    page.evaluate((name) => {
+      const cell = document.querySelector(`[data-player="${name}"][data-player-hp]`);
+      return cell ? Number(cell.getAttribute('data-player-hp')) : null;
+    }, who);
+
+  let damaged = false;
+  for (let round = 1; round <= 3; round++) {
+    for (const p of [host, guest]) {
+      await p.waitForSelector(`text=Round ${round} of 3`, { timeout: 60000 });
+      await waitForLookAround(p);
+    }
+    await pinApple(host);
+    await host.click('[data-geo-guess]');
+    await host.waitForSelector('text=Guess locked in', { timeout: 20000 });
+    await pinAwayFromCentre(guest);
+    await guest.click('[data-geo-guess]');
+    for (const p of [host, guest]) await p.waitForSelector('text=/(Next round|Results) in \\d+s/', { timeout: 20000 });
+    const hp = { host: await hpOf(host, 'Duelist'), guest: await hpOf(guest, 'Second') };
+    log(`duel round ${round}: HP host ${hp.host}, guest ${hp.guest}`);
+    for (const [who, value] of Object.entries(hp)) {
+      if (!Number.isFinite(value)) throw new Error(`the ${who} panel should show HP, saw ${value}`);
+      if (value > DUEL_START_HP) throw new Error(`HP should never go up, ${who} is on ${value}`);
+      if (value < DUEL_START_HP) damaged = true;
+    }
+    const now = host.locator('button:has-text("Now")');
+    if (await now.isVisible().catch(() => false)) await now.click({ timeout: 5000 }).catch(() => {});
+  }
+  // The round's best guess takes none, so exactly one of them being
+  // untouched is the expected shape; both untouched means the damage
+  // never ran.
+  if (!damaged) throw new Error('three rounds of a duel and neither player took damage');
+
+  for (const p of [host, guest]) await p.waitForSelector('text=Final standings', { timeout: 60000 });
+  const standings = (await host.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  if (!/\d[\d,]*\s*HP/.test(standings)) throw new Error('duel standings should count HP, not points: ' + standings.slice(0, 200));
+  if (!/wins/.test(standings)) throw new Error('duel standings should name a winner');
+  log('duel standings:', (standings.match(/Final standings.{0,140}/i) || [''])[0]);
+  await shot(host, 'duel-standings');
+  await host.waitForSelector('text=/[+-]\\d+ rating/', { timeout: 20000 });
+  log('the duel ladder moved');
+
+  // And it is the duel ladder, not classic: the tab has to be the one
+  // a duel rates.
+  await host.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
+  await host.click('button[role="tab"]:has-text("Duel")');
+  await host.waitForSelector('text=/You, Duelist/', { timeout: 20000 });
+  log('the duel tab knows the host');
+  for (const p of [host, guest]) if (p.errors.length) throw new Error('page errors: ' + p.errors.join(' | '));
+  await host.close();
+  await guest.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { coldOpen, admin, pinGame, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, pinGame, streak, timer, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {
