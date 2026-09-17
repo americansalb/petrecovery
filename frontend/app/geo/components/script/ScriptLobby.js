@@ -40,14 +40,14 @@ export default function ScriptLobby() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex items-center gap-3">
-        <Languages className="h-7 w-7 text-clay-600" />
+        <Languages className="h-7 w-7 text-clay-300" />
         <h1 className="text-3xl font-bold">Script</h1>
       </div>
-      <p className="mt-3 max-w-2xl text-gray-600">
+      <p className="mt-3 max-w-2xl text-white/60">
         You get a sentence. You place a pin where that language is used. Points depend on how close you are, the same way a
         street-level round works, so there is no dropdown of language names and no all-or-nothing answer.
       </p>
-      <p className="mt-2 max-w-2xl text-gray-600">
+      <p className="mt-2 max-w-2xl text-white/60">
         Scoring against a pin instead of a country is the point. On a map of borders, Tamil, Marathi and Maithili are all just
         India. On this one they are {LANGUAGES.length} languages across {scripts} writing systems, and the pin has to land in
         the right one.
@@ -55,14 +55,14 @@ export default function ScriptLobby() {
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {SHOWCASE.map((row) => (
-          <div key={row.script} className="rounded-xl border border-sand-200 bg-[#fffdf8] p-4 shadow-sm">
+          <div key={row.script} className="rounded-xl border border-sand-300 bg-[#fffdf8] p-4 shadow-sm">
             <ScriptSample text={row.text} script={row.script} size="sm" />
           </div>
         ))}
       </div>
 
       <fieldset className="mt-8">
-        <legend className="text-sm font-semibold text-gray-900">Pool</legend>
+        <legend className="text-sm font-semibold text-white">Pool</legend>
         <div className="mt-2 space-y-2">
           {LADDER_ORDER.map((id) => {
             const option = LADDERS[id];
@@ -73,11 +73,11 @@ export default function ScriptLobby() {
                 type="button"
                 onClick={() => setLadder(id)}
                 aria-pressed={active}
-                className={`w-full rounded-xl border p-3 text-left transition ${active ? 'border-clay-600 bg-clay-50' : 'border-gray-200 hover:border-gray-300'}`}
+                className={`w-full rounded-xl border p-3 text-left transition ${active ? 'border-clay-400 bg-clay-500/10' : 'border-white/10 hover:border-white/15'}`}
               >
-                <span className="font-semibold text-gray-900">{option.label}</span>
-                <span className="ml-2 text-sm text-gray-500">{languagesForLadder(id).length} languages</span>
-                <p className="mt-1 text-sm text-gray-600">{option.description}</p>
+                <span className="font-semibold text-white">{option.label}</span>
+                <span className="ml-2 text-sm text-white/60">{languagesForLadder(id).length} languages</span>
+                <p className="mt-1 text-sm text-white/60">{option.description}</p>
               </button>
             );
           })}
@@ -97,11 +97,11 @@ export default function ScriptLobby() {
       <button
         type="button"
         onClick={start}
-        className="mt-8 w-full rounded-xl bg-clay-600 px-4 py-3 text-lg font-semibold text-sand-950 transition hover:bg-clay-500 sm:w-auto sm:px-8"
+        className="mt-8 w-full rounded-xl bg-clay-600 px-4 py-3 text-lg font-semibold text-white transition hover:bg-clay-500 sm:w-auto sm:px-8"
       >
         Play {rounds} rounds
       </button>
-      <p className="mt-3 text-sm text-gray-500">
+      <p className="mt-3 text-sm text-white/60">
         {poolSize} languages in this pool. Script rounds need no imagery and no map key, so they work everywhere the rest
         of the game does not.
       </p>
@@ -112,7 +112,7 @@ export default function ScriptLobby() {
 function Choice({ label, value, options, onChange }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-gray-900">{label}</p>
+      <p className="text-sm font-semibold text-white">{label}</p>
       <div className="mt-2 flex gap-2">
         {options.map((option) => (
           <button
@@ -121,7 +121,7 @@ function Choice({ label, value, options, onChange }) {
             onClick={() => onChange(option.value)}
             aria-pressed={value === option.value}
             className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-              value === option.value ? 'border-clay-600 bg-clay-50 text-gray-900' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              value === option.value ? 'border-clay-400 bg-clay-500/10 text-white' : 'border-white/10 text-white/60 hover:border-white/15'
             }`}
           >
             {option.label}

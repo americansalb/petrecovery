@@ -23,19 +23,28 @@ import { useEffect, useState } from 'react';
 import { loadGeoConfig } from '../../lib/serverConfig';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe2, Play, Settings2, Sparkles } from 'lucide-react';
+import { Globe2, Play, Sparkles } from 'lucide-react';
 import { configToParams, DEFAULT_CONFIG } from '@/app/lib/geo/modes';
 import { isSignedIn } from '@/app/geo/lib/session';
 import { getStats } from '../../lib/storage';
 import WorldBackdrop from './WorldBackdrop';
 import './home.css';
 
-/** The other doors. Text, in one row, in the order a returning player wants them. */
+/**
+ * The other doors. Text, in one row, in the order a returning player
+ * wants them.
+ *
+ * This list was written and then not rendered, which left the front
+ * door with exactly two ways out: Play, and the account menu. Rooms is
+ * how two people end up in the same game, and from the first screen of
+ * the site there was no way to reach it at all. A row of four words is
+ * not the settings form this page was rescued from.
+ */
 const WAYS = [
+  { href: '/geo/rooms', label: 'Play with friends' },
   { href: '/geo/play?mode=daily', label: 'Daily' },
-  { href: '/geo/script', label: 'Script' },
-  { href: '/geo/rooms', label: 'Rooms' },
   { href: '/geo/leaderboard', label: 'Rankings' },
+  { href: '/geo/script', label: 'Script' },
 ];
 
 export default function ColdOpen() {
@@ -151,6 +160,21 @@ export default function ColdOpen() {
           </p>
         ) : null}
 
+        <nav
+          className="geo-rise pointer-events-auto mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-semibold text-sand-100/70"
+          style={{ animationDelay: '300ms' }}
+          aria-label="The rest of the game"
+        >
+          {WAYS.map((way) => (
+            <Link
+              key={way.href}
+              href={way.href}
+              className="rounded-md px-1 py-1 underline decoration-transparent underline-offset-4 transition hover:text-white hover:decoration-sand-200/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clay-200"
+            >
+              {way.label}
+            </Link>
+          ))}
+        </nav>
       </div>
 
       {/* The credits belong on the page and not in the middle of it:

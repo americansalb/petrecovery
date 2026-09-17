@@ -26,10 +26,10 @@ const DENIALS = {
 
 function Figure({ label, value, hint }) {
   return (
-    <div className="rounded-2xl border border-sand-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-sand-500">{label}</p>
-      <p className="mt-1 text-3xl font-bold tabular-nums text-sand-900">{value}</p>
-      {hint ? <p className="mt-0.5 text-xs text-sand-600">{hint}</p> : null}
+    <div className="rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
+      <p className="mt-1 text-3xl font-bold tabular-nums text-white">{value}</p>
+      {hint ? <p className="mt-0.5 text-xs text-white/60">{hint}</p> : null}
     </div>
   );
 }
@@ -85,9 +85,9 @@ export default function AdminClient() {
   if (denied) {
     return (
       <main className="mx-auto max-w-lg px-4 py-20 text-center">
-        <ShieldAlert className="mx-auto h-10 w-10 text-clay-500" />
-        <h1 className="mt-4 text-2xl font-bold text-sand-900">Admin</h1>
-        <p className="mt-2 text-sand-600">{DENIALS[denied] || 'You cannot open this page.'}</p>
+        <ShieldAlert className="mx-auto h-10 w-10 text-clay-300" />
+        <h1 className="mt-4 text-2xl font-bold text-white">Admin</h1>
+        <p className="mt-2 text-white/60">{DENIALS[denied] || 'You cannot open this page.'}</p>
       </main>
     );
   }
@@ -96,13 +96,13 @@ export default function AdminClient() {
     <main className="mx-auto max-w-6xl px-4 py-10">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-clay-600">Probably Earth</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-sand-900">Admin</h1>
+          <p className="text-xs font-semibold uppercase tracking-widest text-clay-300">Probably Earth</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-white">Admin</h1>
         </div>
         <button
           type="button"
           onClick={load}
-          className="inline-flex items-center gap-2 rounded-xl border border-sand-300 px-4 py-2 text-sm font-semibold text-sand-800 transition hover:bg-sand-100"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
@@ -120,27 +120,27 @@ export default function AdminClient() {
 
       <section className="mt-10" aria-label="Accounts">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-sand-900">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-white">
             <Users className="h-5 w-5 text-ocean-600" />
             Accounts
           </h2>
-          <label className="flex items-center gap-2 rounded-xl border border-sand-300 bg-white px-3 py-2">
-            <Search className="h-4 w-4 text-sand-500" />
+          <label className="flex items-center gap-2 rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2">
+            <Search className="h-4 w-4 text-white/60" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search by email"
-              className="w-56 bg-transparent text-sm outline-none placeholder:text-sand-400"
+              className="w-56 bg-transparent text-sm outline-none placeholder:text-white/40"
               aria-label="Search accounts by email"
             />
           </label>
         </div>
 
-        {note ? <p className="mt-3 rounded-xl border border-clay-300 bg-clay-50 px-3 py-2 text-sm text-clay-800">{note}</p> : null}
+        {note ? <p className="mt-3 rounded-xl border border-clay-300 bg-clay-500/10 px-3 py-2 text-sm text-clay-800">{note}</p> : null}
 
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-sand-200 bg-white">
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
           <table className="w-full min-w-[54rem] text-sm">
-            <thead className="bg-sand-100 text-left text-xs font-semibold uppercase tracking-wide text-sand-600">
+            <thead className="bg-white/5 text-left text-xs font-semibold uppercase tracking-wide text-white/60">
               <tr>
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Role</th>
@@ -150,13 +150,13 @@ export default function AdminClient() {
                 <th className="px-4 py-2 text-right">Suspend</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-sand-200">
+            <tbody className="divide-y divide-white/10">
               {accounts.map((account) => (
                 <tr key={account.id} className={account.suspended ? 'bg-clay-50/60' : ''}>
                   <td className="px-4 py-2">
-                    <span className="font-medium text-sand-900">{account.email}</span>
+                    <span className="font-medium text-white">{account.email}</span>
                     {account.storedRole !== account.role ? (
-                      <span className="ml-2 rounded-full bg-ocean-100 px-2 py-0.5 text-[10px] font-bold uppercase text-ocean-800">by config</span>
+                      <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase text-ocean-200">by config</span>
                     ) : null}
                   </td>
                   <td className="px-4 py-2">
@@ -164,7 +164,7 @@ export default function AdminClient() {
                       value={account.role}
                       disabled={busy === account.id || account.storedRole !== account.role}
                       onChange={(event) => change(account.id, { role: event.target.value })}
-                      className="rounded-lg border border-sand-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
+                      className="rounded-lg border border-white/15 bg-ocean-900/60 px-2 py-1 text-sm disabled:opacity-50"
                       aria-label={`Role for ${account.email}`}
                     >
                       {ROLES.map((role) => (
@@ -179,7 +179,7 @@ export default function AdminClient() {
                       value={account.tier}
                       disabled={busy === account.id}
                       onChange={(event) => change(account.id, { tier: event.target.value })}
-                      className="rounded-lg border border-sand-300 bg-white px-2 py-1 text-sm disabled:opacity-50"
+                      className="rounded-lg border border-white/15 bg-ocean-900/60 px-2 py-1 text-sm disabled:opacity-50"
                       aria-label={`Tier for ${account.email}`}
                     >
                       {TIERS.map((tier) => (
@@ -189,14 +189,14 @@ export default function AdminClient() {
                       ))}
                     </select>
                   </td>
-                  <td className="px-4 py-2 text-sand-700">{account.players.map((p) => p.name).join(', ') || '-'}</td>
-                  <td className="px-4 py-2 tabular-nums text-sand-600">{account.lastSeenAt.slice(0, 10)}</td>
+                  <td className="px-4 py-2 text-white/70">{account.players.map((p) => p.name).join(', ') || '-'}</td>
+                  <td className="px-4 py-2 tabular-nums text-white/60">{account.lastSeenAt.slice(0, 10)}</td>
                   <td className="px-4 py-2 text-right">
                     <button
                       type="button"
                       disabled={busy === account.id}
                       onClick={() => change(account.id, { suspended: !account.suspended, reason: account.suspended ? '' : 'Suspended from the admin screen' })}
-                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${account.suspended ? 'bg-forest-600 text-white hover:bg-forest-500' : 'border border-sand-300 text-sand-700 hover:bg-sand-100'}`}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${account.suspended ? 'bg-forest-600 text-white hover:bg-forest-500' : 'border border-white/15 text-white/70 hover:bg-white/5'}`}
                     >
                       {busy === account.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : account.suspended ? <Check className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
                       {account.suspended ? 'Restore' : 'Suspend'}
@@ -206,7 +206,7 @@ export default function AdminClient() {
               ))}
               {!accounts.length ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sand-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-white/60">
                     {query ? 'No account matches that.' : 'Nobody has signed in yet.'}
                   </td>
                 </tr>
@@ -217,10 +217,10 @@ export default function AdminClient() {
       </section>
 
       <section className="mt-10" aria-label="Rooms">
-        <h2 className="text-lg font-bold text-sand-900">Rooms</h2>
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-sand-200 bg-white">
+        <h2 className="text-lg font-bold text-white">Rooms</h2>
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
           <table className="w-full min-w-[40rem] text-sm">
-            <thead className="bg-sand-100 text-left text-xs font-semibold uppercase tracking-wide text-sand-600">
+            <thead className="bg-white/5 text-left text-xs font-semibold uppercase tracking-wide text-white/60">
               <tr>
                 <th className="px-4 py-2">Code</th>
                 <th className="px-4 py-2">Name</th>
@@ -230,24 +230,24 @@ export default function AdminClient() {
                 <th className="px-4 py-2 text-right">Last active</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-sand-200">
+            <tbody className="divide-y divide-white/10">
               {rooms.map((room) => (
                 <tr key={room.code}>
-                  <td className="px-4 py-2 font-mono font-semibold text-sand-900">{room.code}</td>
-                  <td className="px-4 py-2 text-sand-700">{room.name}</td>
+                  <td className="px-4 py-2 font-mono font-semibold text-white">{room.code}</td>
+                  <td className="px-4 py-2 text-white/70">{room.name}</td>
                   <td className="px-4 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${room.status === 'playing' ? 'bg-forest-100 text-forest-800' : room.status === 'lobby' ? 'bg-ocean-100 text-ocean-800' : 'bg-sand-200 text-sand-700'}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${room.status === 'playing' ? 'bg-forest-100 text-forest-800' : room.status === 'lobby' ? 'bg-white/10 text-ocean-200' : 'bg-white/10 text-white/70'}`}>
                       {room.status}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-sand-700">{room.variant}</td>
+                  <td className="px-4 py-2 text-white/70">{room.variant}</td>
                   <td className="px-4 py-2 text-right tabular-nums">{room.players}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-sand-600">{room.lastActiveAt.slice(0, 16).replace('T', ' ')}</td>
+                  <td className="px-4 py-2 text-right tabular-nums text-white/60">{room.lastActiveAt.slice(0, 16).replace('T', ' ')}</td>
                 </tr>
               ))}
               {!rooms.length ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sand-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-white/60">
                     No rooms yet.
                   </td>
                 </tr>

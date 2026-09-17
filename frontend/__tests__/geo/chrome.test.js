@@ -1,0 +1,119 @@
+/**
+ * The game is one place, and every screen in it looks like the same
+ * place.
+ *
+ * Two failures this pins, both of which shipped and both of which were
+ * only visible by opening the page:
+ *
+ * 1. `/geo/room` was a takeover PREFIX, so `/geo/rooms` matched it. The
+ *    list of rooms is the one page whose whole job is getting two
+ *    people into the same game, and it lost its navigation and became
+ *    a dead end.
+ * 2. app/globals.css styles the pet site's fields with
+ *    `input[type="text"] { background: white }`. An attribute selector
+ *    plus an element beats a Tailwind class, so `bg-ocean-900/60` on a
+ *    field under /geo was discarded while the `text-white` beside it
+ *    applied: white ink on white paper, on the sign-in box, the room
+ *    name and the room code.
+ */
+
+const fs = require('fs');
+const path = require('path');
+const { isGameTakeover, GAME_TAKEOVER_ROUTES } = require('@/app/lib/geo/site');
+
+const ROOT = path.resolve(__dirname, '../..');
+const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+
+describe('a takeover covers the screen; nothing else loses its navigation', () => {
+  test.each([
+    ['/geo', true],
+    ['/geo/play', true],
+    ['/geo/play?mode=daily', true],
+    ['/geo/room/ABC123', true],
+    ['/geo/script/play', true],
+    ['/geo/rooms', false],
+    ['/geo/me', false],
+    ['/geo/leaderboard', false],
+    ['/geo/script', false],
+    ['/geo/share', false],
+    ['/geo/admin', false],
+  ])('%s -> takeover: %s', (pathname, expected) => {
+    expect({ pathname, takeover: isGameTakeover(pathname) }).toEqual({ pathname, takeover: expected });
+  });
+
+  test('a prefix that is also the start of another route keeps its slash', () => {
+    // `/geo/room` without one swallowed `/geo/rooms`. Anything listed
+    // here that another route starts with has to end in a separator,
+    // or this comes back the next time a route is added.
+    for (const route of GAME_TAKEOVER_ROUTES) {
+      const others = ['/geo/rooms', '/geo/me', '/geo/leaderboard', '/geo/script', '/geo/share', '/geo/admin'];
+      for (const other of others) {
+        expect({ route, other, swallowed: other.startsWith(route) }).toEqual({ route, other, swallowed: false });
+      }
+    }
+  });
+});
+
+describe('the front door leads into the whole game', () => {
+  const coldOpen = read('app/geo/components/home/ColdOpen.js');
+
+  test('Play is the one button, and it is still there', () => {
+    expect(coldOpen).toContain('data-cold-open-play');
+  });
+
+  test('and multiplayer is reachable from the first screen', () => {
+    // The row of other ways in was written as a constant and then never
+    // rendered, which left Rooms unreachable from the front page of a
+    // game whose headline feature is playing it with somebody.
+    expect(coldOpen).toContain("href: '/geo/rooms'");
+    expect(coldOpen).toContain('WAYS.map');
+  });
+});
+
+describe('every field in the game is dark, because the pet site forces them white', () => {
+  const globals = read('app/globals.css');
+  const geo = read('app/geo/geo.css');
+  const layout = read('app/geo/layout.js');
+
+  test('the override is scoped to the game and nowhere else', () => {
+    // Lowering the pet site's rule instead would change 437 fields
+    // across 55 of its pages, whose classes have been ignored long
+    // enough that nobody knows which were meant. This is a lost-pet
+    // service; the game moves, not it.
+    expect(layout).toContain('geo-surface');
+    expect(layout).toContain("import './geo.css'");
+    for (const line of geo.split('\n')) {
+      if (line.trim().startsWith('.') || /^\s*\w+[^{]*\{/.test(line)) {
+        if (line.includes('{') || line.trim().endsWith(',')) {
+          expect({ line, scoped: line.trim().startsWith('.geo-surface') || !line.trim().startsWith('.') }).toEqual({ line, scoped: true });
+        }
+      }
+    }
+  });
+
+  test('it covers every control the pet site paints white', () => {
+    // The selector list that carries `background: white` in globals.css.
+    // Anything in it without a counterpart here is a field somewhere in
+    // the game rendering white text on a white box.
+    const block = globals.slice(globals.indexOf('input[type="text"]'));
+    const rule = block.slice(0, block.indexOf('}'));
+    expect(rule).toContain('background: white');
+    const selectors = rule
+      .slice(0, rule.indexOf('{'))
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    expect(selectors.length).toBeGreaterThan(5);
+    for (const selector of selectors) {
+      const normalised = selector.replace(/"/g, "'");
+      expect({ selector, covered: geo.includes(`.geo-surface ${normalised}`) }).toEqual({ selector, covered: true });
+    }
+  });
+
+  test('and the placeholder and the native dropdown come with it', () => {
+    // A dark box whose placeholder is still near-black reads as empty
+    // and broken, and a <select> opens a list the OS paints white.
+    expect(geo).toContain('::placeholder');
+    expect(geo).toContain('select:not([data-paper]) option');
+  });
+});

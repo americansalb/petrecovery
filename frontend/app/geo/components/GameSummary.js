@@ -48,7 +48,7 @@ function RankedResult({ rated }) {
   const up = rated.delta >= 0;
   return (
     <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3" data-ranked-result>
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Ranked</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Ranked</p>
       <p className="mt-1 text-sm text-white/80">
         {rated.field.players
           ? `You scored ${formatScore(rated.total)} against ${formatScore(rated.field.total)}, the average of ${rated.field.players} other ${rated.field.players === 1 ? 'player' : 'players'} on these five.`
@@ -91,7 +91,7 @@ function DailyBoard({ daily, cup = false }) {
         <ol className="mt-2 space-y-0.5 text-sm">
           {daily.board.slice(0, 5).map((row) => (
             <li key={row.profileId} className="flex items-center gap-2">
-              <span className="w-6 tabular-nums text-white/50">{row.rank}</span>
+              <span className="w-6 tabular-nums text-white/60">{row.rank}</span>
               <span className="flex-1 truncate">{row.name}</span>
               <span className="font-semibold tabular-nums text-clay-300">{formatScore(row.total)}</span>
             </li>
@@ -166,11 +166,11 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
         <ol className="mt-4 divide-y divide-white/10 rounded-2xl border border-white/10">
           {summary.rounds.map((round, i) => (
             <li key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <span className="w-6 text-white/50">{i + 1}</span>
+              <span className="w-6 text-white/60">{i + 1}</span>
               <span className="w-7 text-lg leading-none">{round.country?.flag || ''}</span>
               <span className="flex-1 truncate">
                 {round.country?.name || 'Unknown'}
-                {isStreak && !round.correct && round.guessCountry ? <span className="text-white/50"> (you said {round.guessCountry})</span> : null}
+                {isStreak && !round.correct && round.guessCountry ? <span className="text-white/60"> (you said {round.guessCountry})</span> : null}
               </span>
               {isStreak ? (
                 <span className={round.correct ? 'font-semibold text-green-400' : 'font-semibold text-red-400'}>{round.correct ? 'Right' : 'Miss'}</span>

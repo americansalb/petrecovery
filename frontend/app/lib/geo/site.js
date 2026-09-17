@@ -59,8 +59,14 @@ export const IMMERSIVE_GAME_ROUTES = ['/geo'];
  * its own small header, and a second bar above it would be the thing
  * the redesign was for. Everything under `/geo/...` that is not listed
  * keeps the game's normal chrome.
+ *
+ * `/geo/room/` keeps its slash for the same class of reason. Without it
+ * the prefix also swallowed `/geo/rooms`, which is the LIST of rooms
+ * and not a room: the one page whose whole job is to get you into
+ * multiplayer lost its navigation and became a dead end. A room in
+ * progress covers the screen; choosing one is an ordinary page.
  */
-export const GAME_TAKEOVER_ROUTES = ['/geo/play', '/geo/room', '/geo/script/play'];
+export const GAME_TAKEOVER_ROUTES = ['/geo/play', '/geo/room/', '/geo/script/play'];
 export const GAME_TAKEOVER_EXACT = ['/geo'];
 
 /** Does this path own the whole screen? */

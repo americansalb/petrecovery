@@ -49,18 +49,18 @@ export default function AccountRole() {
   if (!LABELS[role]) return null;
 
   return (
-    <section className="rounded-2xl border border-sand-200 bg-white p-5" data-account-role>
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
+    <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-account-role>
+      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
         <ShieldCheck className="h-4 w-4" />
         Role
       </h2>
       <p className="mt-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-ocean-100 px-3 py-1 text-sm font-bold text-ocean-800">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-ocean-200">
           <ShieldCheck className="h-3.5 w-3.5" />
           {LABELS[role]}
         </span>
       </p>
-      <p className="mt-2 text-sm text-sand-600">
+      <p className="mt-2 text-sm text-white/60">
         {role === 'admin' ? 'You can open the backend at /geo/admin.' : 'You can open private rooms.'}
       </p>
     </section>

@@ -21,17 +21,17 @@ export default function GeoFooter() {
   const pathname = usePathname() || '';
   if (isGameTakeover(pathname)) return null;
   return (
-    <footer className="border-t border-sand-200 bg-sand-100 text-xs text-sand-700">
+    <footer className="border-t border-white/10 bg-white/5 text-xs text-white/70">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-5">
         <p>
           Imagery from Apple Look Around, shown under Apple&apos;s terms. Not Earth panoramas from NASA, public domain.
           Country outlines from Natural Earth. Script sentences from{' '}
-          <a href="https://tatoeba.org" className="underline hover:text-ocean-700" rel="noreferrer noopener" target="_blank">
+          <a href="https://tatoeba.org" className="underline hover:text-ocean-200" rel="noreferrer noopener" target="_blank">
             Tatoeba
           </a>
           , CC-BY 2.0 FR.
         </p>
-        <a href={HOME_URL} className="font-semibold text-sand-800 hover:text-ocean-700 hover:underline">
+        <a href={HOME_URL} className="font-semibold text-white/80 hover:text-ocean-200 hover:underline">
           Made by ReunitePets
         </a>
       </div>

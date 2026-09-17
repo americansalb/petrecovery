@@ -51,12 +51,12 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
   const tierOnly = Boolean(item.requires?.tier);
   let action = null;
   if (item.kind === 'reactions') {
-    action = item.owned ? <span className="text-xs font-semibold text-green-700">Yours</span> : null;
+    action = item.owned ? <span className="text-xs font-semibold text-forest-300">Yours</span> : null;
   } else if (wearing) {
-    action = <span className="text-xs font-semibold text-green-700">Wearing</span>;
+    action = <span className="text-xs font-semibold text-forest-300">Wearing</span>;
   } else if (item.usable) {
     action = (
-      <button type="button" disabled={busy} onClick={() => onEquip(item.id)} className="rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold hover:bg-sand-100 disabled:opacity-50">
+      <button type="button" disabled={busy} onClick={() => onEquip(item.id)} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5 disabled:opacity-50">
         Wear
       </button>
     );
@@ -71,22 +71,22 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
       // The balance is at the top of the page. Repeating it on every
       // row of a long list is noise, and it made each row read as a
       // refusal rather than a price.
-      <span className="text-xs text-sand-500">{formatScore(item.price)} points</span>
+      <span className="text-xs text-white/60">{formatScore(item.price)} points</span>
     );
   }
-  if (tierOnly && !item.usable) buy = <span className="text-xs text-sand-500">Free at {item.requires.tier} on either ladder</span>;
+  if (tierOnly && !item.usable) buy = <span className="text-xs text-white/60">Free at {item.requires.tier} on either ladder</span>;
   return (
-    <li className={`flex items-center gap-3 rounded-xl border p-3 ${wearing ? 'border-ocean-900 bg-sand-50' : 'border-sand-200 bg-white'}`}>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sand-100">
+    <li className={`flex items-center gap-3 rounded-xl border p-3 ${wearing ? 'border-clay-400 bg-ocean-950' : 'border-white/10 bg-ocean-900/60'}`}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5">
         {item.kind === 'pin' ? <PinPreview style={item.style} fill={item.fill} /> : null}
-        {item.kind === 'color' ? <span className="h-5 w-5 rounded-full border border-sand-300" style={{ backgroundColor: item.value || '#ffffff' }} /> : null}
-        {item.kind === 'title' ? <Tag className="h-4 w-4 text-sand-600" /> : null}
+        {item.kind === 'color' ? <span className="h-5 w-5 rounded-full border border-white/15" style={{ backgroundColor: item.value || '#ffffff' }} /> : null}
+        {item.kind === 'title' ? <Tag className="h-4 w-4 text-white/60" /> : null}
         {item.kind === 'frame' ? <span className="h-6 w-6 rounded-full bg-sand-300" style={item.value ? { boxShadow: `0 0 0 3px ${item.value}` } : undefined} /> : null}
         {item.kind === 'reactions' ? <span className="text-sm">{(item.emoji || []).slice(0, 2).join('')}</span> : null}
       </span>
       <div className="min-w-0 flex-1">
         <p className="font-semibold">{item.name}</p>
-        <p className="truncate text-xs text-sand-600">{item.description}</p>
+        <p className="truncate text-xs text-white/60">{item.description}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         {action}
@@ -172,7 +172,7 @@ export default function ProfileClient() {
   const points = shop?.points ?? profile?.points ?? 0;
 
   return (
-    <div className="min-h-screen bg-sand-50 text-sand-900">
+    <div className="min-h-screen bg-ocean-950 text-white">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span
@@ -183,18 +183,18 @@ export default function ProfileClient() {
             {initialsOf(profile?.name || name)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold uppercase tracking-wide text-sand-500">Your profile</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-white/60">Your profile</p>
             <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
               <span style={view?.color ? { color: view.color } : undefined}>{profile?.name || name || 'Player'}</span>
-              {view?.title ? <span className="rounded-full bg-sand-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-sand-600">{view.title}</span> : null}
+              {view?.title ? <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white/60">{view.title}</span> : null}
             </h1>
-            <p className="mt-1 text-sm text-sand-600">
+            <p className="mt-1 text-sm text-white/60">
               {profile ? (profile.signedIn ? 'On your Probably Earth account, so it follows you to other devices.' : 'In this browser only. Sign in below to keep it across devices.') : 'Loading'}
             </p>
           </div>
           <div className="text-right">
             <p className="text-3xl font-bold tabular-nums">{formatScore(points)}</p>
-            <p className="text-sm text-sand-600">points</p>
+            <p className="text-sm text-white/60">points</p>
           </div>
         </header>
 
@@ -203,15 +203,15 @@ export default function ProfileClient() {
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="space-y-6">
             {/* Shop */}
-            <section className="rounded-2xl border border-sand-200 bg-white p-5" data-shop>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
+            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-shop>
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
                 <ShoppingBag className="h-4 w-4" />
                 Shop
               </h2>
-              <p className="mt-2 text-sm text-sand-600">Points buy how you look in the game. Nothing here changes how you play.</p>
-              <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-sand-100 p-1" role="tablist" aria-label="Shop sections">
+              <p className="mt-2 text-sm text-white/60">Points buy how you look in the game. Nothing here changes how you play.</p>
+              <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-white/5 p-1" role="tablist" aria-label="Shop sections">
                 {KIND_ORDER.map((k) => (
-                  <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-ocean-900 text-white shadow' : 'text-sand-700 hover:bg-white'}`}>
+                  <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-ocean-900 text-white shadow' : 'text-white/70 hover:bg-ocean-900/60'}`}>
                     {ITEM_KINDS[k]}
                   </button>
                 ))}
@@ -223,37 +223,37 @@ export default function ProfileClient() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-sand-500">{error ? 'The shop is closed for now.' : 'Loading the shop'}</p>
+                <p className="mt-3 text-sm text-white/60">{error ? 'The shop is closed for now.' : 'Loading the shop'}</p>
               )}
             </section>
 
             {/* Badges */}
-            <section className="rounded-2xl border border-sand-200 bg-white p-5" data-badges>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
+            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-badges>
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
                 <Award className="h-4 w-4" />
                 Badges
               </h2>
-              <p className="mt-2 text-sm text-sand-600">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept. Mars and the Moon come from calling a Not Earth round right.</p>
+              <p className="mt-2 text-sm text-white/60">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept. Mars and the Moon come from calling a Not Earth round right.</p>
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (
-                    <li key={b.countryCode} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-clay-300 bg-clay-50' : 'border-sand-200'}`}>
+                    <li key={b.countryCode} className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-clay-300 bg-clay-500/10' : 'border-white/10'}`}>
                       <span className="text-xl">{b.flag}</span>
                       <span className="min-w-0 flex-1 truncate font-semibold">{b.name}</span>
-                      <span className="text-xs text-sand-500">{b.notEarth ? 'called it' : b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
+                      <span className="text-xs text-white/60">{b.notEarth ? 'called it' : b.bestKm < 1 ? 'under 1 km' : `${Math.round(b.bestKm)} km`}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-sand-500">None yet.</p>
+                <p className="mt-3 text-sm text-white/60">None yet.</p>
               )}
             </section>
           </div>
 
           <aside className="space-y-6">
             {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
-            <section className="rounded-2xl border border-sand-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Account</h2>
+            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Account</h2>
               <div className="mt-3">
                 <SignInCard />
               </div>
@@ -264,20 +264,20 @@ export default function ProfileClient() {
             <AccountRole />
 
             {/* Name */}
-            <section className="rounded-2xl border border-sand-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Your name</h2>
+            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Your name</h2>
               <form method="post" onSubmit={saveTheName} className="mt-3 flex gap-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="Your name" className="w-full rounded-xl border border-sand-300 bg-white px-3 py-2 text-sm" />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="Your name" className="w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm" />
                 <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50">
                   {savedName ? 'Saved' : 'Save'}
                 </button>
               </form>
-              <p className="mt-2 text-xs text-sand-500">What rooms and the boards show.</p>
+              <p className="mt-2 text-xs text-white/60">What rooms and the boards show.</p>
             </section>
 
             {/* Rating */}
-            <section className="rounded-2xl border border-sand-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
+            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
                 <Medal className="h-4 w-4" />
                 Rating
               </h2>
@@ -290,11 +290,11 @@ export default function ProfileClient() {
                     const r = profile.ratings?.[ladder] || {};
                     return (
                       <div key={ladder}>
-                        <dt className="text-sand-500">{LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder}</dt>
+                        <dt className="text-white/60">{LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder}</dt>
                         <dd className="text-lg font-bold tabular-nums">
-                          {r.value ?? 1500} <span className="text-xs font-semibold text-sand-500">{r.tier || 'Silver'}</span>
+                          {r.value ?? 1500} <span className="text-xs font-semibold text-white/60">{r.tier || 'Silver'}</span>
                         </dd>
-                        <dd className="text-xs text-sand-500">
+                        <dd className="text-xs text-white/60">
                           {r.games || 0} rated {r.games === 1 ? 'game' : 'games'}
                         </dd>
                       </div>
@@ -303,11 +303,11 @@ export default function ProfileClient() {
                 </dl>
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
-                <Link href="/geo/leaderboard" className="inline-flex items-center gap-1.5 rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold hover:bg-sand-100">
+                <Link href="/geo/leaderboard" className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
                   <Trophy className="h-3.5 w-3.5" />
                   Rankings
                 </Link>
-                <Link href="/geo/rooms" className="inline-flex items-center gap-1.5 rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold hover:bg-sand-100">
+                <Link href="/geo/rooms" className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
                   <Users className="h-3.5 w-3.5" />
                   Rooms
                 </Link>
@@ -315,32 +315,32 @@ export default function ProfileClient() {
             </section>
 
             {/* Today */}
-            <section className="rounded-2xl border border-sand-200 bg-white p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sand-500">
+            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
                 <Gauge className="h-4 w-4" />
                 Today
               </h2>
               {profile?.usage ? (
-                <p className="mt-2 text-sm text-sand-700">
-                  <span className="font-semibold text-sand-900">{profile.usage.rounds}</span> rounds today. Nothing is
+                <p className="mt-2 text-sm text-white/70">
+                  <span className="font-semibold text-white">{profile.usage.rounds}</span> rounds today. Nothing is
                   capped for ordinary play. Points earn on the first 50 rounds of the day.
                 </p>
               ) : (
-                <p className="mt-2 text-sm text-sand-500">Loading</p>
+                <p className="mt-2 text-sm text-white/60">Loading</p>
               )}
             </section>
 
             {/* Recent points */}
-            <section className="rounded-2xl border border-sand-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-sand-500">Recent points</h2>
+            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Recent points</h2>
               {profile?.ledger?.length ? (
-                <ul className="mt-3 divide-y divide-sand-100 text-sm">
+                <ul className="mt-3 divide-y divide-white/10 text-sm">
                   {profile.ledger.map((row, i) => (
                     <li key={i} className="flex items-center justify-between gap-2 py-1.5">
-                      <span className="min-w-0 flex-1 truncate text-sand-700">
-                        {row.reason} <span className="text-sand-400">{ago(row.at)}</span>
+                      <span className="min-w-0 flex-1 truncate text-white/70">
+                        {row.reason} <span className="text-white/40">{ago(row.at)}</span>
                       </span>
-                      <span className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-green-700' : 'text-sand-900'}`}>
+                      <span className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-forest-300' : 'text-white'}`}>
                         {row.kind === 'earn' ? '+' : '-'}
                         {row.amount}
                       </span>
@@ -348,7 +348,7 @@ export default function ProfileClient() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-sm text-sand-500">Nothing yet. Every scored round earns some.</p>
+                <p className="mt-2 text-sm text-white/60">Nothing yet. Every scored round earns some.</p>
               )}
             </section>
           </aside>

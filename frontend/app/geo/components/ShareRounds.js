@@ -30,31 +30,31 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
   return (
     <>
       {hideUntilPlayed && !revealed ? (
-        <p className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-sand-200 bg-white px-4 py-3 text-sm text-sand-700">
+        <p className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-ocean-900/60 px-4 py-3 text-sm text-white/70">
           <span className="flex-1">The places are hidden until you have played this one yourself.</span>
-          <button type="button" onClick={() => setRevealed(true)} className="rounded-lg border border-sand-300 px-3 py-1.5 text-xs font-semibold hover:bg-sand-100">
+          <button type="button" onClick={() => setRevealed(true)} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
             Show them anyway
           </button>
         </p>
       ) : null}
-      <ol className={`${hideUntilPlayed && !revealed ? 'mt-3' : 'mt-6'} divide-y divide-sand-100 rounded-2xl border border-sand-200 bg-white`}>
+      <ol className={`${hideUntilPlayed && !revealed ? 'mt-3' : 'mt-6'} divide-y divide-white/10 rounded-2xl border border-white/10 bg-ocean-900/60`}>
         {rounds.map((round, i) => (
           <li key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-            <span className="w-6 text-sand-400">{i + 1}</span>
+            <span className="w-6 text-white/40">{i + 1}</span>
             <span className="w-7 text-lg leading-none">{revealed ? round.flag || '' : ''}</span>
             <span className="flex-1 truncate">{revealed ? round.name || 'Somewhere' : 'Hidden'}</span>
             {isStreak ? (
               <span className={round.correct ? 'font-semibold text-green-700' : 'font-semibold text-red-700'}>{round.correct ? 'Right' : 'Miss'}</span>
             ) : (
               <>
-                <span className="w-24 text-right text-sand-600">{round.distanceKm === null ? 'no guess' : formatDistance(round.distanceKm)}</span>
+                <span className="w-24 text-right text-white/60">{round.distanceKm === null ? 'no guess' : formatDistance(round.distanceKm)}</span>
                 <span className="w-16 text-right font-semibold tabular-nums">{formatScore(round.score)}</span>
               </>
             )}
           </li>
         ))}
       </ol>
-      {hideUntilPlayed && played ? <p className="mt-2 text-xs text-sand-500">You have played this one, so the places are shown.</p> : null}
+      {hideUntilPlayed && played ? <p className="mt-2 text-xs text-white/60">You have played this one, so the places are shown.</p> : null}
     </>
   );
 }

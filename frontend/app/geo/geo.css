@@ -1,0 +1,59 @@
+/**
+ * The game's form fields, dark, because otherwise they are white on
+ * white and you cannot see what you type.
+ *
+ * app/globals.css styles the pet site's fields with
+ * `input[type="text"] { background: white }`. An attribute selector
+ * plus an element beats a Tailwind utility, so every `bg-ocean-900/60`
+ * on an input in this game was silently discarded while the `text-white`
+ * next to it applied: the Rooms page asked for your name in white ink
+ * on white paper, and the room code box did the same. `<select>` came
+ * out dark, because a bare element selector loses to a class, so half
+ * the same form was one colour and half the other.
+ *
+ * The honest fix is to make that global rule a default with `:where()`.
+ * It is also a change to 437 fields across 55 pet-site pages, whose
+ * classes have been ignored for long enough that nobody knows which of
+ * them were meant, and this is a lost-pet service. So the override is
+ * scoped to the game instead, where the surface is known.
+ *
+ * `.geo-surface` is on the segment's layout, so these apply to every
+ * field under /geo and to nothing else. A screen that wants paper
+ * chrome puts `data-paper` on the field and keeps it.
+ */
+
+.geo-surface input[type='text']:not([data-paper]),
+.geo-surface input[type='email']:not([data-paper]),
+.geo-surface input[type='password']:not([data-paper]),
+.geo-surface input[type='tel']:not([data-paper]),
+.geo-surface input[type='number']:not([data-paper]),
+.geo-surface input[type='search']:not([data-paper]),
+.geo-surface input[type='url']:not([data-paper]),
+.geo-surface textarea:not([data-paper]),
+.geo-surface select:not([data-paper]) {
+  background: rgb(19 41 55 / 0.6); /* ocean-950/60 */
+  border-color: rgb(255 255 255 / 0.15);
+  color: rgb(250 249 247); /* sand-50 */
+}
+
+.geo-surface input:not([data-paper])::placeholder,
+.geo-surface textarea:not([data-paper])::placeholder {
+  color: rgb(255 255 255 / 0.35);
+}
+
+/* The native dropdown list is painted by the OS, which does not inherit
+   the control's colour. Without this it opens as white rows of white
+   text. */
+.geo-surface select:not([data-paper]) option {
+  background-color: #132937; /* ocean-950 */
+  color: rgb(250 249 247);
+}
+
+/* The pet site's focus ring is the indigo it uses everywhere else. In
+   the game the accent is clay. */
+.geo-surface input:not([data-paper]):focus,
+.geo-surface textarea:not([data-paper]):focus,
+.geo-surface select:not([data-paper]):focus {
+  border-color: #c68e6b; /* clay-400 */
+  box-shadow: 0 0 0 3px rgb(198 142 107 / 0.25);
+}

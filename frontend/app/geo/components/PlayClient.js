@@ -53,7 +53,7 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
     <Panel>
       <div className="rounded-2xl border border-white/10 bg-ocean-900 p-5 text-white">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-500" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-300" />
           <div className="min-w-0">
             <h2 className="text-lg font-bold">{title}</h2>
             <p className="mt-1 text-sm text-white/80">{message}</p>
