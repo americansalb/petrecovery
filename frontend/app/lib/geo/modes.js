@@ -117,6 +117,32 @@ export function modeDescription(id, provider = PRIMARY_PROVIDER) {
   return base;
 }
 
+/**
+ * The modes played against a board: everyone gets the same places, and
+ * the server hands a round to ONE profile and reveals its answer to
+ * nobody else (app/api/geo/guess/route.js). Two things follow from
+ * that, and both have to agree about this list:
+ *
+ *  - the browser must have a profile BEFORE it asks for the round, or
+ *    it is handed a round it will then be refused a score on;
+ *  - the guess route must refuse a round whose subject is somebody
+ *    else, or a round token becomes a way to read the answer and
+ *    replay the set for a perfect score.
+ *
+ * The list was written out separately in both places and in
+ * challengeFor(), and they disagreed: `ranked` was in the server's two
+ * and missing from the browser's. So Ranked worked from the old lobby,
+ * which happened to create the profile before navigating, and was
+ * refused from anywhere else - including any link straight to
+ * /geo/play?mode=ranked. It is one list now.
+ */
+export const CHALLENGE_MODES = Object.freeze(['daily', 'ranked', 'cup']);
+
+/** Is this mode played against a board, as one profile? */
+export function isChallengeMode(mode) {
+  return CHALLENGE_MODES.includes(String(mode || ''));
+}
+
 export const MODE_ORDER = ['balanced', 'daily', 'ranked', 'cup', 'continent', 'country', 'streak'];
 
 /**

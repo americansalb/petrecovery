@@ -12,12 +12,14 @@ import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating'
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { profileHeaders } from '../lib/profile';
 import PlayerName from '../components/PlayerName';
+import Contests from '../components/Contests';
+import OtherModes from '../components/OtherModes';
 
 function RatingCell({ row }) {
   return (
     <span className="tabular-nums">
       <span className="font-semibold">{row.value}</span>
-      <span className="text-sand-400"> ±{Math.round(row.rd * 2)}</span>
+      <span className="text-white/40"> ±{Math.round(row.rd * 2)}</span>
     </span>
   );
 }
@@ -25,6 +27,7 @@ function RatingCell({ row }) {
 export default function GeoLeaderboardPage() {
   const [ladder, setLadder] = useState('classic');
   const [board, setBoard] = useState(null);
+  const [solo, setSolo] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -39,42 +42,55 @@ export default function GeoLeaderboardPage() {
     };
   }, [ladder]);
 
+  // Asked for once, not per tab: the Ranked panel below shows the solo
+  // standing whichever ladder is on screen.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/geo/leaderboard?ladder=solo', { headers: profileHeaders(), cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => alive && setSolo(data?.you || null))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const you = board?.you;
 
   return (
-    <div className="min-h-screen bg-sand-50 text-sand-900">
+    <div className="min-h-screen bg-ocean-950 text-white">
       <div className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
         <header>
-          <p className="text-sm font-semibold uppercase tracking-wide text-sand-500">
+          <p className="text-sm font-semibold uppercase tracking-wide text-white/60">
             <Link href="/geo" className="hover:underline">Probably Earth</Link>
           </p>
           <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
-            <Trophy className="h-7 w-7 text-clay-600" />
+            <Trophy className="h-7 w-7 text-clay-300" />
             Rankings
           </h1>
-          <ul className="mt-3 max-w-2xl space-y-1 text-sm text-sand-600">
+          <ul className="mt-3 max-w-2xl space-y-1 text-sm text-white/60">
             <li>Classic and Duel rate you against everyone else in a finished room.</li>
             <li>Ranked solo rates this hour&apos;s five places against everyone who played them.</li>
             <li>A rating appears after {board?.minGames || 3} rated games and settles by {PROVISIONAL_GAMES}.</li>
           </ul>
         </header>
 
-        <div className="mt-6 inline-flex rounded-xl bg-sand-100 p-1" role="tablist">
+        <div className="mt-6 inline-flex rounded-xl bg-white/5 p-1" role="tablist">
           {LADDERS.map((id) => (
-            <button key={id} type="button" role="tab" aria-selected={ladder === id} onClick={() => setLadder(id)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${ladder === id ? 'bg-ocean-900 text-white shadow' : 'text-sand-700 hover:bg-white'}`}>
+            <button key={id} type="button" role="tab" aria-selected={ladder === id} onClick={() => setLadder(id)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${ladder === id ? 'bg-ocean-900 text-white shadow' : 'text-white/70 hover:bg-ocean-900/60'}`}>
               {LADDER_LABELS[id] || VARIANTS[id]?.label || id}
             </button>
           ))}
         </div>
         {board?.season ? (
-          <p className="mt-2 text-sm text-sand-600" data-season>
+          <p className="mt-2 text-sm text-white/60" data-season>
             {board.season.label}. {board.season.daysLeft} {board.season.daysLeft === 1 ? 'day' : 'days'} left. Finishing Silver or better
             on a ladder, with three rated games on it, pays points.
           </p>
         ) : null}
 
         {you ? (
-          <section className="mt-6 rounded-2xl border border-ocean-900 bg-ocean-900 p-5 text-white">
+          <section className="mt-6 rounded-2xl border border-clay-400 bg-ocean-900 p-5 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/60">You, {you.name}</p>
             <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-2">
               <div>
@@ -107,14 +123,14 @@ export default function GeoLeaderboardPage() {
           </section>
         ) : null}
 
-        {error ? <p className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">{error}</p> : null}
+        {error ? <p className="mt-6 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">{error}</p> : null}
 
         {/* Rank, player and rating on a phone; the rest as the screen
             allows. Nine columns behind a sideways scroll meant the one
             number this page is about was the one you could not see. */}
-        <section className="mt-6 overflow-x-auto rounded-2xl border border-sand-200 bg-white">
+        <section className="mt-6 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
           <table className="w-full text-sm">
-            <thead className="bg-sand-50 text-left text-xs uppercase tracking-wide text-sand-500">
+            <thead className="bg-ocean-950 text-left text-xs uppercase tracking-wide text-white/60">
               <tr>
                 <th className="px-4 py-2">#</th>
                 <th className="px-4 py-2">Player</th>
@@ -127,26 +143,26 @@ export default function GeoLeaderboardPage() {
                 <th className="hidden px-4 py-2 text-right lg:table-cell">Streak</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-sand-100">
+            <tbody className="divide-y divide-white/10">
               {board === null && !error ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-sand-500">Loading</td>
+                  <td colSpan={9} className="px-4 py-6 text-center text-white/60">Loading</td>
                 </tr>
               ) : null}
               {board && !board.rows.length ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-sand-600">
+                  <td colSpan={9} className="px-4 py-6 text-center text-white/60">
                     Nobody has {board.minGames} rated games on this ladder yet.
                   </td>
                 </tr>
               ) : null}
               {(board?.rows || []).map((row) => (
-                <tr key={row.profileId} className={row.profileId === you?.profileId ? 'bg-clay-50' : ''}>
-                  <td className="px-4 py-2 tabular-nums text-sand-500">{row.rank}</td>
+                <tr key={row.profileId} className={row.profileId === you?.profileId ? 'bg-clay-500/10' : ''}>
+                  <td className="px-4 py-2 tabular-nums text-white/60">{row.rank}</td>
                   <td className="px-4 py-2 font-semibold">
-                    <PlayerName name={row.name} cosmetics={row.cosmetics} dark={false} />
+                    <PlayerName name={row.name} cosmetics={row.cosmetics} />
                   </td>
-                  <td className="hidden px-4 py-2 text-sand-600 sm:table-cell">{row.tier}</td>
+                  <td className="hidden px-4 py-2 text-white/60 sm:table-cell">{row.tier}</td>
                   <td className="px-4 py-2"><RatingCell row={row} /></td>
                   <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{row.games}</td>
                   <td className="hidden px-4 py-2 text-right tabular-nums sm:table-cell">{row.wins}</td>
@@ -159,10 +175,13 @@ export default function GeoLeaderboardPage() {
           </table>
         </section>
 
-        <p className="mt-4 flex items-center gap-2 text-sm text-sand-600">
+        <p className="mt-4 flex items-center gap-2 text-sm text-white/60">
           <Users className="h-4 w-4" />
-          Nothing else is rated: the daily challenge, the weekly cup and an ordinary game are for fun.
+          Nothing else is rated: the daily challenge, the weekly cup and an ordinary game are for the board and for points.
         </p>
+
+        <Contests solo={solo} />
+        <OtherModes />
       </div>
     </div>
   );

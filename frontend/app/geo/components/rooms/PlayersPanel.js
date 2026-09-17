@@ -15,7 +15,7 @@ export function PlayerBadge({ player, size = 'md' }) {
   const dims = size === 'sm' ? 'h-7 w-7 text-[10px]' : size === 'lg' ? 'h-12 w-12 text-base' : 'h-9 w-9 text-xs';
   return (
     <span
-      className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-sand-900 ring-2 ring-ocean-950/60`}
+      className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-ocean-950/60`}
       style={{
         backgroundColor: player.color,
         opacity: player.eliminated ? 0.45 : 1,
@@ -70,12 +70,12 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <PlayerName name={p.name} cosmetics={p.cosmetics} you={p.you} className={`font-semibold ${p.you && !p.cosmetics?.color ? 'text-clay-300' : 'text-white'}`} />
-              {p.isHost ? <Crown className="h-3.5 w-3.5 text-clay-500" aria-label="Host" /> : null}
+              {p.isHost ? <Crown className="h-3.5 w-3.5 text-clay-300" aria-label="Host" /> : null}
               {p.eliminated ? <span className="rounded-full bg-red-500/20 px-1.5 text-[10px] font-bold uppercase text-red-300">out</span> : null}
               {p.online === false ? <span className="text-[10px] uppercase tracking-wide text-white/40">away</span> : null}
             </div>
             {p.rating ? (
-              <div className="text-[11px] text-white/50">
+              <div className="text-[11px] text-white/60">
                 {p.rating.tier} {p.rating.value}
                 {p.rating.provisional ? ' (provisional)' : ''}
               </div>
@@ -92,7 +92,7 @@ export default function PlayersPanel({ players, variant = 'classic', phase, comp
                 {p.ratingDelta} rating
               </div>
             ) : null}
-            {!isDuel && p.roundWins ? <div className="text-[11px] text-white/50">{p.roundWins} round {p.roundWins === 1 ? 'win' : 'wins'}</div> : null}
+            {!isDuel && p.roundWins ? <div className="text-[11px] text-white/60">{p.roundWins} round {p.roundWins === 1 ? 'win' : 'wins'}</div> : null}
             {phase === 'guessing' ? <div className={`text-[11px] ${p.guessed ? 'text-green-400' : 'text-white/40'}`}>{p.guessed ? 'guessed' : 'thinking'}</div> : null}
           </div>
         </li>

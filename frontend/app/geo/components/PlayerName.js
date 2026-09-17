@@ -4,9 +4,14 @@
  * A player's name as they chose to wear it: the name colour and the
  * title from the shop (docs/GEO.md, "Points and cosmetics"). Used in
  * rooms, on the rankings, and on the daily board.
+ *
+ * It took a `dark` prop, for the one screen that rendered it on paper.
+ * The rankings are dark now like the rest of the game, so the light
+ * branch had no caller and only looked like a choice somebody still
+ * had.
  */
 
-export default function PlayerName({ name, cosmetics = null, you = false, dark = true, className = '' }) {
+export default function PlayerName({ name, cosmetics = null, you = false, className = '' }) {
   const color = cosmetics?.color || '';
   const title = cosmetics?.title || '';
   return (
@@ -16,7 +21,7 @@ export default function PlayerName({ name, cosmetics = null, you = false, dark =
         {you ? ' (you)' : ''}
       </span>
       {title ? (
-        <span className={`shrink-0 rounded-full px-1.5 text-[10px] font-bold uppercase tracking-wide ${dark ? 'bg-white/10 text-white/70' : 'bg-sand-100 text-sand-600'}`}>{title}</span>
+        <span className="shrink-0 rounded-full bg-white/10 px-1.5 text-[10px] font-bold uppercase tracking-wide text-white/70">{title}</span>
       ) : null}
     </span>
   );

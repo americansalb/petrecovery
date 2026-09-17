@@ -70,18 +70,18 @@ What that buys and what it costs, plainly:
 
 | Route | What | Chrome |
 |---|---|---|
-| `/geo` | Lobby: provider, mode, rules, daily challenge, your rating and recent rated games, rooms you were in, local stats, how it works | universal bar + game subtabs |
+| `/geo` | The front door: a turning globe you can spin, one Play button, and four text links (Play with friends, Daily, Rankings, Script). Nothing to decide on the way in | universal bar + game subtabs |
 | `/geo/play?...` | The game. Every setting is in the query string, so a link is a whole game | full screen; the X in the HUD returns to `/geo` |
 | `/geo/script` | The script game's lobby: read a sentence, pin where the language is spoken ("Script" below) | universal bar + game subtabs |
 | `/geo/script/play?...` | A script game. Settings are in the query string, so a link is a whole game | full screen; the X returns to `/geo/script` |
 | `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | universal bar + game subtabs |
 | `/geo/rooms` | Multiplayer: open a room, join by code, return to a room you were in, or pick a public room | universal bar + game subtabs |
 | `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
-| `/geo/leaderboard` | The ladders (classic, duel) for the season, and your own rating | universal bar + game subtabs |
+| `/geo/leaderboard` | The ladders (classic, duel, ranked solo) for the season and your own rating, plus every mode that is not the default: Ranked, the daily and the weekly cup with their boards, then country streak, one continent and one country | universal bar + game subtabs |
 | `/geo/me` | Your profile: name, rating, points, country badges, today's meter, recent points, the cosmetics shop, and signing in ("Signing in" below) | universal bar + game subtabs |
 
-Chrome follows the house rule in `app/lib/navChrome.js`: the lobby, the
-room browser, the rankings and the share page are ordinary pages under
+Chrome follows the house rule in `app/lib/navChrome.js`: the room
+browser, the rankings, the profile and the share page are ordinary pages under
 the universal ReunitePets bar (Dashboard, account menu and all), with the
 game's own subtabs below it (`app/geo/components/GeoHeader.js`: Play,
 Script, Rooms, Rankings, Daily, Profile). Only a round or a room in
@@ -146,19 +146,23 @@ Scoring (`app/lib/geo/distance.js`): `5000 * e^(-10 d / size)`, where
 `size` is 14,916 km for the world and the bounding-box diagonal for a
 continent or country (floor 100 km). Within 25 m is 5,000.
 
-Randomness settings ("How random" in the lobby) are the search radius:
+The search radius has no control any more - the lobby that carried it
+was deleted - so it is a query-string setting on a shared link, at
+`standard` for everything the game starts itself:
 2 km (pure), 10 km (standard), 50 km (fast). A small radius is closer to
 uniform over covered land but needs more candidates; a large one drifts
 toward the edges of covered areas.
 
-Seeds: every game gets one (the lobby generates it), the daily challenge
+Seeds: every game gets one (the front door and the Rankings buttons
+generate it), the daily challenge
 uses `daily-YYYY-MM-DD` (UTC), and the summary offers a "Challenge a
 friend" link that replays the same places. A retry after "no imagery"
 skips ahead in the seeded sequence rather than repeating it.
 
 ## Formats
 
-Move, pan and zoom are one choice in the lobby and the room form, the
+Move, pan and zoom are one choice in the room form and in a game's query
+string, the
 three formats competitive players know (`FORMATS` in
 `app/lib/geo/modes.js`):
 
@@ -622,7 +626,7 @@ from another site's breach.
   fix is a token version column on `GeoAccount`. A tampered or expired
   cookie is nobody, never somebody else.
 - **A readable companion cookie** (`geo_signed_in=1`, no secret in it)
-  exists so the lobby can tell whether to ask the server for a profile
+  exists so the front door can tell whether to ask the server for a profile
   without a whole extra request. It says "there is a session cookie",
   not "the session is valid"; every endpoint checks the real one.
 - **Signing in never merges two profiles.** If the account already has
@@ -965,7 +969,7 @@ works is a domain that is broken on the day it is pointed, and whoever
 pointed it has no way to tell. `GEO_DOMAINS` still adds more.
 
 Point the domain at the existing deployment and the short paths work
-immediately: `/` is the lobby, and `/play`, `/rooms`, `/script`,
+immediately: `/` is the front door, and `/play`, `/rooms`, `/script`,
 `/leaderboard`, `/daily` and `/room/<code>` all land in the right place.
 What that does **not** change is the chrome, because the chrome is a
 build-time decision (`NEXT_PUBLIC_SITE`) so that the server and the

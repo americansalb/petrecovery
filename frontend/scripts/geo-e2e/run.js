@@ -568,16 +568,12 @@ async function appleRoom(browser) {
 async function ranked(browser) {
   log('\n== ranked ==');
   const playSet = async (page, label) => {
-    // Through the lobby, the way a player arrives. Going straight to
-    // the play URL races the profile this browser is about to be given,
-    // and a ranked round is refused to anyone but the profile that
-    // opened it.
-    await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
-    // Enabled, not merely present: the lobby greys its start buttons
-    // until /api/geo/config answers, and under `next dev` that request
-    // can sit behind a compile for a while. Waiting on the disabled
-    // attribute says what is actually being waited for.
-    await page.waitForSelector('[data-start-ranked]:not([disabled])', { timeout: 60000 });
+    // Through the Rankings page, the way a player arrives. Going
+    // straight to the play URL races the profile this browser is about
+    // to be given, and a ranked round is refused to anyone but the
+    // profile that opened it.
+    await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-start-ranked]', { timeout: 60000 });
     await page.click('[data-start-ranked]');
     for (let i = 0; i < 5; i++) {
       await waitPlayable(page);
@@ -608,11 +604,12 @@ async function ranked(browser) {
   // This one is never first: the browser above just finished the hour.
   if (!/average of \d+ other/.test(against)) throw new Error('a player with a field ahead of them should be rated against it, not against par');
 
-  // The lobby carries the standing, and the ladder has a tab of its own.
-  await second.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
+  // Rankings carries the standing, and the ladder has a tab of its own.
+  await second.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
   await second.waitForSelector('[data-ranked-standing]', { timeout: 20000 });
+  await second.waitForSelector('[data-ranked-standing]:not(:has-text("to be placed"))', { timeout: 20000 });
   const standing = (await second.textContent('[data-ranked-standing]')).replace(/\s+/g, ' ');
-  log('lobby ranked standing:', standing);
+  log('ranked standing:', standing);
   if (!/placement games played/.test(standing)) throw new Error('the lobby should show placement progress');
 
   await second.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
@@ -671,12 +668,14 @@ async function coldOpen(browser) {
 async function firstRun(browser) {
   log('\n== firstRun ==');
   const page = await newPage(browser, { width: 1280, height: 800 });
-  await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-first-run]', { timeout: 30000 });
-  const text = (await page.textContent('[data-first-run]')).replace(/\s+/g, ' ');
-  log('first run panel:', text.slice(0, 140));
-  for (const wanted of ['place a pin', '5,000', 'Ranked']) {
-    if (!text.includes(wanted)) throw new Error(`the first run panel should mention ${wanted}`);
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-cold-open-play]', { timeout: 30000 });
+  const text = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  log('front door:', text.slice(0, 140));
+  // What the game is, and how to reach the rest of it, in the words a
+  // stranger meets first.
+  for (const wanted of ['put a pin on it', 'Play with friends', 'Rankings']) {
+    if (!text.includes(wanted)) throw new Error(`the front door should say ${wanted}`);
   }
 
   // Play one game, and it should not be there afterwards.
@@ -699,12 +698,17 @@ async function firstRun(browser) {
   log('account ask:', keep.slice(0, 90));
   if (!/Keep this game/.test(keep)) throw new Error('the summary should offer to keep the game');
 
-  await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-daily-board]', { timeout: 20000 });
-  if (await page.locator('[data-first-run]').count()) {
-    throw new Error('the first run panel is still there after a game');
+  await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
+  // The panel is on the page before its board is: it renders at once
+  // and fills in when /api/geo/daily answers. Waiting on the shape of
+  // the sentence rather than on the element is what makes this about
+  // the board and not about which of the two got there first.
+  await page.waitForSelector('[data-daily-board]:has-text("You are")', { timeout: 20000 });
+  const played = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
+  log('daily board after a game:', played.slice(0, 120));
+  if (!/You are \d+(st|nd|rd|th) of \d+/.test(played)) {
+    throw new Error("the daily board should show where the game just played came: " + played.slice(0, 160));
   }
-  log('first run panel steps aside once a game is played');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
 }
@@ -731,11 +735,11 @@ async function daily(browser) {
   await shot(page, 'daily-summary');
   const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
 
-  await page.goto(`${BASE}/geo/setup`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-daily-board]', { timeout: 20000 });
+  await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-daily-board]:has-text("You are")', { timeout: 20000 });
   const board = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
-  log('lobby daily board:', board.slice(0, 160));
-  if (!/You are \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the lobby board should show your rank');
+  log('daily board:', board.slice(0, 160));
+  if (!/You are \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the board should show your rank');
   await page.waitForSelector('[data-cup-board]:has-text("Ends")', { timeout: 20000 });
   const cupText = (await page.textContent('[data-cup-board]')).replace(/\s+/g, ' ');
   if (!/Ends in/.test(cupText)) throw new Error('the cup card should say when the week ends');
@@ -1049,7 +1053,11 @@ async function appleRefused(browser) {
   if (!/refused this site's MapKit token/.test(text)) throw new Error('the round did not say why Apple drew nothing');
   // The point of the message is that it names the fix, so it has to
   // name the host that was refused and the origin the token covers.
-  if (!/localhost/.test(text) || !/reunitepets\.org/.test(text)) {
+  // The host comes from BASE rather than being spelled "localhost":
+  // the message names whatever the browser is actually on, so a run
+  // against 127.0.0.1 used to fail on a perfectly correct message.
+  const host = new URL(BASE).hostname;
+  if (!text.includes(host) || !/reunitepets\.org/.test(text)) {
     throw new Error('the refusal named neither the host nor the token origin: ' + text.slice(0, 300));
   }
   await shot(page, 'apple-refused');

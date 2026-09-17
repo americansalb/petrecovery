@@ -62,7 +62,7 @@ export default function NotEarthButton({ onCall, disabled = false, roundKey }) {
       title="This is not a photograph of Earth"
       className="pointer-events-auto flex h-12 items-center gap-2 rounded-full border border-white/20 bg-ocean-900/80 px-4 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:border-clay-500/70 hover:bg-ocean-800 disabled:opacity-40"
     >
-      <Rocket className="h-4 w-4 text-clay-500" />
+      <Rocket className="h-4 w-4 text-clay-300" />
       Not Earth
     </button>
   );

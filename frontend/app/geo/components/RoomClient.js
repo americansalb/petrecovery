@@ -40,7 +40,7 @@ function MessagePanel({ title, message, children }) {
   return (
     <Panel>
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-500" />
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-300" />
         <div>
           <h2 className="text-lg font-bold">{title}</h2>
           <p className="mt-1 text-sm text-white/80">{message}</p>

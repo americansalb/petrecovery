@@ -34,7 +34,7 @@ function NotEarthReveal({ result, points }) {
         {result.correct ? `Called it. That was ${place.bodyInSentence}.` : `That was ${place.bodyInSentence}.`}
       </p>
       <p className="mt-1 flex items-center gap-2 text-white/85">
-        <Rocket className="h-4 w-4 shrink-0 text-clay-500" />
+        <Rocket className="h-4 w-4 shrink-0 text-clay-300" />
         <span className="font-semibold">{place.title}</span>
       </p>
       <p className="mt-1 max-w-xl text-sm text-white/70">{place.note}</p>
@@ -79,7 +79,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                 {result.correct ? `Right. Streak ${streak}.` : wrongCall ? 'That was Earth.' : `Not ${countryName || result.guessCountry || 'that'}.`}
               </p>
               <p className="mt-1 flex items-center gap-2 text-white/80">
-                <Flag className="h-4 w-4 text-clay-500" />
+                <Flag className="h-4 w-4 text-clay-300" />
                 <span>
                   This was {country?.flag} <span className="font-semibold text-white">{place || 'an unlisted place'}</span>
                 </span>
@@ -101,12 +101,12 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                   {points.badge ? `${points.earned > 0 ? '. ' : ''}New badge: ${points.badge.flag} ${points.badge.name}` : ''}
                 </p>
               ) : null}
-              {points && points.allowed === false ? <p className="mt-1 text-xs text-white/50">Points paused for today: the first 50 rounds earn.</p> : null}
+              {points && points.allowed === false ? <p className="mt-1 text-xs text-white/60">Points paused for today: the first 50 rounds earn.</p> : null}
               <p className="mt-1 flex items-center gap-2 text-sm text-white/70">
-                <Flag className="h-4 w-4 text-clay-500" />
+                <Flag className="h-4 w-4 text-clay-300" />
                 <span>
                   You were in {country?.flag} <span className="font-semibold text-white">{place || 'a place not on the country map'}</span>
-                  {result.answer?.date ? <span className="text-white/50">, imagery from {result.answer.date}</span> : null}
+                  {result.answer?.date ? <span className="text-white/60">, imagery from {result.answer.date}</span> : null}
                 </span>
               </p>
             </>

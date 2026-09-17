@@ -130,7 +130,7 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
           </div>
         </div>
         <div className="rounded-2xl border border-white/10 bg-ocean-950/60 p-3 text-center">
-          <p className="text-[11px] uppercase tracking-wide text-white/50">Join code</p>
+          <p className="text-[11px] uppercase tracking-wide text-white/60">Join code</p>
           <p className="text-3xl font-bold tracking-[0.3em] text-clay-300">{room.code}</p>
           <div className="mt-2 flex justify-center gap-2">
             <button type="button" onClick={() => copy('code', room.code)} className="flex items-center gap-1 rounded-lg border border-white/20 px-2 py-1 text-xs font-semibold hover:bg-white/10">
@@ -167,7 +167,7 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
           Leave
         </button>
       </div>
-      {me?.isHost && state.players.length < 2 ? <p className="mt-2 text-xs text-white/50">Share the code first: the game is better with company.</p> : null}
+      {me?.isHost && state.players.length < 2 ? <p className="mt-2 text-xs text-white/60">Share the code first: the game is better with company.</p> : null}
     </Panel>
   );
 }
@@ -175,7 +175,7 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
 export function LoadingPanel({ state }) {
   return (
     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center text-white" role="status" aria-live="polite">
-      <RefreshCw className="h-9 w-9 animate-spin text-clay-500" />
+      <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
       <p className="mt-4 text-lg font-semibold">Round {state.room.roundIndex + 2 > state.room.roundsTotal ? state.room.roundsTotal : state.room.roundIndex + 2}</p>
       <p className="mt-1 text-sm text-white/70">Finding a place with imagery for everyone</p>
     </div>
@@ -187,7 +187,7 @@ export function LocatingPanel({ state, attempt = 0 }) {
   const total = state.locating?.candidates?.length || 0;
   return (
     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center text-white" role="status" aria-live="polite">
-      <RefreshCw className="h-9 w-9 animate-spin text-clay-500" />
+      <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
       <p className="mt-4 text-lg font-semibold">
         Round {state.room.roundIndex + 1} of {state.room.roundsTotal}
       </p>
@@ -219,7 +219,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             </p>
             <p className="mt-0.5 text-lg font-bold">
               {answer?.country?.flag} {place || 'Somewhere unlisted'}
-              {answer?.date ? <span className="text-sm font-normal text-white/50">, imagery from {answer.date}</span> : null}
+              {answer?.date ? <span className="text-sm font-normal text-white/60">, imagery from {answer.date}</span> : null}
             </p>
             {mine ? (
               <p className="text-sm text-white/80">

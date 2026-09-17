@@ -95,29 +95,29 @@ export default function SignInCard() {
 
   if (account) {
     return (
-      <div className="rounded-xl border border-gray-200 p-4">
-        <p className="flex items-center gap-2 font-semibold text-gray-900">
-          <Check className="h-4 w-4 text-green-600" /> Signed in as {account.email}
+      <div className="rounded-xl border border-white/10 p-4">
+        <p className="flex items-center gap-2 font-semibold text-white">
+          <Check className="h-4 w-4 text-green-400" /> Signed in as {account.email}
         </p>
-        <p className="mt-1 text-sm text-gray-600">Your profile follows you to any device you sign in on.</p>
+        <p className="mt-1 text-sm text-white/60">Your profile follows you to any device you sign in on.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={signOut} className="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">
+          <button type="button" onClick={signOut} className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/20">
             <LogOut className="h-4 w-4" /> Sign out
           </button>
           {confirmDelete ? null : (
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-500 hover:bg-red-50 hover:text-red-700"
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/60 hover:bg-red-950/60 hover:text-red-300"
             >
               <Trash2 className="h-4 w-4" /> Delete account
             </button>
           )}
         </div>
         {confirmDelete ? (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
-            <p className="text-sm font-semibold text-red-900">Delete this account?</p>
-            <p className="mt-1 text-sm text-red-800">
+          <div className="mt-3 rounded-lg border border-red-400/40 bg-red-950/60 p-3">
+            <p className="text-sm font-semibold text-red-100">Delete this account?</p>
+            <p className="mt-1 text-sm text-red-200">
               This removes your email address, your profile, your rating, points, badges and results, and your scores on
               the daily and cup boards. It cannot be undone.
             </p>
@@ -130,21 +130,21 @@ export default function SignInCard() {
               >
                 {state === 'deleting' ? 'Deleting' : 'Yes, delete it'}
               </button>
-              <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100">
+              <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg bg-ocean-900/60 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/10">
                 Keep it
               </button>
             </div>
           </div>
         ) : null}
-        {message ? <p className="mt-2 text-sm text-gray-600">{message}</p> : null}
+        {message ? <p className="mt-2 text-sm text-white/60">{message}</p> : null}
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 p-4">
-      <p className="font-semibold text-gray-900">Keep this profile across devices</p>
-      <p className="mt-1 text-sm text-gray-600">
+    <div className="rounded-xl border border-white/10 p-4">
+      <p className="font-semibold text-white">Keep this profile across devices</p>
+      <p className="mt-1 text-sm text-white/60">
         Your rating, points and badges live in this browser. An email address moves them to your phone too, and brings
         them back if you clear it. We send a link; there is no password.
       </p>
@@ -160,17 +160,17 @@ export default function SignInCard() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          className="min-w-0 flex-1 rounded-lg border border-white/15 px-3 py-2 text-sm"
         />
         <button
           type="submit"
           disabled={state === 'sending'}
-          className="flex items-center gap-2 rounded-lg bg-clay-600 px-4 py-2 text-sm font-semibold text-sand-950 transition enabled:hover:bg-clay-500 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-lg bg-clay-600 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-clay-500 disabled:opacity-60"
         >
           <Mail className="h-4 w-4" /> {state === 'sending' ? 'Sending' : 'Send link'}
         </button>
       </form>
-      {message ? <p className={`mt-2 text-sm ${state === 'error' ? 'text-red-600' : 'text-gray-600'}`}>{message}</p> : null}
+      {message ? <p className={`mt-2 text-sm ${state === 'error' ? 'text-red-300' : 'text-white/60'}`}>{message}</p> : null}
     </div>
   );
 }

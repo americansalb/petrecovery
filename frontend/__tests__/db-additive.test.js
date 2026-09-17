@@ -45,6 +45,10 @@ const DESTRUCTIVE = [
   'ALTER TABLE "GeoProfile" ALTER COLUMN "name" SET NOT NULL',
   'ALTER TABLE "GeoProfile" ALTER COLUMN "points" SET DATA TYPE TEXT',
   'ALTER TABLE "Case" ALTER COLUMN "status" DROP DEFAULT',
+  // An enum can be added to, and nothing else.
+  'ALTER TYPE "UserRole" RENAME TO "Role"',
+  'ALTER TYPE "UserRole" RENAME VALUE \'GUEST\' TO \'VISITOR\'',
+  'ALTER TYPE "Species" DROP ATTRIBUTE "legs"',
 ];
 
 describe('the schema repair is additive or it is nothing', () => {
@@ -78,6 +82,29 @@ describe('the schema repair is additive or it is nothing', () => {
     // And the log says only what was left, so a deploy log cannot be read
     // as "the addition was skipped too" when it was applied three lines up.
     expect(skip).toEqual(['ALTER TABLE "GeoProfile" DROP COLUMN "legacyNickname"']);
+  });
+
+  test('adds a new enum member, which a refused push leaves behind like any other addition', () => {
+    // The repo ships exactly this in
+    // prisma/migrations/20260610_add_pet_shares_and_guest_role. Skipping
+    // it leaves every write using the new value failing after the repair
+    // has reported the safe half applied.
+    const { apply, skip } = additiveOnly(`ALTER TYPE "UserRole" ADD VALUE 'GUEST';`);
+    expect(skip).toEqual([]);
+    expect(apply).toEqual([`ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'GUEST'`]);
+    // And twice through does not stack the guard.
+    expect(additiveOnly(`${apply[0]};`).apply[0]).toBe(apply[0]);
+  });
+
+  test('a comma inside a Postgres array default does not cut the statement in half', () => {
+    // A scalar list with a default arrives as
+    // `ADD COLUMN "tags" TEXT[] DEFAULT ARRAY['a', 'b']`, and that comma
+    // is inside neither quotes nor parentheses. Splitting there executed
+    // the truncated front of it and left the column missing.
+    const { apply, skip } = additiveOnly(`ALTER TABLE "Pet" ADD COLUMN "tags" TEXT[] DEFAULT ARRAY['a', 'b'];`);
+    expect(skip).toEqual([]);
+    expect(apply).toEqual([`ALTER TABLE "Pet" ADD COLUMN IF NOT EXISTS "tags" TEXT[] DEFAULT ARRAY['a', 'b']`]);
+    expect(splitTop(`a[1, 2], b`, ',')).toEqual(['a[1, 2]', ' b']);
   });
 
   test('adds IF NOT EXISTS, so a second boot is a no-op rather than an error', () => {
