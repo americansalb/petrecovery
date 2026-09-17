@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { Award, Gauge, History, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-react';
 import { formatScore, ordinal } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
-import { countryBadgeProgress, playableCountries } from '@/app/lib/geo/badges';
+import { countryBadgeProgress, playableCountryCodes } from '@/app/lib/geo/badges';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
@@ -29,7 +29,7 @@ const TABS = [{ id: 'record', label: 'Record' }, { id: 'shop', label: 'Shop' }, 
 // What a badge can be earned in: the countries the game actually drops
 // you in. The badge model covers every country, which made "12 badges"
 // read against a denominator nobody can reach.
-const PLAYABLE_COUNTRIES = playableCountries('apple');
+const PLAYABLE_COUNTRIES = playableCountryCodes('apple');
 
 /** One ladder: the rating, the tier, and what was won on it. */
 function LadderCard({ ladder, rating, provisionalGames }) {
@@ -333,6 +333,17 @@ export default function ProfileClient() {
               >
                 Badges
               </CardTitle>
+              {/* Badges outlive the coverage that awarded them. The
+                  city list holds 56 countries and 23 of them are
+                  playable today, so a player from the Google era holds
+                  rows for places no round can reach: counted in, they
+                  print "40 of 23"; dropped, they vanish without a
+                  word. */}
+              {badgeProgress.elsewhere ? (
+                <p className="mt-1 text-xs text-white/60">
+                  {badgeProgress.elsewhere} more from places the game no longer visits.
+                </p>
+              ) : null}
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (

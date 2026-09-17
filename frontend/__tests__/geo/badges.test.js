@@ -1,55 +1,71 @@
 /**
- * Badge progress, with the two cases that were wrong in the profile's
- * JSX and that no browser scenario could reach: a player holding Mars
- * or the Moon.
+ * Badge progress, with the three cases that were wrong in the profile's
+ * JSX and that no browser scenario can reach: a player holding Mars,
+ * and a player holding badges from the coverage the game used to have.
  *
- * A Not Earth round is a 0.5% chance, so earning one in a harness run
- * is not a test, it is a wait. The counting is a pure function for
- * exactly that reason.
+ * A Not Earth round is a 0.5% chance and the Google era is over, so
+ * building those profiles in a harness run is not a test, it is a wait.
+ * The counting is a pure function for exactly that reason.
  */
 
-const { countryBadgeProgress, playableCountries } = require('@/app/lib/geo/badges');
+const { countryBadgeProgress, playableCountryCodes } = require('@/app/lib/geo/badges');
+const { APPLE_COVERAGE } = require('@/app/lib/geo/coverage');
 
 const country = (code) => ({ countryCode: code, notEarth: false });
 const mars = { countryCode: 'XM', notEarth: true };
 const moon = { countryCode: 'XL', notEarth: true };
+const POOL = playableCountryCodes('apple');
 
 test('the denominator is the countries a round can drop you in', () => {
-  const total = playableCountries('apple');
-  expect(total).toBeGreaterThan(10);
-  expect(total).toBeLessThan(200);
+  expect(POOL.size).toBeGreaterThan(10);
+  // Every playable country is one Apple has coverage for.
+  for (const code of POOL) expect({ code, covered: APPLE_COVERAGE.has(code) }).toEqual({ code, covered: true });
 });
 
 test('Mars and the Moon are not countries', () => {
-  // The bug: badges.length against a street-pool denominator, so a
-  // player holding both could be shown 24 of 23.
-  const progress = countryBadgeProgress([country('FR'), country('JP'), mars, moon], 23);
-  expect(progress).toEqual({ earned: 2, total: 23, show: true });
+  const progress = countryBadgeProgress([country('FR'), country('JP'), mars, moon], POOL);
+  expect(progress).toEqual({ earned: 2, total: POOL.size, elsewhere: 0, show: true });
+});
+
+test('a badge for a country the game no longer visits is not counted in', () => {
+  // The city list holds 56 countries; 23 are playable on Apple. A
+  // player who earned Cairo or Havana while the game ran on Google
+  // still holds those rows, and counting them printed "40 of 23".
+  const gone = ['EG', 'CU', 'CN', 'BR', 'MX'].filter((code) => !POOL.has(code));
+  expect(gone.length).toBeGreaterThan(0);
+  const progress = countryBadgeProgress([country('FR'), ...gone.map(country)], POOL);
+  expect(progress.earned).toBe(1);
+  expect(progress.elsewhere).toBe(gone.length);
   expect(progress.earned).toBeLessThanOrEqual(progress.total);
 });
 
+test('those badges are reported, not silently dropped', () => {
+  // They are real badges for real places. Counting them in lies about
+  // the pool; dropping them lies about the player.
+  const gone = ['EG', 'CU'].filter((code) => !POOL.has(code));
+  expect(countryBadgeProgress(gone.map(country), POOL)).toEqual({
+    earned: 0,
+    total: POOL.size,
+    elsewhere: gone.length,
+    show: true,
+  });
+});
+
 test('a player whose only badge is Mars is shown zero countries, not nothing', () => {
-  // The second bug: hiding the line when the country count is zero
-  // blanks it for the one player the country/space split exists for.
-  expect(countryBadgeProgress([mars], 23)).toEqual({ earned: 0, total: 23, show: true });
+  expect(countryBadgeProgress([mars], POOL)).toEqual({ earned: 0, total: POOL.size, elsewhere: 0, show: true });
 });
 
 test('a player with no badges at all is shown no progress line', () => {
-  expect(countryBadgeProgress([], 23).show).toBe(false);
-  expect(countryBadgeProgress(undefined, 23).show).toBe(false);
-  expect(countryBadgeProgress(null, 23).show).toBe(false);
+  for (const empty of [[], undefined, null]) expect(countryBadgeProgress(empty, POOL).show).toBe(false);
 });
 
-test('every country badge counts, and no badge counts twice', () => {
-  const badges = ['FR', 'JP', 'US', 'IT'].map(country);
-  expect(countryBadgeProgress(badges, 23).earned).toBe(4);
-});
-
-test('the numerator can never exceed the denominator for real badge sets', () => {
-  // Every code the street pool can award, plus both worlds.
-  const total = playableCountries('apple');
-  const { citiesFor } = require('@/app/lib/geo/coverage');
-  const everyCountry = [...new Set(citiesFor('apple').map((c) => c.country))].map(country);
-  const progress = countryBadgeProgress([...everyCountry, mars, moon], total);
-  expect(progress.earned).toBe(total);
+test('the numerator can never exceed the denominator, whatever the profile holds', () => {
+  // Every code the city list has ever awarded, both worlds, and a
+  // duplicate run of the playable ones for good measure.
+  const { CITIES } = require('@/app/lib/geo/coverage');
+  const everyCode = [...new Set(CITIES.map((c) => c.country))];
+  const progress = countryBadgeProgress([...everyCode.map(country), mars, moon], POOL);
+  expect(progress.earned).toBe(POOL.size);
+  expect(progress.earned).toBeLessThanOrEqual(progress.total);
+  expect(progress.elsewhere).toBe(everyCode.length - POOL.size);
 });
