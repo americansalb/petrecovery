@@ -203,11 +203,14 @@ export function maxScoreFor(roundsPlayed) {
   return roundsPlayed * MAX_ROUND_SCORE;
 }
 
-/** "Waiting in the lobby", "Round 3 of 5", "Finished" */
+/** "In the lobby", "Round 3 of 5", "Finished" */
 export function describeRoomStatus(room) {
   if (room.status === 'finished') return 'Finished';
-  if (room.status === 'lobby') return 'Waiting in the lobby';
-  return `Round ${room.roundIndex + 1} of ${room.config?.rounds || '?'}`;
+  if (room.status === 'lobby') return 'In the lobby';
+  // The room browser's rows carry roundsTotal and no config, so this
+  // read config only and printed "Round 1 of ?" on every open room.
+  const rounds = room.config?.rounds || room.roundsTotal || 0;
+  return rounds ? `Round ${room.roundIndex + 1} of ${rounds}` : `Round ${room.roundIndex + 1}`;
 }
 
 export function describeRoomMode(config, { regionLabel } = {}) {

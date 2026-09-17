@@ -330,7 +330,7 @@ export default function RoomBrowser() {
                           {room.name} <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/60">{VARIANTS[room.variant]?.label || room.variant}</span>
                         </p>
                         <p className="truncate text-xs text-white/60">
-                          {room.rules || room.mode}. {describeRoomStatus(room)}. {room.players} of {room.maxPlayers || MAX_PLAYERS} in.
+                          {room.rules || room.mode} &middot; {describeRoomStatus(room)} &middot; {room.players}/{room.maxPlayers || MAX_PLAYERS} players
                         </p>
                       </div>
                       <Link href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ''}`} className="rounded-lg bg-clay-400 px-3 py-1.5 text-sm font-bold text-ocean-950 hover:bg-clay-300">

@@ -501,7 +501,7 @@ export default function PlayClient() {
                 onClick={() => submitGuess()}
                 disabled={!state.pin || state.status !== 'playing'}
                 data-geo-guess
-                className={`rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/40 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
+                className={`rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-sand-300 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
               >
                 {state.status === 'submitting' ? 'Scoring' : 'Guess'}
               </button>

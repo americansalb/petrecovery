@@ -169,7 +169,7 @@ async function pinGame(browser) {
   await shot(page, 'pinned');
   await page.click('[data-geo-guess]');
   await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
-  log('round 1 result:', await page.textContent('text=/away\\.|Time ran out/').catch(() => '(no distance line)'));
+  log('round 1 result:', await page.textContent('text=/km away|m away|Out of time/').catch(() => '(no distance line)'));
   await shot(page, 'result');
   await expectMapVisible(page, 'result');
   await page.keyboard.press('Space');
@@ -247,7 +247,7 @@ async function timer(browser) {
   await page.waitForSelector('text=/^(2[0-9]|30)$/');
   if (!(await page.$('[title="Panning is off for this game"]'))) throw new Error('NMPZ overlay missing');
   await shot(page, 'timer');
-  await page.waitForSelector('text=Time ran out before a guess', { timeout: 45000 });
+  await page.waitForSelector('text=Out of time.', { timeout: 45000 });
   log('timer expiry scored the round with no guess');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
@@ -450,7 +450,7 @@ async function notEarth(browser) {
   if (await page.$('[data-not-earth-pane]')) throw new Error('round 2 was another Not Earth round');
   await page.click('button:has-text("Not Earth")');
   await page.click('button:has-text("Call it")');
-  await page.waitForSelector('text=That was Earth. Calling Not Earth costs you the round.', { timeout: 20000 });
+  await page.waitForSelector('text=That was Earth. No points this round.', { timeout: 20000 });
   // The whole paragraph, not the "of 5,000" span inside it.
   const score = await page.textContent('p:has-text("of 5,000")');
   if (!/^0\s+of 5,000/.test((score || '').trim())) throw new Error('a wrong call scored something: ' + score);
@@ -873,6 +873,19 @@ async function profile(browser) {
   await page.waitForSelector('text=/\\+\\d+ points/', { timeout: 20000 });
   log('round points line:', await page.textContent('text=/\\+\\d+ points/'));
   await page.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
+  // The page opens on the record: rating, last games, badges, today.
+  // The shop is a tab, because a price list is not what a profile is.
+  // Every ladder, with its placement state: the point of the tab is
+  // that a player sees where they stand before anything is for sale.
+  await page.waitForSelector('[data-ratings] >> text=Ranked solo', { timeout: 30000 });
+  const record = (await page.evaluate(() => document.querySelector('[data-ratings]').innerText)).replace(/\s+/g, ' ');
+  log('record tab:', record.slice(0, 160));
+  // innerText gives back what CSS painted, and the labels are
+  // uppercased by a class, so this reads case-insensitively.
+  for (const ladder of ['Classic', 'Duel', 'Ranked solo']) {
+    if (!new RegExp(ladder, 'i').test(record)) throw new Error(`the record tab should name every ladder, missing ${ladder}`);
+  }
+  await page.click('[data-profile-tab="shop"]');
   await page.waitForSelector('[data-shop] li', { timeout: 30000 });
   const pins = await page.locator('[data-shop] li').count();
   if (pins < 6) throw new Error(`expected the pins in the shop, saw ${pins}`);
@@ -882,12 +895,15 @@ async function profile(browser) {
   const headerText = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
   log('profile page:', headerText.slice(0, 120));
   if (!/\d+\s*points/.test(headerText)) throw new Error('the profile page should show the points balance');
+  await page.click('button[role="tab"]:has-text("Title")');
+  await page.waitForSelector('[data-shop] li:has-text("Wanderer")', { timeout: 10000 });
+  await page.click('[data-profile-tab="settings"]');
   await page.fill('input[aria-label="Your name"]', 'Harness Ada');
   await page.click('button:has-text("Save")');
   await page.waitForSelector('button:has-text("Saved")', { timeout: 10000 });
   await page.waitForSelector('h1:has-text("Harness Ada")', { timeout: 10000 });
-  await page.click('button[role="tab"]:has-text("Title")');
-  await page.waitForSelector('[data-shop] li:has-text("Wanderer")', { timeout: 10000 });
+  await page.click('[data-profile-tab="record"]');
+  await page.waitForSelector('[data-recent]', { timeout: 10000 });
   await shot(page, 'profile');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();

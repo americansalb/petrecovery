@@ -106,7 +106,12 @@ const MEASURE = `(() => {
   return out;
 })()`;
 
-(async () => {
+/** The in-play screens are reached by playing, so the harness borrows this. */
+module.exports = { MEASURE };
+
+if (require.main === module) main();
+
+async function main() {
   const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || '/opt/pw-browsers/chromium' });
   let total = 0;
   for (const route of ROUTES) {
@@ -130,4 +135,4 @@ const MEASURE = `(() => {
   console.log(`\nTOTAL below AA: ${total}`);
   await browser.close();
   process.exit(total ? 1 : 0);
-})();
+}

@@ -287,40 +287,63 @@ export default function GameMenu() {
         <h2 className="geo-rise mt-8 text-sm font-semibold uppercase tracking-wide text-white/60" style={{ animationDelay: '180ms' }}>
           More ways to play
         </h2>
-        <div className="geo-rise mt-3 flex flex-wrap items-center gap-2" style={{ animationDelay: '200ms' }}>
-          <Link href="/geo/play?mode=streak" className={GO} data-menu-streak>
-            <Flag className="h-4 w-4 text-clay-300" />
-            Country streak
-          </Link>
+        <div className="geo-rise mt-3 grid gap-3 sm:grid-cols-3" style={{ animationDelay: '200ms' }}>
+          {/* Cards, like the row above it. These were three things on
+              one line with two unlabelled selects between them, so the
+              second picker had nothing saying what it picked. */}
+          <div className="flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Flag className="h-4 w-4 text-clay-300" />
+              Country streak
+            </p>
+            <p className="mt-2 flex-1 text-sm text-white/60">Name the country. One miss ends it.</p>
+            <Link href="/geo/play?mode=streak" className={`${GO} mt-3 justify-center`} data-menu-streak>
+              Play
+            </Link>
+          </div>
+
           {/* A region, because "one continent" is not a mode until you
               say which. These were selects on the Rankings page; moving
               the catalogue into Play must not cost the choice. */}
-          <span className="inline-flex items-center gap-2">
-            <Globe2 className="h-4 w-4 text-clay-300" aria-hidden="true" />
-            <select value={continent} onChange={(e) => setContinent(e.target.value)} aria-label="Continent" className={FIELD}>
-              {CONTINENT_ORDER.map((id) => (
-                <option key={id} value={id}>
-                  {CONTINENTS[id].label}
-                </option>
-              ))}
-            </select>
-            <Link href={`/geo/play?mode=continent&region=${continent}`} className={GO} data-menu-continent>
-              Play
-            </Link>
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-clay-300" aria-hidden="true" />
-            <select value={country} onChange={(e) => setCountry(e.target.value)} aria-label="Country" className={FIELD}>
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <Link href={`/geo/play?mode=country&region=${country}`} className={GO} data-menu-country>
-              Play
-            </Link>
-          </span>
+          <div className="flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Globe2 className="h-4 w-4 text-clay-300" />
+              One continent
+            </p>
+            <p className="mt-2 flex-1 text-sm text-white/60">Every round inside the continent you pick.</p>
+            <div className="mt-3 flex gap-2">
+              <select value={continent} onChange={(e) => setContinent(e.target.value)} aria-label="Continent" className={`${FIELD} min-w-0 flex-1`}>
+                {CONTINENT_ORDER.map((id) => (
+                  <option key={id} value={id}>
+                    {CONTINENTS[id].label}
+                  </option>
+                ))}
+              </select>
+              <Link href={`/geo/play?mode=continent&region=${continent}`} className={GO} data-menu-continent>
+                Play
+              </Link>
+            </div>
+          </div>
+
+          <div className="flex flex-col rounded-2xl border border-white/10 bg-ocean-900/60 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-white">
+              <MapPin className="h-4 w-4 text-clay-300" />
+              One country
+            </p>
+            <p className="mt-2 flex-1 text-sm text-white/60">Every round inside the country you pick.</p>
+            <div className="mt-3 flex gap-2">
+              <select value={country} onChange={(e) => setCountry(e.target.value)} aria-label="Country" className={`${FIELD} min-w-0 flex-1`}>
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <Link href={`/geo/play?mode=country&region=${country}`} className={GO} data-menu-country>
+                Play
+              </Link>
+            </div>
+          </div>
         </div>
 
         <p className="geo-rise mt-8 text-sm text-white/60" style={{ animationDelay: '240ms' }}>
