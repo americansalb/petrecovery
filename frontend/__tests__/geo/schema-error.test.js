@@ -100,6 +100,9 @@ describe('db-sync tells the operator what is still missing, not just what it ref
   const fs = require('fs');
   const path = require('path');
   const src = fs.readFileSync(path.join(__dirname, '../../scripts/db-sync.js'), 'utf8');
+  // The reading and repairing moved into its own file once the boot
+  // needed it too, so the gap is described across both.
+  const additive = fs.readFileSync(path.join(__dirname, '../../scripts/db-additive.js'), 'utf8');
 
   test('it never asks for data loss', () => {
     // A deploy that silently drops a column is worse than a deploy that
@@ -114,10 +117,22 @@ describe('db-sync tells the operator what is still missing, not just what it ref
     // One refusable change blocks every safe addition behind it, on
     // every deploy from then on, and the refusal names only the one
     // change. migrate diff names the rest. It is read-only.
-    expect(src).toContain('prisma');
-    expect(src).toContain("'migrate', 'diff'");
-    expect(src).toContain('--from-schema-datasource');
-    expect(src).toContain('--to-schema-datamodel');
+    expect(src).toContain("require('./db-additive')");
+    expect(additive).toContain("'migrate', 'diff'");
+    expect(additive).toContain('--from-schema-datasource');
+    expect(additive).toContain('--to-schema-datamodel');
+  });
+
+  test('and then applies the safe half of it, so the gap closes by itself', () => {
+    // Printing the gap told an operator what to run. Nobody ran it, and
+    // GeoProfile.accountId stayed missing for weeks. Additions cannot
+    // lose anything, so the deploy applies them rather than reporting
+    // them; __tests__/db-additive.test.js is where "additive" is proved.
+    expect(src).toContain('repair(process.env)');
+    expect(additive).toContain("'db', 'execute'");
+    const execute = /\['prisma', 'db', 'execute'[^\]]*\]/.exec(additive);
+    expect(execute).toBeTruthy();
+    expect(execute[0]).not.toContain('accept-data-loss');
   });
 });
 

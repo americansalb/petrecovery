@@ -22,7 +22,7 @@
 import Link from 'next/link';
 import { Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
-import { MODES, configToParams } from '@/app/lib/geo/modes';
+import { MODES } from '@/app/lib/geo/modes';
 
 export function Compass({ heading = 0 }) {
   return (
@@ -107,10 +107,6 @@ export default function GameHud({
 }) {
   const isStreak = config.mode === 'streak';
   const modeLabel = MODES[config.mode]?.label || MODES[config.mode]?.short || config.mode;
-  // Back to the settings this game was started from, rather than to a
-  // blank form: the one thing a player wants from a mode name is a
-  // different one.
-  const changeHref = `/geo/setup?${configToParams({ ...config, seed: '' }).toString()}`;
   const timed = config.time > 0 && Number.isFinite(secondsLeft);
 
   return (
@@ -121,9 +117,6 @@ export default function GameHud({
           <Stat label={isStreak ? 'Country streak' : modeLabel}>
             <span className="text-sm font-semibold text-white">{isStreak ? `Streak ${streak}` : 'City streets'}</span>
           </Stat>
-          <Link href={changeHref} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-ocean-100 transition hover:bg-white/20">
-            Change
-          </Link>
         </div>
       </div>
 

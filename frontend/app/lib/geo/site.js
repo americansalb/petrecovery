@@ -152,5 +152,4 @@ export const GAME_SHORT_PATHS = {
   '/share': '/geo/share',
   '/leaderboard': '/geo/leaderboard',
   '/daily': '/geo/play?mode=daily',
-  '/setup': '/geo/setup',
 };

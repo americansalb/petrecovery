@@ -145,8 +145,8 @@ export default function SignInCard() {
     <div className="rounded-xl border border-gray-200 p-4">
       <p className="font-semibold text-gray-900">Keep this profile across devices</p>
       <p className="mt-1 text-sm text-gray-600">
-        Give an email address and we send a link. No password. You do not need an account to play; it only keeps your
-        rating, points and badges if you change browser or phone.
+        Your rating, points and badges live in this browser. An email address moves them to your phone too, and brings
+        them back if you clear it. We send a link; there is no password.
       </p>
       {/* method="post" so a submit before hydration does not put the address in the URL (__tests__/form-method.test.js). */}
       <form method="post" onSubmit={request} className="mt-3 flex flex-wrap gap-2">

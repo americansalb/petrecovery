@@ -21,7 +21,7 @@ import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
 export const GAME_LINKS = [
-  { href: '/geo/setup', label: 'Play' },
+  { href: '/geo/play', label: 'Play' },
   { href: '/geo/script', label: 'Script' },
   { href: '/geo/rooms', label: 'Rooms' },
   { href: '/geo/leaderboard', label: 'Rankings' },

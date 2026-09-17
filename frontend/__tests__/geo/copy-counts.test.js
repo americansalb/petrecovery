@@ -37,7 +37,6 @@ test('the script preview names the real number of writing systems', () => {
   // are ninety-one is a promise the game no longer keeps.
   expect(layout).toContain(`${LANGUAGES.length} languages`);
   expect(layout).toContain(`${scripts} writing systems`);
-  expect(read('app/geo/components/GeoLobby.js')).toContain(`across ${scripts} writing systems`);
 });
 
 test('every ladder description that counts scripts counts the right number', () => {
