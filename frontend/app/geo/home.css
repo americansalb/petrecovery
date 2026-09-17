@@ -19,12 +19,12 @@
   background:
     linear-gradient(
       90deg,
-      #072630 0%,
-      #072630f2 24%,
-      #072630b5 41%,
-      #07263016 68%
+      #082d49 0%,
+      #082d49f2 24%,
+      #082d49ae 41%,
+      #082d490d 68%
     ),
-    linear-gradient(0deg, #072630 0%, #07263055 22%, transparent 70%);
+    linear-gradient(0deg, #082d49 0%, #082d4933 22%, transparent 70%);
 }
 .geo-surface .pe-stage-content {
   position: relative;
@@ -50,7 +50,7 @@
   font-weight: 800;
 }
 .geo-surface .pe-home--immersive .pe-hero-copy h1 em {
-  color: #d2e8b0;
+  color: #91c47b;
 }
 .geo-surface .pe-home--immersive .pe-hero-description {
   max-width: 370px;
@@ -92,7 +92,7 @@
   position: relative;
 }
 .geo-surface .pe-home--immersive .pe-company button[aria-pressed="true"] {
-  color: #dbedc6;
+  color: #cce8b6;
 }
 .geo-surface .pe-home--immersive .pe-company button[aria-pressed="true"]:after {
   content: "";
@@ -100,7 +100,7 @@
   height: 3px;
   bottom: -1px;
   inset-inline: 0;
-  background: #c3dda2;
+  background: #91c47b;
 }
 .geo-surface .pe-home--immersive .pe-dock-note {
   display: none;
@@ -125,7 +125,8 @@
   box-shadow: none;
 }
 .geo-surface .pe-home--immersive .pe-mode-choice[aria-pressed="true"] {
-  border-bottom-color: #c3dda2;
+  border-bottom-color: #91c47b;
+  background: linear-gradient(0deg, #638d4533, transparent);
 }
 .geo-surface .pe-home--immersive .pe-mode-choice strong {
   font-size: 20px;
@@ -145,6 +146,7 @@
   display: none;
 }
 .geo-surface .pe-home--immersive .pe-mode-icon {
+  background: linear-gradient(145deg, #638d45, #315b3c);
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -156,6 +158,7 @@
     0 8px 12px #041e2555;
 }
 .geo-surface .pe-home--immersive .pe-mode-icon--duel {
+  background: linear-gradient(145deg, #b86049, #723e35);
   border-color: #e5ba9677;
   box-shadow:
     inset 0 0 0 4px #55372b66,
@@ -265,7 +268,7 @@
 .geo-surface .pe-home--immersive .pe-world--script .pe-world-shade {
   background:
     radial-gradient(ellipse at 75% 45%, #467c6675, transparent 62%),
-    linear-gradient(95deg, #072630 35%, #12474a);
+    linear-gradient(95deg, #082d49 35%, #295e48);
 }
 .geo-surface .pe-home--immersive .pe-competition,
 .geo-surface .pe-home--immersive .pe-expeditions,
@@ -385,8 +388,8 @@
   }
   .geo-surface .pe-home--immersive .pe-world-shade {
     background:
-      linear-gradient(90deg, #072630eb 0%, #072630a6 58%, #0726303a),
-      linear-gradient(0deg, #072630 16%, #072630d9 50%, transparent 100%);
+      linear-gradient(90deg, #082d49eb 0%, #082d49a6 58%, #082d493a),
+      linear-gradient(0deg, #082d49 16%, #082d49d9 50%, transparent 100%);
   }
   .geo-surface .pe-home--immersive .pe-hero-copy h1 {
     font-size: 78px;
@@ -434,7 +437,7 @@
     max-width: 270px;
   }
   .geo-surface .pe-home--immersive .pe-world--script .pe-world-shade {
-    background: linear-gradient(95deg, #072630 40%, #174c4c);
+    background: linear-gradient(95deg, #082d49 40%, #295e48);
   }
   .geo-surface .pe-home--immersive .pe-section-heading h2 {
     font-size: 29px;

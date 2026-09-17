@@ -1,9 +1,9 @@
 .geo-surface .pe-account-dialog { padding: 0; border: 0; background: transparent; color: #f4f4e9; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; }
 .pe-account-dialog::backdrop { background: #031b26cc; backdrop-filter: blur(8px); }
-.geo-surface .pe-account-sheet { position: relative; background: #123440; padding: 32px; }
+.geo-surface .pe-account-sheet { position: relative; background: #103d59; padding: 32px; }
 .geo-surface .pe-account-close { position: absolute; right: 12px; top: 12px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: #cad8d4; }
 .geo-surface .pe-account-close:hover { background: #ffffff12; }
-.geo-surface .pe-account-symbol { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: #d2e8b0; background: #d2e8b014; margin-bottom: 20px; }
+.geo-surface .pe-account-symbol { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: #d2e8b0; background: #426b40; margin-bottom: 20px; }
 .geo-surface .pe-account-sheet h2 { font-size: 32px; line-height: 1.15; font-weight: 750; letter-spacing: -.04em; }
 .geo-surface .pe-account-sheet > p { margin-top: 8px; color: #bdcfcc; font-size: 15px; }
 .geo-surface .pe-account-form { display: grid; gap: 16px; margin-top: 24px; }
