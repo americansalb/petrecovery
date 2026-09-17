@@ -12,8 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { AlertTriangle, Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
-import { formatScore } from '@/app/lib/geo/distance';
+import { AlertTriangle, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { initials } from '@/app/lib/geo/rooms';
 import { useRoom, useNow, loadName, saveIdentity } from '../lib/useRoom';
 import { ensureProfile } from '../lib/profile';
@@ -22,9 +21,9 @@ import AppleGuessMap from './AppleGuessMap';
 import { ensureLookAround } from '../lib/lookAround';
 import { mapKitAuth, mapKitRefusalMessage, onMapKitAuth } from '../lib/appleMapKit';
 import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
-import { Compass, TimerRing } from './GameHud';
+import MatchHud from './rooms/MatchHud';
+import './round.css';
 import SetupNotice from './SetupNotice';
-import PlayersPanel from './rooms/PlayersPanel';
 import { JoinPanel, LobbyPanel, LoadingPanel, Panel, ReactionToasts, ReactionsBar, RevealPanel, StandingsPanel, LocatingPanel } from './rooms/RoomPanels';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
@@ -268,7 +267,7 @@ export default function RoomClient({ code }) {
   const effectiveSize = mapHover && mapSize === 'small' ? 'medium' : mapSize;
   let mapClass;
   if (mapMode === 'result') {
-    mapClass = 'absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-24 bottom-[46%] sm:bottom-[40%]';
+    mapClass = 'pe-match-result-map absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-24 bottom-[46%] sm:bottom-[40%]';
   } else if (inRound && !iGuessed) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
@@ -314,36 +313,7 @@ export default function RoomClient({ code }) {
       {/* HUD during a round and the reveal */}
       {joined && (phase === 'guessing' || phase === 'reveal') ? (
         <>
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 p-3 sm:p-4">
-            <div className={`pointer-events-auto flex items-center gap-3 px-4 py-2 ${pill}`}>
-              <div className="flex flex-col leading-tight">
-                <span className="max-w-[10rem] truncate text-[11px] uppercase tracking-wide text-white/60">{room.name}</span>
-                <span className="text-sm font-semibold">Round {room.roundIndex + 1} of {room.roundsTotal}</span>
-              </div>
-              <div className="flex flex-col border-l border-white/15 pl-3 leading-tight">
-                <span className="text-[11px] uppercase tracking-wide text-white/60">{room.variant === 'duel' ? 'Your HP' : 'Your score'}</span>
-                <span className="text-sm font-semibold tabular-nums text-clay-300">{room.variant === 'duel' ? mine?.hp : formatScore(mine?.score || 0)}</span>
-              </div>
-            </div>
-            <div className="pointer-events-auto flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2">
-                {phase === 'guessing' && secondsLeft !== null ? <TimerRing secondsLeft={secondsLeft} total={room.config.time} /> : null}
-                <button type="button" onClick={onLeave} className={iconButton} aria-label="Leave the room" title="Leave the room">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <PlayersPanel players={state.players} variant={room.variant} phase={phase} compact />
-              {inRound && !iGuessed ? (
-                <div className="hidden items-center gap-1 sm:flex">
-                  {MAP_SIZES.map((size) => (
-                    <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-400 text-ocean-950' : 'border-white/20 bg-ocean-900/80 text-white hover:bg-ocean-800'}`}>
-                      {size[0].toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <MatchHud state={state} secondsLeft={secondsLeft} onLeave={onLeave} />
 
           {phase === 'guessing' ? (
             <div className="pointer-events-none absolute bottom-16 left-3 z-30 flex flex-col items-start gap-2 sm:left-4">
@@ -358,7 +328,7 @@ export default function RoomClient({ code }) {
           ) : null}
 
           {phase === 'guessing' ? (
-            <div className="pointer-events-auto absolute bottom-16 left-1/2 z-30 -translate-x-1/2">
+            <div className="pointer-events-auto absolute bottom-32 sm:bottom-16 left-1/2 z-30 -translate-x-1/2">
               <ReactionsBar onReact={(emoji) => act('react', { emoji })} disabled={busy} emoji={state.me?.reactions || undefined} />
             </div>
           ) : null}
@@ -374,7 +344,7 @@ export default function RoomClient({ code }) {
           ) : null}
 
           {inRound && iGuessed ? (
-            <div className="pointer-events-none absolute bottom-28 right-4 z-30 rounded-2xl border border-white/15 bg-ocean-900/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
+            <div className="pointer-events-none absolute bottom-28 right-4 z-30 pe-guess-locked rounded-2xl border border-white/15 bg-ocean-900/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
               <p className="font-semibold text-green-400">Guess locked in.</p>
               <p className="text-white/70">
                 {state.players.filter((p) => !p.guessed && !p.eliminated).length
@@ -397,7 +367,8 @@ export default function RoomClient({ code }) {
 
       {/* The one map, moved by class between guessing and the reveal. */}
       {imageryReady && joined ? (
-        <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
+        <div className={`geo-map-frame ${mapClass}`} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
+          {inRound && !iGuessed ? <div className="pe-map-toolbar"><span>Place your guess</span><div className="hidden sm:flex" role="group" aria-label="Map size">{MAP_SIZES.map(size => <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} aria-label={`${size} map`}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>{mobileMapOpen ? <button type="button" onClick={() => setMobileMapOpen(false)} aria-label="Close map"><X size={18} /></button> : null}</div> : null}
           <div className="min-h-0 flex-1">
             <AppleGuessMap mapkit={mapkit} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} />
           </div>
@@ -413,9 +384,9 @@ export default function RoomClient({ code }) {
                 onClick={submitGuess}
                 disabled={!pin || busy}
                 data-geo-guess
-                className="shrink-0 rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-ocean-950/40"
+                className="pe-button pe-button--primary shrink-0 rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-ocean-950/40"
               >
-                {busy ? 'Sending' : 'Guess'}
+                {busy ? 'Locking in…' : pin ? 'Lock in guess' : 'Place a pin'}
               </button>
             </div>
           ) : null}

@@ -69,7 +69,7 @@ export function TimerRing({ secondsLeft, total }) {
       : `${seconds}`;
   return (
     <div
-      className={`flex items-center gap-2 ${urgent ? 'text-red-200' : 'text-white'}`}
+      className={`pe-timer flex items-center gap-2 ${urgent ? 'text-red-200' : 'text-white'}`} data-urgent={urgent || undefined}
     >
       <svg width="24" height="24" viewBox="0 0 40 40" aria-hidden="true">
         <circle
@@ -84,7 +84,7 @@ export function TimerRing({ secondsLeft, total }) {
           cx="20"
           cy="20"
           r={radius}
-          stroke={urgent ? '#f87171' : '#facc15'}
+          stroke={urgent ? '#efae83' : '#bad992'}
           strokeWidth="4"
           fill="none"
           strokeDasharray={circumference}

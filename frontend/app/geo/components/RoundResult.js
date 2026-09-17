@@ -69,7 +69,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
   const wrongCall = !isNotEarth && Boolean(result.calledNotEarth);
 
   return (
-    <div className="geo-reveal-panel absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-white/10 bg-ocean-950/95 p-4 text-white shadow-2xl backdrop-blur sm:p-6">
+    <div className="geo-reveal-panel pe-solo-reveal absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-white/10 bg-ocean-950/95 p-4 text-white shadow-2xl backdrop-blur sm:p-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {isNotEarth ? <NotEarthReveal result={result} points={points} /> : null}
         {isNotEarth ? null : (
@@ -91,6 +91,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
               <p className="text-3xl font-bold tabular-nums text-clay-300">
                 {formatScore(Math.round(shownScore))} <span className="text-base font-medium text-white/60">of {formatScore(MAX_ROUND_SCORE)}</span>
               </p>
+              <div className="pe-score-meter" role="meter" aria-label="Round score" aria-valuemin={0} aria-valuemax={MAX_ROUND_SCORE} aria-valuenow={result.score}><span style={{width:`${Math.max(0,Math.min(100,result.score/MAX_ROUND_SCORE*100))}%`}} /></div>
               <p className="mt-1 text-white/80">
                 {wrongCall
                   ? 'That was Earth. No points this round.'
@@ -136,7 +137,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
         <button
           type="button"
           onClick={onNext}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-400 px-6 py-3 text-base font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="pe-button pe-button--primary flex shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-400 px-6 py-3 text-base font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
           autoFocus
         >
           {isLast ? 'See results' : isStreak ? 'Next country' : `Round ${roundNumber + 1} of ${roundsTotal}`}

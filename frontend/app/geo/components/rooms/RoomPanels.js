@@ -32,10 +32,17 @@ import {
   VARIANTS,
   describeRoomMode,
   medal,
-  sortStandings,
 } from "@/app/lib/geo/rooms";
 import PlayersPanel, { PlayerBadge, HpBar } from "./PlayersPanel";
 import PlayerName from "../PlayerName";
+import RankEmblem, { VictoryCrest } from "../RankEmblem";
+import { useCountUp } from "../../lib/countUp";
+import {
+  roundOutcome,
+  placedLeague,
+  matchStandings,
+} from "../../lib/matchPresentation";
+import { PROVISIONAL_GAMES } from "@/app/lib/geo/rating";
 
 export function Panel({ children, wide = false }) {
   return (
@@ -321,57 +328,62 @@ export function LocatingPanel({ state, attempt = 0 }) {
 
 export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
   const { room, reveal, players, me } = state;
-  const isDuel = room.variant === "duel";
-  const byId = useMemo(
-    () => Object.fromEntries(players.map((p) => [p.id, p])),
-    [players],
-  );
+  const duel = room.variant === "duel";
+  const outcome = roundOutcome(state);
+  const mine = outcome.mine;
+  const shownScore = useCountUp(mine?.score || 0, {
+    key: room.roundIndex,
+    delayMs: 120,
+  });
+  const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const answer = reveal?.answer;
   const place = [answer?.city, answer?.country?.name]
     .filter(Boolean)
     .join(", ");
-  const last = room.roundIndex + 1 >= room.roundsTotal;
-  const mine = reveal?.guesses.find((g) => g.playerId === me?.id);
-
+  const last =
+    room.roundIndex + 1 >= room.roundsTotal ||
+    (duel && players.filter((p) => !p.eliminated).length <= 1);
   return (
-    <div className="geo-reveal-panel absolute inset-x-0 bottom-0 z-40 max-h-[46%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[40%]">
-      <div className="mx-auto max-w-3xl p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <div
+      className="geo-reveal-panel pe-round-reveal absolute inset-x-0 bottom-0 z-40 max-h-[46%] overflow-y-auto text-white sm:max-h-[40%]"
+      data-outcome={outcome.tone}
+    >
+      <div className="pe-reveal-inner">
+        <div className="pe-reveal-heading">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-              Round {room.roundIndex + 1} of {room.roundsTotal}
-              {isDuel && reveal?.multiplier > 1
-                ? ` · damage x${reveal.multiplier}`
+            <p className="pe-eyebrow">
+              Round {room.roundIndex + 1} result
+              {duel && reveal?.multiplier > 1
+                ? ` · ${reveal.multiplier}× damage`
                 : ""}
             </p>
-            <p className="mt-0.5 text-lg font-bold">
-              {answer?.country?.flag} {place || "Somewhere unlisted"}
-              {answer?.date ? (
-                <span className="text-sm font-normal text-white/60">
-                  , imagery from {answer.date}
-                </span>
-              ) : null}
+            <h2>{outcome.title}</h2>
+            <p className="pe-reveal-place">
+              {answer?.country?.flag} {place || "Location revealed"}
+              {answer?.date ? <small> · Imagery {answer.date}</small> : null}
             </p>
-            {mine ? (
-              <p className="text-sm text-white/80">
-                You:{" "}
-                {mine.timedOut
-                  ? "no guess"
-                  : `${formatDistance(mine.distanceKm)} away`}
-                , {formatScore(mine.score)} points
-                {isDuel && mine.damage ? `, ${mine.damage} damage taken` : ""}
-              </p>
-            ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {onReact ? (
-              <ReactionsBar
-                onReact={onReact}
-                disabled={busy}
-                emoji={state.me?.reactions || REACTION_EMOJI}
-              />
-            ) : null}
-            <span className="text-sm text-white/60">
+          {mine ? (
+            <div
+              className="pe-round-award"
+              aria-label={`${formatScore(mine.score)} round points`}
+            >
+              <strong aria-hidden="true">
+                +{formatScore(Math.round(shownScore))}
+              </strong>
+              <span>round points</span>
+              <small>
+                {mine.timedOut
+                  ? "No guess submitted"
+                  : `${formatDistance(mine.distanceKm)} away`}
+                {duel
+                  ? ` · ${mine.damage ? `−${formatScore(mine.damage)} HP` : "No damage taken"}`
+                  : ""}
+              </small>
+            </div>
+          ) : null}
+          <div className="pe-reveal-next">
+            <span>
               {last ? "Results" : "Next round"} in {secondsLeft}s
             </span>
             {me?.isHost ? (
@@ -379,57 +391,78 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
                 type="button"
                 onClick={onNext}
                 disabled={busy}
-                className="flex items-center gap-1 rounded-xl bg-clay-400 px-3 py-2 text-sm font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50"
+                className="pe-button pe-button--primary"
               >
-                <SkipForward className="h-4 w-4" />
-                Now
+                <SkipForward size={16} />
+                {last ? "See results" : "Next round"}
               </button>
-            ) : null}
+            ) : (
+              <small>Your host can continue early</small>
+            )}
           </div>
         </div>
-        <ol className="mt-3 space-y-1">
-          {(reveal?.guesses || []).map((g) => {
-            const p = byId[g.playerId];
-            if (!p) return null;
+        <ol className="pe-round-standings" aria-label="This round’s results">
+          {(reveal?.guesses || []).map((g, i) => {
+            const player = byId[g.playerId];
+            if (!player) return null;
             return (
               <li
                 key={g.playerId}
-                className={`flex items-center gap-2 rounded-lg px-2 py-1 text-sm ${p.you ? "bg-white/5" : ""}`}
+                data-you={player.you || undefined}
+                style={{ "--arrival": `${180 + i * 55}ms` }}
               >
-                <span className="w-6 text-center">
-                  {medal(g.rank) || g.rank}
+                <span className="pe-round-place">
+                  {g.rank === 1 && g.score > 0 ? (
+                    <span aria-label="First place">✦</span>
+                  ) : (
+                    g.rank
+                  )}
                 </span>
-                <PlayerBadge player={p} size="sm" />
-                <span className="flex-1 truncate">{p.name}</span>
-                <span className="w-24 text-right text-white/70">
-                  {g.timedOut ? "no guess" : formatDistance(g.distanceKm)}
+                <PlayerBadge player={player} size="sm" />
+                <div className="pe-round-player">
+                  <strong>
+                    {player.name}
+                    {player.you ? <small>you</small> : null}
+                  </strong>
+                  {duel ? (
+                    <HpBar
+                      hp={player.hp}
+                      damage={g.damage}
+                      color={player.color}
+                    />
+                  ) : null}
+                </div>
+                <span className="pe-round-distance">
+                  {g.timedOut ? "No guess" : formatDistance(g.distanceKm)}
                 </span>
-                <span className="w-16 text-right font-semibold tabular-nums text-clay-300">
+                <strong className="pe-round-points">
                   {formatScore(g.score)}
-                </span>
-                {isDuel ? (
+                  <small>pts</small>
+                </strong>
+                {duel ? (
                   <span
-                    className={`w-16 text-right text-xs ${g.damage ? "text-red-300" : "text-green-400"}`}
+                    className="pe-round-damage"
+                    data-damaged={g.damage > 0 || undefined}
                   >
-                    {g.damage ? `-${g.damage}` : "safe"}
+                    {player.eliminated
+                      ? "Out"
+                      : g.damage
+                        ? `−${formatScore(g.damage)} HP`
+                        : "Safe"}
                   </span>
                 ) : null}
               </li>
             );
           })}
         </ol>
-        {isDuel ? (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {players.map((p) => (
-              <div key={p.id} className="flex items-center gap-2 text-xs">
-                <PlayerBadge player={p} size="sm" />
-                <span className="w-20 truncate">{p.name}</span>
-                <div className="flex-1">
-                  <HpBar hp={p.hp} color={p.color} />
-                </div>
-                <span className="w-12 text-right tabular-nums">{p.hp}</span>
-              </div>
-            ))}
+        {onReact ? (
+          <div className="pe-reveal-reactions">
+            <span>Give your rivals a reaction</span>
+            <ReactionsBar
+              onReact={onReact}
+              disabled={busy}
+              emoji={me?.reactions || REACTION_EMOJI}
+            />
           </div>
         ) : null}
       </div>
@@ -437,117 +470,208 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
   );
 }
 
+function MatchRating({ player }) {
+  if (!player || !Number.isFinite(player.ratingDelta)) return null;
+  const league = placedLeague(player);
+  const delta = player.ratingDelta;
+  return (
+    <div className="pe-match-rating">
+      <RankEmblem tier={league} />
+      <div>
+        <span>Your {league ? "league" : "placement"}</span>
+        <strong>
+          {league ||
+            `${Math.min(player.rating?.games || 0, PROVISIONAL_GAMES)} of ${PROVISIONAL_GAMES} games`}
+        </strong>
+        <p>
+          <b data-positive={delta >= 0}>
+            {delta >= 0 ? "+" : ""}
+            {delta} rating
+          </b>
+          {league && Number.isFinite(player.ratingAfter)
+            ? ` · ${formatScore(player.ratingAfter)}`
+            : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function VictoryBurst() {
+  return (
+    <div className="pe-victory-burst" aria-hidden="true">
+      {Array.from({ length: 12 }, (_, i) => (
+        <i
+          key={i}
+          style={{
+            "--angle": `${i * 30}deg`,
+            "--arrival": `${(i % 3) * 60}ms`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
   const [copied, copy] = useCopy();
   const { room, players, me } = state;
-  const isDuel = room.variant === "duel";
-  const standings = sortStandings(players, room.variant);
-  const winner = standings[0];
+  const duel = room.variant === "duel";
+  const standings = matchStandings(players, room.variant);
+  const winners = standings.filter((p) => p.placement === 1);
+  const winner = winners[0] || standings[0];
+  const shared = winners.length > 1;
+  const hasWinner = winner && (duel ? winner.hp > 0 : winner.score > 0);
+  const own = players.find((p) => p.you || p.id === me?.id);
+  const won =
+    hasWinner &&
+    (shared ? winners.some((p) => p.id === own?.id) : winner.id === own?.id);
+  const host = players.find((p) => p.isHost);
+  const title = !hasWinner
+    ? "Match complete."
+    : shared
+      ? "Honours shared."
+      : won
+        ? "Victory is yours."
+        : `${winner.name} wins.`;
   const text = [
-    `Probably Earth, room ${room.name}: ${VARIANTS[room.variant]?.label || room.variant}, ${room.roundsTotal} rounds.`,
+    `Probably Earth: ${VARIANTS[room.variant]?.label || room.variant}, ${room.roundsTotal} rounds.`,
     ...standings.map(
       (p, i) =>
-        `${i + 1}. ${p.name} ${isDuel ? `${p.hp} HP` : `${formatScore(p.score)} points`}`,
+        `${p.placement || i + 1}. ${p.name}: ${duel ? `${p.hp} HP` : `${formatScore(p.score)} points`}`,
     ),
   ].join("\n");
   return (
     <Panel wide>
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-        Final standings
-      </p>
-      <h1 className="mt-1 text-2xl font-bold">
-        {winner ? `${winner.name} wins` : "Nobody was left"}
-        {winner?.you ? ". That is you." : ""}
-      </h1>
-      {me && (players.find((p) => p.you)?.pointsEarned || 0) > 0 ? (
-        <p className="mt-1 text-sm text-clay-300">
-          +{players.find((p) => p.you).pointsEarned} points for you this game.
-        </p>
-      ) : null}
-      <div className="mt-4 flex items-end justify-center gap-3">
-        {standings.slice(0, 3).map((p, i) => (
-          <div
-            key={p.id}
-            className={`flex flex-col items-center ${i === 0 ? "order-2" : i === 1 ? "order-1" : "order-3"}`}
-          >
-            <span className="text-2xl">{medal(i + 1)}</span>
-            <PlayerBadge player={p} size="lg" />
-            <PlayerName
-              name={p.name}
-              cosmetics={p.cosmetics}
-              className="mt-1 max-w-[7rem] text-sm font-semibold"
-            />
-            <span className="text-xs text-white/60">
-              {isDuel ? `${p.hp} HP` : formatScore(p.score)}
-            </span>
+      <div className="pe-match-finish" data-won={won || undefined}>
+        <div className="pe-finish-hero">
+          <div className="pe-finish-crest">
+            {won ? <VictoryBurst /> : null}
+            <VictoryCrest />
           </div>
-        ))}
-      </div>
-      <div className="mt-4">
-        <PlayersPanel
-          players={standings}
-          variant={room.variant}
-          phase="finished"
-        />
-      </div>
-      {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {me?.isHost && !room.rematchCode ? (
-          <button
-            type="button"
-            onClick={onRematch}
-            disabled={busy}
-            className="pe-button pe-button--primary flex min-h-[44px] items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Play again, same settings
+          <div>
+            <p className="pe-eyebrow">
+              {VARIANTS[room.variant]?.label} · Final result
+            </p>
+            <h1>{title}</h1>
+            <p>
+              {hasWinner
+                ? shared
+                  ? winners.map((p) => p.name).join(" & ")
+                  : duel
+                    ? `${winner.name} finished with ${formatScore(winner.hp)} HP.`
+                    : `${winner.name} scored ${formatScore(winner.score)} points.`
+                : "Every round is in. Ready for another game?"}
+            </p>
+          </div>
+        </div>
+        <div className="pe-finish-next">
+          <div className="pe-rematch-action">
+            {room.rematchCode ? (
+              <Link
+                href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || "")}`}
+                className="pe-button pe-button--primary"
+              >
+                <RefreshCw size={18} />
+                Join the rematch
+              </Link>
+            ) : me?.isHost ? (
+              <button
+                type="button"
+                onClick={onRematch}
+                disabled={busy}
+                className="pe-button pe-button--primary"
+              >
+                <RefreshCw size={18} />
+                {busy ? "Opening the next game…" : "Play again together"}
+              </button>
+            ) : (
+              <p className="pe-rematch-wait">
+                Waiting for {host?.name || "the host"} to open a rematch.
+              </p>
+            )}
+            <small>
+              {room.rematchCode
+                ? "Your next room is ready."
+                : "Same settings. A fresh set of places."}
+            </small>
+          </div>
+          <MatchRating player={own} />
+        </div>
+        {error ? (
+          <p role="alert" className="mt-3 text-sm text-red-200">
+            {error}
+          </p>
+        ) : null}
+        <div className="pe-finish-board">
+          <div className="pe-finish-board-heading">
+            <h2>Final standings</h2>
+            <span>{duel ? "Health remaining" : "Total points"}</span>
+          </div>
+          <ol>
+            {standings.map((p, i) => (
+              <li
+                key={p.id}
+                data-you={p.you || undefined}
+                style={{ "--arrival": `${150 + i * 60}ms` }}
+              >
+                <span className="pe-finish-position">
+                  {p.placement || i + 1}
+                </span>
+                <PlayerBadge player={p} size="lg" />
+                <div className="pe-finish-player">
+                  <PlayerName
+                    name={p.name}
+                    cosmetics={p.cosmetics}
+                    you={p.you}
+                  />
+                  <span>
+                    {placedLeague(p) || "Placement games"}
+                    {p.roundWins
+                      ? ` · ${p.roundWins} round ${p.roundWins === 1 ? "win" : "wins"}`
+                      : ""}
+                  </span>
+                </div>
+                <div className="pe-finish-score">
+                  <strong>
+                    {formatScore(duel ? p.hp : p.score)}
+                    <small>{duel ? "HP" : "pts"}</small>
+                  </strong>
+                  {Number.isFinite(p.ratingDelta) ? (
+                    <span data-positive={p.ratingDelta >= 0}>
+                      {p.ratingDelta >= 0 ? "+" : ""}
+                      {p.ratingDelta} rating
+                    </span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+        {own?.pointsEarned > 0 ? (
+          <p className="pe-finish-earned">
+            +{formatScore(own.pointsEarned)} cosmetic points earned{" "}
+            <Link href="/geo/me">View your profile</Link>
+          </p>
+        ) : null}
+        <div className="pe-finish-links">
+          <button type="button" onClick={() => copy("text", text)}>
+            {copied === "text" ? <Check size={16} /> : <Share2 size={16} />}{" "}
+            {copied === "text" ? "Standings copied" : "Copy standings"}
           </button>
+          <Link href="/geo/leaderboard">View rankings</Link>
+          <button type="button" onClick={onLeave}>
+            <LogOut size={16} />
+            Leave room
+          </button>
+        </div>
+        {!players.some((p) => Number.isFinite(p.ratingDelta)) ? (
+          <p className="pe-unrated-note">
+            No rating change for this match. Two or more players with profiles
+            are needed for rated play.
+          </p>
         ) : null}
-        {room.rematchCode ? (
-          <Link
-            href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || "")}`}
-            className="pe-button pe-button--primary flex min-h-[44px] items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 font-bold text-ocean-950 hover:bg-clay-300"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Join the rematch
-          </Link>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => copy("text", text)}
-          className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10"
-        >
-          {copied === "text" ? (
-            <Check className="h-4 w-4 text-green-400" />
-          ) : (
-            <Share2 className="h-4 w-4" />
-          )}
-          {copied === "text" ? "Copied" : "Copy standings"}
-        </button>
-        <button
-          type="button"
-          onClick={onLeave}
-          className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10"
-        >
-          <LogOut className="h-4 w-4" />
-          Leave
-        </button>
       </div>
-      <p className="mt-3 text-xs text-white/40">
-        {MODES[room.config.mode]?.label || room.config.mode}. {room.roundsTotal}{" "}
-        rounds.{" "}
-        {players.some((p) => Number.isFinite(p.ratingDelta)) ? (
-          <>
-            Ratings updated.{" "}
-            <Link href="/geo/leaderboard" className="underline">
-              See the rankings
-            </Link>
-            .
-          </>
-        ) : (
-          "Games with two or more registered players are rated."
-        )}
-      </p>
     </Panel>
   );
 }

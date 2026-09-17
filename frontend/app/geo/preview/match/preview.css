@@ -1,0 +1,117 @@
+/* Development preview controls, kept out of normal game routes. */
+
+.geo-surface .pe-preview-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: #072630;
+}
+.geo-surface .pe-preview-controls {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  padding: 7px 15px;
+  overflow-x: auto;
+  white-space: nowrap;
+  background: #021c24;
+  border-bottom: 1px solid #abc28e44;
+  font-size: 10px;
+}
+.geo-surface .pe-preview-controls strong {
+  font-size: 9px;
+  color: #d8d5a1;
+  letter-spacing: 0.04em;
+}
+.geo-surface .pe-preview-controls nav {
+  display: flex;
+  gap: 4px;
+}
+.geo-surface .pe-preview-controls button {
+  min-height: 38px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  color: #acc2b4;
+  text-transform: capitalize;
+}
+.geo-surface .pe-preview-controls [aria-pressed="true"] {
+  background: #345848;
+  color: #e0ecc5;
+}
+.geo-surface .pe-preview-controls select {
+  width: 110px;
+  min-width: 90px;
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 8px 6px;
+}
+.geo-surface .pe-preview-stage {
+  position: absolute;
+  inset: 56px 0 0;
+  overflow: hidden;
+}
+.geo-surface .pe-preview-landscape {
+  position: absolute;
+  inset: 0;
+  background: url("/geo/art/coastal-world.webp") center/cover;
+  opacity: 0.8;
+}
+.geo-surface .pe-preview-caption {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  color: #c7d7c5;
+  font-size: 11px;
+  padding: 8px;
+  background: #082d3add;
+}
+.geo-surface .pe-preview-leagues {
+  position: relative;
+  max-width: 960px;
+  margin: 6vh auto;
+  padding: 40px 24px;
+  background: #072630e8;
+}
+.geo-surface .pe-preview-leagues h1 {
+  font-size: clamp(32px, 4vw, 60px);
+  letter-spacing: -0.05em;
+  font-weight: 800;
+  margin-top: 15px;
+}
+.geo-surface .pe-preview-map {
+  position: absolute;
+  inset: 82px 10px 44%;
+  background: #dce9eb;
+  border: 1px solid #a8c29c44;
+  overflow: hidden;
+}
+.geo-surface .pe-preview-map > small {
+  z-index: 500;
+  background: #082d3ad9;
+  padding: 5px 8px;
+  pointer-events: none;
+  position: absolute;
+  bottom: 10px;
+  left: 13px;
+  font-size: 9px;
+  color: #adc3b6;
+}
+.geo-surface .pe-preview-note {
+  position: absolute;
+  z-index: 100;
+  left: 20px;
+  bottom: 12px;
+  background: #e1bd91;
+  color: #143844;
+  padding: 10px;
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .geo-surface .pe-preview-map {
+    top: 65px;
+    bottom: 53%;
+  }
+}

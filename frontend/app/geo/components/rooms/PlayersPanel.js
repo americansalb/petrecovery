@@ -10,6 +10,8 @@ import { Crown } from "lucide-react";
 import { initials } from "@/app/lib/geo/rooms";
 import { formatScore } from "@/app/lib/geo/distance";
 import PlayerName from "../PlayerName";
+import RankEmblem from "../RankEmblem";
+import { placedLeague } from "../../lib/matchPresentation";
 
 export function PlayerBadge({ player, size = "md" }) {
   const dims =
@@ -42,17 +44,30 @@ export function PlayerBadge({ player, size = "md" }) {
   );
 }
 
-export function HpBar({ hp, max = 6000, color }) {
-  const pct = Math.max(0, Math.min(100, (hp / max) * 100));
+export function HpBar({ hp, max = 6000, color, damage = 0 }) {
+  const value = Math.max(0, Math.min(max, Number(hp) || 0));
+  const pct = (value / max) * 100;
+  const loss = Math.max(0, Math.min(max - value, damage));
   return (
     <div
-      className="h-2 w-full overflow-hidden rounded-full bg-white/10"
-      aria-label={`${hp} HP`}
+      className="pe-hp-track"
+      role="progressbar"
+      aria-label="Health"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuetext={`${value} HP`}
     >
-      <div
-        className="h-full rounded-full transition-all duration-500"
-        style={{ width: `${pct}%`, backgroundColor: color || "#22c55e" }}
+      <span
+        className="pe-hp-fill"
+        style={{ width: `${pct}%`, backgroundColor: color || "#bad992" }}
       />
+      {loss > 0 ? (
+        <span
+          className="pe-hp-loss"
+          style={{ left: `${pct}%`, width: `${(loss / max) * 100}%` }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -158,9 +173,14 @@ export default function PlayersPanel({
                     never been rated reads as a rank they hold, which is
                     the same thing the rankings page was fixed for
                     (founder, 2026-09-17). */}
-                {p.rating.games
-                  ? `${p.rating.tier} ${p.rating.value}${p.rating.provisional ? " (provisional)" : ""}`
-                  : "Unplaced"}
+                {placedLeague(p) ? (
+                  <span className="pe-player-league">
+                    <RankEmblem tier={placedLeague(p)} decorative />
+                    {p.rating.tier} {p.rating.value}
+                  </span>
+                ) : (
+                  "Placement games"
+                )}
               </div>
             ) : p.rated === false ? (
               <div className="text-[11px] text-white/40">unrated</div>

@@ -20,6 +20,9 @@ import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { shareText, summaryHeadline, scoreGlyph } from '@/app/lib/geo/share';
 import KeepThis from './KeepThis';
+import RankEmblem from './RankEmblem';
+import { tierFor } from '@/app/lib/geo/rating';
+import { useCountUp } from '../lib/countUp';
 
 function useCopy() {
   const [copied, setCopied] = useState('');
@@ -47,11 +50,12 @@ function RankedResult({ rated }) {
   const up = rated.delta >= 0;
   return (
     <div
-      className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3"
+      className="pe-solo-rating mt-4"
       data-ranked-result
     >
+      <RankEmblem tier={rated.provisional ? null : tierFor(rated.after)} />
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-        Ranked
+        {rated.provisional ? 'Placement in progress' : `${tierFor(rated.after)} league`}
       </p>
       <p className="mt-1 text-sm text-white/80">
         {rated.field.players
@@ -139,6 +143,7 @@ export default function GameSummary({
   onPlayAgain,
 }) {
   const [copied, copy] = useCopy();
+  const shownTotal = useCountUp(summary.total, { key: code, durationMs: 900 });
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/geo/share?s=${encodeURIComponent(code)}`;
   const challengeUrl = `${origin}/geo/play?${configToParams(config).toString()}`;
@@ -160,17 +165,17 @@ export default function GameSummary({
   const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}`;
 
   return (
-    <div className="geo-reveal-panel absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">
+    <div className="geo-reveal-panel pe-solo-finish absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">
       <div className="mx-auto max-w-3xl p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-white/60">
               {describeConfig(config, { regionLabel })}
             </p>
-            <p className="mt-1 text-4xl font-bold tabular-nums text-clay-300">
+            <p className="pe-score-total mt-1 text-4xl font-bold tabular-nums text-clay-300">
               {isStreak
                 ? `Streak of ${summary.streak}`
-                : formatScore(summary.total)}
+                : formatScore(Math.round(shownTotal))}
               {!isStreak ? (
                 <span className="text-lg font-medium text-white/60">
                   {' '}
@@ -229,7 +234,7 @@ export default function GameSummary({
         <Card
           as="ol"
           pad="none"
-          className="mt-4 divide-y divide-white/10 bg-transparent"
+          className="pe-recap-list mt-4 divide-y divide-white/10 bg-transparent"
         >
           {summary.rounds.map((round, i) => (
             <li key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
