@@ -19,7 +19,12 @@ export const MAX_PLAYERS = 12;
 export const MAX_NAME_LENGTH = 20;
 export const MAX_ROOM_NAME_LENGTH = 40;
 
-export const ROOM_MODES = ['balanced', 'world', 'continent', 'country', 'cities'];
+// The modes a room can be set to. 'world' and 'cities' were in this
+// list long after MODES stopped having them, and survived only because
+// roomConfig filters the list against MODES before using it - so the
+// dead ids were invisible here and a real one added to MODES would not
+// have been.
+export const ROOM_MODES = ['balanced', 'continent', 'country'];
 export const ROOM_ROUND_OPTIONS = [3, 5, 10];
 export const ROOM_TIME_OPTIONS = [30, 60, 90, 120, 180];
 export const DEFAULT_ROOM_TIME = 60;
@@ -28,13 +33,12 @@ export const VARIANTS = {
   classic: {
     id: 'classic',
     label: 'Classic',
-    description: 'Everyone guesses the same places. Most points after the last round wins.',
+    description: 'Highest total score wins.',
   },
   duel: {
     id: 'duel',
     label: 'Duel',
-    description:
-      'Everyone starts with 6,000 HP. Each round the best guess deals the point difference as damage to everyone else. Last one standing wins.',
+    description: 'Closest guesses deal damage. Last player standing wins.',
   },
 };
 
@@ -204,11 +208,14 @@ export function maxScoreFor(roundsPlayed) {
   return roundsPlayed * MAX_ROUND_SCORE;
 }
 
-/** "Waiting in the lobby", "Round 3 of 5", "Finished" */
+/** "In the lobby", "Round 3 of 5", "Finished" */
 export function describeRoomStatus(room) {
   if (room.status === 'finished') return 'Finished';
-  if (room.status === 'lobby') return 'Waiting in the lobby';
-  return `Round ${room.roundIndex + 1} of ${room.config?.rounds || '?'}`;
+  if (room.status === 'lobby') return 'In the lobby';
+  // The room browser's rows carry roundsTotal and no config, so this
+  // read config only and printed "Round 1 of ?" on every open room.
+  const rounds = room.config?.rounds || room.roundsTotal || 0;
+  return rounds ? `Round ${room.roundIndex + 1} of ${rounds}` : `Round ${room.roundIndex + 1}`;
 }
 
 export function describeRoomMode(config, { regionLabel } = {}) {

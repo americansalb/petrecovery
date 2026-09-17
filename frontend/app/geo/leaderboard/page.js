@@ -11,9 +11,10 @@ import { Trophy, Users } from 'lucide-react';
 import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { profileHeaders } from '../lib/profile';
+import Card from '../components/ui/Card';
+import Tabs from '../components/ui/Tabs';
+import Button from '../components/ui/Button';
 import PlayerName from '../components/PlayerName';
-import Contests from '../components/Contests';
-import OtherModes from '../components/OtherModes';
 
 function RatingCell({ row }) {
   return (
@@ -27,7 +28,6 @@ function RatingCell({ row }) {
 export default function GeoLeaderboardPage() {
   const [ladder, setLadder] = useState('classic');
   const [board, setBoard] = useState(null);
-  const [solo, setSolo] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -42,18 +42,6 @@ export default function GeoLeaderboardPage() {
     };
   }, [ladder]);
 
-  // Asked for once, not per tab: the Ranked panel below shows the solo
-  // standing whichever ladder is on screen.
-  useEffect(() => {
-    let alive = true;
-    fetch('/api/geo/leaderboard?ladder=solo', { headers: profileHeaders(), cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => alive && setSolo(data?.you || null))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const you = board?.you;
 
@@ -68,42 +56,66 @@ export default function GeoLeaderboardPage() {
             <Trophy className="h-7 w-7 text-clay-300" />
             Rankings
           </h1>
-          <ul className="mt-3 max-w-2xl space-y-1 text-sm text-white/60">
-            <li>Classic and Duel rate you against everyone else in a finished room.</li>
-            <li>Ranked solo rates this hour&apos;s five places against everyone who played them.</li>
-            <li>A rating appears after {board?.minGames || 3} rated games and settles by {PROVISIONAL_GAMES}.</li>
-          </ul>
+          {/* How rating works is worth knowing once and reading never.
+              It was three lines above the table on every visit. */}
+          <details className="mt-3 max-w-2xl text-sm text-white/60">
+            <summary className="cursor-pointer font-semibold text-white/70 hover:text-white">How rating works</summary>
+            <ul className="mt-2 space-y-1">
+              <li>Classic and Duel rate you against everyone else in a finished room.</li>
+              <li>Ranked solo rates this hour&apos;s five places against everyone who played them.</li>
+              <li>A rating appears after {board?.minGames || 3} rated games and settles by {PROVISIONAL_GAMES}.</li>
+            </ul>
+          </details>
         </header>
 
-        <div className="mt-6 inline-flex rounded-xl bg-white/5 p-1" role="tablist">
-          {LADDERS.map((id) => (
-            <button key={id} type="button" role="tab" aria-selected={ladder === id} onClick={() => setLadder(id)} className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${ladder === id ? 'bg-ocean-900 text-white shadow' : 'text-white/70 hover:bg-ocean-900/60'}`}>
-              {LADDER_LABELS[id] || VARIANTS[id]?.label || id}
-            </button>
-          ))}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <Tabs
+          items={LADDERS.map((id) => ({ id, label: LADDER_LABELS[id] || VARIANTS[id]?.label || id }))}
+          value={ladder}
+          onChange={setLadder}
+          label="Ladders"
+          marker="ladder-tab"
+        />
+        {/* The way into the ladder on screen. Solo is a solo ladder: it
+            can only be entered by playing the ranked hour, and sending
+            an unplaced player to open a room was the bug. */}
+        <Button href={ladder === 'solo' ? '/geo/play?mode=ranked' : '/geo/rooms'} data-ladder-play>
+          {ladder === 'solo' ? "Play this hour's five" : `Open a ${LADDER_LABELS[ladder]?.toLowerCase() || ''} room`}
+        </Button>
         </div>
         {board?.season ? (
           <p className="mt-2 text-sm text-white/60" data-season>
-            {board.season.label}. {board.season.daysLeft} {board.season.daysLeft === 1 ? 'day' : 'days'} left. Finishing Silver or better
-            on a ladder, with three rated games on it, pays points.
+            {board.season.label} &middot; {board.season.daysLeft} {board.season.daysLeft === 1 ? 'day' : 'days'} left
           </p>
         ) : null}
 
         {you ? (
-          <section className="mt-6 rounded-2xl border border-clay-400 bg-ocean-900 p-5 text-white">
+          <Card tone="marked" className="mt-6 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/60">You, {you.name}</p>
             <div className="mt-2 flex flex-wrap items-end gap-x-6 gap-y-2">
-              <div>
-                <p className="text-4xl font-bold tabular-nums text-clay-300">{you.value}</p>
-                <p className="text-sm text-white/70">
-                  {you.tier}
-                  {you.provisional ? ', provisional' : ''} · likely between {you.low} and {you.high}
-                </p>
-              </div>
+              {/* 1500 is where everyone starts, not something earned.
+                  Printing it as "Silver, provisional" beside 0 games
+                  reads as an accomplishment nobody has, so an unplaced
+                  player is told they are unplaced and how far off it is
+                  (founder, 2026-09-17). */}
+              {you.games ? (
+                <div>
+                  <p className="text-4xl font-bold tabular-nums text-clay-300">{you.value}</p>
+                  <p className="text-sm text-white/70">
+                    {you.tier}
+                    {you.provisional ? ', provisional' : ''} · likely between {you.low} and {you.high}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-4xl font-bold text-white/80">Unplaced</p>
+                  <p className="text-sm text-white/70">Placement games: 0 of {PROVISIONAL_GAMES}</p>
+                </div>
+              )}
               <dl className="grid grid-cols-3 gap-4 text-sm">
                 <div>
                   <dt className="text-white/60">Rank</dt>
-                  <dd className="font-semibold">{you.rank ? `#${you.rank}` : 'unranked'}</dd>
+                  <dd className="font-semibold">{you.rank ? `#${you.rank}` : '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-white/60">Games</dt>
@@ -116,11 +128,23 @@ export default function GeoLeaderboardPage() {
               </dl>
             </div>
             {!you.games ? (
+              /* The destination has to match the ladder on screen. This
+                 said "open a room with a friend" on every tab including
+                 Ranked solo, which is a solo ladder a room cannot rate
+                 (founder, 2026-09-17). */
               <p className="mt-3 text-sm text-white/70">
-                No rated games yet. <Link href="/geo/rooms" className="underline">Open a room</Link> with a friend to get one.
+                {ladder === 'solo' ? (
+                  <>
+                    No rated games yet. <Link href="/geo/play?mode=ranked" className="underline">Play this hour&apos;s five</Link> to start placing.
+                  </>
+                ) : (
+                  <>
+                    No rated games yet. <Link href="/geo/rooms" className="underline">Open a {LADDER_LABELS[ladder]?.toLowerCase() || ''} room</Link> with a friend to get one.
+                  </>
+                )}
               </p>
             ) : null}
-          </section>
+          </Card>
         ) : null}
 
         {error ? <p className="mt-6 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">{error}</p> : null}
@@ -128,7 +152,7 @@ export default function GeoLeaderboardPage() {
         {/* Rank, player and rating on a phone; the rest as the screen
             allows. Nine columns behind a sideways scroll meant the one
             number this page is about was the one you could not see. */}
-        <section className="mt-6 overflow-x-auto rounded-2xl border border-white/10 bg-ocean-900/60">
+        <Card pad="none" className="mt-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-ocean-950 text-left text-xs uppercase tracking-wide text-white/60">
               <tr>
@@ -173,15 +197,13 @@ export default function GeoLeaderboardPage() {
               ))}
             </tbody>
           </table>
-        </section>
+        </Card>
 
         <p className="mt-4 flex items-center gap-2 text-sm text-white/60">
           <Users className="h-4 w-4" />
-          Nothing else is rated: the daily challenge, the weekly cup and an ordinary game are for the board and for points.
+          Only these three are rated. <Link href="/geo" className="ml-1 underline hover:text-white">Everything else is in Play</Link>.
         </p>
 
-        <Contests solo={solo} />
-        <OtherModes />
       </div>
     </div>
   );

@@ -11,15 +11,6 @@
 import { ArrowRight, Flag, Rocket } from 'lucide-react';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
 
-function scoreWord(score) {
-  if (score >= 4900) return 'Spot on.';
-  if (score >= 4000) return 'Very close.';
-  if (score >= 2500) return 'Right region.';
-  if (score >= 1000) return 'Right part of the world.';
-  if (score > 0) return 'Far off.';
-  return 'No points this round.';
-}
-
 /**
  * The reveal for a round that was not on this planet: what it was, and
  * the picture's provenance, which is the whole reason to use real NASA
@@ -92,12 +83,19 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
               </p>
               <p className="mt-1 text-white/80">
                 {wrongCall
-                  ? 'That was Earth. Calling Not Earth costs you the round.'
-                  : `${result.timedOut ? 'Time ran out before a guess. ' : Number.isFinite(result.distanceKm) ? `${formatDistance(result.distanceKm)} away. ` : ''}${scoreWord(result.score)}`}
+                  ? 'That was Earth. No points this round.'
+                  : result.timedOut
+                    ? 'Out of time.'
+                    : Number.isFinite(result.distanceKm)
+                      ? `${formatDistance(result.distanceKm)} away`
+                      : ''}
               </p>
               {points && (points.earned > 0 || points.badge) ? (
                 <p className="mt-1 text-sm text-clay-300">
                   {points.earned > 0 ? `+${points.earned} points` : ''}
+                  {points.lines?.length > 1 ? (
+                    <span className="text-white/60"> {points.lines.map((line) => `+${line.amount} ${line.reason.toLowerCase()}`).join(', ')}</span>
+                  ) : null}
                   {points.badge ? `${points.earned > 0 ? '. ' : ''}New badge: ${points.badge.flag} ${points.badge.name}` : ''}
                 </p>
               ) : null}
@@ -106,7 +104,6 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                 <Flag className="h-4 w-4 text-clay-300" />
                 <span>
                   You were in {country?.flag} <span className="font-semibold text-white">{place || 'a place not on the country map'}</span>
-                  {result.answer?.date ? <span className="text-white/60">, imagery from {result.answer.date}</span> : null}
                 </span>
               </p>
             </>
@@ -116,14 +113,13 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
         <button
           type="button"
           onClick={onNext}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-500 px-6 py-3 text-base font-bold text-white transition hover:bg-clay-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-400 px-6 py-3 text-base font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
           autoFocus
         >
           {isLast ? 'See results' : isStreak ? 'Next country' : `Round ${roundNumber + 1} of ${roundsTotal}`}
           <ArrowRight className="h-5 w-5" />
         </button>
       </div>
-      <p className="mx-auto mt-3 max-w-3xl text-xs text-white/40">Space or Enter continues.</p>
     </div>
   );
 }

@@ -259,7 +259,10 @@ export default function ScriptPlayClient() {
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-3 px-3 pt-3 sm:px-4">
           <div className={`flex items-center gap-3 px-4 py-2 ${PILL}`}>
             <div className="flex flex-col leading-tight">
-              <span className="text-[11px] uppercase tracking-wide text-sand-500">{ladder.short}</span>
+              {/* "Script - World", not "World": the street game has a
+                  World mode too, and a header that says only the pool
+                  does not say which game you are in. */}
+              <span className="text-[11px] uppercase tracking-wide text-sand-500">Script &middot; {ladder.short}</span>
               <span className="text-sm font-semibold">
                 Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}
               </span>
@@ -472,16 +475,36 @@ function Summary({ config, ladder, history, total }) {
   return (
     <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
       <div className="mx-auto max-w-2xl px-5 py-10">
-        <p className="text-sm uppercase tracking-wide text-sand-500">{ladder.label}</p>
+        <p className="text-sm uppercase tracking-wide text-sand-500">Script &middot; {ladder.label}</p>
         <h1 className="mt-1 text-3xl font-bold">{formatScore(total)} points</h1>
         <p className="mt-1 text-sand-500">
           out of {formatScore(history.length * 5000)} across {history.length} {history.length === 1 ? 'round' : 'rounds'}
         </p>
 
-        <ol className="mt-6 space-y-3">
+        {/* The way on, before the recap rather than under it. Five
+            sentences used to sit between the score and these, which put
+            the next game off the bottom of a desktop viewport. */}
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link href={replay} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 font-semibold text-ocean-950 hover:bg-clay-300">
+            <RotateCcw className="h-4 w-4" /> Play again
+          </Link>
+          <Link href={same} className="flex items-center gap-2 rounded-xl border border-sand-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-sand-50">
+            <MapPin className="h-4 w-4" /> Replay this set
+          </Link>
+          <Link href="/geo/script" className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sand-600 hover:text-sand-900">
+            Change the pool
+          </Link>
+        </div>
+
+        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-sand-500">Your rounds</h2>
+        <ol className="mt-3 space-y-3">
           {history.map((row, index) => (
+            /* Three blocks, each with its own space. The name, the
+               numbers and the sentence used to share one flow, and a
+               script with tall marks - Dzongkha, Devanagari - grew up
+               into the metadata above it. */
             <li key={index} className="wg-panel-in rounded-xl border border-sand-200 bg-[#fffdf8] p-4 shadow-sm" style={{ animationDelay: `${Math.min(index, 6) * 60}ms` }}>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <p className="font-semibold">
                   {row.answer.name} <span className="font-normal text-sand-500">{row.answer.endonym}</span>
                 </p>
@@ -493,22 +516,13 @@ function Summary({ config, ladder, history, total }) {
                 {row.answer.scriptName} script.{' '}
                 {row.guess === null ? 'No pin.' : row.inRegion ? 'You pinned inside it.' : `You were ${formatDistance(row.distanceKm)} off.`}
               </p>
-              <ScriptSample text={row.text} script={row.script} size="sm" />
+              <div className="mt-3 border-t border-sand-200 pt-3">
+                <ScriptSample text={row.text} script={row.script} size="sm" />
+              </div>
             </li>
           ))}
         </ol>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link href={replay} className="flex items-center gap-2 rounded-xl bg-clay-600 px-4 py-2.5 font-semibold text-sand-950 hover:bg-clay-500">
-            <RotateCcw className="h-4 w-4" /> New game
-          </Link>
-          <Link href={same} className="flex items-center gap-2 rounded-xl border border-sand-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-sand-50">
-            <MapPin className="h-4 w-4" /> Replay these
-          </Link>
-          <Link href="/geo/script" className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sand-600 hover:text-sand-900">
-            Change the pool
-          </Link>
-        </div>
       </div>
     </div>
   );

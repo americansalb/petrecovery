@@ -20,12 +20,23 @@ import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
+/**
+ * Four, and the same four everywhere outside a match.
+ *
+ * It was six - Play, Script, Rooms, Rankings, Daily, Profile - which
+ * made Script and Daily look like peers of the whole street game and
+ * still left Ranked, the cup and the casual modes findable only by
+ * reading a standings page. They live in the menu now, so the bar
+ * carries the four places rather than the eight things.
+ *
+ * Play is the menu: it is where you choose, and the quick start is on
+ * it. URLs are unchanged - Friends is still /geo/rooms - because a
+ * label is not a reason to break an inbound link.
+ */
 export const GAME_LINKS = [
-  { href: '/geo/play', label: 'Play' },
-  { href: '/geo/script', label: 'Script' },
-  { href: '/geo/rooms', label: 'Rooms' },
+  { href: '/geo', label: 'Play', exact: true },
+  { href: '/geo/rooms', label: 'Friends' },
   { href: '/geo/leaderboard', label: 'Rankings' },
-  { href: '/geo/play?mode=daily', label: 'Daily', never: true },
   { href: '/geo/me', label: 'Profile' },
 ];
 

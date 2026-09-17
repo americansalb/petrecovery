@@ -194,6 +194,16 @@
     constructor(el, coordinate) {
       this.el = el;
       this.coordinate = coordinate;
+      // The three switches the format rules are applied through
+      // (AppleLookAroundPane's applyRules). They start on, as MapKit's
+      // do, and the pane only sets a switch it can see on the view - so
+      // without them here NMPZ looked enforced in the harness while
+      // nothing had actually been turned off.
+      this.isNavigationEnabled = true;
+      this.isZoomEnabled = true;
+      this.isScrollEnabled = true;
+      this.showsRoadLabels = true;
+      this.showsPointsOfInterest = true;
       this.panoId = `look-${coordinate.latitude.toFixed(3)}-${coordinate.longitude.toFixed(3)}`;
       window.__fakeLookArounds.push(this);
       el.innerHTML =

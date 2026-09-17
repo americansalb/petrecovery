@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import Card from './ui/Card';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
@@ -51,7 +52,7 @@ function Panel({ children }) {
 function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
   return (
     <Panel>
-      <div className="rounded-2xl border border-white/10 bg-ocean-900 p-5 text-white">
+      <Card tone="panel" className="bg-ocean-900 text-white">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-300" />
           <div className="min-w-0">
@@ -62,7 +63,7 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {onRetry ? (
-            <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+            <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2 text-sm font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
               {retrying ? 'Trying again' : 'Try again'}
             </button>
@@ -71,7 +72,7 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
             Back to Probably Earth
           </Link>
         </div>
-      </div>
+      </Card>
     </Panel>
   );
 }
@@ -214,6 +215,9 @@ export default function PlayClient() {
   }, [configured, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
+  // An unresponsive provider is not bad luck and is never retried: it
+  // already went silent on every spot in the round, and retrying is how
+  // one dead round became five minutes of a loading label.
   const autoRetrying = state.status === 'error' && state.error?.code === 'no_imagery' && state.attempt < 2;
 
   // The play meter said no (docs/GEO.md, "The play meter"). There is
@@ -325,8 +329,10 @@ export default function PlayClient() {
           next();
         }
       } else if (event.key === 'r' || event.key === 'R') {
-        // Not in Kidnapped: the car decides where you are.
-        if (s.config.mode !== 'kidnapped') paneRef.current?.returnToStart?.();
+        // Same rule as the button: a format with one view has no start
+        // to return to. The old guard named a mode ('kidnapped') the
+        // game has not had for months, so it never stopped anything.
+        if (s.config.pan || s.config.move) paneRef.current?.returnToStart?.();
       } else if (event.key === 'm' || event.key === 'M') {
         setMapSize((size) => MAP_SIZES[(MAP_SIZES.indexOf(size) + 1) % MAP_SIZES.length]);
       } else if (event.key === 'Escape') {
@@ -398,6 +404,10 @@ export default function PlayClient() {
   // Look Around zooms by pinch and wheel only, so there is nothing for
   // a button to do there. A Not Earth panorama is ours, and it zooms.
   const canZoom = config.zoom && Boolean(notEarth);
+  // Nothing to go back to when the view cannot leave where it started.
+  // The button was always drawn, so NMPZ shipped a "return to start"
+  // above a line that says you get one view.
+  const canReturn = config.pan || config.move;
   const showLoading = state.status === 'loading' || state.status === 'locating' || (state.status === 'idle' && configured);
   const roundNumber = state.roundIndex + 1;
 
@@ -418,7 +428,18 @@ export default function PlayClient() {
           allowZoom={config.zoom}
           onAttempt={setAppleAttempt}
           onLocated={(index) => dispatch({ type: 'located', index })}
-          onFailed={(error) => dispatch({ type: 'load_error', error: { message: error?.message || 'No Look Around imagery at any of the spots tried', code: 'no_imagery' } })}
+          onFailed={(error) =>
+            dispatch({
+              type: 'load_error',
+              error: {
+                message: error?.message || 'No Look Around imagery at any of the spots tried',
+                // 'unresponsive' means the service never answered, so a
+                // retry asks the same silent thing again. Only a real
+                // "nothing here" is worth another draw.
+                code: error?.kind === 'unresponsive' ? 'imagery_unresponsive' : 'no_imagery',
+              },
+            })
+          }
         />
       ) : null}
 
@@ -437,6 +458,7 @@ export default function PlayClient() {
           secondsLeft={inRound ? secondsLeft : NaN}
           heading={heading}
           canZoom={canZoom && inRound}
+          canReturn={canReturn}
           canPan={config.pan}
           onReturn={() => paneRef.current?.returnToStart?.()}
           onZoom={(delta) => paneRef.current?.zoomBy?.(delta)}
@@ -461,7 +483,7 @@ export default function PlayClient() {
                     key={size}
                     type="button"
                     onClick={() => setMapSize(size)}
-                    className={`h-7 w-7 rounded-full border text-xs font-semibold shadow backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-500 text-white' : 'border-white/20 bg-ocean-900/85 text-white/80 hover:bg-ocean-800'}`}
+                    className={`h-7 w-7 rounded-full border text-xs font-semibold shadow backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-400 text-ocean-950' : 'border-white/20 bg-ocean-900/85 text-white/80 hover:bg-ocean-800'}`}
                     aria-pressed={mapSize === size}
                     title={`${size} map (M cycles)`}
                   >
@@ -487,7 +509,7 @@ export default function PlayClient() {
                 onClick={() => submitGuess()}
                 disabled={!state.pin || state.status !== 'playing'}
                 data-geo-guess
-                className={`rounded-full bg-clay-500 px-8 py-2.5 text-sm font-bold text-white transition hover:bg-clay-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/40 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
+                className={`rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-sand-300 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
               >
                 {state.status === 'submitting' ? 'Scoring' : 'Guess'}
               </button>
@@ -551,7 +573,15 @@ export default function PlayClient() {
 
       {/* Loading, setup and errors */}
       {showLoading && sdkReady ? (
-        <LoadingSpot roundNumber={roundNumber} appleAttempt={appleAttempt} appleTotal={state.current?.candidates?.length || 0} />
+        /* The key restarts the "taking too long" clock for each new
+           round and each retry, rather than letting it run from the
+           first one. */
+        <LoadingSpot
+          key={`${state.roundIndex}:${state.attempt}`}
+          roundNumber={roundNumber}
+          appleAttempt={appleAttempt}
+          appleTotal={state.current?.candidates?.length || 0}
+        />
       ) : null}
       {server && !configured ? (
         <Panel>
@@ -568,7 +598,15 @@ export default function PlayClient() {
       ) : null}
       {state.status === 'error' && !autoRetrying ? (
         <ErrorPanel
-          title={metered ? refusalTitle(state.error.code) : state.error?.code === 'no_imagery' ? 'No imagery found' : 'Could not start the round'}
+          title={
+            metered
+              ? refusalTitle(state.error.code)
+              : state.error?.code === 'imagery_unresponsive'
+                ? 'Look Around is not answering'
+                : state.error?.code === 'no_imagery'
+                  ? 'No imagery found'
+                  : 'Could not start the round'
+          }
           message={state.error?.message || 'Something went wrong.'}
           onRetry={metered && state.error.code !== 'speed' ? null : () => dispatch({ type: 'retry' })}
           resetAt={metered ? state.error.resetAt : null}

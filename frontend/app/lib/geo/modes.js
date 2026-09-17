@@ -164,7 +164,7 @@ const RETIRED_MODES = { world: 'balanced', cities: 'balanced', everywhere: 'bala
  */
 export const FORMATS = {
   moving: { id: 'moving', label: 'Moving', short: 'Moving', description: 'Walk, look around and zoom.', move: true, pan: true, zoom: true },
-  nm: { id: 'nm', label: 'No Move', short: 'NM', description: 'Look around and zoom from one spot. The format the pros play.', move: false, pan: true, zoom: true },
+  nm: { id: 'nm', label: 'No Move', short: 'NM', description: 'Look around and zoom from one spot. No walking.', move: false, pan: true, zoom: true },
   nmpz: { id: 'nmpz', label: 'NMPZ', short: 'NMPZ', description: 'No move, pan or zoom. One view, that is all you get.', move: false, pan: false, zoom: false },
 };
 export const FORMAT_ORDER = ['moving', 'nm', 'nmpz'];
@@ -416,12 +416,10 @@ export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
     const fresh = at !== null && now - at < RANKED_SEED_GRACE_MS && at <= now;
     config.seed = fresh ? seed : rankedSeed(now);
   }
-  // Kidnapped: the clock and the drive are the mode; rounds and the
-  // probe radius stay yours.
-  if (mode === 'kidnapped') Object.assign(config, MODES.kidnapped.fixed);
-  // Everywhere: a photo sphere is one viewpoint with no links, so there
-  // is nothing to walk to. Rounds, timer and radius stay yours.
-  if (mode === 'everywhere') Object.assign(config, MODES.everywhere.fixed);
+  // Kidnapped and Everywhere had a branch here for months after they
+  // were retired. RETIRED_MODES maps both to balanced before this runs,
+  // so neither could ever be reached - and if one had been, MODES has
+  // no such entry and reading .fixed off undefined would have thrown.
 
   return config;
 }
@@ -491,8 +489,7 @@ export function describeConfig(config, { regionLabel } = {}) {
   if (c.mode === 'streak') parts.push('Until the first miss');
   else parts.push(`${c.rounds} rounds`);
   parts.push(timeLabel(c.time));
-  // Kidnapped says it all: the car drives, you look.
-  if (c.mode !== 'kidnapped' && !(c.move && c.pan && c.zoom)) parts.push(movementLabel(c));
+  if (!(c.move && c.pan && c.zoom)) parts.push(movementLabel(c));
   // The default imagery goes without saying; the other one is named.
   if (c.provider !== PRIMARY_PROVIDER) parts.push(PROVIDERS[c.provider].label);
   return parts.join('. ') + '.';

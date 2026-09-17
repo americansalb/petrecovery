@@ -35,19 +35,29 @@ const SOUTH_ASIA = new Set(['hin', 'mar', 'npi', 'bho', 'mai', 'ben', 'asm', 'pa
  * from; anything that returns fewer than two languages is dropped from
  * the lobby rather than shipped as a round with one possible answer.
  */
+/**
+ * The pools.
+ *
+ * A description says what a pool IS and never how many languages are in
+ * it. Every one of these used to carry a count or a list of names, and
+ * every one had drifted: Devanagari said "five answers" while the pool
+ * had grown to nine, Arabic named seven of thirteen, Cyrillic promised
+ * "two that are not Slavic" out of nine. The screen renders the real
+ * number from languagesForLadder(), which cannot drift.
+ */
 export const LADDERS = {
   world: {
     id: 'world',
     label: 'World',
     short: 'World',
-    description: 'Every language in the corpus, drawn by how many people speak it.',
+    description: 'Every language, weighted by how many people speak it.',
     pick: () => LANGUAGES,
   },
   alphabets: {
     id: 'alphabets',
     label: 'Alphabets',
     short: 'Alphabets',
-    description: 'One language per writing system. Learn to tell Devanagari from Bengali from Tamil before the rest of the game asks you to.',
+    description: 'A different writing system every round.',
     pick: () => {
       const seen = new Set();
       return LANGUAGES.filter((language) => {
@@ -61,35 +71,35 @@ export const LADDERS = {
     id: 'india',
     label: 'South Asia',
     short: 'South Asia',
-    description: 'Seventeen languages and eleven scripts inside one subcontinent. Every other game in this genre calls all of it India.',
+    description: 'Languages and scripts of the subcontinent.',
     pick: () => LANGUAGES.filter((language) => SOUTH_ASIA.has(language.code)),
   },
   deva: {
     id: 'deva',
     label: 'Devanagari',
     short: 'Devanagari',
-    description: 'Hindi, Marathi, Nepali, Bhojpuri, Maithili. Same alphabet, five answers, and the script tells you nothing.',
+    description: 'Same alphabet, different languages. The script tells you nothing.',
     pick: () => languagesInScript('deva'),
   },
   arab: {
     id: 'arab',
     label: 'Arabic script',
     short: 'Arabic script',
-    description: 'Arabic, Persian, Urdu, Pashto, Kurdish, Sindhi, Uyghur. Four families, one alphabet.',
+    description: 'Many language families, a shared alphabet.',
     pick: () => languagesInScript('arab'),
   },
   cyrl: {
     id: 'cyrl',
     label: 'Cyrillic',
     short: 'Cyrillic',
-    description: 'Russian, Ukrainian, Bulgarian, Serbian, and two that are not Slavic at all.',
+    description: 'Slavic and not, sharing an alphabet.',
     pick: () => languagesInScript('cyrl'),
   },
   latn: {
     id: 'latn',
     label: 'Latin script',
     short: 'Latin script',
-    description: 'The hardest pool. The alphabet is the one you are reading now, so every clue is in the words.',
+    description: 'The alphabet you are reading now, so every clue is in the words.',
     pick: () => languagesInScript('latn'),
   },
 };

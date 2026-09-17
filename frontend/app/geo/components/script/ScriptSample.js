@@ -98,6 +98,27 @@ export function measureTofu(text, fontStack, makeCanvas) {
   return total >= 4 && boxes / total >= ENOUGH;
 }
 
+/**
+ * Line height, per writing system.
+ *
+ * A Latin line box fits a Latin line. Tibetan stacks consonants and
+ * hangs vowel signs above and below the baseline, so a Dzongkha
+ * sentence at the default 1.5 overflows its box and collides with
+ * whatever is above it - which is exactly what it did on the Script
+ * results card, where the small size set no line-height at all while
+ * the large one set `leading-relaxed` (founder, 2026-09-17: "tall
+ * Dzongkha glyphs crowd the metadata in the first result card").
+ *
+ * The scripts listed here have marks or stacks that reach well outside
+ * the em box. Everything else keeps the ordinary generous value.
+ */
+const TALL_SCRIPTS = new Set(['tibt', 'deva', 'beng', 'guru', 'gujr', 'orya', 'taml', 'telu', 'knda', 'mlym', 'sinh', 'thai', 'laoo', 'khmr', 'mymr', 'thaa']);
+const LINE_HEIGHT = { ordinary: 1.6, tall: 2.1 };
+
+function lineHeightFor(script) {
+  return TALL_SCRIPTS.has(script) ? LINE_HEIGHT.tall : LINE_HEIGHT.ordinary;
+}
+
 export default function ScriptSample({ text, script, size = 'lg' }) {
   const [tofu, setTofu] = useState(false);
   const nodeRef = useRef(null);
@@ -124,7 +145,9 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
   }, [text, stack]);
 
   const rtl = RIGHT_TO_LEFT.has(script);
-  const textSize = size === 'sm' ? 'text-lg sm:text-xl' : 'text-2xl leading-relaxed sm:text-4xl sm:leading-relaxed';
+  // No `leading-` class here: the line height comes from the script, and
+  // a utility would override it.
+  const textSize = size === 'sm' ? 'text-lg sm:text-xl' : 'text-2xl sm:text-4xl';
 
   return (
     <div className="w-full">
@@ -132,7 +155,7 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
         ref={nodeRef}
         dir={rtl ? 'rtl' : 'ltr'}
         lang={script}
-        style={{ fontFamily: stack }}
+        style={{ fontFamily: stack, lineHeight: lineHeightFor(script) }}
         className={`select-none break-words text-sand-900 ${textSize} ${rtl ? 'text-right' : ''}`}
       >
         {text}

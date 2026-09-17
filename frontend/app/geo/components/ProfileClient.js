@@ -10,18 +10,67 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Award, Gauge, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-react';
-import { formatScore } from '@/app/lib/geo/distance';
+import { Award, Gauge, History, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-react';
+import { formatScore, ordinal } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
+import { citiesFor } from '@/app/lib/geo/coverage';
 import { VARIANTS } from '@/app/lib/geo/rooms';
-import { LADDERS, LADDER_LABELS } from '@/app/lib/geo/rating';
+import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
+import Card, { CardTitle } from './ui/Card';
+import Tabs from './ui/Tabs';
 import SignInCard from './SignInCard';
 import AccountRole from './AccountRole';
 
 const KIND_ORDER = ['pin', 'color', 'title', 'frame', 'reactions'];
+const TABS = [{ id: 'record', label: 'Record' }, { id: 'shop', label: 'Shop' }, { id: 'settings', label: 'Settings' }];
+// What a badge can be earned in: the countries the game actually drops
+// you in. The badge model covers every country, which made "12 badges"
+// read against a denominator nobody can reach.
+const PLAYABLE_COUNTRIES = new Set(citiesFor('apple').map((c) => c.country)).size;
+
+/** One ladder: the rating, the tier, and what was won on it. */
+function LadderCard({ ladder, rating, provisionalGames }) {
+  const label = LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder;
+  const games = rating?.games || 0;
+  const placements = Math.max(0, provisionalGames - games);
+  if (!games) {
+    return (
+      <Card tone="sunken" pad="sm" className="rounded-xl">
+        <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
+        <p className="mt-1 text-2xl font-bold text-white/70">Unplaced</p>
+        <p className="mt-1 text-xs text-white/60">0 of {provisionalGames} placement games</p>
+      </Card>
+    );
+  }
+  return (
+    <Card tone="sunken" pad="sm" className="rounded-xl">
+      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums text-clay-300">{rating.value}</p>
+      <p className="text-xs text-white/70">
+        {rating.tier}
+        {rating.provisional ? `, ${placements} more to be placed` : ''}
+      </p>
+      <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+        <div>
+          <dt className="text-white/60">Played</dt>
+          <dd className="font-semibold tabular-nums">{games}</dd>
+        </div>
+        <div>
+          <dt className="text-white/60">Won</dt>
+          <dd className="font-semibold tabular-nums">{rating.wins}</dd>
+        </div>
+        <div>
+          <dt className="text-white/60">Best</dt>
+          <dd className="font-semibold tabular-nums">{rating.peak}</dd>
+        </div>
+      </dl>
+      {rating.streak > 1 ? <p className="mt-2 text-xs font-semibold text-forest-300">{rating.streak} in a row</p> : null}
+    </Card>
+  );
+}
 
 function initialsOf(name) {
   return String(name || '?')
@@ -99,6 +148,7 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
 export default function ProfileClient() {
   const [profile, setProfile] = useState(null);
   const [shop, setShop] = useState(null);
+  const [tab, setTab] = useState('record');
   const [error, setError] = useState('');
   const [name, setName] = useState('');
   const [savedName, setSavedName] = useState('');
@@ -176,7 +226,7 @@ export default function ProfileClient() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-clay-500 text-xl font-bold text-white"
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-clay-400 text-xl font-bold text-ocean-950"
             style={view?.frame ? { boxShadow: `0 0 0 4px ${view.frame}` } : undefined}
             aria-hidden="true"
           >
@@ -187,53 +237,98 @@ export default function ProfileClient() {
             <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
               <span style={view?.color ? { color: view.color } : undefined}>{profile?.name || name || 'Player'}</span>
               {view?.title ? <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white/60">{view.title}</span> : null}
+              {/* A profile called "Player" with nothing saying where it
+                  came from reads as an account somebody made for you
+                  (founder, 2026-09-17: "why does it pretend I have an
+                  account named player"). */}
+              {profile && !profile.signedIn ? (
+                <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs font-semibold text-white/70">Guest, this browser</span>
+              ) : null}
             </h1>
-            <p className="mt-1 text-sm text-white/60">
-              {profile ? (profile.signedIn ? 'On your Probably Earth account, so it follows you to other devices.' : 'In this browser only. Sign in below to keep it across devices.') : 'Loading'}
-            </p>
+            {profile?.season ? (
+              <p className="mt-1 text-sm text-white/60" data-season>
+                {profile.season.label} &middot; {profile.season.daysLeft} {profile.season.daysLeft === 1 ? 'day' : 'days'} left
+              </p>
+            ) : null}
           </div>
           <div className="text-right">
             <p className="text-3xl font-bold tabular-nums">{formatScore(points)}</p>
-            <p className="text-sm text-white/60">points</p>
+            {/* Not just "points": a round score is points too, and a
+                rating is a third number. Each one says which it is. */}
+            <p className="text-sm text-white/60">cosmetic points</p>
           </div>
         </header>
 
         {error ? <p className="mt-4 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">{error}</p> : null}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_20rem]">
-          <div className="space-y-6">
-            {/* Shop */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-shop>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <ShoppingBag className="h-4 w-4" />
-                Shop
-              </h2>
-              <p className="mt-2 text-sm text-white/60">Points buy how you look in the game. Nothing here changes how you play.</p>
-              <div className="mt-3 inline-flex flex-wrap gap-1 rounded-xl bg-white/5 p-1" role="tablist" aria-label="Shop sections">
-                {KIND_ORDER.map((k) => (
-                  <button key={k} type="button" role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${kind === k ? 'bg-ocean-900 text-white shadow' : 'text-white/70 hover:bg-ocean-900/60'}`}>
-                    {ITEM_KINDS[k]}
-                  </button>
-                ))}
+        {/* One page had seven sections doing three unrelated jobs, and
+            the biggest of them was the shop, so the first thing a
+            player saw about themselves was a price list. Each tab is
+            one job (founder, 2026-09-17: the page has to know what it
+            is for). */}
+        <Tabs items={TABS} value={tab} onChange={setTab} label="Profile sections" marker="profile-tab" className="mt-6" />
+
+        {tab === 'record' ? (
+          <div className="mt-6 space-y-6">
+            {/* Rating: every ladder, with what a player earned on it
+                rather than the word for where it sits. */}
+            <Card data-ratings>
+              <CardTitle icon={Medal}>Rating</CardTitle>
+              {profile ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {LADDERS.map((ladder) => (
+                    <LadderCard key={ladder} ladder={ladder} rating={profile.ratings?.[ladder]} provisionalGames={profile.provisionalGames ?? PROVISIONAL_GAMES} />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-white/60">Loading</p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link href="/geo/leaderboard" className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
+                  <Trophy className="h-3.5 w-3.5" />
+                  Rankings
+                </Link>
+                <Link href="/geo/rooms" className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
+                  <Users className="h-3.5 w-3.5" />
+                  Friends
+                </Link>
               </div>
-              {shop ? (
-                <ul className="mt-3 space-y-2">
-                  {items.map((item) => (
-                    <ItemCard key={item.id} item={item} points={points} busy={busy} onBuy={(id) => act('buy', id)} onEquip={(id) => act('equip', id)} equippedId={shop.equipped?.[item.kind]} />
+            </Card>
+
+            {/* Recent rated games. The server has sent these with every
+                profile since ratings shipped and nothing read them. */}
+            <Card data-recent>
+              <CardTitle icon={History}>Last games</CardTitle>
+              {profile?.recent?.length ? (
+                <ul className="mt-3 divide-y divide-white/10 text-sm">
+                  {profile.recent.map((row, i) => (
+                    <li key={`${row.roomId}:${i}`} className="flex items-center gap-3 py-2">
+                      <span className={`w-14 shrink-0 font-bold tabular-nums ${row.placement === 1 ? 'text-clay-300' : 'text-white'}`}>
+                        {ordinal(row.placement)}
+                      </span>
+                      <span className="w-20 shrink-0 text-white/60">of {row.players}</span>
+                      <span className="min-w-0 flex-1 truncate text-white/60">
+                        {LADDER_LABELS[row.ladder] || VARIANTS[row.ladder]?.label || row.ladder} &middot; {ago(row.at)}
+                      </span>
+                      <span className={`shrink-0 font-semibold tabular-nums ${row.delta > 0 ? 'text-forest-300' : row.delta < 0 ? 'text-red-300' : 'text-white/60'}`}>
+                        {row.delta > 0 ? '+' : ''}{row.delta}
+                      </span>
+                      <span className="w-14 shrink-0 text-right tabular-nums text-white/60">{row.after}</span>
+                    </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-white/60">{error ? 'The shop is closed for now.' : 'Loading the shop'}</p>
+                <p className="mt-3 text-sm text-white/60">
+                  No rated games yet. <Link href="/geo/rooms" className="underline hover:text-white">Open a room</Link> or <Link href="/geo/play?mode=ranked" className="underline hover:text-white">play the ranked hour</Link>.
+                </p>
               )}
-            </section>
+            </Card>
 
             {/* Badges */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5" data-badges>
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <Award className="h-4 w-4" />
+            <Card data-badges>
+              <CardTitle icon={Award} trailing={profile?.badges?.length ? `${profile.badges.length} of ${PLAYABLE_COUNTRIES}` : null}>
                 Badges
-              </h2>
-              <p className="mt-2 text-sm text-white/60">A guess within 100 km of the answer earns that country&apos;s badge, once, with your closest miss kept. Mars and the Moon come from calling a Not Earth round right.</p>
+              </CardTitle>
               {profile?.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {profile.badges.map((b) => (
@@ -245,114 +340,98 @@ export default function ProfileClient() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-white/60">None yet.</p>
+                <p className="mt-3 text-sm text-white/60">None yet. A guess within 100 km earns that country&apos;s badge.</p>
               )}
-            </section>
-          </div>
-
-          <aside className="space-y-6">
-            {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Account</h2>
-              <div className="mt-3">
-                <SignInCard />
-              </div>
-            </section>
-
-            {/* What this account is: tier, and role when it is not the
-                ordinary one. Renders for signed-in players only. */}
-            <AccountRole />
-
-            {/* Name */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Your name</h2>
-              <form method="post" onSubmit={saveTheName} className="mt-3 flex gap-2">
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="Your name" className="w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm" />
-                <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50">
-                  {savedName ? 'Saved' : 'Save'}
-                </button>
-              </form>
-              <p className="mt-2 text-xs text-white/60">What rooms and the boards show.</p>
-            </section>
-
-            {/* Rating */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <Medal className="h-4 w-4" />
-                Rating
-              </h2>
-              {/* Every ladder, not two of the three. Ranked solo is the
-                  one a player can reach without arranging a room, so
-                  leaving it out hid the rating most people have. */}
-              {profile ? (
-                <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  {LADDERS.map((ladder) => {
-                    const r = profile.ratings?.[ladder] || {};
-                    return (
-                      <div key={ladder}>
-                        <dt className="text-white/60">{LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder}</dt>
-                        <dd className="text-lg font-bold tabular-nums">
-                          {r.value ?? 1500} <span className="text-xs font-semibold text-white/60">{r.tier || 'Silver'}</span>
-                        </dd>
-                        <dd className="text-xs text-white/60">
-                          {r.games || 0} rated {r.games === 1 ? 'game' : 'games'}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                </dl>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link href="/geo/leaderboard" className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
-                  <Trophy className="h-3.5 w-3.5" />
-                  Rankings
-                </Link>
-                <Link href="/geo/rooms" className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
-                  <Users className="h-3.5 w-3.5" />
-                  Rooms
-                </Link>
-              </div>
-            </section>
+            </Card>
 
             {/* Today */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-                <Gauge className="h-4 w-4" />
-                Today
-              </h2>
+            <Card>
+              <CardTitle icon={Gauge}>Today</CardTitle>
               {profile?.usage ? (
                 <p className="mt-2 text-sm text-white/70">
-                  <span className="font-semibold text-white">{profile.usage.rounds}</span> rounds today. Nothing is
-                  capped for ordinary play. Points earn on the first 50 rounds of the day.
+                  <span className="font-semibold text-white">{profile.usage.rounds}</span> rounds today. Points earn on the first 50.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-white/60">Loading</p>
               )}
-            </section>
+            </Card>
+          </div>
+        ) : null}
 
-            {/* Recent points */}
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Recent points</h2>
-              {profile?.ledger?.length ? (
-                <ul className="mt-3 divide-y divide-white/10 text-sm">
-                  {profile.ledger.map((row, i) => (
-                    <li key={i} className="flex items-center justify-between gap-2 py-1.5">
-                      <span className="min-w-0 flex-1 truncate text-white/70">
-                        {row.reason} <span className="text-white/40">{ago(row.at)}</span>
-                      </span>
-                      <span className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-forest-300' : 'text-white'}`}>
-                        {row.kind === 'earn' ? '+' : '-'}
-                        {row.amount}
-                      </span>
-                    </li>
+        {tab === 'shop' ? (
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+            <Card data-shop>
+              <CardTitle icon={ShoppingBag}>Shop</CardTitle>
+              <p className="mt-2 text-sm text-white/60">Points buy how you look. Nothing here changes how you play.</p>
+              <Tabs items={KIND_ORDER.map((k) => ({ id: k, label: ITEM_KINDS[k] }))} value={kind} onChange={setKind} label="Shop sections" marker="shop-kind" className="mt-3" />
+              {shop ? (
+                <ul className="mt-3 space-y-2">
+                  {items.map((item) => (
+                    <ItemCard key={item.id} item={item} points={points} busy={busy} onBuy={(id) => act('buy', id)} onEquip={(id) => act('equip', id)} equippedId={shop.equipped?.[item.kind]} />
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-sm text-white/60">Nothing yet. Every scored round earns some.</p>
+                <p className="mt-3 text-sm text-white/60">{error ? 'The shop is closed for now.' : 'Loading the shop'}</p>
               )}
-            </section>
-          </aside>
-        </div>
+            </Card>
+
+            {/* Where the points came from, beside what they buy. */}
+            <aside>
+              <Card data-ledger>
+                <CardTitle>Recent points</CardTitle>
+                {profile?.ledger?.length ? (
+                  <ul className="mt-3 divide-y divide-white/10 text-sm">
+                    {profile.ledger.map((row, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 py-1.5">
+                        <span className="min-w-0 flex-1 truncate text-white/70">
+                          {row.reason} <span className="text-white/50">{ago(row.at)}</span>
+                        </span>
+                        <span className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-forest-300' : 'text-white'}`}>
+                          {row.kind === 'earn' ? '+' : '-'}
+                          {row.amount}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-white/60">Nothing yet. Every scored round earns some.</p>
+                )}
+              </Card>
+            </aside>
+          </div>
+        ) : null}
+
+        {tab === 'settings' ? (
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
+            <Card>
+              <CardTitle>Account</CardTitle>
+              <p className="mt-2 text-sm text-white/60">
+                {profile?.signedIn ? 'Signed in, so this profile follows you to other devices.' : 'This profile lives in this browser.'}
+              </p>
+              <div className="mt-3">
+                <SignInCard />
+              </div>
+            </Card>
+
+            <div className="space-y-6">
+              {/* What this account is: tier, and role when it is not the
+                  ordinary one. Renders for signed-in players only. */}
+              <AccountRole />
+
+              <Card>
+                <CardTitle>Your name</CardTitle>
+                <form method="post" onSubmit={saveTheName} className="mt-3 flex gap-2">
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} aria-label="Your name" className="w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm" />
+                  <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50">
+                    {savedName ? 'Saved' : 'Save'}
+                  </button>
+                </form>
+                <p className="mt-2 text-xs text-white/60">What rooms and the boards show.</p>
+              </Card>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

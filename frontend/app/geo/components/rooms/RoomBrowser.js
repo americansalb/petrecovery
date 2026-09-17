@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, History, Plus, RefreshCw, Users } from 'lucide-react';
 import { CONTINENTS, CONTINENT_ORDER, FORMATS, FORMAT_ORDER, MODES, PRIMARY_PROVIDER, formatSettings, timeLabel } from '@/app/lib/geo/modes';
+import Card from '../ui/Card';
 import { MAX_PLAYERS, ROOM_MODES, ROOM_ROUND_OPTIONS, ROOM_TIME_OPTIONS, VARIANTS, describeRoomStatus, normalizeRoomCode } from '@/app/lib/geo/rooms';
 import { listRecentRooms, loadName, saveIdentity, saveName } from '../../lib/useRoom';
 import { configErrorMessage, loadGeoConfig } from '../../lib/serverConfig';
@@ -149,12 +150,10 @@ export default function RoomBrowser() {
           <p className="text-sm font-semibold uppercase tracking-wide text-white/60">
             <Link href="/geo" className="hover:underline">Probably Earth</Link>
           </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Rooms</h1>
-          <p className="mt-1 text-sm text-white/60">
-            Finished rooms count toward the <Link href="/geo/leaderboard" className="underline">rankings</Link>.
-          </p>
-          <p className="mt-2 max-w-2xl text-white/60">
-            Everyone in a room gets the same places on the same clock. Classic counts points; a duel starts everyone at 6,000 HP and the best guess each round hurts the rest.
+          <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Friends</h1>
+          <p className="mt-2 max-w-2xl text-white/70">
+            Same places, same clock, everyone at once. Finished rooms count toward the{' '}
+            <Link href="/geo/leaderboard" className="underline hover:text-white">rankings</Link>.
           </p>
         </header>
 
@@ -165,11 +164,11 @@ export default function RoomBrowser() {
           </div>
         ) : null}
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+        <Card className="mt-6">
           <Field label="Your name">
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={20} placeholder="What the others will see" className="w-full max-w-sm rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm" />
           </Field>
-        </div>
+        </Card>
 
         {/* On a phone the two columns stack, and they stacked in source
             order: an eight-field creation form first, with the code box
@@ -178,7 +177,7 @@ export default function RoomBrowser() {
             whole form to answer. Joining goes first at that width and
             the desktop layout is unchanged. */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
-          <form method="post" onSubmit={create} data-ready={hydrated ? '1' : '0'} className="order-2 rounded-2xl border border-white/10 bg-ocean-900/60 p-5 lg:order-1">
+          <Card as="form" method="post" onSubmit={create} data-ready={hydrated ? '1' : '0'} className="order-2 lg:order-1">
             <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
               <Plus className="h-4 w-4" />
               Open a room
@@ -272,14 +271,14 @@ export default function RoomBrowser() {
                 </Field>
               </div>
             </div>
-            <button type="submit" disabled={busy || !configured} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-clay-500 px-5 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+            <button type="submit" disabled={busy || !configured} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
               {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {busy ? 'Opening' : 'Open the room'}
             </button>
-          </form>
+          </Card>
 
           <aside className="order-1 space-y-6 lg:order-2">
-            <form method="post" onSubmit={joinByCode} className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+            <Card as="form" method="post" onSubmit={joinByCode}>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Join with a code</h2>
               <div className="mt-3 flex gap-2">
                 <input type="text" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={8} placeholder="ABC123" aria-label="Room code" className="w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 font-mono text-lg tracking-[0.2em]" />
@@ -287,10 +286,10 @@ export default function RoomBrowser() {
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
-            </form>
+            </Card>
 
             {recent.length ? (
-              <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+              <Card>
                 <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
                   <History className="h-4 w-4" />
                   Rooms you were in
@@ -313,10 +312,10 @@ export default function RoomBrowser() {
                     </li>
                   ))}
                 </ul>
-              </section>
+              </Card>
             ) : null}
 
-            <section className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+            <Card>
               <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
                 <Users className="h-4 w-4" />
                 Open rooms
@@ -332,17 +331,17 @@ export default function RoomBrowser() {
                           {room.name} <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white/60">{VARIANTS[room.variant]?.label || room.variant}</span>
                         </p>
                         <p className="truncate text-xs text-white/60">
-                          {room.rules || room.mode}. {describeRoomStatus(room)}. {room.players} of {room.maxPlayers || MAX_PLAYERS} in.
+                          {room.rules || room.mode} &middot; {describeRoomStatus(room)} &middot; {room.players}/{room.maxPlayers || MAX_PLAYERS} players
                         </p>
                       </div>
-                      <Link href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ''}`} className="rounded-lg bg-clay-500 px-3 py-1.5 text-sm font-bold text-white hover:bg-clay-600">
+                      <Link href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ''}`} className="rounded-lg bg-clay-400 px-3 py-1.5 text-sm font-bold text-ocean-950 hover:bg-clay-300">
                         {room.status === 'playing' && room.variant === 'duel' ? 'Watch' : 'Join'}
                       </Link>
                     </li>
                   ))}
                 </ul>
               ) : null}
-            </section>
+            </Card>
           </aside>
         </div>
       </div>

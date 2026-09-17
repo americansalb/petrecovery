@@ -21,7 +21,7 @@
  *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -41,6 +41,13 @@ const FAKE_MAPKIT = fs.readFileSync(path.join(__dirname, 'fake-mapkit.js'), 'utf
 // The only names the script map is allowed to write on itself.
 const COUNTRY_NAMES = new Set(
   require('../../app/lib/geo/data/country-labels.json').labels.map((row) => row.n)
+);
+// What a duel starts everyone on. Read out of the source rather than
+// typed here, because a harness that carries its own copy of a game
+// constant stops testing the game the day the constant changes.
+// rooms.js is ESM and this runner is CommonJS, hence the regex.
+const DUEL_START_HP = Number(
+  fs.readFileSync(path.join(__dirname, '../../app/lib/geo/rooms.js'), 'utf8').match(/DUEL_START_HP\s*=\s*(\d+)/)[1]
 );
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const OUT = process.env.GEO_E2E_OUT || os.tmpdir();
@@ -169,7 +176,7 @@ async function pinGame(browser) {
   await shot(page, 'pinned');
   await page.click('[data-geo-guess]');
   await page.waitForSelector('text=/of 5,000/', { timeout: 20000 });
-  log('round 1 result:', await page.textContent('text=/away\\.|Time ran out/').catch(() => '(no distance line)'));
+  log('round 1 result:', await page.textContent('text=/km away|m away|Out of time/').catch(() => '(no distance line)'));
   await shot(page, 'result');
   await expectMapVisible(page, 'result');
   await page.keyboard.press('Space');
@@ -247,7 +254,7 @@ async function timer(browser) {
   await page.waitForSelector('text=/^(2[0-9]|30)$/');
   if (!(await page.$('[title="Panning is off for this game"]'))) throw new Error('NMPZ overlay missing');
   await shot(page, 'timer');
-  await page.waitForSelector('text=Time ran out before a guess', { timeout: 45000 });
+  await page.waitForSelector('text=Out of time.', { timeout: 45000 });
   log('timer expiry scored the round with no guess');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
@@ -396,7 +403,9 @@ async function appleSolo(browser) {
   await page.waitForSelector('[data-keep-this]', { timeout: 15000 });
   const keep = await page.textContent('[data-keep-this]');
   log('account ask on the summary:', /Keep this game/.test(keep || ''));
-  if (!/costs nothing/.test(keep || '')) throw new Error('the account ask does not say what it costs');
+  // "free", not "costs nothing" (founder, 2026-09-17: "WHY NOT SAY
+  // FREE"). The house rule allows the price in the present tense.
+  if (!/\bfree\b/i.test(keep || '')) throw new Error('the account ask does not say it is free');
   await shot(page, 'apple-solo-summary');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
@@ -448,7 +457,7 @@ async function notEarth(browser) {
   if (await page.$('[data-not-earth-pane]')) throw new Error('round 2 was another Not Earth round');
   await page.click('button:has-text("Not Earth")');
   await page.click('button:has-text("Call it")');
-  await page.waitForSelector('text=That was Earth. Calling Not Earth costs you the round.', { timeout: 20000 });
+  await page.waitForSelector('text=That was Earth. No points this round.', { timeout: 20000 });
   // The whole paragraph, not the "of 5,000" span inside it.
   const score = await page.textContent('p:has-text("of 5,000")');
   if (!/^0\s+of 5,000/.test((score || '').trim())) throw new Error('a wrong call scored something: ' + score);
@@ -572,9 +581,9 @@ async function ranked(browser) {
     // straight to the play URL races the profile this browser is about
     // to be given, and a ranked round is refused to anyone but the
     // profile that opened it.
-    await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('[data-start-ranked]', { timeout: 60000 });
-    await page.click('[data-start-ranked]');
+    await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-menu-ranked]', { timeout: 60000 });
+    await page.click('[data-menu-ranked]');
     for (let i = 0; i < 5; i++) {
       await waitPlayable(page);
       await waitForLookAround(page);
@@ -604,11 +613,11 @@ async function ranked(browser) {
   // This one is never first: the browser above just finished the hour.
   if (!/average of \d+ other/.test(against)) throw new Error('a player with a field ahead of them should be rated against it, not against par');
 
-  // Rankings carries the standing, and the ladder has a tab of its own.
-  await second.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-  await second.waitForSelector('[data-ranked-standing]', { timeout: 20000 });
-  await second.waitForSelector('[data-ranked-standing]:not(:has-text("to be placed"))', { timeout: 20000 });
-  const standing = (await second.textContent('[data-ranked-standing]')).replace(/\s+/g, ' ');
+  // The menu carries the standing, and the ladder has a tab of its own
+  // on Rankings.
+  await second.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await second.waitForSelector('[data-menu-ranked]:not(:has-text("0 of"))', { timeout: 20000 });
+  const standing = (await second.textContent('[data-menu-ranked]')).replace(/\s+/g, ' ');
   log('ranked standing:', standing);
   if (!/placement games played/.test(standing)) throw new Error('the lobby should show placement progress');
 
@@ -646,15 +655,27 @@ async function coldOpen(browser) {
   await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-cold-open-play]', { timeout: 30000 });
 
-  // One start, not eight. Every other control on this page is a link to
-  // somewhere else, and none of them says Play.
+  // One button that starts the default game, not eight. The menu has
+  // links to the rest of the product and two region pickers under "More
+  // ways to play", which is the catalogue that used to be buried in the
+  // standings page; what it must not have is a second thing competing
+  // to be the game.
   const starts = await page.locator('button:visible').count();
-  log('buttons on the front door:', starts);
-  if (starts !== 1) throw new Error(`the front door should have one button, found ${starts}`);
+  log('buttons on the menu:', starts);
+  if (starts !== 1) throw new Error(`the menu should have one button, found ${starts}`);
 
-  // Nothing to configure: no select, no radio, no text input.
-  const fields = await page.locator('select, input, [role="radio"]').count();
-  if (fields) throw new Error(`the front door should ask for nothing, found ${fields} fields`);
+  // The quick start asks for nothing: no field sits above it, so a
+  // stranger presses Play without having decided anything first.
+  const asksFirst = await page.evaluate(() => {
+    const play = document.querySelector('[data-cold-open-play]');
+    if (!play) return -1;
+    const top = play.getBoundingClientRect().top + window.scrollY;
+    return [...document.querySelectorAll('select, input, [role="radio"]')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.top + window.scrollY < top;
+    }).length;
+  });
+  if (asksFirst !== 0) throw new Error(`the quick start should ask for nothing first, found ${asksFirst} fields above Play`);
 
   await shot(page, 'cold-open');
   await page.click('[data-cold-open-play]');
@@ -674,8 +695,13 @@ async function firstRun(browser) {
   log('front door:', text.slice(0, 140));
   // What the game is, and how to reach the rest of it, in the words a
   // stranger meets first.
-  for (const wanted of ['put a pin on it', 'Play with friends', 'Rankings']) {
-    if (!text.includes(wanted)) throw new Error(`the front door should say ${wanted}`);
+  // What the menu has to show a stranger: what the game is, both game
+  // families, and the way to play with somebody.
+  // Case-insensitive: the card headings are uppercased in CSS, and
+  // innerText returns what is rendered.
+  const lower = text.toLowerCase();
+  for (const wanted of ['Put a pin where you think you are', 'Street', 'Script', 'Friends', 'Rankings']) {
+    if (!lower.includes(wanted.toLowerCase())) throw new Error(`the game menu should show ${wanted}`);
   }
 
   // Play one game, and it should not be there afterwards.
@@ -698,13 +724,13 @@ async function firstRun(browser) {
   log('account ask:', keep.slice(0, 90));
   if (!/Keep this game/.test(keep)) throw new Error('the summary should offer to keep the game');
 
-  await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-  // The panel is on the page before its board is: it renders at once
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  // The card is on the page before its status is: it renders at once
   // and fills in when /api/geo/daily answers. Waiting on the shape of
   // the sentence rather than on the element is what makes this about
-  // the board and not about which of the two got there first.
-  await page.waitForSelector('[data-daily-board]:has-text("You are")', { timeout: 20000 });
-  const played = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
+  // the standing and not about which of the two got there first.
+  await page.waitForSelector('[data-menu-daily]:has-text("You are")', { timeout: 20000 });
+  const played = (await page.textContent('[data-menu-daily]')).replace(/\s+/g, ' ');
   log('daily board after a game:', played.slice(0, 120));
   if (!/You are \d+(st|nd|rd|th) of \d+/.test(played)) {
     throw new Error("the daily board should show where the game just played came: " + played.slice(0, 160));
@@ -735,13 +761,13 @@ async function daily(browser) {
   await shot(page, 'daily-summary');
   const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
 
-  await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-daily-board]:has-text("You are")', { timeout: 20000 });
-  const board = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-menu-daily]:has-text("You are")', { timeout: 20000 });
+  const board = (await page.textContent('[data-menu-daily]')).replace(/\s+/g, ' ');
   log('daily board:', board.slice(0, 160));
   if (!/You are \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the board should show your rank');
-  await page.waitForSelector('[data-cup-board]:has-text("Ends")', { timeout: 20000 });
-  const cupText = (await page.textContent('[data-cup-board]')).replace(/\s+/g, ' ');
+  await page.waitForSelector('[data-menu-cup]:has-text("Ends")', { timeout: 20000 });
+  const cupText = (await page.textContent('[data-menu-cup]')).replace(/\s+/g, ' ');
   if (!/Ends in/.test(cupText)) throw new Error('the cup card should say when the week ends');
   log('lobby cup card:', cupText.slice(0, 120));
 
@@ -854,6 +880,19 @@ async function profile(browser) {
   await page.waitForSelector('text=/\\+\\d+ points/', { timeout: 20000 });
   log('round points line:', await page.textContent('text=/\\+\\d+ points/'));
   await page.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
+  // The page opens on the record: rating, last games, badges, today.
+  // The shop is a tab, because a price list is not what a profile is.
+  // Every ladder, with its placement state: the point of the tab is
+  // that a player sees where they stand before anything is for sale.
+  await page.waitForSelector('[data-ratings] >> text=Ranked solo', { timeout: 30000 });
+  const record = (await page.evaluate(() => document.querySelector('[data-ratings]').innerText)).replace(/\s+/g, ' ');
+  log('record tab:', record.slice(0, 160));
+  // innerText gives back what CSS painted, and the labels are
+  // uppercased by a class, so this reads case-insensitively.
+  for (const ladder of ['Classic', 'Duel', 'Ranked solo']) {
+    if (!new RegExp(ladder, 'i').test(record)) throw new Error(`the record tab should name every ladder, missing ${ladder}`);
+  }
+  await page.click('[data-profile-tab="shop"]');
   await page.waitForSelector('[data-shop] li', { timeout: 30000 });
   const pins = await page.locator('[data-shop] li').count();
   if (pins < 6) throw new Error(`expected the pins in the shop, saw ${pins}`);
@@ -863,12 +902,15 @@ async function profile(browser) {
   const headerText = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
   log('profile page:', headerText.slice(0, 120));
   if (!/\d+\s*points/.test(headerText)) throw new Error('the profile page should show the points balance');
+  await page.click('button[role="tab"]:has-text("Title")');
+  await page.waitForSelector('[data-shop] li:has-text("Wanderer")', { timeout: 10000 });
+  await page.click('[data-profile-tab="settings"]');
   await page.fill('input[aria-label="Your name"]', 'Harness Ada');
   await page.click('button:has-text("Save")');
   await page.waitForSelector('button:has-text("Saved")', { timeout: 10000 });
   await page.waitForSelector('h1:has-text("Harness Ada")', { timeout: 10000 });
-  await page.click('button[role="tab"]:has-text("Title")');
-  await page.waitForSelector('[data-shop] li:has-text("Wanderer")', { timeout: 10000 });
+  await page.click('[data-profile-tab="record"]');
+  await page.waitForSelector('[data-recent]', { timeout: 10000 });
   await shot(page, 'profile');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
@@ -993,10 +1035,23 @@ async function script(browser) {
     await page.waitForSelector('button:has-text("Next round"), button:has-text("See the results")', { timeout: 30000 });
     await page.click('button:has-text("Next round"), button:has-text("See the results")');
   }
-  await page.waitForSelector('a:has-text("New game")', { timeout: 30000 });
+  // "Play again" for fresh content, "Replay this set" for the same one:
+  // two different things, and the labels have to say which is which.
+  await page.waitForSelector('a:has-text("Play again")', { timeout: 30000 });
+  await page.waitForSelector('a:has-text("Replay this set")', { timeout: 10000 });
   const summary = await page.evaluate(() => document.body.innerText);
   log('summary reached:', /out of 25,000 across 5 rounds/.test(summary));
   log('summary lists every round:', await page.locator('ol > li').count());
+  // The outcome and the way on come before the recap, at a desktop
+  // height: five sentences used to push the next game off the screen.
+  const order = await page.evaluate(() => {
+    const again = document.querySelector('a[href*="/geo/script/play"]');
+    const firstRecap = document.querySelector('ol > li');
+    return { againTop: Math.round(again.getBoundingClientRect().top), recapTop: Math.round(firstRecap.getBoundingClientRect().top), viewport: window.innerHeight };
+  });
+  log('replay at', order.againTop + 'px, recap starts at', order.recapTop + 'px, viewport', order.viewport);
+  if (order.againTop >= order.recapTop) throw new Error('the recap comes before the way on');
+  if (order.againTop > order.viewport) throw new Error('the replay action is below the first viewport');
   await shot(page, 'script-summary');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
@@ -1065,11 +1120,307 @@ async function appleRefused(browser) {
   await page.close();
 }
 
+
+/**
+ * A duel room, two browsers.
+ *
+ * Classic and duel are different games behind the same lobby - duel
+ * starts everyone at 6,000 HP and the round's best guess deals the gap
+ * as damage - and only classic had ever been played in a browser. What
+ * this checks is the part classic cannot: that the panel counts HP
+ * rather than points, that damage lands each round, that the standings
+ * are read in HP, and that a finished duel moves the duel ladder.
+ *
+ * Elimination itself is not driven from here. Damage is the gap between
+ * the round's best score and yours, so two browsers clicking blind on
+ * the fake map produce a gap of tens of points against 6,000 HP and
+ * nobody would ever be knocked out. That path is covered where it can
+ * be driven honestly: __tests__/geo/rooms.test.js, "damage, elimination,
+ * and the end at the last player standing".
+ */
+async function duel(browser) {
+  const host = await newPage(browser, { width: 1280, height: 800 });
+  await host.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
+  await host.waitForSelector('form[data-ready="1"]', { timeout: 60000 });
+  await host.fill('input[placeholder="What the others will see"]', 'Duelist');
+  await host.click('button[role="radio"]:has-text("Duel")');
+  await host.selectOption('label:has-text("Rounds") select', '3');
+  await host.selectOption('label:has-text("Time per round") select', '60');
+  await host.click('button:has-text("Open the room")');
+  await host.waitForURL(/\/geo\/room\/[A-Z0-9]{6}/, { timeout: 60000 });
+  const code = host.url().match(/room\/([A-Z0-9]{6})/)[1];
+  await host.waitForSelector('text=Join code', { timeout: 60000 });
+  log('duel room opened', code);
+
+  const guest = await newPage(browser, { width: 1280, height: 800 });
+  await guest.goto(`${BASE}/geo/rooms`, { waitUntil: 'domcontentloaded' });
+  await guest.waitForSelector(`a[href*="/geo/room/${code}"]`, { timeout: 20000 });
+  const listed = await guest.evaluate((c) => {
+    const row = document.querySelector(`a[href*="/geo/room/${c}"]`)?.closest('li, div');
+    return row ? row.innerText.replace(/\s+/g, ' ') : '';
+  }, code);
+  log('listed as:', listed.slice(0, 100));
+  if (!/duel/i.test(listed)) throw new Error('the browser should say a duel room is a duel: ' + listed);
+
+  await guest.goto(`${BASE}/geo/room/${code}`, { waitUntil: 'domcontentloaded' });
+  await guest.fill('input[aria-label="Your name"]', 'Second');
+  await guest.click('button:has-text("Join")');
+  await guest.waitForSelector('text=Waiting for Duelist to start', { timeout: 20000 });
+  await host.waitForSelector('text=Second', { timeout: 20000 });
+
+  // The lobby counts everyone in HP, and nobody who has never played a
+  // duel is given a tier for turning up.
+  const lobby = (await host.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  if (!/6000 HP[\s\S]*6000 HP/.test(lobby)) throw new Error('both duelists should start on 6000 HP: ' + lobby.slice(0, 200));
+  if (/\(provisional\)/.test(lobby)) throw new Error('an unplaced player should read Unplaced, not a tier: ' + lobby.slice(0, 200));
+  await host.click('button:has-text("Start the game")');
+
+  // In the round the panel counts HP where a classic room counts points.
+  for (const p of [host, guest]) await p.waitForSelector('text=Your HP', { timeout: 60000 });
+
+  // Off-centre, so the two browsers do not send the identical pin the
+  // fake map gives for the identical click: with no gap between the
+  // scores nobody takes damage and the scenario would pass on a duel
+  // that never happened.
+  const pinAwayFromCentre = async (page) => {
+    await page.waitForSelector('[data-fake-mapkit]', { timeout: 20000 });
+    const at = await page.evaluate(() => {
+      const r = document.querySelector('[data-fake-mapkit]').getBoundingClientRect();
+      return { x: Math.round(r.left + r.width * 0.15), y: Math.round(r.top + r.height * 0.15) };
+    });
+    await page.mouse.click(at.x, at.y);
+    await waitGuessable(page);
+  };
+
+  // The players panel carries HP through the reveal, where the round
+  // HUD does not. Read off the row rather than the page text: the
+  // reveal prints a distance in km beside it and a regex over the words
+  // happily read 11,716 km as a health bar.
+  const hpOf = (page, who) =>
+    page.evaluate((name) => {
+      const cell = document.querySelector(`[data-player="${name}"][data-player-hp]`);
+      return cell ? Number(cell.getAttribute('data-player-hp')) : null;
+    }, who);
+
+  let damaged = false;
+  for (let round = 1; round <= 3; round++) {
+    for (const p of [host, guest]) {
+      await p.waitForSelector(`text=Round ${round} of 3`, { timeout: 60000 });
+      await waitForLookAround(p);
+    }
+    await pinApple(host);
+    await host.click('[data-geo-guess]');
+    await host.waitForSelector('text=Guess locked in', { timeout: 20000 });
+    await pinAwayFromCentre(guest);
+    await guest.click('[data-geo-guess]');
+    for (const p of [host, guest]) await p.waitForSelector('text=/(Next round|Results) in \\d+s/', { timeout: 20000 });
+    const hp = { host: await hpOf(host, 'Duelist'), guest: await hpOf(guest, 'Second') };
+    log(`duel round ${round}: HP host ${hp.host}, guest ${hp.guest}`);
+    for (const [who, value] of Object.entries(hp)) {
+      if (!Number.isFinite(value)) throw new Error(`the ${who} panel should show HP, saw ${value}`);
+      if (value > DUEL_START_HP) throw new Error(`HP should never go up, ${who} is on ${value}`);
+      if (value < DUEL_START_HP) damaged = true;
+    }
+    const now = host.locator('button:has-text("Now")');
+    if (await now.isVisible().catch(() => false)) await now.click({ timeout: 5000 }).catch(() => {});
+  }
+  // The round's best guess takes none, so exactly one of them being
+  // untouched is the expected shape; both untouched means the damage
+  // never ran.
+  if (!damaged) throw new Error('three rounds of a duel and neither player took damage');
+
+  for (const p of [host, guest]) await p.waitForSelector('text=Final standings', { timeout: 60000 });
+  const standings = (await host.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  if (!/\d[\d,]*\s*HP/.test(standings)) throw new Error('duel standings should count HP, not points: ' + standings.slice(0, 200));
+  if (!/wins/.test(standings)) throw new Error('duel standings should name a winner');
+  log('duel standings:', (standings.match(/Final standings.{0,140}/i) || [''])[0]);
+  await shot(host, 'duel-standings');
+  await host.waitForSelector('text=/[+-]\\d+ rating/', { timeout: 20000 });
+  log('the duel ladder moved');
+
+  // And it is the duel ladder, not classic: the tab has to be the one
+  // a duel rates.
+  await host.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
+  await host.click('button[role="tab"]:has-text("Duel")');
+  await host.waitForSelector('text=/You, Duelist/', { timeout: 20000 });
+  log('the duel tab knows the host');
+  for (const p of [host, guest]) if (p.errors.length) throw new Error('page errors: ' + p.errors.join(' | '));
+  await host.close();
+  await guest.close();
+}
+
+
+/**
+ * The three formats, enforced rather than described.
+ *
+ * A format is move/pan/zoom, and the game applies it two ways: the
+ * three switches on the Look Around view, and a sheet over the pane
+ * for NMPZ so a wheel or a drag or a finger reaches nothing. Only the
+ * sheet had ever been checked, and the sheet is the easy half - the
+ * switches are what stops a keyboard, a trackpad pinch and MapKit's
+ * own controls, and they were being set on a view the harness had not
+ * given them to, so the assertion passed on a view nobody had told.
+ *
+ * Also checks the way out matches: "return to start" is drawn for a
+ * format that can leave its start, and not for the one that cannot.
+ */
+async function formats(browser) {
+  // The view the container actually kept, not the last one built: the
+  // pane races candidates and opens a second view for "return to
+  // start", so the newest in the list is often one that was discarded.
+  const rules = async (page) =>
+    page.evaluate(() => {
+      const view = document.querySelector('[data-fake-pano]')?.__fakeOwner;
+      if (!view) return null;
+      return {
+        move: view.isNavigationEnabled,
+        zoom: view.isZoomEnabled,
+        pan: view.isScrollEnabled,
+        roadLabels: view.showsRoadLabels,
+        pointsOfInterest: view.showsPointsOfInterest,
+      };
+    });
+
+  const cases = [
+    { name: 'Moving', params: 'move=1&pan=1&zoom=1', want: { move: true, pan: true, zoom: true }, sheet: false, canReturn: true },
+    { name: 'No Move', params: 'move=0&pan=1&zoom=1', want: { move: false, pan: true, zoom: true }, sheet: false, canReturn: true },
+    { name: 'NMPZ', params: 'move=0&pan=0&zoom=0', want: { move: false, pan: false, zoom: false }, sheet: true, canReturn: false },
+  ];
+
+  for (const c of cases) {
+    const page = await newPage(browser, { width: 1000, height: 760 });
+    await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=1&time=0&seed=e2e-format-${c.name}&${c.params}`, { waitUntil: 'domcontentloaded' });
+    await waitForLookAround(page);
+    // The pane paints the container in the constructor and applies the
+    // rules after the view's load event, so the marker is on screen a
+    // beat before the format has been applied to anything. Road labels
+    // go off for every format, which makes them the signal that the
+    // rules have run.
+    await page.waitForFunction(() => document.querySelector('[data-fake-pano]')?.__fakeOwner?.showsRoadLabels === false, null, { timeout: 30000 });
+    const got = await rules(page);
+    if (!got) throw new Error(`${c.name}: no Look Around view on the page to read the rules off`);
+    for (const key of ['move', 'pan', 'zoom']) {
+      if (got[key] !== c.want[key]) throw new Error(`${c.name}: ${key} should be ${c.want[key]} on the view, it is ${got[key]}`);
+    }
+    // Street signs and shop names are the answer written down.
+    if (got.roadLabels || got.pointsOfInterest) throw new Error(`${c.name}: the imagery should not label the answer`);
+    const sheet = Boolean(await page.$('[title="Panning is off for this game"]'));
+    if (sheet !== c.sheet) throw new Error(`${c.name}: the blocking sheet should be ${c.sheet ? 'there' : 'absent'}`);
+    const back = Boolean(await page.$('button[aria-label="Return to start"]'));
+    if (back !== c.canReturn) throw new Error(`${c.name}: "return to start" should be ${c.canReturn ? 'offered' : 'absent'}`);
+    log(`${c.name}: view move=${got.move} pan=${got.pan} zoom=${got.zoom}, sheet=${sheet}, return=${back}`);
+    if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+    await page.close();
+  }
+}
+
+/**
+ * A timed round that runs out while the tab is in the background.
+ *
+ * The clock is drawn from an interval, and browsers throttle or suspend
+ * intervals in a tab nobody is looking at - so a round whose remaining
+ * time is counted down tick by tick quietly gains however long the
+ * player was away, and a timed ladder stops being timed. This one is
+ * computed from the wall clock each tick, which is the part worth
+ * holding: the round is expected to be over when the tab comes back,
+ * not to have paused politely.
+ */
+async function backgrounded(browser) {
+  const page = await newPage(browser, { width: 900, height: 700 });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=2&seed=e2e-background&time=30`, { waitUntil: 'domcontentloaded' });
+  await waitForLookAround(page);
+  await waitPlayable(page);
+  const clock = () => page.evaluate(() => Number(document.querySelector('[data-geo-clock]')?.getAttribute('data-geo-clock') ?? NaN));
+  const started = await clock();
+  if (!(started > 0 && started <= 30)) throw new Error(`the round should be counting down from 30, the clock reads ${started}`);
+  log(`a 30 second round is on, clock reads ${started}`);
+
+  // A second page takes the foreground, which is what puts the first
+  // one under the throttle.
+  const front = await browser.newPage();
+  await front.goto('about:blank');
+  await front.bringToFront();
+  const away = Date.now();
+  await front.waitForTimeout(40000);
+  await front.close();
+  await page.bringToFront();
+  log(`came back after ${Math.round((Date.now() - away) / 1000)}s`);
+
+  // The round is over: it was scored with no guess, and the game moved
+  // on rather than sitting on a clock that owes the player time.
+  await page.waitForSelector('text=Out of time.', { timeout: 15000 });
+  const text = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+  if (!/of 5,000/.test(text)) throw new Error('a backgrounded round should have been scored: ' + text.slice(0, 200));
+  log('the round expired while the tab was away, and was scored on return');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
+/**
+ * A whole game from the keyboard, no pointer at all.
+ *
+ * Placing a pin on a map wants a pointer, so the keyboard-playable game
+ * is the country streak: type the country, Enter to pick it, Enter to
+ * guess, Enter to go on. This plays two rounds that way and never calls
+ * mouse.click, so a regression that makes any step pointer-only fails
+ * here rather than in somebody's hands.
+ */
+async function keyboard(browser) {
+  const page = await newPage(browser, { width: 1280, height: 800 });
+  await page.goto(`${BASE}/geo/play?provider=apple&mode=streak&seed=e2e-keyboard`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('text=Streak 0', { timeout: 60000 });
+  await waitForLookAround(page);
+
+  // Tab from the top of the document until the country field has focus:
+  // reaching it at all is the thing being tested, so it is not focused
+  // by selector.
+  let tabs = 0;
+  await page.evaluate(() => document.body.focus());
+  while (tabs < 40) {
+    const label = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || '');
+    if (label === 'Country') break;
+    await page.keyboard.press('Tab');
+    tabs += 1;
+  }
+  if (tabs >= 40) throw new Error('forty tabs and the country field never took focus');
+  // The sixty options in the list used to be tabbable, which put the
+  // field sixty presses from anywhere and the Guess button sixty past
+  // that. The picker is a combobox now and the arrows do that work, so
+  // a handful of stops is the budget.
+  if (tabs > 10) throw new Error(`the country field should be a few tabs in, it is ${tabs}`);
+  log(`the country field is ${tabs} tabs from the top of the round`);
+
+  for (const round of [1, 2]) {
+    await page.keyboard.type('Jap');
+    await page.waitForSelector('[role="option"], li:has-text("Japan")', { timeout: 10000 }).catch(() => {});
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('button:has-text("Guess 🇯🇵 Japan")', { timeout: 10000 });
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('text=/Right\\. Streak|Not 🇯🇵 Japan/', { timeout: 20000 });
+    const verdict = await page.textContent('text=/Right\\. Streak|Not 🇯🇵 Japan/');
+    log(`keyboard round ${round}: ${verdict}`);
+    // Space or Enter continues, the same as the button beside it.
+    await page.keyboard.press('Enter');
+    const over = await page.waitForSelector('text=/Streak of \\d+|Which country is this/', { timeout: 60000 });
+    if (/Streak of/.test(await over.textContent())) {
+      log('the streak ended on a miss, which is the game');
+      break;
+    }
+    await waitForLookAround(page);
+    await page.focus('input[aria-label="Country"]');
+  }
+
+  // And out again without a pointer.
+  await shot(page, 'keyboard');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 (async () => {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { coldOpen, admin, pinGame, streak, timer, mobile, rooms, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

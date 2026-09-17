@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import Card from './ui/Card';
 import { Check, Mail } from 'lucide-react';
 
 export default function KeepThis({ compact = false }) {
@@ -73,22 +74,22 @@ export default function KeepThis({ compact = false }) {
 
   if (state === 'sent') {
     return (
-      <div className={`rounded-2xl border border-forest-500/40 bg-forest-900/40 p-4 text-sm text-forest-100 ${compact ? '' : 'mt-4'}`}>
+      <Card pad="sm" className={`border-forest-500/40 bg-forest-900/40 text-sm text-forest-100 ${compact ? '' : 'mt-4'}`}>
         <p className="flex items-center gap-2 font-semibold">
           <Check className="h-4 w-4" />
           Check your email.
         </p>
         <p className="mt-1 text-forest-200/80">The link signs you in and keeps this game. It lasts fifteen minutes.</p>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className={`rounded-2xl border border-white/10 bg-white/5 p-4 ${compact ? '' : 'mt-4'}`} data-keep-this>
+    <Card pad="sm" className={`border-white/10 bg-white/5 ${compact ? '' : 'mt-4'}`} data-keep-this>
       <p className="text-sm font-semibold text-white">Keep this game</p>
       <p className="mt-1 text-sm text-white/70">
-        Your score, rating and badges live in this browser. An email address moves them to your phone too, and brings them
-        back if you clear it. It costs nothing and there is no password.
+        It&apos;s free. Your score, rating and badges live in this browser, and an email address moves them to your phone too
+        and brings them back if you clear it.
       </p>
       {/* method="post" is not decoration: a submit before React has
           hydrated does a real browser GET otherwise, and this field is
@@ -109,13 +110,13 @@ export default function KeepThis({ compact = false }) {
         <button
           type="submit"
           disabled={state === 'sending'}
-          className="inline-flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-clay-400 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 disabled:opacity-60"
         >
           <Mail className="h-4 w-4" />
           {state === 'sending' ? 'Sending' : 'Send me a link'}
         </button>
       </form>
       {message ? <p className="mt-2 text-sm text-clay-200">{message}</p> : null}
-    </div>
+    </Card>
   );
 }

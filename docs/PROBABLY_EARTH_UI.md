@@ -92,18 +92,46 @@ them are what the founder is reacting to. This is the interface only.
 
 ## Progress
 
-- **1. The design system.** Done. `ocean`, `forest`, `clay` and `sand`
-  are in `tailwind.config.js`, guarded by
-  `__tests__/geo/palette.test.js`, and every one of the game's 28
-  screens is off `midnight`/`flash`.
-- **2. The cold open.** Done. `/geo` is one button on the world; the
-  settings moved to `/geo/setup`. The backdrop is the Natural Earth
-  polygon set already in the bundle, so the front page needs no key and
-  cannot be blank while a third party decides whether to answer. If no
-  imagery is configured at all the button starts Script, which needs
-  nothing, rather than leading to a dead end. Harness scenario:
-  `coldOpen`, which asserts the page has exactly one button and asks
-  for nothing.
+Read this section sceptically. On 2026-09-17 phase 1 was marked Done
+here with one of its four deliverables finished, a full day of work was
+built on top of that line, and every screen built in that day had to be
+built again - which is exactly what "first, because anything built
+before it gets built twice" was written to prevent. A phase is Done
+when all of it is done, and there is a test that says so.
+
+- **1. The design system.** Partly done, and honestly so.
+  - Colour: done. `ocean`, `forest`, `clay` and `sand` are in
+    `tailwind.config.js`, guarded by `__tests__/geo/palette.test.js`,
+    and every one of the game's 28 screens is off `midnight`/`flash`.
+  - Contrast: done. `frontend/scripts/geo-contrast.js` composites every
+    translucent layer down to the opaque one and exits non-zero on
+    anything below WCAG AA. Eight static screens and four in-play ones,
+    0 below AA.
+  - Components: the four every screen needs are in
+    `app/geo/components/ui/` - `Card`, `Button`, `Tabs`, `Stat` - and
+    `__tests__/geo/components.test.js` fails on a card written by hand
+    outside the five named surfaces that are not cards.
+  - Type scale and spacing scale: **not done.** Measured 2026-09-17:
+    11 distinct type sizes in `app/geo` (`text-sm` x206, `text-xs` x74,
+    `text-lg` x24, `text-2xl` x14, `text-[11px]` x13, `text-3xl` x12,
+    `text-[10px]` x11, `text-4xl` x10, `text-xl` x7, `text-base` x5,
+    one `clamp()`), and 49 distinct spacing values. The plan is six type
+    steps (48/30/20/15/13/11) and five spacing steps (4/8/16/24/40),
+    baked into the components above and enforced the way
+    `palette.test.js` enforces colour. Nobody has done it.
+- **2. The front door.** Done, and then done again. It was one button
+  on a spinning globe, which was quick to enter and impossible to
+  understand: nothing on it said the game had a second family (Script),
+  that you could play with people, or that there were competitions
+  running. Those lived on Rankings, which is a standings page. So `/geo`
+  is a game menu now: Play is still the biggest thing on it and still
+  one click to a street with no form and no account, and the rest of
+  the product is beside it. `/geo/setup` was deleted with the settings
+  it held. The backdrop is the Natural Earth polygon set already in the
+  bundle, so the page needs no key and cannot be blank while a third
+  party decides whether to answer. If no imagery is configured at all
+  the button starts Script rather than leading to a dead end. Harness
+  scenario: `coldOpen`.
 - **3. The round screen.** Done. Three labelled pills across the top
   (what you are playing and how to change it, which round this is, the
   score and the clock), one cluster bottom left for looking around with
@@ -123,10 +151,15 @@ them are what the founder is reacting to. This is the interface only.
 - **6. The admin backend.** Done. `/geo/admin`.
 
 
-Still to do: **7**, the remaining screens. Rooms and the room browser
-have been taken off Google and share the round screen's map card, but
-rankings and the profile still have the old shapes under the new
-colours.
+- **7. Everything else.** Rebuilt on the components above: the menu,
+  Rankings, the Profile (three tabs - Record, Shop, Settings - so the
+  first thing a player sees about themselves is their record and not a
+  price list), Friends and the room browser. The Script screens and the
+  admin backend use the components for their cards and have not been
+  laid out again.
+
+Still to do: the type and spacing scales in phase 1, and the type pass
+over every screen that follows from them.
 
 ## What this replaces
 

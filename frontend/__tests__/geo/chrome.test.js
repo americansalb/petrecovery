@@ -26,7 +26,10 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 describe('a takeover covers the screen; nothing else loses its navigation', () => {
   test.each([
-    ['/geo', true],
+    // /geo was a takeover when it was one button on a full-bleed globe.
+    // It is the game menu now and carries the same navigation as every
+    // other page outside a match.
+    ['/geo', false],
     ['/geo/play', true],
     ['/geo/play?mode=daily', true],
     ['/geo/room/ABC123', true],
@@ -54,19 +57,33 @@ describe('a takeover covers the screen; nothing else loses its navigation', () =
   });
 });
 
-describe('the front door leads into the whole game', () => {
-  const coldOpen = read('app/geo/components/home/ColdOpen.js');
+describe('the game menu shows the whole product', () => {
+  const menu = read('app/geo/components/home/GameMenu.js');
 
-  test('Play is the one button, and it is still there', () => {
-    expect(coldOpen).toContain('data-cold-open-play');
+  test('the quick start is still one button', () => {
+    expect(menu).toContain('data-cold-open-play');
   });
 
-  test('and multiplayer is reachable from the first screen', () => {
-    // The row of other ways in was written as a constant and then never
-    // rendered, which left Rooms unreachable from the front page of a
-    // game whose headline feature is playing it with somebody.
-    expect(coldOpen).toContain("href: '/geo/rooms'");
-    expect(coldOpen).toContain('WAYS.map');
+  test('both game families and Friends are on it, not behind it', () => {
+    // Script and Rooms used to be two words in a row of four links, and
+    // the competitions were reachable only by reading a standings page.
+    for (const marker of ['data-menu-script', 'data-menu-friends', 'data-menu-daily', 'data-menu-ranked', 'data-menu-cup']) {
+      expect({ marker, present: menu.includes(marker) }).toEqual({ marker, present: true });
+    }
+  });
+
+  test('the casual modes are in Play rather than in Rankings', () => {
+    for (const marker of ['data-menu-streak', 'data-menu-continent', 'data-menu-country']) {
+      expect({ marker, present: menu.includes(marker) }).toEqual({ marker, present: true });
+    }
+    expect(read('app/geo/leaderboard/page.js')).not.toContain('OtherModes');
+  });
+
+  test('every status on it comes from the server or is not shown', () => {
+    // Never a fabricated player count, rank or streak for atmosphere.
+    for (const endpoint of ['/api/geo/daily', '/api/geo/cup', '/api/geo/leaderboard?ladder=solo', '/api/geo/rooms']) {
+      expect({ endpoint, fetched: menu.includes(endpoint) }).toEqual({ endpoint, fetched: true });
+    }
   });
 });
 
@@ -119,26 +136,26 @@ describe('every field in the game is dark, because the pet site forces them whit
 });
 
 describe('every mode the game has is reachable from a page in the navigation', () => {
-  const contests = read('app/geo/components/Contests.js');
+  const menu = read('app/geo/components/home/GameMenu.js');
   const rankings = read('app/geo/leaderboard/page.js');
-  const coldOpen = read('app/geo/components/home/ColdOpen.js');
 
-  test('Rankings carries ranked, the daily and the cup', () => {
+  test('the menu carries ranked, the daily and the cup', () => {
     // These lived on /geo/setup, which was deleted for being a settings
-    // form. Three whole modes went with it: the only button in the game
-    // that started a ranked round, the only one that started the cup,
-    // and both boards. The endpoints kept answering and nothing called
-    // them, so the game quietly lost a third of itself.
-    expect(rankings).toContain('<Contests');
+    // form; three whole modes went with it. They then lived on the
+    // Rankings page, which is a standings page, so finding a casual
+    // mode meant reading a leaderboard. They are in Play now.
     for (const mode of ['ranked', 'daily', 'cup']) {
-      expect({ mode, started: contests.includes(`/geo/play?mode=${mode}`) }).toEqual({ mode, started: true });
+      expect({ mode, started: menu.includes(`/geo/play?mode=${mode}`) }).toEqual({ mode, started: true });
     }
+    expect(rankings).not.toContain('<Contests');
   });
 
   test('and shows where you came in each, which is the reason to press the button', () => {
-    for (const marker of ['data-ranked-standing', 'data-daily-board', 'data-cup-board']) {
-      expect({ marker, present: contests.includes(marker) }).toEqual({ marker, present: true });
+    for (const marker of ['data-menu-daily', 'data-menu-ranked', 'data-menu-cup']) {
+      expect({ marker, present: menu.includes(marker) }).toEqual({ marker, present: true });
     }
+    // And Rankings keeps a way into the ladder on screen.
+    expect(rankings).toContain('data-ladder-play');
   });
 
   test('no page in the game links to the deleted setup form', () => {
@@ -147,7 +164,7 @@ describe('every mode the game has is reachable from a page in the navigation', (
     // file, because the comment explaining where these moved FROM names
     // it, and prose is not navigation.
     const LINK = /['"`}]\/geo\/setup/;
-    for (const file of ['app/geo/components/Contests.js', 'app/geo/leaderboard/page.js', 'app/geo/components/home/ColdOpen.js', 'app/geo/components/GeoHeader.js', 'app/geo/components/PlayClient.js', 'scripts/geo-e2e/run.js']) {
+    for (const file of ['app/geo/components/home/GameMenu.js', 'app/geo/leaderboard/page.js', 'app/geo/components/GeoHeader.js', 'app/geo/components/PlayClient.js', 'scripts/geo-e2e/run.js']) {
       expect({ file, links: LINK.test(read(file)) }).toEqual({ file, links: false });
     }
   });
@@ -164,7 +181,7 @@ describe('every mode the game has is reachable from a page in the navigation', (
     // continent and country were all three of those after the setup
     // page went, while MODES kept describing them.
     const { MODE_ORDER } = require('@/app/lib/geo/modes');
-    const starters = [contests, read('app/geo/components/OtherModes.js'), coldOpen].join('\n');
+    const starters = menu;
     for (const mode of MODE_ORDER) {
       // The default is the Play button itself, which takes no mode.
       if (mode === 'balanced') continue;
@@ -173,7 +190,7 @@ describe('every mode the game has is reachable from a page in the navigation', (
   });
 
   test('the two modes that need a region ask for one, and the rest do not', () => {
-    const other = read('app/geo/components/OtherModes.js');
+    const other = read('app/geo/components/home/GameMenu.js');
     // "One country" is not a mode until you say which, so this is the
     // one place in the game where a control is the honest answer.
     expect(other).toContain('mode=continent&region=');
@@ -182,9 +199,19 @@ describe('every mode the game has is reachable from a page in the navigation', (
     expect(other).toContain("href=\"/geo/play?mode=streak\"");
   });
 
-  test('the front door still leads to every one of them', () => {
-    for (const href of ['/geo/rooms', '/geo/play?mode=daily', '/geo/leaderboard', '/geo/script']) {
-      expect({ href, linked: coldOpen.includes(`'${href}'`) }).toEqual({ href, linked: true });
+  test('the menu still leads to every one of them', () => {
+    const menu = read('app/geo/components/home/GameMenu.js');
+    for (const href of ['/geo/rooms', '/geo/play?mode=daily', '/geo/script', '/geo/play?mode=ranked', '/geo/play?mode=cup']) {
+      expect({ href, linked: menu.includes(href) }).toEqual({ href, linked: true });
     }
+  });
+
+  test('the top-level navigation is the same four places everywhere', () => {
+    // GAME_LINKS only: the admin link is added at render time for one
+    // account and is not a top-level place.
+    const header = read('app/geo/components/GeoHeader.js');
+    const block = header.slice(header.indexOf('export const GAME_LINKS'), header.indexOf('];', header.indexOf('export const GAME_LINKS')));
+    const labels = [...block.matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
+    expect(labels).toEqual(['Play', 'Friends', 'Rankings', 'Profile']);
   });
 });

@@ -32,11 +32,11 @@ export function Compass({ heading = 0 }) {
       role="img"
     >
       <div className="absolute inset-0 transition-transform duration-150" style={{ transform: `rotate(${-heading}deg)` }}>
-        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-clay-500">N</span>
+        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-clay-300">N</span>
         <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white/60">S</span>
         <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">E</span>
         <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">W</span>
-        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-clay-500" />
+        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-clay-300" />
         <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 rounded bg-white/40" />
       </div>
       <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
@@ -69,7 +69,9 @@ export function TimerRing({ secondsLeft, total }) {
           transform="rotate(-90 20 20)"
         />
       </svg>
-      <span className="min-w-[2ch] text-sm font-semibold tabular-nums">{label}</span>
+      <span className="min-w-[2ch] text-sm font-semibold tabular-nums" data-geo-clock={secondsLeft}>
+        {label}
+      </span>
     </div>
   );
 }
@@ -161,7 +163,10 @@ export default function GameHud({
         </div>
       ) : null}
 
-      {/* Bottom left: looking around, and what the keys do */}
+      {/* Bottom left: looking around, and what the keys do. Only while
+          the round is on: during the reveal the imagery is behind a
+          panel, and a compass ghosting through it was the giveaway. */}
+      {showMapControls ? (
       <div className="pointer-events-none absolute bottom-16 left-3 z-30 flex flex-col items-start gap-3 sm:left-4">
         <div className="pointer-events-auto">
           <Compass heading={heading} />
@@ -189,6 +194,7 @@ export default function GameHud({
           {canPan ? 'Drag to look around. R goes back to where you started.' : 'One view, no looking around. That is the format.'}
         </p>
       </div>
+      ) : null}
 
       {/* The map, on a phone, where it lives behind a button. The size
           controls are on the card itself, next to what they change. */}

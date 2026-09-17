@@ -3,9 +3,15 @@
 /**
  * /geo/script: choose a pool and start.
  *
- * The lobby's job is to make the point of the mode obvious before the
- * first round, because "guess the language" reads as a trivia quiz
- * until you see that the answer is a place on a map.
+ * It used to open with two paragraphs arguing for the mode - that
+ * scoring against a pin rather than a country is the point, that other
+ * games in the genre call the whole subcontinent India - and only then
+ * show anything playable. A player who has clicked Script has already
+ * decided to play it (founder, 2026-09-17: "the Script setup reads like
+ * you are defending a design thesis").
+ *
+ * So: one line, the specimens, the pools, the rules, Start. The
+ * argument for the mode is the specimens.
  */
 
 import { useMemo, useState } from 'react';
@@ -13,7 +19,6 @@ import { useRouter } from 'next/navigation';
 import { Languages } from 'lucide-react';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { LADDERS, LADDER_ORDER, SCRIPT_ROUND_OPTIONS, SCRIPT_TIME_OPTIONS, languagesForLadder, scriptConfigToQuery } from '@/app/lib/geo/script';
-import { LANGUAGES, scriptsInCorpus } from '@/app/lib/geo/languages';
 import ScriptSample from './ScriptSample';
 
 // Shown on the lobby so the mode explains itself: three alphabets, one
@@ -31,27 +36,31 @@ export default function ScriptLobby() {
   const [timer, setTimer] = useState(0);
 
   const poolSize = useMemo(() => languagesForLadder(ladder).length, [ladder]);
-  const scripts = useMemo(() => scriptsInCorpus().length, []);
 
   const start = () => {
     router.push(`/geo/script/play?${scriptConfigToQuery({ ladder, rounds, timer, seed: randomSeedString() })}`);
   };
 
+  const startLabel = `Play ${rounds} rounds`;
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <div className="flex items-center gap-3">
-        <Languages className="h-7 w-7 text-clay-300" />
-        <h1 className="text-3xl font-bold">Script</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <Languages className="h-7 w-7 shrink-0 text-clay-300" />
+            <h1 className="text-3xl font-bold">Script</h1>
+          </div>
+          <p className="mt-2 text-white/70">Read the sentence. Pin where the language is used.</p>
+        </div>
+        <button
+          type="button"
+          onClick={start}
+          className="shrink-0 rounded-xl bg-clay-400 px-6 py-3 text-lg font-bold text-ocean-950 transition hover:bg-clay-300"
+        >
+          {startLabel}
+        </button>
       </div>
-      <p className="mt-3 max-w-2xl text-white/60">
-        You get a sentence. You place a pin where that language is used. Points depend on how close you are, the same way a
-        street-level round works, so there is no dropdown of language names and no all-or-nothing answer.
-      </p>
-      <p className="mt-2 max-w-2xl text-white/60">
-        Scoring against a pin instead of a country is the point. On a map of borders, Tamil, Marathi and Maithili are all just
-        India. On this one they are {LANGUAGES.length} languages across {scripts} writing systems, and the pin has to land in
-        the right one.
-      </p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         {SHOWCASE.map((row) => (
@@ -62,8 +71,8 @@ export default function ScriptLobby() {
       </div>
 
       <fieldset className="mt-8">
-        <legend className="text-sm font-semibold text-white">Pool</legend>
-        <div className="mt-2 space-y-2">
+        <legend className="text-sm font-semibold text-white">Languages</legend>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {LADDER_ORDER.map((id) => {
             const option = LADDERS[id];
             const active = ladder === id;
@@ -97,13 +106,12 @@ export default function ScriptLobby() {
       <button
         type="button"
         onClick={start}
-        className="mt-8 w-full rounded-xl bg-clay-600 px-4 py-3 text-lg font-semibold text-white transition hover:bg-clay-500 sm:w-auto sm:px-8"
+        className="mt-8 w-full rounded-xl bg-clay-400 px-4 py-3 text-lg font-bold text-ocean-950 transition hover:bg-clay-300 sm:w-auto sm:px-8"
       >
-        Play {rounds} rounds
+        {startLabel}
       </button>
       <p className="mt-3 text-sm text-white/60">
-        {poolSize} languages in this pool. Script rounds need no imagery and no map key, so they work everywhere the rest
-        of the game does not.
+        {LADDERS[ladder].label} &middot; {poolSize} languages &middot; {timer ? `${timer}s a round` : 'no timer'}
       </p>
     </div>
   );
