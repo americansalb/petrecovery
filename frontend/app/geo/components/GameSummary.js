@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Check, Copy, Link2, RefreshCw, Settings2, Share2 } from 'lucide-react';
-import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
+import { MAX_ROUND_SCORE, formatDistance, formatScore, ordinal } from '@/app/lib/geo/distance';
 import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { shareText, summaryHeadline, scoreGlyph } from '@/app/lib/geo/share';
@@ -27,13 +27,6 @@ function useCopy() {
     }
   };
   return [copied, copy];
-}
-
-function ordinal(n) {
-  const v = Number(n) || 0;
-  const suffix = ['th', 'st', 'nd', 'rd'];
-  const mod = v % 100;
-  return `${v}${suffix[(mod - 20) % 10] || suffix[mod] || suffix[0]}`;
 }
 
 /**

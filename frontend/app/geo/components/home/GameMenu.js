@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation';
 import { CalendarDays, Flag, Globe2, Languages, MapPin, Play, Timer, Trophy, Users } from 'lucide-react';
 import { CONTINENTS, CONTINENT_ORDER, configToParams, DEFAULT_CONFIG, FORMATS, formatOf, MODES } from '@/app/lib/geo/modes';
 import { PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
+import { ordinal } from '@/app/lib/geo/distance';
 import { untilText } from '@/app/lib/geo/meter';
 import { APPLE_COVERAGE_NAMES, citiesFor } from '@/app/lib/geo/coverage';
 import { isSignedIn } from '@/app/geo/lib/session';
@@ -240,7 +241,7 @@ export default function GameMenu() {
             chips={[`${MODES.daily.fixed.rounds} rounds`, 'No timer', 'Same for everyone']}
             status={
               daily?.you?.rank
-                ? `You are ${daily.you.rank} of ${daily.finished} today.`
+                ? `You are ${ordinal(daily.you.rank)} of ${daily.finished} today.`
                 : daily?.finished
                   ? `${daily.finished} finished today.`
                   : 'Nobody has finished today.'
@@ -253,10 +254,14 @@ export default function GameMenu() {
             icon={Timer}
             name="Ranked"
             chips={[`${MODES.ranked.fixed.rounds} rounds`, `${MODES.ranked.fixed.time}s`, 'No Move']}
+            // A rating is not shown until it means something. 1500 is
+            // where everyone starts, so printing "Silver, 1500" after
+            // one game reads as an accomplishment nobody has; placement
+            // progress is the honest status until the ladder places you.
             status={
-              solo?.games
+              solo?.games >= PROVISIONAL_GAMES
                 ? `${solo.tier}, ${solo.value}. ${solo.games} rated.`
-                : `Placement games: 0 of ${PROVISIONAL_GAMES}`
+                : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games played`
             }
             href="/geo/play?mode=ranked"
             cta="Play this hour's five"
@@ -269,7 +274,7 @@ export default function GameMenu() {
             status={
               cup?.endsAt
                 ? cup.you?.rank
-                  ? `You are ${cup.you.rank} of ${cup.finished}. Ends ${untilText(cup.endsAt)}.`
+                  ? `You are ${ordinal(cup.you.rank)} of ${cup.finished}. Ends ${untilText(cup.endsAt)}.`
                   : `Ends ${untilText(cup.endsAt)}.`
                 : ''
             }

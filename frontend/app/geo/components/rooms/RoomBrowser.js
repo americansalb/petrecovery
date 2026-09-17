@@ -149,12 +149,10 @@ export default function RoomBrowser() {
           <p className="text-sm font-semibold uppercase tracking-wide text-white/60">
             <Link href="/geo" className="hover:underline">Probably Earth</Link>
           </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Rooms</h1>
-          <p className="mt-1 text-sm text-white/60">
-            Finished rooms count toward the <Link href="/geo/leaderboard" className="underline">rankings</Link>.
-          </p>
-          <p className="mt-2 max-w-2xl text-white/60">
-            Everyone in a room gets the same places on the same clock. Classic counts points; a duel starts everyone at 6,000 HP and the best guess each round hurts the rest.
+          <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">Friends</h1>
+          <p className="mt-2 max-w-2xl text-white/70">
+            Same places, same clock, everyone at once. Finished rooms count toward the{' '}
+            <Link href="/geo/leaderboard" className="underline hover:text-white">rankings</Link>.
           </p>
         </header>
 

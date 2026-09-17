@@ -28,13 +28,12 @@ export const VARIANTS = {
   classic: {
     id: 'classic',
     label: 'Classic',
-    description: 'Everyone guesses the same places. Most points after the last round wins.',
+    description: 'Highest total score wins.',
   },
   duel: {
     id: 'duel',
     label: 'Duel',
-    description:
-      'Everyone starts with 6,000 HP. Each round the best guess deals the point difference as damage to everyone else. Last one standing wins.',
+    description: 'Closest guesses deal damage. Last player standing wins.',
   },
 };
 

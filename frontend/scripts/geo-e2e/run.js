@@ -574,9 +574,9 @@ async function ranked(browser) {
     // straight to the play URL races the profile this browser is about
     // to be given, and a ranked round is refused to anyone but the
     // profile that opened it.
-    await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('[data-start-ranked]', { timeout: 60000 });
-    await page.click('[data-start-ranked]');
+    await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-menu-ranked]', { timeout: 60000 });
+    await page.click('[data-menu-ranked]');
     for (let i = 0; i < 5; i++) {
       await waitPlayable(page);
       await waitForLookAround(page);
@@ -606,11 +606,11 @@ async function ranked(browser) {
   // This one is never first: the browser above just finished the hour.
   if (!/average of \d+ other/.test(against)) throw new Error('a player with a field ahead of them should be rated against it, not against par');
 
-  // Rankings carries the standing, and the ladder has a tab of its own.
-  await second.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-  await second.waitForSelector('[data-ranked-standing]', { timeout: 20000 });
-  await second.waitForSelector('[data-ranked-standing]:not(:has-text("to be placed"))', { timeout: 20000 });
-  const standing = (await second.textContent('[data-ranked-standing]')).replace(/\s+/g, ' ');
+  // The menu carries the standing, and the ladder has a tab of its own
+  // on Rankings.
+  await second.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await second.waitForSelector('[data-menu-ranked]:not(:has-text("0 of"))', { timeout: 20000 });
+  const standing = (await second.textContent('[data-menu-ranked]')).replace(/\s+/g, ' ');
   log('ranked standing:', standing);
   if (!/placement games played/.test(standing)) throw new Error('the lobby should show placement progress');
 
@@ -717,13 +717,13 @@ async function firstRun(browser) {
   log('account ask:', keep.slice(0, 90));
   if (!/Keep this game/.test(keep)) throw new Error('the summary should offer to keep the game');
 
-  await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-  // The panel is on the page before its board is: it renders at once
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  // The card is on the page before its status is: it renders at once
   // and fills in when /api/geo/daily answers. Waiting on the shape of
   // the sentence rather than on the element is what makes this about
-  // the board and not about which of the two got there first.
-  await page.waitForSelector('[data-daily-board]:has-text("You are")', { timeout: 20000 });
-  const played = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
+  // the standing and not about which of the two got there first.
+  await page.waitForSelector('[data-menu-daily]:has-text("You are")', { timeout: 20000 });
+  const played = (await page.textContent('[data-menu-daily]')).replace(/\s+/g, ' ');
   log('daily board after a game:', played.slice(0, 120));
   if (!/You are \d+(st|nd|rd|th) of \d+/.test(played)) {
     throw new Error("the daily board should show where the game just played came: " + played.slice(0, 160));
@@ -754,13 +754,13 @@ async function daily(browser) {
   await shot(page, 'daily-summary');
   const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
 
-  await page.goto(`${BASE}/geo/leaderboard`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-daily-board]:has-text("You are")', { timeout: 20000 });
-  const board = (await page.textContent('[data-daily-board]')).replace(/\s+/g, ' ');
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-menu-daily]:has-text("You are")', { timeout: 20000 });
+  const board = (await page.textContent('[data-menu-daily]')).replace(/\s+/g, ' ');
   log('daily board:', board.slice(0, 160));
   if (!/You are \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the board should show your rank');
-  await page.waitForSelector('[data-cup-board]:has-text("Ends")', { timeout: 20000 });
-  const cupText = (await page.textContent('[data-cup-board]')).replace(/\s+/g, ' ');
+  await page.waitForSelector('[data-menu-cup]:has-text("Ends")', { timeout: 20000 });
+  const cupText = (await page.textContent('[data-menu-cup]')).replace(/\s+/g, ' ');
   if (!/Ends in/.test(cupText)) throw new Error('the cup card should say when the week ends');
   log('lobby cup card:', cupText.slice(0, 120));
 

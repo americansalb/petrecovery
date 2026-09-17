@@ -136,25 +136,26 @@ describe('every field in the game is dark, because the pet site forces them whit
 });
 
 describe('every mode the game has is reachable from a page in the navigation', () => {
-  const contests = read('app/geo/components/Contests.js');
+  const menu = read('app/geo/components/home/GameMenu.js');
   const rankings = read('app/geo/leaderboard/page.js');
 
-  test('Rankings carries ranked, the daily and the cup', () => {
+  test('the menu carries ranked, the daily and the cup', () => {
     // These lived on /geo/setup, which was deleted for being a settings
-    // form. Three whole modes went with it: the only button in the game
-    // that started a ranked round, the only one that started the cup,
-    // and both boards. The endpoints kept answering and nothing called
-    // them, so the game quietly lost a third of itself.
-    expect(rankings).toContain('<Contests');
+    // form; three whole modes went with it. They then lived on the
+    // Rankings page, which is a standings page, so finding a casual
+    // mode meant reading a leaderboard. They are in Play now.
     for (const mode of ['ranked', 'daily', 'cup']) {
-      expect({ mode, started: contests.includes(`/geo/play?mode=${mode}`) }).toEqual({ mode, started: true });
+      expect({ mode, started: menu.includes(`/geo/play?mode=${mode}`) }).toEqual({ mode, started: true });
     }
+    expect(rankings).not.toContain('<Contests');
   });
 
   test('and shows where you came in each, which is the reason to press the button', () => {
-    for (const marker of ['data-ranked-standing', 'data-daily-board', 'data-cup-board']) {
-      expect({ marker, present: contests.includes(marker) }).toEqual({ marker, present: true });
+    for (const marker of ['data-menu-daily', 'data-menu-ranked', 'data-menu-cup']) {
+      expect({ marker, present: menu.includes(marker) }).toEqual({ marker, present: true });
     }
+    // And Rankings keeps a way into the ladder on screen.
+    expect(rankings).toContain('data-ladder-play');
   });
 
   test('no page in the game links to the deleted setup form', () => {
@@ -163,7 +164,7 @@ describe('every mode the game has is reachable from a page in the navigation', (
     // file, because the comment explaining where these moved FROM names
     // it, and prose is not navigation.
     const LINK = /['"`}]\/geo\/setup/;
-    for (const file of ['app/geo/components/Contests.js', 'app/geo/leaderboard/page.js', 'app/geo/components/home/ColdOpen.js', 'app/geo/components/GeoHeader.js', 'app/geo/components/PlayClient.js', 'scripts/geo-e2e/run.js']) {
+    for (const file of ['app/geo/components/home/GameMenu.js', 'app/geo/leaderboard/page.js', 'app/geo/components/GeoHeader.js', 'app/geo/components/PlayClient.js', 'scripts/geo-e2e/run.js']) {
       expect({ file, links: LINK.test(read(file)) }).toEqual({ file, links: false });
     }
   });
@@ -180,7 +181,7 @@ describe('every mode the game has is reachable from a page in the navigation', (
     // continent and country were all three of those after the setup
     // page went, while MODES kept describing them.
     const { MODE_ORDER } = require('@/app/lib/geo/modes');
-    const starters = [contests, read('app/geo/components/home/GameMenu.js')].join('\n');
+    const starters = menu;
     for (const mode of MODE_ORDER) {
       // The default is the Play button itself, which takes no mode.
       if (mode === 'balanced') continue;

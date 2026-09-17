@@ -14,7 +14,7 @@ import { Award, Gauge, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-rea
 import { formatScore } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
 import { VARIANTS } from '@/app/lib/geo/rooms';
-import { LADDERS, LADDER_LABELS } from '@/app/lib/geo/rating';
+import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { loadName, saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
@@ -194,7 +194,9 @@ export default function ProfileClient() {
           </div>
           <div className="text-right">
             <p className="text-3xl font-bold tabular-nums">{formatScore(points)}</p>
-            <p className="text-sm text-white/60">points</p>
+            {/* Not just "points": a round score is points too, and a
+                rating is a third number. Each one says which it is. */}
+            <p className="text-sm text-white/60">cosmetic points</p>
           </div>
         </header>
 
@@ -288,15 +290,28 @@ export default function ProfileClient() {
                 <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                   {LADDERS.map((ladder) => {
                     const r = profile.ratings?.[ladder] || {};
+                    const games = r.games || 0;
+                    const placements = Math.max(0, (profile.provisionalGames ?? PROVISIONAL_GAMES) - games);
                     return (
                       <div key={ladder}>
                         <dt className="text-white/60">{LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder}</dt>
-                        <dd className="text-lg font-bold tabular-nums">
-                          {r.value ?? 1500} <span className="text-xs font-semibold text-white/60">{r.tier || 'Silver'}</span>
-                        </dd>
-                        <dd className="text-xs text-white/60">
-                          {r.games || 0} rated {r.games === 1 ? 'game' : 'games'}
-                        </dd>
+                        {games ? (
+                          <>
+                            <dd className="text-lg font-bold tabular-nums">
+                              {r.value} <span className="text-xs font-semibold text-white/60">{r.tier}{r.provisional ? ', provisional' : ''}</span>
+                            </dd>
+                            <dd className="text-xs text-white/60">
+                              {placements ? `${placements} more to be placed` : `${games} rated ${games === 1 ? 'game' : 'games'}`}
+                            </dd>
+                          </>
+                        ) : (
+                          <>
+                            <dd className="text-lg font-bold text-white/70">Unplaced</dd>
+                            <dd className="text-xs text-white/60">
+                              Placement games: 0 of {profile.provisionalGames ?? PROVISIONAL_GAMES}
+                            </dd>
+                          </>
+                        )}
                       </div>
                     );
                   })}

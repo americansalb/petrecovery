@@ -80,6 +80,18 @@ export function formatDistance(km) {
   return `${Math.round(km).toLocaleString('en-US')} km`;
 }
 
+/**
+ * "1st", "2nd", "11th". Placements are printed on the summary, in the
+ * menu's standings and in the ledger's reason line, and this was
+ * written out separately in all three.
+ */
+export function ordinal(n) {
+  const v = Number(n) || 0;
+  const suffix = ['th', 'st', 'nd', 'rd'];
+  const mod = v % 100;
+  return `${v}${suffix[(mod - 20) % 10] || suffix[mod] || suffix[0]}`;
+}
+
 export function formatScore(points) {
   return Number(points || 0).toLocaleString('en-US');
 }
