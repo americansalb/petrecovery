@@ -10,6 +10,7 @@
 
 import { ArrowRight, Flag, Rocket } from 'lucide-react';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
+import { useCountUp } from '../lib/countUp';
 
 /**
  * The reveal for a round that was not on this planet: what it was, and
@@ -50,6 +51,15 @@ function NotEarthReveal({ result, points }) {
 }
 
 export default function RoundResult({ result, roundNumber, roundsTotal, isLast, isStreak, streak, onNext, countryName, points = null }) {
+  // The score arrives rather than appears: it is the thing you earned,
+  // and counting it up is the moment. The key is the round, so the next
+  // reveal counts from zero instead of from the last one's total.
+  //
+  // The distance does NOT count. It is a fact, not an achievement, and
+  // counting it from zero puts "1 m away" on screen for a frame, which
+  // at a glance reads as a perfect guess on a round that missed by
+  // fifteen thousand kilometres.
+  const shownScore = useCountUp(result.score, { key: roundNumber });
   const country = result.answer?.country;
   const place = [result.answer?.city, country?.name].filter(Boolean).join(', ');
   const isNotEarth = result.kind === 'not-earth';
@@ -59,7 +69,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
   const wrongCall = !isNotEarth && Boolean(result.calledNotEarth);
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-white/10 bg-ocean-950/95 p-4 text-white shadow-2xl backdrop-blur sm:p-6">
+    <div className="geo-reveal-panel absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-white/10 bg-ocean-950/95 p-4 text-white shadow-2xl backdrop-blur sm:p-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {isNotEarth ? <NotEarthReveal result={result} points={points} /> : null}
         {isNotEarth ? null : (
@@ -79,7 +89,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
           ) : (
             <>
               <p className="text-3xl font-bold tabular-nums text-clay-300">
-                {formatScore(result.score)} <span className="text-base font-medium text-white/60">of {formatScore(MAX_ROUND_SCORE)}</span>
+                {formatScore(Math.round(shownScore))} <span className="text-base font-medium text-white/60">of {formatScore(MAX_ROUND_SCORE)}</span>
               </p>
               <p className="mt-1 text-white/80">
                 {wrongCall
@@ -95,9 +105,19 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                   {points.earned > 0 ? `+${points.earned} points` : ''}
                   {/* What the total is made of, not more on top of it:
                       "+12 points +2 round, +10 first of the day" read
-                      as 24. */}
+                      as 24. Each award lands after the one before it,
+                      so the line reads as an itemisation. */}
                   {points.lines?.length > 1 ? (
-                    <span className="text-white/60"> ({points.lines.map((line) => `${line.amount} ${line.reason.toLowerCase()}`).join(' + ')})</span>
+                    <span className="text-white/60">
+                      {' ('}
+                      {points.lines.map((line, i) => (
+                        <span key={`${line.reason}:${i}`} className="geo-award" style={{ animationDelay: `${420 + i * 90}ms` }}>
+                          {i ? ' + ' : ''}
+                          {line.amount} {line.reason.toLowerCase()}
+                        </span>
+                      ))}
+                      {')'}
+                    </span>
                   ) : null}
                   {points.badge ? `${points.earned > 0 ? '. ' : ''}New badge: ${points.badge.flag} ${points.badge.name}` : ''}
                 </p>
