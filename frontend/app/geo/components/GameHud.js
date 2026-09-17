@@ -22,7 +22,7 @@
 import Link from 'next/link';
 import { Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
-import { MODES } from '@/app/lib/geo/modes';
+import { CONTINENTS, MODES } from '@/app/lib/geo/modes';
 
 export function Compass({ heading = 0 }) {
   return (
@@ -100,6 +100,7 @@ export default function GameHud({
   canZoom,
   canReturn = true,
   canPan = true,
+  regionLabel = '',
   onReturn,
   onZoom,
   mobileMapOpen,
@@ -110,6 +111,17 @@ export default function GameHud({
   const isStreak = config.mode === 'streak';
   const modeLabel = MODES[config.mode]?.label || MODES[config.mode]?.short || config.mode;
   const timed = config.time > 0 && Number.isFinite(secondsLeft);
+  // The pill's second line is what you are playing. For a mode with a
+  // region that is the region: "CONTINENT / City streets" named every
+  // continent the same way and told a player nothing about the one
+  // constraint their round was under.
+  const needs = MODES[config.mode]?.needs;
+  const playing =
+    needs === 'continent'
+      ? CONTINENTS[config.region]?.label || config.region
+      : needs === 'country'
+        ? regionLabel || config.region
+        : 'City streets';
 
   return (
     <>
@@ -117,7 +129,7 @@ export default function GameHud({
       <div className="pointer-events-none absolute left-3 top-3 z-30 sm:left-4 sm:top-4">
         <div className={`pointer-events-auto flex items-center gap-3 py-1.5 pl-4 pr-1.5 ${pill}`}>
           <Stat label={isStreak ? 'Country streak' : modeLabel}>
-            <span className="text-sm font-semibold text-white">{isStreak ? `Streak ${streak}` : 'City streets'}</span>
+            <span className="text-sm font-semibold text-white">{isStreak ? `Streak ${streak}` : playing}</span>
           </Stat>
         </div>
       </div>

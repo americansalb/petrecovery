@@ -21,7 +21,7 @@
  *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, regionPill, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -1315,6 +1315,33 @@ async function duel(browser) {
  * Also checks the way out matches: "return to start" is drawn for a
  * format that can leave its start, and not for the one that cannot.
  */
+/**
+ * A region mode names its region.
+ *
+ * The pill top left is what you are playing, and its second line read
+ * "City streets" for every mode including the two whose whole point is
+ * a constraint - so Continent: Europe and Country: Japan were
+ * indistinguishable from each other and from the world game.
+ */
+async function regionPill(browser) {
+  for (const [url, want] of [
+    ['/geo/play?mode=continent&region=europe&seed=e2e-region-eu', 'Europe'],
+    ['/geo/play?mode=country&region=JP&seed=e2e-region-jp', 'Japan'],
+  ]) {
+    const page = await newPage(browser, { width: 1100, height: 760 });
+    await page.goto(`${BASE}${url}`, { waitUntil: 'domcontentloaded' });
+    await waitPlayable(page);
+    const pill = (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ');
+    if (!pill.includes(want)) throw new Error(`a ${want} round should name it on screen: ${pill.slice(0, 160)}`);
+    if (/CONTINENT City streets|COUNTRY City streets/i.test(pill)) {
+      throw new Error(`a region mode should name its region, not "City streets": ${pill.slice(0, 160)}`);
+    }
+    log(`region pill: ${want} named`);
+    if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+    await page.close();
+  }
+}
+
 async function formats(browser) {
   // The view the container actually kept, not the last one built: the
   // pane races candidates and opens a second view for "return to
@@ -1512,7 +1539,7 @@ async function keyboard(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, regionPill, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {
