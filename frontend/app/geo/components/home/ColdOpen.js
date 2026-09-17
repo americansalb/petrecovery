@@ -103,7 +103,10 @@ export default function ColdOpen() {
         </Link>
       </header>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 pb-16 text-center">
+      {/* pointer-events-none so the globe behind can be grabbed
+          anywhere the hero is not an actual control; each control
+          switches them back on. */}
+      <div className="pointer-events-none relative z-10 flex flex-1 flex-col items-center justify-center px-5 pb-16 text-center">
         <h1 className="geo-rise text-[clamp(2.75rem,10vw,5.5rem)] font-black leading-[0.95] tracking-tight drop-shadow-[0_2px_20px_rgba(0,0,0,0.35)]">
           Probably Earth
         </h1>
@@ -117,7 +120,7 @@ export default function ColdOpen() {
           type="button"
           onClick={start}
           disabled={starting}
-          className="geo-rise mt-9 inline-flex items-center gap-3 rounded-2xl bg-clay-500 px-11 py-5 ring-1 ring-clay-300/40 text-xl font-bold text-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)] transition hover:bg-clay-400 hover:ring-clay-200/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clay-200 disabled:opacity-70 sm:text-2xl"
+          className="geo-rise pointer-events-auto mt-9 inline-flex items-center gap-3 rounded-2xl bg-clay-500 px-11 py-5 ring-1 ring-clay-300/40 text-xl font-bold text-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)] transition hover:bg-clay-400 hover:ring-clay-200/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clay-200 disabled:opacity-70 sm:text-2xl"
           style={{ animationDelay: '160ms' }}
           data-cold-open-play
         >
@@ -134,7 +137,7 @@ export default function ColdOpen() {
           </p>
         ) : null}
 
-        <nav className="geo-rise mt-10 flex flex-wrap items-center justify-center gap-x-0.5 gap-y-1" style={{ animationDelay: '300ms' }} aria-label="Other ways to play">
+        <nav className="geo-rise pointer-events-auto mt-10 flex flex-wrap items-center justify-center gap-x-0.5 gap-y-1" style={{ animationDelay: '300ms' }} aria-label="Other ways to play">
           {WAYS.map((way, i) => (
             <span key={way.href} className="flex items-center">
               {i ? <span className="px-1 text-sand-200/30" aria-hidden="true">·</span> : null}
