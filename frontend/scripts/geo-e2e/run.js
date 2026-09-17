@@ -648,15 +648,27 @@ async function coldOpen(browser) {
   await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-cold-open-play]', { timeout: 30000 });
 
-  // One start, not eight. Every other control on this page is a link to
-  // somewhere else, and none of them says Play.
+  // One button that starts the default game, not eight. The menu has
+  // links to the rest of the product and two region pickers under "More
+  // ways to play", which is the catalogue that used to be buried in the
+  // standings page; what it must not have is a second thing competing
+  // to be the game.
   const starts = await page.locator('button:visible').count();
-  log('buttons on the front door:', starts);
-  if (starts !== 1) throw new Error(`the front door should have one button, found ${starts}`);
+  log('buttons on the menu:', starts);
+  if (starts !== 1) throw new Error(`the menu should have one button, found ${starts}`);
 
-  // Nothing to configure: no select, no radio, no text input.
-  const fields = await page.locator('select, input, [role="radio"]').count();
-  if (fields) throw new Error(`the front door should ask for nothing, found ${fields} fields`);
+  // The quick start asks for nothing: no field sits above it, so a
+  // stranger presses Play without having decided anything first.
+  const asksFirst = await page.evaluate(() => {
+    const play = document.querySelector('[data-cold-open-play]');
+    if (!play) return -1;
+    const top = play.getBoundingClientRect().top + window.scrollY;
+    return [...document.querySelectorAll('select, input, [role="radio"]')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.top + window.scrollY < top;
+    }).length;
+  });
+  if (asksFirst !== 0) throw new Error(`the quick start should ask for nothing first, found ${asksFirst} fields above Play`);
 
   await shot(page, 'cold-open');
   await page.click('[data-cold-open-play]');
@@ -676,8 +688,13 @@ async function firstRun(browser) {
   log('front door:', text.slice(0, 140));
   // What the game is, and how to reach the rest of it, in the words a
   // stranger meets first.
-  for (const wanted of ['Put a pin where you think you are', 'Play with friends', 'Rankings']) {
-    if (!text.includes(wanted)) throw new Error(`the front door should say ${wanted}`);
+  // What the menu has to show a stranger: what the game is, both game
+  // families, and the way to play with somebody.
+  // Case-insensitive: the card headings are uppercased in CSS, and
+  // innerText returns what is rendered.
+  const lower = text.toLowerCase();
+  for (const wanted of ['Put a pin where you think you are', 'Street', 'Script', 'Friends', 'Rankings']) {
+    if (!lower.includes(wanted.toLowerCase())) throw new Error(`the game menu should show ${wanted}`);
   }
 
   // Play one game, and it should not be there afterwards.

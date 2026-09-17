@@ -67,7 +67,13 @@ export const IMMERSIVE_GAME_ROUTES = ['/geo'];
  * progress covers the screen; choosing one is an ordinary page.
  */
 export const GAME_TAKEOVER_ROUTES = ['/geo/play', '/geo/room/', '/geo/script/play'];
-export const GAME_TAKEOVER_EXACT = ['/geo'];
+/**
+ * Nothing is an exact-match takeover any more. `/geo` was, when it was
+ * one button on a full-bleed globe; it is the game menu now and carries
+ * the same navigation as every other page outside a match, because a
+ * menu you cannot navigate from is where the product went missing.
+ */
+export const GAME_TAKEOVER_EXACT = [];
 
 /** Does this path own the whole screen? */
 export function isGameTakeover(pathname) {

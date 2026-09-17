@@ -13,7 +13,6 @@ import { VARIANTS } from '@/app/lib/geo/rooms';
 import { profileHeaders } from '../lib/profile';
 import PlayerName from '../components/PlayerName';
 import Contests from '../components/Contests';
-import OtherModes from '../components/OtherModes';
 
 function RatingCell({ row }) {
   return (
@@ -193,7 +192,6 @@ export default function GeoLeaderboardPage() {
         </p>
 
         <Contests solo={solo} />
-        <OtherModes />
       </div>
     </div>
   );
