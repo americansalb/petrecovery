@@ -21,7 +21,7 @@
  *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -101,6 +101,9 @@ async function newPage(browser, viewport, options = {}) {
     // A prefetch the browser abandons because you navigated is not a
     // failure: the click it lost the race to is what the player did.
     if (request.failure()?.errorText === 'net::ERR_ABORTED') return;
+    // A request the scenario refused on purpose, to see what the page
+    // does without it. Those are the point of the run, not a bug in it.
+    if ((options.refuses || []).some((part) => url.includes(part))) return;
     errors.push(`request: ${request.failure()?.errorText} ${url}`);
   });
   // requestfailed is transport only: a 404 for a chunk or a stylesheet
@@ -616,7 +619,11 @@ async function ranked(browser) {
   // The menu carries the standing, and the ladder has a tab of its own
   // on Rankings.
   await second.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
-  await second.waitForSelector('[data-menu-ranked]:not(:has-text("0 of"))', { timeout: 20000 });
+  // The card carries no status at all until the board answers (a claim
+  // made from a request still in flight is a false one), so this waits
+  // for the standing itself rather than for the absence of "0 of",
+  // which an empty card satisfies the moment it paints.
+  await second.waitForSelector('[data-menu-ranked]:has-text("placement games played")', { timeout: 30000 });
   const standing = (await second.textContent('[data-menu-ranked]')).replace(/\s+/g, ' ');
   log('ranked standing:', standing);
   if (!/placement games played/.test(standing)) throw new Error('the lobby should show placement progress');
@@ -878,7 +885,27 @@ async function profile(browser) {
   await pinApple(page);
   await page.click('[data-geo-guess]');
   await page.waitForSelector('text=/\\+\\d+ points/', { timeout: 20000 });
-  log('round points line:', await page.textContent('text=/\\+\\d+ points/'));
+  const pointsLine = (await page.evaluate(() => {
+    const node = [...document.querySelectorAll('p')].find((el) => /^\+\d+ points/.test(el.innerText.trim()));
+    return node ? node.innerText.replace(/\s+/g, ' ').trim() : '';
+  }));
+  log('round points line:', pointsLine);
+  // The breakdown has to add up to the total it is a breakdown of. It
+  // used to render as "+12 points +2 round, +10 first of the day",
+  // which reads as 24.
+  const total = Number(pointsLine.match(/^\+(\d+) points/)[1]);
+  const parts = [...pointsLine.matchAll(/(\d+) [a-z]/g)].map((m) => Number(m[1]));
+  const breakdown = pointsLine.includes('(') ? pointsLine.slice(pointsLine.indexOf('(') + 1, pointsLine.indexOf(')')) : '';
+  if (breakdown) {
+    const sum = [...breakdown.matchAll(/(\d+)/g)].map((m) => Number(m[1])).reduce((a, b) => a + b, 0);
+    if (sum !== total) throw new Error(`the award breakdown should sum to the total: ${pointsLine}`);
+    if (/\+/.test(breakdown)) {
+      // A '+' inside the parentheses is the addition sign between the
+      // parts, not a fourth award: "(2 round + 10 first of the day)".
+      if (/\+\d/.test(breakdown)) throw new Error(`a part inside the breakdown should not carry its own plus: ${pointsLine}`);
+    }
+  }
+  if (!parts.length) throw new Error('the points line should carry numbers: ' + pointsLine);
   await page.goto(`${BASE}/geo/me`, { waitUntil: 'domcontentloaded' });
   // The page opens on the record: rating, last games, badges, today.
   // The shop is a tab, because a price list is not what a profile is.
@@ -892,6 +919,15 @@ async function profile(browser) {
   for (const ladder of ['Classic', 'Duel', 'Ranked solo']) {
     if (!new RegExp(ladder, 'i').test(record)) throw new Error(`the record tab should name every ladder, missing ${ladder}`);
   }
+  // Badge progress counts countries against countries. Mars and the
+  // Moon are badge rows too, so counting them in the numerator against
+  // the street pool could print 24 of 23.
+  const badges = await page.evaluate(() => document.querySelector('[data-badges]')?.innerText.replace(/\s+/g, ' ') || '');
+  const progress = badges.match(/(\d+) of (\d+) countries/i);
+  if (progress && Number(progress[1]) > Number(progress[2])) {
+    throw new Error(`badge progress cannot exceed its denominator: ${progress[0]}`);
+  }
+  log('badges:', badges.slice(0, 80));
   await page.click('[data-profile-tab="shop"]');
   await page.waitForSelector('[data-shop] li', { timeout: 30000 });
   const pins = await page.locator('[data-shop] li').count();
@@ -1314,6 +1350,47 @@ async function formats(browser) {
   }
 }
 
+
+/**
+ * The menu when a status endpoint will not answer.
+ *
+ * Every card's status is a claim about the game, and a claim made from
+ * a request that has not come back is a false one: the Daily card said
+ * "Nobody has finished today." while /api/geo/daily was still in
+ * flight or after it failed, and Ranked turned an unanswered board into
+ * "0 of 5 placement games played". Neither is true; both look true.
+ *
+ * So with the two boards refused outright: no status on those cards,
+ * and every way in beside them still works, which is the part that
+ * matters.
+ */
+async function menuOffline(browser) {
+  const page = await newPage(browser, { width: 1280, height: 900 }, { refuses: ['/api/geo/daily', 'ladder=solo'] });
+  await page.route('**/api/geo/daily', (route) => route.abort());
+  await page.route('**/api/geo/leaderboard?ladder=solo', (route) => route.abort());
+  await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('[data-menu-daily]', { timeout: 60000 });
+  // Long enough that a status which was going to appear has appeared:
+  // the cup and rooms requests beside these two answer in this window.
+  await page.waitForSelector('[data-menu-cup]', { timeout: 30000 });
+  await page.waitForTimeout(2500);
+
+  for (const [marker, name] of [['data-menu-daily', 'Daily'], ['data-menu-ranked', 'Ranked']]) {
+    const text = await page.evaluate((m) => document.querySelector(`[${m}]`).innerText.replace(/\s+/g, ' '), marker);
+    for (const claim of ['Nobody has finished', 'finished today', 'placement games', 'rated']) {
+      if (text.includes(claim)) throw new Error(`${name} invented "${claim}" from a request that never answered: ${text}`);
+    }
+    log(`${name} with its board refused: ${text}`);
+  }
+
+  // And the way in is still there and still goes somewhere.
+  await page.click('[data-menu-daily]');
+  await page.waitForURL(/mode=daily/, { timeout: 30000 });
+  log('the Daily card still starts a game with its board down');
+  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
+  await page.close();
+}
+
 /**
  * A timed round that runs out while the tab is in the background.
  *
@@ -1420,7 +1497,7 @@ async function keyboard(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { coldOpen, admin, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

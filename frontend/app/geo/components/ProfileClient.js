@@ -218,6 +218,7 @@ export default function ProfileClient() {
   };
 
   const items = useMemo(() => (shop?.items || []).filter((i) => i.kind === kind), [shop, kind]);
+  const countryBadges = (profile?.badges || []).filter((b) => !b.notEarth).length;
   const view = shop?.view || profile?.equipped || null;
   const points = shop?.points ?? profile?.points ?? 0;
 
@@ -326,7 +327,10 @@ export default function ProfileClient() {
 
             {/* Badges */}
             <Card data-badges>
-              <CardTitle icon={Award} trailing={profile?.badges?.length ? `${profile.badges.length} of ${PLAYABLE_COUNTRIES}` : null}>
+              {/* Mars and the Moon are badge rows too (XM and XL), and
+                  the denominator is the street pool, so counting them
+                  in the numerator could print 24 of 23. */}
+              <CardTitle icon={Award} trailing={countryBadges ? `${countryBadges} of ${PLAYABLE_COUNTRIES} countries` : null}>
                 Badges
               </CardTitle>
               {profile?.badges?.length ? (
