@@ -39,7 +39,7 @@ export default function NotEarthButton({ onCall, disabled = false, roundKey }) {
             setAsking(false);
             onCall();
           }}
-          className="rounded-full bg-clay-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-clay-600 sm:text-sm"
+          className="rounded-full bg-clay-400 px-3 py-1.5 text-xs font-bold text-ocean-950 hover:bg-clay-300 sm:text-sm"
         >
           Call it
         </button>

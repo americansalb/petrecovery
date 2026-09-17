@@ -270,7 +270,7 @@ export default function RoomBrowser() {
                 </Field>
               </div>
             </div>
-            <button type="submit" disabled={busy || !configured} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-clay-500 px-5 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+            <button type="submit" disabled={busy || !configured} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
               {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {busy ? 'Opening' : 'Open the room'}
             </button>
@@ -333,7 +333,7 @@ export default function RoomBrowser() {
                           {room.rules || room.mode}. {describeRoomStatus(room)}. {room.players} of {room.maxPlayers || MAX_PLAYERS} in.
                         </p>
                       </div>
-                      <Link href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ''}`} className="rounded-lg bg-clay-500 px-3 py-1.5 text-sm font-bold text-white hover:bg-clay-600">
+                      <Link href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ''}`} className="rounded-lg bg-clay-400 px-3 py-1.5 text-sm font-bold text-ocean-950 hover:bg-clay-300">
                         {room.status === 'playing' && room.variant === 'duel' ? 'Watch' : 'Join'}
                       </Link>
                     </li>

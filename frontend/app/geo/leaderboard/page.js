@@ -78,7 +78,7 @@ export default function GeoLeaderboardPage() {
             an unplaced player to open a room was the bug. */}
         <Link
           href={ladder === 'solo' ? '/geo/play?mode=ranked' : '/geo/rooms'}
-          className="inline-flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-clay-400"
+          className="inline-flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2 text-sm font-bold text-ocean-950 transition hover:bg-clay-300"
           data-ladder-play
         >
           {ladder === 'solo' ? "Play this hour's five" : `Open a ${LADDER_LABELS[ladder]?.toLowerCase() || ''} room`}

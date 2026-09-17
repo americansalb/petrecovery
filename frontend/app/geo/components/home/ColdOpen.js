@@ -129,7 +129,7 @@ export default function ColdOpen() {
           type="button"
           onClick={start}
           disabled={starting}
-          className="geo-rise pointer-events-auto mt-9 inline-flex items-center gap-3 rounded-2xl bg-clay-500 px-11 py-5 ring-1 ring-clay-300/40 text-xl font-bold text-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)] transition hover:bg-clay-400 hover:ring-clay-200/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clay-200 disabled:opacity-70 sm:text-2xl"
+          className="geo-rise pointer-events-auto mt-9 inline-flex items-center gap-3 rounded-2xl bg-clay-400 px-11 py-5 ring-1 ring-clay-300/40 text-xl font-bold text-ocean-950 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)] transition hover:bg-clay-300 hover:ring-clay-200/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clay-200 disabled:opacity-70 sm:text-2xl"
           style={{ animationDelay: '160ms' }}
           data-cold-open-play
         >

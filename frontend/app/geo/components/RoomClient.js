@@ -336,7 +336,7 @@ export default function RoomClient({ code }) {
               {inRound && !iGuessed ? (
                 <div className="hidden items-center gap-1 sm:flex">
                   {MAP_SIZES.map((size) => (
-                    <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-500 text-white' : 'border-white/20 bg-ocean-900/80 text-white hover:bg-ocean-800'}`}>
+                    <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} className={`rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-400 text-ocean-950' : 'border-white/20 bg-ocean-900/80 text-white hover:bg-ocean-800'}`}>
                       {size[0].toUpperCase()}
                     </button>
                   ))}
@@ -413,7 +413,7 @@ export default function RoomClient({ code }) {
                 onClick={submitGuess}
                 disabled={!pin || busy}
                 data-geo-guess
-                className="shrink-0 rounded-full bg-clay-500 px-8 py-2.5 text-sm font-bold text-white transition hover:bg-clay-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/40"
+                className="shrink-0 rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-ocean-950/40"
               >
                 {busy ? 'Sending' : 'Guess'}
               </button>

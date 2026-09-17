@@ -259,7 +259,10 @@ export default function ScriptPlayClient() {
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-3 px-3 pt-3 sm:px-4">
           <div className={`flex items-center gap-3 px-4 py-2 ${PILL}`}>
             <div className="flex flex-col leading-tight">
-              <span className="text-[11px] uppercase tracking-wide text-sand-500">{ladder.short}</span>
+              {/* "Script - World", not "World": the street game has a
+                  World mode too, and a header that says only the pool
+                  does not say which game you are in. */}
+              <span className="text-[11px] uppercase tracking-wide text-sand-500">Script &middot; {ladder.short}</span>
               <span className="text-sm font-semibold">
                 Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}
               </span>
@@ -482,7 +485,7 @@ function Summary({ config, ladder, history, total }) {
             sentences used to sit between the score and these, which put
             the next game off the bottom of a desktop viewport. */}
         <div className="mt-5 flex flex-wrap gap-3">
-          <Link href={replay} className="flex items-center gap-2 rounded-xl bg-clay-600 px-4 py-2.5 font-semibold text-white hover:bg-clay-700">
+          <Link href={replay} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 font-semibold text-ocean-950 hover:bg-clay-300">
             <RotateCcw className="h-4 w-4" /> Play again
           </Link>
           <Link href={same} className="flex items-center gap-2 rounded-xl border border-sand-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-sand-50">

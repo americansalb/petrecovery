@@ -176,7 +176,7 @@ export default function ProfileClient() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <span
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-clay-500 text-xl font-bold text-white"
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-clay-400 text-xl font-bold text-ocean-950"
             style={view?.frame ? { boxShadow: `0 0 0 4px ${view.frame}` } : undefined}
             aria-hidden="true"
           >

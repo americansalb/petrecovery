@@ -62,7 +62,7 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {onRetry ? (
-            <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 text-sm font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+            <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2 text-sm font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
               {retrying ? 'Trying again' : 'Try again'}
             </button>
@@ -475,7 +475,7 @@ export default function PlayClient() {
                     key={size}
                     type="button"
                     onClick={() => setMapSize(size)}
-                    className={`h-7 w-7 rounded-full border text-xs font-semibold shadow backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-500 text-white' : 'border-white/20 bg-ocean-900/85 text-white/80 hover:bg-ocean-800'}`}
+                    className={`h-7 w-7 rounded-full border text-xs font-semibold shadow backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-400 text-ocean-950' : 'border-white/20 bg-ocean-900/85 text-white/80 hover:bg-ocean-800'}`}
                     aria-pressed={mapSize === size}
                     title={`${size} map (M cycles)`}
                   >
@@ -501,7 +501,7 @@ export default function PlayClient() {
                 onClick={() => submitGuess()}
                 disabled={!state.pin || state.status !== 'playing'}
                 data-geo-guess
-                className={`rounded-full bg-clay-500 px-8 py-2.5 text-sm font-bold text-white transition hover:bg-clay-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/40 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
+                className={`rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-white/40 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
               >
                 {state.status === 'submitting' ? 'Scoring' : 'Guess'}
               </button>

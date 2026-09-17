@@ -56,7 +56,7 @@ export default function ScriptLobby() {
         <button
           type="button"
           onClick={start}
-          className="shrink-0 rounded-xl bg-clay-500 px-6 py-3 text-lg font-bold text-white transition hover:bg-clay-400"
+          className="shrink-0 rounded-xl bg-clay-400 px-6 py-3 text-lg font-bold text-ocean-950 transition hover:bg-clay-300"
         >
           {startLabel}
         </button>
@@ -106,7 +106,7 @@ export default function ScriptLobby() {
       <button
         type="button"
         onClick={start}
-        className="mt-8 w-full rounded-xl bg-clay-500 px-4 py-3 text-lg font-bold text-white transition hover:bg-clay-400 sm:w-auto sm:px-8"
+        className="mt-8 w-full rounded-xl bg-clay-400 px-4 py-3 text-lg font-bold text-ocean-950 transition hover:bg-clay-300 sm:w-auto sm:px-8"
       >
         {startLabel}
       </button>

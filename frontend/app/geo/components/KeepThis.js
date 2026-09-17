@@ -109,7 +109,7 @@ export default function KeepThis({ compact = false }) {
         <button
           type="submit"
           disabled={state === 'sending'}
-          className="inline-flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-clay-400 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 disabled:opacity-60"
         >
           <Mail className="h-4 w-4" />
           {state === 'sending' ? 'Sending' : 'Send me a link'}

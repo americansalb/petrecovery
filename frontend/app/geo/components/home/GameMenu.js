@@ -180,14 +180,14 @@ export default function GameMenu() {
             </p>
             <p className="mt-2 text-white/70">Look around. Place your pin. See how close you get.</p>
             <Chips items={defaultChips()} />
-            <p className="mt-3 flex-1 truncate text-xs text-white/40" title={places}>
+            <p className="mt-3 flex-1 truncate text-xs text-white/60" title={places}>
               {places}
             </p>
             <button
               type="button"
               onClick={start}
               disabled={starting}
-              className="mt-4 inline-flex items-center justify-center gap-3 rounded-xl bg-clay-500 px-8 py-4 text-xl font-bold text-white transition hover:bg-clay-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clay-200 disabled:opacity-70"
+              className="mt-4 inline-flex items-center justify-center gap-3 rounded-xl bg-clay-400 px-8 py-4 text-xl font-bold text-ocean-950 transition hover:bg-clay-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-clay-200 disabled:opacity-70"
               data-cold-open-play
             >
               <Play className="h-5 w-5 fill-current" />

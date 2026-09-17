@@ -202,7 +202,7 @@ export default function GameSummary({ summary, code, config, regionLabel, best, 
               {copied === 'challenge' ? 'Link copied' : 'Challenge a friend'}
             </button>
           ) : null}
-          <Link href={newSeedUrl} onClick={onPlayAgain} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-clay-600">
+          <Link href={newSeedUrl} onClick={onPlayAgain} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 text-sm font-bold text-ocean-950 hover:bg-clay-300">
             <RefreshCw className="h-4 w-4" />
             {shared ? 'Play again' : 'New places, same settings'}
           </Link>

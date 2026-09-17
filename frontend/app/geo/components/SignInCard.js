@@ -166,7 +166,7 @@ export default function SignInCard() {
         <button
           type="submit"
           disabled={state === 'sending'}
-          className="flex items-center gap-2 rounded-lg bg-clay-600 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-clay-500 disabled:opacity-60"
+          className="flex items-center gap-2 rounded-lg bg-clay-400 px-4 py-2 text-sm font-semibold text-ocean-950 transition enabled:hover:bg-clay-300 disabled:opacity-60"
         >
           <Mail className="h-4 w-4" /> {state === 'sending' ? 'Sending' : 'Send link'}
         </button>

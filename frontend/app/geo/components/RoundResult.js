@@ -116,7 +116,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
         <button
           type="button"
           onClick={onNext}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-500 px-6 py-3 text-base font-bold text-white transition hover:bg-clay-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-400 px-6 py-3 text-base font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
           autoFocus
         >
           {isLast ? 'See results' : isStreak ? 'Next country' : `Round ${roundNumber + 1} of ${roundsTotal}`}

@@ -58,7 +58,7 @@ export default function GeoSharePage({ searchParams }) {
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="text-2xl font-bold">That result link is not one of ours</h1>
         <p className="mt-2 text-white/60">{LOBBY_DESCRIPTION}</p>
-        <Link href="/geo" className="mt-6 inline-block rounded-xl bg-clay-500 px-6 py-3 font-bold text-white hover:bg-clay-600">
+        <Link href="/geo" className="mt-6 inline-block rounded-xl bg-clay-400 px-6 py-3 font-bold text-ocean-950 hover:bg-clay-300">
           Play Probably Earth
         </Link>
       </div>
@@ -100,7 +100,7 @@ export default function GeoSharePage({ searchParams }) {
 
       <div className="mt-6 flex flex-wrap gap-3">
         {summary.config.seed ? (
-          <Link href={`/geo/play?${sameParams}`} className="rounded-xl bg-clay-500 px-5 py-3 font-bold text-white hover:bg-clay-600">
+          <Link href={`/geo/play?${sameParams}`} className="rounded-xl bg-clay-400 px-5 py-3 font-bold text-ocean-950 hover:bg-clay-300">
             Play these same places
           </Link>
         ) : null}

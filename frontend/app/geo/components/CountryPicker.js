@@ -89,7 +89,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
                 onSubmit?.();
               }}
               onMouseEnter={() => setActive(i)}
-              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${value === country.code ? 'bg-clay-500 text-white' : i === active ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/10'}`}
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${value === country.code ? 'bg-clay-400 text-ocean-950' : i === active ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/10'}`}
             >
               <span className="w-6 text-base leading-none">{country.flag}</span>
               <span className="flex-1 truncate">{country.name}</span>
@@ -103,7 +103,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
         type="button"
         onClick={onSubmit}
         disabled={!selected || disabled}
-        className="mt-2 w-full rounded-xl bg-clay-500 py-3 text-sm font-bold text-white transition hover:bg-clay-600 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-2 w-full rounded-xl bg-clay-400 py-3 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {selected ? `Guess ${selected.flag} ${selected.name}` : 'Pick a country'}
       </button>

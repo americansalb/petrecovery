@@ -72,7 +72,7 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
         <div className="mt-4">
           <p className="text-white/80">This game is over.</p>
           {room.rematchCode ? (
-            <Link href={`/geo/room/${room.rematchCode}`} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2 font-bold text-white hover:bg-clay-600">
+            <Link href={`/geo/room/${room.rematchCode}`} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2 font-bold text-ocean-950 hover:bg-clay-300">
               <RefreshCw className="h-4 w-4" />
               Join the rematch
             </Link>
@@ -101,7 +101,7 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
             style={{ backgroundColor: 'rgba(2, 6, 23, 0.85)', color: '#ffffff' }}
             autoFocus
           />
-          <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-clay-500 px-5 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+          <button type="submit" disabled={busy || !name.trim()} className="rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
             {busy ? 'Joining' : room.status === 'playing' ? 'Jump in' : 'Join'}
           </button>
         </form>
@@ -155,7 +155,7 @@ export function LobbyPanel({ state, countries, onStart, onLeave, busy, error }) 
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {me?.isHost ? (
-          <button type="button" onClick={onStart} disabled={busy} className="flex items-center gap-2 rounded-xl bg-clay-500 px-5 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+          <button type="button" onClick={onStart} disabled={busy} className="flex items-center gap-2 rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
             <Play className="h-4 w-4" />
             {busy ? 'Starting' : state.players.length < 2 ? 'Start anyway' : 'Start the game'}
           </button>
@@ -231,7 +231,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             {onReact ? <ReactionsBar onReact={onReact} disabled={busy} emoji={state.me?.reactions || REACTION_EMOJI} /> : null}
             <span className="text-sm text-white/60">{last ? 'Results' : 'Next round'} in {secondsLeft}s</span>
             {me?.isHost ? (
-              <button type="button" onClick={onNext} disabled={busy} className="flex items-center gap-1 rounded-xl bg-clay-500 px-3 py-2 text-sm font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+              <button type="button" onClick={onNext} disabled={busy} className="flex items-center gap-1 rounded-xl bg-clay-400 px-3 py-2 text-sm font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
                 <SkipForward className="h-4 w-4" />
                 Now
               </button>
@@ -307,13 +307,13 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
       <div className="mt-5 flex flex-wrap gap-2">
         {me?.isHost && !room.rematchCode ? (
-          <button type="button" onClick={onRematch} disabled={busy} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 font-bold text-white hover:bg-clay-600 disabled:opacity-50">
+          <button type="button" onClick={onRematch} disabled={busy} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
             <RefreshCw className="h-4 w-4" />
             Play again, same settings
           </button>
         ) : null}
         {room.rematchCode ? (
-          <Link href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || '')}`} className="flex items-center gap-2 rounded-xl bg-clay-500 px-4 py-2.5 font-bold text-white hover:bg-clay-600">
+          <Link href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || '')}`} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2.5 font-bold text-ocean-950 hover:bg-clay-300">
             <RefreshCw className="h-4 w-4" />
             Join the rematch
           </Link>
