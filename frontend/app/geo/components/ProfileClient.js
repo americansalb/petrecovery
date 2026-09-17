@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { Award, Gauge, History, Medal, ShoppingBag, Tag, Trophy, Users } from 'lucide-react';
 import { formatScore, ordinal } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
-import { citiesFor } from '@/app/lib/geo/coverage';
+import { countryBadgeProgress, playableCountries } from '@/app/lib/geo/badges';
 import { VARIANTS } from '@/app/lib/geo/rooms';
 import { LADDERS, LADDER_LABELS, PROVISIONAL_GAMES } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
@@ -29,7 +29,7 @@ const TABS = [{ id: 'record', label: 'Record' }, { id: 'shop', label: 'Shop' }, 
 // What a badge can be earned in: the countries the game actually drops
 // you in. The badge model covers every country, which made "12 badges"
 // read against a denominator nobody can reach.
-const PLAYABLE_COUNTRIES = new Set(citiesFor('apple').map((c) => c.country)).size;
+const PLAYABLE_COUNTRIES = playableCountries('apple');
 
 /** One ladder: the rating, the tier, and what was won on it. */
 function LadderCard({ ladder, rating, provisionalGames }) {
@@ -218,7 +218,7 @@ export default function ProfileClient() {
   };
 
   const items = useMemo(() => (shop?.items || []).filter((i) => i.kind === kind), [shop, kind]);
-  const countryBadges = (profile?.badges || []).filter((b) => !b.notEarth).length;
+  const badgeProgress = countryBadgeProgress(profile?.badges, PLAYABLE_COUNTRIES);
   const view = shop?.view || profile?.equipped || null;
   const points = shop?.points ?? profile?.points ?? 0;
 
@@ -327,10 +327,10 @@ export default function ProfileClient() {
 
             {/* Badges */}
             <Card data-badges>
-              {/* Mars and the Moon are badge rows too (XM and XL), and
-                  the denominator is the street pool, so counting them
-                  in the numerator could print 24 of 23. */}
-              <CardTitle icon={Award} trailing={countryBadges ? `${countryBadges} of ${PLAYABLE_COUNTRIES} countries` : null}>
+              <CardTitle
+                icon={Award}
+                trailing={badgeProgress.show ? `${badgeProgress.earned} of ${badgeProgress.total} countries` : null}
+              >
                 Badges
               </CardTitle>
               {profile?.badges?.length ? (
