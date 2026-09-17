@@ -34,7 +34,9 @@
  *    one change that was refused. Those are not the same list: Prisma
  *    applies a push whole or not at all, so one refusable change leaves
  *    every safe addition behind it unapplied as well, quietly, on every
- *    deploy from then on.
+ *    deploy from then on. So the additions are then applied one at a
+ *    time (scripts/db-additive.js), which cannot destroy anything, and
+ *    the destructive change is left named in the log for a person.
  */
 
 const { spawnSync } = require('node:child_process');
@@ -68,49 +70,59 @@ if (result.status === 0) {
 }
 
 /**
- * What the database is still missing, as SQL.
+ * What the database is still missing, and as much of it as can be added
+ * without destroying anything (scripts/db-additive.js).
  *
- * `db push` prints its refusal and stops, and the refusal is about the
- * one change it will not make. It says nothing about everything else in
- * the same push, which is also now unapplied: Prisma applies a push
- * whole or not at all. So one column that cannot be dropped safely
- * leaves every new table and every new column behind it missing too,
- * on every deploy from then on, and the only visible symptom is one
- * endpoint answering 500 while the rest of the site looks fine.
+ * The refusal above is about ONE change. It says nothing about the rest
+ * of the same push, which is also now unapplied, because Prisma applies
+ * a push whole or not at all. So one column that cannot be dropped
+ * safely leaves every new table and every new column behind it missing
+ * too, on this deploy and on every deploy after, and the only visible
+ * symptom is one endpoint answering 500 while the rest of the site
+ * looks fine.
  *
- * `migrate diff` answers the question that actually matters, which is
- * what the gap IS. It is read-only and touches nothing.
+ * That is not a thing to leave for somebody to notice. ADD COLUMN,
+ * CREATE TABLE, CREATE INDEX and ADD CONSTRAINT cannot destroy
+ * anything, so they are applied here. DROP, RENAME, a type change and
+ * SET NOT NULL are not, and never will be: they stay for a person to
+ * decide on, named below.
  */
-const diff = spawnSync(
-  'npx',
-  ['prisma', 'migrate', 'diff', '--from-schema-datasource', 'prisma/schema.prisma', '--to-schema-datamodel', 'prisma/schema.prisma', '--script'],
-  { encoding: 'utf8', env: process.env }
-);
-const pending = diff.status === 0 ? String(diff.stdout || '').trim() : '';
+const { repair } = require('./db-additive');
+let fixed = { pending: '', applied: [], failed: [], skipped: [] };
+try {
+  fixed = repair(process.env);
+} catch (error) {
+  console.error('[db-sync] could not read the database to repair it:', error?.message || error);
+}
 
 console.error('');
 console.error('==========================================================');
-console.error('[db-sync] THE SCHEMA WAS NOT APPLIED.');
-console.error('');
-console.error('The build carries on and the site will deploy, but every');
-console.error('table and column this schema adds is missing, and the');
-console.error('routes that need one answer schema_missing until it is');
-console.error('there. Reads of a table that is only missing a column go');
-console.error('on working, so this can look like one broken endpoint');
-console.error('rather than a database a whole deploy behind.');
+console.error('[db-sync] THE SCHEMA WAS NOT APPLIED IN ONE PIECE.');
 console.error('');
 console.error('Prisma refuses a change that would lose data unless it is');
 console.error('asked to, and this never asks. It refuses the WHOLE push');
 console.error('when it does, so one refusable change blocks all the safe');
 console.error('ones with it. The refusal above names that one change.');
-if (pending) {
+
+if (fixed.applied.length) {
   console.error('');
-  console.error('This is everything the database is still missing. Each');
-  console.error('statement is safe to run by hand except a DROP, which is');
-  console.error('the one to look at first:');
+  console.error(`[db-sync] APPLIED ${fixed.applied.length} safe change(s), so the database is not left behind:`);
+  for (const statement of fixed.applied) console.error(`  ${statement};`);
+}
+if (fixed.failed.length) {
   console.error('');
-  console.error(pending);
-} else {
+  console.error(`[db-sync] ${fixed.failed.length} safe change(s) would not apply. Nothing was lost; they are still missing:`);
+  for (const { statement, error } of fixed.failed) {
+    console.error(`  ${statement};`);
+    console.error(`    ${String(error).split('\n')[0]}`);
+  }
+}
+if (fixed.skipped.length) {
+  console.error('');
+  console.error('[db-sync] NOT run, because it could destroy something. Yours to decide on:');
+  for (const statement of fixed.skipped) console.error(`  ${statement};`);
+}
+if (!fixed.pending) {
   console.error('');
   console.error('`prisma migrate diff` could not read the database to say');
   console.error('what is missing, so run it by hand:');
