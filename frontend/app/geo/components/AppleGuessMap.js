@@ -110,7 +110,15 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     map.addOverlays(overlays);
     drawnRef.current = { annotations, overlays };
     try {
-      map.showItems([...annotations, ...overlays], { animate: true, padding: new mapkit.Padding(48, 48, 48, 48) });
+      // minimumSpan or a guess 40 m from the answer fills the screen
+      // with one roof, which tells a player nothing about where they
+      // were. Roughly half a degree, so the reveal always shows enough
+      // ground to recognise.
+      map.showItems([...annotations, ...overlays], {
+        animate: true,
+        padding: new mapkit.Padding(48, 48, 48, 48),
+        minimumSpan: new mapkit.CoordinateSpan(0.6, 0.6),
+      });
     } catch {
       /* single item; fall back to centring on it */
       if (annotations[0]) map.center = annotations[0].coordinate;

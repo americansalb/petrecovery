@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import Card from './ui/Card';
+import './round.css';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
@@ -391,7 +392,10 @@ export default function PlayClient() {
   } else if (mapMode === 'result') {
     // flex-col so the map's flex-1 fills the frame; without it the map
     // collapses to zero height and the panorama shows through the border.
-    mapClass = `absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl sm:top-24 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
+    // geo-map-frame: the desktop card already eased between its three
+    // sizes and this one snapped, so the same element moved smoothly
+    // one way and jumped the other.
+    mapClass = `geo-map-frame absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl sm:top-24 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
