@@ -171,8 +171,14 @@ export default function RoomBrowser() {
           </Field>
         </div>
 
+        {/* On a phone the two columns stack, and they stacked in source
+            order: an eight-field creation form first, with the code box
+            and the open rooms below it. Most people arrive here because
+            somebody sent them a code, so they had to scroll past the
+            whole form to answer. Joining goes first at that width and
+            the desktop layout is unchanged. */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
-          <form method="post" onSubmit={create} data-ready={hydrated ? '1' : '0'} className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
+          <form method="post" onSubmit={create} data-ready={hydrated ? '1' : '0'} className="order-2 rounded-2xl border border-white/10 bg-ocean-900/60 p-5 lg:order-1">
             <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
               <Plus className="h-4 w-4" />
               Open a room
@@ -272,7 +278,7 @@ export default function RoomBrowser() {
             </button>
           </form>
 
-          <aside className="space-y-6">
+          <aside className="order-1 space-y-6 lg:order-2">
             <form method="post" onSubmit={joinByCode} className="rounded-2xl border border-white/10 bg-ocean-900/60 p-5">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-white/60">Join with a code</h2>
               <div className="mt-3 flex gap-2">
