@@ -53,7 +53,11 @@ export async function POST(request) {
     const { room, player, token, state } = await createRoom(prismaRoomStore, {
       name: body?.name,
       hostName: body?.hostName,
-      settings: body?.settings && typeof body.settings === 'object' ? body.settings : body || {},
+      settings: {
+        ...(body?.settings && typeof body.settings === 'object' ? body.settings : body || {}),
+        // New matches use one ruleset. Existing classic rooms can still finish.
+        variant: 'duel',
+      },
       profileId,
       subjects,
     });

@@ -517,6 +517,66 @@
   min-width: 0;
   flex: 1;
 }
+/* Secondary activities are a compact menu, not another landing page. */
+.geo-surface .pe-home--immersive .pe-competition {
+  margin-top: 28px;
+}
+.geo-surface .pe-home--immersive .pe-section-heading h2 {
+  font-size: 22px;
+  letter-spacing: -0.025em;
+}
+.geo-surface .pe-home--immersive .pe-event {
+  padding: 18px 16px;
+  gap: 12px;
+}
+.geo-surface .pe-home--immersive .pe-event-emblem {
+  width: 28px;
+  height: 32px;
+  background: none;
+  border: 0;
+  clip-path: none;
+}
+.geo-surface .pe-home--immersive .pe-practice {
+  display: block;
+  padding-block: 18px;
+  margin-top: 20px;
+  border-top: 1px solid #8eb5ae25;
+}
+.geo-surface .pe-practice summary {
+  cursor: pointer;
+  min-height: 44px;
+  align-content: center;
+  font-size: 16px;
+  font-weight: 650;
+}
+.geo-surface .pe-practice summary > span {
+  display: inline-block;
+  margin-left: 16px;
+  color: #afc6c7;
+  font-size: 13px;
+  font-weight: 400;
+}
+.geo-surface .pe-practice .pe-expedition-options {
+  margin-top: 16px;
+}
+.geo-surface .pe-practice .pe-streak {
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid #8eb5ae25;
+  border-radius: 0;
+  background: none;
+}
+.geo-surface .pe-practice .pe-region {
+  padding: 12px 0;
+}
+.geo-surface .pe-practice .pe-region select {
+  appearance: auto;
+  min-height: 44px;
+  font-size: 16px;
+}
+@media (max-width: 560px) {
+  .geo-surface .pe-practice summary > span { display: block; margin: 6px 0 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .geo-surface .pe-home--immersive .pe-play-dock {
     animation: none;

@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Compass, Plus, Swords, Trophy, Users } from "lucide-react";
+import { ArrowRight, Compass, Plus, Users } from "lucide-react";
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -88,7 +88,7 @@ function forgetDraft() {
   }
 }
 
-export default function RoomBrowser({ initialVariant = "classic" }) {
+export default function RoomBrowser() {
   const router = useRouter();
   const [server, setServer] = useState(null);
   const [rooms, setRooms] = useState(null);
@@ -96,7 +96,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
   const [code, setCode] = useState("");
   const [form, setForm] = useState({
     roomName: "",
-    variant: initialVariant === "duel" ? "duel" : "classic",
+    variant: "duel",
     provider: PRIMARY_PROVIDER,
     mode: "balanced",
     continent: "europe",
@@ -119,7 +119,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
     setRecent(listRecentRooms());
     const draft = loadDraft();
     if (draft?.name) setName(draft.name);
-    if (draft?.form) setForm((current) => ({ ...current, ...draft.form }));
+    if (draft?.form) setForm((current) => ({ ...current, ...draft.form, variant: "duel" }));
     if (draft?.code) setCode(draft.code);
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
@@ -293,39 +293,8 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
           data-ready={hydrated ? "1" : "0"}
           className="pe-open-create"
         >
-          <h2>What are we playing?</h2>
-          <div className="pe-arena-choices" role="group" aria-label="Game">
-            {Object.values(VARIANTS).map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                aria-pressed={form.variant === v.id}
-                onClick={() => update({ variant: v.id })}
-                className={`pe-arena-choice pe-arena-choice--${v.id}`}
-              >
-                <span className="pe-arena-insignia" aria-hidden="true">
-                  {v.id === "duel" ? (
-                    <Swords size={48} strokeWidth={1.2} />
-                  ) : (
-                    <Trophy size={48} strokeWidth={1.2} />
-                  )}
-                </span>
-                <span className="pe-arena-number">
-                  {v.id === "duel" ? "02" : "01"}
-                </span>
-                <strong>{v.label}</strong>
-                <small>
-                  {v.id === "duel"
-                    ? "Better guesses damage your rivals. Last player standing wins."
-                    : "Everyone guesses the same places. Highest total score wins."}
-                </small>
-                <span className="pe-arena-selected">
-                  {form.variant === v.id ? "Selected" : "Choose " + v.label}
-                  <ArrowRight size={15} />
-                </span>
-              </button>
-            ))}
-          </div>
+          <h2>Create a room</h2>
+          <p className="text-sm text-white/70">Better guesses deal damage. Last player standing wins.</p>
           <div className="pe-player-name">
             <span className="pe-avatar">
               <Compass size={25} />
@@ -360,7 +329,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
             <Plus size={18} />
             {busy
               ? "Creating your room…"
-              : "Create " + VARIANTS[form.variant].label + " room"}
+              : "Create room"}
             <ArrowRight size={18} />
           </Button>
           <p className="pe-room-next">
