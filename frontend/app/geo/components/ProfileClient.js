@@ -294,6 +294,15 @@ export default function ProfileClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    const refresh = () => ensureProfile('')
+      .then((p) => { if (alive) { setProfile(p); setName(p?.name || ''); } })
+      .catch((e) => { if (alive) setError(e.message || 'Could not refresh your profile'); });
+    window.addEventListener('geo:session-changed', refresh);
+    return () => { alive = false; window.removeEventListener('geo:session-changed', refresh); };
+  }, []);
+
   const saveTheName = async (e) => {
     e.preventDefault();
     const clean = name.trim().slice(0, 20);

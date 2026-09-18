@@ -19,8 +19,8 @@ export default function AccountDialog({ onClose, returnTo, name, onNameChange, o
       <Card className="pe-account-sheet">
         <button type="button" onClick={onClose} className="pe-account-close" aria-label="Close"><X size={22} /></button>
         <span className="pe-account-symbol"><Users size={30} aria-hidden="true" /></span>
-        <h2 id="account-dialog-title">Play together.</h2>
-        <p>Your free player account keeps your games.</p>
+        <h2 id="account-dialog-title">Create your account</h2>
+        <p>Play with friends and save your progress. Free, no card.</p>
         <SignInCard requireName playerName={name} onPlayerNameChange={onNameChange} returnTo={returnTo} onAuthenticated={onAuthenticated} compact />
       </Card>
     </dialog>

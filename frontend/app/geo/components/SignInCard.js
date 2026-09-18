@@ -40,15 +40,19 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   };
 
   useEffect(() => {
-    if (state !== 'sent' || !onAuthenticated) return;
+    if (state !== 'sent') return;
     let alive = true;
     const check = async () => {
       try {
         const response = await fetch('/api/geo/auth/me', { cache: 'no-store' });
         const data = response.ok ? await response.json() : null;
         if (alive && data?.signedIn) {
+          setAccount(data);
+          setState('idle');
+          setMessage('Signed in.');
           window.dispatchEvent(new Event('geo:authenticated'));
-          onAuthenticated();
+          window.dispatchEvent(new Event('geo:session-changed'));
+          onAuthenticated?.();
         }
       } catch { /* Try again when the player returns from email. */ }
     };
@@ -107,6 +111,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
       const response = await fetch('/api/geo/auth/signout', { method: 'POST' });
       if (!response.ok) throw new Error('Could not sign out. Please try again.');
       setAccount(null);
+      window.dispatchEvent(new Event('geo:session-changed'));
       setMessage('Signed out. You are still playing in this browser.');
     } catch (error) { setMessage(error.message); }
   };
@@ -118,6 +123,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || 'Could not delete that account');
       setAccount(null);
+      window.dispatchEvent(new Event('geo:session-changed'));
       setConfirmDelete(false);
       setState('idle');
       setMessage('Account deleted. Your email address, profile, rating, points, badges and board scores are gone.');
@@ -231,7 +237,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
         <button
           type="submit"
           disabled={state === 'sending'}
-          className="flex items-center gap-2 rounded-lg bg-clay-400 px-4 py-2 text-sm font-semibold text-ocean-950 transition enabled:hover:bg-clay-300 disabled:opacity-60"
+          className="pe-button pe-button--primary flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
         >
           {state === 'sending' ? 'Sending…' : 'Continue'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
