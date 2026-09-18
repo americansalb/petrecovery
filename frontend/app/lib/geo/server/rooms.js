@@ -162,6 +162,18 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
 
 export async function joinRoom(store, { code, name, profileId = null, subjects = null, now = Date.now() }) {
   const room = await loadRoom(store, code);
+  // A verified account can recover its existing seat on another device
+  // or after local storage is cleared. This is not a new player joining
+  // mid-duel: health, host rights, guesses and elimination stay unchanged.
+  const existing = subjects?.signedIn && profileId
+    ? room.players.find((player) => player.profileId === profileId && !player.leftAt)
+    : null;
+  if (existing) {
+    const token = newPlayerToken();
+    const player = await store.updatePlayer(existing.id, { tokenHash: hashToken(token), lastSeenAt: new Date(now) });
+    const state = await getRoomView(store, { code, token, now });
+    return { room: await store.getRoomByCode(code), player, token, state };
+  }
   if (room.status === 'finished') throw new RoomError('finished', 'This game is over', 409);
   if (subjects) await checkRoomEntry(store, { subjects, now });
   if (room.status === 'playing' && room.variant === 'duel') {

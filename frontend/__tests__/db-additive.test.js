@@ -154,3 +154,10 @@ describe('nothing in the deploy ever asks Prisma to lose data', () => {
     expect(read('boot.js')).toContain("require('./db-additive')");
   });
 });
+test('phone accounts can relax only the game email requirement without removing data', () => {
+  const { additiveOnly } = require('../scripts/db-additive');
+  expect(additiveOnly('ALTER TABLE "GeoAccount" ALTER COLUMN "email" DROP NOT NULL;')).toEqual({ apply: ['ALTER TABLE "GeoAccount" ALTER COLUMN "email" DROP NOT NULL'], skip: [] });
+  for (const sql of ['ALTER TABLE "User" ALTER COLUMN "email" DROP NOT NULL;', 'ALTER TABLE "GeoAccount" DROP COLUMN "email";', 'ALTER TABLE "GeoAccount" ALTER COLUMN "role" DROP NOT NULL;']) {
+    expect(additiveOnly(sql).apply).toEqual([]);
+  }
+});

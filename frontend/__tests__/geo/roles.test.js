@@ -95,7 +95,7 @@ describe('roles and tiers', () => {
   test('what the browser is told about itself carries no secrets', () => {
     const { accountView } = load();
     const view = accountView({ id: 'acc_1', email: 'a@example.com', role: 'admin', tier: 'supporter', tierUntil: null });
-    expect(Object.keys(view).sort()).toEqual(['benefits', 'email', 'role', 'suspended', 'tier', 'tierUntil']);
+    expect(Object.keys(view).sort()).toEqual(['benefits', 'email', 'phone', 'role', 'suspended', 'tier', 'tierUntil']);
     expect(JSON.stringify(view)).not.toMatch(/acc_1|tokenHash|secret/i);
   });
 });

@@ -122,6 +122,10 @@ export function createMemoryRoomStore() {
       const a = [...accounts.values()].find((x) => x.email === email);
       return a ? { ...a } : null;
     },
+    async getAccountByPhone(phone) {
+      const a = [...accounts.values()].find((x) => x.phone === phone);
+      return a ? { ...a } : null;
+    },
     async getAccountById(accountId) {
       const a = accounts.get(accountId);
       return a ? { ...a } : null;

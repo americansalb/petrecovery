@@ -89,6 +89,9 @@ const databaseStore = {
   getAccountByEmail(email) {
     return prisma.geoAccount.findUnique({ where: { email } });
   },
+  getAccountByPhone(phone) {
+    return prisma.geoAccount.findUnique({ where: { phone } });
+  },
   getAccountById(id) {
     return prisma.geoAccount.findUnique({ where: { id } });
   },

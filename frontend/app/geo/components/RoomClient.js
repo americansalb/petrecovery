@@ -348,7 +348,7 @@ export default function RoomClient({ code }) {
           ) : null}
 
           {phase === 'guessing' ? (
-            <div className="pointer-events-auto absolute bottom-32 sm:bottom-16 left-1/2 z-30 -translate-x-1/2">
+            <div className={`pointer-events-auto absolute bottom-32 sm:bottom-16 left-1/2 z-30 -translate-x-1/2 ${isScript ? 'sm:left-[26%]' : ''}`}>
               <ReactionsBar onReact={(emoji) => act('react', { emoji })} disabled={busy} emoji={state.me?.reactions || undefined} />
             </div>
           ) : null}

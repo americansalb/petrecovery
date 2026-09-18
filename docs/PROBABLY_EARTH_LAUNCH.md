@@ -6,16 +6,20 @@
 current end-to-end verification. In particular, a successful email API
 response did not produce an email in the owner's inbox.
 
-Work in PR #291 includes contextual email signup, 90-day sessions,
+Work in PR #291 includes contextual email and phone-code signup, 90-day sessions,
 guest-profile binding, internal return links, Duel-only setup with Street
 and Script choices, Script multiplayer scoring, and account-backed game
 checkpoints. These changes are not live until the PR is merged and the
 deployment succeeds. The checkpoint adds the nullable `GeoAccount.savedGame`
-JSON column; deployment must apply that additive schema change.
+JSON column; deployment must apply that additive schema change. Phone accounts
+also add nullable unique `GeoAccount.phone` and make `GeoAccount.email` nullable.
 
 Evidence from the current local working tree:
 
-- 136 Jest suites passed, 1,455 tests passed, 10 existing todos.
+- Full-suite baseline after phone signup: 138 Jest suites passed, 1,476 tests
+  passed, 10 existing todos. Jest reported an open-handle teardown warning;
+  the CI-style two-worker run exited successfully. Later reconnect changes
+  have additional targeted tests and require a final full run.
 - Full lint passed the repository's 360-warning ceiling.
 - Script solo: placed guesses, received scores, returned home, reopened
   the same saved result, continued, finished all five rounds, and reloaded
@@ -40,10 +44,24 @@ Evidence from the current local working tree:
   headers cannot place sign-in tokens in links to an attacker's domain.
   Additional deployments can set `GEO_AUTH_ORIGIN` explicitly.
 
-Do not merge the multiplayer account gate while production mail is broken:
-that would prevent new players from entering multiplayer. Production mail
-inspection is awaiting the owner's required Render workspace confirmation.
+Do not merge until the entire launch checklist is complete (owner instruction).
+In particular, the multiplayer account gate would block new players while
+production mail is broken. The owner confirmed Kevin's Render workspace;
+its service listing contains neither Probably Earth nor PetRecovery. Access
+to the actual production service is still needed. The private test inbox
+remained empty on a later check; no additional email was sent to the owner.
 - Mail provider error responses are now failures, rather than false success.
+- Phone signup uses Twilio Verify, stays in the current game, binds the guest
+  profile, and issues the same 90-day session. Eighteen unit/route tests cover
+  verification, wrong/expired/reused codes, account isolation, rate limits,
+  cookie issuance and provider failure. No real SMS has been sent or billing
+  enabled. Phone-only accounts are supported in admin and privacy copy.
+- Browser refresh during a Script duel retained the player, clue, health and
+  round. A subsequent real guess was scored. Account-based seat recovery also
+  preserves health/guesses instead of refusing returning players mid-duel.
+- Browser QA found and fixed overlapping Script reaction buttons and a generic
+  cup imagery timeout covering the actual MapKit authorization error. The
+  single correct authorization error was rechecked in the browser.
 
 Still required before calling the game launch-ready:
 
@@ -53,7 +71,14 @@ Still required before calling the game launch-ready:
   saves from a second session/device and session survival across restart.
 - Finish desktop/mobile real-browser coverage of Street imagery, Script
   duels, disconnect/rejoin, errors, all challenge/result/profile screens.
-- Phone-number signup requested by the owner is not implemented.
+- Configure and verify phone signup with a real code. Required variables:
+  `GEO_PHONE_SIGNIN_ENABLED=true`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`,
+  `GEO_TWILIO_VERIFY_SERVICE_SID`, `GEO_TOKEN_SECRET` and production `REDIS_URL`.
+  Use a dedicated Verify service with fraud protection. Production sends fail
+  closed without the shared limiter (3 per number and 30 site-wide per ten
+  minutes). Do not enable billable SMS without confirming the provider setup.
+- Automatic matchmaking is not implemented. Multiplayer currently consists
+  of creating or joining public/private rooms, not an automatic match queue.
 - CI and production checks for the final commit must pass.
 
 ## Historical assessment (superseded)

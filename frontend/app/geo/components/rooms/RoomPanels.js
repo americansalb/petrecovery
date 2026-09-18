@@ -165,11 +165,12 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
             disabled={busy || !name.trim()}
             className="rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50"
           >
-            {busy ? "Joining" : room.status === "playing" ? "Jump in" : "Join"}
+            {busy ? "Joining" : room.status === "playing" ? "Rejoin" : "Join"}
           </button>
         </form>
       )}
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
+      {!finished && room.status === "playing" ? <p className="mt-3 text-sm text-white/70">Already playing? Use the same account to rejoin. New players can join the next game.</p> : null}
       <p className="mt-4 text-xs text-white/40">
         Not this room?{" "}
         <Link href="/geo/rooms" className="underline">

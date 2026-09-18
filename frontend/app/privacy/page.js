@@ -53,10 +53,10 @@ const SECTIONS = [
     title: 'Probably Earth, the geography game',
     body: [
       'Probably Earth (reunitepets.org/geo) keeps its own records, separate from your pet reports. A play profile holds the display name you choose, your ratings, points, badges and the games you have finished. It is created the first time you play and is identified by a token stored in your browser.',
-      'A game account is an email address and nothing else. There is no password: signing in is a link sent to that address, and only a hash of the link is stored. Two cookies carry it: geo_session, which says you are signed in, and geo_signed_in, which lets the page know to show your account menu.',
+      'A game account uses an email address or phone number. Email sign-in uses a link sent to that address through Resend, and only a hash of the link is stored. When phone sign-in is enabled, Twilio Verify sends and checks a text-message code; the game stores your verified phone number, not the code. There is no password. Two cookies carry your sign-in for 90 days: geo_session, which says you are signed in, and geo_signed_in, which lets the page know to show your account menu. Signed-in accounts can also keep a saved-game checkpoint to continue on another device.',
       'The play meter counts rounds per day so the imagery bills stay bounded. It counts them against your play profile and against a one-way hash of your IP address. The address itself is never stored.',
       'Daily challenge and weekly cup boards show the display name of everyone who finished, with their score.',
-      'Housekeeping deletes play-meter rows after 120 days, finished game rooms after 14 days, and rooms abandoned part way after 3. You can delete a game account and its profile from the account page at reunitepets.org/geo/me, which removes the email address, the profile, its ratings, points, badges and results, and its scores on the daily and cup boards.',
+      'Housekeeping deletes play-meter rows after 120 days, finished game rooms after 14 days, and rooms abandoned part way after 3. You can delete a game account and its profile from the account page at reunitepets.org/geo/me, which removes the email address or phone number, saved-game checkpoint, profile, ratings, points, badges and results, and scores on the daily and cup boards.',
     ],
   },
   {

@@ -50,3 +50,22 @@ test('mail provider error responses are not reported as delivered', async () => 
   expect(result.sent).toBe(false);
   log.mockRestore();
 });
+
+test('verified player can recover a duel seat without resetting health or guesses', async () => {
+  const store = createMemoryRoomStore();
+  const host = await createRoom(store, { hostName: 'Host', profileId: 'host-profile', settings: { game: 'script', variant: 'duel', rounds: 3, time: 180 }, now });
+  const code = host.room.code;
+  await joinRoom(store, { code, name: 'Peer', now });
+  await roomAction(store, { code, token: host.token, action: 'start', now });
+  await roomAction(store, { code, token: host.token, action: 'guess', body: { lat: 35, lng: 139 }, now: now + 1000 });
+  await store.updatePlayer(host.player.id, { hp: 2345 });
+  const recovered = await joinRoom(store, { code, profileId: 'host-profile', subjects: { signedIn: true }, now: now + 2000 });
+  expect(recovered.player.id).toBe(host.player.id);
+  expect(recovered.player.hp).toBe(2345);
+  expect(recovered.player.isHost).toBe(true);
+  expect(recovered.state.players).toHaveLength(2);
+  expect(recovered.state.players.find((player) => player.id === host.player.id).guessed).toBe(true);
+  expect(recovered.token).not.toBe(host.token);
+  expect((await getRoomView(store, { code, token: host.token, now: now + 2000 })).me).toBeNull();
+  await expect(joinRoom(store, { code, profileId: 'new-profile', subjects: { signedIn: true }, now: now + 2000 })).rejects.toMatchObject({ code: 'duel_in_progress' });
+});

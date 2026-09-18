@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, LogOut, Mail, Trash2, UserRound } from 'lucide-react';
 import { ensureProfile, profileHeaders } from '../lib/profile';
+import PhoneSignIn from './PhoneSignIn';
 
 const WHY = {
   'that-link-is-not-valid': 'That link was not valid. Ask for a new one.',
@@ -33,6 +34,8 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   const [message, setMessage] = useState('');
   const [account, setAccount] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [phoneAvailable, setPhoneAvailable] = useState(false);
+  const [method, setMethod] = useState('email');
   const authenticatedRef = useRef(onAuthenticated);
   authenticatedRef.current = onAuthenticated;
   const name = playerName === undefined ? localName : playerName;
@@ -71,6 +74,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
 
   useEffect(() => {
     let alive = true;
+    fetch('/api/geo/auth/options', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((data) => { if (alive) setPhoneAvailable(Boolean(data?.phone)); }).catch(() => {});
     fetch('/api/geo/auth/me')
       .then((r) => r.json())
       .then((d) => alive && setAccount(d?.signedIn ? d : null))
@@ -134,7 +138,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
       window.dispatchEvent(new Event('geo:session-changed'));
       setConfirmDelete(false);
       setState('idle');
-      setMessage('Account deleted. Your email address, profile, rating, points, badges and board scores are gone.');
+      setMessage('Account deleted. Your contact details, profile, rating, points, badges and board scores are gone.');
     } catch (error) {
       setState('error');
       setMessage(error.message);
@@ -145,7 +149,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
     return (
       <div className="rounded-xl border border-white/10 p-4">
         <p className="flex items-center gap-2 font-semibold text-white">
-          <Check className="h-4 w-4 text-green-400" /> Signed in as {account.email}
+          <Check className="h-4 w-4 text-green-400" /> Signed in as {account.email || account.account?.phone}
         </p>
         <p className="mt-1 text-sm text-white/60">Your profile follows you to any device you sign in on. This device stays signed in for 90 days.</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -166,7 +170,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
           <div className="mt-3 rounded-lg border border-red-400/40 bg-red-950/60 p-3">
             <p className="text-sm font-semibold text-red-100">Delete this account?</p>
             <p className="mt-1 text-sm text-red-200">
-              This removes your email address, your profile, your rating, points, badges and results, and your scores on
+              This removes your contact details, your profile, your rating, points, badges and results, and your scores on
               the daily and cup boards. It cannot be undone.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -188,6 +192,8 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
       </div>
     );
   }
+
+  if (method === 'phone') return <PhoneSignIn requireName={requireName} name={name} setName={setName} onUseEmail={() => setMethod('email')} onAuthenticated={(data) => { setAccount(data); setMessage('Signed in.'); authenticatedRef.current?.(); }} />;
 
   if (state === 'sent') return (
     <div className="mt-6" role="status" aria-live="polite">
@@ -250,6 +256,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
           {state === 'sending' ? 'Sending…' : 'Continue'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </form>
+      {phoneAvailable ? <button type="button" disabled={state === 'sending'} className="mt-3 min-h-[44px] text-sm underline" onClick={() => { setMethod('phone'); setMessage(''); }}>Use a phone number instead</button> : null}
       <p className="mt-2 text-xs text-white/50">
         {state === 'sent' && requireName ? 'Check your email. The link brings you straight back here.' : 'No password. This device stays signed in for 90 days.'}
       </p>

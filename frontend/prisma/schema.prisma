@@ -5912,7 +5912,8 @@ model GeoRoundCache {
 /// nothing here is shared with the pet site's User table.
 model GeoAccount {
   id         String   @id @default(cuid())
-  email      String   @unique
+  email      String?  @unique
+  phone      String?  @unique
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
   // Private, unranked checkpoint. Never used to award points or ratings.

@@ -24,6 +24,8 @@ const schema = read('prisma/schema.prisma');
  */
 const PERSONAL_DATA = {
   'GeoAccount.email': 'email address',
+  'GeoAccount.phone': 'phone number',
+  'GeoAccount.savedGame': 'saved-game checkpoint',
   'GeoLoginToken.email': 'link sent to that address',
   'GeoProfile.name': 'display name',
   'GeoUsage.subject': 'hash of your IP address',

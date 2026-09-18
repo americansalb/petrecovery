@@ -228,3 +228,11 @@ describe('rating a finished room', () => {
     expect(adaSummary.ratings.classic.streak).toBe(LEADERBOARD_MIN_GAMES);
   });
 });
+test('a second account on a shared browser cannot adopt the first account profile', async () => {
+  const store = createMemoryRoomStore();
+  const first = await resolveProfile(store, { name: 'First', accountId: 'account-first' });
+  const second = await resolveProfile(store, { token: first.token, name: 'Second', accountId: 'account-second' });
+  expect(second.profile.id).not.toBe(first.profile.id);
+  expect(second.profile.accountId).toBe('account-second');
+  expect((await store.getProfileById(first.profile.id)).name).toBe('First');
+});

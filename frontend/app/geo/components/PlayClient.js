@@ -222,10 +222,10 @@ function StreetPlayGame({ params }) {
   // profile was handed over and then refused a score.
   const needsProfile = isChallengeMode(config.mode);
   useEffect(() => {
-    if (!saveReady || !configured || state.status !== 'idle') return;
+    if (!saveReady || !configured || sdkError || state.status !== 'idle') return;
     if (needsProfile && !profileSettled) return;
     startRound();
-  }, [saveReady, configured, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
+  }, [saveReady, configured, sdkError, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
   // An unresponsive provider is not bad luck and is never retried: it
@@ -615,7 +615,7 @@ function StreetPlayGame({ params }) {
       {configured && !sdkReady && !sdkError && server ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading Look Around</div>
       ) : null}
-      {state.status === 'error' && !autoRetrying ? (
+      {state.status === 'error' && !autoRetrying && !sdkError && !serverError ? (
         <ErrorPanel
           title={
             metered

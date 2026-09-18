@@ -229,7 +229,7 @@ async function getRedis() {
   return null;
 }
 
-async function checkRedis(redis, key, settings) {
+async function checkRedis(redis, key, settings, failClosed = false) {
   const { windowMs, maxRequests, blockDurationMs } = settings;
   const now = Date.now();
   const windowKey = `geolimit:${key}`;
@@ -255,6 +255,7 @@ async function checkRedis(redis, key, settings) {
     // the calls after this one skip it, and this one falls back to the
     // memory window this module documents rather than to no limit at all.
     markDegraded(`command failed: ${error?.message || error}`);
+    if (failClosed) return deny(now + 60000, now);
     return checkMemory(key, settings);
   }
 }
@@ -270,7 +271,10 @@ export async function checkRateLimitForKeyAsync(key, options = {}) {
     blockDurationMs: options.blockDurationMs ?? 60000,
   };
   const redis = await getRedis();
-  if (redis) return checkRedis(redis, key, settings);
+  if (redis) return checkRedis(redis, key, settings, Boolean(options.requireShared));
+  // Billable authentication sends need one shared budget. Refuse while
+  // Redis is unavailable instead of multiplying the allowance per server.
+  if (options.requireShared) return deny(Date.now() + 60000, Date.now());
   return checkMemory(key, settings);
 }
 

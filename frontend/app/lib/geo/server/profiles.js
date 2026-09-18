@@ -72,7 +72,9 @@ export async function resolveProfile(store, { token, accountId, name, now = Date
     // browser's anonymous profile is left alone rather than folded in.
     // Merging two rating histories has no right answer.
     profile = byAccount;
-  } else if (byToken) {
+  } else if (byToken && (!accountId || !byToken.accountId || byToken.accountId === accountId)) {
+    // A shared browser can retain another account's anonymous token.
+    // Signing in to a different account must not adopt or rename it.
     profile = accountId && !byToken.accountId ? await store.updateProfile(byToken.id, { accountId }) : byToken;
   }
 

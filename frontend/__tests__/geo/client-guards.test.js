@@ -66,6 +66,11 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
 describe('PlayClient: the server decides whether a round timed out', () => {
   const src = read('app/geo/components/PlayClient.js');
 
+  test('a generic imagery timeout cannot cover the actionable SDK error', () => {
+    expect(src).toContain("state.status === 'error' && !autoRetrying && !sdkError && !serverError");
+    expect(src).toContain("!saveReady || !configured || sdkError || state.status !== 'idle'");
+  });
+
   test('the stored round takes timedOut from the response, not from the caller', () => {
     // Retrying a failed send passed timedOut:true purely to allow an
     // empty guess, and that flag then overwrote the server's answer: a
