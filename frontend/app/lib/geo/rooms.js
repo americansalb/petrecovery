@@ -79,8 +79,19 @@ export function normalizeRoomCode(input) {
   return code.length === ROOM_CODE_LENGTH ? code : '';
 }
 
+/**
+ * The placeholder a profile carries until somebody chooses a name.
+ *
+ * It is stored, not just displayed: a profile created without a name is
+ * saved called this. So "is this player still unnamed" is a comparison
+ * against this constant, not a check for an empty field, and it is
+ * exported so the screens that ask that question do not each carry
+ * their own copy of the string.
+ */
+export const DEFAULT_PLAYER_NAME = 'Player';
+
 /** A player name: printable, trimmed, capped; a fallback when empty. */
-export function sanitizeName(input, fallback = 'Player') {
+export function sanitizeName(input, fallback = DEFAULT_PLAYER_NAME) {
   const cleaned = String(input || '')
     .replace(CONTROL_CHARS, '')
     .replace(/\s+/g, ' ')
