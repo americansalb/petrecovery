@@ -61,3 +61,27 @@ test('a cancel that races a completed pairing opens the assigned match', async (
   expect(push).toHaveBeenCalledWith('/geo/room/ABC123');
   expect(sessionStorage.getItem('geo:matchmaking:pending')).toBeNull();
 });
+
+test('a hanging queue request times out and recovers the existing ticket, not a second join', async () => {
+  global.fetch = jest.fn().mockImplementationOnce((url, { signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+  })).mockImplementation(waiting);
+  render(<Matchmaker {...props()} />);
+  await click(/Find match/);
+  await act(async () => { jest.advanceTimersByTime(10000); });
+  expect(screen.getByRole('alert').textContent).toContain('Reconnecting');
+  expect(screen.getByRole('button', { name: 'Cancel search' }).disabled).toBe(false);
+  await act(async () => { jest.advanceTimersByTime(4000); });
+  expect(fetch.mock.calls.map(([, options]) => JSON.parse(options.body).action)).toEqual(['join', 'poll']);
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('a lost join response can recover the already assigned match', async () => {
+  global.fetch = jest.fn().mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    .mockResolvedValueOnce(response({ status: 'matched', code: 'ABC123', token: 'seat-secret', playerId: 'p1' }));
+  render(<Matchmaker {...props()} />);
+  await click(/Find match/);
+  await act(async () => { jest.advanceTimersByTime(4000); });
+  expect(push).toHaveBeenCalledWith('/geo/room/ABC123');
+  expect(fetch.mock.calls.map(([, options]) => JSON.parse(options.body).action)).toEqual(['join', 'poll']);
+});

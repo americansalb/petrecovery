@@ -2,6 +2,50 @@
 
 ## Verification update (2026-09-18)
 
+### No additional spending; multiplayer browser and reconnect verification
+
+No additional spending is authorized. A paid hosted preview was an optional
+proposal, not a prerequisite for continuing. Verification uses the existing
+setup and the isolated local PostgreSQL database; no paid resource was created.
+
+A browser player signed up from Find match with a synthetic local account. The
+original tab detected verification and resumed the Script queue without another
+click. A second independent HTTP client joined through the public matchmaking
+API. Room `WMEVMG` completed all five rounds: browser score 2,612, peer 1,727;
+final health 5,637 / 4,759. Mobile results showed +105 rating, placement 1/5 and
+89 cosmetic points. A mid-match reload recovered the same seat and health.
+These are local account-flow checks; the earlier temporary-inbox delivery test
+is the separate evidence for actual email delivery.
+
+This run exposed a poor mobile Script layout: the map was hidden until tapped,
+then covered the language clue. Script multiplayer now keeps clue and map on
+one screen, with an always-visible geographic choice, and keeps the locked map
+visible while waiting. Street still uses its imagery/map drawer. Checked at
+390x844, 320x568 and desktop 1280x800; the 320px document measured 312px wide
+with the guess action inside the viewport. Component tests cover interactive
+and locked states. Script match results now link to the Script ranking board.
+
+Created private room `6UX5YK` through the browser with three rounds and a
+three-minute timer; the independent peer joined with its invite code. In round
+three, placed a pin and stopped the local Next server. The browser announced
+connection loss without discarding the seat, health or pin. Restarting that
+server against the same local database cleared the notice automatically;
+submitting the preserved pin scored 143 points and reached the final reveal.
+
+Added a game-specific error boundary after a failed development map chunk
+showed pet-site error copy. Missing chunks get a full-page reload, not a retry
+of an already-rejected import. No claim is made that an operator was notified.
+The full suite caught a forbidden pet-telemetry import during implementation;
+it was removed without weakening the game-isolation check.
+
+Queue requests now time out, preserve uncertain tickets and recover by polling
+rather than blindly joining again. Regressions cover a hung request, a lost
+join response and an already-paired result. Final local full suite:
+**167 suites / 1,597 passed**, ten existing todos, including the real PostgreSQL
+checks. Changed application files lint cleanly. Current build/CI evidence is
+recorded on PR291. Production still runs the older commit; this is not hosted
+release verification and does not authorize a merge.
+
 ### Live sender corrected; real inbox delivery and Street browser checks
 
 This update supersedes earlier notes that hosting access and actual email delivery

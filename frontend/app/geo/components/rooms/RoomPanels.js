@@ -671,7 +671,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
             {copied === "text" ? <Check size={16} /> : <Share2 size={16} />}{" "}
             {copied === "text" ? "Standings copied" : "Copy standings"}
           </button>
-          <Link href="/geo/leaderboard">View rankings</Link>
+          <Link href={room.config.game === 'script' ? '/geo/leaderboard?queue=script' : '/geo/leaderboard'}>View rankings</Link>
           <button type="button" onClick={onLeave}>
             <LogOut size={16} />
             Leave room

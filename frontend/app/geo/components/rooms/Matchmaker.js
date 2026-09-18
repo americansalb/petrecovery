@@ -24,19 +24,32 @@ export default function Matchmaker({ game, name, onNameChange, onGameChange, onA
   const runRef = useRef(null);
 
   const request = async (action, selectedGame = game) => {
-    if (action === 'join' && name.trim()) await ensureProfile(name.trim());
-    const response = await fetch('/api/geo/matchmaking', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...profileHeaders() },
-      body: JSON.stringify({ action, game: selectedGame }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (response.status === 401) {
-      remember(null); searching.current = false;
-      if (mounted.current) { setStatus('idle'); setGate(true); }
-      return null;
-    }
-    if (!response.ok) throw new Error(data.error || 'Could not reach matchmaking. Try again.');
-    return data;
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 10000);
+    try {
+      if (action === 'join' && name.trim()) await ensureProfile(name.trim(), { signal: controller.signal });
+      const response = await fetch('/api/geo/matchmaking', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...profileHeaders() },
+        body: JSON.stringify({ action, game: selectedGame }),
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      if (response.status === 401) {
+        remember(null); searching.current = false;
+        if (mounted.current) { setStatus('idle'); setGate(true); }
+        return null;
+      }
+      if (!response.ok) {
+        const failure = new Error(data.error || 'Could not reach matchmaking. Try again.');
+        failure.retryable = response.status >= 500;
+        throw failure;
+      }
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') throw Object.assign(new Error('Connection interrupted. Reconnecting to the queue…'), { retryable: true });
+      if (error instanceof TypeError || error instanceof SyntaxError) error.retryable = true;
+      throw error;
+    } finally { clearTimeout(deadline); }
   };
 
   const accept = (data) => {
@@ -47,6 +60,7 @@ export default function Matchmaker({ game, name, onNameChange, onGameChange, onA
       setStatus('matched');
       router.push(`/geo/room/${data.code}`);
     } else if (data.status === 'waiting') {
+      setError('');
       remember(data.game); onGameChange(data.game); setStatus('waiting');
       setElapsed(Math.max(0, Math.floor((Date.now() - data.joinedAt) / 1000)));
       timer.current = setTimeout(() => runRef.current('poll', data.game), 4000);
@@ -64,6 +78,14 @@ export default function Matchmaker({ game, name, onNameChange, onGameChange, onA
     pending.current = task;
     try { accept(await task); }
     catch (err) {
+      // A lost response is not a cancelled ticket. Recover the existing ticket
+      // rather than silently enqueueing again or leaving a stuck spinner.
+      if (err.retryable && mounted.current) {
+        remember(selectedGame); setStatus('waiting');
+        setError('Connection interrupted. Reconnecting to the queue…');
+        timer.current = setTimeout(() => runRef.current('poll', selectedGame), 4000);
+        return;
+      }
       searching.current = false; remember(null);
       if (mounted.current) { setStatus('idle'); setError(err.message); }
     } finally { if (pending.current === task) pending.current = null; }

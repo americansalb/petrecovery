@@ -301,11 +301,14 @@ export default function RoomClient({ code }) {
   let mapClass;
   if (mapMode === 'result') {
     mapClass = 'pe-match-result-map absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-24 bottom-[46%] sm:bottom-[40%]';
+  } else if (isScript && phase === 'guessing') {
+    // The clue and geographic choice belong on one screen. Script has no
+    // panorama to uncover, so it never needs Street's mobile map drawer.
+    mapClass = 'pe-room-script-map z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900';
   } else if (inRound && !iGuessed) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
       : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
-    if (isScript && !mobileMapOpen) mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-64 w-72 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 sm:visible sm:pointer-events-auto sm:left-auto sm:right-4 sm:top-[24%] sm:bottom-24 sm:h-auto sm:w-[48%]';
   } else {
     mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   }
@@ -320,7 +323,7 @@ export default function RoomClient({ code }) {
   const showApple = !isScript && mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
 
   return (
-    <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
+    <div className={`fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white ${isScript && joined && phase === 'guessing' ? 'pe-room-script-round' : ''}`}>
       {isScript && joined && phase === 'guessing' && shownRound?.text ? (
         <section className="pe-room-sentence" aria-label="Language clue">
           <p>Where is this language spoken?</p>
@@ -368,13 +371,13 @@ export default function RoomClient({ code }) {
           ) : null}
 
           {phase === 'guessing' ? (
-            <div className={`pointer-events-auto absolute bottom-32 sm:bottom-16 left-1/2 z-30 -translate-x-1/2 ${isScript ? 'sm:left-[26%]' : ''}`}>
+            <div className={`pointer-events-auto absolute left-1/2 z-30 -translate-x-1/2 ${isScript ? 'bottom-3 sm:bottom-16 sm:left-[26%]' : 'bottom-32 sm:bottom-16'}`}>
               <ReactionsBar onReact={(emoji) => act('react', { emoji })} disabled={busy} emoji={state.me?.reactions || undefined} />
             </div>
           ) : null}
           <ReactionToasts reactions={state.reactions || []} players={state.players} />
 
-          {inRound && !iGuessed ? (
+          {inRound && !iGuessed && !isScript ? (
             <div className="pointer-events-auto absolute bottom-16 right-3 z-30 sm:hidden">
               <button type="button" onClick={() => setMobileMapOpen((o) => !o)} className={`${pill} flex h-12 items-center gap-2 px-4 text-sm font-semibold text-white`}>
                 <MapIcon className="h-5 w-5" />
@@ -383,7 +386,7 @@ export default function RoomClient({ code }) {
             </div>
           ) : null}
 
-          {inRound && iGuessed ? (
+          {inRound && iGuessed && !isScript ? (
             <div className="pointer-events-none absolute bottom-28 right-4 z-30 pe-guess-locked rounded-2xl border border-white/15 bg-ocean-900/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
               <p className="font-semibold text-green-400">Guess locked in.</p>
               <p className="text-white/70">
@@ -436,6 +439,7 @@ export default function RoomClient({ code }) {
               </button>
             </div>
           ) : null}
+          {isScript && inRound && iGuessed ? <div role="status" className="shrink-0 border-t border-white/10 px-4 py-3 text-sm text-sand-100">Guess locked in. Waiting for the other player.</div> : null}
         </div>
       ) : null}
 
