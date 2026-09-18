@@ -25,6 +25,8 @@ export function createInitialState(config) {
 
 export function reducer(state, action) {
   switch (action.type) {
+    case 'restore':
+      return { ...createInitialState(action.snapshot.config || state.config), ...action.snapshot, error: null };
     case 'load_start':
       return { ...state, status: 'loading', current: null, pin: null, error: null };
     case 'load_success': {

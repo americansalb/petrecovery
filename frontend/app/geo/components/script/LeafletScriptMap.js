@@ -308,6 +308,13 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
 
   // The pin being placed.
   useEffect(() => {
+    if (!ready || !hostRef.current || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => mapRef.current?.invalidateSize({ pan: false }));
+    observer.observe(hostRef.current);
+    return () => observer.disconnect();
+  }, [ready]);
+
+  useEffect(() => {
     const map = mapRef.current;
     const L = leafletRef.current;
     if (!map || !L) return;

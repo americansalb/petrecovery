@@ -46,7 +46,10 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
       try {
         const response = await fetch('/api/geo/auth/me', { cache: 'no-store' });
         const data = response.ok ? await response.json() : null;
-        if (alive && data?.signedIn) onAuthenticated();
+        if (alive && data?.signedIn) {
+          window.dispatchEvent(new Event('geo:authenticated'));
+          onAuthenticated();
+        }
       } catch { /* Try again when the player returns from email. */ }
     };
     window.addEventListener('focus', check);
@@ -100,9 +103,12 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   };
 
   const signOut = async () => {
-    await fetch('/api/geo/auth/signout', { method: 'POST' }).catch(() => {});
-    setAccount(null);
-    setMessage('Signed out. You are still playing in this browser.');
+    try {
+      const response = await fetch('/api/geo/auth/signout', { method: 'POST' });
+      if (!response.ok) throw new Error('Could not sign out. Please try again.');
+      setAccount(null);
+      setMessage('Signed out. You are still playing in this browser.');
+    } catch (error) { setMessage(error.message); }
   };
 
   const deleteAccount = async () => {

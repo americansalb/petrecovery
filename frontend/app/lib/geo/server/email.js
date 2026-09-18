@@ -42,13 +42,14 @@ export async function sendSignInEmail({ to, url, env = process.env, sendImpl } =
 
   try {
     const send = sendImpl || (await resendSender(key));
-    await send({
+    const result = await send({
       from: env.GEO_MAIL_FROM || FROM,
       to,
       subject: 'Your sign-in link',
       text: signInText(url),
       html: signInHtml(url),
     });
+    if (result?.error) throw new Error('Mail provider rejected the sign-in email');
     return { sent: true, delivered: true };
   } catch (error) {
     console.error('[geo/email] send failed:', error?.message || error);

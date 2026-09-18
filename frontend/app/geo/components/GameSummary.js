@@ -141,6 +141,7 @@ export default function GameSummary({
   rated = null,
   points = null,
   onPlayAgain,
+  resumeUrl,
 }) {
   const [copied, copy] = useCopy();
   const shownTotal = useCountUp(summary.total, { key: code, durationMs: 900 });
@@ -281,7 +282,7 @@ export default function GameSummary({
         {/* The account ask, at the one moment there is something worth
             keeping. It renders for guests only and gates nothing: the
             score above is already recorded in this browser. */}
-        <KeepThis returnTo={`/geo/share?s=${encodeURIComponent(code)}`} />
+        <KeepThis returnTo={resumeUrl || `/geo/share?s=${encodeURIComponent(code)}`} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button

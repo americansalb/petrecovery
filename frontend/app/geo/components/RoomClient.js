@@ -11,6 +11,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import ScriptSample from './script/ScriptSample';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { initials } from '@/app/lib/geo/rooms';
@@ -28,6 +30,7 @@ import AccountDialog from './AccountDialog';
 import { JoinPanel, LobbyPanel, LoadingPanel, Panel, ReactionToasts, ReactionsBar, RevealPanel, StandingsPanel, LocatingPanel } from './rooms/RoomPanels';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
+const ScriptMap = dynamic(() => import('./script/LeafletScriptMap'), { ssr: false });
 const DESKTOP_SIZE = {
   small: 'sm:w-72 sm:h-56',
   medium: 'sm:w-[30rem] sm:h-80',
@@ -93,9 +96,10 @@ export default function RoomClient({ code }) {
   const phase = room?.phase || '';
   const status = room?.status || '';
   const me = state?.me || null;
+  const isScript = room?.config?.game === 'script';
   // Every room is on Look Around; the provider on a room's config is
   // normalized to apple before it is stored (app/lib/geo/modes.js).
-  const imageryConfigured = Boolean(server?.providers?.apple?.configured);
+  const imageryConfigured = isScript || Boolean(server?.providers?.apple?.configured);
   if (state?.round) lastRoundRef.current = state.round;
   const shownRound = state?.round || lastRoundRef.current;
   const locating = state?.locating || null;
@@ -141,7 +145,7 @@ export default function RoomClient({ code }) {
 
   // The imagery SDK, once a game is on.
   useEffect(() => {
-    if (status !== 'playing') return undefined;
+    if (status !== 'playing' || isScript) return undefined;
     let alive = true;
     ensureLookAround()
       .then((loaded) => alive && setMapkit(loaded))
@@ -149,7 +153,7 @@ export default function RoomClient({ code }) {
     return () => {
       alive = false;
     };
-  }, [status]);
+  }, [status, isScript]);
 
   // A refused token, which used to be silent. MapKit does not reject
   // one: it loads, the pane is built, and nothing is ever drawn in it.
@@ -157,12 +161,13 @@ export default function RoomClient({ code }) {
   // the page is served from, which is how Apple Maps went dark on www
   // while the apex worked (app/geo/lib/appleMapKit.js).
   useEffect(() => {
+    if (isScript) return undefined;
     const settle = (state) => {
       if (state === 'failed') setSdkError(mapKitRefusalMessage());
     };
     settle(mapKitAuth());
     return onMapKitAuth(settle);
-  }, []);
+  }, [isScript]);
 
 
   // Arrived with ?name= (a rematch link): join without asking again.
@@ -280,21 +285,28 @@ export default function RoomClient({ code }) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
       : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
+    if (isScript && !mobileMapOpen) mapClass = 'hidden sm:flex absolute right-4 top-[24%] bottom-24 w-[48%] z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900';
   } else {
     mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
   }
 
   const notFound = error?.status === 404;
   const joined = Boolean(identity && me);
-  const imageryReady = Boolean(mapkit);
+  const imageryReady = isScript || Boolean(mapkit);
   // Players only: every panorama a browser opens is a billed load, and
   // the meter charges the room's players. The server withholds the
   // panorama id from anyone who has not joined; this keeps the pane from
   // mounting for them at all.
-  const showApple = mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
+  const showApple = !isScript && mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
 
   return (
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
+      {isScript && joined && phase === 'guessing' && shownRound?.text ? (
+        <section className="pe-room-sentence" aria-label="Language clue">
+          <p>Where is this language spoken?</p>
+          <ScriptSample text={shownRound.text} script={shownRound.script} />
+        </section>
+      ) : null}
       {showApple ? (
         <AppleLookAroundPane
           ref={paneRef}
@@ -323,7 +335,7 @@ export default function RoomClient({ code }) {
         <>
           <MatchHud state={state} secondsLeft={secondsLeft} onLeave={onLeave} />
 
-          {phase === 'guessing' ? (
+          {phase === 'guessing' && !isScript ? (
             <div className="pointer-events-none absolute bottom-16 left-3 z-30 flex flex-col items-start gap-2 sm:left-4">
               <div className="pointer-events-auto flex items-center gap-2">
                 <button type="button" onClick={() => paneRef.current?.returnToStart?.()} className={iconButton} aria-label="Return to start" title="Return to start (R)">
@@ -374,11 +386,17 @@ export default function RoomClient({ code }) {
       ) : null}
 
       {/* The one map, moved by class between guessing and the reveal. */}
-      {imageryReady && joined ? (
+      {imageryReady && joined && (phase === 'guessing' || phase === 'reveal') ? (
         <div className={`geo-map-frame ${mapClass}`} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
-          {inRound && !iGuessed ? <div className="pe-map-toolbar"><span>Place your guess</span><div className="hidden sm:flex" role="group" aria-label="Map size">{MAP_SIZES.map(size => <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} aria-label={`${size} map`}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>{mobileMapOpen ? <button type="button" onClick={() => setMobileMapOpen(false)} aria-label="Close map"><X size={18} /></button> : null}</div> : null}
+          {inRound && !iGuessed ? <div className="pe-map-toolbar"><span>Place your guess</span>{!isScript ? <div className="hidden sm:flex" role="group" aria-label="Map size">{MAP_SIZES.map(size => <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} aria-label={`${size} map`}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div> : null}{mobileMapOpen ? <button type="button" onClick={() => setMobileMapOpen(false)} aria-label="Close map"><X size={18} /></button> : null}</div> : null}
           <div className="min-h-0 flex-1">
-            <AppleGuessMap mapkit={mapkit} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} />
+            {isScript ? (
+              <ScriptMap pin={inRound ? pin : null} onPin={inRound && !iGuessed ? setPin : undefined}
+                answer={state?.reveal?.scriptAnswer} mode={mapMode}
+                guess={state?.reveal?.guesses?.find((g) => g.playerId === me?.id && Number.isFinite(g.lat) && Number.isFinite(g.lng)) || null} />
+            ) : (
+              <AppleGuessMap mapkit={mapkit} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} />
+            )}
           </div>
           {/* The same footer as a solo round: what to do on the left,
               the one thing to press on the right. */}
@@ -435,7 +453,7 @@ export default function RoomClient({ code }) {
           <SetupNotice provider="apple" missing={server?.providers?.apple?.missing || []} />
         </Panel>
       ) : null}
-      {sdkError ? <MessagePanel title="Apple Look Around did not load" message={sdkError} /> : null}
+      {sdkError && !isScript ? <MessagePanel title="Apple Look Around did not load" message={sdkError} /> : null}
       {joined && status === 'playing' && !imageryReady && !sdkError && imageryConfigured && (phase === 'guessing' || phase === 'reveal' || phase === 'locating') ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading Look Around</div>
       ) : null}

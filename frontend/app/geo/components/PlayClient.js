@@ -34,6 +34,7 @@ import LoadingSpot from './LoadingSpot';
 import RoundResult from './RoundResult';
 import GameSummary from './GameSummary';
 import SetupNotice from './SetupNotice';
+import { useSavedGame } from '../lib/savedGame';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
 const DESKTOP_SIZE = {
@@ -115,6 +116,13 @@ export default function PlayClient() {
   // always is: a round that hid its own map would announce itself.
   const notEarth = state.current?.place || null;
   const configured = Boolean(server?.providers?.apple?.configured);
+  const resumeUrl = `/geo/play?${configToParams(config)}&resume=1`;
+  const { ready: saveReady, saveError } = useSavedGame({
+    kind: 'street', url: resumeUrl, snapshot: state,
+    enabled: state.status === 'result' || state.status === 'summary',
+    resume: params.get('resume') === '1',
+    restore: (snapshot) => dispatch({ type: 'restore', snapshot }),
+  });
 
   // A new link is a new game.
   useEffect(() => {
@@ -210,10 +218,10 @@ export default function PlayClient() {
   // profile was handed over and then refused a score.
   const needsProfile = isChallengeMode(config.mode);
   useEffect(() => {
-    if (!configured || state.status !== 'idle') return;
+    if (!saveReady || !configured || state.status !== 'idle') return;
     if (needsProfile && !profileSettled) return;
     startRound();
-  }, [configured, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
+  }, [saveReady, configured, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
   // An unresponsive provider is not bad luck and is never retried: it
@@ -417,6 +425,7 @@ export default function PlayClient() {
 
   return (
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
+      {saveError ? <p role="status" className="absolute left-4 top-20 z-[70] max-w-sm rounded-lg bg-ocean-900 p-3 text-sm">{saveError}</p> : null}
       {/* Imagery */}
       {notEarth ? (
         <NotEarthPane ref={paneRef} place={notEarth} roundKey={state.roundIndex} allowPan={config.pan} allowZoom={config.zoom} />
@@ -556,6 +565,7 @@ export default function PlayClient() {
       {state.status === 'summary' && share ? (
         <GameSummary
           summary={share.summary}
+          resumeUrl={resumeUrl}
           code={share.code}
           config={config}
           regionLabel={regionLabel}

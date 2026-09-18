@@ -5915,6 +5915,8 @@ model GeoAccount {
   email      String   @unique
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
+  // Private, unranked checkpoint. Never used to award points or ratings.
+  savedGame  Json?
 
   /// What this account may do: player, host or admin
   /// (app/lib/geo/server/roles.js). A host can open rooms beyond the

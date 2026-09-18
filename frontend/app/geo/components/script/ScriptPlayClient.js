@@ -41,6 +41,8 @@ import {
 } from '../../lib/appleMapKit';
 import AppleScriptMap from './AppleScriptMap';
 import ScriptSample from './ScriptSample';
+import KeepThis from '../KeepThis';
+import { useSavedGame } from '../../lib/savedGame';
 // The screen's own stylesheet: the light palette the map is drawn in,
 // and the animations. Imported here rather than by the map, which is
 // loaded late, so the sentence and the panels animate before the map's
@@ -116,6 +118,22 @@ export default function ScriptPlayClient() {
   const [mapTrouble, setMapTrouble] = useState(false);
   const [mapkit, setMapkit] = useState(null);
   const [provider, setProvider] = useState('pending');
+  const resumeUrl = `/geo/script/play?${scriptConfigToQuery(config)}&resume=1`;
+  const { ready: saveReady, saveError } = useSavedGame({
+    kind: 'script', url: resumeUrl,
+    snapshot: { config, roundIndex, history, result },
+    enabled: Boolean(result) || history.length >= config.rounds,
+    resume: params.get('resume') === '1',
+    restore: (saved) => {
+      if (!Array.isArray(saved.history)) return;
+      setHistory(saved.history);
+      setRoundIndex(saved.roundIndex);
+      setResult(saved.result || null);
+      const last = saved.history[saved.history.length - 1];
+      if (last) setRound({ text: last.text, script: last.script });
+      setLoading(false);
+    },
+  });
 
   // Which map the round is played on. Apple, unless Apple says no.
   //
@@ -177,7 +195,7 @@ export default function ScriptPlayClient() {
   // One round at a time, asked for by index: the server is stateless and
   // the seed decides the game, so this is replayable and cheap.
   useEffect(() => {
-    if (roundIndex >= config.rounds) return undefined;
+    if (!saveReady || roundIndex >= config.rounds || history.length > roundIndex) return undefined;
     let live = true;
     setLoading(true);
     setError('');
@@ -203,7 +221,7 @@ export default function ScriptPlayClient() {
     return () => {
       live = false;
     };
-  }, [config, roundIndex]);
+  }, [config, roundIndex, saveReady, history.length]);
 
   const submit = useCallback(
     async (guess) => {
@@ -269,6 +287,8 @@ export default function ScriptPlayClient() {
         ladder={ladder}
         history={history}
         total={total}
+        resumeUrl={resumeUrl}
+        saveError={saveError}
       />
     );
   }
@@ -536,7 +556,7 @@ function plural(regions) {
 }
 
 /** The end of a game. */
-function Summary({ config, ladder, history, total }) {
+function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
   const replay = `/geo/script/play?${scriptConfigToQuery({ ...config, seed: randomSeedString() })}`;
   const same = `/geo/script/play?${scriptConfigToQuery(config)}`;
   return (
@@ -581,6 +601,8 @@ function Summary({ config, ladder, history, total }) {
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-sand-500">
           Your rounds
         </h2>
+        <div className="rounded-xl bg-ocean-950 text-white"><KeepThis returnTo={resumeUrl} /></div>
+        {saveError ? <p role="status" className="mt-3 text-sm text-clay-800">{saveError}</p> : null}
         <ol className="mt-3 space-y-3">
           {history.map((row, index) => (
             /* Three blocks, each with its own space. The name, the

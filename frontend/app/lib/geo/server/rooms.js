@@ -47,6 +47,7 @@ import { checkRoomEntry, recordRoomRound, subjectsForPlayer } from './meter';
 import { awardRoomFinish, awardRoomRound, reactionsForProfile } from './points';
 import { allReactionEmoji } from '../items';
 import { applyRoomRatings, ratingsForRoom } from './profiles';
+import { createScriptRound, evaluateScriptGuess } from './scriptGame';
 
 export class RoomError extends Error {
   constructor(code, message, status = 400) {
@@ -384,7 +385,7 @@ async function advanceRound(store, room, now, fetchImpl) {
     if (claimed) {
       const finished = await store.getRoomByCode(room.code);
       try {
-        await applyRoomRatings(store, finished, now);
+        if (finished.config.game !== 'script') await applyRoomRatings(store, finished, now);
       } catch (error) {
         console.error('[geo/rooms] rating failed', error?.message || error);
       }
@@ -442,6 +443,21 @@ function appleCandidates(config, index, attempt = 0) {
 /** Offer the round's places and wait for a browser to find one. */
 async function buildRound(store, room, index, now, fetchImpl) {
   try {
+    if (room.config.game === 'script') {
+      const sample = createScriptRound({ config: { ladder: 'world', rounds: room.config.rounds, seed: room.config.seed }, roundIndex: index, now });
+      await store.createRound({
+        roomId: room.id, index, panoId: '', heading: 0,
+        lat: 0, lng: 0, sizeKm: 20000,
+        stats: { script: sample },
+        startedAt: new Date(now), deadline: new Date(now + room.config.time * 1000),
+      });
+      const fresh = await store.getRoomById(room.id);
+      await store.updateRoom(room.id, {
+        status: 'playing', phase: 'guessing', roundIndex: index,
+        phaseEndsAt: null, lastError: null, lastActiveAt: new Date(now), version: fresh.version + 1,
+      });
+      return store.getRoomByCode(room.code);
+    }
     {
       // No server-side probe exists for Look Around: offer places and let
       // a browser find one (the locate action), then everyone opens it.
@@ -530,11 +546,14 @@ async function submitGuess(store, room, me, body, now) {
   if (round.revealedAt) throw new RoomError('too_late', 'That round was already revealed', 409);
   const lat = Number(body?.lat);
   const lng = Number(body?.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+  if (body?.lat == null || body?.lng == null || body.lat === '' || body.lng === '' || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     throw new RoomError('bad_guess', 'A guess needs a latitude and a longitude', 400);
   }
-  const distanceKm = haversineKm({ lat, lng }, { lat: round.lat, lng: round.lng });
-  const score = scoreForDistance(distanceKm, round.sizeKm);
+  const scripted = room.config.game === 'script'
+    ? evaluateScriptGuess({ token: round.stats.script.token, guess: { lat, lng }, now })
+    : null;
+  const distanceKm = scripted ? scripted.distanceKm : haversineKm({ lat, lng }, { lat: round.lat, lng: round.lng });
+  const score = scripted ? scripted.score : scoreForDistance(distanceKm, round.sizeKm);
   await store.upsertGuess({ roundId: round.id, playerId: me.id, lat, lng, distanceKm, score, damage: 0, timedOut: false, submittedAt: new Date(now) });
   await touchRoom(store, room, now);
   return store.getRoomByCode(room.code);
@@ -728,8 +747,14 @@ export async function listRooms(store, { now = Date.now() } = {}) {
 // ---------------------------------------------------------------------------
 
 function revealOf(round, room) {
+  // Use the round's creation time to decode after the match: the server owns
+  // this token and the stored result must remain viewable after token expiry.
+  const scriptResult = room.config.game === 'script' && round.stats?.script
+    ? evaluateScriptGuess({ token: round.stats.script.token, now: toMs(round.startedAt) })
+    : null;
   return {
     index: round.index,
+    scriptAnswer: scriptResult?.answer || null,
     answer: {
       lat: round.lat,
       lng: round.lng,
@@ -800,6 +825,7 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
       lastError: room.lastError || null,
       hostId: present(room).find((p) => p.isHost)?.id || null,
       config: {
+        game: config.game || 'street',
         provider: config.provider || 'google',
         mode: config.mode,
         region: config.region || '',
@@ -843,7 +869,9 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
             coordinate: me && config.provider === 'apple' ? { lat: current.lat, lng: current.lng } : null,
             deadline: toMs(current.deadline),
             startedAt: toMs(current.startedAt),
-            stats: current.stats || null,
+            text: me && config.game === 'script' ? current.stats?.script?.text : null,
+            script: me && config.game === 'script' ? current.stats?.script?.script : null,
+            stats: config.game === 'script' ? null : current.stats || null,
           }
         : null,
     locating:

@@ -129,6 +129,7 @@ export function normalizeRoomConfig(input = {}) {
   });
   // The solo game's timer options differ; rooms have their own list.
   config.time = ROOM_TIME_OPTIONS.includes(Number(raw.time)) ? Number(raw.time) : DEFAULT_ROOM_TIME;
+  config.game = raw.game === 'script' ? 'script' : 'street';
   const variant = VARIANTS[raw.variant] ? raw.variant : 'classic';
   const visibility = raw.visibility === 'private' ? 'private' : 'public';
   return { config, variant, visibility };
@@ -219,6 +220,7 @@ export function describeRoomStatus(room) {
 }
 
 export function describeRoomMode(config, { regionLabel } = {}) {
+  if (config?.game === 'script') return 'Script';
   const mode = MODES[config?.mode];
   if (!mode) return config?.mode || '';
   if (mode.needs === 'continent') return `Continent: ${regionLabel || config.region}`;
@@ -228,6 +230,7 @@ export function describeRoomMode(config, { regionLabel } = {}) {
 
 /** "City streets, No Move, on Apple Look Around": the room card's one line. */
 export function describeRoomRules(config, { regionLabel } = {}) {
+  if (config?.game === 'script') return 'Script';
   const parts = [describeRoomMode(config, { regionLabel })];
   if (formatOf(config) !== 'moving') parts.push(formatLabel(config));
   if (config?.provider && config.provider !== PRIMARY_PROVIDER) parts.push(`on ${PROVIDERS[config.provider]?.label || config.provider}`);

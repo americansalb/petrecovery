@@ -99,6 +99,7 @@ export const GAME_RATE_LIMITS = {
   // plus guesses and reactions; one bucket for the whole prefix.
   '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
   '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
+  '/api/geo/save': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },
   // Sign-in sends mail, so it gets the strictest bucket in the game:
   // five a minute per address is more than a person needs and far less

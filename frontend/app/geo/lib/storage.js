@@ -33,6 +33,8 @@ export function statsKey(config) {
 
 export function recordGame(summary, shareCode) {
   const list = read();
+  // Reopening a saved result must not count the same game twice.
+  if (shareCode && list.some((game) => game.code === shareCode)) return;
   list.push({
     at: new Date().toISOString(),
     key: statsKey(summary.config),

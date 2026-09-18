@@ -30,6 +30,8 @@ import { profileHeaders } from "../../lib/profile";
 import { loadGeoConfig } from "../../lib/serverConfig";
 import ScriptArtwork from "./ScriptArtwork";
 import Button from "../ui/Button";
+import { latestSavedGame } from '../../lib/savedGame';
+import { safeReturnTo } from '@/app/lib/geo/authReturn';
 
 const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
   .map(([code, name]) => ({
@@ -44,6 +46,7 @@ export default function GameMenu() {
   const [company, setCompany] = useState("solo");
   const [game, setGame] = useState("street");
   const [starting, setStarting] = useState(false);
+  const [savedGame, setSavedGame] = useState(null);
   const [imagery, setImagery] = useState(null);
   const [daily, setDaily] = useState(null);
   const [cup, setCup] = useState(null);
@@ -54,10 +57,10 @@ export default function GameMenu() {
   const [country, setCountry] = useState("JP");
   const multiplayer = company === "multi";
   const script = game === "script";
-  const unavailable = multiplayer && script;
 
   useEffect(() => {
     let live = true;
+    latestSavedGame().then((saved) => { if (live) setSavedGame(saved); });
     const get = (name, url, set, pick = (d) => d) =>
       fetch(url, { headers: profileHeaders(), cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
@@ -89,9 +92,8 @@ export default function GameMenu() {
   }, []);
 
   const start = () => {
-    if (unavailable) return;
     setStarting(true);
-    if (multiplayer) router.push("/geo/rooms");
+    if (multiplayer) router.push(`/geo/rooms?game=${game}`);
     else if (script) router.push("/geo/script/play?ladder=world&rounds=5");
     else router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
@@ -181,7 +183,7 @@ export default function GameMenu() {
                 <Button
                   onClick={start}
                   disabled={
-                    starting || unavailable || (!multiplayer && !script && imagery === false)
+                    starting || (!multiplayer && !script && imagery === false)
                   }
                   size="lg"
                   data-cold-open-play
@@ -194,9 +196,7 @@ export default function GameMenu() {
                   <ArrowRight size={20} />
                 </Button>
                 <p>
-                  {unavailable
-                    ? "Script multiplayer isn’t available yet. Choose Solo to play."
-                    : multiplayer
+                  {multiplayer
                     ? openRooms === null
                       ? "Create a room or join with a code"
                       : openRooms
@@ -209,6 +209,7 @@ export default function GameMenu() {
               </div>
             </div>
             <div className="pe-dock-foot">
+              {savedGame?.url ? <Link href={safeReturnTo(savedGame.url, '/geo')}><Play size={15} /> Continue {savedGame.kind === 'script' ? 'Script' : 'Street'}</Link> : null}
               <Link href="/geo/script" data-menu-script>
                 <Languages size={15} /> All Script languages{" "}
                 <ArrowRight size={14} />

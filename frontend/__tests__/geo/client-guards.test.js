@@ -23,7 +23,7 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
     // `api` is only ever set by the Google branch of the SDK effect, so
     // gating the shared map block on it left Apple rooms with no map and
     // no Guess button: every round timed out at zero for everyone.
-    expect(src).toContain('{imageryReady && joined ? (');
+    expect(src).toContain("{imageryReady && joined && (phase === 'guessing' || phase === 'reveal') ? (");
     expect(src).not.toContain('{api && joined ? (');
   });
 
@@ -31,15 +31,17 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
     // It used to read the Google handle, which an Apple room never
     // sets. There is one imagery now, so there is one handle, and
     // nothing here may reach for a second.
-    expect(src).toMatch(/const imageryReady = Boolean\(mapkit\);/);
+    expect(src).toMatch(/const imageryReady = isScript \|\| Boolean\(mapkit\);/);
     expect(src).not.toMatch(/Boolean\(api\)/);
   });
 
   test('the map block still holds the map and the submit button', () => {
-    const block = src.slice(src.indexOf('{imageryReady && joined ? ('));
+    const block = src.slice(src.indexOf('{imageryReady && joined &&'));
     const end = block.indexOf('{/* Screens */}');
     const map = block.slice(0, end);
     expect(map).toContain('<AppleGuessMap');
+    expect(map).toContain('<ScriptMap');
+    expect(map).toContain('Number.isFinite(g.lat) && Number.isFinite(g.lng)');
     expect(map).toContain('onClick={submitGuess}');
     // The harness clicks this rather than the label, which now changes
     // with the pin ("Guess" / "Sending") while the hook does not.
@@ -139,7 +141,6 @@ describe('RoomClient: only players load billed imagery', () => {
     // map) and missed on the expensive one, so anyone who opened the
     // room link mounted a Street View pane and loaded a panorama for
     // every round, charged to nobody.
-    expect(src).toMatch(/const showApple = mapkit && joined &&/);
+    expect(src).toMatch(/const showApple = !isScript && mapkit && joined &&/);
   });
 });
-

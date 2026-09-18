@@ -88,7 +88,7 @@ function forgetDraft() {
   }
 }
 
-export default function RoomBrowser() {
+export default function RoomBrowser({ initialGame }) {
   const router = useRouter();
   const [server, setServer] = useState(null);
   const [rooms, setRooms] = useState(null);
@@ -97,6 +97,7 @@ export default function RoomBrowser() {
   const [form, setForm] = useState({
     roomName: "",
     variant: "duel",
+    game: initialGame === 'script' ? 'script' : 'street',
     provider: PRIMARY_PROVIDER,
     mode: "balanced",
     continent: "europe",
@@ -119,7 +120,7 @@ export default function RoomBrowser() {
     setRecent(listRecentRooms());
     const draft = loadDraft();
     if (draft?.name) setName(draft.name);
-    if (draft?.form) setForm((current) => ({ ...current, ...draft.form, variant: "duel" }));
+    if (draft?.form) setForm((current) => ({ ...current, ...draft.form, game: initialGame || draft.form.game || 'street', variant: "duel" }));
     if (draft?.code) setCode(draft.code);
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
@@ -140,9 +141,9 @@ export default function RoomBrowser() {
       alive = false;
       clearInterval(id);
     };
-  }, []);
+  }, [initialGame]);
 
-  const configured = Boolean(server?.providers?.apple?.configured);
+  const configured = form.game === 'script' || Boolean(server?.providers?.apple?.configured);
   const modesFor = (provider) =>
     ROOM_MODES.filter((id) => MODES[id]?.providers?.includes(provider));
   const countries = server?.countries || [];
@@ -151,6 +152,7 @@ export default function RoomBrowser() {
   const settings = useMemo(
     () => ({
       variant: form.variant,
+      game: form.game,
       provider: form.provider,
       mode: form.mode,
       region:
@@ -238,7 +240,7 @@ export default function RoomBrowser() {
             saveName(value);
             rememberDraft({ name: value, form, code });
           }}
-          returnTo={code ? `/geo/room/${normalizeRoomCode(code)}` : `/geo/rooms?variant=${form.variant}`}
+          returnTo={code ? `/geo/room/${normalizeRoomCode(code)}` : `/geo/rooms?game=${form.game}`}
           onAuthenticated={() => {
             setSignedIn(true);
             setAccountGate(false);
@@ -295,6 +297,10 @@ export default function RoomBrowser() {
         >
           <h2>Create a room</h2>
           <p className="text-sm text-white/70">Better guesses deal damage. Last player standing wins.</p>
+          <div className="pe-rule-choice" role="group" aria-label="Game">
+            {['street', 'script'].map((game) => <button key={game} type="button" aria-pressed={form.game === game} onClick={() => update({ game })}>{game === 'street' ? 'Street' : 'Script'}</button>)}
+          </div>
+          {form.game === 'script' ? <p className="text-sm text-white/70">Script matches do not change your Street rating.</p> : null}
           <div className="pe-player-name">
             <span className="pe-avatar">
               <Compass size={25} />
@@ -313,8 +319,8 @@ export default function RoomBrowser() {
             </label>
           </div>
           <div className="pe-room-preset">
-            {form.rounds} rounds · {timeLabel(form.time)} per round ·{" "}
-            {FORMATS[form.format]?.label}
+            {form.rounds} rounds · {timeLabel(form.time)} per round
+            {form.game !== 'script' ? ` · ${FORMATS[form.format]?.label}` : ''}
             <br />
             {form.visibility === "public"
               ? "Public room. Anyone can join."
@@ -360,7 +366,7 @@ export default function RoomBrowser() {
               </Field>
               {/* There is one imagery, so there is no choice to offer.
                   The line says where a room will actually take people. */}
-              <Field
+              {form.game !== 'script' ? <Field
                 label="Places"
                 hint={`City streets in ${APPLE_COVERAGE.size} countries.`}
               >
@@ -375,8 +381,8 @@ export default function RoomBrowser() {
                     </option>
                   ))}
                 </select>
-              </Field>
-              {form.mode === "continent" ? (
+              </Field> : null}
+              {form.game !== 'script' && form.mode === "continent" ? (
                 <div className="sm:col-span-2">
                   <Field label="Continent">
                     <select
@@ -392,7 +398,7 @@ export default function RoomBrowser() {
                     </select>
                   </Field>
                 </div>
-              ) : form.mode === "country" ? (
+              ) : form.game !== 'script' && form.mode === "country" ? (
                 <div className="sm:col-span-2">
                   <Field label="Country">
                     <select
@@ -440,7 +446,7 @@ export default function RoomBrowser() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Format" hint={FORMATS[form.format]?.description}>
+                {form.game !== 'script' ? <Field label="Format" hint={FORMATS[form.format]?.description}>
                   <select
                     value={form.format}
                     onChange={(e) => update({ format: e.target.value })}
@@ -452,7 +458,7 @@ export default function RoomBrowser() {
                       </option>
                     ))}
                   </select>
-                </Field>
+                </Field> : null}
               </div>
             </div>
           </details>

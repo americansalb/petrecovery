@@ -80,7 +80,7 @@ export function RoomSummary({ room, countries }) {
     `${room.roundsTotal} rounds`,
     `${timeLabel(room.config.time)} each`,
   ];
-  if (!(room.config.move && room.config.pan && room.config.zoom))
+  if (room.config.game !== 'script' && !(room.config.move && room.config.pan && room.config.zoom))
     parts.push(movementLabel(room.config));
   if (room.config.provider && room.config.provider !== PRIMARY_PROVIDER)
     parts.push(PROVIDERS[room.config.provider]?.label || room.config.provider);
@@ -359,7 +359,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             </p>
             <h2>{outcome.title}</h2>
             <p className="pe-reveal-place">
-              {answer?.country?.flag} {place || "Location revealed"}
+              {reveal?.scriptAnswer ? `${reveal.scriptAnswer.name} · ${reveal.scriptAnswer.endonym}` : <>{answer?.country?.flag} {place || "Location revealed"}</>}
               {answer?.date ? <small> · Imagery {answer.date}</small> : null}
             </p>
           </div>
