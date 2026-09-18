@@ -100,6 +100,10 @@ const LeafletScriptMap = dynamic(() => import('./LeafletScriptMap'), {
 
 export default function ScriptPlayClient() {
   const params = useSearchParams();
+  return <ScriptPlayGame key={params.toString()} params={params} />;
+}
+
+function ScriptPlayGame({ params }) {
   const config = useMemo(() => {
     const raw = Object.fromEntries(params?.entries?.() || []);
     const normal = normalizeScriptConfig(raw);

@@ -12,6 +12,13 @@ const google = { provider: 'google', panoId: 'p1', heading: 90, token: 'g1.abc',
 const result = (score, extra = {}) => ({ kind: 'pin', score, distanceKm: 100, answer: { lat: 1, lng: 2, country: { code: 'FR', name: 'France', flag: '🇫🇷' } }, guess: { lat: 1, lng: 3 }, ...extra });
 
 describe('game reducer', () => {
+  test('restoring a completed round continues at the following round', () => {
+    const config = normalizeConfig({ rounds: 3, seed: 'resume' });
+    const snapshot = { ...createInitialState(config), status: 'result', roundIndex: 1, rounds: [result(1000), result(2000)] };
+    const restored = reducer(createInitialState(config), { type: 'restore', snapshot });
+    expect(totalScore(restored)).toBe(3000);
+    expect(reducer(restored, { type: 'next' })).toMatchObject({ status: 'idle', roundIndex: 2 });
+  });
   test('a three-round pin game runs to the summary', () => {
     let s = createInitialState(normalizeConfig({ mode: 'world', rounds: 3, seed: 'x' }));
     for (let i = 0; i < 3; i++) {

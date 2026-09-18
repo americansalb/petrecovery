@@ -1,5 +1,42 @@
 # Probably Earth: what launch needs
 
+## Current launch gate (2026-09-17)
+
+**Not approved for launch.** The historical assessment below is not a
+current end-to-end verification. In particular, a successful email API
+response did not produce an email in the owner's inbox.
+
+Work in PR #291 includes contextual email signup, 90-day sessions,
+guest-profile binding, internal return links, Duel-only setup with Street
+and Script choices, Script multiplayer scoring, and account-backed game
+checkpoints. These changes are not live until the PR is merged and the
+deployment succeeds. The checkpoint adds the nullable `GeoAccount.savedGame`
+JSON column; deployment must apply that additive schema change.
+
+Evidence from the current local working tree:
+
+- 135 Jest suites passed, 1,449 tests passed, 10 existing todos.
+- Full lint passed the repository's 360-warning ceiling.
+- Script solo: placed guesses, received scores, returned home, reopened
+  the same saved result, and continued to the following round in a browser.
+- Script Duel: server tests cover shared clues, hidden answers, scoring,
+  finishing, and rematching. Local browser testing found and fixed blank
+  maps after resizing and crashes when timeout guesses have no coordinates.
+- Mail provider error responses are now failures, rather than false success.
+
+Still required before calling the game launch-ready:
+
+- Inspect production mail configuration and provider delivery evidence;
+  receive a real sign-in email and complete recovery/return-to-game.
+- Confirm the production schema and deploy the changes; test persistent
+  saves from a second session/device and session survival across restart.
+- Finish desktop/mobile real-browser coverage of Street imagery, Script
+  duels, disconnect/rejoin, errors, all challenge/result/profile screens.
+- Phone-number signup requested by the owner is not implemented.
+- CI and production checks for the final commit must pass.
+
+## Historical assessment (superseded)
+
 Written 2026-09-11 against `pet_main`. `docs/GEO.md` is what the game
 does, `docs/PROBABLY_EARTH_SPLIT.md` is how it becomes its own product.
 This is only the question "can it go live", answered honestly.
@@ -21,13 +58,9 @@ it with nothing configured".
 
 ## The short answer
 
-**The game is ready. One thing in the deployment is not: the production
-database is a schema behind, so profiles cannot be created and the
-scored modes cannot be played. Everything else left is yours rather
-than mine.**
-
-Everything below marked "you" needs an account, a card, a domain or a
-decision that is not mine to make. Everything marked "code" is done.
+The original assessment attributed the launch blocker to database schema
+drift. Production profile creation subsequently succeeded, so that claim
+is not a current diagnosis. Use the current launch gate above.
 
 ## What is actually finished
 

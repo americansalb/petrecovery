@@ -333,7 +333,14 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     if (!map || !L) return;
     for (const layer of drawnRef.current) map.removeLayer(layer);
     drawnRef.current = [];
-    if (mode !== 'result' || !answer) return;
+    if (mode !== 'result' || !answer) {
+      // A new clue starts with the whole world, not the previous answer.
+      if (mode === 'guess') {
+        map.stop();
+        map.setView([20, 0], 2, { animate: false });
+      }
+      return;
+    }
 
     const drawn = [];
     for (const region of answer.regions || []) {

@@ -23,6 +23,7 @@ test('Script duel shares a clue, hides the answer, scores regions, finishes and 
   expect(visitor.round.text).toBeNull();
   const peer = await getRoomView(store, { code, token: other.token, now });
   expect(peer.round.text).toBe(state.round.text);
+  await expect(roomAction(store, { code, token: host.token, action: 'guess', body: { lat: null, lng: null }, now: now + 500 })).rejects.toMatchObject({ code: 'bad_guess' });
   for (let i = 0; i < 3; i++) {
     const at = now + i * 10000;
     const row = (await store.getRoomByCode(code)).rounds.find((r) => r.index === i);

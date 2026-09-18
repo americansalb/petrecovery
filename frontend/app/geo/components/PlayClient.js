@@ -81,6 +81,10 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
 
 export default function PlayClient() {
   const params = useSearchParams();
+  return <StreetPlayGame key={params.toString()} params={params} />;
+}
+
+function StreetPlayGame({ params }) {
   const config = useMemo(() => configFromParams(params), [params]);
   const [state, dispatch] = useReducer(reducer, config, createInitialState);
   const stateRef = useRef(state);

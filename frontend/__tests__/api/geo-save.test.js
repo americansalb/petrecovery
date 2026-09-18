@@ -30,3 +30,8 @@ test('rejects external links and non-game return routes', async () => {
     expect((await POST(req({ kind: 'street', url, snapshot: { rounds: [] } }))).status).toBe(400);
   }
 });
+
+test('malformed and oversized requests are rejected without a server error', async () => {
+  expect((await POST({ ...req(), text: async () => '{broken' })).status).toBe(400);
+  expect((await POST({ ...req(), text: async () => 'x'.repeat(512001) })).status).toBe(413);
+});
