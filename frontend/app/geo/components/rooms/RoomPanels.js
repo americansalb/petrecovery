@@ -200,9 +200,9 @@ export function LobbyPanel({
     <Panel wide>
       <div className="pe-party-heading">
         <p className="pe-eyebrow">
-          {ready ? "Your party is ready" : "Your room is ready"}
+          {room.config?.game === 'script' ? 'Script multiplayer' : 'Street multiplayer'}
         </p>
-        <h1>{ready ? "Let’s play." : "Better with a rival."}</h1>
+        <h1>{ready ? "Ready to play" : "Invite a friend"}</h1>
         <p>
           {ready
             ? `${state.players.length} players have joined. ${me?.isHost ? "Start whenever you’re ready." : "Your host will start the game."}`
@@ -530,9 +530,9 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
   const title = !hasWinner
     ? "Match complete."
     : shared
-      ? "Honours shared."
+      ? "Draw"
       : won
-        ? "Victory is yours."
+        ? "You won"
         : `${winner.name} wins.`;
   const text = [
     `Probably Earth: ${VARIANTS[room.variant]?.label || room.variant}, ${room.roundsTotal} rounds.`,
@@ -593,10 +593,10 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
             <small>
               {room.rematchCode
                 ? "Your next room is ready."
-                : "Same settings. A fresh set of places."}
+                : room.config?.game === 'script' ? "Same settings, new sentences." : "Same settings, new places."}
             </small>
           </div>
-          <MatchRating player={own} />
+          {room.config?.game !== 'script' ? <MatchRating player={own} /> : null}
         </div>
         {error ? (
           <p role="alert" className="mt-3 text-sm text-red-200">
@@ -626,7 +626,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
                     you={p.you}
                   />
                   <span>
-                    {placedLeague(p) || "Placement games"}
+                    {room.config?.game === 'script' ? 'Script' : placedLeague(p) || "Placement games"}
                     {p.roundWins
                       ? ` · ${p.roundWins} round ${p.roundWins === 1 ? "win" : "wins"}`
                       : ""}
@@ -667,8 +667,9 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
         </div>
         {!players.some((p) => Number.isFinite(p.ratingDelta)) ? (
           <p className="pe-unrated-note">
-            No rating change for this match. Two or more players with profiles
-            are needed for rated play.
+            {room.config?.game === 'script'
+              ? 'Script matches do not change your Street rating.'
+              : 'No rating change for this match. Two or more players with profiles are needed for rated play.'}
           </p>
         ) : null}
       </div>

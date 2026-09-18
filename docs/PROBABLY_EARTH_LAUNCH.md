@@ -15,13 +15,21 @@ JSON column; deployment must apply that additive schema change.
 
 Evidence from the current local working tree:
 
-- 135 Jest suites passed, 1,449 tests passed, 10 existing todos.
+- 135 Jest suites passed, 1,451 tests passed, 10 existing todos.
 - Full lint passed the repository's 360-warning ceiling.
 - Script solo: placed guesses, received scores, returned home, reopened
-  the same saved result, and continued to the following round in a browser.
+  the same saved result, continued, finished all five rounds, and reloaded
+  the final score unchanged. Mobile replay testing found and fixed stale
+  game state when the query string changed.
 - Script Duel: server tests cover shared clues, hidden answers, scoring,
   finishing, and rematching. Local browser testing found and fixed blank
   maps after resizing and crashes when timeout guesses have no coordinates.
+  A three-round browser match then completed with real host/peer guesses,
+  damage, a mobile map drawer, timeout handling, and final standings.
+- Production Street: Apple imagery rendered, a pin submitted, the correct
+  location was revealed, and score/points were returned.
+- A private temporary test inbox also received no sign-in email after
+  production reported success. Delivery remains a launch blocker.
 - Mail provider error responses are now failures, rather than false success.
 
 Still required before calling the game launch-ready:

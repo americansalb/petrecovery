@@ -253,7 +253,7 @@ export default function RoomBrowser({ initialGame }) {
           <h1>
             Play with <em>friends.</em>
           </h1>
-          <p>Pick a game. Create a room. Invite your friends.</p>
+          <p>Choose Street or Script, then share your room link.</p>
         </div>
         <form method="post" onSubmit={joinByCode} className="pe-join-inline">
           <label htmlFor="join-room-code">Already have a room code?</label>
@@ -478,11 +478,7 @@ export default function RoomBrowser({ initialGame }) {
                   <Compass size={35} />
                   <Users size={25} />
                 </span>
-                <h3>
-                  The next game
-                  <br />
-                  starts with you.
-                </h3>
+                <h3>No open rooms</h3>
                 <p>
                   No public rooms are open right now. Create one and send the
                   invite link to a friend.

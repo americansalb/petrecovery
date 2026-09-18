@@ -39,6 +39,7 @@
  */
 
 import 'leaflet/dist/leaflet.css';
+import './script-round.css';
 import { useEffect, useRef, useState } from 'react';
 import { chooseLabels } from '../../lib/countryLabels';
 
@@ -47,10 +48,15 @@ const GUESS = '#e08c0a';
 // Warm land on a pale sea, matching script-round.css. A map reads
 // better as paper than as a hole in the dark.
 const LAND = { fillColor: '#f7f2e7', fillOpacity: 1, color: '#cbbda6', weight: 0.7, opacity: 1 };
-const MIN_ZOOM = 1;
+const MIN_ZOOM = 0;
 // 1:110m coastlines are simplified; past this they read as polygons
 // rather than coasts, and nothing in the round needs closer.
 const MAX_ZOOM = 7;
+
+function showWorld(map) {
+  map.stop();
+  map.fitBounds([[-55, -180], [75, 180]], { padding: [12, 12], animate: false });
+}
 
 /**
  * The world's outline and the names on it, loaded once per page. The
@@ -251,6 +257,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         zoomControl: false,
         attributionControl: true,
       }).setView([20, 0], 2);
+      showWorld(map);
       L.control.zoom({ position: 'bottomleft' }).addTo(map);
       map.on('click', (event) => {
         if (!interactiveRef.current) return;
@@ -309,7 +316,12 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
   // The pin being placed.
   useEffect(() => {
     if (!ready || !hostRef.current || typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(() => mapRef.current?.invalidateSize({ pan: false }));
+    const observer = new ResizeObserver(() => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.invalidateSize({ pan: false });
+      if (interactiveRef.current && !pinRef.current) showWorld(map);
+    });
     observer.observe(hostRef.current);
     return () => observer.disconnect();
   }, [ready]);
@@ -336,8 +348,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     if (mode !== 'result' || !answer) {
       // A new clue starts with the whole world, not the previous answer.
       if (mode === 'guess') {
-        map.stop();
-        map.setView([20, 0], 2, { animate: false });
+        showWorld(map);
       }
       return;
     }
@@ -396,7 +407,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     }
   }, [answer, guess, nearestPoint, mode, ready]);
 
-  return <div ref={hostRef} className={`h-full w-full ${className}`} data-script-map="leaflet" data-map-mode={mode} />;
+  return <div ref={hostRef} className={`h-full w-full ${className}`} style={{ background: '#dce9f2', '--wg-label': '#6a6050' }} data-script-map="leaflet" data-map-mode={mode} />;
 }
 
 /**
