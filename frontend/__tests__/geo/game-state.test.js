@@ -83,6 +83,18 @@ describe('game reducer', () => {
     expect(s.current.candidateIndex).toBe(1);
   });
 
+  test('imagery arriving after a restored reveal cannot reopen or rescore that round', () => {
+    const config = normalizeConfig({ rounds: 3, seed: 'street-refresh' });
+    const snapshot = { ...createInitialState(config), status: 'result', rounds: [result(506, { points: { earned: 3, balance: 3 } })],
+      current: { provider: 'apple', candidates: [{ lat: 1, lng: 1, token: 'g1.a' }] } };
+    const restored = reducer(createInitialState(config), { type: 'restore', snapshot });
+    const lateImagery = reducer(restored, { type: 'located', index: 0 });
+    expect(lateImagery).toBe(restored);
+    expect(totalScore(lateImagery)).toBe(506);
+    expect(lateImagery.rounds[0].points).toEqual({ earned: 3, balance: 3 });
+    expect(reducer(lateImagery, { type: 'next' })).toMatchObject({ status: 'idle', roundIndex: 1 });
+  });
+
   test('errors retry with a new attempt number', () => {
     let s = createInitialState(normalizeConfig({ rounds: 3 }));
     s = reducer(s, { type: 'load_error', error: { message: 'no imagery' } });

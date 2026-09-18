@@ -98,7 +98,6 @@ function StreetPlayGame({ params }) {
   const [heading, setHeading] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(config.time);
   const [mapSize, setMapSize] = useState('small');
-  const [mapHover, setMapHover] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [appleAttempt, setAppleAttempt] = useState(0);
@@ -109,7 +108,6 @@ function StreetPlayGame({ params }) {
   const [daily, setDaily] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileSettled, setProfileSettled] = useState(false);
-  const [pointsByRound, setPointsByRound] = useState({});
   const paneRef = useRef(null);
   const requestRef = useRef(0);
   const recordedRef = useRef(false);
@@ -135,7 +133,6 @@ function StreetPlayGame({ params }) {
     dispatch({ type: 'restart', config });
     recordedRef.current = false;
     setShare(null);
-    setPointsByRound({});
     setSecondsLeft(config.time);
     setMobileMapOpen(false);
   }, [config]);
@@ -276,8 +273,7 @@ function StreetPlayGame({ params }) {
       if (!res.ok) throw new Error(data.error || 'Could not score the guess');
       if (data.challenge) setChallenge(data.challenge);
       if (data.rated) setRated(data.rated);
-      if (data.points) setPointsByRound((prev) => ({ ...prev, [s.roundIndex]: data.points }));
-      dispatch({ type: 'submit_success', result: { ...data.result, timedOut: data.result?.timedOut ?? !guess, roundIndex: s.roundIndex } });
+      dispatch({ type: 'submit_success', result: { ...data.result, points: data.points || null, timedOut: data.result?.timedOut ?? !guess, roundIndex: s.roundIndex } });
       setMobileMapOpen(false);
     } catch (error) {
       dispatch({ type: 'submit_error', error: { message: error.message } });
@@ -387,15 +383,17 @@ function StreetPlayGame({ params }) {
   const inRound = state.status === 'playing' || state.status === 'submitting';
   // Points this game earned so far, and the badges it found (docs/GEO.md).
   const gamePoints = useMemo(() => {
-    const rounds = Object.values(pointsByRound);
+    const rounds = state.rounds.map((round) => round.points).filter(Boolean);
     return {
       earned: rounds.reduce((sum, r) => sum + (r.earned || 0), 0),
       balance: rounds.length ? rounds[rounds.length - 1].balance : profile?.points || 0,
       badges: rounds.map((r) => r.badge).filter(Boolean),
       capped: rounds.some((r) => r.allowed === false),
     };
-  }, [pointsByRound, profile]);
-  const effectiveSize = mapHover && mapSize === 'small' ? 'medium' : mapSize;
+  }, [state.rounds, profile]);
+  // Hover expansion moved the Guess button before the player's click landed.
+  // Keep the chosen size stable; S/M/L and the keyboard shortcut resize it.
+  const effectiveSize = mapSize;
   // A Not Earth round has no answer to plot, so its reveal keeps the
   // picture on screen instead of a map with one pin and nothing to
   // compare it to.
@@ -413,7 +411,9 @@ function StreetPlayGame({ params }) {
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
-      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
+      // Keep a real size while the mobile drawer is closed. display:none
+      // makes MapKit's renderer resize to zero and can leave its tiles blank.
+      : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
     mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
   }
@@ -447,7 +447,8 @@ function StreetPlayGame({ params }) {
           allowZoom={config.zoom}
           onAttempt={setAppleAttempt}
           onLocated={(index) => dispatch({ type: 'located', index })}
-          onFailed={(error) =>
+          onFailed={(error) => {
+            if (stateRef.current.status !== 'locating') return;
             dispatch({
               type: 'load_error',
               error: {
@@ -457,8 +458,8 @@ function StreetPlayGame({ params }) {
                 // "nothing here" is worth another draw.
                 code: error?.kind === 'unresponsive' ? 'imagery_unresponsive' : 'no_imagery',
               },
-            })
-          }
+            });
+          }}
         />
       ) : null}
 
@@ -492,7 +493,7 @@ function StreetPlayGame({ params }) {
 
       {/* The one map, moved by class */}
       {sdkReady ? (
-        <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
+        <div className={mapClass}>
           <div className="relative min-h-0 flex-1">
             <AppleGuessMap mapkit={mapkit} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} />
             {/* On the card, next to what they change. Under the score
@@ -563,7 +564,7 @@ function StreetPlayGame({ params }) {
           isStreak={isStreak}
           streak={streakLength(state)}
           countryName={countryName(lastResult.guessCountry)}
-          points={pointsByRound[lastResult.roundIndex] || null}
+          points={lastResult.points || null}
           onNext={next}
         />
       ) : null}

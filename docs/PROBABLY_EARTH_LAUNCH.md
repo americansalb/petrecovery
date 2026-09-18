@@ -2,6 +2,48 @@
 
 ## Verification update (2026-09-18)
 
+### Live sender corrected; real inbox delivery and Street browser checks
+
+This update supersedes earlier notes that hosting access and actual email delivery
+were blocked. The owner signed into the correct Render service. A read-only
+provider check confirmed the existing `reunitepets.org` sending domain is verified.
+Added `GEO_MAIL_FROM=Probably Earth <noreply@reunitepets.org>` to that service and
+completed a configuration-only deploy, `dep-dammicp42hec739mua8g`. The live code is
+still `9715c45`; no draft branch was merged or deployed.
+
+At the owner's request, used a temporary test inbox, not their personal email.
+The real Probably Earth sign-in email arrived and its link created a signed-in
+session. This is delivery evidence, **not a successful end-to-end launch gate**:
+the old production callback redirected to `https://localhost:10000/geo/me`, and
+the signed-in profile showed zero points after the guest profile showed twenty.
+The draft already carries public-origin and profile-binding fixes. A new route
+regression exercises the exact Render internal-origin callback, including secure
+cookies and a spent-link redirect. Hosted verification of the draft remains due.
+
+Production now requires an explicit game sender and rejects the Resend test
+domain instead of promising an email it cannot send. Missing sender configuration
+returns 503; provider rejection is not reported as success. The pet site's sender
+is not silently reused. Tests cover these cases without logging secrets or links.
+
+Real Apple Street imagery worked on production (one Madrid round, 3,555 points)
+and on the local PostgreSQL QA app using a short-lived public localhost token.
+The draft browser completed three actual Street rounds (Linz 506, Bordeaux 778,
+Brisbane 0; total 1,284), including a refresh and continuation. This exposed and
+fixed two issues: hover expansion moved Guess before a click landed; a late Apple
+imagery callback reopened a restored scored round. Round points metadata now
+travels with the saved result rather than disappearing from the game subtotal.
+
+At 390x844, opening the mobile map exposed an Apple renderer error and blank
+tiles. Closing the drawer used `display:none`, collapsing its dimensions to zero.
+It now stays offscreen at a real size and hidden from interaction until opened.
+Browser verification showed geographic tiles, a tapped pin, a 2,603-point Linz
+reveal and a fully visible next-round button, without horizontal overflow.
+Refreshing preserved that 2,603-point reveal. Final local verification passed
+**164 suites / 1,586 tests**, including all ten PostgreSQL release checks;
+ten existing todos remain. Changed application files lint cleanly.
+These are browser checks in the development QA app; final built/hosted mobile
+coverage is still required. The full release is **not ready to merge**.
+
 ### Current direction: polygon gameplay restored; percentile leagues
 
 Commit `a693caf2` passed CI run 35351192369. The final production build passed,

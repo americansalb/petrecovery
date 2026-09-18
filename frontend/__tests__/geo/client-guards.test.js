@@ -28,6 +28,12 @@ describe('account and replay regression guards', () => {
     expect(read('app/geo/components/PlayClient.js')).toContain('<StreetPlayGame key={params.toString()}');
     expect(read('app/geo/components/script/ScriptPlayClient.js')).toContain('<ScriptPlayGame key={params.toString()}');
   });
+  test('closing the mobile Street map preserves its layout size for the Apple renderer', () => {
+    const src = read('app/geo/components/PlayClient.js');
+    expect(src).not.toContain('hidden sm:flex absolute');
+    expect(src).toContain('invisible pointer-events-none absolute -left-[9999px]');
+    expect(src).toContain('sm:visible');
+  });
 });
 
 describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
@@ -65,6 +71,13 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
 
 describe('PlayClient: the server decides whether a round timed out', () => {
   const src = read('app/geo/components/PlayClient.js');
+
+  test('the guess target does not move away when the pointer enters the small map', () => {
+    // Real MapKit browser run: hovering the small card enlarged it and moved
+    // Guess before the click landed. Map sizing must be an explicit action.
+    expect(src).not.toContain('setMapHover');
+    expect(src).toContain('onClick={() => setMapSize(size)}');
+  });
 
   test('a generic imagery timeout cannot cover the actionable SDK error', () => {
     expect(src).toContain("state.status === 'error' && !autoRetrying && !sdkError && !serverError");

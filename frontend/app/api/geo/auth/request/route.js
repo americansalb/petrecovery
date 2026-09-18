@@ -54,15 +54,15 @@ export async function POST(request) {
     // A mail failure is worth saying out loud: silently claiming to have
     // sent something we did not would leave the player waiting forever.
     if (!result.sent) {
-      const noKey = result.reason === 'no_mail_key';
+      const notConfigured = ['no_mail_key', 'no_mail_sender'].includes(result.reason);
       return NextResponse.json(
         {
-          error: noKey
+          error: notConfigured
             ? 'Sign-in is not set up on this server yet. Play without an account for now.'
             : 'We could not send that link. Try again in a minute.',
-          code: noKey ? 'mail_not_configured' : 'send_failed',
+          code: notConfigured ? 'mail_not_configured' : 'send_failed',
         },
-        { status: noKey ? 503 : 502 }
+        { status: notConfigured ? 503 : 502 }
       );
     }
     // Outside production a server with no mail key writes the link to
