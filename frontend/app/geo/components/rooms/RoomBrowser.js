@@ -114,6 +114,7 @@ export default function RoomBrowser({ initialGame }) {
   const [recent, setRecent] = useState([]);
   const [signedIn, setSignedIn] = useState(null);
   const [accountGate, setAccountGate] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
@@ -178,6 +179,7 @@ export default function RoomBrowser({ initialGame }) {
 
   const create = async (event) => {
     event.preventDefault();
+    if (searching) return;
     const hostName = name.trim();
     if (!hostName) {
       setError("Type your name first.");
@@ -219,6 +221,7 @@ export default function RoomBrowser({ initialGame }) {
 
   const joinByCode = (event) => {
     event.preventDefault();
+    if (searching) return;
     const normalized = normalizeRoomCode(code);
     if (!normalized) {
       setError("A room code is six letters and numbers.");
@@ -267,6 +270,7 @@ export default function RoomBrowser({ initialGame }) {
           <div>
             <input
               id="join-room-code"
+              disabled={searching}
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -276,13 +280,14 @@ export default function RoomBrowser({ initialGame }) {
               autoComplete="off"
               spellCheck={false}
             />
-            <button type="submit" aria-label="Join room">
+            <button type="submit" aria-label="Join room" disabled={searching}>
               Join <ArrowRight size={17} />
             </button>
           </div>
         </form>
       </header>
-      <Matchmaker game={form.game} name={name} onNameChange={setName} onGameChange={(game) => update({ game })} />
+      <Matchmaker game={form.game} name={name} onNameChange={setName} onGameChange={(game) => update({ game })} onActiveChange={setSearching} />
+      {searching ? <p className="pe-directory-note">Cancel your search before opening a different room.</p> : null}
       {error ? (
         <p role="alert" className="mt-4 text-sm text-red-200">
           {error}
@@ -303,6 +308,8 @@ export default function RoomBrowser({ initialGame }) {
           data-ready={hydrated ? "1" : "0"}
           className="pe-open-create"
         >
+          <fieldset disabled={searching} className="contents">
+          <legend className="sr-only">Create a room</legend>
           <h2>Create a room</h2>
           <p className="text-sm text-white/70">Better guesses deal damage. Last player standing wins.</p>
           <div className="pe-rule-choice" role="group" aria-label="Game">
@@ -470,6 +477,7 @@ export default function RoomBrowser({ initialGame }) {
               </div>
             </div>
           </details>
+          </fieldset>
         </form>
         <aside className="pe-room-directory">
           <section>
@@ -507,6 +515,8 @@ export default function RoomBrowser({ initialGame }) {
                     </div>
                     <Link
                       href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ""}`}
+                      aria-disabled={searching || undefined}
+                      onClick={(event) => { if (searching) event.preventDefault(); }}
                     >
                       {room.status === "playing" && room.variant === "duel"
                         ? "Watch"
@@ -528,7 +538,7 @@ export default function RoomBrowser({ initialGame }) {
                       <strong>{r.roomName || r.code}</strong>
                       <span>{ago(r.at)}</span>
                     </div>
-                    <Link href={`/geo/room/${r.code}`}>
+                    <Link href={`/geo/room/${r.code}`} aria-disabled={searching || undefined} onClick={(event) => { if (searching) event.preventDefault(); }}>
                       Return <ArrowRight size={15} />
                     </Link>
                   </li>

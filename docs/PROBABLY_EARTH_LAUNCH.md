@@ -14,11 +14,11 @@ production verification are distinct; the historical section is not proof.
 | Fast signup with username and email OR phone | Inline email return and guest-profile binding tested locally; phone provider/unit code exists | Real email and SMS delivery, recovery, failure states, provider setup |
 | Stay signed in for at least a week | 90-day cookie, signed-session expiry tests | Persistent production database and restart verification |
 | Seamless save/resume, including another device | Account checkpoint and guest local save; new revision conflict guard and account isolation | Final browser save QA plus persistent database, second-device and restart tests |
-| Automatic matchmaking | New per-profile durable queue; same-mode pairing, FIFO, 20-second heartbeat lease, atomic pair allocation | Real Postgres concurrency; final desktop/mobile match and reconnect verification |
+| Automatic matchmaking | PostgreSQL: duplicate concurrent joins across two pools yield five distinct two-player matches; rollback, recovery and save CAS passed | Final desktop/mobile match and reconnect verification on deployed build |
 | Complete Duel multiplayer, Street/Script only | Script three-round match/rematch previously tested; new queue auto-start reached a mobile Script match | Final full match, intentional disconnect/rejoin, Street imagery and rematch QA |
 | Intuitive, polished UI | Plain copy, real country flags, clay/ocean/green palette; queue mobile layout inspected | Full-screen visual/accessibility sweep including errors and empty states |
 | Security and privacy | Account gates, sealed tokens, rate limits, safe redirect origins, no account mixing | Review final changed endpoints and privacy/schema changes |
-| Safe release | Previous pushed commit a371c29 passed CI run 35299171576 | Push final changes; green build/lint/tests; verify deployment before readiness claim |
+| Safe release | Pushed commit 4926a2b passed CI run 35303951731; PR remains draft, unmerged | Push follow-up QA fixes; green build/lint/tests/Postgres checks; verify deployment before readiness claim |
 
 New work in progress: automatic matchmaking with transactional PostgreSQL
 advisory locking, private two-player rosters, server-controlled round advancement,
@@ -46,6 +46,29 @@ Browser save QA scored a Script guess at 5,000 points, opened signup without
 leaving the result, synced the account checkpoint, and restored the same result
 after reload. A signup-return read/write race found during that test now has a
 retry and regression test; repeat the complete first-return flow in final QA.
+
+Follow-up verification: a fresh mobile guest scored 4,424 on Portuguese and
+signed up in-place using a development log link. Both the original tab and the
+first verification-return tab retained the exact clue, result and score, with
+no reload required. This verifies continuation, not real message delivery.
+The finished automatic-match screen now leads to Find another opponent, retaining
+Street/Script selection. Mobile queue cancellation restores room controls;
+while searching, conflicting room creation/join controls are disabled. Four
+component tests cover signup continuation, cancellation recovery and pairing races.
+Profile loading now uses the account's authoritative name and clears old shop
+balances on session changes; two rendered-component regression tests pass.
+
+An isolated local PostgreSQL 18 database passed real transactional queue tests:
+20 duplicate joins from 10 accounts through two independent pools produce five
+rooms, exactly two distinct players and one started round each. A new database
+client recovers the same private seat. Failed transactions roll back and release
+locks; concurrent cloud saves admit only one revision winner. The guarded test
+accepts only localhost/probablyearth_launch_qa and is added as a blocking CI job.
+The full suite including Postgres passed 145 suites / 1,517 tests before the two
+profile UI tests were added; those additional two pass separately. Final combined
+rerun and CI remain required after follow-up edits. The known teardown warning
+is still present. The subsequent combined run passed all 146 suites / 1,519
+tests (10 existing todos), including the real PostgreSQL and profile UI checks.
 
 Current external blockers: the authorized Render workspace has 21 services,
 none connected to americansalb/petrecovery (rechecked during this goal). The

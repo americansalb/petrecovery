@@ -2037,7 +2037,7 @@
   padding: 8px 0;
   font-size: 11px;
 }
-.geo-surface .pe-open-create > .pe-button {
+.geo-surface .pe-open-create > fieldset > .pe-button {
   margin-top: 20px;
   min-width: 240px;
   min-height: 54px;
@@ -2376,7 +2376,7 @@
   .geo-surface .pe-arena-selected {
     margin-top: 14px;
   }
-  .geo-surface .pe-open-create > .pe-button {
+  .geo-surface .pe-open-create > fieldset > .pe-button {
     width: 100%;
   }
   .geo-surface .pe-room-directory {

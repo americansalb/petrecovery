@@ -568,7 +568,15 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
         </div>
         <div className="pe-finish-next">
           <div className="pe-rematch-action">
-            {room.rematchCode ? (
+            {room.config?.matchmaking ? (
+              <Link
+                href={`/geo/rooms?game=${room.config.game === 'script' ? 'script' : 'street'}`}
+                className="pe-button pe-button--primary"
+              >
+                <RefreshCw size={18} />
+                Find another opponent
+              </Link>
+            ) : room.rematchCode ? (
               <Link
                 href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || "")}`}
                 className="pe-button pe-button--primary"
@@ -592,7 +600,9 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
               </p>
             )}
             <small>
-              {room.rematchCode
+              {room.config?.matchmaking
+                ? "Choose Find match to join the queue again."
+                : room.rematchCode
                 ? "Your next room is ready."
                 : room.config?.game === 'script' ? "Same settings, new sentences." : "Same settings, new places."}
             </small>

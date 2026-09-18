@@ -33,7 +33,7 @@ import {
   PROVISIONAL_GAMES,
 } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
-import { loadName, saveName } from '../lib/useRoom';
+import { saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import Card, { CardTitle } from './ui/Card';
 import Tabs from './ui/Tabs';
@@ -265,42 +265,33 @@ export default function ProfileClient() {
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState('pin');
 
-  const loadShop = async () => {
-    const res = await fetch('/api/geo/shop', {
-      headers: profileHeaders(),
-      cache: 'no-store',
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || 'Could not load the shop');
-    setShop(json.shop);
-  };
-
   useEffect(() => {
     let alive = true;
-    setName(loadName());
-    ensureProfile(loadName())
-      .then(async (p) => {
-        if (!alive) return;
-        setProfile(p);
-        if (!name && p?.name) setName(p.name);
-        await loadShop();
-      })
-      .catch(
-        (e) => alive && setError(e.message || 'Could not load your profile'),
-      );
+    let generation = 0;
+    const refresh = async () => {
+      const current = ++generation;
+      setProfile(null); setShop(null); setName(''); setError('');
+      try {
+        // The verified account owns its name. A stale nickname on another
+        // device must never rename it just by opening the profile page.
+        const profile = await ensureProfile('');
+        if (!alive || current !== generation) return;
+        setProfile(profile); setName(profile?.name || '');
+        if (profile?.name) saveName(profile.name);
+        const res = await fetch('/api/geo/shop', { headers: profileHeaders(), cache: 'no-store' });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not load the shop');
+        if (alive && current === generation) setShop(json.shop);
+      } catch (error) {
+        if (alive && current === generation) setError(error.message || 'Could not load your profile');
+      }
+    };
+    refresh();
+    window.addEventListener('geo:session-changed', refresh);
     return () => {
       alive = false;
+      window.removeEventListener('geo:session-changed', refresh);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    const refresh = () => ensureProfile('')
-      .then((p) => { if (alive) { setProfile(p); setName(p?.name || ''); } })
-      .catch((e) => { if (alive) setError(e.message || 'Could not refresh your profile'); });
-    window.addEventListener('geo:session-changed', refresh);
-    return () => { alive = false; window.removeEventListener('geo:session-changed', refresh); };
   }, []);
 
   const saveTheName = async (e) => {
@@ -471,7 +462,7 @@ export default function ProfileClient() {
                   className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
                 >
                   <Users className="h-3.5 w-3.5" />
-                  Friends
+                  Multiplayer
                 </Link>
               </div>
             </Card>

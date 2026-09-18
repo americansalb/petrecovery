@@ -11,7 +11,7 @@ import { saveIdentity, saveName } from '../../lib/useRoom';
 const KEY = 'geo:matchmaking:pending';
 function remember(game) { try { if (game) sessionStorage.setItem(KEY, game); else sessionStorage.removeItem(KEY); } catch { /* Optional refresh recovery. */ } }
 
-export default function Matchmaker({ game, name, onNameChange, onGameChange }) {
+export default function Matchmaker({ game, name, onNameChange, onGameChange, onActiveChange }) {
   const router = useRouter();
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
@@ -88,9 +88,16 @@ export default function Matchmaker({ game, name, onNameChange, onGameChange }) {
       clearTimeout(timer.current);
       if (!searching.current) return;
       accept(await request('cancel'));
-    } catch (err) { setStatus('waiting'); setError(err.message); }
+    } catch (err) {
+      if (!mounted.current) return;
+      setStatus('waiting'); setError(err.message);
+      // Cancellation may have reached the server even when its response was
+      // lost. Poll the authoritative ticket; never silently create a new one.
+      timer.current = setTimeout(() => runRef.current('poll'), 4000);
+    }
   };
   const active = ['joining', 'waiting', 'cancelling', 'matched'].includes(status);
+  useEffect(() => { onActiveChange?.(active); }, [active, onActiveChange]);
 
   return <section className="pe-matchmaker" aria-labelledby="matchmaker-title">
     {gate ? <AccountDialog name={name} onNameChange={onNameChange} returnTo={`/geo/rooms?game=${game}`} onClose={() => setGate(false)} onAuthenticated={() => { setGate(false); runRef.current('join'); }} /> : null}

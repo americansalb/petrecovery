@@ -19,7 +19,7 @@ const include = {
   rounds: { include: { guesses: true }, orderBy: { index: 'asc' } },
 };
 
-function databaseStoreFor(prisma) { return {
+export function databaseStoreFor(prisma) { return {
   async withMatchmakingLock(work) {
     return prisma.$transaction(async (tx) => {
       // A transaction-scoped lock works across server instances and releases
