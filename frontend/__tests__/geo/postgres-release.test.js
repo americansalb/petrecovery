@@ -6,6 +6,7 @@ const { matchmaking } = require('@/app/lib/geo/server/matchmaking');
 const { getRoomView, roomAction } = require('@/app/lib/geo/server/rooms');
 const { verifySignIn, hashLoginToken } = require('@/app/lib/geo/server/accounts');
 const { createRoomOnce, joinRoomOnce } = require('@/app/lib/geo/server/roomCreation');
+const { sameSavedCheckpoint } = require('@/app/lib/geo/server/savedCheckpoint');
 const url = process.env.GEO_PG_TEST_URL;
 if (url) {
   const parsed = new URL(url);
@@ -181,6 +182,19 @@ if (url) {
     expect(await stores[1].getMatchmakingTicket(person.profileId)).toBeNull();
     expect(await find(stores[1], person)).toMatchObject({ status: 'waiting' });
     await find(stores[1], person, 'cancel');
+  });
+
+  test('JSONB key ordering does not turn identical signup saves into conflicts', async () => {
+    const person = await player();
+    const original = { kind: 'script', url: '/geo/script/play?experience=detective&resume=1',
+      snapshot: { experience: 'detective', config: { rounds: 3, seed: 'jsonb' }, roundIndex: 0,
+        history: [{ score: 4000, choice: { name: 'French', correct: true } }] } };
+    expect(await stores[0].saveAccountGame(person.profile.accountId, 0, original)).toBe(true);
+    const persisted = (await stores[1].getAccountById(person.profile.accountId)).savedGame;
+    expect(JSON.stringify(persisted.snapshot)).not.toBe(JSON.stringify(original.snapshot));
+    expect(sameSavedCheckpoint(persisted, original)).toBe(true);
+    expect(sameSavedCheckpoint(persisted, { ...original, snapshot: { ...original.snapshot, roundIndex: 1 } })).toBe(false);
+    expect(sameSavedCheckpoint(persisted, { ...original, url: '/geo/script/play?seed=other' })).toBe(false);
   });
 
   test('competing cloud saves use compare-and-swap and survive a new connection', async () => {

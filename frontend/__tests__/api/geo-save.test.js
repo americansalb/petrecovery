@@ -54,3 +54,18 @@ test('an old tab cannot save into a newly signed-in account', async () => {
   expect(response.status).toBe(409);
   expect((await store.getAccountById(other.id)).savedGame).toBeUndefined();
 });
+
+test('identical signup checkpoints with reordered nested JSON keys acknowledge the same revision', async () => {
+  const context = await (await GET(req())).json();
+  const original = { kind: 'script', url: '/geo/script/play?resume=1',
+    snapshot: { experience: 'detective', config: { seed: 'same', rounds: 3 }, roundIndex: 0, history: [{ score: 4000, choice: { name: 'French', correct: true } }] },
+    accountId: context.accountId, expectedRevision: context.revision };
+  const saved = await (await POST(req(original))).json();
+  const reordered = { history: [{ choice: { correct: true, name: 'French' }, score: 4000 }], roundIndex: 0, config: { rounds: 3, seed: 'same' }, experience: 'detective' };
+  expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(original.snapshot));
+  const replay = await POST(req({ ...original, snapshot: reordered }));
+  expect(replay.status).toBe(200);
+  expect((await replay.json()).revision).toBe(saved.revision);
+  const different = await POST(req({ ...original, snapshot: { ...reordered, roundIndex: 1 } }));
+  expect(different.status).toBe(409);
+});

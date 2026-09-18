@@ -4,6 +4,23 @@
 
 ### Script gameplay redesign: isolated playable prototype
 
+Follow-up: the prototype commit `5677530` passed CI run 35316541076. A 320px
+ten-round layout wraps its progress indicators without horizontal overflow.
+Contrast checks found low-contrast small text on the clay button and cream card;
+the follow-up darkens those colors and adds five checks requiring at least 4.5:1.
+
+The actual guest-to-signup browser test found a false save-conflict warning in
+the original tab: PostgreSQL JSONB reorders object keys, but duplicate checkpoint
+acknowledgement compared JSON.stringify output. The server now compares values
+structurally, preserving array order and rejecting genuinely different saves.
+The reordered-key API regression failed with 409 before the fix, then passed;
+a ninth real PostgreSQL check verifies the JSONB roundtrip itself. A fresh
+synthetic signup kept the Armenian 4,000-point reveal in both original and
+verification-return tabs without a conflict. The original tab then continued
+to Russian and saved 8,000 points. Development links still do not prove delivery.
+Follow-up full suite: **164 suites / 1,583 passed**, 10 existing todos. Final
+follow-up build and CI must include the structural comparison fix.
+
 The player's feedback that Script is boring is an open acceptance requirement,
 not resolved by the previous visual polish. A language-first prototype is available
 at `/geo/script/play?experience=detective&rounds=3&seed=detective-qa`.

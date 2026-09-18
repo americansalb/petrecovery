@@ -4,6 +4,7 @@ import { accountFromRequest } from '@/app/lib/geo/server/identity';
 import { requireAccount } from '@/app/lib/geo/server/requireAccount';
 import { RateLimitPresets, withRateLimitAsync, rateLimitResponse } from '@/app/lib/geo/server/limiter';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
+import { sameSavedCheckpoint } from '@/app/lib/geo/server/savedCheckpoint';
 
 export const dynamic = 'force-dynamic';
 const options = { headers: { 'Cache-Control': 'no-store' } };
@@ -50,7 +51,7 @@ export async function POST(request) {
       const prior = current?.savedGame;
       // A lost acknowledgement or both signup tabs saving the same checkpoint
       // is a successful replay, not a conflicting edit.
-      if (prior?.kind === saved.kind && prior.url === path && JSON.stringify(prior.snapshot) === JSON.stringify(saved.snapshot)) {
+      if (sameSavedCheckpoint(prior, savedGame)) {
         return NextResponse.json({ ok: true, revision: current.savedGameRevision, savedGame: prior }, options);
       }
       return NextResponse.json({ error: 'Another session saved newer progress. Reopen your saved game from Play to continue it.', code: 'save_conflict' }, { status: 409, ...options });
