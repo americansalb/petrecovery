@@ -2,6 +2,14 @@
 const nextConfig = {
   output: 'standalone',
 
+  experimental: {
+    // Next 15 otherwise eagerly executes every server route and bundled module.
+    // This shared app's large datasets exhaust the 256 MiB production heap
+    // before traffic arrives. Load routes on demand, as Next 14 did.
+    // scripts/production-memory-smoke.js verifies the built server at that cap.
+    preloadEntriesOnStart: false,
+  },
+
   // Build optimizations for memory and speed
   productionBrowserSourceMaps: false,
 
