@@ -14,6 +14,7 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto';
+import { accountSeatToken } from './roomSeat';
 import { haversineKm, scoreForDistance } from '../distance';
 import { randomSeedString } from '../random';
 import {
@@ -113,7 +114,7 @@ async function touchRoom(store, room, now, extra = {}) {
 // Create, join, leave
 // ---------------------------------------------------------------------------
 
-export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now(), creationKey = null, hostToken = null }) {
+export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now(), creationKey = null }) {
   const { config, variant, visibility } = normalizeRoomConfig(settings);
   // The play meter: a person at the day's ceiling, a site past its
   // budget, or on Google a player whose free room game is used and who
@@ -143,8 +144,8 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     });
   }
   if (!room) throw new RoomError('no_code', 'Could not allocate a room code, try again', 500);
-  const token = hostToken || newPlayerToken();
-  const player = await store.createPlayer({
+  let token = newPlayerToken();
+  let player = await store.createPlayer({
     roomId: room.id,
     tokenHash: hashToken(token),
     name: sanitizeName(hostName, 'Host'),
@@ -157,11 +158,15 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     joinedAt: new Date(now),
     lastSeenAt: new Date(now),
   });
+  if (profileId) {
+    token = accountSeatToken(room.id, player.id, profileId);
+    player = await store.updatePlayer(player.id, { tokenHash: hashToken(token) });
+  }
   const fresh = await store.getRoomByCode(room.code);
   return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
 }
 
-export async function joinRoom(store, { code, name, profileId = null, subjects = null, now = Date.now() }) {
+export async function joinRoom(store, { code, name, profileId = null, subjects = null, now = Date.now(), deferTick = false }) {
   const room = await loadRoom(store, code);
   // A verified account can recover its existing seat on another device
   // or after local storage is cleared. This is not a new player joining
@@ -170,9 +175,9 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
     ? room.players.find((player) => player.profileId === profileId && !player.leftAt)
     : null;
   if (existing) {
-    const token = newPlayerToken();
+    const token = accountSeatToken(room.id, existing.id, profileId);
     const player = await store.updatePlayer(existing.id, { tokenHash: hashToken(token), lastSeenAt: new Date(now) });
-    const state = await getRoomView(store, { code, token, now });
+    const state = deferTick ? null : await getRoomView(store, { code, token, now });
     return { room: await store.getRoomByCode(code), player, token, state };
   }
   if (room.config?.matchmaking) throw new RoomError('matched_roster', 'This match already has its two players. Find a new match.', 409);
@@ -203,8 +208,8 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
   const players = seat;
   const used = new Set(players.map((p) => p.color));
   const color = PLAYER_COLORS.find((c) => !used.has(c)) || pickColor(current.players.length);
-  const token = newPlayerToken();
-  const player = await store.createPlayer({
+  let token = newPlayerToken();
+  let player = await store.createPlayer({
     roomId: current.id,
     tokenHash: hashToken(token),
     name: uniqueName(sanitizeName(name), players),
@@ -217,6 +222,10 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
     joinedAt: new Date(now),
     lastSeenAt: new Date(now),
   });
+  if (profileId) {
+    token = accountSeatToken(current.id, player.id, profileId);
+    player = await store.updatePlayer(player.id, { tokenHash: hashToken(token) });
+  }
   const fresh = await store.getRoomByCode(code);
   return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
 }

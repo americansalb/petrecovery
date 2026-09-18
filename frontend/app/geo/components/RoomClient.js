@@ -80,10 +80,26 @@ export default function RoomClient({ code }) {
   const [defaultName, setDefaultName] = useState('');
   const [accountGate, setAccountGate] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const pendingJoinRef = useRef('');
   useEffect(() => {
     let live = true;
-    fetch('/api/geo/auth/me', { cache: 'no-store' }).then(r => r.json()).then(d => { if (live) setSignedIn(Boolean(d.signedIn)); }).catch(() => {});
-    return () => { live = false; };
+    const check = async () => {
+      try {
+        const response = await fetch('/api/geo/auth/me', { cache: 'no-store' });
+        if (!response.ok) return;
+        const account = await response.json();
+        if (!live) return;
+        setSignedIn(Boolean(account.signedIn));
+        if (account.signedIn) {
+          const profile = await ensureProfile('').catch(() => null);
+          if (live && profile?.name) setDefaultName(profile.name);
+        }
+      } catch { /* Room polling displays connection failures and retries. */ }
+    };
+    check();
+    window.addEventListener('geo:session-changed', check);
+    window.addEventListener('focus', check);
+    return () => { live = false; window.removeEventListener('geo:session-changed', check); window.removeEventListener('focus', check); };
   }, []);
   const paneRef = useRef(null);
   const lastRoundRef = useRef(null);
@@ -171,16 +187,20 @@ export default function RoomClient({ code }) {
   }, [isScript]);
 
 
-  // Arrived with ?name= (a rematch link): join without asking again.
+  // Resume the requested join after signup, or follow a rematch link. The
+  // account's name wins; a query parameter must never rename its profile.
   useEffect(() => {
-    if (!signedIn || !ready || !state || identity || !presetName || autoJoinedRef.current) return;
+    const requestedName = pendingJoinRef.current || presetName;
+    // Local storage may still hold another account's token after sign-out.
+    // Only the server's account-bound seat proves that this player has joined.
+    if (!signedIn || !ready || !state || state.me || !requestedName || autoJoinedRef.current) return;
     if (state.room.status === 'finished') return;
     autoJoinedRef.current = true;
-    ensureProfile(presetName)
+    ensureProfile('')
       .catch(() => null)
-      .then(() => join(presetName))
+      .then((profile) => join(profile?.name || requestedName))
       .catch((e) => setActionError(e.message));
-  }, [ready, state, identity, presetName, join, signedIn]);
+  }, [ready, state, presetName, join, signedIn]);
 
   // A new round or phase clears the local guess.
   const roundIndex = state?.round?.index;
@@ -421,17 +441,18 @@ export default function RoomClient({ code }) {
       ) : null}
 
       {/* Screens */}
-      {accountGate ? <AccountDialog name={defaultName} onNameChange={setDefaultName} returnTo={`/geo/room/${code}?name=${encodeURIComponent(defaultName)}`} onClose={() => setAccountGate(false)} onAuthenticated={() => { setSignedIn(true); setAccountGate(false); }} /> : null}
+      {accountGate ? <AccountDialog name={defaultName} onNameChange={setDefaultName} returnTo={`/geo/room/${code}?name=${encodeURIComponent(defaultName)}`} onClose={() => { pendingJoinRef.current = ''; setAccountGate(false); }} onAuthenticated={() => { setSignedIn(true); setAccountGate(false); }} /> : null}
       {!ready || (!state && !error) ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading the room</div> : null}
       {notFound ? <MessagePanel title="No room with that code" message="Codes are six letters and numbers. Check it with whoever sent it, or open a new room." /> : null}
-      {error && !notFound ? <MessagePanel title="The room could not be loaded" message={error.message} /> : null}
+      {error?.code === 'connection' && state ? <div role="status" className="absolute inset-x-3 top-16 z-[80] mx-auto max-w-lg rounded-xl border border-clay-400/50 bg-ocean-950/95 px-4 py-3 text-center text-sm text-white shadow-lg">{error.message}</div> : null}
+      {error && !notFound && !(error.code === 'connection' && state) ? <MessagePanel title={error.code === 'connection' ? 'Reconnecting' : 'The room could not be loaded'} message={error.message} /> : null}
       {state && !joined && !error ? (
         <JoinPanel
           state={state}
           defaultName={defaultName}
           onJoin={(name) =>
             run(async () => {
-              if (!signedIn) { setDefaultName(name); setAccountGate(true); return; }
+              if (!signedIn) { pendingJoinRef.current = name; setDefaultName(name); setAccountGate(true); return; }
               await ensureProfile(name).catch(() => null);
               await join(name);
             })

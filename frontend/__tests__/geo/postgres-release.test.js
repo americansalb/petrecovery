@@ -5,7 +5,7 @@ const { databaseStoreFor } = require('@/app/lib/geo/server/roomStore');
 const { matchmaking } = require('@/app/lib/geo/server/matchmaking');
 const { getRoomView, roomAction } = require('@/app/lib/geo/server/rooms');
 const { verifySignIn, hashLoginToken } = require('@/app/lib/geo/server/accounts');
-const { createRoomOnce } = require('@/app/lib/geo/server/roomCreation');
+const { createRoomOnce, joinRoomOnce } = require('@/app/lib/geo/server/roomCreation');
 const url = process.env.GEO_PG_TEST_URL;
 if (url) {
   const parsed = new URL(url);
@@ -60,6 +60,21 @@ if (url) {
     const separate = await createRoomOnce(stores[1], { ...options, profileId: other.profileId, subjects: other });
     expect(separate.room.code).not.toBe(attempts[0].room.code);
     await expect(createRoomOnce(stores[0], { ...options, requestId: '../bad' })).rejects.toMatchObject({ code: 'bad_request_id' });
+  });
+
+  test('concurrent signup-return joins share one seat without invalidating another tab', async () => {
+    const host = await player(), peer = await player();
+    const created = await createRoomOnce(stores[0], { subjects: host, profileId: host.profileId, hostName: 'Host', settings: { game: 'script' }, now });
+    const options = { code: created.room.code, subjects: peer, profileId: peer.profileId, name: 'Peer', now };
+    const joined = await Promise.all(Array.from({ length: 8 }, (_, i) => joinRoomOnce(stores[i % 2], options)));
+    expect(new Set(joined.map((entry) => entry.player.id)).size).toBe(1);
+    expect(new Set(joined.map((entry) => entry.token)).size).toBe(1);
+    const room = await stores[0].getRoomByCode(created.room.code);
+    expect(room.players).toHaveLength(2);
+    const recoveredHost = await joinRoomOnce(stores[1], { code: room.code, subjects: host, profileId: host.profileId, now });
+    expect(recoveredHost.token).toBe(created.token);
+    const view = await getRoomView(stores[0], { code: room.code, token: joined[0].token, now });
+    expect(view.me.id).toBe(joined[7].player.id);
   });
 
   test('simultaneous first sign-ins keep one account and profile across connections', async () => {

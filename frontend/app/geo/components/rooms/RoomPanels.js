@@ -96,9 +96,10 @@ export function RoomSummary({ room, countries }) {
 
 export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
   const [name, setName] = useState(defaultName || "");
+  const editedName = useRef(false);
   useEffect(() => {
-    if (defaultName && !name) setName(defaultName);
-  }, [defaultName, name]);
+    if (!editedName.current) setName(defaultName || "");
+  }, [defaultName]);
   const room = state.room;
   const finished = room.status === "finished";
   return (
@@ -149,7 +150,7 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => { editedName.current = true; setName(e.target.value); }}
             maxLength={20}
             placeholder="Your name"
             aria-label="Your name"

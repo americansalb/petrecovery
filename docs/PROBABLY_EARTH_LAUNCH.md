@@ -2,6 +2,59 @@
 
 ## Verification update (2026-09-18)
 
+### Latest multiplayer and account-boundary checks
+
+Commit `92e3b8b` passed all applicable CI jobs (run 35310477620), including
+production build, security scan and the seven PostgreSQL release checks. Draft
+PR291 remains unmerged and is **not launch-approved**.
+
+The desktop and mobile browser accounts automatically matched into 3KDS69 and
+completed all five rounds. During round four the mobile player moved from the
+development server on 3032 to the independently production-built server on 3033,
+with separate origin storage but the same account cookie/database. Rejoin
+recovered the same player and health; that round timed out while switching, and
+round five accepted a new real guess. Both final screens agreed: Room Return QA
+5,686 HP / +87 points, Persistent QA 4,907 HP / +33 points. The next-opponent link
+retained Script on the production build. This is not live-site/device testing.
+
+New account-boundary tests reproduced retained room tokens accepting actions
+after logout (200 rather than 401) and from a different account (200 rather than
+403). The follow-up binds profile-backed seats to a live account on reads and
+actions; invalid ownership yields a spectator view and rejects writes. Legacy
+pre-account seats still require a live account and their original bearer token.
+The three regression tests pass, as do the existing room route tests.
+
+Room polling now reports connection loss without discarding the match screen.
+An actual local server shutdown displayed the reconnect banner while preserving
+final scores; restarting it cleared the banner and retained the same seat and
+results. Two hook tests also cover failed heartbeat and offline/online events.
+Fresh-browser rejoin now loads the account name; signup continues a pending join,
+and a rematch URL cannot rename the account. Three component tests cover these.
+Browser signup additionally reproduced two tabs rotating each other's room
+credential. Profile-backed seats now use a stable, secret-derived per-seat
+credential, and join runs atomically under the existing database lock. Eight
+concurrent joins through two PostgreSQL pools return one player and token;
+recovering room creation keeps the host's existing credential too. API account
+ownership checks still apply, including after logout or an account switch.
+
+The clean browser rerun signed up Atomic Join QA through a local development
+link. Both the original tab and verification-return tab automatically reached
+the lobby of 2K6N92 with the same one seat. A previous account's locally stored
+token no longer blocks autojoin: server-confirmed membership is authoritative.
+This does not prove email delivery. Read-only auth status no longer emits a
+cookie deletion, so a delayed guest check cannot erase a newer sign-in cookie.
+
+The first combined run passed 158 suites / 1,552 tests, with 10 existing todos.
+After the stale-token follow-up, a concurrent build/test run hit a 15-second
+timeout in the unrelated pet-report account-binding test; the test is unchanged
+and the complete suite rerun passed: 158 suites / 1,553 tests, 10 existing todos.
+The production build passed. Its browser check caught the join input retaining
+the previous browser name after the verified account name loaded. The input now
+accepts a late default only until the player edits it; two component regressions
+cover both cases. The final suite passes **159 suites / 1,555 tests**, including
+eight real PostgreSQL checks, with 10 existing todos. The final rebuild and
+follow-up CI must include this last input fix.
+
 ### Room continuation and two-browser verification
 
 Follow-up full suite: **155 suites / 1,543 tests passed**, with 10 existing todos.

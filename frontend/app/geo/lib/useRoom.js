@@ -115,7 +115,12 @@ export function useRoom(code) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const res = await fetch(`/api/geo/rooms/${code}`, { headers: headersFor(), cache: 'no-store' });
+    let res;
+    try { res = await fetch(`/api/geo/rooms/${code}`, { headers: headersFor(), cache: 'no-store' }); }
+    catch {
+      setError({ code: 'connection', message: 'Connection lost. Reconnecting automatically. Your seat is saved.' });
+      return null;
+    }
     const json = await readJson(res);
     if (!res.ok) {
       setError({ code: json.code || 'error', message: json.error || 'Could not load the room', status: res.status });
@@ -149,11 +154,17 @@ export function useRoom(code) {
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh().catch(() => {});
     };
+    const onOffline = () => setError({ code: 'connection', message: 'You are offline. Reconnecting automatically. Your seat is saved.' });
+    const onOnline = () => refresh().catch(() => {});
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
     return () => {
       stopped = true;
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
     };
   }, [ready, refresh]);
 

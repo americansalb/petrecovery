@@ -65,7 +65,8 @@ test('verified player can recover a duel seat without resetting health or guesse
   expect(recovered.player.isHost).toBe(true);
   expect(recovered.state.players).toHaveLength(2);
   expect(recovered.state.players.find((player) => player.id === host.player.id).guessed).toBe(true);
-  expect(recovered.token).not.toBe(host.token);
-  expect((await getRoomView(store, { code, token: host.token, now: now + 2000 })).me).toBeNull();
+  // The second device must not invalidate the first device's active seat.
+  expect(recovered.token).toBe(host.token);
+  expect((await getRoomView(store, { code, token: host.token, now: now + 2000 })).me.id).toBe(host.player.id);
   await expect(joinRoom(store, { code, profileId: 'new-profile', subjects: { signedIn: true }, now: now + 2000 })).rejects.toMatchObject({ code: 'duel_in_progress' });
 });

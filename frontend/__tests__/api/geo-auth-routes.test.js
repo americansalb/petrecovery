@@ -56,8 +56,10 @@ function cookieFrom(response) {
 
 describe('the sign-in routes', () => {
   test('me says nobody when there is no cookie', async () => {
-    const body = await (await getMe(request(null))).json();
+    const response = await getMe(request(null));
+    const body = await response.json();
     expect(body).toMatchObject({ signedIn: false, email: null });
+    expect(response.headers.get('set-cookie')).toBeNull();
   });
 
   test('a link binds the browser profile, signs in, and signs out again', async () => {

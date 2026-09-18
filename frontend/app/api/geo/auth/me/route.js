@@ -13,7 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
-import { accountFromRequest, clearSession } from '@/app/lib/geo/server/identity';
+import { accountFromRequest } from '@/app/lib/geo/server/identity';
 import { accountView } from '@/app/lib/geo/server/roles';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   const { accountId, email } = accountFromRequest(request);
   if (!accountId) {
-    return clearSession(NextResponse.json({ ok: true, signedIn: false, email: null, account: null }, { headers: { 'Cache-Control': 'no-store' } }));
+    return NextResponse.json({ ok: true, signedIn: false, email: null, account: null }, { headers: { 'Cache-Control': 'no-store' } });
   }
   let account = null;
   // Three outcomes, and only two of them mean signed out.
@@ -56,5 +56,8 @@ export async function GET(request) {
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );
-  return reachable && !signedIn ? clearSession(response) : response;
+  // A status request can have started before another tab completed sign-in.
+  // Never erase that newer cookie when the old request finally arrives.
+  // Explicit sign-out/deletion clears it; invalid sessions grant no access.
+  return response;
 }

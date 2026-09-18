@@ -14,9 +14,11 @@ import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/l
 import { normalizeRoomCode } from '@/app/lib/geo/rooms';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
-import { getRoomView, joinRoom, roomAction } from '@/app/lib/geo/server/rooms';
+import { getRoomView, roomAction } from '@/app/lib/geo/server/rooms';
+import { joinRoomOnce } from '@/app/lib/geo/server/roomCreation';
 import { NO_STORE, playerSubjects, roomErrorResponse } from '@/app/lib/geo/server/roomRoute';
 import { requireAccount } from '@/app/lib/geo/server/requireAccount';
+import { roomTokenForAccount } from '@/app/lib/geo/server/roomAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +34,8 @@ export async function GET(request, { params }) {
   const code = normalizeRoomCode(params?.code);
   if (!code) return NextResponse.json({ error: 'No room with that code', code: 'not_found' }, { status: 404, ...NO_STORE });
   try {
-    const state = await getRoomView(prismaRoomStore, { code, token: playerToken(request) });
+    const token = await roomTokenForAccount(prismaRoomStore, request, code, playerToken(request));
+    const state = await getRoomView(prismaRoomStore, { code, token: token || '' });
     return NextResponse.json({ ok: true, state }, NO_STORE);
   } catch (error) {
     return errorResponse(error, 'view');
@@ -59,13 +62,17 @@ export async function POST(request, { params }) {
       const limit = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'geo-room-join');
       if (!limit.success) return rateLimitResponse(limit);
       const subjects = await playerSubjects(request, body?.name);
-      const { player, token, state } = await joinRoom(prismaRoomStore, { code, name: body?.name, profileId: subjects.profileId, subjects });
+      const { player, token, state } = await joinRoomOnce(prismaRoomStore, { code, name: body?.name, profileId: subjects.profileId, subjects });
       return NextResponse.json({ ok: true, token, playerId: player.id, state }, NO_STORE);
     }
     if (!ACTIONS.has(action)) {
       return NextResponse.json({ error: `Unknown action: ${action || '(none)'}`, code: 'unknown_action' }, { status: 400, ...NO_STORE });
     }
-    const result = await roomAction(prismaRoomStore, { code, token: playerToken(request, body), action, body });
+    const denied = await requireAccount(request);
+    if (denied) return denied;
+    const token = await roomTokenForAccount(prismaRoomStore, request, code, playerToken(request, body));
+    if (token === null) return NextResponse.json({ code: 'wrong_account', error: 'Rejoin with the account you used for this match.' }, { status: 403, ...NO_STORE });
+    const result = await roomAction(prismaRoomStore, { code, token, action, body });
     return NextResponse.json({ ok: true, ...result }, NO_STORE);
   } catch (error) {
     return errorResponse(error, action);
