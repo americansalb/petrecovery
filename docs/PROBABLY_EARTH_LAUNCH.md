@@ -39,7 +39,7 @@ It now stays offscreen at a real size and hidden from interaction until opened.
 Browser verification showed geographic tiles, a tapped pin, a 2,603-point Linz
 reveal and a fully visible next-round button, without horizontal overflow.
 Refreshing preserved that 2,603-point reveal. Final local verification passed
-**164 suites / 1,587 tests**, including all ten PostgreSQL release checks;
+**165 suites / 1,589 tests**, including all ten PostgreSQL release checks;
 ten existing todos remain. Changed application files lint cleanly.
 Continuing the mobile game exposed the same zero-size problem during round
 loading: the parked map's parent also needed a flex layout. Corrected all parked
@@ -47,8 +47,20 @@ states and applied stable drawer sizing and explicit resizing to multiplayer.
 The mobile game then completed to results: 2,603 + 785 + 0 = **3,388 / 15,000**.
 The multiplayer layout correction has automated coverage; its full mobile
 hosted match remains a release gate, not an inferred pass from solo testing.
-These are browser checks in the development QA app; final built/hosted mobile
-coverage is still required. The full release is **not ready to merge**.
+Production-mode local build passed. At 390px it rendered real imagery and map
+tiles, scored Madrid at 1,077 points and preserved both the result and the
+14-point cosmetic award after refresh. The guest Save game action opened the
+account dialog over the game, with a 90-day session explanation.
+GitHub CI run 35372738121 exposed an intermittent pre-existing validation gap:
+the rare Not Earth branch could bypass an unknown country. Candidate-source
+validation now runs before that branch; a deterministic surprise seed proves
+unknown countries are rejected. The two focused suites passed 37 tests.
+The built-browser Save game dialog also exposed inherited `pointer-events:none`
+from the game HUD: its inputs and close button ignored clicks. The dialog now
+explicitly restores pointer events, with a component regression. Final tests run
+with CI's two-worker configuration passed the counts above.
+These are local browser checks (development and the specified production build),
+not hosted release verification. The full release is **not ready to merge**.
 
 ### Current direction: polygon gameplay restored; percentile leagues
 

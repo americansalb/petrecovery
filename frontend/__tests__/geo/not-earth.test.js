@@ -101,6 +101,12 @@ describe('the panoramas', () => {
 });
 
 describe('when one comes up', () => {
+  test('a guaranteed surprise never bypasses country validation', async () => {
+    const config = casual({ mode: 'country', region: 'ZZ', seed: HIT_SEED });
+    expect(notEarthFor({ config, roundIndex: 0 })).not.toBeNull();
+    await expect(createRound({ config, env: ENV })).rejects.toMatchObject({ code: 'unknown_country' });
+  });
+
   test('about one round in two hundred', () => {
     expect(NOT_EARTH_CHANCE).toBeCloseTo(0.005, 6);
     let hits = 0;

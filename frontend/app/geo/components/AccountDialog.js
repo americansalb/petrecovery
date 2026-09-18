@@ -15,7 +15,7 @@ export default function AccountDialog({ onClose, returnTo, name, onNameChange, o
     return () => { node.close(); document.body.style.overflow = previous; };
   }, []);
   return (
-    <dialog ref={dialog} onCancel={onClose} className="pe-account-dialog" aria-labelledby="account-dialog-title">
+    <dialog ref={dialog} onCancel={onClose} className="pe-account-dialog pointer-events-auto" aria-labelledby="account-dialog-title">
       <Card className="pe-account-sheet">
         <button type="button" onClick={onClose} className="pe-account-close" aria-label="Close"><X size={22} /></button>
         <span className="pe-account-symbol"><Users size={30} aria-hidden="true" /></span>
