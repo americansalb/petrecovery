@@ -15,8 +15,7 @@ JSON column; deployment must apply that additive schema change.
 
 Evidence from the current local working tree:
 
-- 135 Jest suites passed, 1,451 tests passed, 10 existing todos; two
-  additional account/replay guards pass in the targeted suite.
+- 136 Jest suites passed, 1,455 tests passed, 10 existing todos.
 - Full lint passed the repository's 360-warning ceiling.
 - Script solo: placed guesses, received scores, returned home, reopened
   the same saved result, continued, finished all five rounds, and reloaded
@@ -37,6 +36,9 @@ Evidence from the current local working tree:
   during this test is fixed. Sign-out now refreshes profile labels too.
 - Classic is removed from the active rankings and profile choices without
   deleting historical ratings.
+- Authentication origins are now allowlisted, so forged forwarded-host
+  headers cannot place sign-in tokens in links to an attacker's domain.
+  Additional deployments can set `GEO_AUTH_ORIGIN` explicitly.
 
 Do not merge the multiplayer account gate while production mail is broken:
 that would prevent new players from entering multiplayer. Production mail

@@ -13,6 +13,7 @@ import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
+import { geoAuthOrigin } from '@/app/lib/geo/authOrigin';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,7 @@ export async function POST(request) {
   try {
     const result = await requestSignIn(prismaRoomStore, {
       email: body?.email,
-      baseUrl: geoMetadataBase().toString(),
+      baseUrl: geoAuthOrigin(geoMetadataBase().origin),
       profileId,
       returnTo: safeReturnTo(body?.returnTo),
     });

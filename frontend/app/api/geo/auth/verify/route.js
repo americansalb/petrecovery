@@ -15,6 +15,7 @@ import { applySession } from '@/app/lib/geo/server/identity';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
+import { geoAuthOrigin } from '@/app/lib/geo/authOrigin';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export async function GET(request) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
   const returnTo = safeReturnTo(url.searchParams.get('next'));
-  const origin = geoMetadataBase().origin;
+  const origin = geoAuthOrigin(geoMetadataBase().origin);
 
   try {
     const { account, profile } = await verifySignIn(prismaRoomStore, { token });
