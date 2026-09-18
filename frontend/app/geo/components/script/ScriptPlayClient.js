@@ -101,6 +101,17 @@ const LeafletScriptMap = dynamic(() => import('./LeafletScriptMap'), {
 
 export default function ScriptPlayClient() {
   const params = useSearchParams();
+  const seed = normalizeScriptConfig({ seed: params.get('seed') }).seed;
+  useEffect(() => {
+    if (seed) return;
+    // Old/homepage links may omit the seed. Give the URL a stable game ID
+    // BEFORE mounting the player, otherwise refresh invents another game
+    // and cannot match the saved checkpoint. Next observes native history.
+    const canonical = new URLSearchParams(params.toString());
+    canonical.set('seed', randomSeedString());
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}?${canonical}${window.location.hash}`);
+  }, [params, seed]);
+  if (!seed) return <div role="status" className="fixed inset-0 z-[60] flex items-center justify-center bg-[#f4efe4] text-sand-900">Opening game…</div>;
   return <ScriptPlayGame key={params.toString()} params={params} />;
 }
 
