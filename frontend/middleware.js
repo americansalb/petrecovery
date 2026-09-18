@@ -10,6 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { GAME_CSP_HOSTS, GAME_RATE_LIMITS, GAME_SHORT_PATHS } from '@/app/lib/geo/site';
+import { clientAddress } from '@/app/lib/geo/clientAddress';
 import { getToken } from 'next-auth/jwt';
 
 // Simple in-memory rate limiter (use Redis in production)
@@ -111,11 +112,7 @@ const CAPTCHA_ROUTES = [
  * Get client IP from request
  */
 function getClientIp(request) {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim();
-  }
-  return request.headers.get('x-real-ip') || 'unknown';
+  return clientAddress(request);
 }
 
 /**
@@ -388,7 +385,9 @@ export async function middleware(request) {
     // it cannot be the only key: somebody rotating fake tokens would
     // mint themselves unlimited buckets. Hence the second check below,
     // which keeps a ceiling on the address itself.
-    const actor = playerKey(request);
+    // An unverified profile/seat header must not multiply mail/SMS attempts.
+    // Multiplayer polling can still split its allowance between housemates.
+    const actor = pathname.startsWith('/api/geo/auth/') ? '' : playerKey(request);
     const rateLimitKey = `${clientIp}:${actor}:${configKey || pathname}`;
 
     const rateLimit = checkRateLimit(rateLimitKey, config);

@@ -8,6 +8,8 @@
  * Set REDIS_URL environment variable to enable Redis mode.
  */
 
+import { clientAddress } from '@/app/lib/geo/clientAddress';
+
 // Redis client (lazy initialized)
 let redisClient = null;
 let redisAvailable = false;
@@ -137,25 +139,7 @@ export const RateLimitPresets = {
  * The leftmost-XFF path remains only as a last-resort fallback for local/dev.
  */
 export function getClientIP(request) {
-  const trustedHeader = process.env.RATELIMIT_TRUSTED_IP_HEADER;
-  if (trustedHeader) {
-    const trusted = request.headers.get(trustedHeader.toLowerCase());
-    if (trusted) {
-      return trusted.split(',')[0].trim();
-    }
-  }
-
-  const realIP = request.headers.get('x-real-ip');
-  if (realIP) {
-    return realIP;
-  }
-
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-
-  return 'unknown';
+  return clientAddress(request);
 }
 
 /**

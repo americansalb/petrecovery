@@ -2,6 +2,34 @@
 
 ## Verification update (2026-09-18)
 
+### Signup-abuse protection follows the same trusted proxy in every layer
+
+Found a gap while checking live prerequisites: middleware ignored
+`RATELIMIT_TRUSTED_IP_HEADER`, even though the route limiters honored it. It also
+let arbitrary profile/seat headers multiply the email request allowance.
+Middleware and both route limiters now share an Edge-compatible address helper.
+When the configured proxy header is absent, requests share `unknown` rather
+than falling back to forged forwarding headers. Authentication endpoints do
+not split their limit by an unverified profile/seat header; room polling keeps
+its housemate-friendly buckets and IP-wide ceiling.
+
+Tests call the actual middleware with rotating forwarded IPs and player tokens:
+five signup requests pass, then the sixth and seventh return 429. A separate
+trusted address still works. The same cap holds when the trusted header is
+missing. Full local result: **169 suites / 1,602 passed**, ten existing todos,
+including PostgreSQL; changed-file lint passed.
+
+Render documents that inbound web traffic passes through Cloudflare:
+[Render edge protection](https://render.com/articles/how-render-handles-ddos-attacks).
+Cloudflare documents its single client-address header and recommends it over
+the forwarding chain:
+[Cloudflare request headers](https://developers.cloudflare.com/fundamentals/reference/http-headers/).
+Saved `RATELIMIT_TRUSTED_IP_HEADER=cf-connecting-ip` on the existing Render service
+using **Save only**. No deploy was triggered; the last live code/config deployment
+remains `9715c45` / `dep-dammicp42hec739mua8g`. Activation and live spoof-resistance
+verification must happen with the release, not be inferred from the saved setting.
+No secret was revealed, copied, rotated or committed. No paid resource was made.
+
 ### No additional spending; multiplayer browser and reconnect verification
 
 No additional spending is authorized. A paid hosted preview was an optional

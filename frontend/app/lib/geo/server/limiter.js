@@ -27,6 +27,8 @@
  * Server only.
  */
 
+import { clientAddress } from '../clientAddress';
+
 const windows = new Map(); // key -> { count, windowStart }
 const blocks = new Map(); // key -> blocked-until ms
 
@@ -68,16 +70,7 @@ export const RateLimitPresets = {
  * caps spend.
  */
 export function getClientIP(request) {
-  const trusted = process.env.RATELIMIT_TRUSTED_IP_HEADER;
-  if (trusted) {
-    const value = request.headers.get(trusted.toLowerCase());
-    if (value) return value.split(',')[0].trim();
-  }
-  const real = request.headers.get('x-real-ip');
-  if (real) return real.trim();
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  return 'unknown';
+  return clientAddress(request);
 }
 
 function allow(remaining, resetAt) {
