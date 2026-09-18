@@ -15,6 +15,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const privacy = read('app/privacy/page.js');
+const gamePrivacy = read('app/geo/privacy/page.js');
 const terms = read('app/legal/terms/page.js');
 const schema = read('prisma/schema.prisma');
 
@@ -35,6 +36,11 @@ const PERSONAL_DATA = {
 };
 
 describe('the privacy page covers Probably Earth', () => {
+  test('the standalone game policy stays within game routing and covers account data', () => {
+    expect(read('app/geo/components/GeoFooter.js')).toContain('href="/geo/privacy"');
+    for (const phrase of Object.values(PERSONAL_DATA)) expect(gamePrivacy).toContain(phrase);
+    for (const phrase of ['geo_session', 'geo_signed_in', '90 days', '120 days', '14 days', 'href="/geo/me"']) expect(gamePrivacy).toContain(phrase);
+  });
   test('it names the game and where it lives', () => {
     expect(privacy).toContain('Probably Earth');
     expect(privacy).toContain('reunitepets.org/geo');

@@ -48,6 +48,20 @@ test('parallel joins allocate each profile exactly once and never match someone 
   }
 });
 
+test('recovering an unreadable queue credential keeps the active room seat valid', async () => {
+  const store = createMemoryRoomStore();
+  const a = await player(store, 'Ada'); const b = await player(store, 'Grace');
+  await find(store, a); await find(store, b);
+  const host = await find(store, a, { action: 'poll' });
+  const ticket = await store.getMatchmakingTicket(a.profileId);
+  await store.putMatchmakingTicket({ ...ticket, token: 'expired-or-unreadable-envelope' });
+  const recovered = await find(store, a, { action: 'poll' });
+  expect(recovered.token).toBe(host.token);
+  const rejoined = await joinRoom(store, { code: host.code, profileId: a.profileId, subjects: a, now });
+  expect(rejoined.token).toBe(host.token);
+  expect((await getRoomView(store, { code: host.code, token: host.token, now })).me.id).toBe(host.playerId);
+});
+
 test('different games do not match; an active search cannot be switched by another tab', async () => {
   const store = createMemoryRoomStore();
   const a = await player(store, 'Ada'); const b = await player(store, 'Grace');

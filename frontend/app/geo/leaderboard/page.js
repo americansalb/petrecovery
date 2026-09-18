@@ -93,7 +93,7 @@ export default function GeoLeaderboardPage() {
           <Tabs
             items={LADDERS.filter((id) => id !== 'classic').map((id) => ({
               id,
-              label: LADDER_LABELS[id] || VARIANTS[id]?.label || id,
+              label: id === 'duel' ? 'Street multiplayer' : LADDER_LABELS[id] || VARIANTS[id]?.label || id,
             }))}
             value={ladder}
             onChange={setLadder}
@@ -258,8 +258,8 @@ export default function GeoLeaderboardPage() {
                       <Trophy size={35} strokeWidth={1.2} />
                       <strong>No ranked players yet</strong>
                       <p>
-                        Complete {PROVISIONAL_GAMES} placement games to reveal your
-                        league.
+                        Play {board.minGames || 3} rated games to appear here.
+                        Your placement settles after {PROVISIONAL_GAMES} games.
                       </p>
                       <Link
                         href={

@@ -119,6 +119,7 @@ function ScriptPlayGame({ params }) {
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [sending, setSending] = useState(false);
+  const submittingRef = useRef(false);
   const [secondsLeft, setSecondsLeft] = useState(config.timer || 0);
   const [mapTrouble, setMapTrouble] = useState(false);
   const [mapkit, setMapkit] = useState(null);
@@ -131,10 +132,14 @@ function ScriptPlayGame({ params }) {
     resume: params.get('resume') === '1',
     restore: (saved) => {
       if (!Array.isArray(saved.history)) return;
-      setHistory(saved.history);
-      setRoundIndex(saved.roundIndex);
-      setResult(saved.result || null);
-      const last = saved.history[saved.history.length - 1];
+      // Older clients could let the last timer score again after the summary.
+      // Keep a private checkpoint inside the configured round count.
+      const restoredHistory = saved.history.slice(0, config.rounds);
+      const restoredIndex = Math.min(config.rounds, Math.max(0, Number.isInteger(saved.roundIndex) ? saved.roundIndex : restoredHistory.length));
+      setHistory(restoredHistory);
+      setRoundIndex(restoredIndex);
+      setResult(restoredIndex < config.rounds ? saved.result || null : null);
+      const last = restoredHistory[restoredHistory.length - 1];
       if (last) setRound({ text: last.text, script: last.script });
       setLoading(false);
     },
@@ -230,7 +235,8 @@ function ScriptPlayGame({ params }) {
 
   const submit = useCallback(
     async (guess) => {
-      if (!round || sending || result) return;
+      if (!round?.token || sending || submittingRef.current || result || roundIndex >= config.rounds || history.length > roundIndex) return;
+      submittingRef.current = true;
       setSending(true);
       try {
         const response = await fetch('/api/geo/script/guess', {
@@ -249,10 +255,11 @@ function ScriptPlayGame({ params }) {
       } catch (guessError) {
         setError(guessError.message);
       } finally {
+        submittingRef.current = false;
         setSending(false);
       }
     },
-    [round, sending, result],
+    [round, sending, result, roundIndex, config.rounds, history.length],
   );
 
   // The clock. Running out submits whatever pin is on the map, which
@@ -266,7 +273,7 @@ function ScriptPlayGame({ params }) {
   // it twice, which submitted and recorded the same round twice.
   const firedRef = useRef(null);
   useEffect(() => {
-    if (!config.timer || !round || result) return undefined;
+    if (!config.timer || !round?.token || result || roundIndex >= config.rounds || history.length > roundIndex) return undefined;
     const endsAt = Date.now() + config.timer * 1000;
     const tick = () => {
       const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
@@ -278,9 +285,11 @@ function ScriptPlayGame({ params }) {
     };
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
-  }, [config.timer, round, result]);
+  }, [config.timer, config.rounds, round, result, roundIndex, history.length]);
 
   const next = () => {
+    setRound(null);
+    setPin(null);
     setResult(null);
     setRoundIndex((index) => index + 1);
   };
@@ -566,7 +575,9 @@ function plural(regions) {
 /** The end of a game. */
 function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
   const replay = `/geo/script/play?${scriptConfigToQuery({ ...config, seed: randomSeedString() })}`;
-  const same = `/geo/script/play?${scriptConfigToQuery(config)}`;
+  // A same-URL Link leaves the completed component mounted. Change only the
+  // playthrough key, not the seed/rules, so replay starts at round one.
+  const same = `/geo/script/play?${scriptConfigToQuery(config)}&replay=${randomSeedString()}`;
   return (
     <div className="pe-script-summary fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
       <div className="mx-auto max-w-2xl px-5 py-10">

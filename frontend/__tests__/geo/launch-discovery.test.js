@@ -17,7 +17,7 @@ test('the public menu is discoverable while private game pages remain noindex by
   expect(menu).toContain('index: true');
   expect(menu).toContain("canonical: 'https://probablyearth.com/geo'");
   expect(read('app/geo/layout.js')).toContain('index: false');
-  expect(read('app/geo/components/GeoFooter.js')).toContain('href="/privacy"');
+  expect(read('app/geo/components/GeoFooter.js')).toContain('href="/geo/privacy"');
 });
 
 test('game routes do not register the pet service worker', () => {

@@ -1,4 +1,5 @@
-import { createRoom, joinRoom, roomAction, hashToken, newPlayerToken, RoomError } from './rooms';
+import { createRoom, joinRoom, roomAction, hashToken, RoomError } from './rooms';
+import { accountSeatToken } from './roomSeat';
 import { getGeoServerConfig } from './config';
 import { sealToken, openToken } from './tokens';
 import { sanitizeName } from '../rooms';
@@ -20,9 +21,9 @@ export async function matchmaking(store, { subjects, game = 'street', action = '
       if (room && room.status !== 'finished' && player) {
         // Recovery after a lost response, refresh, or a second device is idempotent.
         let token;
-        try { token = openToken(ticket.token, tokenOptions(now)).token; } catch { /* Rotate below. */ }
+        try { token = openToken(ticket.token, tokenOptions(now)).token; } catch { /* Recover below. */ }
         if (!token || hashToken(token) !== player.tokenHash) {
-          token = newPlayerToken();
+          token = accountSeatToken(room.id, player.id, profileId);
           await locked.updatePlayer(player.id, { tokenHash: hashToken(token) });
           await locked.putMatchmakingTicket({ ...ticket, token: seal(token, now) });
         }

@@ -2,6 +2,50 @@
 
 ## Verification update (2026-09-18)
 
+### Screen sweep and timed Script fixes
+
+Commit `9cd8c02` passed every applicable CI job in run 35312790315. It is
+still draft and unmerged. Local files matched that remote tree exactly, except
+the generated Next development declaration. Its final production build passed.
+
+That production build was exercised at desktop 1280x720 and mobile 390x844:
+main menu and expanded region selection (Japan/Canada flags and matching links),
+mobile multiplayer lobby/browser, account-name prefill and same-seat rejoin,
+Script pool/round/timer settings, both ranking tabs and the rating explanation,
+non-admin denial and invalid share-link recovery. Screenshots were inspected,
+not just DOM responses. Remaining full-screen/device coverage is not complete.
+
+A real three-round, 30-second Script game completed Korean/Greek/Urdu. A missing
+Greek pin timed out to zero and advanced normally. The result initially showed
+3,809 points, but the browser sweep exposed two defects: the same-URL replay
+link did not restart; and the last timer could restart after the summary and
+append a duplicate Urdu score. The fixes give replay a fresh playthrough key
+without changing the seed/rules, clear the previous round on advance, and prevent
+timers/submission for already-scored or finished rounds. Existing overlong private
+checkpoints are bounded to the configured round count. A full component test
+plays all three rounds, waits 31 seconds at the summary with exactly three score
+requests, then replays the same seed from round one. The browser restored the
+earlier checkpoint to its correct three-round total and replayed the same Korean,
+Greek and Urdu sentences to 4,437 points. That result remained unchanged beyond
+the 30-second timer duration instead of returning to a duplicate final reveal.
+
+The game footer's `/privacy` link actually redirected to the live pet site,
+whose older policy did not contain the new account/queue details. The new
+`/geo/privacy` page stays on the game host and covers existing game data handling,
+cookies, provider usage, saves, queue/retention and the account-settings path.
+Coverage checks now require the standalone page too. The leaderboard names its
+Street multiplayer ladder explicitly and distinguishes appearing after three
+games from settling placement after five.
+
+Queue credential-envelope recovery now derives the same account-backed seat
+token instead of rotating it and invalidating a room tab. A regression test
+recovers an unreadable envelope, rejoins and confirms the original seat works.
+
+Follow-up local suite: **160 suites / 1,559 tests passed**, 10 existing todos;
+changed production files lint without warnings. The follow-up production build
+passed. GitHub CI and production-build browser checks remain required for this
+batch; production deployment/message delivery remain separate external gates.
+
 ### Latest multiplayer and account-boundary checks
 
 Commit `92e3b8b` passed all applicable CI jobs (run 35310477620), including
