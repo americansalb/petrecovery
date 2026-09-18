@@ -98,11 +98,9 @@ const LeafletScriptMap = dynamic(() => import('./LeafletScriptMap'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-[#dce9f2]" />,
 });
-const ScriptDetectiveClient = dynamic(() => import('./ScriptDetectiveClient'));
 
 export default function ScriptPlayClient() {
   const params = useSearchParams();
-  if (params.get('experience') === 'detective') return <ScriptDetectiveClient key={params.toString()} params={params} />;
   return <ScriptPlayGame key={params.toString()} params={params} />;
 }
 
@@ -119,6 +117,7 @@ function ScriptPlayGame({ params }) {
   const [error, setError] = useState('');
   const [pin, setPin] = useState(null);
   const [result, setResult] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
   const [history, setHistory] = useState([]);
   const [sending, setSending] = useState(false);
   const submittingRef = useRef(false);
@@ -214,6 +213,7 @@ function ScriptPlayGame({ params }) {
     setRound(null);
     setPin(null);
     setResult(null);
+    setSelectedRegion(null);
     fetch('/api/geo/script/round', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -314,7 +314,7 @@ function ScriptPlayGame({ params }) {
       {/* The sentence gets the top of the screen and the map gets the
           rest of it. It used to float over the map, which put the thing
           you are reading on top of the thing you answer on. */}
-      <header className="pe-sentence-stage relative z-30 shrink-0 border-b border-sand-200 bg-[#fffdf8] shadow-sm">
+      <header className="pe-sentence-stage relative z-30 shrink-0 border-b border-sand-200 bg-[#fffdf8] shadow-sm" data-revealed={Boolean(result)}>
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-3 px-3 pt-3 sm:px-4">
           <div className={`flex items-center gap-3 px-4 py-2 ${PILL}`}>
             <div className="flex flex-col leading-tight">
@@ -364,6 +364,9 @@ function ScriptPlayGame({ params }) {
             </Link>
           </div>
         </div>
+        <div className="wg-round-track" aria-label={`${history.length} of ${config.rounds} rounds played`}>
+          {Array.from({ length: config.rounds }, (_, index) => <span key={index} data-complete={index < history.length} data-current={index === roundIndex} />)}
+        </div>
 
         {saveError ? <p role="status" className="mx-auto max-w-4xl px-4 text-sm text-red-700">{saveError}</p> : null}
         <div className="mx-auto max-w-4xl px-3 pb-4 pt-3 text-center sm:px-4">
@@ -383,7 +386,7 @@ function ScriptPlayGame({ params }) {
             </div>
           ) : round ? (
             <div key={roundIndex} className="wg-sentence-in">
-              <ScriptSample text={round.text} script={round.script} />
+              <ScriptSample text={round.text} script={round.script} size={result ? 'sm' : 'lg'} />
             </div>
           ) : null}
         </div>
@@ -399,6 +402,7 @@ function ScriptPlayGame({ params }) {
             answer={result?.answer || null}
             guess={result?.guess || null}
             nearestPoint={result?.nearestPoint || null}
+            selectedRegion={selectedRegion}
             onUnavailable={() => setProvider('leaflet')}
           />
         ) : provider === 'leaflet' ? (
@@ -409,6 +413,7 @@ function ScriptPlayGame({ params }) {
             answer={result?.answer || null}
             guess={result?.guess || null}
             nearestPoint={result?.nearestPoint || null}
+            selectedRegion={selectedRegion}
             onMapTrouble={() => setMapTrouble(true)}
           />
         ) : (
@@ -462,6 +467,8 @@ function ScriptPlayGame({ params }) {
           round={round}
           last={history.length >= config.rounds}
           onNext={next}
+          selectedRegion={selectedRegion}
+          onRegion={setSelectedRegion}
         />
       ) : null}
     </div>
@@ -469,7 +476,7 @@ function ScriptPlayGame({ params }) {
 }
 
 /** The answer, and how close the pin was to it. */
-function Reveal({ result, round, last, onNext }) {
+function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
   const { answer } = result;
   const score = useCountUp(result.score);
   return (
@@ -484,15 +491,19 @@ function Reveal({ result, round, last, onNext }) {
             {formatScore(score)} points
           </p>
         </div>
-        <p className="mt-1 text-sm text-sand-500">
-          {answer.scriptName} script, {answer.branch}, {answer.family}. About{' '}
-          {answer.speakers} million speakers.
-        </p>
+        <div className="wg-region-explorer">
+          <p className="text-sm font-semibold">Where {answer.name} is spoken <span className="wg-region-key" aria-hidden="true" /></p>
+          <div className="wg-region-choices" aria-label="Explore language regions">
+            <button type="button" aria-pressed={selectedRegion === null} onClick={() => onRegion(null)}>All regions</button>
+            {(answer.regions || []).map((region, index) => <button key={`${region.name}-${index}`} type="button" aria-pressed={selectedRegion === index} onClick={() => onRegion(index)}>{region.name}</button>)}
+          </div>
+          <p className="wg-region-caption">Select a region to explore its outline. These areas show usage, not exclusive language borders.</p>
+        </div>
         <p className="mt-3 text-sm">
           {result.guess === null
             ? 'No pin, so no points. The clock ran out.'
             : result.inRegion
-              ? `Your pin was inside ${plural(answer.regions)}.`
+              ? 'Your pin was inside a region where this language is used.'
               : `Your pin was ${formatDistance(result.distanceKm)} from the nearest place ${answer.name} is used.`}
         </p>
         {result.alsoSpokenHere?.length ? (
@@ -501,7 +512,11 @@ function Reveal({ result, round, last, onNext }) {
             {result.alsoSpokenHere.map((l) => l.name).join(', ')}.
           </p>
         ) : null}
-        <Tells answer={answer} text={round?.text} script={round?.script} />
+        <details className="wg-clue-details">
+          <summary>Recognize it next time</summary>
+          <p className="mt-2 text-sm text-sand-600">{answer.scriptName} script · {answer.branch} · {answer.family}. About {answer.speakers} million speakers.</p>
+          <Tells answer={answer} text={round?.text} script={round?.script} />
+        </details>
       </div>
       <button
         type="button"
@@ -538,7 +553,7 @@ function Tells({ answer, text, script }) {
       {answer.onlyOneInScript ? (
         <p className="mt-2 text-sm text-sand-700">
           In this pool, {answer.scriptName} is written for {answer.name} and
-          nothing else. The alphabet was the whole answer.
+          nothing else. Recognizing its letters helps you find its regions.
         </p>
       ) : null}
       {runs.length ? (
@@ -566,12 +581,6 @@ function Tells({ answer, text, script }) {
       </ul>
     </div>
   );
-}
-
-function plural(regions) {
-  if (!regions?.length) return 'the right area';
-  if (regions.length === 1) return regions[0].name;
-  return `${regions[0].name}, one of ${regions.length} places it is used`;
 }
 
 /** The end of a game. */

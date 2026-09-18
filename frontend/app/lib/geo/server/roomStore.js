@@ -20,6 +20,12 @@ const include = {
 };
 
 export function databaseStoreFor(prisma) { return {
+  async withRatingLock(work) {
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73041929)`;
+      return work(databaseStoreFor(tx));
+    }, { maxWait: 10000, timeout: 10000 });
+  },
   async withAccountLock(work) {
     return prisma.$transaction(async (tx) => {
       // First sign-in claims both an account and a guest profile. Serialize
@@ -47,8 +53,8 @@ export function databaseStoreFor(prisma) { return {
   deleteMatchmakingTicket(profileId) {
     return prisma.geoMatchmakingTicket.deleteMany({ where: { profileId } });
   },
-  findMatchmakingOpponent({ game, profileId, since }) {
-    return prisma.geoMatchmakingTicket.findFirst({
+  listMatchmakingOpponents({ game, profileId, since }) {
+    return prisma.geoMatchmakingTicket.findMany({
       where: { game, profileId: { not: profileId }, roomCode: null, lastSeenAt: { gte: new Date(since) }, profile: { account: { is: { suspendedAt: null } } } },
       orderBy: [{ joinedAt: 'asc' }, { profileId: 'asc' }],
     });
@@ -238,8 +244,8 @@ export function databaseStoreFor(prisma) { return {
     const table = season === 's0' ? prisma.geoRating : prisma.geoSeasonRating;
     return table.findMany({
       where: season === 's0' ? { ladder, games: { gte: minGames } } : { ladder, season, games: { gte: minGames } },
-      orderBy: [{ rating: 'desc' }, { games: 'desc' }],
-      take: limit,
+      orderBy: [{ rating: 'desc' }, { games: 'desc' }, { profileId: 'asc' }],
+      ...(limit == null ? {} : { take: limit }),
       include: { profile: { select: { id: true, name: true, equipped: true } } },
     });
   },

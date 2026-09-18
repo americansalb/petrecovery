@@ -1,5 +1,5 @@
 const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore');
-const { matchmaking, QUEUE_LEASE_MS } = require('@/app/lib/geo/server/matchmaking');
+const { matchmaking, QUEUE_LEASE_MS, chooseOpponent, ratingWindow } = require('@/app/lib/geo/server/matchmaking');
 const { getRoomView, joinRoom, roomAction } = require('@/app/lib/geo/server/rooms');
 
 const now = Date.parse('2026-09-17T15:00:00Z');
@@ -111,4 +111,15 @@ test('guest and malformed requests cannot enter the queue', async () => {
   const a = await player(store, 'Ada');
   await expect(find(store, a, { game: 'unknown' })).rejects.toMatchObject({ status: 400 });
   await expect(find(store, a, { action: 'unknown' })).rejects.toMatchObject({ status: 400 });
+});
+
+test('skill matching chooses the closest opponent and widens for a small launch', () => {
+  const mine = { profileId: 'me', joinedAt: new Date(now) };
+  const candidates = [{ profileId: 'far', joinedAt: new Date(now) }, { profileId: 'near', joinedAt: new Date(now) }];
+  const rows = [{ profileId: 'me', rating: 1500 }, { profileId: 'near', rating: 1550 }, { profileId: 'far', rating: 2300 }];
+  expect(chooseOpponent(mine, candidates, rows, now).profileId).toBe('near');
+  expect(chooseOpponent(mine, [candidates[0]], rows, now)).toBeNull();
+  expect(chooseOpponent(mine, [candidates[0]], rows, now + 30000).profileId).toBe('far');
+  expect(ratingWindow(60000)).toBe(Infinity);
+  expect(chooseOpponent(mine, [{ ...candidates[0], joinedAt: new Date(now + 60000) }], rows, now + 60000)).toBeNull();
 });

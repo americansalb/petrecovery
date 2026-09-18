@@ -2,7 +2,67 @@
 
 ## Verification update (2026-09-18)
 
-### Script gameplay redesign: isolated playable prototype
+### Current direction: polygon gameplay restored; percentile leagues
+
+The owner rejected the language-identification prototype. It has been removed
+from the client, API and tests, not promoted into the main game. Its code remains
+in Git history. Old `experience=detective` preview links now open the original
+pin-on-map game. Regional learning remains the core: read the sentence, place
+a pin, reveal the language's usage polygons. The existing map stays mounted
+between guesses and reveals. The reveal now includes an accessible region
+selector that frames a specific region or all regions, with smaller secondary
+language clues behind a disclosure. The score, round progress and next action
+stay in the game screen; no language-choice question or optional map bonus.
+
+The agreed ladder is Wood, Copper, Silver, Gold, Sapphire, Meteorite. Copper is
+top 70%, Silver top 45%, Gold top 25%, Sapphire top 10%. These are cumulative
+cutoffs in the full placed-player pool, rounded up to whole players. Five
+placement matches are required. Meteorite overrides those bands for the top
+five only when they have at least 20 rated matches and average at least 80% of
+available round points. The 20-match/80% gate is an implementation default,
+not a threshold explicitly selected by the owner. Thresholds are centralized
+in `rating.js` for tuning. Ties use rating, games played, then stable profile ID;
+they cannot produce a sixth Meteorite. Unknown historical accuracy never passes.
+No 100-player minimum blocks the small launch.
+
+Street and Script multiplayer now have independent rating rows. Script uses
+the existing Glicko machinery and displays its post-match rating change, rather
+than being silently unrated. Accuracy comes from authoritative scored guesses,
+not duel health; missed revealed rounds score zero. Additive `scoredPoints` and
+`scoredRounds` columns on GeoRating/GeoSeasonRating are required before deployment.
+Rating claims, both player updates and result records commit together under a
+database lock. A failure rolls back, and finished-room polling retries. The
+profile, board, room badges and title eligibility share percentile rankings.
+
+Automatic matchmaking prefers the closest rating within a 200-point window,
+widening by 200 every ten seconds and allowing any gap after a minute. Both
+players' windows must allow the match. Street/Script pools remain separate.
+Room polling has a ten-second timeout and suppresses a late heartbeat that
+predates a player action, protecting the result from being rolled back onscreen.
+
+Verification for this working change: **162 suites, 1,572 passing tests, 10
+pre-existing todos**, including all **10 real PostgreSQL release checks**.
+Coverage includes a complete five-round Script match and its accuracy totals,
+rating-write rollback and concurrent retry, the full-population/off-page rank,
+exact percentile boundaries, ties, low/missing-accuracy Meteorite rejection,
+skill-window widening, expired searches, old prototype links, region selection,
+round progression, late-poll ordering and timeout recovery. Changed files lint
+cleanly. Final built-browser checks and GitHub CI are recorded in the follow-up.
+
+Browser checks already completed on the PostgreSQL development app: geographic
+Armenian guess and polygon reveal, selecting Armenia to focus the outline, and
+390x844 reveal/next-round interaction. These are local verification, not proof
+of production configuration or real authentication delivery.
+
+Production blocker rechecked through the Render monitoring workflow: Kevin's
+authorized workspace still contains 21 services, none for americansalb/petrecovery
+or Probably Earth. The actual service dashboard URL/workspace access is required
+to diagnose missing sign-in email, apply the release schema, verify deployed
+sessions and configure authorized Street imagery. Real email/SMS delivery and
+the complete production desktop/mobile release sweep remain unverified. PR291
+must stay draft and unmerged.
+
+### Historical experiment: language-first prototype (rejected and removed)
 
 Follow-up: the prototype commit `5677530` passed CI run 35316541076. A 320px
 ten-round layout wraps its progress indicators without horizontal overflow.

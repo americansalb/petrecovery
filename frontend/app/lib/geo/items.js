@@ -36,7 +36,8 @@ export const ITEMS = Object.freeze([
   { id: 'title-navigator', kind: 'title', name: 'Navigator', price: 400, value: 'Navigator', description: 'Finds the way.' },
   { id: 'title-cartographer', kind: 'title', name: 'Cartographer', price: 1000, value: 'Cartographer', description: 'Draws the map.' },
   { id: 'title-globetrotter', kind: 'title', name: 'Globetrotter', price: 2500, value: 'Globetrotter', description: 'Has been everywhere.' },
-  { id: 'title-gold', kind: 'title', name: 'Platinum', price: 0, value: 'Platinum', requires: { tier: 'Platinum' }, description: 'Free at Platinum on any ladder.' },
+  { id: 'title-gold', kind: 'title', name: 'Gold', price: 0, value: 'Gold', requires: { tier: 'Gold' }, description: 'Free at Gold on any ladder.' },
+  { id: 'title-meteorite', kind: 'title', name: 'Meteorite', price: 0, value: 'Meteorite', requires: { tier: 'Meteorite' }, description: 'Free at Meteorite on any ladder.' },
   { id: 'title-master', kind: 'title', name: 'Sapphire', price: 0, value: 'Sapphire', requires: { tier: 'Sapphire' }, description: 'Free at Sapphire on any ladder.' },
   { id: 'title-grandmaster', kind: 'title', name: 'Wayfinder', price: 0, value: 'Wayfinder', requires: { tier: 'Sapphire' }, description: 'An alternate title, free at Sapphire on any ladder.' },
   // Frames around the badge on the profile and in rooms.

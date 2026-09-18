@@ -147,7 +147,7 @@ describe('profiles', () => {
     const store = createMemoryRoomStore();
     const { profile } = await profileFor(store, 'Ada');
     const summary = await profileSummary(store, profile, { now: T0 });
-    expect(summary.ratings.classic).toMatchObject({ value: RATING_DEFAULT, games: 0, provisional: true, tier: 'Silver' });
+    expect(summary.ratings.classic).toMatchObject({ value: RATING_DEFAULT, games: 0, provisional: true, tier: null });
     expect(summary.ratings.duel.value).toBe(RATING_DEFAULT);
     expect(summary.recent).toEqual([]);
   });

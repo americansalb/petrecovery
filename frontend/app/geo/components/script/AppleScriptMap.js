@@ -70,6 +70,7 @@ export default function AppleScriptMap({
   answer = null,
   guess = null,
   nearestPoint = null,
+  selectedRegion = null,
   mode = 'guess',
   className = '',
   onUnavailable,
@@ -187,8 +188,10 @@ export default function AppleScriptMap({
     // is one number to move rather than several hundred.
     const style = answerStyle(mapkit, FILL_OPACITY, STROKE_OPACITY);
     const overlays = [];
+    const focusedOverlays = [];
     const annotations = [];
     for (const region of answer.regions || []) {
+      const firstOverlay = overlays.length;
       // Each ring is its own piece of land and never a hole: the data
       // keeps outer rings only (app/lib/geo/server/regions.js), so an
       // island is a shape of its own rather than a bite out of a coast.
@@ -210,6 +213,7 @@ export default function AppleScriptMap({
           })
         );
       }
+      if (answer.regions.indexOf(region) === selectedRegion) focusedOverlays.push(...overlays.slice(firstOverlay));
     }
     if (guess) {
       annotations.push(
@@ -241,8 +245,8 @@ export default function AppleScriptMap({
     drawnRef.current = { annotations, overlays };
 
     try {
-      map.showItems([...annotations, ...overlays], {
-        animate: true,
+      map.showItems(focusedOverlays.length ? focusedOverlays : [...annotations, ...overlays], {
+        animate: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
         // Short mobile maps need enough unpadded space to fit the answer.
         padding: new mapkit.Padding(
           Math.min(44, (hostRef.current?.clientHeight || 320) * 0.1),
@@ -259,7 +263,7 @@ export default function AppleScriptMap({
     stopFadeRef.current = fadeIn(mapkit, style, overlays);
 
     return () => stopFadeRef.current?.();
-  }, [mapkit, answer, guess, nearestPoint, mode]);
+  }, [mapkit, answer, guess, nearestPoint, selectedRegion, mode]);
 
   return (
     <KeyboardMap className={className} interactive={mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'} {...appleKeyboard(mapRef, mapkit, onPin)}>

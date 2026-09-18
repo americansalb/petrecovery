@@ -75,7 +75,7 @@ function LadderCard({ ladder, rating, provisionalGames }) {
           href={
             ladder === 'solo'
               ? '/geo/play?mode=ranked'
-              : `/geo/rooms?variant=${ladder}`
+              : `/geo/rooms?game=${ladder === 'script' ? 'script' : 'street'}`
           }
         >
           Play to place <span aria-hidden="true">↗</span>
@@ -92,6 +92,7 @@ function LadderCard({ ladder, rating, provisionalGames }) {
         {rating.value}
       </p>
       <p className="text-xs text-white/70">{rating.tier}</p>
+      <p className="mt-1 text-xs text-white/70">{rating.rank ? `#${rating.rank} of ${rating.population}` : ''}{rating.accuracy != null ? ` · ${Math.floor(rating.accuracy * 1000) / 10}% accuracy` : ''}</p>
       <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
         <div>
           <dt className="text-white/60">Played</dt>
@@ -211,7 +212,7 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
   if (tierOnly && !item.usable)
     buy = (
       <span className="text-xs text-white/60">
-        Free at {item.requires.tier} on either ladder
+        Free at {item.requires.tier} on any ladder
       </span>
     );
   return (
@@ -473,7 +474,7 @@ export default function ProfileClient() {
             {/* Recent rated games. The server has sent these with every
                 profile since ratings shipped and nothing read them. */}
             <Card data-recent>
-              <CardTitle icon={History}>Rated Street games</CardTitle>
+              <CardTitle icon={History}>Rated matches</CardTitle>
               {profile?.recent?.length ? (
                 <ul className="mt-3 divide-y divide-white/10 text-sm">
                   {profile.recent.map((row, i) => (

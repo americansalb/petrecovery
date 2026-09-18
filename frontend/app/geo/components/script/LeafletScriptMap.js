@@ -219,7 +219,7 @@ function addLabels(L, map, rows) {
   };
 }
 
-export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, nearestPoint = null, mode = 'guess', className = '', onMapTrouble }) {
+export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, nearestPoint = null, selectedRegion = null, mode = 'guess', className = '', onMapTrouble }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const leafletRef = useRef(null);
@@ -260,6 +260,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
         zoomControl: false,
+        zoomSnap: 0.25,
         keyboard: false,
         attributionControl: true,
       }).setView([20, 0], 2);
@@ -363,6 +364,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     }
 
     const drawn = [];
+    let focusedShape = null;
     for (const region of answer.regions || []) {
       const style = { color: ANSWER, weight: 2, fillColor: ANSWER, fillOpacity: 0.22, className: 'wg-region' };
       // South Asian languages are drawn as the states, districts and
@@ -373,6 +375,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         ? L.polygon(region.rings.map((ring) => ring.map(([lng, lat]) => [lat, lng])), style)
         : L.circle([region.lat, region.lng], { ...style, radius: region.radiusKm * 1000 });
       drawn.push(shape.addTo(map).bindTooltip(`${region.name} (${answer.name})`));
+      if (answer.regions.indexOf(region) === selectedRegion) focusedShape = shape;
     }
     if (guess) {
       drawn.push(L.marker([guess.lat, guess.lng], { icon: dot(L, GUESS, 'Your guess'), keyboard: false }).addTo(map));
@@ -395,7 +398,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     drawnRef.current = drawn;
 
     try {
-      const group = L.featureGroup(drawn);
+      const group = L.featureGroup(focusedShape ? [focusedShape] : drawn);
       const bounds = group.getBounds();
       const fit = (animate = true) => {
         const size = map.getSize();
@@ -414,7 +417,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     } catch (error) {
       console.warn('[Script map] Could not frame the answer', error?.message || error);
     }
-  }, [answer, guess, nearestPoint, mode, ready]);
+  }, [answer, guess, nearestPoint, selectedRegion, mode, ready]);
 
   return <KeyboardMap className={className} interactive={mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'}
     pan={(x, y) => mapRef.current?.panBy([x * 80, y * 80], { animate: false })}

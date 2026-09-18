@@ -31,6 +31,7 @@ export function createMemoryRoomStore() {
   const matchmaking = new Map();
   let matchmakingTail = Promise.resolve();
   let accountTail = Promise.resolve();
+  let ratingTail = Promise.resolve();
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -48,6 +49,13 @@ export function createMemoryRoomStore() {
   }
 
   const store = {
+    async withRatingLock(work) {
+      const previous = ratingTail;
+      let release;
+      ratingTail = new Promise((resolve) => { release = resolve; });
+      await previous;
+      try { return await work(store); } finally { release(); }
+    },
     async withAccountLock(work) {
       const previous = accountTail;
       let release;
@@ -65,10 +73,10 @@ export function createMemoryRoomStore() {
     async getMatchmakingTicket(profileId) { return matchmaking.has(profileId) ? { ...matchmaking.get(profileId) } : null; },
     async putMatchmakingTicket(data) { matchmaking.set(data.profileId, { ...data }); return { ...data }; },
     async deleteMatchmakingTicket(profileId) { matchmaking.delete(profileId); },
-    async findMatchmakingOpponent({ game, profileId, since }) {
+    async listMatchmakingOpponents({ game, profileId, since }) {
       const found = [...matchmaking.values()].filter((entry) => entry.game === game && entry.profileId !== profileId && !entry.roomCode && +new Date(entry.lastSeenAt) >= since && accounts.has(profiles.get(entry.profileId)?.accountId) && !accounts.get(profiles.get(entry.profileId)?.accountId)?.suspendedAt)
-        .sort((a, b) => +new Date(a.joinedAt) - +new Date(b.joinedAt) || a.profileId.localeCompare(b.profileId))[0];
-      return found ? { ...found } : null;
+        .sort((a, b) => +new Date(a.joinedAt) - +new Date(b.joinedAt) || a.profileId.localeCompare(b.profileId));
+      return found.map((row) => ({ ...row }));
     },
     async getRoomByCode(code) {
       return compose([...rooms.values()].find((r) => r.code === code));
@@ -299,8 +307,8 @@ export function createMemoryRoomStore() {
     async listLeaderboard(ladder, { limit = 50, minGames = 0, season = seasonFor().key } = {}) {
       return [...ratings.values()]
         .filter((r) => r.ladder === ladder && r.season === season && (r.games || 0) >= minGames)
-        .sort((a, b) => b.rating - a.rating)
-        .slice(0, limit)
+        .sort((a, b) => b.rating - a.rating || (b.games || 0) - (a.games || 0) || a.profileId.localeCompare(b.profileId))
+        .slice(0, limit == null ? undefined : limit)
         .map((r) => ({ ...r, profile: { id: r.profileId, name: profiles.get(r.profileId)?.name || 'Player', equipped: profiles.get(r.profileId)?.equipped || null } }));
     },
     async getRecentResults(profileId, limit = 10) {

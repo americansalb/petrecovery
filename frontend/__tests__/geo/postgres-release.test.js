@@ -7,6 +7,8 @@ const { getRoomView, roomAction } = require('@/app/lib/geo/server/rooms');
 const { verifySignIn, hashLoginToken } = require('@/app/lib/geo/server/accounts');
 const { createRoomOnce, joinRoomOnce } = require('@/app/lib/geo/server/roomCreation');
 const { sameSavedCheckpoint } = require('@/app/lib/geo/server/savedCheckpoint');
+const { applyRoomRatings } = require('@/app/lib/geo/server/profiles');
+const { seasonFor } = require('@/app/lib/geo/season');
 const url = process.env.GEO_PG_TEST_URL;
 if (url) {
   const parsed = new URL(url);
@@ -170,6 +172,12 @@ if (url) {
       const finished = await stores[1].getRoomByCode(recovered.code);
       expect(finished.rounds).toHaveLength(5);
       expect(finished.rounds.every((round) => round.guesses.length === 2)).toBe(true);
+      const ratings = await stores[1].getRatings(finished.players.map((p) => p.profileId), 'script', seasonFor(at).key);
+      expect(ratings).toHaveLength(2);
+      for (const p of finished.players) {
+        const scoredPoints = finished.rounds.reduce((sum, r) => sum + r.guesses.find((g) => g.playerId === p.id).score, 0);
+        expect(ratings.find((r) => r.profileId === p.profileId)).toMatchObject({ games: 1, scoredRounds: 5, scoredPoints });
+      }
     } finally { await restarted.$disconnect(); }
   }, 30000);
 
@@ -182,6 +190,23 @@ if (url) {
     expect(await stores[1].getMatchmakingTicket(person.profileId)).toBeNull();
     expect(await find(stores[1], person)).toMatchObject({ status: 'waiting' });
     await find(stores[1], person, 'cancel');
+  });
+
+  test('rating failure rolls back the claim and both players; concurrent retry applies once', async () => {
+    const host = await player(), peer = await player();
+    const created = await createRoomOnce(stores[0], { subjects: host, profileId: host.profileId, hostName: 'Rating QA', settings: { game: 'script' }, now });
+    await joinRoomOnce(stores[1], { code: created.room.code, subjects: peer, profileId: peer.profileId, name: 'Peer', now });
+    await stores[0].updateRoom(created.room.id, { status: 'finished' });
+    const room = await stores[0].getRoomByCode(created.room.code);
+    const failing = { ...stores[0], withRatingLock: (work) => stores[0].withRatingLock((locked) => work({
+      ...locked, createMatchResult: async () => { throw new Error('simulated rating write failure'); },
+    })) };
+    await expect(applyRoomRatings(failing, room, now)).rejects.toThrow('simulated rating write failure');
+    expect((await stores[1].getRoomByCode(room.code)).ratedAt).toBeNull();
+    expect(await stores[1].getRatings([host.profileId, peer.profileId], 'script', seasonFor(now).key)).toEqual([]);
+    const attempts = await Promise.all(stores.map((store) => applyRoomRatings(store, room, now)));
+    expect(attempts.filter(Boolean)).toHaveLength(1);
+    expect((await stores[1].getRatings([host.profileId, peer.profileId], 'script', seasonFor(now).key)).map((r) => r.games)).toEqual([1, 1]);
   });
 
   test('JSONB key ordering does not turn identical signup saves into conflicts', async () => {

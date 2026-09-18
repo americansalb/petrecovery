@@ -1093,8 +1093,9 @@
   background: #c4dba5;
 }
 .geo-surface .pe-rank-path {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
   gap: 16px;
   overflow-x: auto;
   margin: 24px 0 30px;
@@ -1113,6 +1114,10 @@
 .geo-surface .pe-rank-step span {
   font-size: 10px;
   color: #bfd1c4;
+}
+.geo-surface .pe-rank-cutoff { max-width: 115px; font-size: 11px; line-height: 1.4; text-align: center; color: #bfd1c4; }
+@media (max-width: 600px) {
+  .geo-surface .pe-rank-path { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
 }
 .geo-surface .pe-rank-badge {
   display: grid;

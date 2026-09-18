@@ -82,7 +82,7 @@ describe('the rules', () => {
     expect(canUse({ requires: { tier: 'unknown' } }, { tier: 'Sapphire' })).toBe(false);
     expect(canUse(itemById('title-master'), { tier: 'Gold' })).toBe(false);
     expect(canUse(itemById('title-master'), { tier: 'Sapphire' })).toBe(true);
-    expect(canUse(itemById('title-gold'), { tier: 'Platinum' })).toBe(true);
+    expect(canUse(itemById('title-gold'), { tier: 'Gold' })).toBe(true);
     expect(canBuy(itemById('pin-star'), { points: 1499 })).toBe(false);
     expect(canBuy(itemById('pin-star'), { points: 1500 })).toBe(true);
     expect(canBuy(itemById('title-gold'), { points: 99999 })).toBe(false);
@@ -306,9 +306,9 @@ describe('the shop', () => {
     await expect(equipItem(store, ada, 'pin-star')).rejects.toMatchObject({ code: 'not_owned', status: 403 });
     await expect(equipItem(store, ada, 'title-gold')).rejects.toMatchObject({ code: 'not_owned' });
     await store.upsertRating(ada.id, 'duel', { rating: 1600, rd: 60, games: 10 });
-    expect(await bestTier(store, ada.id)).toBe('Platinum');
+    expect(await bestTier(store, ada.id)).toBe('Sapphire');
     shop = await equipItem(store, ada, 'title-gold');
-    expect(shop.view.title).toBe('Platinum');
+    expect(shop.view.title).toBe('Gold');
     shop = await buyItem(store, ada, 'reactions-party', T0);
     expect(shop.points).toBe(50);
     expect(shop.equipped).toMatchObject({ pin: 'pin-classic', title: 'title-gold' });

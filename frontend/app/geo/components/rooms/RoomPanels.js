@@ -608,7 +608,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
                 : room.config?.game === 'script' ? "Same settings, new sentences." : "Same settings, new places."}
             </small>
           </div>
-          {room.config?.game !== 'script' ? <MatchRating player={own} /> : null}
+          <MatchRating player={own} />
         </div>
         {error ? (
           <p role="alert" className="mt-3 text-sm text-red-200">
@@ -638,7 +638,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
                     you={p.you}
                   />
                   <span>
-                    {room.config?.game === 'script' ? 'Script' : placedLeague(p) || "Placement games"}
+                    {placedLeague(p) || "Placement games"}
                     {p.roundWins
                       ? ` · ${p.roundWins} round ${p.roundWins === 1 ? "win" : "wins"}`
                       : ""}

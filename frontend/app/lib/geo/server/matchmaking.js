@@ -3,10 +3,26 @@ import { accountSeatToken } from './roomSeat';
 import { getGeoServerConfig } from './config';
 import { sealToken, openToken } from './tokens';
 import { sanitizeName } from '../rooms';
+import { RATING_DEFAULT } from '../rating';
+import { seasonFor } from '../season';
 
 export const QUEUE_LEASE_MS = 20000;
 const tokenOptions = (now) => ({ secret: getGeoServerConfig().tokenSecret, now, ttlMs: 24 * 60 * 60 * 1000 });
 const seal = (token, now) => sealToken({ purpose: 'matchmaking-seat', token }, tokenOptions(now));
+
+export function ratingWindow(waitMs) {
+  // Small launch: prioritize a close game, but never wait forever for a
+  // population that isn't there. Both players' search windows must allow it.
+  return waitMs >= 60000 ? Infinity : 200 + Math.floor(Math.max(0, waitMs) / 10000) * 200;
+}
+
+export function chooseOpponent(mine, candidates, rows, now) {
+  const ratings = new Map(rows.map((r) => [r.profileId, r.rating]));
+  const myRating = ratings.get(mine.profileId) ?? RATING_DEFAULT;
+  return candidates.map((ticket) => ({ ticket, difference: Math.abs(myRating - (ratings.get(ticket.profileId) ?? RATING_DEFAULT)) }))
+    .filter(({ ticket, difference }) => difference <= Math.min(ratingWindow(now - +new Date(mine.joinedAt)), ratingWindow(now - +new Date(ticket.joinedAt))))
+    .sort((a, b) => a.difference - b.difference || +new Date(a.ticket.joinedAt) - +new Date(b.ticket.joinedAt) || a.ticket.profileId.localeCompare(b.ticket.profileId))[0]?.ticket || null;
+}
 
 /** All queue changes and room allocation commit together, across all instances. */
 export async function matchmaking(store, { subjects, game = 'street', action = 'join', now = Date.now() }) {
@@ -47,7 +63,9 @@ export async function matchmaking(store, { subjects, game = 'street', action = '
       joinedAt: ticket && now - +new Date(ticket.lastSeenAt) <= QUEUE_LEASE_MS ? ticket.joinedAt : new Date(now),
       lastSeenAt: new Date(now), roomCode: null, playerId: null, token: null,
     };
-    const opponent = await locked.findMatchmakingOpponent({ game, profileId, since: now - QUEUE_LEASE_MS });
+    const candidates = await locked.listMatchmakingOpponents({ game, profileId, since: now - QUEUE_LEASE_MS });
+    const rows = await locked.getRatings([profileId, ...candidates.map((c) => c.profileId)], game === 'script' ? 'script' : 'duel', seasonFor(now).key);
+    const opponent = chooseOpponent(mine, candidates, rows, now);
     if (!opponent) {
       await locked.putMatchmakingTicket(mine);
       return { status: 'waiting', game, joinedAt: +new Date(mine.joinedAt) };

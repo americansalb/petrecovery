@@ -21,7 +21,6 @@ import { randomSeedString } from '@/app/lib/geo/random';
 import { shareText, summaryHeadline, scoreGlyph } from '@/app/lib/geo/share';
 import KeepThis from './KeepThis';
 import RankEmblem from './RankEmblem';
-import { tierFor } from '@/app/lib/geo/rating';
 import { useCountUp } from '../lib/countUp';
 
 function useCopy() {
@@ -53,9 +52,9 @@ function RankedResult({ rated }) {
       className="pe-solo-rating mt-4"
       data-ranked-result
     >
-      <RankEmblem tier={rated.provisional ? null : tierFor(rated.after)} />
+      <RankEmblem tier={rated.provisional ? null : rated.tier} />
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-        {rated.provisional ? 'Placement in progress' : `${tierFor(rated.after)} league`}
+        {rated.provisional ? 'Placement in progress' : rated.tier ? `${rated.tier} league` : 'Rating updated'}
       </p>
       <p className="mt-1 text-sm text-white/80">
         {rated.field.players

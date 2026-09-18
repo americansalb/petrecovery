@@ -408,7 +408,7 @@ async function advanceRound(store, room, now, fetchImpl) {
     if (claimed) {
       const finished = await store.getRoomByCode(room.code);
       try {
-        if (finished.config.game !== 'script') await applyRoomRatings(store, finished, now);
+        await applyRoomRatings(store, finished, now);
       } catch (error) {
         console.error('[geo/rooms] rating failed', error?.message || error);
       }
@@ -738,6 +738,14 @@ async function extrasFor(store, me) {
 export async function getRoomView(store, { code, token, now = Date.now(), fetchImpl }) {
   let room = await loadRoom(store, code);
   room = await tick(store, room, now, fetchImpl);
+  // Finishing the game and rating it are separate transactions. A transient
+  // database error must not permanently strand an otherwise completed match.
+  if (room.status === 'finished' && !room.ratedAt) {
+    try {
+      await applyRoomRatings(store, room, now);
+      room = await store.getRoomByCode(code);
+    } catch (error) { console.error('[geo/rooms] rating retry failed', error?.message || error); }
+  }
   const me = findPlayer(room, token);
   if (me && now - toMs(me.lastSeenAt) > 5000) {
     await store.updatePlayer(me.id, { lastSeenAt: new Date(now) });
