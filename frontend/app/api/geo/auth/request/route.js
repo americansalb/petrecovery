@@ -12,6 +12,8 @@ import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
 import { subjectsFor } from '@/app/lib/geo/server/meterRequest';
+import { safeReturnTo } from '@/app/lib/geo/authReturn';
+import { geoAuthOrigin } from '@/app/lib/geo/authOrigin';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +21,11 @@ const SAME_ANSWER = {
   ok: true,
   message: 'If that address can receive mail, a sign-in link is on its way. It expires in fifteen minutes.',
 };
+
+// A sign-in link may return somebody to the game screen that asked for
+// it, but never to another origin. This is deliberately a path rather
+// than a generic URL parser so `//elsewhere.test` cannot become an open
+// redirect.
 
 export async function POST(request) {
   let body;
@@ -38,19 +45,24 @@ export async function POST(request) {
   }
 
   try {
-    const result = await requestSignIn(prismaRoomStore, { email: body?.email, baseUrl: geoMetadataBase().toString(), profileId });
+    const result = await requestSignIn(prismaRoomStore, {
+      email: body?.email,
+      baseUrl: geoAuthOrigin((await geoMetadataBase()).origin),
+      profileId,
+      returnTo: safeReturnTo(body?.returnTo),
+    });
     // A mail failure is worth saying out loud: silently claiming to have
     // sent something we did not would leave the player waiting forever.
     if (!result.sent) {
-      const noKey = result.reason === 'no_mail_key';
+      const notConfigured = ['no_mail_key', 'no_mail_sender'].includes(result.reason);
       return NextResponse.json(
         {
-          error: noKey
+          error: notConfigured
             ? 'Sign-in is not set up on this server yet. Play without an account for now.'
             : 'We could not send that link. Try again in a minute.',
-          code: noKey ? 'mail_not_configured' : 'send_failed',
+          code: notConfigured ? 'mail_not_configured' : 'send_failed',
         },
-        { status: noKey ? 503 : 502 }
+        { status: notConfigured ? 503 : 502 }
       );
     }
     // Outside production a server with no mail key writes the link to

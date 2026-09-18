@@ -22,7 +22,7 @@
  * opponent is everyone else who played that same hour, taken together
  * as one. They are separate ladders because they are separate games.
  */
-export const LADDERS = ['classic', 'duel', 'solo'];
+export const LADDERS = ['classic', 'duel', 'script', 'solo'];
 /**
  * What each ladder is called on screen. Room variants have their own
  * labels in rooms.js, but `solo` is not a room, so the ladders need a
@@ -30,7 +30,8 @@ export const LADDERS = ['classic', 'duel', 'solo'];
  */
 export const LADDER_LABELS = Object.freeze({
   classic: 'Classic',
-  duel: 'Duel',
+  duel: 'Street multiplayer',
+  script: 'Script multiplayer',
   solo: 'Ranked solo',
 });
 
@@ -164,17 +165,23 @@ export function displayRating(rating, rd) {
   return { value: Math.round(rating), low: Math.round(rating - 2 * rd), high: Math.round(rating + 2 * rd) };
 }
 
-// Five leagues, independent on each ladder. The underlying rating is unchanged.
+// Launch policy: percentile leagues; rating remains the matchmaking number.
+// Centralized so the launch population can inform later tuning.
+export const METEORITE_MIN_GAMES = 20;
+export const METEORITE_MIN_ACCURACY = 0.8;
 export const TIERS = [
-  { name: 'Copper', min: -Infinity, color: '#d79a75' },
-  { name: 'Silver', min: 1400, color: '#d3dfdc' },
-  { name: 'Platinum', min: 1550, color: '#a9d5d3' },
-  { name: 'Gold', min: 1700, color: '#ecd18e' },
-  { name: 'Sapphire', min: 1850, color: '#72bbdc' },
+  { name: 'Wood', color: '#bd936b', label: 'Below top 70%' },
+  { name: 'Copper', top: 0.7, color: '#d79a75', label: 'Top 70%' },
+  { name: 'Silver', top: 0.45, color: '#d3dfdc', label: 'Top 45%' },
+  { name: 'Gold', top: 0.25, color: '#ecd18e', label: 'Top 25%' },
+  { name: 'Sapphire', top: 0.1, color: '#72bbdc', label: 'Top 10%' },
+  { name: 'Meteorite', color: '#b6bdca', label: 'Top 5 · 20 matches · 80% accuracy' },
 ];
 
-export function tierFor(rating) {
-  let tier = TIERS[0];
-  for (const t of TIERS) if (rating >= t.min) tier = t;
-  return tier.name;
+export function tierFor({ rank, population, games, accuracy } = {}) {
+  if (isProvisional(games) || !Number.isInteger(rank) || rank < 1 || !Number.isInteger(population) || rank > population) return null;
+  if (rank <= 5 && games >= METEORITE_MIN_GAMES && Number.isFinite(accuracy) && accuracy >= METEORITE_MIN_ACCURACY) return 'Meteorite';
+  let tier = 'Wood';
+  for (const t of TIERS) if (t.top && rank <= Math.ceil(population * t.top)) tier = t.name;
+  return tier;
 }

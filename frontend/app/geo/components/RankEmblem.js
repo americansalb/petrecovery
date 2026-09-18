@@ -3,9 +3,10 @@
 import { useId } from "react";
 
 const METALS = {
+  Wood: ["#e5c39b", "#9a6b43", "#513829"],
   Copper: ["#f1c09a", "#b66d45", "#543b30"],
   Silver: ["#f3f5eb", "#acbdbb", "#3e5c60"],
-  Platinum: ["#edfff1", "#8dc8c1", "#285863"],
+  Meteorite: ["#e7eaf0", "#8995a7", "#303c4c"],
   Gold: ["#fff0b4", "#d7ad53", "#725132"],
   Sapphire: ["#b8edee", "#55aacc", "#183f70"],
 };
@@ -19,13 +20,13 @@ export default function RankEmblem({
   const id = useId().replace(/:/g, "");
   const colors = METALS[tier];
   const gem = tier === "Sapphire";
-  const premium = tier === "Gold" || gem;
+  const premium = tier === "Gold" || gem || tier === "Meteorite";
   const shape =
     tier === "Copper"
       ? "M60 9 101 33 101 81 60 109 19 81 19 33Z"
       : tier === "Silver"
         ? "M39 11 81 11 105 35 105 78 81 102 39 102 15 78 15 35Z"
-        : tier === "Platinum"
+        : tier === "Meteorite"
           ? "M60 4 110 58 60 115 10 58Z"
           : "M60 7 94 22 104 58 91 90 60 111 29 90 16 58 26 22Z";
   return (
@@ -109,15 +110,25 @@ export default function RankEmblem({
         </g>
       ) : (
         <g fill={`url(#${id}-metal)`} stroke={colors[0]} strokeWidth=".7">
-          {tier === "Copper" ? (
+          {tier === "Wood" ? (
+            <g fill="none" strokeWidth="2">
+              <path d="M42 33q36-10 36 23t-35 26q-17-25-1-49Z" />
+              <path d="M50 40q22-6 20 18t-20 16q-10-18 0-34Z" />
+              <path d="M57 46q10 0 6 15t-9 4" />
+            </g>
+          ) : tier === "Copper" ? (
             <>
               <path d="m60 29 12 31-12-5-12 5Z" />
               <path d="m60 84-9-25 9 4 9-4Z" opacity=".55" />
             </>
           ) : tier === "Silver" ? (
             <path d="m60 27 8 22 22 8-22 8-8 22-8-22-22-8 22-8Z" />
-          ) : tier === "Platinum" ? (
-            <path d="m60 22 7 23 18-13-13 18 23 7-23 7 13 18-18-13-7 23-7-23-18 13 13-18-23-7 23-7-13-18 18 13Z" />
+          ) : tier === "Meteorite" ? (
+            <>
+              <path d="m47 32 24 1 16 20-5 24-27 9-20-18 2-23Z" />
+              <path d="m47 32 8 23 32-2M55 55v31M55 55 35 68M55 55l27 22" fill="none" stroke="#303c4c" strokeWidth="2" />
+              <path d="m64 43 4 5m-24 13 5 3m18 7 5-3" fill="none" stroke="#f9e2c4" strokeWidth="3" />
+            </>
           ) : (
             <>
               <path d="m38 41 11 9 11-21 11 21 11-9-5 25H43Z" />

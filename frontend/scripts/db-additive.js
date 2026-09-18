@@ -126,7 +126,13 @@ function additiveOnly(sql) {
     }
     const [, table, body] = alter;
     const actions = splitActions(body);
-    const safe = actions.filter((a) => ADDITIVE_ACTION.test(a) && !/\bDROP\b/i.test(a));
+    const safe = actions.filter((a) =>
+      (ADDITIVE_ACTION.test(a) && !/\bDROP\b/i.test(a)) ||
+      // Phone-only game accounts no longer require an email. This exact
+      // constraint relaxation preserves every row and value. Do not expand
+      // it to DROP columns, other constraints, or unrelated products.
+      (table === '"GeoAccount"' && /^\s*ALTER\s+COLUMN\s+"email"\s+DROP\s+NOT\s+NULL\s*$/i.test(a))
+    );
     if (!safe.length) {
       skip.push(statement);
       continue;

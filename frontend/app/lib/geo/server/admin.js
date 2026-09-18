@@ -76,7 +76,7 @@ export async function siteOverview({ now = Date.now() } = {}) {
  */
 export async function listAccounts({ query = '', limit = 50, now = Date.now() } = {}) {
   const where = query
-    ? { email: { contains: String(query).trim().toLowerCase(), mode: 'insensitive' } }
+    ? { OR: [{ email: { contains: String(query).trim().toLowerCase(), mode: 'insensitive' } }, { phone: { contains: String(query).trim() } }] }
     : {};
   const rows = await prisma.geoAccount.findMany({
     where,
@@ -85,6 +85,7 @@ export async function listAccounts({ query = '', limit = 50, now = Date.now() } 
     select: {
       id: true,
       email: true,
+      phone: true,
       role: true,
       tier: true,
       tierUntil: true,
@@ -98,6 +99,7 @@ export async function listAccounts({ query = '', limit = 50, now = Date.now() } 
   return rows.map((row) => ({
     id: row.id,
     email: row.email,
+    phone: row.phone || null,
     // The effective values, not the stored ones: a bootstrap admin and
     // a lapsed supporter both read wrong straight off the row.
     role: roleOf(row),
@@ -148,6 +150,7 @@ export async function updateAccount({ actor, accountId, role, tier, tierUntil, s
   return {
     id: row.id,
     email: row.email,
+    phone: row.phone || null,
     role: roleOf(row),
     tier: tierOf(row),
     tierUntil: row.tierUntil ? row.tierUntil.toISOString() : null,

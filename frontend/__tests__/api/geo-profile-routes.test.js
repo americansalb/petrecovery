@@ -54,6 +54,7 @@ test('a signed-in player is matched by account and the anonymous token binds to 
   const anon = await (await postProfile(request({ name: 'Guest' }))).json();
   // Same browser, now signed in: the anonymous profile becomes the
   // account's rather than a second profile appearing.
+  await memoryStore.createAccount({ id: 'acct_42', email: 'profile-route@example.test' });
   const bound = await (await postProfile(request({}, signedIn('acct_42', { 'x-geo-profile': anon.token })))).json();
   expect(bound.profile.id).toBe(anon.profile.id);
   expect(bound.profile.signedIn).toBe(true);

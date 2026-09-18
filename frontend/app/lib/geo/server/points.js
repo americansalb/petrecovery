@@ -13,7 +13,8 @@ import { dayKey } from '../meter';
 import { POINTS, badgeEarned, earningAllowed, roomFinishPoints, roomRoundPoints, roundPoints } from '../points';
 import { ITEMS, canBuy, canUse, equippedView, itemById, normalizeEquipped, reactionsFor, SLOTS } from '../items';
 import { REACTION_EMOJI, sortStandings } from '../rooms';
-import { LADDERS, placementsFrom, tierFor, TIERS } from '../rating';
+import { LADDERS, placementsFrom, TIERS } from '../rating';
+import { rankingViews } from './rankings';
 
 /** Add points for an event. Returns the ledger row, or null when the event was already paid. */
 export async function grant(store, { profileId, amount, reason, ref, now = Date.now() }) {
@@ -192,9 +193,9 @@ export async function bestTier(store, profileId) {
   let best = TIERS[0].name;
   let bestIndex = 0;
   for (const ladder of LADDERS) {
-    const [row] = await store.getRatings([profileId], ladder);
+    const row = (await rankingViews(store, ladder)).find((r) => r.profileId === profileId);
     if (!row) continue;
-    const tier = tierFor(row.rating);
+    const tier = row.tier;
     const index = TIERS.findIndex((t) => t.name === tier);
     if (index > bestIndex) {
       bestIndex = index;

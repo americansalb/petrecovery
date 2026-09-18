@@ -30,12 +30,12 @@ const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
  * carries the four places rather than the eight things.
  *
  * Play is the menu: it is where you choose, and the quick start is on
- * it. URLs are unchanged - Friends is still /geo/rooms - because a
+ * it. Multiplayer remains /geo/rooms because a
  * label is not a reason to break an inbound link.
  */
 export const GAME_LINKS = [
   { href: '/geo', label: 'Play', exact: true },
-  { href: '/geo/rooms', label: 'Friends' },
+  { href: '/geo/rooms', label: 'Multiplayer' },
   { href: '/geo/leaderboard', label: 'Rankings' },
   { href: '/geo/me', label: 'Profile' },
 ];

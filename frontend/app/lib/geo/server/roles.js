@@ -126,6 +126,7 @@ export function accountView(account, options) {
   if (!account) return null;
   return {
     email: account.email,
+    phone: account.phone || null,
     role: roleOf(account),
     tier: tierOf(account, options),
     tierUntil: account.tierUntil ? new Date(account.tierUntil).toISOString() : null,

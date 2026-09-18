@@ -36,12 +36,13 @@ export function profileHeaders() {
  * ({ id, name, ratings, recent }). Never throws on a missing storage;
  * throws on a server error so callers can decide to play unrated.
  */
-export async function ensureProfile(name) {
+export async function ensureProfile(name, { signal } = {}) {
   const res = await fetch('/api/geo/profile', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...profileHeaders() },
     body: JSON.stringify({ name: name || '' }),
     cache: 'no-store',
+    ...(signal ? { signal } : {}),
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || 'Could not load your profile');

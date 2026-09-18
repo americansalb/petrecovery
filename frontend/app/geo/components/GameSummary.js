@@ -21,7 +21,6 @@ import { randomSeedString } from '@/app/lib/geo/random';
 import { shareText, summaryHeadline, scoreGlyph } from '@/app/lib/geo/share';
 import KeepThis from './KeepThis';
 import RankEmblem from './RankEmblem';
-import { tierFor } from '@/app/lib/geo/rating';
 import { useCountUp } from '../lib/countUp';
 
 function useCopy() {
@@ -53,9 +52,9 @@ function RankedResult({ rated }) {
       className="pe-solo-rating mt-4"
       data-ranked-result
     >
-      <RankEmblem tier={rated.provisional ? null : tierFor(rated.after)} />
+      <RankEmblem tier={rated.provisional ? null : rated.tier} />
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-        {rated.provisional ? 'Placement in progress' : `${tierFor(rated.after)} league`}
+        {rated.provisional ? 'Placement in progress' : rated.tier ? `${rated.tier} league` : 'Rating updated'}
       </p>
       <p className="mt-1 text-sm text-white/80">
         {rated.field.players
@@ -141,6 +140,7 @@ export default function GameSummary({
   rated = null,
   points = null,
   onPlayAgain,
+  resumeUrl,
 }) {
   const [copied, copy] = useCopy();
   const shownTotal = useCountUp(summary.total, { key: code, durationMs: 900 });
@@ -162,7 +162,7 @@ export default function GameSummary({
   };
 
   const shared = config.mode === 'daily' || config.mode === 'cup';
-  const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}`;
+  const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}&replay=${randomSeedString()}`;
 
   return (
     <div className="geo-reveal-panel pe-solo-finish absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">
@@ -281,7 +281,7 @@ export default function GameSummary({
         {/* The account ask, at the one moment there is something worth
             keeping. It renders for guests only and gates nothing: the
             score above is already recorded in this browser. */}
-        <KeepThis />
+        <KeepThis returnTo={resumeUrl || `/geo/share?s=${encodeURIComponent(code)}`} />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button

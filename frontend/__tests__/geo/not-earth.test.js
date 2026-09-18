@@ -101,6 +101,12 @@ describe('the panoramas', () => {
 });
 
 describe('when one comes up', () => {
+  test('a guaranteed surprise never bypasses country validation', async () => {
+    const config = casual({ mode: 'country', region: 'ZZ', seed: HIT_SEED });
+    expect(notEarthFor({ config, roundIndex: 0 })).not.toBeNull();
+    await expect(createRound({ config, env: ENV })).rejects.toMatchObject({ code: 'unknown_country' });
+  });
+
   test('about one round in two hundred', () => {
     expect(NOT_EARTH_CHANCE).toBeCloseTo(0.005, 6);
     let hits = 0;
@@ -157,7 +163,11 @@ describe('the round the browser is given', () => {
     // Nothing in the response names the world, the mission or the
     // credit, and neither does the file the browser then fetches:
     // reading the network tab must not be a way to win.
-    const wire = JSON.stringify(round);
+    // Ciphertext can contain arbitrary three-letter sequences (CI hit "jpl").
+    // Check the readable payload, not random bytes in the authenticated token.
+    const { token, ...publicRound } = round;
+    expect(token).toMatch(/^g1\.[A-Za-z0-9_-]+$/);
+    const wire = JSON.stringify(publicRound);
     expect(wire).not.toMatch(/mars|moon|jezero|apollo|perseverance|nasa|jpl|not-earth/i);
   });
 

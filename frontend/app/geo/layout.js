@@ -12,9 +12,10 @@ import './geo.css';
 import './experience.css';
 import './home.css';
 import './match.css';
+import './accounts.css';
 import { scriptShowcaseFonts } from './script/fonts';
 
-export const metadata = buildShareMetadata({
+export const metadata = { ...buildShareMetadata({
   // A globe, because the pet site's logo on a geography game was the
   // old answer and this is a site of its own now. Every page under
   // /geo inherits it, including on probablyearth.com.
@@ -23,7 +24,7 @@ export const metadata = buildShareMetadata({
   description:
     'A street-level guessing game. You are dropped at a random spot with imagery, you place a pin, and points depend on how close you are. Play alone, or in a room with friends.',
   index: false,
-});
+}), manifest: '/geo/manifest.webmanifest' };
 
 /**
  * The game is dark, on every screen.

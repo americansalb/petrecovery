@@ -80,7 +80,7 @@ export function RoomSummary({ room, countries }) {
     `${room.roundsTotal} rounds`,
     `${timeLabel(room.config.time)} each`,
   ];
-  if (!(room.config.move && room.config.pan && room.config.zoom))
+  if (room.config.game !== 'script' && !(room.config.move && room.config.pan && room.config.zoom))
     parts.push(movementLabel(room.config));
   if (room.config.provider && room.config.provider !== PRIMARY_PROVIDER)
     parts.push(PROVIDERS[room.config.provider]?.label || room.config.provider);
@@ -96,9 +96,10 @@ export function RoomSummary({ room, countries }) {
 
 export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
   const [name, setName] = useState(defaultName || "");
+  const editedName = useRef(false);
   useEffect(() => {
-    if (defaultName && !name) setName(defaultName);
-  }, [defaultName, name]);
+    if (!editedName.current) setName(defaultName || "");
+  }, [defaultName]);
   const room = state.room;
   const finished = room.status === "finished";
   return (
@@ -149,7 +150,7 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => { editedName.current = true; setName(e.target.value); }}
             maxLength={20}
             placeholder="Your name"
             aria-label="Your name"
@@ -165,11 +166,12 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
             disabled={busy || !name.trim()}
             className="rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50"
           >
-            {busy ? "Joining" : room.status === "playing" ? "Jump in" : "Join"}
+            {busy ? "Joining" : room.status === "playing" ? "Rejoin" : "Join"}
           </button>
         </form>
       )}
       {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
+      {!finished && room.status === "playing" ? <p className="mt-3 text-sm text-white/70">Already playing? Use the same account to rejoin. New players can join the next game.</p> : null}
       <p className="mt-4 text-xs text-white/40">
         Not this room?{" "}
         <Link href="/geo/rooms" className="underline">
@@ -200,9 +202,9 @@ export function LobbyPanel({
     <Panel wide>
       <div className="pe-party-heading">
         <p className="pe-eyebrow">
-          {ready ? "Your party is ready" : "Your room is ready"}
+          {room.config?.game === 'script' ? 'Script multiplayer' : 'Street multiplayer'}
         </p>
-        <h1>{ready ? "Let’s play." : "Better with a rival."}</h1>
+        <h1>{ready ? "Ready to play" : "Invite a friend"}</h1>
         <p>
           {ready
             ? `${state.players.length} players have joined. ${me?.isHost ? "Start whenever you’re ready." : "Your host will start the game."}`
@@ -359,7 +361,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             </p>
             <h2>{outcome.title}</h2>
             <p className="pe-reveal-place">
-              {answer?.country?.flag} {place || "Location revealed"}
+              {reveal?.scriptAnswer ? `${reveal.scriptAnswer.name} · ${reveal.scriptAnswer.endonym}` : <>{answer?.country?.flag} {place || "Location revealed"}</>}
               {answer?.date ? <small> · Imagery {answer.date}</small> : null}
             </p>
           </div>
@@ -386,7 +388,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             <span>
               {last ? "Results" : "Next round"} in {secondsLeft}s
             </span>
-            {me?.isHost ? (
+            {me?.isHost && !room.config?.matchmaking ? (
               <button
                 type="button"
                 onClick={onNext}
@@ -397,7 +399,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
                 {last ? "See results" : "Next round"}
               </button>
             ) : (
-              <small>Your host can continue early</small>
+              <small>{room.config?.matchmaking ? (last ? 'Final standings open automatically' : 'The next round starts automatically') : 'Your host can continue early'}</small>
             )}
           </div>
         </div>
@@ -530,9 +532,9 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
   const title = !hasWinner
     ? "Match complete."
     : shared
-      ? "Honours shared."
+      ? "Draw"
       : won
-        ? "Victory is yours."
+        ? "You won"
         : `${winner.name} wins.`;
   const text = [
     `Probably Earth: ${VARIANTS[room.variant]?.label || room.variant}, ${room.roundsTotal} rounds.`,
@@ -567,7 +569,15 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
         </div>
         <div className="pe-finish-next">
           <div className="pe-rematch-action">
-            {room.rematchCode ? (
+            {room.config?.matchmaking ? (
+              <Link
+                href={`/geo/rooms?game=${room.config.game === 'script' ? 'script' : 'street'}`}
+                className="pe-button pe-button--primary"
+              >
+                <RefreshCw size={18} />
+                Find another opponent
+              </Link>
+            ) : room.rematchCode ? (
               <Link
                 href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || "")}`}
                 className="pe-button pe-button--primary"
@@ -591,9 +601,11 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
               </p>
             )}
             <small>
-              {room.rematchCode
+              {room.config?.matchmaking
+                ? "Choose Find match to join the queue again."
+                : room.rematchCode
                 ? "Your next room is ready."
-                : "Same settings. A fresh set of places."}
+                : room.config?.game === 'script' ? "Same settings, new sentences." : "Same settings, new places."}
             </small>
           </div>
           <MatchRating player={own} />
@@ -659,7 +671,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
             {copied === "text" ? <Check size={16} /> : <Share2 size={16} />}{" "}
             {copied === "text" ? "Standings copied" : "Copy standings"}
           </button>
-          <Link href="/geo/leaderboard">View rankings</Link>
+          <Link href={room.config.game === 'script' ? '/geo/leaderboard?queue=script' : '/geo/leaderboard'}>View rankings</Link>
           <button type="button" onClick={onLeave}>
             <LogOut size={16} />
             Leave room
@@ -667,8 +679,9 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
         </div>
         {!players.some((p) => Number.isFinite(p.ratingDelta)) ? (
           <p className="pe-unrated-note">
-            No rating change for this match. Two or more players with profiles
-            are needed for rated play.
+            {room.config?.game === 'script'
+              ? 'Script matches do not change your Street rating.'
+              : 'No rating change for this match. Two or more players with profiles are needed for rated play.'}
           </p>
         ) : null}
       </div>

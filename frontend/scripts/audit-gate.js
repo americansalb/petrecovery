@@ -1,92 +1,64 @@
 #!/usr/bin/env node
-/**
- * npm audit as an actual gate.
- *
- * The CI step used to be:
- *
- *   npm audit --audit-level=high || echo "Vulnerabilities found - review required"
- *
- * which cannot fail. It reported green through 19 production
- * vulnerabilities, 3 of them critical and in the auth chain, for however
- * long they had been there. Nobody reviewed anything, because nothing ever
- * asked them to.
- *
- * This fails the build on any high or critical advisory in PRODUCTION
- * dependencies that is not listed in audit-allowlist.json with a reason.
- * Dev-only advisories are excluded deliberately: they ship to nobody, and
- * mixing them in is what made the old output long enough to wave through.
+/** Fail closed on high/critical production advisories or an unavailable audit.
+ * No package-name exceptions: an old review must never approve a new advisory.
  */
-
 const { execFileSync } = require('child_process');
-const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.join(__dirname, '..');
-const BLOCKING = new Set(['high', 'critical']);
+function assessAudit(report) {
+  if (!report || report.error || report.auditReportVersion !== 2
+    || !report.vulnerabilities || Array.isArray(report.vulnerabilities)
+    || typeof report.vulnerabilities !== 'object' || !report.metadata?.vulnerabilities) {
+    throw new Error('Dependency audit unavailable or malformed; release verification failed.');
+  }
+  const blocking = [];
+  for (const [name, detail] of Object.entries(report.vulnerabilities)) {
+    if (!detail || !['info', 'low', 'moderate', 'high', 'critical'].includes(detail.severity)) {
+      throw new Error(`Invalid audit entry: ${name}`);
+    }
+    if (['high', 'critical'].includes(detail.severity)) {
+      blocking.push({ name, severity: detail.severity, advisories: detail.via, fix: detail.fixAvailable });
+    }
+  }
+  const counts = report.metadata.vulnerabilities;
+  for (const severity of ['high', 'critical']) {
+    if (!Number.isInteger(counts[severity]) || counts[severity] < 0
+      || counts[severity] !== blocking.filter((entry) => entry.severity === severity).length) {
+      throw new Error('Inconsistent dependency audit totals; release verification failed.');
+    }
+  }
+  return blocking;
+}
 
 function readAudit() {
+  let output;
   try {
-    // npm audit exits non-zero when it finds anything, so the JSON comes
-    // back on the error object rather than as a clean return.
-    const out = execFileSync('npm', ['audit', '--omit=dev', '--json'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      maxBuffer: 32 * 1024 * 1024,
+    output = execFileSync('npm', ['audit', '--omit=dev', '--json'], {
+      cwd: path.join(__dirname, '..'), encoding: 'utf8', maxBuffer: 32 * 1024 * 1024,
     });
-    return JSON.parse(out);
-  } catch (err) {
-    if (err.stdout) return JSON.parse(err.stdout);
-    throw err;
+  } catch (error) {
+    // Only npm's advisory exit code can contain a usable audit.
+    if (error.status !== 1 || !error.stdout) throw error;
+    output = error.stdout;
   }
+  return JSON.parse(output);
 }
 
 function main() {
-  const allowlist = JSON.parse(
-    fs.readFileSync(path.join(ROOT, 'audit-allowlist.json'), 'utf8')
-  );
-  const allowed = allowlist.allowed || {};
-
-  const report = readAudit();
-  const vulns = report.vulnerabilities || {};
-
-  const unexpected = [];
-  const known = [];
-
-  for (const [name, detail] of Object.entries(vulns)) {
-    if (!BLOCKING.has(detail.severity)) continue;
-    (allowed[name] ? known : unexpected).push({ name, severity: detail.severity, detail });
-  }
-
-  if (known.length) {
-    console.log(`Known advisories, allowlisted with a reason (review by ${allowlist.reviewBy}):`);
-    for (const { name, severity } of known) console.log(`  ${severity.padEnd(9)} ${name}`);
-    console.log('');
-  }
-
-  // An allowlist entry for something that no longer appears is stale, and a
-  // stale allowlist is how a real advisory gets waved through later.
-  const stale = Object.keys(allowed).filter(
-    (name) => !vulns[name] || !BLOCKING.has(vulns[name].severity)
-  );
-  if (stale.length) {
-    console.log('Allowlist entries no longer needed - delete them from audit-allowlist.json:');
-    for (const name of stale) console.log(`  ${name}`);
-    console.log('');
-  }
-
-  if (unexpected.length) {
-    console.error('New high or critical advisories in production dependencies:');
-    for (const { name, severity, detail } of unexpected) {
-      const title = detail.via?.find?.((v) => v && v.title)?.title || '';
-      console.error(`  ${severity.padEnd(9)} ${name} ${title}`);
-      console.error(`            fix: ${JSON.stringify(detail.fixAvailable)}`);
+  try {
+    const blocking = assessAudit(readAudit());
+    if (blocking.length) {
+      console.error('Release blocked: high/critical production dependency advisories.');
+      for (const entry of blocking) console.error(JSON.stringify(entry));
+      process.exitCode = 1;
+      return;
     }
-    console.error('');
-    console.error('Upgrade it, or add it to audit-allowlist.json with a reason for shipping anyway.');
-    process.exit(1);
+    console.log('No high or critical advisories in production dependencies.');
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
   }
-
-  console.log('No unreviewed high or critical advisories in production dependencies.');
 }
 
-main();
+if (require.main === module) main();
+module.exports = { assessAudit };

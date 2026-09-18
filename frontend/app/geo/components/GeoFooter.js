@@ -31,6 +31,7 @@ export default function GeoFooter() {
           </a>
           , CC-BY 2.0 FR.
         </p>
+        <a href="/geo/privacy" className="underline hover:text-ocean-200">Privacy</a>
         <a href={HOME_URL} className="font-semibold text-white/80 hover:text-ocean-200 hover:underline">
           Made by ReunitePets
         </a>

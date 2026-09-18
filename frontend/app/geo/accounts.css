@@ -1,0 +1,15 @@
+.geo-surface .pe-account-dialog { padding: 0; border: 0; background: transparent; color: #f4f4e9; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; }
+.pe-account-dialog::backdrop { background: #031b26cc; backdrop-filter: blur(8px); }
+.geo-surface .pe-account-sheet { position: relative; background: #103d59; padding: 32px; }
+.geo-surface .pe-account-close { position: absolute; right: 12px; top: 12px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: #cad8d4; }
+.geo-surface .pe-account-close:hover { background: #ffffff12; }
+.geo-surface .pe-account-symbol { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: #d2e8b0; background: #426b40; margin-bottom: 20px; }
+.geo-surface .pe-account-sheet h2 { font-size: 32px; line-height: 1.15; font-weight: 750; letter-spacing: -.04em; }
+.geo-surface .pe-account-sheet > p { margin-top: 8px; color: #bdcfcc; font-size: 15px; }
+.geo-surface .pe-account-form { display: grid; gap: 16px; margin-top: 24px; }
+.geo-surface .pe-account-form label { display: grid; gap: 8px; font-size: 14px; color: #dce6e1; }
+.geo-surface .pe-account-form input { width: 100%; min-height: 52px; padding: 12px 14px; border: 1px solid #8aacae70; border-radius: 10px; background: #082833; color: #fff; font-size: 16px; }
+.geo-surface .pe-account-form input:focus { outline: 2px solid #d2e8b0; outline-offset: 2px; }
+.geo-surface .pe-account-form button[type=submit] { min-height: 52px; justify-content: center; font-size: 16px; }
+.geo-surface .pe-account-sheet :focus-visible { outline: 2px solid #d2e8b0; outline-offset: 3px; }
+@media (max-width: 480px) { .geo-surface .pe-account-sheet { padding: 28px 22px; } }

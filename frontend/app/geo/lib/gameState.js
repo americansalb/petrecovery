@@ -25,6 +25,8 @@ export function createInitialState(config) {
 
 export function reducer(state, action) {
   switch (action.type) {
+    case 'restore':
+      return { ...createInitialState(action.snapshot.config || state.config), ...action.snapshot, error: null };
     case 'load_start':
       return { ...state, status: 'loading', current: null, pin: null, error: null };
     case 'load_success': {
@@ -35,7 +37,9 @@ export function reducer(state, action) {
       return { ...state, status: 'playing', current: round, pin: null, error: null, attempt: 0, roundStartedAt: action.now ?? Date.now() };
     }
     case 'located': {
-      if (!state.current) return state;
+      // A restored reveal can remount the imagery pane. Its late callback
+      // must not turn an already-scored round back into a playable one.
+      if (state.status !== 'locating' || !state.current) return state;
       const candidate = state.current.candidates?.[action.index];
       if (!candidate) return state;
       return {

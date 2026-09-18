@@ -85,9 +85,12 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
     throw new GeoGameError('no_secret', 'Set NEXTAUTH_SECRET or GEO_TOKEN_SECRET before starting a game');
   }
   const roundId = randomBytes(9).toString('base64url');
+  // Validate the requested country/continent even when the rare panorama
+  // branch wins. No candidate is drawn until the ordinary-round branch.
+  const source = createCandidateSource(config, roundIndex);
 
   // One casual round in two hundred is not on this planet. Drawn before
-  // the sampler runs, because there is no point on Earth to draw: the
+  // sampling a coordinate, because there is no point on Earth to draw: the
   // round is a NASA panorama and a single token.
   const place = notEarthFor({ config, roundIndex });
   if (place) {
@@ -113,8 +116,6 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
       ),
     };
   }
-
-  const source = createCandidateSource(config, roundIndex);
 
   // A retry of a seeded round must not replay the same failed points:
   // skip ahead in the deterministic sequence instead.

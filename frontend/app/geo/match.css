@@ -569,9 +569,15 @@
   min-width: 0;
 }
 .geo-surface .pe-finish-player > span:first-child {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
   font-size: 17px;
   font-weight: 650;
+}
+.geo-surface .pe-finish-player > span:first-child > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .geo-surface .pe-finish-player > span:last-child {
   display: block;
@@ -580,6 +586,7 @@
   margin-top: 5px;
 }
 .geo-surface .pe-finish-score {
+  flex-shrink: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -1025,4 +1032,48 @@
   .geo-surface .pe-victory-burst i {
     animation: none;
   }
+}
+.pe-room-sentence {
+  position: absolute;
+  top: 24%;
+  left: 5%;
+  width: min(42%, 640px);
+  max-height: 55%;
+  overflow-y: auto;
+  padding: 28px;
+  background: #f4eddc;
+  color: #173926;
+  border-radius: 12px;
+}
+.pe-room-sentence > p { font-size: 14px; margin-bottom: 20px; }
+.pe-room-script-map { position: absolute; right: 16px; top: 24%; bottom: 96px; width: 48%; }
+@media (max-width: 639px) {
+  .pe-room-script-round {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 150px 12px 70px;
+  }
+  .pe-room-script-round .pe-room-sentence {
+    position: relative;
+    inset: auto;
+    grid-row: 1;
+    width: 100%;
+    max-height: 25dvh;
+    min-height: 0;
+    padding: 14px 16px;
+  }
+  .pe-room-script-round .pe-room-sentence > p { font-size: 12px; margin-bottom: 8px; }
+  .pe-room-script-round .pe-room-script-map {
+    position: relative;
+    inset: auto;
+    grid-row: 2;
+    width: 100%;
+    min-height: 0;
+  }
+  .pe-room-script-round .pe-map-toolbar { padding-top: 7px; padding-bottom: 7px; }
+}
+@media (max-width: 639px) and (max-height: 700px) {
+  .pe-room-script-round { padding-top: 150px; padding-bottom: 60px; gap: 6px; }
+  .pe-room-script-round .pe-room-sentence { max-height: 22dvh; padding: 10px 14px; }
 }

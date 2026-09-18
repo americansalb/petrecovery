@@ -19,9 +19,51 @@ const include = {
   rounds: { include: { guesses: true }, orderBy: { index: 'asc' } },
 };
 
-const databaseStore = {
+export function databaseStoreFor(prisma) { return {
+  async withRatingLock(work) {
+    return prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73041929)`;
+      return work(databaseStoreFor(tx));
+    }, { maxWait: 10000, timeout: 10000 });
+  },
+  async withAccountLock(work) {
+    return prisma.$transaction(async (tx) => {
+      // First sign-in claims both an account and a guest profile. Serialize
+      // that small DB-only operation across instances, including email/phone
+      // attempts sharing one guest. Token consumption rolls back on failure.
+      // Sending mail and checking SMS codes must remain outside this lock.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73041928)`;
+      return work(databaseStoreFor(tx));
+    }, { maxWait: 10000, timeout: 10000 });
+  },
+  async withMatchmakingLock(work) {
+    return prisma.$transaction(async (tx) => {
+      // A transaction-scoped lock works across server instances and releases
+      // on crash/rollback. Never hold it while fetching imagery or sending mail.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73041927)`;
+      return work(databaseStoreFor(tx));
+    }, { maxWait: 10000, timeout: 10000 });
+  },
+  getMatchmakingTicket(profileId) {
+    return prisma.geoMatchmakingTicket.findUnique({ where: { profileId } });
+  },
+  putMatchmakingTicket(data) {
+    return prisma.geoMatchmakingTicket.upsert({ where: { profileId: data.profileId }, create: data, update: data });
+  },
+  deleteMatchmakingTicket(profileId) {
+    return prisma.geoMatchmakingTicket.deleteMany({ where: { profileId } });
+  },
+  listMatchmakingOpponents({ game, profileId, since }) {
+    return prisma.geoMatchmakingTicket.findMany({
+      where: { game, profileId: { not: profileId }, roomCode: null, lastSeenAt: { gte: new Date(since) }, profile: { account: { is: { suspendedAt: null } } } },
+      orderBy: [{ joinedAt: 'asc' }, { profileId: 'asc' }],
+    });
+  },
   getRoomByCode(code) {
     return prisma.geoRoom.findUnique({ where: { code }, include });
+  },
+  getRoomByCreationKey(creationKey) {
+    return prisma.geoRoom.findUnique({ where: { creationKey }, include });
   },
   getRoomById(id) {
     return prisma.geoRoom.findUnique({ where: { id }, include });
@@ -89,6 +131,9 @@ const databaseStore = {
   getAccountByEmail(email) {
     return prisma.geoAccount.findUnique({ where: { email } });
   },
+  getAccountByPhone(phone) {
+    return prisma.geoAccount.findUnique({ where: { phone } });
+  },
   getAccountById(id) {
     return prisma.geoAccount.findUnique({ where: { id } });
   },
@@ -97,6 +142,13 @@ const databaseStore = {
   },
   updateAccount(id, data) {
     return prisma.geoAccount.update({ where: { id }, data });
+  },
+  async saveAccountGame(id, expectedRevision, savedGame) {
+    const result = await prisma.geoAccount.updateMany({
+      where: { id, savedGameRevision: expectedRevision },
+      data: { savedGame, savedGameRevision: { increment: 1 } },
+    });
+    return result.count === 1;
   },
   getAccountById(id) {
     return prisma.geoAccount.findUnique({ where: { id } });
@@ -192,8 +244,8 @@ const databaseStore = {
     const table = season === 's0' ? prisma.geoRating : prisma.geoSeasonRating;
     return table.findMany({
       where: season === 's0' ? { ladder, games: { gte: minGames } } : { ladder, season, games: { gte: minGames } },
-      orderBy: [{ rating: 'desc' }, { games: 'desc' }],
-      take: limit,
+      orderBy: [{ rating: 'desc' }, { games: 'desc' }, { profileId: 'asc' }],
+      ...(limit == null ? {} : { take: limit }),
       include: { profile: { select: { id: true, name: true, equipped: true } } },
     });
   },
@@ -351,7 +403,9 @@ const databaseStore = {
   countBadges(profileId) {
     return prisma.geoBadge.count({ where: { profileId } });
   },
-};
+}; }
+
+const databaseStore = databaseStoreFor(prisma);
 
 /**
  * The store the game actually uses.

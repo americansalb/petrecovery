@@ -28,6 +28,10 @@ export function createMemoryRoomStore() {
   const unlocks = new Map(); // key `${profileId}|${itemId}`
   const badges = new Map(); // key `${profileId}|${countryCode}`
   const finals = new Map(); // challenge key -> { finalizedAt, prizes }
+  const matchmaking = new Map();
+  let matchmakingTail = Promise.resolve();
+  let accountTail = Promise.resolve();
+  let ratingTail = Promise.resolve();
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -44,9 +48,41 @@ export function createMemoryRoomStore() {
     return { ...room, players: roomPlayers, rounds: roomRounds };
   }
 
-  return {
+  const store = {
+    async withRatingLock(work) {
+      const previous = ratingTail;
+      let release;
+      ratingTail = new Promise((resolve) => { release = resolve; });
+      await previous;
+      try { return await work(store); } finally { release(); }
+    },
+    async withAccountLock(work) {
+      const previous = accountTail;
+      let release;
+      accountTail = new Promise((resolve) => { release = resolve; });
+      await previous;
+      try { return await work(store); } finally { release(); }
+    },
+    async withMatchmakingLock(work) {
+      const previous = matchmakingTail;
+      let release;
+      matchmakingTail = new Promise((resolve) => { release = resolve; });
+      await previous;
+      try { return await work(store); } finally { release(); }
+    },
+    async getMatchmakingTicket(profileId) { return matchmaking.has(profileId) ? { ...matchmaking.get(profileId) } : null; },
+    async putMatchmakingTicket(data) { matchmaking.set(data.profileId, { ...data }); return { ...data }; },
+    async deleteMatchmakingTicket(profileId) { matchmaking.delete(profileId); },
+    async listMatchmakingOpponents({ game, profileId, since }) {
+      const found = [...matchmaking.values()].filter((entry) => entry.game === game && entry.profileId !== profileId && !entry.roomCode && +new Date(entry.lastSeenAt) >= since && accounts.has(profiles.get(entry.profileId)?.accountId) && !accounts.get(profiles.get(entry.profileId)?.accountId)?.suspendedAt)
+        .sort((a, b) => +new Date(a.joinedAt) - +new Date(b.joinedAt) || a.profileId.localeCompare(b.profileId));
+      return found.map((row) => ({ ...row }));
+    },
     async getRoomByCode(code) {
       return compose([...rooms.values()].find((r) => r.code === code));
+    },
+    async getRoomByCreationKey(creationKey) {
+      return compose([...rooms.values()].find((r) => r.creationKey === creationKey));
     },
     async getRoomById(roomId) {
       return compose(rooms.get(roomId));
@@ -122,6 +158,10 @@ export function createMemoryRoomStore() {
       const a = [...accounts.values()].find((x) => x.email === email);
       return a ? { ...a } : null;
     },
+    async getAccountByPhone(phone) {
+      const a = [...accounts.values()].find((x) => x.phone === phone);
+      return a ? { ...a } : null;
+    },
     async getAccountById(accountId) {
       const a = accounts.get(accountId);
       return a ? { ...a } : null;
@@ -137,6 +177,12 @@ export function createMemoryRoomStore() {
       Object.assign(account, data);
       return { ...account };
     },
+    async saveAccountGame(accountId, expectedRevision, savedGame) {
+      const account = accounts.get(accountId);
+      if (!account || (account.savedGameRevision || 0) !== expectedRevision) return false;
+      Object.assign(account, { savedGame, savedGameRevision: expectedRevision + 1 });
+      return true;
+    },
     async getAccountById(accountId) {
       const account = accounts.get(accountId);
       return account ? { ...account } : null;
@@ -146,6 +192,7 @@ export function createMemoryRoomStore() {
     },
     async deleteProfile(profileId) {
       profiles.delete(profileId);
+      matchmaking.delete(profileId);
       // The schema cascades from the profile to everything that names
       // it, the board rows included; this store does the same, so a
       // test here proves what production does.
@@ -260,8 +307,8 @@ export function createMemoryRoomStore() {
     async listLeaderboard(ladder, { limit = 50, minGames = 0, season = seasonFor().key } = {}) {
       return [...ratings.values()]
         .filter((r) => r.ladder === ladder && r.season === season && (r.games || 0) >= minGames)
-        .sort((a, b) => b.rating - a.rating)
-        .slice(0, limit)
+        .sort((a, b) => b.rating - a.rating || (b.games || 0) - (a.games || 0) || a.profileId.localeCompare(b.profileId))
+        .slice(0, limit == null ? undefined : limit)
         .map((r) => ({ ...r, profile: { id: r.profileId, name: profiles.get(r.profileId)?.name || 'Player', equipped: profiles.get(r.profileId)?.equipped || null } }));
     },
     async getRecentResults(profileId, limit = 10) {
@@ -417,4 +464,5 @@ export function createMemoryRoomStore() {
       };
     },
   };
+  return store;
 }

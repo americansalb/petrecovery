@@ -8,6 +8,8 @@
  * Set REDIS_URL environment variable to enable Redis mode.
  */
 
+import { clientAddress } from '@/app/lib/geo/clientAddress';
+
 // Redis client (lazy initialized)
 let redisClient = null;
 let redisAvailable = false;
@@ -65,10 +67,17 @@ async function getRedisClient() {
     });
 
     // connect() can stall while the client retries; cap the wait outright.
-    await Promise.race([
-      redisClient.connect(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('redis connect timeout')), 3000)),
-    ]);
+    let connectTimeout;
+    try {
+      await Promise.race([
+        redisClient.connect(),
+        new Promise((_, reject) => {
+          connectTimeout = setTimeout(() => reject(new Error('redis connect timeout')), 3000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(connectTimeout);
+    }
     redisAvailable = true;
     return redisClient;
   } catch (err) {
@@ -82,7 +91,7 @@ async function getRedisClient() {
 // Clean up old in-memory entries every 5 minutes
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, data] of requestCounts.entries()) {
       if (now - data.windowStart > data.windowMs * 2) {
@@ -95,6 +104,8 @@ if (typeof setInterval !== 'undefined') {
       }
     }
   }, CLEANUP_INTERVAL);
+  // Housekeeping must not keep a server worker or test process alive.
+  cleanupTimer?.unref?.();
 }
 
 /**
@@ -128,25 +139,7 @@ export const RateLimitPresets = {
  * The leftmost-XFF path remains only as a last-resort fallback for local/dev.
  */
 export function getClientIP(request) {
-  const trustedHeader = process.env.RATELIMIT_TRUSTED_IP_HEADER;
-  if (trustedHeader) {
-    const trusted = request.headers.get(trustedHeader.toLowerCase());
-    if (trusted) {
-      return trusted.split(',')[0].trim();
-    }
-  }
-
-  const realIP = request.headers.get('x-real-ip');
-  if (realIP) {
-    return realIP;
-  }
-
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-
-  return 'unknown';
+  return clientAddress(request);
 }
 
 /**

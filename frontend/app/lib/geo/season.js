@@ -12,6 +12,7 @@ export const SEASON_MIN_GAMES = 3; // rated games needed for a season reward
 
 /** Points for last season's final tier on a ladder. */
 export const SEASON_REWARDS = Object.freeze({
+  Wood: 0,
   Copper: 0,
   // Historical keys remain readable for archived season rewards.
   Bronze: 0,
@@ -19,6 +20,7 @@ export const SEASON_REWARDS = Object.freeze({
   Gold: 200,
   Platinum: 100,
   Sapphire: 350,
+  Meteorite: 800,
   Diamond: 350,
   Master: 500,
   Grandmaster: 800,

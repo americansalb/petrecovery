@@ -138,9 +138,9 @@ describe('a whole game', () => {
   });
 
   test('tiers, display and provisional flags read sensibly', () => {
-    expect(tierFor(1500)).toBe('Silver');
-    expect(tierFor(1200)).toBe('Copper');
-    expect(tierFor(2250)).toBe('Sapphire');
+    expect(tierFor({ rank: 40, population: 100, games: 5 })).toBe('Silver');
+    expect(tierFor({ rank: 65, population: 100, games: 5 })).toBe('Copper');
+    expect(tierFor({ rank: 10, population: 100, games: 5 })).toBe('Sapphire');
     expect(displayRating(1512.4, 100)).toEqual({ value: 1512, low: 1312, high: 1712 });
     expect(isProvisional(2)).toBe(true);
     expect(isProvisional(5)).toBe(false);
@@ -148,7 +148,20 @@ describe('a whole game', () => {
 });
 
 // League boundaries agree across independent ladders without resetting skill.
-test('five elemental leagues use explicit, inclusive boundaries', () => {
-  expect([1399, 1400, 1549, 1550, 1699, 1700, 1849, 1850, 2400].map(tierFor))
-    .toEqual(['Copper', 'Silver', 'Silver', 'Platinum', 'Platinum', 'Gold', 'Gold', 'Sapphire', 'Sapphire']);
+test('percentile leagues use inclusive boundaries, without overlapping rewards', () => {
+  expect([1, 10, 11, 25, 26, 45, 46, 70, 71, 100].map((rank) => tierFor({ rank, population: 100, games: 5 })))
+    .toEqual(['Sapphire', 'Sapphire', 'Gold', 'Gold', 'Silver', 'Silver', 'Copper', 'Copper', 'Wood', 'Wood']);
+});
+
+test('Meteorite is top five AND proven accuracy, even in a small launch', () => {
+  const base = { rank: 5, population: 20, games: 20, accuracy: 0.8 };
+  expect(tierFor(base)).toBe('Meteorite');
+  expect(tierFor({ ...base, games: 19 })).toBe('Gold');
+  expect(tierFor({ ...base, accuracy: 0.7999 })).toBe('Gold');
+  expect(tierFor({ ...base, accuracy: null })).toBe('Gold');
+  expect(tierFor({ ...base, rank: 6 })).toBe('Silver');
+  expect(tierFor({ ...base, games: 4 })).toBeNull();
+  expect(tierFor({ ...base, rank: 0 })).toBeNull();
+  expect(tierFor({ ...base, population: 0 })).toBeNull();
+  expect(tierFor({ rank: 1, population: 1, games: 5 })).toBe('Sapphire');
 });

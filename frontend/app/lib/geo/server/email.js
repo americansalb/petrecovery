@@ -19,7 +19,7 @@
  * Server only.
  */
 
-const FROM = process.env.GEO_MAIL_FROM || 'Probably Earth <onboarding@resend.dev>';
+const DEVELOPMENT_FROM = 'Probably Earth <onboarding@resend.dev>';
 
 export async function sendSignInEmail({ to, url, env = process.env, sendImpl } = {}) {
   if (!to || !url) return { sent: false, reason: 'missing_arguments' };
@@ -40,15 +40,25 @@ export async function sendSignInEmail({ to, url, env = process.env, sendImpl } =
     return { sent: true, delivered: false, reason: 'logged_not_sent' };
   }
 
+  const configuredFrom = String(env.GEO_MAIL_FROM || '').trim();
+  // Resend's shared domain can only mail the provider account's own address.
+  // A successful request there is not evidence that player signup works.
+  // Keep the game's sender explicit instead of borrowing the pet site's brand.
+  if (env.NODE_ENV === 'production' && (!configuredFrom || /@resend\.dev\s*>?\s*$/i.test(configuredFrom))) {
+    console.error('[geo/email] set GEO_MAIL_FROM to an address on a verified sending domain');
+    return { sent: false, delivered: false, reason: 'no_mail_sender' };
+  }
+
   try {
     const send = sendImpl || (await resendSender(key));
-    await send({
-      from: env.GEO_MAIL_FROM || FROM,
+    const result = await send({
+      from: configuredFrom || DEVELOPMENT_FROM,
       to,
       subject: 'Your sign-in link',
       text: signInText(url),
       html: signInHtml(url),
     });
+    if (result?.error) throw new Error('Mail provider rejected the sign-in email');
     return { sent: true, delivered: true };
   } catch (error) {
     console.error('[geo/email] send failed:', error?.message || error);

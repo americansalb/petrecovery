@@ -18,8 +18,9 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import SignInCard from '../components/SignInCard';
+import { safeReturnTo } from '@/app/lib/geo/authReturn';
 
-export default function GeoSignInPage() {
+export default function GeoSignInPage({ searchParams }) {
   return (
     <main className="mx-auto max-w-md px-4 py-12 sm:py-20">
       <Link href="/geo" className="inline-flex items-center gap-2 text-sm font-semibold text-white/60 transition hover:text-white">
@@ -31,7 +32,7 @@ export default function GeoSignInPage() {
           and a page that says it first makes the screen read the same
           sentence twice. */}
       <div className="mt-6">
-        <SignInCard />
+        <SignInCard requireName returnTo={safeReturnTo(searchParams?.next)} />
       </div>
     </main>
   );

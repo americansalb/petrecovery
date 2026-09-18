@@ -55,9 +55,31 @@ function cookieFrom(response) {
 }
 
 describe('the sign-in routes', () => {
+  test('production without a verified sender reports setup failure, not mail on its way', async () => {
+    const keys = ['NODE_ENV', 'RESEND_API_KEY', 'GEO_MAIL_FROM'];
+    const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      process.env.NODE_ENV = 'production';
+      process.env.RESEND_API_KEY = 'test-key';
+      delete process.env.GEO_MAIL_FROM;
+      const response = await postRequest(request({ email: 'sender-config@example.test' }));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ code: 'mail_not_configured' });
+    } finally {
+      for (const key of keys) {
+        if (previous[key] === undefined) delete process.env[key];
+        else process.env[key] = previous[key];
+      }
+      spy.mockRestore();
+    }
+  });
+
   test('me says nobody when there is no cookie', async () => {
-    const body = await (await getMe(request(null))).json();
+    const response = await getMe(request(null));
+    const body = await response.json();
     expect(body).toMatchObject({ signedIn: false, email: null });
+    expect(response.headers.get('set-cookie')).toBeNull();
   });
 
   test('a link binds the browser profile, signs in, and signs out again', async () => {
@@ -107,6 +129,41 @@ describe('the sign-in routes', () => {
 
     const madeUp = await getVerify({ url: 'http://localhost/api/geo/auth/verify?token=nope', headers: new Map() });
     expect(madeUp.headers.get('location')).toContain('sign-in-failed=that-link-is-not-valid');
+  });
+
+  test('Render internal localhost origin never becomes the production sign-in destination', async () => {
+    delete process.env.RESEND_API_KEY;
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await postRequest(request({ email: 'render-origin@example.test', returnTo: '/geo/rooms?game=script' }));
+    const url = new URL(linkFromLog(spy, 'render-origin@example.test'));
+    spy.mockRestore();
+    const previous = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'production';
+      const internalUrl = `https://localhost:10000${url.pathname}${url.search}`;
+      const done = await getVerify({ url: internalUrl, headers: new Map() });
+      expect(done.headers.get('location')).toBe('https://probablyearth.com/geo/rooms?game=script&signed-in=1');
+      expect(done.headers.get('set-cookie')).toContain('Secure');
+      const replay = await getVerify({ url: internalUrl, headers: new Map() });
+      expect(new URL(replay.headers.get('location')).origin).toBe('https://probablyearth.com');
+    } finally {
+      if (previous === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previous;
+    }
+  });
+
+  test('a link returns to the internal game screen that asked for it, never an outside URL', async () => {
+    delete process.env.RESEND_API_KEY;
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await postRequest(request({ email: 'return@example.com', returnTo: '/geo/rooms?variant=duel' }));
+    const url = linkFromLog(spy, 'return@example.com');
+    spy.mockRestore();
+    const done = await getVerify({ url, headers: new Map() });
+    expect(done.headers.get('location')).toContain('/geo/rooms?variant=duel&signed-in=1');
+
+    // A caller cannot turn an email link into an open redirect.
+    const unsafe = await postRequest(request({ email: 'safe@example.com', returnTo: 'https://elsewhere.test' }));
+    expect(unsafe.status).toBe(200);
   });
 
   test('a bad address is refused before anything is written', async () => {

@@ -12,6 +12,13 @@ const google = { provider: 'google', panoId: 'p1', heading: 90, token: 'g1.abc',
 const result = (score, extra = {}) => ({ kind: 'pin', score, distanceKm: 100, answer: { lat: 1, lng: 2, country: { code: 'FR', name: 'France', flag: '🇫🇷' } }, guess: { lat: 1, lng: 3 }, ...extra });
 
 describe('game reducer', () => {
+  test('restoring a completed round continues at the following round', () => {
+    const config = normalizeConfig({ rounds: 3, seed: 'resume' });
+    const snapshot = { ...createInitialState(config), status: 'result', roundIndex: 1, rounds: [result(1000), result(2000)] };
+    const restored = reducer(createInitialState(config), { type: 'restore', snapshot });
+    expect(totalScore(restored)).toBe(3000);
+    expect(reducer(restored, { type: 'next' })).toMatchObject({ status: 'idle', roundIndex: 2 });
+  });
   test('a three-round pin game runs to the summary', () => {
     let s = createInitialState(normalizeConfig({ mode: 'world', rounds: 3, seed: 'x' }));
     for (let i = 0; i < 3; i++) {
@@ -74,6 +81,18 @@ describe('game reducer', () => {
     expect(s.status).toBe('playing');
     expect(s.current.token).toBe('g1.b');
     expect(s.current.candidateIndex).toBe(1);
+  });
+
+  test('imagery arriving after a restored reveal cannot reopen or rescore that round', () => {
+    const config = normalizeConfig({ rounds: 3, seed: 'street-refresh' });
+    const snapshot = { ...createInitialState(config), status: 'result', rounds: [result(506, { points: { earned: 3, balance: 3 } })],
+      current: { provider: 'apple', candidates: [{ lat: 1, lng: 1, token: 'g1.a' }] } };
+    const restored = reducer(createInitialState(config), { type: 'restore', snapshot });
+    const lateImagery = reducer(restored, { type: 'located', index: 0 });
+    expect(lateImagery).toBe(restored);
+    expect(totalScore(lateImagery)).toBe(506);
+    expect(lateImagery.rounds[0].points).toEqual({ earned: 3, balance: 3 });
+    expect(reducer(lateImagery, { type: 'next' })).toMatchObject({ status: 'idle', roundIndex: 1 });
   });
 
   test('errors retry with a new attempt number', () => {

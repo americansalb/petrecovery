@@ -130,9 +130,9 @@ export default function AdminClient() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by email"
+              placeholder="Search by email or phone"
               className="w-56 bg-transparent text-sm outline-none placeholder:text-white/40"
-              aria-label="Search accounts by email"
+              aria-label="Search accounts by email or phone"
             />
           </label>
         </div>
@@ -155,7 +155,7 @@ export default function AdminClient() {
               {accounts.map((account) => (
                 <tr key={account.id} className={account.suspended ? 'bg-clay-50/60' : ''}>
                   <td className="px-4 py-2">
-                    <span className="font-medium text-white">{account.email}</span>
+                    <span className="font-medium text-white">{account.email || account.phone}</span>
                     {account.storedRole !== account.role ? (
                       <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase text-ocean-200">by config</span>
                     ) : null}
@@ -166,7 +166,7 @@ export default function AdminClient() {
                       disabled={busy === account.id || account.storedRole !== account.role}
                       onChange={(event) => change(account.id, { role: event.target.value })}
                       className="rounded-lg border border-white/15 bg-ocean-900/60 px-2 py-1 text-sm disabled:opacity-50"
-                      aria-label={`Role for ${account.email}`}
+                      aria-label={`Role for ${account.email || account.phone}`}
                     >
                       {ROLES.map((role) => (
                         <option key={role} value={role}>
@@ -181,7 +181,7 @@ export default function AdminClient() {
                       disabled={busy === account.id}
                       onChange={(event) => change(account.id, { tier: event.target.value })}
                       className="rounded-lg border border-white/15 bg-ocean-900/60 px-2 py-1 text-sm disabled:opacity-50"
-                      aria-label={`Tier for ${account.email}`}
+                      aria-label={`Tier for ${account.email || account.phone}`}
                     >
                       {TIERS.map((tier) => (
                         <option key={tier} value={tier}>

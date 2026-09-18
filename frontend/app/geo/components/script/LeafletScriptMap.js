@@ -39,18 +39,28 @@
  */
 
 import 'leaflet/dist/leaflet.css';
+import './script-round.css';
 import { useEffect, useRef, useState } from 'react';
 import { chooseLabels } from '../../lib/countryLabels';
+import { revealMapPadding } from '../../lib/mapFit';
+import KeyboardMap from '../KeyboardMap';
 
 const ANSWER = '#16a34a';
 const GUESS = '#e08c0a';
 // Warm land on a pale sea, matching script-round.css. A map reads
 // better as paper than as a hole in the dark.
 const LAND = { fillColor: '#f7f2e7', fillOpacity: 1, color: '#cbbda6', weight: 0.7, opacity: 1 };
-const MIN_ZOOM = 1;
+const MIN_ZOOM = 0;
 // 1:110m coastlines are simplified; past this they read as polygons
 // rather than coasts, and nothing in the round needs closer.
 const MAX_ZOOM = 7;
+
+function showWorld(map) {
+  map.stop();
+  const size = map.getSize();
+  if (size.x < 32 || size.y < 32) return;
+  map.fitBounds([[-55, -180], [75, 180]], { padding: [12, 12], animate: false });
+}
 
 /**
  * The world's outline and the names on it, loaded once per page. The
@@ -209,12 +219,13 @@ function addLabels(L, map, rows) {
   };
 }
 
-export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, nearestPoint = null, mode = 'guess', className = '', onMapTrouble }) {
+export default function LeafletScriptMap({ pin, onPin, answer = null, guess = null, nearestPoint = null, selectedRegion = null, mode = 'guess', className = '', onMapTrouble }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
   const leafletRef = useRef(null);
   const pinRef = useRef(null);
   const drawnRef = useRef([]);
+  const fitRevealRef = useRef(null);
   const onPinRef = useRef(onPin);
   const onTroubleRef = useRef(onMapTrouble);
   // Leaflet arrives in its own chunk, so the map does not exist on the
@@ -249,8 +260,11 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
         zoomControl: false,
+        zoomSnap: 0.25,
+        keyboard: false,
         attributionControl: true,
       }).setView([20, 0], 2);
+      showWorld(map);
       L.control.zoom({ position: 'bottomleft' }).addTo(map);
       map.on('click', (event) => {
         if (!interactiveRef.current) return;
@@ -308,6 +322,20 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
 
   // The pin being placed.
   useEffect(() => {
+    if (!ready || !hostRef.current || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(() => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.stop();
+      map.invalidateSize({ pan: false });
+      if (interactiveRef.current && !pinRef.current) showWorld(map);
+      else fitRevealRef.current?.(false);
+    });
+    observer.observe(hostRef.current);
+    return () => observer.disconnect();
+  }, [ready]);
+
+  useEffect(() => {
     const map = mapRef.current;
     const L = leafletRef.current;
     if (!map || !L) return;
@@ -326,9 +354,17 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     if (!map || !L) return;
     for (const layer of drawnRef.current) map.removeLayer(layer);
     drawnRef.current = [];
-    if (mode !== 'result' || !answer) return;
+    fitRevealRef.current = null;
+    if (mode !== 'result' || !answer) {
+      // A new clue starts with the whole world, not the previous answer.
+      if (mode === 'guess') {
+        showWorld(map);
+      }
+      return;
+    }
 
     const drawn = [];
+    let focusedShape = null;
     for (const region of answer.regions || []) {
       const style = { color: ANSWER, weight: 2, fillColor: ANSWER, fillOpacity: 0.22, className: 'wg-region' };
       // South Asian languages are drawn as the states, districts and
@@ -339,6 +375,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         ? L.polygon(region.rings.map((ring) => ring.map(([lng, lat]) => [lat, lng])), style)
         : L.circle([region.lat, region.lng], { ...style, radius: region.radiusKm * 1000 });
       drawn.push(shape.addTo(map).bindTooltip(`${region.name} (${answer.name})`));
+      if (answer.regions.indexOf(region) === selectedRegion) focusedShape = shape;
     }
     if (guess) {
       drawn.push(L.marker([guess.lat, guess.lng], { icon: dot(L, GUESS, 'Your guess'), keyboard: false }).addTo(map));
@@ -361,28 +398,39 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     drawnRef.current = drawn;
 
     try {
-      const group = L.featureGroup(drawn);
+      const group = L.featureGroup(focusedShape ? [focusedShape] : drawn);
       const bounds = group.getBounds();
-      // Flown, not cut. The player needs to see which way the answer was
-      // from their pin, and a jump cut loses that; a second of travel
-      // keeps it. The cleanup above stops it if the round ends mid-flight.
-      if (bounds.isValid()) {
-        map.flyToBounds(bounds, {
-          // Room at the bottom for the answer panel, which slides up
-          // over the map as this flight lands.
-          paddingTopLeft: [44, 44],
-          paddingBottomRight: [44, 230],
-          maxZoom: MAX_ZOOM,
-          duration: 0.9,
-          easeLinearity: 0.2,
-        });
-      }
-    } catch {
-      /* one layer, or none: leave the view alone */
+      const fit = (animate = true) => {
+        const size = map.getSize();
+        const padding = revealMapPadding(size.x, size.y);
+        if (!bounds.isValid() || !padding) return;
+        map.stop();
+        const options = { ...padding, maxZoom: MAX_ZOOM, duration: 0.9, easeLinearity: 0.2, animate };
+        if (animate) map.flyToBounds(bounds, options);
+        else map.fitBounds(bounds, options);
+      };
+      fitRevealRef.current = fit;
+      // Restoration can mount directly into a reveal while layout is settling.
+      // An immediate fit is deterministic; an in-flight fly can be cancelled by
+      // Leaflet's resize handling and leave the answer offscreen.
+      fit(false);
+    } catch (error) {
+      console.warn('[Script map] Could not frame the answer', error?.message || error);
     }
-  }, [answer, guess, nearestPoint, mode, ready]);
+  }, [answer, guess, nearestPoint, selectedRegion, mode, ready]);
 
-  return <div ref={hostRef} className={`h-full w-full ${className}`} data-script-map="leaflet" data-map-mode={mode} />;
+  return <KeyboardMap className={className} interactive={mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'}
+    pan={(x, y) => mapRef.current?.panBy([x * 80, y * 80], { animate: false })}
+    zoom={(direction) => mapRef.current?.setZoom(mapRef.current.getZoom() + direction, { animate: false })}
+    place={() => {
+      const center = mapRef.current?.getCenter();
+      if (!center) return null;
+      const point = { lat: Math.max(-85, Math.min(85, center.lat)), lng: Math.max(-180, Math.min(180, center.lng)) };
+      onPinRef.current?.(point);
+      return point;
+    }}>
+    <div ref={hostRef} className="h-full w-full" style={{ background: '#dce9f2', '--wg-label': '#6a6050' }} data-script-map="leaflet" data-map-mode={mode} />
+  </KeyboardMap>;
 }
 
 /**

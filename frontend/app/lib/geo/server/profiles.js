@@ -11,7 +11,8 @@
 
 import { hashToken, newPlayerToken } from './rooms';
 import { sanitizeName, sortStandings } from '../rooms';
-import { LADDERS, PROVISIONAL_GAMES, RATING_DEFAULT, RD_DEFAULT, displayRating, isProvisional, placementsFrom, rateGame, tierFor } from '../rating';
+import { LADDERS, PROVISIONAL_GAMES, RATING_DEFAULT, RD_DEFAULT, displayRating, isProvisional, placementsFrom, rateGame } from '../rating';
+import { rankingViews } from './rankings';
 import { bodyByCode } from '../notEarth';
 import { MAX_ROUND_SCORE } from '../distance';
 import { equippedView } from '../items';
@@ -19,7 +20,7 @@ import { countryByCode } from './countries';
 import { carryRating, daysLeft, previousSeasonKey, seasonByKey, seasonFor, seasonReward } from '../season';
 import { grant } from './points';
 
-export const LEADERBOARD_MIN_GAMES = 3;
+export const LEADERBOARD_MIN_GAMES = PROVISIONAL_GAMES;
 
 const toMs = (v) => (v instanceof Date ? v.getTime() : typeof v === 'number' ? v : v ? Date.parse(v) : null);
 
@@ -56,8 +57,11 @@ export async function resolveProfile(store, { token, accountId, name, now = Date
   // Asked before anything is read or written, so a suspended account
   // cannot even refresh its own lastSeenAt.
   if (accountId && typeof store.getAccountById === 'function') {
-    const account = await store.getAccountById(accountId).catch(() => null);
+    const account = await store.getAccountById(accountId);
     if (account?.suspendedAt) throw new GeoSuspended();
+    // A deleted account's still-signed cookie must not attach a new guest
+    // profile to a nonexistent account (or lose its name during signup).
+    if (!account) accountId = null;
   }
   const hash = token ? hashToken(token) : null;
   // The account is the game's own (server/accounts.js), never a
@@ -72,7 +76,9 @@ export async function resolveProfile(store, { token, accountId, name, now = Date
     // browser's anonymous profile is left alone rather than folded in.
     // Merging two rating histories has no right answer.
     profile = byAccount;
-  } else if (byToken) {
+  } else if (byToken && (!byToken.accountId || byToken.accountId === accountId)) {
+    // A shared browser can retain another account's anonymous token.
+    // Signed-out play or a different account must not adopt or rename it.
     profile = accountId && !byToken.accountId ? await store.updateProfile(byToken.id, { accountId }) : byToken;
   }
 
@@ -118,7 +124,7 @@ export async function ensureSeasonRows(store, profileIds, ladder, now = Date.now
         { rating: carried.rating, rd: carried.rd, games: 0, wins: 0, podiums: 0, peak: carried.rating, streak: 0, lastPlayedAt: prev.lastPlayedAt || null },
         season.key
       );
-      const tier = tierFor(prev.rating);
+      const tier = (await rankingViews(store, ladder, prevKey)).find((r) => r.profileId === prev.profileId)?.tier;
       const reward = seasonReward(tier, prev.games);
       if (reward > 0) {
         const last = seasonByKey(prevKey);
@@ -142,7 +148,7 @@ export function seasonView(now = Date.now()) {
   return { key: season.key, number: season.number, label: season.label, startsAt: Number.isFinite(season.startsAt) ? season.startsAt : null, endsAt: season.endsAt, daysLeft: daysLeft(season, now) };
 }
 
-function ratingView(row) {
+function ratingView(row, placement = null) {
   const rating = row?.rating ?? RATING_DEFAULT;
   const rd = row?.rd ?? RD_DEFAULT;
   const games = row?.games || 0;
@@ -156,7 +162,10 @@ function ratingView(row) {
     peak: Math.round(row?.peak ?? rating),
     streak: row?.streak || 0,
     provisional: isProvisional(games),
-    tier: tierFor(rating),
+    tier: placement?.tier || null,
+    rank: placement?.rank || null,
+    population: placement?.population || 0,
+    accuracy: placement?.accuracy ?? null,
     lastPlayedAt: toMs(row?.lastPlayedAt),
   };
 }
@@ -166,7 +175,8 @@ export async function profileSummary(store, profile, { now = Date.now() } = {}) 
   const ratings = {};
   for (const ladder of LADDERS) {
     const [row] = await ensureSeasonRows(store, [profile.id], ladder, now);
-    ratings[ladder] = ratingView(row);
+    const placement = (await rankingViews(store, ladder, seasonFor(now).key)).find((r) => r.profileId === profile.id);
+    ratings[ladder] = ratingView(row, placement);
   }
   const recent = (await store.getRecentResults(profile.id, 10)).map((r) => ({
     roomId: r.roomId,
@@ -210,13 +220,14 @@ export async function profileSummary(store, profile, { now = Date.now() } = {}) 
 
 /** Ratings for the players of a room, keyed by profile id. */
 export async function ratingsForRoom(store, room) {
-  const ladder = room.variant === 'duel' ? 'duel' : 'classic';
+  const ladder = room.config?.game === 'script' ? 'script' : room.variant === 'duel' ? 'duel' : 'classic';
   const ids = [...new Set(room.players.map((p) => p.profileId).filter(Boolean))];
   if (!ids.length) return {};
   const [rows, profiles] = await Promise.all([ensureSeasonRows(store, ids, ladder), store.getProfilesByIds ? store.getProfilesByIds(ids) : []]);
   const out = {};
+  const rankings = await rankingViews(store, ladder);
   for (const id of ids) {
-    out[id] = { ...ratingView(rows.find((r) => r.profileId === id)), cosmetics: equippedView(profiles.find((p) => p.id === id)?.equipped) };
+    out[id] = { ...ratingView(rows.find((r) => r.profileId === id), rankings.find((r) => r.profileId === id)), cosmetics: equippedView(profiles.find((p) => p.id === id)?.equipped) };
   }
   return out;
 }
@@ -227,11 +238,15 @@ export async function ratingsForRoom(store, room) {
  * who stayed. Returns the per-player results, or null when already done.
  */
 export async function applyRoomRatings(store, room, now = Date.now()) {
+  return store.withRatingLock((locked) => applyRoomRatingsLocked(locked, room, now));
+}
+
+async function applyRoomRatingsLocked(store, room, now) {
   if (room.status !== 'finished') return null;
   const claimed = await store.claimRoomRating(room.id, now);
   if (!claimed) return null;
 
-  const ladder = room.variant === 'duel' ? 'duel' : 'classic';
+  const ladder = room.config?.game === 'script' ? 'script' : room.variant === 'duel' ? 'duel' : 'classic';
   const isDuel = room.variant === 'duel';
   const rated = room.players.filter((p) => p.profileId);
   if (rated.length < 2) return [];
@@ -264,10 +279,16 @@ export async function applyRoomRatings(store, room, now = Date.now()) {
     const entry = entries.find((e) => e.id === result.id);
     const row = byProfile[result.id];
     const won = result.placement === 1 && !entry.left;
+    // Use server-scored guesses, not remaining duel HP or client totals.
+    // Every revealed round counts, including timeouts/missing guesses as zero.
+    const playedRounds = (room.rounds || []).filter((r) => r.revealedAt);
+    const scoredPoints = playedRounds.reduce((sum, r) => sum + Math.max(0, Math.min(MAX_ROUND_SCORE, r.guesses?.find((g) => g.playerId === entry.playerId)?.score || 0)), 0);
     await store.upsertRating(result.id, ladder, {
       rating: result.after,
       rd: result.rdAfter,
       games: (row?.games || 0) + 1,
+      scoredPoints: (row?.scoredPoints || 0) + scoredPoints,
+      scoredRounds: (row?.scoredRounds || 0) + playedRounds.length,
       wins: (row?.wins || 0) + (won ? 1 : 0),
       podiums: (row?.podiums || 0) + (result.placement <= 3 && !entry.left ? 1 : 0),
       peak: Math.max(row?.peak ?? RATING_DEFAULT, result.after),
@@ -363,6 +384,8 @@ export async function applyRankedSolo(store, { profileId, key, rounds, now = Dat
       rating: result.after,
       rd: result.rdAfter,
       games: (myRow?.games || 0) + 1,
+      scoredPoints: (myRow?.scoredPoints || 0) + Math.max(0, Math.min(MAX_ROUND_SCORE * rounds, mine.total || 0)),
+      scoredRounds: (myRow?.scoredRounds || 0) + rounds,
       wins: (myRow?.wins || 0) + (won ? 1 : 0),
       podiums: myRow?.podiums || 0,
       peak: Math.max(myRow?.peak ?? RATING_DEFAULT, result.after),
@@ -373,12 +396,14 @@ export async function applyRankedSolo(store, { profileId, key, rounds, now = Dat
   );
 
   const games = (myRow?.games || 0) + 1;
+  const placement = (await rankingViews(store, 'solo', seasonKey)).find((r) => r.profileId === profileId);
   return {
     ladder: 'solo',
     before: result.before,
     after: result.after,
     delta: result.after - result.before,
     games,
+    tier: placement?.tier || null,
     // A rating built on four games is mostly noise, so it is not shown
     // as a rank until it has five behind it.
     placements: Math.max(0, PROVISIONAL_GAMES - games),
@@ -392,17 +417,18 @@ export async function applyRankedSolo(store, { profileId, key, rounds, now = Dat
 export async function leaderboard(store, { ladder = 'classic', limit = 50, profileId = null, now = Date.now() } = {}) {
   const which = LADDERS.includes(ladder) ? ladder : 'classic';
   const season = seasonView(now);
-  const rows = await store.listLeaderboard(which, { limit, minGames: LEADERBOARD_MIN_GAMES, season: season.key });
-  const table = rows.map((r, i) => ({ rank: i + 1, profileId: r.profileId, name: r.profile?.name || 'Player', cosmetics: equippedView(r.profile?.equipped), ...ratingView(r) }));
+  const rankings = await rankingViews(store, which, season.key);
+  const view = (r) => ({ profileId: r.profileId, name: r.profile?.name || 'Player', cosmetics: equippedView(r.profile?.equipped), ...ratingView(r, r) });
+  const table = rankings.slice(0, limit).map(view);
   let you = null;
   if (profileId) {
-    const inTable = table.find((r) => r.profileId === profileId);
-    if (inTable) you = inTable;
+    const ranked = rankings.find((r) => r.profileId === profileId);
+    if (ranked) you = view(ranked);
     else {
       const [row] = await ensureSeasonRows(store, [profileId], which, now);
       const profile = await store.getProfileById?.(profileId);
       you = { rank: null, profileId, name: profile?.name || 'You', ...ratingView(row) };
     }
   }
-  return { ladder: which, minGames: LEADERBOARD_MIN_GAMES, season, rows: table, you };
+  return { ladder: which, minGames: LEADERBOARD_MIN_GAMES, population: rankings.length, season, rows: table, you };
 }

@@ -2,12 +2,12 @@
    Everything is scoped to the game. Motion always has a reduced-motion counterpart. */
 .geo-surface {
   --pe-ink: #092c36;
-  --pe-deep: #072630;
-  --pe-water: #0a424e;
-  --pe-green: #bad992;
-  --pe-clay: #efae83;
+  --pe-deep: #082d49;
+  --pe-water: #126c91;
+  --pe-green: #91c47b;
+  --pe-clay: #b85c46;
   --pe-paper: #f4eddc;
-  background: #072630;
+  background: var(--pe-deep);
   color: #f6f4ea;
 }
 .geo-surface :is(button, a, input, select, summary):focus-visible {
@@ -22,7 +22,7 @@
   position: relative;
   z-index: 45;
   border-bottom: 1px solid #d3e9df12;
-  background: #072630f5;
+  background: #082d49f5;
 }
 .geo-surface .pe-header-inner {
   max-width: 1440px;
@@ -49,9 +49,9 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #c2dda9;
+  color: #c8e6ad;
   transform: rotate(-18deg);
-  background: radial-gradient(circle, #2d5d58, #0e3440);
+  background: radial-gradient(circle at 30% 25%, #629451, #28523c);
   box-shadow: inset 0 0 0 4px #082d36;
 }
 .geo-surface .pe-nav {
@@ -393,17 +393,17 @@
     background 0.18s;
 }
 .geo-surface .pe-button--primary {
-  border: 1px solid #ffd6b279;
-  background: linear-gradient(#f2bc90, #e59b70);
+  border: 1px solid #e59a7e80;
+  background: linear-gradient(155deg, #ae5743, #9e4537);
   box-shadow:
-    0 4px 0 #925238,
+    0 4px 0 #703a30,
     0 7px 18px #0019233b,
-    inset 0 1px #ffe2b6b3;
-  color: #292f29;
+    inset 0 1px #f2b39666;
+  color: #fff9ef;
 }
 .geo-surface .pe-button--primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  background: linear-gradient(#f9c9a2, #eeae84);
+  background: linear-gradient(155deg, #b15a45, #a34939);
   box-shadow:
     0 6px 0 #925238,
     0 10px 20px #0019233b;
@@ -1093,8 +1093,9 @@
   background: #c4dba5;
 }
 .geo-surface .pe-rank-path {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
   gap: 16px;
   overflow-x: auto;
   margin: 24px 0 30px;
@@ -1113,6 +1114,10 @@
 .geo-surface .pe-rank-step span {
   font-size: 10px;
   color: #bfd1c4;
+}
+.geo-surface .pe-rank-cutoff { max-width: 115px; font-size: 11px; line-height: 1.4; text-align: center; color: #bfd1c4; }
+@media (max-width: 600px) {
+  .geo-surface .pe-rank-path { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
 }
 .geo-surface .pe-rank-badge {
   display: grid;
@@ -1652,8 +1657,8 @@
   background: #042a34;
 }
 .geo-surface .pe-tabs [aria-selected="true"] {
-  background: linear-gradient(#c9dfa9, #afcc94);
-  color: #1e4239;
+  background: linear-gradient(#a1cd85, #87b770);
+  color: #173926;
   box-shadow: 0 2px 5px #00192255;
 }
 .geo-surface .pe-profile-banner {
@@ -1775,7 +1780,7 @@
   border-top: 1px solid #b4cebc28;
 }
 .geo-surface .pe-profile-banner {
-  background: linear-gradient(90deg, #13444e88, transparent);
+  background: linear-gradient(90deg, #3c684a99, #126c9122, transparent);
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -2037,7 +2042,7 @@
   padding: 8px 0;
   font-size: 11px;
 }
-.geo-surface .pe-open-create > .pe-button {
+.geo-surface .pe-open-create > fieldset > .pe-button {
   margin-top: 20px;
   min-width: 240px;
   min-height: 54px;
@@ -2376,7 +2381,7 @@
   .geo-surface .pe-arena-selected {
     margin-top: 14px;
   }
-  .geo-surface .pe-open-create > .pe-button {
+  .geo-surface .pe-open-create > fieldset > .pe-button {
     width: 100%;
   }
   .geo-surface .pe-room-directory {

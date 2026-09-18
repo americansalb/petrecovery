@@ -5745,6 +5745,7 @@ model RasuwaCorrection {
 model GeoRoom {
   id           String    @id @default(cuid())
   code         String    @unique
+  creationKey  String?   @unique // account-scoped retry key for room setup/signup continuation
   name         String
   visibility   String    @default("public") // public | private
   status       String    @default("lobby") // lobby | playing | finished
@@ -5912,9 +5913,13 @@ model GeoRoundCache {
 /// nothing here is shared with the pet site's User table.
 model GeoAccount {
   id         String   @id @default(cuid())
-  email      String   @unique
+  email      String?  @unique
+  phone      String?  @unique
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
+  // Private, unranked checkpoint. Never used to award points or ratings.
+  savedGame  Json?
+  savedGameRevision Int @default(0)
 
   /// What this account may do: player, host or admin
   /// (app/lib/geo/server/roles.js). A host can open rooms beyond the
@@ -5990,6 +5995,23 @@ model GeoProfile {
   ledger           GeoLedger[]
   unlocks          GeoUnlock[]
   badges           GeoBadge[]
+  matchmaking      GeoMatchmakingTicket?
+}
+
+/// One live queue entry per account-backed profile. Tokens are sealed, never public.
+model GeoMatchmakingTicket {
+  profileId String @id
+  profile GeoProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  game String
+  name String
+  ipHash String?
+  joinedAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  roomCode String?
+  playerId String?
+  token String?
+
+  @@index([game, roomCode, lastSeenAt, joinedAt])
 }
 
 // One row per earn or spend. `ref` names the event ("solo:<seed>:<i>",
@@ -6087,6 +6109,8 @@ model GeoRating {
   rating       Float      @default(1500)
   rd           Float      @default(350)
   games        Int        @default(0)
+  scoredPoints Int        @default(0)
+  scoredRounds Int        @default(0)
   wins         Int        @default(0)
   podiums      Int        @default(0)
   peak         Float      @default(1500)
@@ -6109,6 +6133,8 @@ model GeoSeasonRating {
   rating       Float      @default(1500)
   rd           Float      @default(350)
   games        Int        @default(0)
+  scoredPoints Int        @default(0)
+  scoredRounds Int        @default(0)
   wins         Int        @default(0)
   podiums      Int        @default(0)
   peak         Float      @default(1500)

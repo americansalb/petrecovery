@@ -1,0 +1,14 @@
+{
+  "id": "/geo",
+  "name": "Probably Earth",
+  "short_name": "Probably Earth",
+  "description": "Guess the place from street views or written languages.",
+  "start_url": "/geo",
+  "scope": "/geo",
+  "display": "standalone",
+  "background_color": "#132937",
+  "theme_color": "#132937",
+  "icons": [
+    { "src": "/globe.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

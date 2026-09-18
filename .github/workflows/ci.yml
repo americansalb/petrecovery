@@ -84,17 +84,55 @@ jobs:
       # pre-Jest logging.test.js (jest.config testPathIgnorePatterns — pending an
       # async-aware rewrite). No coverage threshold here so the gate blocks on
       # correctness/security regressions without flaking on the 20% target.
-      # --forceExit: rateLimit.js's cleanup setInterval lacks .unref() and would
-      # otherwise keep jest alive — flagged for a one-line .unref() fix.
+      # Cleanup timers are now unref'd/cleared; do not hide leaks with forceExit.
       - name: Run unit tests (required)
         working-directory: frontend
-        run: npx jest --ci --forceExit
+        run: npx jest --ci --maxWorkers=2
+
+  # Isolated PostgreSQL: never credentials or network access to the live DB.
+  geo-postgres:
+    name: Game PostgreSQL release checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: launchqa
+          POSTGRES_PASSWORD: local-launch-qa-only
+          POSTGRES_DB: probablyearth_launch_qa
+        ports:
+          - 55439:5432
+        options: >-
+          --health-cmd "pg_isready -U launchqa -d probablyearth_launch_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Create isolated QA schema
+        working-directory: frontend
+        env:
+          DATABASE_URL: postgresql://launchqa:local-launch-qa-only@localhost:55439/probablyearth_launch_qa
+        run: npx prisma db push --skip-generate
+      - name: Verify queue transactions, recovery and cloud-save conflicts
+        working-directory: frontend
+        env:
+          GEO_PG_TEST_URL: postgresql://launchqa:local-launch-qa-only@localhost:55439/probablyearth_launch_qa
+        run: npx jest __tests__/geo/postgres-release.test.js --ci --runInBand
 
   # Job 3: Build
   build:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, geo-postgres, security]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -225,9 +263,8 @@ jobs:
       # anyone, and mixing them in was what made the old output easy to
       # wave through.
       #
-      # Six advisories currently have no fix that is not a framework major
-      # or a beta, so they are listed in audit-allowlist.json with the
-      # reason. Anything NEW fails the build.
+      # No package-name exceptions: new advisories must never inherit an old
+      # approval. Missing/failed audit responses also block the release.
       - name: Run npm audit
         working-directory: frontend
         run: node scripts/audit-gate.js

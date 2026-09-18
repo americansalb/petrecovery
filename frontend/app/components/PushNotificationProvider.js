@@ -43,10 +43,14 @@ export default function PushNotificationProvider({ children }) {
 
   // Register service worker on mount
   useEffect(() => {
+    // The pet worker precaches pet pages and assets. The standalone game must
+    // not install it or inherit its offline branding. Leave existing pet-site
+    // registrations alone when someone visits /geo on the shared host.
+    if (process.env.NEXT_PUBLIC_SITE === 'geo' || pathname === '/geo' || pathname?.startsWith('/geo/')) return;
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       registerServiceWorker();
     }
-  }, []);
+  }, [pathname]);
 
   // Show prompt after login (with delay)
   useEffect(() => {

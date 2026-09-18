@@ -33,7 +33,7 @@ import {
   PROVISIONAL_GAMES,
 } from '@/app/lib/geo/rating';
 import { ensureProfile, profileHeaders } from '../lib/profile';
-import { loadName, saveName } from '../lib/useRoom';
+import { saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
 import Card, { CardTitle } from './ui/Card';
 import Tabs from './ui/Tabs';
@@ -53,7 +53,7 @@ const PLAYABLE_COUNTRIES = playableCountryCodes('apple');
 
 /** One ladder: the rating, the tier, and what was won on it. */
 function LadderCard({ ladder, rating, provisionalGames }) {
-  const label = LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder;
+  const label = ladder === 'duel' ? 'Street multiplayer' : LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder;
   const games = rating?.games || 0;
   if (games < provisionalGames) {
     return (
@@ -75,7 +75,7 @@ function LadderCard({ ladder, rating, provisionalGames }) {
           href={
             ladder === 'solo'
               ? '/geo/play?mode=ranked'
-              : `/geo/rooms?variant=${ladder}`
+              : `/geo/rooms?game=${ladder === 'script' ? 'script' : 'street'}`
           }
         >
           Play to place <span aria-hidden="true">↗</span>
@@ -92,6 +92,7 @@ function LadderCard({ ladder, rating, provisionalGames }) {
         {rating.value}
       </p>
       <p className="text-xs text-white/70">{rating.tier}</p>
+      <p className="mt-1 text-xs text-white/70">{rating.rank ? `#${rating.rank} of ${rating.population}` : ''}{rating.accuracy != null ? ` · ${Math.floor(rating.accuracy * 1000) / 10}% accuracy` : ''}</p>
       <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
         <div>
           <dt className="text-white/60">Played</dt>
@@ -180,7 +181,8 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
         type="button"
         disabled={busy}
         onClick={() => onEquip(item.id)}
-        className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5 disabled:opacity-50"
+        aria-label={`Wear ${item.name}`}
+        className="min-h-[44px] rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5 disabled:opacity-50"
       >
         Wear
       </button>
@@ -193,7 +195,8 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
         type="button"
         disabled={busy}
         onClick={() => onBuy(item.id)}
-        className="rounded-lg bg-ocean-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-ocean-800 disabled:opacity-50"
+        aria-label={`Buy ${item.name} for ${formatScore(item.price)} points`}
+        className="min-h-[44px] rounded-lg bg-ocean-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-ocean-800 disabled:opacity-50"
       >
         Buy for {formatScore(item.price)}
       </button>
@@ -209,7 +212,7 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
   if (tierOnly && !item.usable)
     buy = (
       <span className="text-xs text-white/60">
-        Free at {item.requires.tier} on either ladder
+        Free at {item.requires.tier} on any ladder
       </span>
     );
   return (
@@ -265,33 +268,33 @@ export default function ProfileClient() {
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState('pin');
 
-  const loadShop = async () => {
-    const res = await fetch('/api/geo/shop', {
-      headers: profileHeaders(),
-      cache: 'no-store',
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || 'Could not load the shop');
-    setShop(json.shop);
-  };
-
   useEffect(() => {
     let alive = true;
-    setName(loadName());
-    ensureProfile(loadName())
-      .then(async (p) => {
-        if (!alive) return;
-        setProfile(p);
-        if (!name && p?.name) setName(p.name);
-        await loadShop();
-      })
-      .catch(
-        (e) => alive && setError(e.message || 'Could not load your profile'),
-      );
+    let generation = 0;
+    const refresh = async () => {
+      const current = ++generation;
+      setProfile(null); setShop(null); setName(''); setError('');
+      try {
+        // The verified account owns its name. A stale nickname on another
+        // device must never rename it just by opening the profile page.
+        const profile = await ensureProfile('');
+        if (!alive || current !== generation) return;
+        setProfile(profile); setName(profile?.name || '');
+        if (profile?.name) saveName(profile.name);
+        const res = await fetch('/api/geo/shop', { headers: profileHeaders(), cache: 'no-store' });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Could not load the shop');
+        if (alive && current === generation) setShop(json.shop);
+      } catch (error) {
+        if (alive && current === generation) setError(error.message || 'Could not load your profile');
+      }
+    };
+    refresh();
+    window.addEventListener('geo:session-changed', refresh);
     return () => {
       alive = false;
+      window.removeEventListener('geo:session-changed', refresh);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const saveTheName = async (e) => {
@@ -362,7 +365,7 @@ export default function ProfileClient() {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              Your explorer profile
+                Your profile
             </p>
             <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
               <span style={view?.color ? { color: view.color } : undefined}>
@@ -400,6 +403,13 @@ export default function ProfileClient() {
           </div>
         </header>
 
+        {profile && !profile.signedIn ? (
+          <div className="mt-5 flex items-center justify-between gap-4 border-b border-white/15 pb-5">
+            <p className="text-sm text-white/75">Keep your games on every device.</p>
+            <Link href="/geo/signin" className="pe-button pe-button--primary min-h-[44px] px-4 py-3">Save your player</Link>
+          </div>
+        ) : null}
+
         {error ? (
           <p className="mt-4 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">
             {error}
@@ -416,19 +426,20 @@ export default function ProfileClient() {
           value={tab}
           onChange={setTab}
           label="Profile sections"
+          panelId="profile-panel"
           marker="profile-tab"
           className="mt-6"
         />
 
         {tab === 'record' ? (
-          <div className="mt-6 space-y-6">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 space-y-6">
             {/* Rating: every ladder, with what a player earned on it
                 rather than the word for where it sits. */}
             <Card data-ratings>
               <CardTitle icon={Medal}>Rating</CardTitle>
               {profile ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  {LADDERS.map((ladder) => (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {LADDERS.filter((ladder) => ladder !== 'classic').map((ladder) => (
                     <LadderCard
                       key={ladder}
                       ladder={ladder}
@@ -455,7 +466,7 @@ export default function ProfileClient() {
                   className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
                 >
                   <Users className="h-3.5 w-3.5" />
-                  Friends
+                  Multiplayer
                 </Link>
               </div>
             </Card>
@@ -463,7 +474,7 @@ export default function ProfileClient() {
             {/* Recent rated games. The server has sent these with every
                 profile since ratings shipped and nothing read them. */}
             <Card data-recent>
-              <CardTitle icon={History}>Last games</CardTitle>
+              <CardTitle icon={History}>Rated matches</CardTitle>
               {profile?.recent?.length ? (
                 <ul className="mt-3 divide-y divide-white/10 text-sm">
                   {profile.recent.map((row, i) => (
@@ -579,7 +590,7 @@ export default function ProfileClient() {
                   <span className="font-semibold text-white">
                     {profile.usage.rounds}
                   </span>{' '}
-                  rounds today. Points earn on the first 50.
+                  Street rounds today.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-white/60">Loading</p>
@@ -589,7 +600,7 @@ export default function ProfileClient() {
         ) : null}
 
         {tab === 'shop' ? (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
             <Card data-shop>
               <CardTitle icon={ShoppingBag}>Shop</CardTitle>
               <p className="mt-2 text-sm text-white/60">
@@ -600,9 +611,11 @@ export default function ProfileClient() {
                 value={kind}
                 onChange={setKind}
                 label="Shop sections"
+                panelId="shop-panel"
                 marker="shop-kind"
                 className="mt-3"
               />
+              <div id="shop-panel" role="tabpanel" aria-labelledby={`shop-panel-tab-${kind}`} tabIndex={0}>
               {shop ? (
                 <ul className="mt-3 space-y-2">
                   {items.map((item) => (
@@ -622,6 +635,7 @@ export default function ProfileClient() {
                   {error ? 'The shop is closed for now.' : 'Loading the shop'}
                 </p>
               )}
+              </div>
             </Card>
 
             {/* Where the points came from, beside what they buy. */}
@@ -659,7 +673,7 @@ export default function ProfileClient() {
         ) : null}
 
         {tab === 'settings' ? (
-          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 grid gap-6 sm:grid-cols-2">
             {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
             <Card>
               <CardTitle>Account</CardTitle>
@@ -669,7 +683,7 @@ export default function ProfileClient() {
                   : 'This profile lives in this browser.'}
               </p>
               <div className="mt-3">
-                <SignInCard />
+                <SignInCard requireName playerName={name} onPlayerNameChange={setName} />
               </div>
             </Card>
 

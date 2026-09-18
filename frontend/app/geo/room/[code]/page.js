@@ -18,6 +18,7 @@ const FALLBACK_TITLE = 'Probably Earth rooms';
 const FALLBACK_DESCRIPTION = 'Play the street-level guessing game with friends: everyone guesses the same places on one clock.';
 
 export async function generateMetadata({ params }) {
+  params = await params;
   const code = normalizeRoomCode(params?.code);
   try {
     const room = code ? await prismaRoomStore.getRoomByCode(code) : null;
@@ -36,7 +37,7 @@ export async function generateMetadata({ params }) {
         canonical: `/geo/room/${code}`,
         index: false,
       }),
-      metadataBase: geoMetadataBase(),
+      metadataBase: await geoMetadataBase(),
     };
   } catch (error) {
     console.error('[geo/room] metadata', error?.message || error);
@@ -44,7 +45,8 @@ export async function generateMetadata({ params }) {
   }
 }
 
-export default function GeoRoomPage({ params }) {
+export default async function GeoRoomPage({ params }) {
+  params = await params;
   const code = normalizeRoomCode(params?.code) || String(params?.code || '').toUpperCase();
   return (
     <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ocean-950 text-white/70">Loading the room</div>}>

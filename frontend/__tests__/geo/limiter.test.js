@@ -105,6 +105,10 @@ describe('the refusal', () => {
 });
 
 describe('when Redis is configured but not reachable', () => {
+  test('billable sends fail closed when no shared limiter is configured', async () => {
+    const result = await checkRateLimitForKeyAsync('sms-budget', { requireShared: true });
+    expect(result).toMatchObject({ success: false, blocked: true });
+  });
   // The bounded connect is the point: left to node-redis defaults an
   // unreachable host retries forever with commands queued behind it, and
   // the first request to every limited endpoint hangs instead of falling
@@ -117,6 +121,7 @@ describe('when Redis is configured but not reachable', () => {
     // Limiting still happens: the memory window counts, it does not allow everything.
     expect((await checkRateLimitForKeyAsync('offline', rule)).success).toBe(true);
     expect((await checkRateLimitForKeyAsync('offline', rule)).success).toBe(false);
+    expect((await checkRateLimitForKeyAsync('sms-offline', { ...rule, requireShared: true })).success).toBe(false);
     expect(Date.now() - started).toBeLessThan(9000);
   }, 20000);
 });

@@ -31,9 +31,9 @@ const HEIGHT = 630;
  * The host line on the card: wherever this request was served from, so
  * a preview from the game's own domain points back at it.
  */
-function cardSite(request) {
+async function cardSite(request) {
   try {
-    const url = geoMetadataBase();
+    const url = await geoMetadataBase();
     return `${url.host}${url.host.includes('reunitepets') ? '/geo' : ''}`;
   } catch {
     try {
@@ -44,11 +44,11 @@ function cardSite(request) {
   }
 }
 
-function fallbackCard(request) {
+async function fallbackCard(request) {
   try {
-    const base = (() => {
+    const base = await (async () => {
       try {
-        return geoMetadataBase();
+        return await geoMetadataBase();
       } catch {
         return new URL(request.url);
       }
@@ -92,7 +92,7 @@ export async function GET(request) {
         footer={footer}
         mode={summary.config.mode}
         wordmark={GAME_NAME}
-        site={cardSite(request)}
+        site={await cardSite(request)}
       />,
       { width: WIDTH, height: HEIGHT, fonts: fonts.SATORI_FONTS.filter((f) => f.name === 'Inter') }
     );

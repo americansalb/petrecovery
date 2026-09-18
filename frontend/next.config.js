@@ -3,33 +3,23 @@ const nextConfig = {
   output: 'standalone',
 
   // Build optimizations for memory and speed
-  swcMinify: true,
   productionBrowserSourceMaps: false,
 
   // Ensure static files needed at runtime are copied to standalone output
-  experimental: {
-    // Next 14 does not run instrumentation.js without this flag. Without
-    // it the boot assertions in that file - production has somewhere to
-    // send exceptions, CAPTCHA is not half-configured, rate limits are
-    // durable - are dead code that looks live.
-    instrumentationHook: true,
-
-    // Keep the pure-JS render stack (react-pdf) and the resvg native addon out
-    // of the webpack server bundle — require()'d from node_modules at runtime.
-    serverComponentsExternalPackages: ['@react-pdf/renderer', '@resvg/resvg-js', 'satori', 'yoga-wasm-web'],
-    outputFileTracingIncludes: {
-      '/*': ['./app/lib/uscities.full.json'],
-      // Ensure the vendored flyer/social fonts ship with a standalone
-      // build. Both sets are read with readFileSync from process.cwd()
-      // at import, and a standalone build copies only what is traced:
-      // without the game's line here every Probably Earth share preview
-      // fell back to the site logo in the Docker deploy, because the
-      // font module threw ENOENT and the OG route's catch swallowed it.
-      // __tests__/geo/standalone-assets.test.js keeps this honest.
-      '/api/**': ['./app/lib/cascade/render/fonts/**', './app/lib/geo/server/fonts/**'],
-    },
+  // Keep the pure-JS render stack (react-pdf) and the resvg native addon out
+  // of the webpack server bundle — require()'d from node_modules at runtime.
+  serverExternalPackages: ['@react-pdf/renderer', '@resvg/resvg-js', 'satori', 'yoga-wasm-web'],
+  outputFileTracingIncludes: {
+    '/*': ['./app/lib/uscities.full.json'],
+    // Ensure the vendored flyer/social fonts ship with a standalone
+    // build. Both sets are read with readFileSync from process.cwd()
+    // at import, and a standalone build copies only what is traced:
+    // without the game's line here every Probably Earth share preview
+    // fell back to the site logo in the Docker deploy, because the
+    // font module threw ENOENT and the OG route's catch swallowed it.
+    // __tests__/geo/standalone-assets.test.js keeps this honest.
+    '/api/**': ['./app/lib/cascade/render/fonts/**', './app/lib/geo/server/fonts/**'],
   },
-
   // Image optimization
   images: {
     remotePatterns: [

@@ -8,6 +8,7 @@ export default function RankPath() {
         <div className="pe-rank-step" key={tier.name}>
           <RankEmblem tier={tier.name} decorative />
           <span>{tier.name}</span>
+          <small className="pe-rank-cutoff">{tier.label}</small>
         </div>
       ))}
     </div>

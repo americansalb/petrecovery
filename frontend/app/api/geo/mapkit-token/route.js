@@ -18,7 +18,7 @@ import { canMint, mintMapKitToken } from '@/app/lib/geo/server/mapKitToken';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const heads = headers();
+  const heads = await headers();
   // Behind a proxy the Host header is the proxy's; the forwarded one is
   // the name the browser used, which is the name Apple will check.
   const host = (heads.get('x-forwarded-host') || heads.get('host') || '').split(',')[0].trim();

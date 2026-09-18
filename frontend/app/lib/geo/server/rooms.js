@@ -14,6 +14,7 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto';
+import { accountSeatToken } from './roomSeat';
 import { haversineKm, scoreForDistance } from '../distance';
 import { randomSeedString } from '../random';
 import {
@@ -47,6 +48,7 @@ import { checkRoomEntry, recordRoomRound, subjectsForPlayer } from './meter';
 import { awardRoomFinish, awardRoomRound, reactionsForProfile } from './points';
 import { allReactionEmoji } from '../items';
 import { applyRoomRatings, ratingsForRoom } from './profiles';
+import { createScriptRound, evaluateScriptGuess } from './scriptGame';
 
 export class RoomError extends Error {
   constructor(code, message, status = 400) {
@@ -112,7 +114,7 @@ async function touchRoom(store, room, now, extra = {}) {
 // Create, join, leave
 // ---------------------------------------------------------------------------
 
-export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now() }) {
+export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now(), creationKey = null }) {
   const { config, variant, visibility } = normalizeRoomConfig(settings);
   // The play meter: a person at the day's ceiling, a site past its
   // budget, or on Google a player whose free room game is used and who
@@ -126,6 +128,7 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     if (await store.getRoomByCode(code)) continue;
     room = await store.createRoom({
       code,
+      creationKey,
       name: sanitizeRoomName(name),
       visibility,
       status: 'lobby',
@@ -141,8 +144,8 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     });
   }
   if (!room) throw new RoomError('no_code', 'Could not allocate a room code, try again', 500);
-  const token = newPlayerToken();
-  const player = await store.createPlayer({
+  let token = newPlayerToken();
+  let player = await store.createPlayer({
     roomId: room.id,
     tokenHash: hashToken(token),
     name: sanitizeName(hostName, 'Host'),
@@ -155,12 +158,29 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     joinedAt: new Date(now),
     lastSeenAt: new Date(now),
   });
+  if (profileId) {
+    token = accountSeatToken(room.id, player.id, profileId);
+    player = await store.updatePlayer(player.id, { tokenHash: hashToken(token) });
+  }
   const fresh = await store.getRoomByCode(room.code);
   return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
 }
 
-export async function joinRoom(store, { code, name, profileId = null, subjects = null, now = Date.now() }) {
+export async function joinRoom(store, { code, name, profileId = null, subjects = null, now = Date.now(), deferTick = false }) {
   const room = await loadRoom(store, code);
+  // A verified account can recover its existing seat on another device
+  // or after local storage is cleared. This is not a new player joining
+  // mid-duel: health, host rights, guesses and elimination stay unchanged.
+  const existing = subjects?.signedIn && profileId
+    ? room.players.find((player) => player.profileId === profileId && !player.leftAt)
+    : null;
+  if (existing) {
+    const token = accountSeatToken(room.id, existing.id, profileId);
+    const player = await store.updatePlayer(existing.id, { tokenHash: hashToken(token), lastSeenAt: new Date(now) });
+    const state = deferTick ? null : await getRoomView(store, { code, token, now });
+    return { room: await store.getRoomByCode(code), player, token, state };
+  }
+  if (room.config?.matchmaking) throw new RoomError('matched_roster', 'This match already has its two players. Find a new match.', 409);
   if (room.status === 'finished') throw new RoomError('finished', 'This game is over', 409);
   if (subjects) await checkRoomEntry(store, { subjects, now });
   if (room.status === 'playing' && room.variant === 'duel') {
@@ -188,8 +208,8 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
   const players = seat;
   const used = new Set(players.map((p) => p.color));
   const color = PLAYER_COLORS.find((c) => !used.has(c)) || pickColor(current.players.length);
-  const token = newPlayerToken();
-  const player = await store.createPlayer({
+  let token = newPlayerToken();
+  let player = await store.createPlayer({
     roomId: current.id,
     tokenHash: hashToken(token),
     name: uniqueName(sanitizeName(name), players),
@@ -202,6 +222,10 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
     joinedAt: new Date(now),
     lastSeenAt: new Date(now),
   });
+  if (profileId) {
+    token = accountSeatToken(current.id, player.id, profileId);
+    player = await store.updatePlayer(player.id, { tokenHash: hashToken(token) });
+  }
   const fresh = await store.getRoomByCode(code);
   return { room: fresh, player, token, state: serialize(fresh, player, now, await ratingsForRoom(store, fresh)) };
 }
@@ -442,6 +466,21 @@ function appleCandidates(config, index, attempt = 0) {
 /** Offer the round's places and wait for a browser to find one. */
 async function buildRound(store, room, index, now, fetchImpl) {
   try {
+    if (room.config.game === 'script') {
+      const sample = createScriptRound({ config: { ladder: 'world', rounds: room.config.rounds, seed: room.config.seed }, roundIndex: index, now });
+      await store.createRound({
+        roomId: room.id, index, panoId: '', heading: 0,
+        lat: 0, lng: 0, sizeKm: 20000,
+        stats: { script: sample },
+        startedAt: new Date(now), deadline: new Date(now + room.config.time * 1000),
+      });
+      const fresh = await store.getRoomById(room.id);
+      await store.updateRoom(room.id, {
+        status: 'playing', phase: 'guessing', roundIndex: index,
+        phaseEndsAt: null, lastError: null, lastActiveAt: new Date(now), version: fresh.version + 1,
+      });
+      return store.getRoomByCode(room.code);
+    }
     {
       // No server-side probe exists for Look Around: offer places and let
       // a browser find one (the locate action), then everyone opens it.
@@ -530,11 +569,14 @@ async function submitGuess(store, room, me, body, now) {
   if (round.revealedAt) throw new RoomError('too_late', 'That round was already revealed', 409);
   const lat = Number(body?.lat);
   const lng = Number(body?.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+  if (body?.lat == null || body?.lng == null || body.lat === '' || body.lng === '' || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     throw new RoomError('bad_guess', 'A guess needs a latitude and a longitude', 400);
   }
-  const distanceKm = haversineKm({ lat, lng }, { lat: round.lat, lng: round.lng });
-  const score = scoreForDistance(distanceKm, round.sizeKm);
+  const scripted = room.config.game === 'script'
+    ? evaluateScriptGuess({ token: round.stats.script.token, guess: { lat, lng }, now })
+    : null;
+  const distanceKm = scripted ? scripted.distanceKm : haversineKm({ lat, lng }, { lat: round.lat, lng: round.lng });
+  const score = scripted ? scripted.score : scoreForDistance(distanceKm, round.sizeKm);
   await store.upsertGuess({ roundId: round.id, playerId: me.id, lat, lng, distanceKm, score, damage: 0, timedOut: false, submittedAt: new Date(now) });
   await touchRoom(store, room, now);
   return store.getRoomByCode(room.code);
@@ -640,6 +682,7 @@ export async function roomAction(store, { code, token, action, body = {}, now = 
       break;
     case 'next': {
       requireHost(me);
+      if (room.config?.matchmaking) throw new RoomError('automatic_match', 'Matched games advance automatically.', 403);
       // Skip what the host was actually looking at. roomAction ticks
       // first, so the clock can move the room inside this same request:
       // a reveal countdown expiring here used to advance to the next
@@ -695,6 +738,14 @@ async function extrasFor(store, me) {
 export async function getRoomView(store, { code, token, now = Date.now(), fetchImpl }) {
   let room = await loadRoom(store, code);
   room = await tick(store, room, now, fetchImpl);
+  // Finishing the game and rating it are separate transactions. A transient
+  // database error must not permanently strand an otherwise completed match.
+  if (room.status === 'finished' && !room.ratedAt) {
+    try {
+      await applyRoomRatings(store, room, now);
+      room = await store.getRoomByCode(code);
+    } catch (error) { console.error('[geo/rooms] rating retry failed', error?.message || error); }
+  }
   const me = findPlayer(room, token);
   if (me && now - toMs(me.lastSeenAt) > 5000) {
     await store.updatePlayer(me.id, { lastSeenAt: new Date(now) });
@@ -728,8 +779,14 @@ export async function listRooms(store, { now = Date.now() } = {}) {
 // ---------------------------------------------------------------------------
 
 function revealOf(round, room) {
+  // Use the round's creation time to decode after the match: the server owns
+  // this token and the stored result must remain viewable after token expiry.
+  const scriptResult = room.config.game === 'script' && round.stats?.script
+    ? evaluateScriptGuess({ token: round.stats.script.token, now: toMs(round.startedAt) })
+    : null;
   return {
     index: round.index,
+    scriptAnswer: scriptResult?.answer || null,
     answer: {
       lat: round.lat,
       lng: round.lng,
@@ -800,6 +857,8 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
       lastError: room.lastError || null,
       hostId: present(room).find((p) => p.isHost)?.id || null,
       config: {
+        matchmaking: Boolean(config.matchmaking),
+        game: config.game || 'street',
         provider: config.provider || 'google',
         mode: config.mode,
         region: config.region || '',
@@ -843,7 +902,9 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
             coordinate: me && config.provider === 'apple' ? { lat: current.lat, lng: current.lng } : null,
             deadline: toMs(current.deadline),
             startedAt: toMs(current.startedAt),
-            stats: current.stats || null,
+            text: me && config.game === 'script' ? current.stats?.script?.text : null,
+            script: me && config.game === 'script' ? current.stats?.script?.script : null,
+            stats: config.game === 'script' ? null : current.stats || null,
           }
         : null,
     locating:

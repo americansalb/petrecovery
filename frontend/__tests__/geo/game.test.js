@@ -230,7 +230,9 @@ describe('createRound and evaluateGuess', () => {
     // secret the answers are sealed with.
     await expect(createRound({ config: { provider: 'apple', mode: 'balanced' }, env: {} })).rejects.toMatchObject({ code: 'no_secret' });
     // A mode with no city streets in it says so rather than crashing.
-    await expect(createRound({ config: { provider: 'apple', mode: 'country', region: 'CN' }, env: ENV })).rejects.toThrow(/no city streets/);
+    // Keep the rare Not Earth surprise deterministic: an unseeded test
+    // occasionally receives a valid NASA round instead of city streets.
+    await expect(createRound({ config: { provider: 'apple', mode: 'country', region: 'CN', seed: 'no-coverage' }, env: ENV })).rejects.toThrow(/no city streets/);
   });
 
   test('a tampered or expired token cannot be scored', async () => {

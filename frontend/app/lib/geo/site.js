@@ -98,13 +98,17 @@ export const GAME_RATE_LIMITS = {
   // Rooms poll their state every couple of seconds while a game is on,
   // plus guesses and reactions; one bucket for the whole prefix.
   '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
+  '/api/geo/matchmaking': { windowMs: 60000, maxRequests: 60 },
   '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
+  '/api/geo/save': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },
   // Sign-in sends mail, so it gets the strictest bucket in the game:
   // five a minute per address is more than a person needs and far less
   // than a script needs to be a nuisance. Verify is a link click.
   '/api/geo/auth/request': { windowMs: 60000, maxRequests: 5 },
   '/api/geo/auth/verify': { windowMs: 60000, maxRequests: 20 },
+  '/api/geo/auth/phone/request': { windowMs: 60000, maxRequests: 3 },
+  '/api/geo/auth/phone/verify': { windowMs: 60000, maxRequests: 5 },
   // Deleting an account is not something a person does twice.
   '/api/geo/auth/delete': { windowMs: 60000, maxRequests: 5 },
   '/api/geo/auth': { windowMs: 60000, maxRequests: 60 },

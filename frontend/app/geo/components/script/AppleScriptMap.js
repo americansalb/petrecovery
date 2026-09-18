@@ -37,6 +37,8 @@
 
 import { useEffect, useRef } from 'react';
 import { chooseLabels } from '../../lib/countryLabels';
+import { appleKeyboard } from '../../lib/mapKeyboard';
+import KeyboardMap from '../KeyboardMap';
 
 /** The country names, fetched once per page and cached like any chunk. */
 let labelsPromise = null;
@@ -56,12 +58,8 @@ const GUESS = '#e08c0a';
 const FILL_OPACITY = 0.22;
 const STROKE_OPACITY = 0.95;
 
-/**
- * How much of the bottom of the map the reveal panel owns. Insetting
- * the map by it keeps Apple's logo and legal link above the panel,
- * which their terms require, and lands the answer where it can be seen.
- */
-const REVEAL_INSET = 230;
+/** The reveal panel is outside the map, leaving its full viewport visible. */
+const REVEAL_INSET = 0;
 /** The same, for the Guess button in the corner of a round in play. */
 const GUESS_INSET = 76;
 
@@ -72,6 +70,7 @@ export default function AppleScriptMap({
   answer = null,
   guess = null,
   nearestPoint = null,
+  selectedRegion = null,
   mode = 'guess',
   className = '',
   onUnavailable,
@@ -189,8 +188,10 @@ export default function AppleScriptMap({
     // is one number to move rather than several hundred.
     const style = answerStyle(mapkit, FILL_OPACITY, STROKE_OPACITY);
     const overlays = [];
+    const focusedOverlays = [];
     const annotations = [];
     for (const region of answer.regions || []) {
+      const firstOverlay = overlays.length;
       // Each ring is its own piece of land and never a hole: the data
       // keeps outer rings only (app/lib/geo/server/regions.js), so an
       // island is a shape of its own rather than a bite out of a coast.
@@ -212,6 +213,7 @@ export default function AppleScriptMap({
           })
         );
       }
+      if (answer.regions.indexOf(region) === selectedRegion) focusedOverlays.push(...overlays.slice(firstOverlay));
     }
     if (guess) {
       annotations.push(
@@ -243,11 +245,15 @@ export default function AppleScriptMap({
     drawnRef.current = { annotations, overlays };
 
     try {
-      map.showItems([...annotations, ...overlays], {
-        animate: true,
-        // Small and even: the bottom of the map is already inset by
-        // map.padding above, so the panel's room is counted once.
-        padding: new mapkit.Padding(44, 44, 44, 44),
+      map.showItems(focusedOverlays.length ? focusedOverlays : [...annotations, ...overlays], {
+        animate: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+        // Short mobile maps need enough unpadded space to fit the answer.
+        padding: new mapkit.Padding(
+          Math.min(44, (hostRef.current?.clientHeight || 320) * 0.1),
+          Math.min(44, (hostRef.current?.clientWidth || 320) * 0.1),
+          Math.min(44, (hostRef.current?.clientHeight || 320) * 0.1),
+          Math.min(44, (hostRef.current?.clientWidth || 320) * 0.1),
+        ),
         minimumSpan: new mapkit.CoordinateSpan(1.2, 1.2),
       });
     } catch {
@@ -257,15 +263,17 @@ export default function AppleScriptMap({
     stopFadeRef.current = fadeIn(mapkit, style, overlays);
 
     return () => stopFadeRef.current?.();
-  }, [mapkit, answer, guess, nearestPoint, mode]);
+  }, [mapkit, answer, guess, nearestPoint, selectedRegion, mode]);
 
   return (
+    <KeyboardMap className={className} interactive={mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'} {...appleKeyboard(mapRef, mapkit, onPin)}>
     <div
       ref={hostRef}
-      className={`h-full w-full ${className}`}
+      className="h-full w-full"
       data-script-map="apple"
       data-map-mode={mode}
     />
+    </KeyboardMap>
   );
 }
 

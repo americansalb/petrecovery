@@ -5,10 +5,10 @@
  * room that is waiting for players.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Compass, Plus, Swords, Trophy, Users } from "lucide-react";
+import { ArrowRight, Compass, Plus, Users } from "lucide-react";
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -39,6 +39,8 @@ import { configErrorMessage, loadGeoConfig } from "../../lib/serverConfig";
 import { ensureProfile, profileHeaders } from "../../lib/profile";
 import { ago } from "../../lib/time";
 import SetupNotice from "../SetupNotice";
+import AccountDialog from "../AccountDialog";
+import Matchmaker from './Matchmaker';
 import { APPLE_COVERAGE } from "@/app/lib/geo/coverage";
 
 function Field({ label, hint, children }) {
@@ -59,7 +61,36 @@ function Field({ label, hint, children }) {
 const select =
   "w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm";
 
-export default function RoomBrowser({ initialVariant = "classic" }) {
+const ROOM_DRAFT_KEY = "geo:pending-room:v1";
+const ROOM_RECEIPT_KEY = "geo:created-room:v1";
+
+function rememberDraft(draft) {
+  try {
+    window.localStorage.setItem(ROOM_DRAFT_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }));
+  } catch {
+    /* A private browser can still use rooms, it just cannot resume a draft. */
+  }
+}
+
+function loadDraft() {
+  try {
+    const raw = window.localStorage.getItem(ROOM_DRAFT_KEY);
+    const draft = raw ? JSON.parse(raw) : null;
+    return draft && Date.now() - draft.savedAt < 86400000 ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function forgetDraft() {
+  try {
+    window.localStorage.removeItem(ROOM_DRAFT_KEY);
+  } catch {
+    /* Nothing to clear when browser storage is unavailable. */
+  }
+}
+
+export default function RoomBrowser({ initialGame, resumeRequest }) {
   const router = useRouter();
   const [server, setServer] = useState(null);
   const [rooms, setRooms] = useState(null);
@@ -67,7 +98,8 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
   const [code, setCode] = useState("");
   const [form, setForm] = useState({
     roomName: "",
-    variant: initialVariant === "duel" ? "duel" : "classic",
+    variant: "duel",
+    game: initialGame === 'script' ? 'script' : 'street',
     provider: PRIMARY_PROVIDER,
     mode: "balanced",
     continent: "europe",
@@ -81,11 +113,45 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
   const [error, setError] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [recent, setRecent] = useState([]);
+  const [signedIn, setSignedIn] = useState(null);
+  const [accountGate, setAccountGate] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const pendingAction = useRef(null);
+  const requestId = useRef(null);
+  const submitting = useRef(false);
+  const continueRef = useRef(null);
 
   useEffect(() => {
     setHydrated(true);
     setName(loadName());
     setRecent(listRecentRooms());
+    const draft = loadDraft();
+    if (draft?.action) {
+      pendingAction.current = draft.action;
+      requestId.current = draft.requestId || null;
+    }
+    if (resumeRequest) {
+      try {
+        const receipt = JSON.parse(localStorage.getItem(ROOM_RECEIPT_KEY) || 'null');
+        if (receipt?.requestId === resumeRequest && Date.now() - receipt.at < 86400000 && /^[A-Z0-9]{6}$/.test(receipt.code)) {
+          router.push(`/geo/room/${receipt.code}`);
+          return undefined;
+        }
+      } catch { /* The retained draft can still continue without a receipt. */ }
+    }
+    if (draft?.name) setName(draft.name);
+    if (draft?.form) setForm((current) => ({ ...current, ...draft.form, game: initialGame || draft.form.game || 'street', variant: "duel" }));
+    if (draft?.code) setCode(draft.code);
+    fetch('/api/geo/auth/me', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then(async (data) => {
+        if (data?.signedIn) {
+          const profile = await ensureProfile('').catch(() => null);
+          if (profile?.name) { setName(profile.name); saveName(profile.name); }
+        }
+        setSignedIn(Boolean(data?.signedIn));
+      })
+      .catch(() => setSignedIn(false));
     let alive = true;
     loadGeoConfig({ shouldStop: () => !alive })
       .then((data) => alive && data && setServer(data))
@@ -101,9 +167,13 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
       alive = false;
       clearInterval(id);
     };
-  }, []);
+  }, [initialGame, resumeRequest, router]);
 
-  const configured = Boolean(server?.providers?.apple?.configured);
+  useEffect(() => {
+    if (signedIn && hydrated && pendingAction.current) continueRef.current?.();
+  }, [signedIn, hydrated]);
+
+  const configured = form.game === 'script' || Boolean(server?.providers?.apple?.configured);
   const modesFor = (provider) =>
     ROOM_MODES.filter((id) => MODES[id]?.providers?.includes(provider));
   const countries = server?.countries || [];
@@ -112,6 +182,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
   const settings = useMemo(
     () => ({
       variant: form.variant,
+      game: form.game,
       provider: form.provider,
       mode: form.mode,
       region:
@@ -129,12 +200,22 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
   );
 
   const create = async (event) => {
-    event.preventDefault();
+    event?.preventDefault();
+    if (searching || submitting.current) return;
     const hostName = name.trim();
     if (!hostName) {
       setError("Type your name first.");
       return;
     }
+    if (!signedIn) {
+      requestId.current ||= crypto.randomUUID();
+      pendingAction.current = 'create';
+      rememberDraft({ name: hostName, form, action: 'create', requestId: requestId.current });
+      setAccountGate(true);
+      return;
+    }
+    requestId.current ||= crypto.randomUUID();
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -146,6 +227,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
           name: form.roomName.trim() || `${hostName}'s room`,
           hostName,
           settings,
+          requestId: requestId.current,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -156,41 +238,80 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
         playerId: json.playerId,
         name: hostName,
       });
+      try { localStorage.setItem(ROOM_RECEIPT_KEY, JSON.stringify({ requestId: requestId.current, code: json.code, at: Date.now() })); } catch { /* Optional cross-tab continuation. */ }
+      forgetDraft();
       router.push(`/geo/room/${json.code}`);
     } catch (e) {
       setError(e.message);
       setBusy(false);
+      submitting.current = false;
     }
   };
 
   const joinByCode = (event) => {
-    event.preventDefault();
+    event?.preventDefault();
+    if (searching) return;
     const normalized = normalizeRoomCode(code);
     if (!normalized) {
       setError("A room code is six letters and numbers.");
       return;
     }
+    if (!signedIn) {
+      pendingAction.current = 'join';
+      rememberDraft({ name: name.trim(), form, code: normalized, action: 'join' });
+      setAccountGate(true);
+      return;
+    }
     if (name.trim()) saveName(name.trim());
+    forgetDraft();
     router.push(
       `/geo/room/${normalized}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ""}`,
     );
   };
 
+  continueRef.current = () => {
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    if (action === 'create') create();
+    else if (action === 'join') joinByCode();
+  };
+
   return (
     <main className="pe-rooms-page pe-page">
+      {accountGate ? (
+        <AccountDialog
+          onClose={() => {
+            pendingAction.current = null;
+            rememberDraft({ name, form, code });
+            setAccountGate(false);
+          }}
+          name={name}
+          onNameChange={(value) => {
+            setName(value);
+            saveName(value);
+            rememberDraft({ name: value, form, code, action: pendingAction.current, requestId: requestId.current });
+          }}
+          returnTo={pendingAction.current === 'join' ? `/geo/room/${normalizeRoomCode(code)}` : `/geo/rooms?game=${form.game}&resumeRoom=${requestId.current}`}
+          onAuthenticated={() => {
+            setSignedIn(true);
+            setAccountGate(false);
+          }}
+        />
+      ) : null}
       <header className="pe-rooms-heading">
         <div>
           <p className="pe-eyebrow">Play together · All modes free</p>
           <h1>
-            Play with <em>friends.</em>
+            Multiplayer
           </h1>
-          <p>Pick a game. Create a room. Invite your friends.</p>
+          <p>Find an opponent, or invite your friends.</p>
         </div>
         <form method="post" onSubmit={joinByCode} className="pe-join-inline">
           <label htmlFor="join-room-code">Already have a room code?</label>
           <div>
             <input
               id="join-room-code"
+              disabled={searching}
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -200,12 +321,14 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
               autoComplete="off"
               spellCheck={false}
             />
-            <button type="submit" aria-label="Join room">
+            <button type="submit" aria-label="Join room" disabled={searching}>
               Join <ArrowRight size={17} />
             </button>
           </div>
         </form>
       </header>
+      <Matchmaker game={form.game} name={name} onNameChange={setName} onGameChange={(game) => update({ game })} onActiveChange={setSearching} />
+      {searching ? <p className="pe-directory-note">Cancel your search before opening a different room.</p> : null}
       {error ? (
         <p role="alert" className="mt-4 text-sm text-red-200">
           {error}
@@ -226,39 +349,14 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
           data-ready={hydrated ? "1" : "0"}
           className="pe-open-create"
         >
-          <h2>What are we playing?</h2>
-          <div className="pe-arena-choices" role="group" aria-label="Game">
-            {Object.values(VARIANTS).map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                aria-pressed={form.variant === v.id}
-                onClick={() => update({ variant: v.id })}
-                className={`pe-arena-choice pe-arena-choice--${v.id}`}
-              >
-                <span className="pe-arena-insignia" aria-hidden="true">
-                  {v.id === "duel" ? (
-                    <Swords size={48} strokeWidth={1.2} />
-                  ) : (
-                    <Trophy size={48} strokeWidth={1.2} />
-                  )}
-                </span>
-                <span className="pe-arena-number">
-                  {v.id === "duel" ? "02" : "01"}
-                </span>
-                <strong>{v.label}</strong>
-                <small>
-                  {v.id === "duel"
-                    ? "Better guesses damage your rivals. Last player standing wins."
-                    : "Everyone guesses the same places. Highest total score wins."}
-                </small>
-                <span className="pe-arena-selected">
-                  {form.variant === v.id ? "Selected" : "Choose " + v.label}
-                  <ArrowRight size={15} />
-                </span>
-              </button>
-            ))}
+          <fieldset disabled={searching} className="contents">
+          <legend className="sr-only">Create a room</legend>
+          <h2>Create a room</h2>
+          <p className="text-sm text-white/70">Better guesses deal damage. Last player standing wins.</p>
+          <div className="pe-rule-choice" role="group" aria-label="Game">
+            {['street', 'script'].map((game) => <button key={game} type="button" aria-pressed={form.game === game} onClick={() => update({ game })}>{game === 'street' ? 'Street' : 'Script'}</button>)}
           </div>
+          {form.game === 'script' ? <p className="text-sm text-white/70">Script matches do not change your Street rating.</p> : null}
           <div className="pe-player-name">
             <span className="pe-avatar">
               <Compass size={25} />
@@ -277,8 +375,8 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
             </label>
           </div>
           <div className="pe-room-preset">
-            {form.rounds} rounds · {timeLabel(form.time)} per round ·{" "}
-            {FORMATS[form.format]?.label}
+            {form.rounds} rounds · {timeLabel(form.time)} per round
+            {form.game !== 'script' ? ` · ${FORMATS[form.format]?.label}` : ''}
             <br />
             {form.visibility === "public"
               ? "Public room. Anyone can join."
@@ -293,7 +391,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
             <Plus size={18} />
             {busy
               ? "Creating your room…"
-              : "Create " + VARIANTS[form.variant].label + " room"}
+              : "Create room"}
             <ArrowRight size={18} />
           </Button>
           <p className="pe-room-next">
@@ -324,7 +422,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
               </Field>
               {/* There is one imagery, so there is no choice to offer.
                   The line says where a room will actually take people. */}
-              <Field
+              {form.game !== 'script' ? <Field
                 label="Places"
                 hint={`City streets in ${APPLE_COVERAGE.size} countries.`}
               >
@@ -339,8 +437,8 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
                     </option>
                   ))}
                 </select>
-              </Field>
-              {form.mode === "continent" ? (
+              </Field> : null}
+              {form.game !== 'script' && form.mode === "continent" ? (
                 <div className="sm:col-span-2">
                   <Field label="Continent">
                     <select
@@ -356,7 +454,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
                     </select>
                   </Field>
                 </div>
-              ) : form.mode === "country" ? (
+              ) : form.game !== 'script' && form.mode === "country" ? (
                 <div className="sm:col-span-2">
                   <Field label="Country">
                     <select
@@ -404,7 +502,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
                     ))}
                   </select>
                 </Field>
-                <Field label="Format" hint={FORMATS[form.format]?.description}>
+                {form.game !== 'script' ? <Field label="Format" hint={FORMATS[form.format]?.description}>
                   <select
                     value={form.format}
                     onChange={(e) => update({ format: e.target.value })}
@@ -416,10 +514,11 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
                       </option>
                     ))}
                   </select>
-                </Field>
+                </Field> : null}
               </div>
             </div>
           </details>
+          </fieldset>
         </form>
         <aside className="pe-room-directory">
           <section>
@@ -436,11 +535,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
                   <Compass size={35} />
                   <Users size={25} />
                 </span>
-                <h3>
-                  The next game
-                  <br />
-                  starts with you.
-                </h3>
+                <h3>No open rooms</h3>
                 <p>
                   No public rooms are open right now. Create one and send the
                   invite link to a friend.
@@ -461,6 +556,8 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
                     </div>
                     <Link
                       href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ""}`}
+                      aria-disabled={searching || undefined}
+                      onClick={(event) => { if (searching) event.preventDefault(); }}
                     >
                       {room.status === "playing" && room.variant === "duel"
                         ? "Watch"
@@ -482,7 +579,7 @@ export default function RoomBrowser({ initialVariant = "classic" }) {
                       <strong>{r.roomName || r.code}</strong>
                       <span>{ago(r.at)}</span>
                     </div>
-                    <Link href={`/geo/room/${r.code}`}>
+                    <Link href={`/geo/room/${r.code}`} aria-disabled={searching || undefined} onClick={(event) => { if (searching) event.preventDefault(); }}>
                       Return <ArrowRight size={15} />
                     </Link>
                   </li>

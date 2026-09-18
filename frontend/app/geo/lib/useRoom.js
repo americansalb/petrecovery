@@ -17,6 +17,17 @@ import { profileHeaders } from './profile';
 const IDENTITY_KEY = 'geo:rooms:v1';
 const NAME_KEY = 'geo:name';
 const KEEP_ROOMS = 20;
+const REQUEST_TIMEOUT_MS = 10000;
+
+async function roomRequest(url, options) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    const json = await readJson(res);
+    return { res, json };
+  } finally { clearTimeout(timer); }
+}
 
 function readAll() {
   try {
@@ -71,7 +82,11 @@ export function saveName(name) {
 }
 
 async function readJson(res) {
-  return res.json().catch(() => ({}));
+  try { return await res.json(); }
+  catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new Error('Could not read the room response. Please reconnect.');
+  }
 }
 
 export function useRoom(code) {
@@ -82,8 +97,17 @@ export function useRoom(code) {
   const identityRef = useRef(null);
   const stateRef = useRef(null);
   const offsetRef = useRef(0);
+  const actionEpoch = useRef(0);
+  const activeActions = useRef(0);
+  const polling = useRef(null);
+  const codeRef = useRef(code);
+  codeRef.current = code;
 
   useEffect(() => {
+    actionEpoch.current += 1;
+    stateRef.current = null;
+    setState(null);
+    setError(null);
     const id = loadIdentity(code);
     identityRef.current = id;
     setIdentity(id);
@@ -93,9 +117,22 @@ export function useRoom(code) {
   const apply = useCallback(
     (json) => {
       if (json && json.state) {
+        if (codeRef.current !== code || (json.state.room?.code && json.state.room.code !== code)) return;
+        const previous = stateRef.current;
+        if (previous?.room?.version > json.state.room?.version) return;
         stateRef.current = json.state;
         offsetRef.current = (json.state.serverNow || Date.now()) - Date.now();
         setState(json.state);
+        // A verified account can resume its existing seat on a new device,
+        // including the results of a finished match, without joining again.
+        if (json.identity?.token && json.identity.playerId === json.state.me?.id &&
+            json.identity.token !== identityRef.current?.token) {
+          const recovered = { ...json.identity, roomName: json.state.room?.name || '' };
+          identityRef.current = recovered;
+          setIdentity(recovered);
+          saveIdentity(code, recovered);
+          if (recovered.name) saveName(recovered.name);
+        }
         // Remember the room's name next to the token, so the lobby and
         // the room browser can list it without anyone memorizing a code.
         const roomName = json.state.room?.name;
@@ -115,15 +152,27 @@ export function useRoom(code) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const res = await fetch(`/api/geo/rooms/${code}`, { headers: headersFor(), cache: 'no-store' });
-    const json = await readJson(res);
-    if (!res.ok) {
-      setError({ code: json.code || 'error', message: json.error || 'Could not load the room', status: res.status });
+    if (activeActions.current || polling.current?.code === code) return null;
+    const epoch = actionEpoch.current;
+    const request = { code };
+    polling.current = request;
+    try {
+      const { res, json } = await roomRequest(`/api/geo/rooms/${code}`, { headers: headersFor(), cache: 'no-store' });
+      if (codeRef.current !== code || epoch !== actionEpoch.current) return null;
+      if (!res.ok) {
+        setError({ code: json.code || 'error', message: json.error || 'Could not load the room', status: res.status });
+        return null;
+      }
+      setError(null);
+      apply(json);
+      return json.state;
+    } catch {
+      if (codeRef.current !== code || epoch !== actionEpoch.current) return null;
+      setError({ code: 'connection', message: 'Connection lost. Reconnecting automatically. Your seat is saved.' });
       return null;
+    } finally {
+      if (polling.current === request) polling.current = null;
     }
-    setError(null);
-    apply(json);
-    return json.state;
   }, [code, headersFor, apply]);
 
   // The poll.
@@ -149,30 +198,42 @@ export function useRoom(code) {
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh().catch(() => {});
     };
+    const onOffline = () => setError({ code: 'connection', message: 'You are offline. Reconnecting automatically. Your seat is saved.' });
+    const onOnline = () => refresh().catch(() => {});
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('online', onOnline);
     return () => {
       stopped = true;
       clearTimeout(timer);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('online', onOnline);
     };
   }, [ready, refresh]);
 
   const act = useCallback(
     async (action, body = {}) => {
-      const res = await fetch(`/api/geo/rooms/${code}`, {
-        method: 'POST',
-        headers: headersFor({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ action, ...body }),
-      });
-      const json = await readJson(res);
-      if (!res.ok) {
-        const err = new Error(json.error || 'That did not work');
-        err.code = json.code;
-        err.status = res.status;
-        throw err;
-      }
-      apply(json);
-      return json;
+      actionEpoch.current += 1;
+      activeActions.current += 1;
+      try {
+        const { res, json } = await roomRequest(`/api/geo/rooms/${code}`, {
+          method: 'POST',
+          headers: headersFor({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ action, ...body }),
+        });
+        if (!res.ok) {
+          const err = new Error(json.error || 'That did not work');
+          err.code = json.code;
+          err.status = res.status;
+          throw err;
+        }
+        apply(json);
+        return json;
+      } catch (error) {
+        if (error.name === 'AbortError') throw new Error('The connection timed out. Your game is saved; reconnecting will check whether the action completed.');
+        throw error;
+      } finally { activeActions.current -= 1; }
     },
     [code, headersFor, apply]
   );

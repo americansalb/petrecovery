@@ -41,6 +41,9 @@ import {
 } from '../../lib/appleMapKit';
 import AppleScriptMap from './AppleScriptMap';
 import ScriptSample from './ScriptSample';
+import KeepThis from '../KeepThis';
+import SaveGameButton from '../SaveGameButton';
+import { useSavedGame } from '../../lib/savedGame';
 // The screen's own stylesheet: the light palette the map is drawn in,
 // and the animations. Imported here rather than by the map, which is
 // loaded late, so the sentence and the panels animate before the map's
@@ -98,6 +101,10 @@ const LeafletScriptMap = dynamic(() => import('./LeafletScriptMap'), {
 
 export default function ScriptPlayClient() {
   const params = useSearchParams();
+  return <ScriptPlayGame key={params.toString()} params={params} />;
+}
+
+function ScriptPlayGame({ params }) {
   const config = useMemo(() => {
     const raw = Object.fromEntries(params?.entries?.() || []);
     const normal = normalizeScriptConfig(raw);
@@ -110,12 +117,37 @@ export default function ScriptPlayClient() {
   const [error, setError] = useState('');
   const [pin, setPin] = useState(null);
   const [result, setResult] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
   const [history, setHistory] = useState([]);
   const [sending, setSending] = useState(false);
+  const submittingRef = useRef(false);
   const [secondsLeft, setSecondsLeft] = useState(config.timer || 0);
   const [mapTrouble, setMapTrouble] = useState(false);
   const [mapkit, setMapkit] = useState(null);
   const [provider, setProvider] = useState('pending');
+  const playthrough = params.get('replay');
+  const resumeUrl = `/geo/script/play?${scriptConfigToQuery(config)}${playthrough ? `&replay=${encodeURIComponent(playthrough)}` : ''}&resume=1`;
+  const { ready: saveReady, saveError } = useSavedGame({
+    kind: 'script', url: resumeUrl,
+    snapshot: { config, roundIndex, history, result },
+    enabled: Boolean(result) || history.length >= config.rounds,
+    // A refresh is still this playthrough. A deliberate replay has a fresh
+    // key in its URL, so it cannot accidentally restore the finished set.
+    resume: true,
+    restore: (saved) => {
+      if (!Array.isArray(saved.history)) return;
+      // Older clients could let the last timer score again after the summary.
+      // Keep a private checkpoint inside the configured round count.
+      const restoredHistory = saved.history.slice(0, config.rounds);
+      const restoredIndex = Math.min(config.rounds, Math.max(0, Number.isInteger(saved.roundIndex) ? saved.roundIndex : restoredHistory.length));
+      setHistory(restoredHistory);
+      setRoundIndex(restoredIndex);
+      setResult(restoredIndex < config.rounds ? saved.result || null : null);
+      const last = restoredHistory[restoredHistory.length - 1];
+      if (last) setRound({ text: last.text, script: last.script });
+      setLoading(false);
+    },
+  });
 
   // Which map the round is played on. Apple, unless Apple says no.
   //
@@ -177,13 +209,14 @@ export default function ScriptPlayClient() {
   // One round at a time, asked for by index: the server is stateless and
   // the seed decides the game, so this is replayable and cheap.
   useEffect(() => {
-    if (roundIndex >= config.rounds) return undefined;
+    if (!saveReady || roundIndex >= config.rounds || history.length > roundIndex) return undefined;
     let live = true;
     setLoading(true);
     setError('');
     setRound(null);
     setPin(null);
     setResult(null);
+    setSelectedRegion(null);
     fetch('/api/geo/script/round', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -203,11 +236,12 @@ export default function ScriptPlayClient() {
     return () => {
       live = false;
     };
-  }, [config, roundIndex]);
+  }, [config, roundIndex, saveReady, history.length]);
 
   const submit = useCallback(
     async (guess) => {
-      if (!round || sending || result) return;
+      if (!round?.token || sending || submittingRef.current || result || roundIndex >= config.rounds || history.length > roundIndex) return;
+      submittingRef.current = true;
       setSending(true);
       try {
         const response = await fetch('/api/geo/script/guess', {
@@ -226,10 +260,11 @@ export default function ScriptPlayClient() {
       } catch (guessError) {
         setError(guessError.message);
       } finally {
+        submittingRef.current = false;
         setSending(false);
       }
     },
-    [round, sending, result],
+    [round, sending, result, roundIndex, config.rounds, history.length],
   );
 
   // The clock. Running out submits whatever pin is on the map, which
@@ -243,7 +278,7 @@ export default function ScriptPlayClient() {
   // it twice, which submitted and recorded the same round twice.
   const firedRef = useRef(null);
   useEffect(() => {
-    if (!config.timer || !round || result) return undefined;
+    if (!config.timer || !round?.token || result || roundIndex >= config.rounds || history.length > roundIndex) return undefined;
     const endsAt = Date.now() + config.timer * 1000;
     const tick = () => {
       const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
@@ -255,9 +290,11 @@ export default function ScriptPlayClient() {
     };
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
-  }, [config.timer, round, result]);
+  }, [config.timer, config.rounds, round, result, roundIndex, history.length]);
 
   const next = () => {
+    setRound(null);
+    setPin(null);
     setResult(null);
     setRoundIndex((index) => index + 1);
   };
@@ -269,6 +306,8 @@ export default function ScriptPlayClient() {
         ladder={ladder}
         history={history}
         total={total}
+        resumeUrl={resumeUrl}
+        saveError={saveError}
       />
     );
   }
@@ -278,7 +317,7 @@ export default function ScriptPlayClient() {
       {/* The sentence gets the top of the screen and the map gets the
           rest of it. It used to float over the map, which put the thing
           you are reading on top of the thing you answer on. */}
-      <header className="pe-sentence-stage relative z-30 shrink-0 border-b border-sand-200 bg-[#fffdf8] shadow-sm">
+      <header className="pe-sentence-stage relative z-30 shrink-0 border-b border-sand-200 bg-[#fffdf8] shadow-sm" data-revealed={Boolean(result)}>
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-3 px-3 pt-3 sm:px-4">
           <div className={`flex items-center gap-3 px-4 py-2 ${PILL}`}>
             <div className="flex flex-col leading-tight">
@@ -289,8 +328,7 @@ export default function ScriptPlayClient() {
                 Script &middot; {ladder.short}
               </span>
               <span className="text-sm font-semibold">
-                Round {Math.min(roundIndex + 1, config.rounds)} of{' '}
-                {config.rounds}
+                {saveReady ? <>Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}</> : 'Opening game…'}
               </span>
             </div>
             <div className="flex flex-col border-l border-sand-200 pl-3 leading-tight">
@@ -298,11 +336,12 @@ export default function ScriptPlayClient() {
                 Score
               </span>
               <span className="text-sm font-semibold tabular-nums text-sand-900">
-                {formatScore(total)}
+                {saveReady ? formatScore(total) : '…'}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {history.length > 0 ? <SaveGameButton returnTo={resumeUrl} className={ICON_BUTTON} /> : null}
             {config.timer ? (
               <div
                 className={`flex items-center gap-2 px-3 py-2 ${secondsLeft <= 10 ? 'rounded-full border border-red-300 bg-red-50 shadow-sm' : PILL}`}
@@ -327,11 +366,15 @@ export default function ScriptPlayClient() {
             </Link>
           </div>
         </div>
+        <div className="wg-round-track" aria-label={`${history.length} of ${config.rounds} rounds played`}>
+          {Array.from({ length: config.rounds }, (_, index) => <span key={index} data-complete={index < history.length} data-current={index === roundIndex} />)}
+        </div>
 
+        {saveError ? <p role="status" className="mx-auto max-w-4xl px-4 text-sm text-red-700">{saveError}</p> : null}
         <div className="mx-auto max-w-4xl px-3 pb-4 pt-3 text-center sm:px-4">
           {loading ? (
             <p className="flex items-center justify-center gap-2 py-3 text-sand-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Finding a sentence
+              <Loader2 className="h-4 w-4 animate-spin" /> {saveReady ? 'Finding a sentence' : 'Loading your progress'}
             </p>
           ) : error ? (
             <div className="py-2 text-sm">
@@ -345,13 +388,13 @@ export default function ScriptPlayClient() {
             </div>
           ) : round ? (
             <div key={roundIndex} className="wg-sentence-in">
-              <ScriptSample text={round.text} script={round.script} />
+              <ScriptSample text={round.text} script={round.script} size={result ? 'sm' : 'lg'} />
             </div>
           ) : null}
         </div>
       </header>
 
-      <div className="relative flex-1">
+      <div className="relative min-h-0 flex-1">
         {provider === 'apple' && mapkit ? (
           <AppleScriptMap
             mapkit={mapkit}
@@ -361,6 +404,7 @@ export default function ScriptPlayClient() {
             answer={result?.answer || null}
             guess={result?.guess || null}
             nearestPoint={result?.nearestPoint || null}
+            selectedRegion={selectedRegion}
             onUnavailable={() => setProvider('leaflet')}
           />
         ) : provider === 'leaflet' ? (
@@ -371,6 +415,7 @@ export default function ScriptPlayClient() {
             answer={result?.answer || null}
             guess={result?.guess || null}
             nearestPoint={result?.nearestPoint || null}
+            selectedRegion={selectedRegion}
             onMapTrouble={() => setMapTrouble(true)}
           />
         ) : (
@@ -391,14 +436,7 @@ export default function ScriptPlayClient() {
           </div>
         ) : null}
 
-        {result ? (
-          <Reveal
-            result={result}
-            round={round}
-            last={history.length >= config.rounds}
-            onNext={next}
-          />
-        ) : (
+        {!result ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
             <div className="mx-auto max-w-md">
               {!pin && !loading && round ? (
@@ -423,19 +461,29 @@ export default function ScriptPlayClient() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
+      {result ? (
+        <Reveal
+          result={result}
+          round={round}
+          last={history.length >= config.rounds}
+          onNext={next}
+          selectedRegion={selectedRegion}
+          onRegion={setSelectedRegion}
+        />
+      ) : null}
     </div>
   );
 }
 
 /** The answer, and how close the pin was to it. */
-function Reveal({ result, round, last, onNext }) {
+function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
   const { answer } = result;
   const score = useCountUp(result.score);
   return (
-    <div className="pe-script-reveal wg-panel-in absolute inset-x-0 bottom-0 z-30 max-h-[72%] overflow-y-auto border-t border-sand-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
-      <div className="mx-auto max-w-2xl">
+    <div className="pe-script-reveal wg-panel-in relative z-30 flex max-h-[50svh] shrink-0 flex-col overflow-hidden border-t border-sand-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
+      <div className="mx-auto min-h-0 w-full max-w-2xl overflow-y-auto">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-xl font-bold">
             {answer.name}{' '}
@@ -445,15 +493,19 @@ function Reveal({ result, round, last, onNext }) {
             {formatScore(score)} points
           </p>
         </div>
-        <p className="mt-1 text-sm text-sand-500">
-          {answer.scriptName} script, {answer.branch}, {answer.family}. About{' '}
-          {answer.speakers} million speakers.
-        </p>
+        <div className="wg-region-explorer">
+          <p className="text-sm font-semibold">Where {answer.name} is spoken <span className="wg-region-key" aria-hidden="true" /></p>
+          <div className="wg-region-choices" aria-label="Explore language regions">
+            <button type="button" aria-pressed={selectedRegion === null} onClick={() => onRegion(null)}>All regions</button>
+            {(answer.regions || []).map((region, index) => <button key={`${region.name}-${index}`} type="button" aria-pressed={selectedRegion === index} onClick={() => onRegion(index)}>{region.name}</button>)}
+          </div>
+          <p className="wg-region-caption">Select a region to explore its outline. These areas show usage, not exclusive language borders.</p>
+        </div>
         <p className="mt-3 text-sm">
           {result.guess === null
             ? 'No pin, so no points. The clock ran out.'
             : result.inRegion
-              ? `Your pin was inside ${plural(answer.regions)}.`
+              ? 'Your pin was inside a region where this language is used.'
               : `Your pin was ${formatDistance(result.distanceKm)} from the nearest place ${answer.name} is used.`}
         </p>
         {result.alsoSpokenHere?.length ? (
@@ -462,16 +514,20 @@ function Reveal({ result, round, last, onNext }) {
             {result.alsoSpokenHere.map((l) => l.name).join(', ')}.
           </p>
         ) : null}
-        <Tells answer={answer} text={round?.text} script={round?.script} />
-        <button
-          type="button"
-          onClick={onNext}
-          className="pe-button pe-button--primary mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
-        >
-          {last ? 'See the results' : 'Next round'}{' '}
-          <ArrowRight className="h-4 w-4" />
-        </button>
+        <details className="wg-clue-details">
+          <summary>Recognize it next time</summary>
+          <p className="mt-2 text-sm text-sand-600">{answer.scriptName} script · {answer.branch} · {answer.family}. About {answer.speakers} million speakers.</p>
+          <Tells answer={answer} text={round?.text} script={round?.script} />
+        </details>
       </div>
+      <button
+        type="button"
+        onClick={onNext}
+        className="pe-button pe-button--primary mx-auto mt-4 flex min-h-[48px] w-full max-w-2xl shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
+      >
+        {last ? 'See the results' : 'Next round'}{' '}
+        <ArrowRight className="h-4 w-4" />
+      </button>
     </div>
   );
 }
@@ -499,7 +555,7 @@ function Tells({ answer, text, script }) {
       {answer.onlyOneInScript ? (
         <p className="mt-2 text-sm text-sand-700">
           In this pool, {answer.scriptName} is written for {answer.name} and
-          nothing else. The alphabet was the whole answer.
+          nothing else. Recognizing its letters helps you find its regions.
         </p>
       ) : null}
       {runs.length ? (
@@ -529,16 +585,12 @@ function Tells({ answer, text, script }) {
   );
 }
 
-function plural(regions) {
-  if (!regions?.length) return 'the right area';
-  if (regions.length === 1) return regions[0].name;
-  return `${regions[0].name}, one of ${regions.length} places it is used`;
-}
-
 /** The end of a game. */
-function Summary({ config, ladder, history, total }) {
+function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
   const replay = `/geo/script/play?${scriptConfigToQuery({ ...config, seed: randomSeedString() })}`;
-  const same = `/geo/script/play?${scriptConfigToQuery(config)}`;
+  // A same-URL Link leaves the completed component mounted. Change only the
+  // playthrough key, not the seed/rules, so replay starts at round one.
+  const same = `/geo/script/play?${scriptConfigToQuery(config)}&replay=${randomSeedString()}`;
   return (
     <div className="pe-script-summary fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
       <div className="mx-auto max-w-2xl px-5 py-10">
@@ -581,6 +633,8 @@ function Summary({ config, ladder, history, total }) {
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-sand-500">
           Your rounds
         </h2>
+        <div className="rounded-xl bg-ocean-950 text-white"><KeepThis returnTo={resumeUrl} /></div>
+        {saveError ? <p role="status" className="mt-3 text-sm text-clay-800">{saveError}</p> : null}
         <ol className="mt-3 space-y-3">
           {history.map((row, index) => (
             /* Three blocks, each with its own space. The name, the

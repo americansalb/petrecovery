@@ -156,7 +156,7 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
         dir={rtl ? 'rtl' : 'ltr'}
         lang={script}
         style={{ fontFamily: stack, lineHeight: lineHeightFor(script) }}
-        className={`select-none break-words text-sand-900 ${textSize} ${rtl ? 'text-right' : ''}`}
+        className={`wg-script-sample select-none break-words text-sand-900 ${textSize} ${rtl ? 'text-right' : ''}`}
       >
         {text}
       </p>

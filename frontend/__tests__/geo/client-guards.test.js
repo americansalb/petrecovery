@@ -16,6 +16,28 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
+describe('account and replay regression guards', () => {
+  test('room polling cannot restart the sign-in interval through a new callback', () => {
+    const src = read('app/geo/components/SignInCard.js');
+    expect(src).toContain('authenticatedRef.current = onAuthenticated');
+    expect(src).toContain('authenticatedRef.current?.()');
+    expect(src).not.toContain('[state, onAuthenticated]');
+    expect(src).toContain("document.addEventListener('visibilitychange', check)");
+  });
+  test('a different game URL remounts the game rather than keeping the previous result', () => {
+    expect(read('app/geo/components/PlayClient.js')).toContain('<StreetPlayGame key={params.toString()}');
+    expect(read('app/geo/components/script/ScriptPlayClient.js')).toContain('<ScriptPlayGame key={params.toString()}');
+  });
+  test.each(['PlayClient.js', 'RoomClient.js'])('closing the mobile map in %s preserves its layout size', (component) => {
+    const src = read(`app/geo/components/${component}`);
+    expect(src).not.toContain('hidden sm:flex absolute');
+    expect(src).toContain('invisible pointer-events-none absolute -left-[9999px]');
+    expect(src).toContain('sm:visible');
+    expect(src).toContain('top-0 flex h-64 w-64 flex-col');
+    expect(src).not.toContain('setMapHover');
+  });
+});
+
 describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
   const src = read('app/geo/components/RoomClient.js');
 
@@ -23,7 +45,7 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
     // `api` is only ever set by the Google branch of the SDK effect, so
     // gating the shared map block on it left Apple rooms with no map and
     // no Guess button: every round timed out at zero for everyone.
-    expect(src).toContain('{imageryReady && joined ? (');
+    expect(src).toContain("{imageryReady && joined && (phase === 'guessing' || phase === 'reveal') ? (");
     expect(src).not.toContain('{api && joined ? (');
   });
 
@@ -31,15 +53,17 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
     // It used to read the Google handle, which an Apple room never
     // sets. There is one imagery now, so there is one handle, and
     // nothing here may reach for a second.
-    expect(src).toMatch(/const imageryReady = Boolean\(mapkit\);/);
+    expect(src).toMatch(/const imageryReady = isScript \|\| Boolean\(mapkit\);/);
     expect(src).not.toMatch(/Boolean\(api\)/);
   });
 
   test('the map block still holds the map and the submit button', () => {
-    const block = src.slice(src.indexOf('{imageryReady && joined ? ('));
+    const block = src.slice(src.indexOf('{imageryReady && joined &&'));
     const end = block.indexOf('{/* Screens */}');
     const map = block.slice(0, end);
     expect(map).toContain('<AppleGuessMap');
+    expect(map).toContain('<ScriptMap');
+    expect(map).toContain('Number.isFinite(g.lat) && Number.isFinite(g.lng)');
     expect(map).toContain('onClick={submitGuess}');
     // The harness clicks this rather than the label, which now changes
     // with the pin ("Guess" / "Sending") while the hook does not.
@@ -49,6 +73,18 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
 
 describe('PlayClient: the server decides whether a round timed out', () => {
   const src = read('app/geo/components/PlayClient.js');
+
+  test('the guess target does not move away when the pointer enters the small map', () => {
+    // Real MapKit browser run: hovering the small card enlarged it and moved
+    // Guess before the click landed. Map sizing must be an explicit action.
+    expect(src).not.toContain('setMapHover');
+    expect(src).toContain('onClick={() => setMapSize(size)}');
+  });
+
+  test('a generic imagery timeout cannot cover the actionable SDK error', () => {
+    expect(src).toContain("state.status === 'error' && !autoRetrying && !sdkError && !serverError");
+    expect(src).toContain("!saveReady || !configured || sdkError || state.status !== 'idle'");
+  });
 
   test('the stored round takes timedOut from the response, not from the caller', () => {
     // Retrying a failed send passed timedOut:true purely to allow an
@@ -139,7 +175,6 @@ describe('RoomClient: only players load billed imagery', () => {
     // map) and missed on the expensive one, so anyone who opened the
     // room link mounted a Street View pane and loaded a panorama for
     // every round, charged to nobody.
-    expect(src).toMatch(/const showApple = mapkit && joined &&/);
+    expect(src).toMatch(/const showApple = !isScript && mapkit && joined &&/);
   });
 });
-

@@ -34,6 +34,8 @@ import LoadingSpot from './LoadingSpot';
 import RoundResult from './RoundResult';
 import GameSummary from './GameSummary';
 import SetupNotice from './SetupNotice';
+import { useSavedGame } from '../lib/savedGame';
+import { ignoreGameShortcut } from '../lib/mapKeyboard';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
 const DESKTOP_SIZE = {
@@ -80,6 +82,10 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
 
 export default function PlayClient() {
   const params = useSearchParams();
+  return <StreetPlayGame key={params.toString()} params={params} />;
+}
+
+function StreetPlayGame({ params }) {
   const config = useMemo(() => configFromParams(params), [params]);
   const [state, dispatch] = useReducer(reducer, config, createInitialState);
   const stateRef = useRef(state);
@@ -92,7 +98,6 @@ export default function PlayClient() {
   const [heading, setHeading] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(config.time);
   const [mapSize, setMapSize] = useState('small');
-  const [mapHover, setMapHover] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const [notice, setNotice] = useState('');
   const [appleAttempt, setAppleAttempt] = useState(0);
@@ -103,7 +108,6 @@ export default function PlayClient() {
   const [daily, setDaily] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileSettled, setProfileSettled] = useState(false);
-  const [pointsByRound, setPointsByRound] = useState({});
   const paneRef = useRef(null);
   const requestRef = useRef(0);
   const recordedRef = useRef(false);
@@ -115,13 +119,20 @@ export default function PlayClient() {
   // always is: a round that hid its own map would announce itself.
   const notEarth = state.current?.place || null;
   const configured = Boolean(server?.providers?.apple?.configured);
+  const playthrough = params.get('replay');
+  const resumeUrl = `/geo/play?${configToParams(config)}${playthrough ? `&replay=${encodeURIComponent(playthrough)}` : ''}&resume=1`;
+  const { ready: saveReady, saveError } = useSavedGame({
+    kind: 'street', url: resumeUrl, snapshot: state,
+    enabled: state.status === 'result' || state.status === 'summary',
+    resume: true,
+    restore: (snapshot) => dispatch({ type: 'restore', snapshot }),
+  });
 
   // A new link is a new game.
   useEffect(() => {
     dispatch({ type: 'restart', config });
     recordedRef.current = false;
     setShare(null);
-    setPointsByRound({});
     setSecondsLeft(config.time);
     setMobileMapOpen(false);
   }, [config]);
@@ -210,10 +221,10 @@ export default function PlayClient() {
   // profile was handed over and then refused a score.
   const needsProfile = isChallengeMode(config.mode);
   useEffect(() => {
-    if (!configured || state.status !== 'idle') return;
+    if (!saveReady || !configured || sdkError || state.status !== 'idle') return;
     if (needsProfile && !profileSettled) return;
     startRound();
-  }, [configured, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
+  }, [saveReady, configured, sdkError, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
   // An unresponsive provider is not bad luck and is never retried: it
@@ -262,8 +273,7 @@ export default function PlayClient() {
       if (!res.ok) throw new Error(data.error || 'Could not score the guess');
       if (data.challenge) setChallenge(data.challenge);
       if (data.rated) setRated(data.rated);
-      if (data.points) setPointsByRound((prev) => ({ ...prev, [s.roundIndex]: data.points }));
-      dispatch({ type: 'submit_success', result: { ...data.result, timedOut: data.result?.timedOut ?? !guess, roundIndex: s.roundIndex } });
+      dispatch({ type: 'submit_success', result: { ...data.result, points: data.points || null, timedOut: data.result?.timedOut ?? !guess, roundIndex: s.roundIndex } });
       setMobileMapOpen(false);
     } catch (error) {
       dispatch({ type: 'submit_error', error: { message: error.message } });
@@ -319,7 +329,7 @@ export default function PlayClient() {
   // Keyboard: Space/Enter guess or continue, R return to start, M map size, Esc closes the sheet.
   useEffect(() => {
     const onKey = (event) => {
-      if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+      if (ignoreGameShortcut(event)) return;
       const s = stateRef.current;
       if (event.key === ' ' || event.key === 'Enter') {
         if (s.status === 'playing' && s.pin) {
@@ -373,22 +383,24 @@ export default function PlayClient() {
   const inRound = state.status === 'playing' || state.status === 'submitting';
   // Points this game earned so far, and the badges it found (docs/GEO.md).
   const gamePoints = useMemo(() => {
-    const rounds = Object.values(pointsByRound);
+    const rounds = state.rounds.map((round) => round.points).filter(Boolean);
     return {
       earned: rounds.reduce((sum, r) => sum + (r.earned || 0), 0),
       balance: rounds.length ? rounds[rounds.length - 1].balance : profile?.points || 0,
       badges: rounds.map((r) => r.badge).filter(Boolean),
       capped: rounds.some((r) => r.allowed === false),
     };
-  }, [pointsByRound, profile]);
-  const effectiveSize = mapHover && mapSize === 'small' ? 'medium' : mapSize;
+  }, [state.rounds, profile]);
+  // Hover expansion moved the Guess button before the player's click landed.
+  // Keep the chosen size stable; S/M/L and the keyboard shortcut resize it.
+  const effectiveSize = mapSize;
   // A Not Earth round has no answer to plot, so its reveal keeps the
   // picture on screen instead of a map with one pin and nothing to
   // compare it to.
   const notEarthResult = state.status === 'result' && lastResult?.kind === 'not-earth';
   let mapClass;
   if (notEarthResult) {
-    mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
+    mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   } else if (mapMode === 'result') {
     // flex-col so the map's flex-1 fills the frame; without it the map
     // collapses to zero height and the panorama shows through the border.
@@ -399,9 +411,11 @@ export default function PlayClient() {
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
-      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
+      // Keep a real size while the mobile drawer is closed. display:none
+      // makes MapKit's renderer resize to zero and can leave its tiles blank.
+      : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
-    mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
+    mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   }
 
   const sdkReady = Boolean(mapkit);
@@ -417,6 +431,7 @@ export default function PlayClient() {
 
   return (
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
+      {saveError ? <p role="status" className="absolute left-4 top-20 z-[70] max-w-sm rounded-lg bg-ocean-900 p-3 text-sm">{saveError}</p> : null}
       {/* Imagery */}
       {notEarth ? (
         <NotEarthPane ref={paneRef} place={notEarth} roundKey={state.roundIndex} allowPan={config.pan} allowZoom={config.zoom} />
@@ -432,7 +447,8 @@ export default function PlayClient() {
           allowZoom={config.zoom}
           onAttempt={setAppleAttempt}
           onLocated={(index) => dispatch({ type: 'located', index })}
-          onFailed={(error) =>
+          onFailed={(error) => {
+            if (stateRef.current.status !== 'locating') return;
             dispatch({
               type: 'load_error',
               error: {
@@ -442,8 +458,8 @@ export default function PlayClient() {
                 // "nothing here" is worth another draw.
                 code: error?.kind === 'unresponsive' ? 'imagery_unresponsive' : 'no_imagery',
               },
-            })
-          }
+            });
+          }}
         />
       ) : null}
 
@@ -471,12 +487,13 @@ export default function PlayClient() {
           onToggleMobileMap={() => setMobileMapOpen((open) => !open)}
           notice={inRound ? notice : ''}
           showMapControls={inRound}
+          saveUrl={state.rounds.length > 0 ? resumeUrl : null}
         />
       ) : null}
 
       {/* The one map, moved by class */}
       {sdkReady ? (
-        <div className={mapClass} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
+        <div className={mapClass}>
           <div className="relative min-h-0 flex-1">
             <AppleGuessMap mapkit={mapkit} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} />
             {/* On the card, next to what they change. Under the score
@@ -547,7 +564,7 @@ export default function PlayClient() {
           isStreak={isStreak}
           streak={streakLength(state)}
           countryName={countryName(lastResult.guessCountry)}
-          points={pointsByRound[lastResult.roundIndex] || null}
+          points={lastResult.points || null}
           onNext={next}
         />
       ) : null}
@@ -556,6 +573,7 @@ export default function PlayClient() {
       {state.status === 'summary' && share ? (
         <GameSummary
           summary={share.summary}
+          resumeUrl={resumeUrl}
           code={share.code}
           config={config}
           regionLabel={regionLabel}
@@ -601,7 +619,7 @@ export default function PlayClient() {
       {configured && !sdkReady && !sdkError && server ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading Look Around</div>
       ) : null}
-      {state.status === 'error' && !autoRetrying ? (
+      {state.status === 'error' && !autoRetrying && !sdkError && !serverError ? (
         <ErrorPanel
           title={
             metered

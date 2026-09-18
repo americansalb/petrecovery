@@ -31,7 +31,7 @@ function RatingCell({ row }) {
 }
 
 export default function GeoLeaderboardPage() {
-  const [ladder, setLadder] = useState('classic');
+  const [ladder, setLadder] = useState('duel');
   const [board, setBoard] = useState(null);
   const [error, setError] = useState('');
 
@@ -64,7 +64,7 @@ export default function GeoLeaderboardPage() {
           </p>
           <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
             <Trophy className="h-7 w-7 text-clay-300" />
-            Find your place.
+            Rankings
           </h1>
           {/* How rating works is worth knowing once and reading never.
               It was three lines above the table on every visit. */}
@@ -74,17 +74,18 @@ export default function GeoLeaderboardPage() {
             </summary>
             <ul className="mt-2 space-y-1">
               <li>
-                Classic and Duel rate you against everyone else in a finished
-                room.
+                Street and Script have separate ratings, based on your results against other players.
               </li>
               <li>
                 Ranked solo rates this hour&apos;s five places against everyone
                 who played them.
               </li>
               <li>
-                A rating appears after {board?.minGames || 3} rated games and
-                settles by {PROVISIONAL_GAMES}.
+                Finish {PROVISIONAL_GAMES} placement matches to join the rankings.
               </li>
+              <li>Leagues follow your position among placed players this season. Small pools round each percentile cutoff up to a whole player.</li>
+              <li>Meteorite requires a top-five position, 20 rated matches and 80% average accuracy. Accuracy means round points earned out of the points available, including missed rounds. It is not win rate or remaining health.</li>
+              <li>Your league can change when other players move past you. Rating ties are ordered by games played, then a stable player ID.</li>
             </ul>
           </details>
         </header>
@@ -92,9 +93,9 @@ export default function GeoLeaderboardPage() {
         <RankPath />
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <Tabs
-            items={LADDERS.map((id) => ({
+            items={LADDERS.filter((id) => id !== 'classic').map((id) => ({
               id,
-              label: LADDER_LABELS[id] || VARIANTS[id]?.label || id,
+              label: id === 'duel' ? 'Street multiplayer' : LADDER_LABELS[id] || VARIANTS[id]?.label || id,
             }))}
             value={ladder}
             onChange={setLadder}
@@ -108,13 +109,13 @@ export default function GeoLeaderboardPage() {
             href={
               ladder === 'solo'
                 ? '/geo/play?mode=ranked'
-                : `/geo/rooms?variant=${ladder}`
+                : `/geo/rooms?game=${ladder === 'script' ? 'script' : 'street'}`
             }
             data-ladder-play
           >
             {ladder === 'solo'
               ? "Play this hour's five"
-              : `Open a ${LADDER_LABELS[ladder]?.toLowerCase() || ''} room`}
+              : 'Play multiplayer'}
           </Button>
         </div>
         {board?.season ? (
@@ -145,6 +146,7 @@ export default function GeoLeaderboardPage() {
                     {you.provisional ? ', provisional' : ''} · likely between{' '}
                     {you.low} and {you.high}
                   </p>
+                  <p className="mt-1 text-sm text-white/70">{you.accuracy != null ? `${Math.floor(you.accuracy * 1000) / 10}% average accuracy` : 'Play a new rated match to start tracking accuracy.'}</p>
                 </div>
               ) : (
                 <div>
@@ -193,10 +195,10 @@ export default function GeoLeaderboardPage() {
                 ) : (
                   <>
                     No rated games yet.{' '}
-                    <Link href="/geo/rooms" className="underline">
-                      Open a {LADDER_LABELS[ladder]?.toLowerCase() || ''} room
+                    <Link href={`/geo/rooms?game=${ladder === 'script' ? 'script' : 'street'}`} className="underline">
+                      Play {ladder === 'script' ? 'Script' : 'Street'} multiplayer
                     </Link>{' '}
-                    with a friend to get one.
+                    to start placing.
                   </>
                 )}
               </p>
@@ -257,19 +259,18 @@ export default function GeoLeaderboardPage() {
                   >
                     <div className="pe-ladder-empty">
                       <Trophy size={35} strokeWidth={1.2} />
-                      <strong>Be first on this ladder.</strong>
+                      <strong>No ranked players yet</strong>
                       <p>
-                        Complete {PROVISIONAL_GAMES} placement games to reveal your
-                        league.
+                        Finish {PROVISIONAL_GAMES} placement matches to appear here.
                       </p>
                       <Link
                         href={
                           ladder === 'solo'
                             ? '/geo/play?mode=ranked'
-                            : `/geo/rooms?variant=${ladder}`
+                            : `/geo/rooms?game=${ladder === 'script' ? 'script' : 'street'}`
                         }
                       >
-                        Start your climb <span aria-hidden="true">↗</span>
+                        Play <span aria-hidden="true">↗</span>
                       </Link>
                     </div>
                   </td>
@@ -287,6 +288,7 @@ export default function GeoLeaderboardPage() {
                   </td>
                   <td className="px-4 py-2 font-semibold">
                     <PlayerName name={row.name} cosmetics={row.cosmetics} />
+                    <span className="block text-xs font-normal text-white/70 sm:hidden">{row.tier}</span>
                   </td>
                   <td className="hidden px-4 py-2 text-white/60 sm:table-cell">
                     {row.tier}
@@ -319,7 +321,7 @@ export default function GeoLeaderboardPage() {
 
         <p className="mt-4 flex items-center gap-2 text-sm text-white/60">
           <Users className="h-4 w-4" />
-          Only these three are rated.{' '}
+          Street, Script and ranked solo have separate ratings.{' '}
           <Link href="/geo" className="ml-1 underline hover:text-white">
             Everything else is in Play
           </Link>

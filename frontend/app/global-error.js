@@ -63,6 +63,8 @@ export default function GlobalError({ error, reset }) {
             >
               Try again
             </button>
+            {/* A full document navigation must recover even when the root router has crashed. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/"
               style={{

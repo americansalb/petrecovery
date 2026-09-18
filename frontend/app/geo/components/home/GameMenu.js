@@ -9,10 +9,8 @@ import {
   CalendarDays,
   Compass,
   Flame,
-  Globe2,
   Languages,
   Play,
-  Swords,
   Trophy,
   UserRound,
   Users,
@@ -32,17 +30,23 @@ import { profileHeaders } from "../../lib/profile";
 import { loadGeoConfig } from "../../lib/serverConfig";
 import ScriptArtwork from "./ScriptArtwork";
 import Button from "../ui/Button";
+import { latestSavedGame } from '../../lib/savedGame';
+import { safeReturnTo } from '@/app/lib/geo/authReturn';
 
 const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
-  .map(([code, name]) => ({ code, name: name.replace(/^the /, "") }))
+  .map(([code, name]) => ({
+    code,
+    name: name.replace(/^the /, ""),
+    flag: String.fromCodePoint(...(code === "UK" ? "GB" : code).split("").map((letter) => 127397 + letter.charCodeAt(0))),
+  }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
 export default function GameMenu() {
   const router = useRouter();
-  const [company, setCompany] = useState("multi");
+  const [company, setCompany] = useState("solo");
   const [game, setGame] = useState("street");
-  const [variant, setVariant] = useState("classic");
   const [starting, setStarting] = useState(false);
+  const [savedGame, setSavedGame] = useState(null);
   const [imagery, setImagery] = useState(null);
   const [daily, setDaily] = useState(null);
   const [cup, setCup] = useState(null);
@@ -52,10 +56,11 @@ export default function GameMenu() {
   const [continent, setContinent] = useState("europe");
   const [country, setCountry] = useState("JP");
   const multiplayer = company === "multi";
-  const script = !multiplayer && game === "script";
+  const script = game === "script";
 
   useEffect(() => {
     let live = true;
+    latestSavedGame().then((saved) => { if (live) setSavedGame(saved); });
     const get = (name, url, set, pick = (d) => d) =>
       fetch(url, { headers: profileHeaders(), cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
@@ -88,7 +93,7 @@ export default function GameMenu() {
 
   const start = () => {
     setStarting(true);
-    if (multiplayer) router.push(`/geo/rooms?variant=${variant}`);
+    if (multiplayer) router.push(`/geo/rooms?game=${game}`);
     else if (script) router.push("/geo/script/play?ladder=world&rounds=5");
     else router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
@@ -103,36 +108,13 @@ export default function GameMenu() {
         <div className="pe-world-shade" aria-hidden="true" />
         <div className="pe-stage-content">
           <div className="pe-hero-copy">
-            <p className="pe-eyebrow">
-              <span className="pe-spark" /> The geography game · Free to play
-            </p>
             <h1 id="world-title">
-              {script ? (
-                <>
-                  Read the
-                  <br />
-                  <em>world.</em>
-                </>
-              ) : multiplayer ? (
-                <>
-                  Know your
-                  <br />
-                  <em>world?</em>
-                </>
-              ) : (
-                <>
-                  Where on
-                  <br />
-                  <em>Earth?</em>
-                </>
-              )}
+              Where on<br /><em>Earth?</em>
             </h1>
             <p className="pe-hero-description">
               {script
-                ? "Follow the letters. Find the language. Place your pin."
-                : multiplayer
-                  ? "Same places. Different guesses. Take on your friends."
-                  : "Look around, find the clues, and put yourself on the map."}
+                ? "Find the place from its language."
+                : "Look around. Guess where you are."}
             </p>
           </div>
           <section
@@ -157,49 +139,15 @@ export default function GameMenu() {
                 </button>
               </div>
               <span className="pe-dock-note">
-                {multiplayer ? "Classic or Duel" : "Street or Script"}
+                Street or Script
               </span>
             </div>
             <div className="pe-dock-body">
               <div
                 className="pe-game-choices"
                 role="group"
-                aria-label={multiplayer ? "Multiplayer game" : "Solo game"}
+                aria-label="Game"
               >
-                {multiplayer ? (
-                  <>
-                    <button
-                      type="button"
-                      className="pe-mode-choice"
-                      aria-pressed={variant === "classic"}
-                      onClick={() => setVariant("classic")}
-                    >
-                      <span className="pe-mode-icon">
-                        <Trophy />
-                      </span>
-                      <span>
-                        <strong>Classic</strong>
-                        <small>Highest total score wins.</small>
-                      </span>
-                      <span className="pe-choice-dot" />
-                    </button>
-                    <button
-                      type="button"
-                      className="pe-mode-choice"
-                      aria-pressed={variant === "duel"}
-                      onClick={() => setVariant("duel")}
-                    >
-                      <span className="pe-mode-icon pe-mode-icon--duel">
-                        <Swords />
-                      </span>
-                      <span>
-                        <strong>Duel</strong>
-                        <small>Last player standing wins.</small>
-                      </span>
-                      <span className="pe-choice-dot" />
-                    </button>
-                  </>
-                ) : (
                   <>
                     <button
                       type="button"
@@ -210,7 +158,7 @@ export default function GameMenu() {
                       <span className="pe-mode-thumb" />
                       <span>
                         <strong>Street</strong>
-                        <small>Look around. Find your place.</small>
+                        <small>Street views</small>
                       </span>
                       <span className="pe-choice-dot" />
                     </button>
@@ -225,12 +173,11 @@ export default function GameMenu() {
                       </span>
                       <span>
                         <strong>Script</strong>
-                        <small>Find a place from its language.</small>
+                        <small>Written languages</small>
                       </span>
                       <span className="pe-choice-dot" />
                     </button>
                   </>
-                )}
               </div>
               <div className="pe-launch">
                 <Button
@@ -245,18 +192,16 @@ export default function GameMenu() {
                   <Play size={19} fill="currentColor" />
                   {starting
                     ? "Let’s go…"
-                    : multiplayer
-                      ? `Play ${variant === "duel" ? "Duel" : "Classic"}`
-                      : `Play ${script ? "Script" : "Street"}`}
+                    : `Play ${script ? "Script" : "Street"}`}
                   <ArrowRight size={20} />
                 </Button>
                 <p>
                   {multiplayer
                     ? openRooms === null
-                      ? "Create a room or join with a code"
+                      ? "Find an opponent or invite friends"
                       : openRooms
                         ? `${openRooms} open ${openRooms === 1 ? "room" : "rooms"} · or create your own`
-                        : "Start a room. Invite your first rival."
+                        : "Find an opponent or invite friends"
                     : imagery === false && !script
                       ? "Street is unavailable here. Try Script."
                       : `${DEFAULT_CONFIG.rounds} rounds · No timer · No account needed`}
@@ -264,6 +209,7 @@ export default function GameMenu() {
               </div>
             </div>
             <div className="pe-dock-foot">
+              {savedGame?.url ? <Link href={safeReturnTo(savedGame.url, '/geo')}><Play size={15} /> Continue {savedGame.kind === 'script' ? 'Script' : 'Street'}</Link> : null}
               <Link href="/geo/script" data-menu-script>
                 <Languages size={15} /> All Script languages{" "}
                 <ArrowRight size={14} />
@@ -284,33 +230,6 @@ export default function GameMenu() {
             <i />
           </div>
         )}
-        <div className="pe-scene-caption" aria-hidden="true">
-          <span className="pe-scene-coordinate">
-            {script ? "LANGUAGE / LETTERS / LOCATION" : "EXPLORE / GUESS / DISCOVER"}
-          </span>
-          <p>
-            {script ? (
-              <>
-                A world of words.
-                <br />
-                <em>One place to find.</em>
-              </>
-            ) : multiplayer ? (
-              <>
-                A little closer.
-                <br />
-                <em>A little more glory.</em>
-              </>
-            ) : (
-              <>
-                Follow your curiosity.
-                <br />
-                <em>See where it takes you.</em>
-              </>
-            )}
-          </p>
-          <span className="pe-scene-line" />
-        </div>
         <a className="pe-scene-next" href="#compete-title">
           Daily challenges & rankings <ArrowRight size={15} />
         </a>
@@ -319,11 +238,10 @@ export default function GameMenu() {
       <section className="pe-competition" aria-labelledby="compete-title">
         <div className="pe-section-heading">
           <div>
-            <p className="pe-eyebrow">Play for a personal best</p>
-            <h2 id="compete-title">Today’s challenges.</h2>
+            <h2 id="compete-title">Challenges</h2>
           </div>
           <Link href="/geo/leaderboard">
-            The rankings <ArrowRight size={16} />
+            Rankings <ArrowRight size={16} />
           </Link>
         </div>
         <div className="pe-event-list">
@@ -336,15 +254,14 @@ export default function GameMenu() {
               <CalendarDays size={25} />
             </span>
             <div>
-              <span className="pe-event-type">New every day</span>
-              <h3>Daily discovery</h3>
-              <p>{MODES.daily.fixed.rounds} places. One shared challenge.</p>
+              <h3>Daily</h3>
+              <p>{MODES.daily.fixed.rounds} places · No timer</p>
               <small>
                 {answered.daily && daily?.you?.rank
                   ? `You’re ${ordinal(daily.you.rank)} of ${daily.finished} today`
                   : answered.daily && daily?.finished
-                    ? `${daily.finished} explorers finished today`
-                    : "Take your time. Find your best guess."}
+                    ? `${daily.finished} players finished today`
+                    : "Same places for everyone"}
               </small>
             </div>
             <ArrowRight className="pe-event-arrow" size={20} />
@@ -358,8 +275,7 @@ export default function GameMenu() {
               <Compass size={29} />
             </span>
             <div>
-              <span className="pe-event-type">Ranked solo</span>
-              <h3>The ranked challenge</h3>
+              <h3>Ranked</h3>
               <p>
                 {MODES.ranked.fixed.rounds} rounds. {MODES.ranked.fixed.time}{" "}
                 seconds. No moving.
@@ -379,13 +295,12 @@ export default function GameMenu() {
               <Trophy size={28} />
             </span>
             <div>
-              <span className="pe-event-type">Weekly competition</span>
-              <h3>The weekly cup</h3>
-              <p>{MODES.cup.fixed.rounds} places to climb the board.</p>
+              <h3>Weekly cup</h3>
+              <p>{MODES.cup.fixed.rounds} places · One entry</p>
               <small>
                 {cup?.endsAt
                   ? `Ends ${untilText(cup.endsAt)}`
-                  : "One scored entry. Make it count."}
+                  : "Resets weekly"}
               </small>
             </div>
             <ArrowRight className="pe-event-arrow" size={20} />
@@ -393,12 +308,8 @@ export default function GameMenu() {
         </div>
       </section>
 
-      <section className="pe-expeditions" aria-labelledby="explore-title">
-        <div>
-          <p className="pe-eyebrow">Follow your curiosity</p>
-          <h2 id="explore-title">Take the scenic route.</h2>
-          <p>Keep a streak alive, or get to know one corner of the world.</p>
-        </div>
+      <details className="pe-expeditions pe-practice">
+        <summary>More ways to play <span>Country streak · Choose a region</span></summary>
         <div className="pe-expedition-options">
           <Link
             href="/geo/play?mode=streak"
@@ -413,9 +324,8 @@ export default function GameMenu() {
             <ArrowRight size={18} />
           </Link>
           <div className="pe-region">
-            <Globe2 size={21} />
             <label>
-              <span>One continent</span>
+              <span>Continent</span>
               <select
                 value={continent}
                 onChange={(e) => setContinent(e.target.value)}
@@ -437,9 +347,8 @@ export default function GameMenu() {
             </Link>
           </div>
           <div className="pe-region">
-            <Compass size={21} />
             <label>
-              <span>One country</span>
+              <span>Country</span>
               <select
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
@@ -447,7 +356,7 @@ export default function GameMenu() {
               >
                 {COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>
-                    {c.name}
+                    {c.flag} {c.name}
                   </option>
                 ))}
               </select>
@@ -461,22 +370,7 @@ export default function GameMenu() {
             </Link>
           </div>
         </div>
-      </section>
-      <div className="pe-profile-invite">
-        <span className="pe-avatar">
-          <Compass size={24} />
-        </span>
-        <div>
-          <strong>Every explorer starts somewhere.</strong>
-          <p>
-            Make your profile. Keep your discoveries, records, and rivalries
-            together.
-          </p>
-        </div>
-        <Button href="/geo/me" variant="quiet">
-          Your explorer profile <ArrowRight size={16} />
-        </Button>
-      </div>
+      </details>
     </main>
   );
 }

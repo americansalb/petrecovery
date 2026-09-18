@@ -49,6 +49,23 @@ const T0 = Date.parse('2026-09-07T12:00:00Z');
 // when the season the rows were written in stops being the current one
 // (found in the deep audit: four tests were set to go red on a date).
 const SEASON = seasonFor(T0).key;
+
+test('deleted-account cookies create guest profiles that retain their chosen name', async () => {
+  const store = createMemoryRoomStore();
+  const result = await resolveProfile(store, { accountId: 'deleted-account', name: 'Chosen Name' });
+  expect(result.profile.accountId).toBeNull();
+  expect(result.profile.name).toBe('Chosen Name');
+});
+
+test('signed-out browser tokens do not mutate an account-owned profile', async () => {
+  const store = createMemoryRoomStore();
+  const account = await store.createAccount({ email: 'owner@example.test' });
+  const owner = await resolveProfile(store, { accountId: account.id, name: 'Owner' });
+  const guest = await resolveProfile(store, { token: owner.token, name: 'Guest' });
+  expect(guest.profile.id).not.toBe(owner.profile.id);
+  expect(guest.profile.accountId).toBeNull();
+  expect((await store.getProfileById(owner.profile.id)).name).toBe('Owner');
+});
 const sec = (n) => n * 1000;
 
 async function profileFor(store, name, extra = {}) {
@@ -110,6 +127,7 @@ describe('profiles', () => {
     // ReunitePets user: docs/PROBABLY_EARTH_SPLIT.md, D1.
     const store = createMemoryRoomStore();
     const anon = await profileFor(store, 'Guest');
+    await store.createAccount({ id: 'acct_1', email: 'guest@example.test' });
     const bound = await resolveProfile(store, { token: anon.token, accountId: 'acct_1', name: 'Guest', now: T0 });
     expect(bound.profile.id).toBe(anon.profile.id);
     expect(bound.profile.accountId).toBe('acct_1');
@@ -129,7 +147,7 @@ describe('profiles', () => {
     const store = createMemoryRoomStore();
     const { profile } = await profileFor(store, 'Ada');
     const summary = await profileSummary(store, profile, { now: T0 });
-    expect(summary.ratings.classic).toMatchObject({ value: RATING_DEFAULT, games: 0, provisional: true, tier: 'Silver' });
+    expect(summary.ratings.classic).toMatchObject({ value: RATING_DEFAULT, games: 0, provisional: true, tier: null });
     expect(summary.ratings.duel.value).toBe(RATING_DEFAULT);
     expect(summary.recent).toEqual([]);
   });
@@ -227,4 +245,14 @@ describe('rating a finished room', () => {
     expect(adaSummary.recent[0].delta).toBeGreaterThan(0);
     expect(adaSummary.ratings.classic.streak).toBe(LEADERBOARD_MIN_GAMES);
   });
+});
+test('a second account on a shared browser cannot adopt the first account profile', async () => {
+  const store = createMemoryRoomStore();
+  await store.createAccount({ id: 'account-first', email: 'first@example.test' });
+  await store.createAccount({ id: 'account-second', email: 'second@example.test' });
+  const first = await resolveProfile(store, { name: 'First', accountId: 'account-first' });
+  const second = await resolveProfile(store, { token: first.token, name: 'Second', accountId: 'account-second' });
+  expect(second.profile.id).not.toBe(first.profile.id);
+  expect(second.profile.accountId).toBe('account-second');
+  expect((await store.getProfileById(first.profile.id)).name).toBe('First');
 });

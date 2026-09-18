@@ -9,14 +9,14 @@ export default function ScriptArtwork({ compact = false }) {
     >
       <div className="pe-script-orbit" aria-hidden="true" />
       <div className="pe-script-paper pe-script-paper--back">
-        <span className="pe-paper-label">A world of words</span>
+        <span className="pe-paper-label">Tamil · தமிழ்</span>
         <p lang="ta" style={{ fontFamily: fontStackFor('taml') }}>
           இன்று காலை மிகவும் குளிராக இருந்தது
         </p>
         <span className="pe-paper-rule" />
       </div>
       <div className="pe-script-paper pe-script-paper--front">
-        <span className="pe-paper-label">Where does this take you?</span>
+        <span className="pe-paper-label">Hindi · हिन्दी</span>
         <p lang="hi" style={{ fontFamily: fontStackFor('deva') }}>
           आज सुबह
           <br />
@@ -26,7 +26,7 @@ export default function ScriptArtwork({ compact = false }) {
           ✳
         </span>
         <span className="pe-paper-coordinate">
-          One sentence. A whole world.
+          “It was very cold this morning.”
         </span>
       </div>
       <div

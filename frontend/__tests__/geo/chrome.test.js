@@ -212,6 +212,6 @@ describe('every mode the game has is reachable from a page in the navigation', (
     const header = read('app/geo/components/GeoHeader.js');
     const block = header.slice(header.indexOf('export const GAME_LINKS'), header.indexOf('];', header.indexOf('export const GAME_LINKS')));
     const labels = [...block.matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
-    expect(labels).toEqual(['Play', 'Friends', 'Rankings', 'Profile']);
+    expect(labels).toEqual(['Play', 'Multiplayer', 'Rankings', 'Profile']);
   });
 });

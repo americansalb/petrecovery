@@ -40,17 +40,15 @@ export default function ScriptLobby() {
       </Link>
       <div className="pe-script-intro">
         <div>
-          <p className="pe-eyebrow">The world, written down</p>
+          <p className="pe-eyebrow">Language game</p>
           <h1>
             Script<span>.</span>
           </h1>
           <p>
-            Recognize the writing.
-            <br />
-            Find where the language lives.
+            Guess where a language is spoken.
           </p>
           <span className="pe-free">
-            <span /> Free to play · Solo discovery
+            <span /> Free to play
           </span>
         </div>
         <ScriptArtwork compact />
@@ -58,8 +56,8 @@ export default function ScriptLobby() {
       <div className="pe-script-setup">
         <section aria-labelledby="pool-title">
           <div className="pe-section-heading">
-            <h2 id="pool-title">Choose your expedition</h2>
-            <span>{poolSize} languages to discover</span>
+            <h2 id="pool-title">Choose languages</h2>
+            <span>{poolSize} languages</span>
           </div>
           <div className="pe-language-pools">
             {LADDER_ORDER.map((id) => (
@@ -89,7 +87,7 @@ export default function ScriptLobby() {
           </div>
         </section>
         <aside className="pe-ready-panel">
-          <p className="pe-eyebrow">Your next discovery</p>
+          <p className="pe-eyebrow">Solo game</p>
           <h2>{LADDERS[ladder].label}</h2>
           <p>
             {rounds} rounds ·{' '}
@@ -103,7 +101,7 @@ export default function ScriptLobby() {
               <span>2</span> Pin the language on the map.
             </li>
             <li>
-              <span>3</span> Discover how close you got.
+              <span>3</span> See the answer.
             </li>
           </ol>
           <details className="pe-custom-rules">
@@ -134,10 +132,10 @@ export default function ScriptLobby() {
             className="pe-play-button"
           >
             <Play size={18} fill="currentColor" />
-            {starting ? 'Opening your expedition…' : `Play ${rounds} rounds`}
+            {starting ? 'Starting…' : `Play ${rounds} rounds`}
             <ArrowRight size={18} />
           </Button>
-          <small>No account needed. Your first clue is waiting.</small>
+          <small>No account needed.</small>
         </aside>
       </div>
     </main>
