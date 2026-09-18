@@ -68,10 +68,14 @@ async function main() {
       for (const route of ['/', '/login', '/lost-and-found', '/api/public/homepage']) {
         await get('www.reunitepets.org', route);
       }
+      // Also load the large city datasets on demand: avoiding startup work
+      // must not merely postpone the same OOM until a pet search is used.
+      const cities = await get('www.reunitepets.org', '/api/cities/suggest?q=Chicago&limit=2');
+      assert(JSON.parse(cities.text).suggestions.length > 0, 'City search must return results');
       const home = await get('probablyearth.com', '/', { status: 302 });
       assert.equal(new URL(home.headers.location).pathname, '/geo');
       for (const route of ['/geo', '/geo/play', '/geo/script/play', '/geo/rooms',
-        '/geo/signin', '/api/geo/config', '/api/geo/rooms']) {
+        '/geo/signin', '/api/geo/config', '/api/geo/rooms', '/api/geo/leaderboard?ladder=script']) {
         await get('probablyearth.com', route);
       }
       for (let roundIndex = 0; roundIndex < 3; roundIndex++) {
