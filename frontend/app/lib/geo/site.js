@@ -98,6 +98,7 @@ export const GAME_RATE_LIMITS = {
   // Rooms poll their state every couple of seconds while a game is on,
   // plus guesses and reactions; one bucket for the whole prefix.
   '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
+  '/api/geo/matchmaking': { windowMs: 60000, maxRequests: 60 },
   '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/save': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },

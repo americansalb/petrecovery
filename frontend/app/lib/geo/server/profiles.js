@@ -56,8 +56,11 @@ export async function resolveProfile(store, { token, accountId, name, now = Date
   // Asked before anything is read or written, so a suspended account
   // cannot even refresh its own lastSeenAt.
   if (accountId && typeof store.getAccountById === 'function') {
-    const account = await store.getAccountById(accountId).catch(() => null);
+    const account = await store.getAccountById(accountId);
     if (account?.suspendedAt) throw new GeoSuspended();
+    // A deleted account's still-signed cookie must not attach a new guest
+    // profile to a nonexistent account (or lose its name during signup).
+    if (!account) accountId = null;
   }
   const hash = token ? hashToken(token) : null;
   // The account is the game's own (server/accounts.js), never a
@@ -72,9 +75,9 @@ export async function resolveProfile(store, { token, accountId, name, now = Date
     // browser's anonymous profile is left alone rather than folded in.
     // Merging two rating histories has no right answer.
     profile = byAccount;
-  } else if (byToken && (!accountId || !byToken.accountId || byToken.accountId === accountId)) {
+  } else if (byToken && (!byToken.accountId || byToken.accountId === accountId)) {
     // A shared browser can retain another account's anonymous token.
-    // Signing in to a different account must not adopt or rename it.
+    // Signed-out play or a different account must not adopt or rename it.
     profile = accountId && !byToken.accountId ? await store.updateProfile(byToken.id, { accountId }) : byToken;
   }
 

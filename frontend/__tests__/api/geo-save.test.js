@@ -20,7 +20,8 @@ test('guests cannot save or read an account checkpoint', async () => {
 });
 test('account checkpoint survives requests and never creates ranked results', async () => {
   const saved = { kind: 'script', url: '/geo/script/play?seed=test&resume=1', snapshot: { history: [{ score: 100 }], roundIndex: 1 } };
-  expect((await POST(req(saved))).status).toBe(200);
+  const context = await (await GET(req())).json();
+  expect((await POST(req({ ...saved, accountId: context.accountId, expectedRevision: context.revision }))).status).toBe(200);
   expect((await (await GET(req())).json()).savedGame.snapshot).toEqual(saved.snapshot);
   const other = await store.createAccount({ email: 'other@example.test' });
   expect((await (await GET(req(null, `geo_session=${sealSession({ accountId: other.id })}`))).json()).savedGame).toBeNull();
@@ -34,4 +35,22 @@ test('rejects external links and non-game return routes', async () => {
 test('malformed and oversized requests are rejected without a server error', async () => {
   expect((await POST({ ...req(), text: async () => '{broken' })).status).toBe(400);
   expect((await POST({ ...req(), text: async () => 'x'.repeat(512001) })).status).toBe(413);
+});
+
+test('concurrent tabs cannot overwrite newer progress, regardless of client timestamps', async () => {
+  const context = await (await GET(req())).json();
+  const body = { kind: 'script', url: '/geo/script/play?resume=1', snapshot: { history: [{ score: 200 }] }, accountId: context.accountId, expectedRevision: context.revision };
+  const responses = await Promise.all([POST(req(body)), POST(req({ ...body, at: Date.now() + 99999999, snapshot: { history: [] } }))]);
+  expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+  const current = await (await GET(req())).json();
+  expect(current.revision).toBe(context.revision + 1);
+  expect(current.savedGame.snapshot).toEqual(body.snapshot);
+});
+
+test('an old tab cannot save into a newly signed-in account', async () => {
+  const context = await (await GET(req())).json();
+  const other = await store.createAccount({ email: 'switched@example.test' });
+  const response = await POST(req({ kind: 'script', url: '/geo/script/play', snapshot: { history: [] }, accountId: context.accountId, expectedRevision: 0 }, `geo_session=${sealSession({ accountId: other.id })}`));
+  expect(response.status).toBe(409);
+  expect((await store.getAccountById(other.id)).savedGame).toBeUndefined();
 });

@@ -42,6 +42,7 @@ import 'leaflet/dist/leaflet.css';
 import './script-round.css';
 import { useEffect, useRef, useState } from 'react';
 import { chooseLabels } from '../../lib/countryLabels';
+import { revealMapPadding } from '../../lib/mapFit';
 
 const ANSWER = '#16a34a';
 const GUESS = '#e08c0a';
@@ -55,6 +56,8 @@ const MAX_ZOOM = 7;
 
 function showWorld(map) {
   map.stop();
+  const size = map.getSize();
+  if (size.x < 32 || size.y < 32) return;
   map.fitBounds([[-55, -180], [75, 180]], { padding: [12, 12], animate: false });
 }
 
@@ -221,6 +224,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
   const leafletRef = useRef(null);
   const pinRef = useRef(null);
   const drawnRef = useRef([]);
+  const fitRevealRef = useRef(null);
   const onPinRef = useRef(onPin);
   const onTroubleRef = useRef(onMapTrouble);
   // Leaflet arrives in its own chunk, so the map does not exist on the
@@ -319,8 +323,10 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     const observer = new ResizeObserver(() => {
       const map = mapRef.current;
       if (!map) return;
+      map.stop();
       map.invalidateSize({ pan: false });
       if (interactiveRef.current && !pinRef.current) showWorld(map);
+      else fitRevealRef.current?.(false);
     });
     observer.observe(hostRef.current);
     return () => observer.disconnect();
@@ -345,6 +351,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     if (!map || !L) return;
     for (const layer of drawnRef.current) map.removeLayer(layer);
     drawnRef.current = [];
+    fitRevealRef.current = null;
     if (mode !== 'result' || !answer) {
       // A new clue starts with the whole world, not the previous answer.
       if (mode === 'guess') {
@@ -388,20 +395,17 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     try {
       const group = L.featureGroup(drawn);
       const bounds = group.getBounds();
-      // Flown, not cut. The player needs to see which way the answer was
-      // from their pin, and a jump cut loses that; a second of travel
-      // keeps it. The cleanup above stops it if the round ends mid-flight.
-      if (bounds.isValid()) {
-        map.flyToBounds(bounds, {
-          // Room at the bottom for the answer panel, which slides up
-          // over the map as this flight lands.
-          paddingTopLeft: [44, 44],
-          paddingBottomRight: [44, 230],
-          maxZoom: MAX_ZOOM,
-          duration: 0.9,
-          easeLinearity: 0.2,
-        });
-      }
+      const fit = (animate = true) => {
+        const size = map.getSize();
+        const padding = revealMapPadding(size.x, size.y);
+        if (!bounds.isValid() || !padding) return;
+        map.stop();
+        const options = { ...padding, maxZoom: MAX_ZOOM, duration: 0.9, easeLinearity: 0.2, animate };
+        if (animate) map.flyToBounds(bounds, options);
+        else map.fitBounds(bounds, options);
+      };
+      fitRevealRef.current = fit;
+      fit();
     } catch {
       /* one layer, or none: leave the view alone */
     }

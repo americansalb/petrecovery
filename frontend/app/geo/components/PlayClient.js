@@ -484,6 +484,7 @@ function StreetPlayGame({ params }) {
           onToggleMobileMap={() => setMobileMapOpen((open) => !open)}
           notice={inRound ? notice : ''}
           showMapControls={inRound}
+          saveUrl={state.rounds.length > 0 ? resumeUrl : null}
         />
       ) : null}
 

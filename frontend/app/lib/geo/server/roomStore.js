@@ -19,7 +19,30 @@ const include = {
   rounds: { include: { guesses: true }, orderBy: { index: 'asc' } },
 };
 
-const databaseStore = {
+function databaseStoreFor(prisma) { return {
+  async withMatchmakingLock(work) {
+    return prisma.$transaction(async (tx) => {
+      // A transaction-scoped lock works across server instances and releases
+      // on crash/rollback. Never hold it while fetching imagery or sending mail.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73041927)`;
+      return work(databaseStoreFor(tx));
+    }, { maxWait: 10000, timeout: 10000 });
+  },
+  getMatchmakingTicket(profileId) {
+    return prisma.geoMatchmakingTicket.findUnique({ where: { profileId } });
+  },
+  putMatchmakingTicket(data) {
+    return prisma.geoMatchmakingTicket.upsert({ where: { profileId: data.profileId }, create: data, update: data });
+  },
+  deleteMatchmakingTicket(profileId) {
+    return prisma.geoMatchmakingTicket.deleteMany({ where: { profileId } });
+  },
+  findMatchmakingOpponent({ game, profileId, since }) {
+    return prisma.geoMatchmakingTicket.findFirst({
+      where: { game, profileId: { not: profileId }, roomCode: null, lastSeenAt: { gte: new Date(since) }, profile: { account: { is: { suspendedAt: null } } } },
+      orderBy: [{ joinedAt: 'asc' }, { profileId: 'asc' }],
+    });
+  },
   getRoomByCode(code) {
     return prisma.geoRoom.findUnique({ where: { code }, include });
   },
@@ -100,6 +123,13 @@ const databaseStore = {
   },
   updateAccount(id, data) {
     return prisma.geoAccount.update({ where: { id }, data });
+  },
+  async saveAccountGame(id, expectedRevision, savedGame) {
+    const result = await prisma.geoAccount.updateMany({
+      where: { id, savedGameRevision: expectedRevision },
+      data: { savedGame, savedGameRevision: { increment: 1 } },
+    });
+    return result.count === 1;
   },
   getAccountById(id) {
     return prisma.geoAccount.findUnique({ where: { id } });
@@ -354,7 +384,9 @@ const databaseStore = {
   countBadges(profileId) {
     return prisma.geoBadge.count({ where: { profileId } });
   },
-};
+}; }
+
+const databaseStore = databaseStoreFor(prisma);
 
 /**
  * The store the game actually uses.

@@ -42,6 +42,7 @@ import {
 import AppleScriptMap from './AppleScriptMap';
 import ScriptSample from './ScriptSample';
 import KeepThis from '../KeepThis';
+import SaveGameButton from '../SaveGameButton';
 import { useSavedGame } from '../../lib/savedGame';
 // The screen's own stylesheet: the light palette the map is drawn in,
 // and the animations. Imported here rather than by the map, which is
@@ -327,6 +328,7 @@ function ScriptPlayGame({ params }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {history.length > 0 ? <SaveGameButton returnTo={resumeUrl} className={ICON_BUTTON} /> : null}
             {config.timer ? (
               <div
                 className={`flex items-center gap-2 px-3 py-2 ${secondsLeft <= 10 ? 'rounded-full border border-red-300 bg-red-50 shadow-sm' : PILL}`}
@@ -352,6 +354,7 @@ function ScriptPlayGame({ params }) {
           </div>
         </div>
 
+        {saveError ? <p role="status" className="mx-auto max-w-4xl px-4 text-sm text-red-700">{saveError}</p> : null}
         <div className="mx-auto max-w-4xl px-3 pb-4 pt-3 text-center sm:px-4">
           {loading ? (
             <p className="flex items-center justify-center gap-2 py-3 text-sand-500">

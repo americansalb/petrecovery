@@ -2,6 +2,57 @@
 
 ## Current launch gate (2026-09-17)
 
+### Ongoing-goal acceptance ledger
+
+Owner requested an ongoing launch-readiness goal. The PR remains draft and
+must not merge until the release is verified. Code, local verification and
+production verification are distinct; the historical section is not proof.
+
+| Required journey | Current evidence | Remaining launch gate |
+| --- | --- | --- |
+| Free guest solo, Street and Script | Script full solo game and replay tested; production Street pin scored | Repeat every mode on final branch, desktop and mobile |
+| Fast signup with username and email OR phone | Inline email return and guest-profile binding tested locally; phone provider/unit code exists | Real email and SMS delivery, recovery, failure states, provider setup |
+| Stay signed in for at least a week | 90-day cookie, signed-session expiry tests | Persistent production database and restart verification |
+| Seamless save/resume, including another device | Account checkpoint and guest local save; new revision conflict guard and account isolation | Final browser save QA plus persistent database, second-device and restart tests |
+| Automatic matchmaking | New per-profile durable queue; same-mode pairing, FIFO, 20-second heartbeat lease, atomic pair allocation | Real Postgres concurrency; final desktop/mobile match and reconnect verification |
+| Complete Duel multiplayer, Street/Script only | Script three-round match/rematch previously tested; new queue auto-start reached a mobile Script match | Final full match, intentional disconnect/rejoin, Street imagery and rematch QA |
+| Intuitive, polished UI | Plain copy, real country flags, clay/ocean/green palette; queue mobile layout inspected | Full-screen visual/accessibility sweep including errors and empty states |
+| Security and privacy | Account gates, sealed tokens, rate limits, safe redirect origins, no account mixing | Review final changed endpoints and privacy/schema changes |
+| Safe release | Previous pushed commit a371c29 passed CI run 35299171576 | Push final changes; green build/lint/tests; verify deployment before readiness claim |
+
+New work in progress: automatic matchmaking with transactional PostgreSQL
+advisory locking, private two-player rosters, server-controlled round advancement,
+cancel/expiry/retry behavior, and refreshed account identity. Eleven queue/service
+route tests pass. Mobile browser reached an automatically started Script Duel
+after contextual signup, and cancel/retry worked. Its timeout flow exposed a
+Leaflet NaN animation error caused by padding larger than the small reveal map;
+responsive padding is fixed and needs browser re-verification.
+The fix was subsequently rechecked in a second mobile matched game: a real
+host pin and API-driven peer guess scored, health changed, the reveal map fit
+the small viewport, and no Leaflet NaN errors appeared. The chosen signup name
+also persisted into the match. The local MapKit origin rejection remains an
+expected environment limitation, not a verified Street experience.
+
+Saves now require the account identity and an expected revision. Concurrent
+stale writes return a conflict rather than overwriting newer progress. Local
+checkpoints have an owner; signed-out visitors and other accounts cannot resume
+them. `GeoAccount.savedGameRevision` and `GeoMatchmakingTicket` are additional
+additive schema requirements. New changes require final full-suite verification.
+Latest full run: 143 suites, 1,510 tests passed, 10 existing todos; the known
+worker teardown warning remains. One earlier run hit a SIGSEGV in the unrelated
+analyze-pet worker; the subsequent complete run passed including that suite.
+Prisma validation passed, and changed-file lint has no warnings or errors.
+Browser save QA scored a Script guess at 5,000 points, opened signup without
+leaving the result, synced the account checkpoint, and restored the same result
+after reload. A signup-return read/write race found during that test now has a
+retry and regression test; repeat the complete first-return flow in final QA.
+
+Current external blockers: the authorized Render workspace has 21 services,
+none connected to americansalb/petrecovery (rechecked during this goal). The
+production service/dashboard link or correct hosting account remains required
+for mail diagnosis and deployment. Real SMS provider setup/billing has not been
+authorized or activated. These blockers do not stop local implementation/QA.
+
 **Not approved for launch.** The historical assessment below is not a
 current end-to-end verification. In particular, a successful email API
 response did not produce an email in the owner's inbox.
@@ -77,8 +128,8 @@ Still required before calling the game launch-ready:
   Use a dedicated Verify service with fraud protection. Production sends fail
   closed without the shared limiter (3 per number and 30 site-wide per ten
   minutes). Do not enable billable SMS without confirming the provider setup.
-- Automatic matchmaking is not implemented. Multiplayer currently consists
-  of creating or joining public/private rooms, not an automatic match queue.
+- Automatic matchmaking is now implemented on the working branch. Finish
+  its browser, persistent-database and deployment verification before launch.
 - CI and production checks for the final commit must pass.
 
 ## Historical assessment (superseded)

@@ -13,7 +13,7 @@
 
 import { NextResponse } from 'next/server';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
-import { accountFromRequest } from '@/app/lib/geo/server/identity';
+import { accountFromRequest, clearSession } from '@/app/lib/geo/server/identity';
 import { accountView } from '@/app/lib/geo/server/roles';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   const { accountId, email } = accountFromRequest(request);
   if (!accountId) {
-    return NextResponse.json({ ok: true, signedIn: false, email: null, account: null }, { headers: { 'Cache-Control': 'no-store' } });
+    return clearSession(NextResponse.json({ ok: true, signedIn: false, email: null, account: null }, { headers: { 'Cache-Control': 'no-store' } }));
   }
   let account = null;
   // Three outcomes, and only two of them mean signed out.
@@ -43,7 +43,7 @@ export async function GET(request) {
   }
   const view = accountView(account);
   const signedIn = reachable ? Boolean(account) && !view.suspended : true;
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
       ok: true,
       // A suspended account is signed out as far as every screen is
@@ -56,4 +56,5 @@ export async function GET(request) {
     },
     { headers: { 'Cache-Control': 'no-store' } }
   );
+  return reachable && !signedIn ? clearSession(response) : response;
 }

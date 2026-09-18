@@ -387,7 +387,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
             <span>
               {last ? "Results" : "Next round"} in {secondsLeft}s
             </span>
-            {me?.isHost ? (
+            {me?.isHost && !room.config?.matchmaking ? (
               <button
                 type="button"
                 onClick={onNext}
@@ -398,7 +398,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
                 {last ? "See results" : "Next round"}
               </button>
             ) : (
-              <small>Your host can continue early</small>
+              <small>{room.config?.matchmaking ? 'The next round starts automatically' : 'Your host can continue early'}</small>
             )}
           </div>
         </div>

@@ -42,7 +42,7 @@ export async function subjectsFor(request, { name = '', store = prismaRoomStore,
   return {
     profile,
     profileId: profile?.id || null,
-    signedIn: Boolean(accountId),
+    signedIn: Boolean(accountId && profile?.accountId === accountId),
     ipHash: hashIp(getClientIP(request), getGeoServerConfig().tokenSecret),
     token,
   };

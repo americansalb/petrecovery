@@ -23,6 +23,7 @@ import Link from 'next/link';
 import { Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
 import { CONTINENTS, MODES } from '@/app/lib/geo/modes';
+import SaveGameButton from './SaveGameButton';
 
 export function Compass({ heading = 0 }) {
   return (
@@ -137,6 +138,7 @@ export default function GameHud({
   onToggleMobileMap,
   notice,
   showMapControls,
+  saveUrl,
 }) {
   const isStreak = config.mode === 'streak';
   const modeLabel =
@@ -210,6 +212,7 @@ export default function GameHud({
             <TimerRing secondsLeft={secondsLeft} total={config.time} />
           </div>
         ) : null}
+        {saveUrl ? <SaveGameButton returnTo={saveUrl} className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-ocean-900/80 text-white" /> : null}
         <Link
           href="/geo"
           className={`pointer-events-auto ${iconButton}`}

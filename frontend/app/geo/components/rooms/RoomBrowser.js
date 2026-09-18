@@ -40,6 +40,7 @@ import { ensureProfile, profileHeaders } from "../../lib/profile";
 import { ago } from "../../lib/time";
 import SetupNotice from "../SetupNotice";
 import AccountDialog from "../AccountDialog";
+import Matchmaker from './Matchmaker';
 import { APPLE_COVERAGE } from "@/app/lib/geo/coverage";
 
 function Field({ label, hint, children }) {
@@ -124,7 +125,13 @@ export default function RoomBrowser({ initialGame }) {
     if (draft?.code) setCode(draft.code);
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
-      .then((data) => setSignedIn(Boolean(data?.signedIn)))
+      .then(async (data) => {
+        setSignedIn(Boolean(data?.signedIn));
+        if (data?.signedIn) {
+          const profile = await ensureProfile('').catch(() => null);
+          if (profile?.name) { setName(profile.name); saveName(profile.name); }
+        }
+      })
       .catch(() => setSignedIn(false));
     let alive = true;
     loadGeoConfig({ shouldStop: () => !alive })
@@ -251,9 +258,9 @@ export default function RoomBrowser({ initialGame }) {
         <div>
           <p className="pe-eyebrow">Play together · All modes free</p>
           <h1>
-            Play with <em>friends.</em>
+            Multiplayer
           </h1>
-          <p>Choose Street or Script, then share your room link.</p>
+          <p>Find an opponent, or invite your friends.</p>
         </div>
         <form method="post" onSubmit={joinByCode} className="pe-join-inline">
           <label htmlFor="join-room-code">Already have a room code?</label>
@@ -275,6 +282,7 @@ export default function RoomBrowser({ initialGame }) {
           </div>
         </form>
       </header>
+      <Matchmaker game={form.game} name={name} onNameChange={setName} onGameChange={(game) => update({ game })} />
       {error ? (
         <p role="alert" className="mt-4 text-sm text-red-200">
           {error}

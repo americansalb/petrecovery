@@ -12,8 +12,12 @@ export async function GET(request) {
   const denied = await requireAccount(request);
   if (denied) return denied;
   const { accountId } = accountFromRequest(request);
-  const account = await prismaRoomStore.getAccountById(accountId);
-  return NextResponse.json({ savedGame: account?.savedGame || null }, options);
+  try {
+    const account = await prismaRoomStore.getAccountById(accountId);
+    return NextResponse.json({ savedGame: account?.savedGame || null, revision: account?.savedGameRevision || 0, accountId }, options);
+  } catch {
+    return NextResponse.json({ error: 'Could not load your saved game.' }, { status: 503, ...options });
+  }
 }
 
 export async function POST(request) {
@@ -34,10 +38,24 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Invalid saved game.' }, { status: 400, ...options });
     }
     const { accountId } = accountFromRequest(request);
+    if (saved.accountId !== accountId || !Number.isSafeInteger(saved.expectedRevision) || saved.expectedRevision < 0) {
+      return NextResponse.json({ error: 'Reload your saved game before syncing.', code: 'save_conflict' }, { status: 409, ...options });
+    }
     // This is a private display checkpoint, not an authoritative game result.
     // Server-scored ratings and rewards never read it.
-    await prismaRoomStore.updateAccount(accountId, { savedGame: { kind: saved.kind, url: path, snapshot: saved.snapshot, at: Date.now() } });
-    return NextResponse.json({ ok: true }, options);
+    const savedGame = { kind: saved.kind, url: path, snapshot: saved.snapshot, at: Date.now() };
+    const updated = await prismaRoomStore.saveAccountGame(accountId, saved.expectedRevision, savedGame);
+    if (!updated) {
+      const current = await prismaRoomStore.getAccountById(accountId);
+      const prior = current?.savedGame;
+      // A lost acknowledgement or both signup tabs saving the same checkpoint
+      // is a successful replay, not a conflicting edit.
+      if (prior?.kind === saved.kind && prior.url === path && JSON.stringify(prior.snapshot) === JSON.stringify(saved.snapshot)) {
+        return NextResponse.json({ ok: true, revision: current.savedGameRevision, savedGame: prior }, options);
+      }
+      return NextResponse.json({ error: 'Another session saved newer progress. Reopen your saved game from Play to continue it.', code: 'save_conflict' }, { status: 409, ...options });
+    }
+    return NextResponse.json({ ok: true, revision: saved.expectedRevision + 1, savedGame }, options);
   } catch {
     return NextResponse.json({ error: 'Could not save this game. Your browser copy is still available.' }, { status: 500, ...options });
   }

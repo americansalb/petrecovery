@@ -582,3 +582,21 @@
     animation: none;
   }
 }
+.pe-matchmaker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin: 2rem 0;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid rgba(148, 187, 140, .35);
+  border-radius: 1.25rem;
+  background: rgba(57, 105, 78, .16);
+}
+.pe-matchmaker h2 { font-size: 1.5rem; font-weight: 700; }
+.pe-matchmaker p { margin: .5rem 0; color: #b8cecb; }
+.pe-matchmaker .pe-rule-choice { margin: 1rem 0; }
+.pe-matchmaker > button { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .pe-matchmaker { align-items: stretch; flex-direction: column; }
+}

@@ -174,6 +174,7 @@ export async function joinRoom(store, { code, name, profileId = null, subjects =
     const state = await getRoomView(store, { code, token, now });
     return { room: await store.getRoomByCode(code), player, token, state };
   }
+  if (room.config?.matchmaking) throw new RoomError('matched_roster', 'This match already has its two players. Find a new match.', 409);
   if (room.status === 'finished') throw new RoomError('finished', 'This game is over', 409);
   if (subjects) await checkRoomEntry(store, { subjects, now });
   if (room.status === 'playing' && room.variant === 'duel') {
@@ -671,6 +672,7 @@ export async function roomAction(store, { code, token, action, body = {}, now = 
       break;
     case 'next': {
       requireHost(me);
+      if (room.config?.matchmaking) throw new RoomError('automatic_match', 'Matched games advance automatically.', 403);
       // Skip what the host was actually looking at. roomAction ticks
       // first, so the clock can move the room inside this same request:
       // a reveal countdown expiring here used to advance to the next
@@ -837,6 +839,7 @@ export function serialize(room, me, now = Date.now(), ratings = {}, extras = {})
       lastError: room.lastError || null,
       hostId: present(room).find((p) => p.isHost)?.id || null,
       config: {
+        matchmaking: Boolean(config.matchmaking),
         game: config.game || 'street',
         provider: config.provider || 'google',
         mode: config.mode,

@@ -28,6 +28,8 @@ export function createMemoryRoomStore() {
   const unlocks = new Map(); // key `${profileId}|${itemId}`
   const badges = new Map(); // key `${profileId}|${countryCode}`
   const finals = new Map(); // challenge key -> { finalizedAt, prizes }
+  const matchmaking = new Map();
+  let matchmakingTail = Promise.resolve();
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -44,7 +46,22 @@ export function createMemoryRoomStore() {
     return { ...room, players: roomPlayers, rounds: roomRounds };
   }
 
-  return {
+  const store = {
+    async withMatchmakingLock(work) {
+      const previous = matchmakingTail;
+      let release;
+      matchmakingTail = new Promise((resolve) => { release = resolve; });
+      await previous;
+      try { return await work(store); } finally { release(); }
+    },
+    async getMatchmakingTicket(profileId) { return matchmaking.has(profileId) ? { ...matchmaking.get(profileId) } : null; },
+    async putMatchmakingTicket(data) { matchmaking.set(data.profileId, { ...data }); return { ...data }; },
+    async deleteMatchmakingTicket(profileId) { matchmaking.delete(profileId); },
+    async findMatchmakingOpponent({ game, profileId, since }) {
+      const found = [...matchmaking.values()].filter((entry) => entry.game === game && entry.profileId !== profileId && !entry.roomCode && +new Date(entry.lastSeenAt) >= since && accounts.has(profiles.get(entry.profileId)?.accountId) && !accounts.get(profiles.get(entry.profileId)?.accountId)?.suspendedAt)
+        .sort((a, b) => +new Date(a.joinedAt) - +new Date(b.joinedAt) || a.profileId.localeCompare(b.profileId))[0];
+      return found ? { ...found } : null;
+    },
     async getRoomByCode(code) {
       return compose([...rooms.values()].find((r) => r.code === code));
     },
@@ -141,6 +158,12 @@ export function createMemoryRoomStore() {
       Object.assign(account, data);
       return { ...account };
     },
+    async saveAccountGame(accountId, expectedRevision, savedGame) {
+      const account = accounts.get(accountId);
+      if (!account || (account.savedGameRevision || 0) !== expectedRevision) return false;
+      Object.assign(account, { savedGame, savedGameRevision: expectedRevision + 1 });
+      return true;
+    },
     async getAccountById(accountId) {
       const account = accounts.get(accountId);
       return account ? { ...account } : null;
@@ -150,6 +173,7 @@ export function createMemoryRoomStore() {
     },
     async deleteProfile(profileId) {
       profiles.delete(profileId);
+      matchmaking.delete(profileId);
       // The schema cascades from the profile to everything that names
       // it, the board rows included; this store does the same, so a
       // test here proves what production does.
@@ -421,4 +445,5 @@ export function createMemoryRoomStore() {
       };
     },
   };
+  return store;
 }

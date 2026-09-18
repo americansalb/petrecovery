@@ -198,10 +198,10 @@ export default function GameMenu() {
                 <p>
                   {multiplayer
                     ? openRooms === null
-                      ? "Create a room or join with a code"
+                      ? "Find an opponent or invite friends"
                       : openRooms
                         ? `${openRooms} open ${openRooms === 1 ? "room" : "rooms"} · or create your own`
-                        : "Create a room or join with a code"
+                        : "Find an opponent or invite friends"
                     : imagery === false && !script
                       ? "Street is unavailable here. Try Script."
                       : `${DEFAULT_CONFIG.rounds} rounds · No timer · No account needed`}
