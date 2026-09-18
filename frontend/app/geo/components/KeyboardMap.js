@@ -1,12 +1,13 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 /** One explicit keyboard target, separate from the provider's own map controls. */
-export default function KeyboardMap({ children, className = '', interactive, pan, zoom, place }) {
+export default function KeyboardMap({ children, className = '', interactive, label, pan, zoom, place }) {
   const instructions = useId();
   const [focused, setFocused] = useState(false);
   const [announcement, setAnnouncement] = useState('');
+  useEffect(() => { setAnnouncement(''); }, [interactive]);
   const onKeyDown = (event) => {
     if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) return;
     const directions = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
@@ -26,7 +27,7 @@ export default function KeyboardMap({ children, className = '', interactive, pan
   return (
     <div
       className={`relative h-full w-full outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-clay-400 ${className}`}
-      tabIndex={0} role="group" aria-label={interactive ? 'Guess map' : 'Answer map'}
+      tabIndex={0} role="group" aria-label={label || (interactive ? 'Guess map' : 'Answer map')}
       aria-describedby={instructions} data-keyboard-map
       onKeyDown={onKeyDown}
       onFocus={(event) => setFocused(event.target === event.currentTarget)}

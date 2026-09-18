@@ -73,6 +73,9 @@ export function createMemoryRoomStore() {
     async getRoomByCode(code) {
       return compose([...rooms.values()].find((r) => r.code === code));
     },
+    async getRoomByCreationKey(creationKey) {
+      return compose([...rooms.values()].find((r) => r.creationKey === creationKey));
+    },
     async getRoomById(roomId) {
       return compose(rooms.get(roomId));
     },

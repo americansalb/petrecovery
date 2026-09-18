@@ -26,6 +26,8 @@ test('keyboard map pans, zooms and places without submitting the game', () => {
   view.rerender(<KeyboardMap interactive={false} place={place}>Result</KeyboardMap>);
   fireEvent.keyDown(screen.getByRole('group', { name: 'Answer map' }), { key: 'Enter' });
   expect(place).toHaveBeenCalledTimes(1);
+  view.rerender(<KeyboardMap interactive place={place}>Next round</KeyboardMap>);
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
 });
 
 test('Apple keyboard adapter wraps longitude, bounds zoom and uses the visible centre', () => {

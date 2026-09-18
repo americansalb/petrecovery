@@ -5,7 +5,7 @@
  * room that is waiting for players.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Compass, Plus, Users } from "lucide-react";
@@ -62,6 +62,7 @@ const select =
   "w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm";
 
 const ROOM_DRAFT_KEY = "geo:pending-room:v1";
+const ROOM_RECEIPT_KEY = "geo:created-room:v1";
 
 function rememberDraft(draft) {
   try {
@@ -89,7 +90,7 @@ function forgetDraft() {
   }
 }
 
-export default function RoomBrowser({ initialGame }) {
+export default function RoomBrowser({ initialGame, resumeRequest }) {
   const router = useRouter();
   const [server, setServer] = useState(null);
   const [rooms, setRooms] = useState(null);
@@ -115,23 +116,40 @@ export default function RoomBrowser({ initialGame }) {
   const [signedIn, setSignedIn] = useState(null);
   const [accountGate, setAccountGate] = useState(false);
   const [searching, setSearching] = useState(false);
+  const pendingAction = useRef(null);
+  const requestId = useRef(null);
+  const submitting = useRef(false);
+  const continueRef = useRef(null);
 
   useEffect(() => {
     setHydrated(true);
     setName(loadName());
     setRecent(listRecentRooms());
     const draft = loadDraft();
+    if (draft?.action) {
+      pendingAction.current = draft.action;
+      requestId.current = draft.requestId || null;
+    }
+    if (resumeRequest) {
+      try {
+        const receipt = JSON.parse(localStorage.getItem(ROOM_RECEIPT_KEY) || 'null');
+        if (receipt?.requestId === resumeRequest && Date.now() - receipt.at < 86400000 && /^[A-Z0-9]{6}$/.test(receipt.code)) {
+          router.push(`/geo/room/${receipt.code}`);
+          return undefined;
+        }
+      } catch { /* The retained draft can still continue without a receipt. */ }
+    }
     if (draft?.name) setName(draft.name);
     if (draft?.form) setForm((current) => ({ ...current, ...draft.form, game: initialGame || draft.form.game || 'street', variant: "duel" }));
     if (draft?.code) setCode(draft.code);
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
       .then(async (data) => {
-        setSignedIn(Boolean(data?.signedIn));
         if (data?.signedIn) {
           const profile = await ensureProfile('').catch(() => null);
           if (profile?.name) { setName(profile.name); saveName(profile.name); }
         }
+        setSignedIn(Boolean(data?.signedIn));
       })
       .catch(() => setSignedIn(false));
     let alive = true;
@@ -149,7 +167,11 @@ export default function RoomBrowser({ initialGame }) {
       alive = false;
       clearInterval(id);
     };
-  }, [initialGame]);
+  }, [initialGame, resumeRequest, router]);
+
+  useEffect(() => {
+    if (signedIn && hydrated && pendingAction.current) continueRef.current?.();
+  }, [signedIn, hydrated]);
 
   const configured = form.game === 'script' || Boolean(server?.providers?.apple?.configured);
   const modesFor = (provider) =>
@@ -178,18 +200,22 @@ export default function RoomBrowser({ initialGame }) {
   );
 
   const create = async (event) => {
-    event.preventDefault();
-    if (searching) return;
+    event?.preventDefault();
+    if (searching || submitting.current) return;
     const hostName = name.trim();
     if (!hostName) {
       setError("Type your name first.");
       return;
     }
     if (!signedIn) {
-      rememberDraft({ name: hostName, form });
+      requestId.current ||= crypto.randomUUID();
+      pendingAction.current = 'create';
+      rememberDraft({ name: hostName, form, action: 'create', requestId: requestId.current });
       setAccountGate(true);
       return;
     }
+    requestId.current ||= crypto.randomUUID();
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -201,6 +227,7 @@ export default function RoomBrowser({ initialGame }) {
           name: form.roomName.trim() || `${hostName}'s room`,
           hostName,
           settings,
+          requestId: requestId.current,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -211,16 +238,18 @@ export default function RoomBrowser({ initialGame }) {
         playerId: json.playerId,
         name: hostName,
       });
+      try { localStorage.setItem(ROOM_RECEIPT_KEY, JSON.stringify({ requestId: requestId.current, code: json.code, at: Date.now() })); } catch { /* Optional cross-tab continuation. */ }
       forgetDraft();
       router.push(`/geo/room/${json.code}`);
     } catch (e) {
       setError(e.message);
       setBusy(false);
+      submitting.current = false;
     }
   };
 
   const joinByCode = (event) => {
-    event.preventDefault();
+    event?.preventDefault();
     if (searching) return;
     const normalized = normalizeRoomCode(code);
     if (!normalized) {
@@ -228,7 +257,8 @@ export default function RoomBrowser({ initialGame }) {
       return;
     }
     if (!signedIn) {
-      rememberDraft({ name: name.trim(), form, code: normalized });
+      pendingAction.current = 'join';
+      rememberDraft({ name: name.trim(), form, code: normalized, action: 'join' });
       setAccountGate(true);
       return;
     }
@@ -239,18 +269,29 @@ export default function RoomBrowser({ initialGame }) {
     );
   };
 
+  continueRef.current = () => {
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    if (action === 'create') create();
+    else if (action === 'join') joinByCode();
+  };
+
   return (
     <main className="pe-rooms-page pe-page">
       {accountGate ? (
         <AccountDialog
-          onClose={() => setAccountGate(false)}
+          onClose={() => {
+            pendingAction.current = null;
+            rememberDraft({ name, form, code });
+            setAccountGate(false);
+          }}
           name={name}
           onNameChange={(value) => {
             setName(value);
             saveName(value);
-            rememberDraft({ name: value, form, code });
+            rememberDraft({ name: value, form, code, action: pendingAction.current, requestId: requestId.current });
           }}
-          returnTo={code ? `/geo/room/${normalizeRoomCode(code)}` : `/geo/rooms?game=${form.game}`}
+          returnTo={pendingAction.current === 'join' ? `/geo/room/${normalizeRoomCode(code)}` : `/geo/rooms?game=${form.game}&resumeRoom=${requestId.current}`}
           onAuthenticated={() => {
             setSignedIn(true);
             setAccountGate(false);

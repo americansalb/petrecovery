@@ -5745,6 +5745,7 @@ model RasuwaCorrection {
 model GeoRoom {
   id           String    @id @default(cuid())
   code         String    @unique
+  creationKey  String?   @unique // account-scoped retry key for room setup/signup continuation
   name         String
   visibility   String    @default("public") // public | private
   status       String    @default("lobby") // lobby | playing | finished

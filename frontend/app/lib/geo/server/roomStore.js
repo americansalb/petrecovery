@@ -56,6 +56,9 @@ export function databaseStoreFor(prisma) { return {
   getRoomByCode(code) {
     return prisma.geoRoom.findUnique({ where: { code }, include });
   },
+  getRoomByCreationKey(creationKey) {
+    return prisma.geoRoom.findUnique({ where: { creationKey }, include });
+  },
   getRoomById(id) {
     return prisma.geoRoom.findUnique({ where: { id }, include });
   },

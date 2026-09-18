@@ -13,7 +13,8 @@ import { RateLimitPresets, rateLimitResponse, withRateLimitAsync } from '@/app/l
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 import { NO_STORE, playerSubjects, roomErrorResponse } from '@/app/lib/geo/server/roomRoute';
-import { createRoom, listRooms } from '@/app/lib/geo/server/rooms';
+import { listRooms } from '@/app/lib/geo/server/rooms';
+import { createRoomOnce } from '@/app/lib/geo/server/roomCreation';
 import { requireAccount } from '@/app/lib/geo/server/requireAccount';
 
 export const dynamic = 'force-dynamic';
@@ -50,7 +51,8 @@ export async function POST(request) {
   try {
     const subjects = await playerSubjects(request, body?.hostName);
     const profileId = subjects.profileId;
-    const { room, player, token, state } = await createRoom(prismaRoomStore, {
+    const { room, player, token, state } = await createRoomOnce(prismaRoomStore, {
+      requestId: body?.requestId,
       name: body?.name,
       hostName: body?.hostName,
       settings: {

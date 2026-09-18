@@ -113,7 +113,7 @@ async function touchRoom(store, room, now, extra = {}) {
 // Create, join, leave
 // ---------------------------------------------------------------------------
 
-export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now() }) {
+export async function createRoom(store, { name, hostName, settings = {}, profileId = null, subjects = null, now = Date.now(), creationKey = null, hostToken = null }) {
   const { config, variant, visibility } = normalizeRoomConfig(settings);
   // The play meter: a person at the day's ceiling, a site past its
   // budget, or on Google a player whose free room game is used and who
@@ -127,6 +127,7 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     if (await store.getRoomByCode(code)) continue;
     room = await store.createRoom({
       code,
+      creationKey,
       name: sanitizeRoomName(name),
       visibility,
       status: 'lobby',
@@ -142,7 +143,7 @@ export async function createRoom(store, { name, hostName, settings = {}, profile
     });
   }
   if (!room) throw new RoomError('no_code', 'Could not allocate a room code, try again', 500);
-  const token = newPlayerToken();
+  const token = hostToken || newPlayerToken();
   const player = await store.createPlayer({
     roomId: room.id,
     tokenHash: hashToken(token),

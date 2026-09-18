@@ -5,6 +5,7 @@ const { databaseStoreFor } = require('@/app/lib/geo/server/roomStore');
 const { matchmaking } = require('@/app/lib/geo/server/matchmaking');
 const { getRoomView, roomAction } = require('@/app/lib/geo/server/rooms');
 const { verifySignIn, hashLoginToken } = require('@/app/lib/geo/server/accounts');
+const { createRoomOnce } = require('@/app/lib/geo/server/roomCreation');
 const url = process.env.GEO_PG_TEST_URL;
 if (url) {
   const parsed = new URL(url);
@@ -46,6 +47,20 @@ if (url) {
     return { signedIn: true, profileId: profile.id, profile, ipHash: key };
   }
   const find = (store, subjects, action = 'join') => matchmaking(store, { subjects, action, game: 'script', now });
+
+  test('room setup retries across connections create one room and recover the same host seat', async () => {
+    const subjects = await player();
+    const options = { requestId: randomUUID(), subjects, profileId: subjects.profileId, hostName: 'Setup QA', settings: { game: 'script', variant: 'duel' }, now };
+    const attempts = await Promise.all(Array.from({ length: 8 }, (_, i) => createRoomOnce(stores[i % 2], options)));
+    expect(new Set(attempts.map((attempt) => attempt.room.code)).size).toBe(1);
+    expect(new Set(attempts.map((attempt) => attempt.player.id)).size).toBe(1);
+    expect(new Set(attempts.map((attempt) => attempt.token)).size).toBe(1);
+    expect(attempts[0].room.players).toHaveLength(1);
+    const other = await player();
+    const separate = await createRoomOnce(stores[1], { ...options, profileId: other.profileId, subjects: other });
+    expect(separate.room.code).not.toBe(attempts[0].room.code);
+    await expect(createRoomOnce(stores[0], { ...options, requestId: '../bad' })).rejects.toMatchObject({ code: 'bad_request_id' });
+  });
 
   test('simultaneous first sign-ins keep one account and profile across connections', async () => {
     const email = `${randomUUID()}@example.test`;

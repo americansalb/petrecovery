@@ -262,7 +262,7 @@ export default function AppleScriptMap({
   }, [mapkit, answer, guess, nearestPoint, mode]);
 
   return (
-    <KeyboardMap className={className} interactive={mode === 'guess'} {...appleKeyboard(mapRef, mapkit, onPin)}>
+    <KeyboardMap className={className} interactive={mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'} {...appleKeyboard(mapRef, mapkit, onPin)}>
     <div
       ref={hostRef}
       className="h-full w-full"

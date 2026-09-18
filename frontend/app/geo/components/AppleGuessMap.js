@@ -127,7 +127,7 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     }
   }, [mapkit, results, mode]);
 
-  return <KeyboardMap className={className} interactive={interactive && mode === 'guess'} {...appleKeyboard(mapRef, mapkit, onPin)}>
+  return <KeyboardMap className={className} interactive={interactive && mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'} {...appleKeyboard(mapRef, mapkit, onPin)}>
     <div ref={containerRef} className="h-full w-full bg-ocean-900" />
   </KeyboardMap>;
 }

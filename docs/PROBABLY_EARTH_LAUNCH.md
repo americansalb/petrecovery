@@ -2,6 +2,39 @@
 
 ## Verification update (2026-09-18)
 
+### Room continuation and two-browser verification
+
+Follow-up full suite: **155 suites / 1,543 tests passed**, with 10 existing todos.
+Seven real PostgreSQL release checks now include eight concurrent room-create
+retries through two connection pools: one room, one host seat and one stable
+token. The retry key is account-scoped; another account gets a different room.
+This adds nullable unique `GeoRoom.creationKey`; deploy must apply it additively.
+The isolated QA database received only ADD COLUMN / CREATE UNIQUE INDEX, without
+accepting data loss. Local production build passed; final small keyboard-state
+follow-up is being rebuilt and browser-tested.
+
+Browser signup test used a development log link (not delivered email). The
+guest chose Script, three rounds and a private room before signup. Both the
+original sheet and the first verification-return tab automatically reached the
+same room TRTNCX, with one host and the original rules. A completed-intent receipt
+also avoids recreating rooms when the return tab arrives late. Room query params
+now use the Next 15 awaited API so a Script link actually preselects Script.
+
+Two real browser clients, on separate localhost/127.0.0.1 origins and accounts,
+completed all three rounds of that manual Duel. Measured viewports: desktop
+1280x720 and mobile content 382x844 (390px viewport including scrollbar). Both
+submitted real guesses; a host reload recovered its locked guess and same seat.
+The final screens agreed: Persistent QA 5,947 HP and +84 cosmetic points; Room
+Return QA 4,770 HP and +32 points. Rematch VDTQY8 retained rules and both players
+rejoined; leaving returned both to multiplayer. This is browser coverage, not
+physical-device or production-deployment coverage.
+
+Commit `2ae7753` is pushed and unmerged. Its CI exposed a pre-existing random
+test fixture: the candidate-list test occasionally drew the intentional 1-in-200
+NASA photo round. The follow-up fixes the test to a deterministic Earth seed;
+it does not remove the surprise game mode or disable the assertion. Final CI
+must pass before treating the follow-up as release-verified.
+
 **Not launch-approved. PR291 stays draft and unmerged.** Commit `c205840`
 passed every applicable GitHub CI job (run 35308189125), including the stricter
 production dependency audit, real PostgreSQL checks and production build.

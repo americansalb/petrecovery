@@ -139,7 +139,9 @@ describe('POST /api/geo/round', () => {
   });
 
   test('Apple rounds are candidate lists', async () => {
-    const body = await (await postRound(request({ config: { provider: 'apple', mode: 'cities' } }))).json();
+    // Casual play deliberately includes a 1-in-200 NASA photo round. Pin an
+    // Earth seed for this contract; the surprise path has its own test suite.
+    const body = await (await postRound(request({ config: { provider: 'apple', mode: 'cities', seed: 'twice' } }))).json();
     expect(body.round.provider).toBe('apple');
     expect(body.round.candidates.length).toBeGreaterThan(5);
     expect(body.round.candidates[0].token).toMatch(/^g1\./);

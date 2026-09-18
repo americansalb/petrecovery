@@ -416,7 +416,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     }
   }, [answer, guess, nearestPoint, mode, ready]);
 
-  return <KeyboardMap className={className} interactive={mode === 'guess'}
+  return <KeyboardMap className={className} interactive={mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'}
     pan={(x, y) => mapRef.current?.panBy([x * 80, y * 80], { animate: false })}
     zoom={(direction) => mapRef.current?.setZoom(mapRef.current.getZoom() + direction, { animate: false })}
     place={() => {
