@@ -59,6 +59,11 @@ The built-browser Save game dialog also exposed inherited `pointer-events:none`
 from the game HUD: its inputs and close button ignored clicks. The dialog now
 explicitly restores pointer events, with a component regression. Final tests run
 with CI's two-worker configuration passed the counts above.
+Desktop and 390px browser checks then confirmed the dialog accepts typed input,
+and closing it returns to the intact 19-point Indianapolis reveal and 12-point
+cosmetic award. CI run 35373498326 separately caught a flaky answer-leakage test:
+random encrypted bytes happened to contain `jpl`. The test now checks readable
+public fields while retaining the encrypted-token format and decoding checks.
 These are local browser checks (development and the specified production build),
 not hosted release verification. The full release is **not ready to merge**.
 
