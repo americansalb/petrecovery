@@ -10,6 +10,8 @@ jest.mock('@/app/geo/components/AccountRole', () => function Role() { return nul
 const profile = (name, points) => ({ name, points, ratings: {}, recent: [], badges: [], ledger: [] });
 const response = (points) => ({ ok: true, json: async () => ({ shop: { points, items: [] } }) });
 
+const PROMPT = /Your account has no name yet/;
+
 test('loading an existing profile never renames it from a stale device nickname', async () => {
   ensureProfile.mockResolvedValue(profile('Account name', 36));
   global.fetch = jest.fn(async () => response(36));
@@ -36,6 +38,48 @@ test('session changes clear the old shop balance before displaying a new profile
 });
 
 beforeEach(() => { jest.clearAllMocks(); });
+
+/**
+ * A profile created without a name is *stored* called "Player", so a
+ * signed-in account that never chose one renders a page titled with a
+ * name nobody picked - the exact screen the founder rejected on a guest
+ * ("why does it pretend I have an account named player"). The prompt is
+ * the only thing on that page that says so, and the name field it opens
+ * is in a tab nobody has a reason to visit.
+ */
+test('a signed-in account still called Player is told, and the prompt opens the name field', async () => {
+  ensureProfile.mockResolvedValue({ ...profile('Player', 0), signedIn: true });
+  global.fetch = jest.fn(async () => response(0));
+  render(<ProfileClient />);
+  await screen.findByRole('heading', { name: /^Player/ });
+
+  expect(screen.getByText(PROMPT)).toBeInTheDocument();
+  const fix = screen.getByRole('button', { name: 'Choose your name' });
+  expect(fix.className).toContain('min-h-[44px]');
+
+  // It has to land on the field, not merely somewhere in Settings.
+  await act(async () => fireEvent.click(fix));
+  expect(screen.getByLabelText('Your name')).toBeInTheDocument();
+});
+
+test('a signed-in account with a chosen name is not nagged', async () => {
+  ensureProfile.mockResolvedValue({ ...profile('Kevin', 0), signedIn: true });
+  global.fetch = jest.fn(async () => response(0));
+  render(<ProfileClient />);
+  await screen.findByRole('heading', { name: /^Kevin/ });
+  expect(screen.queryByText(PROMPT)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Choose your name' })).toBeNull();
+});
+
+test('a guest is offered an account rather than a rename', async () => {
+  ensureProfile.mockResolvedValue({ ...profile('Player', 0), signedIn: false });
+  global.fetch = jest.fn(async () => response(0));
+  render(<ProfileClient />);
+  await screen.findByRole('heading', { name: /^Player/ });
+  expect(screen.queryByText(PROMPT)).toBeNull();
+  expect(screen.getByText('Guest, this browser')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Save your player' })).toBeInTheDocument();
+});
 
 test('cosmetic purchase and equip use named touch-sized controls and update the balance', async () => {
   ensureProfile.mockResolvedValue(profile('Shop player', 200));

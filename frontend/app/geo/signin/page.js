@@ -13,14 +13,28 @@
  * account named player").
  *
  * So this page does one thing and says one thing.
+ *
+ * `next` is read with useSearchParams rather than the searchParams prop:
+ * this is a client page, and Next 15 hands a client page a promise there,
+ * so reading `searchParams.next` logged a sync-dynamic-api warning and is
+ * removed in a later major. It silently returning undefined would land a
+ * signed-in player on the profile page instead of the round they left,
+ * which is the failure this whole return path exists to prevent.
  */
 
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import SignInCard from '../components/SignInCard';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
 
-export default function GeoSignInPage({ searchParams }) {
+function SignInForm() {
+  const searchParams = useSearchParams();
+  return <SignInCard requireName returnTo={safeReturnTo(searchParams.get('next'))} />;
+}
+
+export default function GeoSignInPage() {
   return (
     <main className="mx-auto max-w-md px-4 py-12 sm:py-20">
       <Link href="/geo" className="inline-flex items-center gap-2 text-sm font-semibold text-white/60 transition hover:text-white">
@@ -32,7 +46,11 @@ export default function GeoSignInPage({ searchParams }) {
           and a page that says it first makes the screen read the same
           sentence twice. */}
       <div className="mt-6">
-        <SignInCard requireName returnTo={safeReturnTo(searchParams?.next)} />
+        {/* useSearchParams needs a boundary or the whole route opts out
+            of static rendering at build time. */}
+        <Suspense fallback={<SignInCard requireName returnTo="/geo/me" />}>
+          <SignInForm />
+        </Suspense>
       </div>
     </main>
   );

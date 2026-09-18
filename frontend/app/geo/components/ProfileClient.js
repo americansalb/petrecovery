@@ -26,7 +26,7 @@ import {
   countryBadgeProgress,
   playableCountryCodes,
 } from '@/app/lib/geo/badges';
-import { VARIANTS } from '@/app/lib/geo/rooms';
+import { VARIANTS, DEFAULT_PLAYER_NAME } from '@/app/lib/geo/rooms';
 import {
   LADDERS,
   LADDER_LABELS,
@@ -407,6 +407,30 @@ export default function ProfileClient() {
           <div className="mt-5 flex items-center justify-between gap-4 border-b border-white/15 pb-5">
             <p className="text-sm text-white/75">Keep your games on every device.</p>
             <Link href="/geo/signin" className="pe-button pe-button--primary min-h-[44px] px-4 py-3">Save your player</Link>
+          </div>
+        ) : null}
+
+        {/* A signed-in account still carrying the placeholder renders
+            as "Player", which is the same screen the founder rejected
+            on a guest: an account that pretends to be named for you
+            (2026-09-17: "why does it pretend I have an account named
+            player"). The name is not empty in that case - resolveProfile
+            stores the placeholder - so this compares against it rather
+            than checking for a blank. Every signup path asks for a name
+            now, so an account in this state was made before they did.
+            Say what is happening and point at the one field that fixes
+            it, rather than leaving the name buried in a tab nobody
+            opens. */}
+        {profile?.signedIn && (!profile.name || profile.name === DEFAULT_PLAYER_NAME) ? (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-b border-white/15 pb-5">
+            <p className="text-sm text-white/75">Your account has no name yet, so scoreboards show you as Player.</p>
+            <button
+              type="button"
+              onClick={() => setTab('settings')}
+              className="pe-button pe-button--primary min-h-[44px] px-4 py-3"
+            >
+              Choose your name
+            </button>
           </div>
         ) : null}
 

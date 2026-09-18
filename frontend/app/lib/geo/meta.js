@@ -39,7 +39,13 @@ export const FALLBACK_SHARE_IMAGE =
   // The game draws its own cards (/api/geo/og); this is the one for a
   // page with nothing of its own to show. A pet rescue logo on a
   // geography game was the old answer and it was the wrong one.
-  '/geo-card.svg';
+  //
+  // PNG, not the SVG it is drawn from: Facebook, Slack, iMessage,
+  // WhatsApp, X and LinkedIn all decline an SVG og:image, so pointing
+  // here at geo-card.svg unfurled the lobby - the URL people actually
+  // paste - with no picture at all. scripts/build-geo-card.js renders
+  // it; __tests__/link-previews.test.js keeps it from sliding back.
+  '/geo-card.png';
 
 /**
  * Absolute base for resolving relative images. Messengers reject a

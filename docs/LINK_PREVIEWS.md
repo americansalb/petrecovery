@@ -84,6 +84,13 @@ segment default.
 
 - **Photos beat logos.** Use the entity's photo via `shareImage()`; it falls
   back to the official logo only when there is no photo.
+- **Raster only — never an SVG.** Facebook, Slack, iMessage, WhatsApp, X and
+  LinkedIn all decline `image/svg+xml`, and they decline it silently: the tags
+  validate, the URL returns 200, and the card unfurls with no picture. The
+  game's fallback pointed at `/geo-card.svg` for exactly this reason and nobody
+  noticed, because every check only asked whether a card was *present*.
+  PNG/JPEG/GIF/WEBP. `scripts/build-geo-card.js` renders the game's card from
+  its SVG source; the format is asserted in `link-previews.test.js`.
 - **Absolute image URLs.** `buildShareMetadata` sets `metadataBase` from
   `NEXT_PUBLIC_BASE_URL`; pass paths or URLs, never `localhost` literals.
 - **Not-found never leaks.** Invalid ids/tokens return `genericShareMetadata()`

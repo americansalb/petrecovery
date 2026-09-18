@@ -148,4 +148,34 @@ describe('link previews (share cards)', () => {
     const stale = KNOWN_PRIVATE.filter((p) => !exists(p));
     expect(stale).toEqual([]);
   });
+
+  /**
+   * Presence of a card was the only thing checked here, so a card in a
+   * format no messenger renders passed: the game's fallback pointed at
+   * /geo-card.svg and the lobby - the URL people paste - unfurled with
+   * no picture on Facebook, Slack, iMessage, WhatsApp, X and LinkedIn.
+   * None of them accept image/svg+xml.
+   */
+  describe('share cards are in a format preview bots actually render', () => {
+    const RENDERABLE = /\.(png|jpe?g|gif|webp)$/i;
+
+    test('the game falls back to a raster card that exists on disk', () => {
+      const src = read('lib/geo/meta.js');
+      const match = src.match(/FALLBACK_SHARE_IMAGE\s*=[\s\S]*?'(\/[^']+)'/);
+      expect(match).not.toBeNull();
+      const card = match[1];
+      expect(card).toMatch(RENDERABLE);
+      const onDisk = path.join(__dirname, '..', 'public', card.replace(/^\//, ''));
+      if (!fs.existsSync(onDisk)) {
+        throw new Error(`${card} is the fallback share card but is not in public/. Run: node scripts/build-geo-card.js`);
+      }
+    });
+
+    test('the pet site falls back to a raster card', () => {
+      const src = read('lib/shareMetadata.js');
+      const match = src.match(/FALLBACK_SHARE_IMAGE\s*=\s*\n?\s*'([^']+)'/);
+      expect(match).not.toBeNull();
+      expect(match[1].split('?')[0]).toMatch(RENDERABLE);
+    });
+  });
 });

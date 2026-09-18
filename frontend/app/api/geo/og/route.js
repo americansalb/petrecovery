@@ -4,8 +4,10 @@
  * The 1200x630 link-preview image for a shared game, rendered from the
  * share code alone (no database): satori for layout, resvg for the PNG,
  * the same pipeline and bundled fonts as the lost-pet social cards.
- * Anything unrenderable falls back to the site logo so a preview always
- * shows something.
+ * Anything unrenderable falls back to the game's own card
+ * (FALLBACK_SHARE_IMAGE) so a preview always shows something. That card
+ * is a PNG: it used to be an SVG, which every messenger declines, so
+ * "always shows something" was not true of the fallback it names.
  */
 
 import { decodeShare, summaryHeadline, averageMissKm } from '@/app/lib/geo/share';
