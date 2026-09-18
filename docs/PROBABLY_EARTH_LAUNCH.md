@@ -1,5 +1,16 @@
 # Probably Earth: what launch needs
 
+## Handoff instruction (2026-09-18)
+
+The owner now explicitly requests merging at this natural pause and handing
+remaining work to Claude. This supersedes the earlier hold on merging; it does
+not certify launch readiness. See [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md) for the
+current checklist, exact verification evidence, hosting configuration and
+remaining release gates. Final local suite: 169 suites / 1,608 passed, with ten
+existing pet-funnel todos. Fresh-browser account seat recovery is verified in
+the production build; mobile standings overlap is fixed and browser-checked.
+The PR is the source of truth for final-head CI and the subsequent merge SHA.
+
 ## Verification update (2026-09-18)
 
 ### Signup-abuse protection follows the same trusted proxy in every layer

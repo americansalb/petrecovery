@@ -1,6 +1,6 @@
 /**
  * GET  /api/geo/rooms/:code      the room as you see it (x-geo-player header
- *                                optional; without it you are a spectator)
+ *                                optional; signed-in members recover their seat)
  * POST /api/geo/rooms/:code      { action: 'join', name }
  *                                { action: 'start' | 'locate' | 'guess' | 'next' |
  *                                  'react' | 'leave' | 'rematch', ... }
@@ -34,9 +34,10 @@ export async function GET(request, { params }) {
   const code = normalizeRoomCode(params?.code);
   if (!code) return NextResponse.json({ error: 'No room with that code', code: 'not_found' }, { status: 404, ...NO_STORE });
   try {
-    const token = await roomTokenForAccount(prismaRoomStore, request, code, playerToken(request));
+    const token = await roomTokenForAccount(prismaRoomStore, request, code, playerToken(request), { recover: true });
     const state = await getRoomView(prismaRoomStore, { code, token: token || '' });
-    return NextResponse.json({ ok: true, state }, NO_STORE);
+    const identity = token && state.me ? { token, playerId: state.me.id, name: state.me.name } : null;
+    return NextResponse.json({ ok: true, state, identity }, NO_STORE);
   } catch (error) {
     return errorResponse(error, 'view');
   }

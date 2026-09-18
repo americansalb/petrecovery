@@ -569,9 +569,15 @@
   min-width: 0;
 }
 .geo-surface .pe-finish-player > span:first-child {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
   font-size: 17px;
   font-weight: 650;
+}
+.geo-surface .pe-finish-player > span:first-child > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .geo-surface .pe-finish-player > span:last-child {
   display: block;
@@ -580,6 +586,7 @@
   margin-top: 5px;
 }
 .geo-surface .pe-finish-score {
+  flex-shrink: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

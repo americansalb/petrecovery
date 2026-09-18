@@ -123,6 +123,16 @@ export function useRoom(code) {
         stateRef.current = json.state;
         offsetRef.current = (json.state.serverNow || Date.now()) - Date.now();
         setState(json.state);
+        // A verified account can resume its existing seat on a new device,
+        // including the results of a finished match, without joining again.
+        if (json.identity?.token && json.identity.playerId === json.state.me?.id &&
+            json.identity.token !== identityRef.current?.token) {
+          const recovered = { ...json.identity, roomName: json.state.room?.name || '' };
+          identityRef.current = recovered;
+          setIdentity(recovered);
+          saveIdentity(code, recovered);
+          if (recovered.name) saveName(recovered.name);
+        }
         // Remember the room's name next to the token, so the lobby and
         // the room browser can list it without anyone memorizing a code.
         const roomName = json.state.room?.name;

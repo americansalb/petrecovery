@@ -35,6 +35,34 @@ test('another signed-in account cannot use the previous account seat', async () 
 test('a retained seat does not expose player-only state after account changes', async () => {
   for (const cookie of [null, other]) {
     const result = await view(request(null, cookie, room.token), { params: { code: room.code } });
-    expect((await result.json()).state.me).toBeNull();
+    const body = await result.json();
+    expect(body.state.me).toBeNull();
+    expect(body.identity).toBeNull();
   }
+});
+
+test.each(['lobby', 'finished'])('the owning account recovers its %s seat without browser storage', async (status) => {
+  const stored = await store.getRoomByCode(room.code);
+  await store.updateRoom(stored.id, { status, phase: status });
+  const result = await view(request(null, host), { params: { code: room.code } });
+  const body = await result.json();
+  expect(body.state.me.id).toBe(room.playerId);
+  expect(body.identity).toEqual({ token: room.token, playerId: room.playerId, name: 'host' });
+  expect(result.headers.get('cache-control')).toContain('no-store');
+  expect((await store.getRoomByCode(room.code)).players).toHaveLength(1);
+});
+
+test('anonymous and unrelated accounts cannot recover another player seat', async () => {
+  for (const cookie of [null, other]) {
+    const body = await (await view(request(null, cookie), { params: { code: room.code } })).json();
+    expect(body.state.me).toBeNull();
+    expect(body.identity).toBeNull();
+  }
+});
+
+test('an explicitly left seat is not silently recovered', async () => {
+  await act(request({ action: 'leave' }, host, room.token), { params: { code: room.code } });
+  const body = await (await view(request(null, host), { params: { code: room.code } })).json();
+  expect(body.state.me).toBeNull();
+  expect(body.identity).toBeNull();
 });
