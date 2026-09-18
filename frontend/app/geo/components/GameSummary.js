@@ -162,7 +162,7 @@ export default function GameSummary({
   };
 
   const shared = config.mode === 'daily' || config.mode === 'cup';
-  const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}`;
+  const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}&replay=${randomSeedString()}`;
 
   return (
     <div className="geo-reveal-panel pe-solo-finish absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">

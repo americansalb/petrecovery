@@ -82,7 +82,11 @@ export function saveName(name) {
 }
 
 async function readJson(res) {
-  return res.json().catch(() => ({}));
+  try { return await res.json(); }
+  catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new Error('Could not read the room response. Please reconnect.');
+  }
 }
 
 export function useRoom(code) {
@@ -138,9 +142,10 @@ export function useRoom(code) {
   }, []);
 
   const refresh = useCallback(async () => {
-    if (activeActions.current || polling.current === code) return null;
+    if (activeActions.current || polling.current?.code === code) return null;
     const epoch = actionEpoch.current;
-    polling.current = code;
+    const request = { code };
+    polling.current = request;
     try {
       const { res, json } = await roomRequest(`/api/geo/rooms/${code}`, { headers: headersFor(), cache: 'no-store' });
       if (codeRef.current !== code || epoch !== actionEpoch.current) return null;
@@ -156,7 +161,7 @@ export function useRoom(code) {
       setError({ code: 'connection', message: 'Connection lost. Reconnecting automatically. Your seat is saved.' });
       return null;
     } finally {
-      if (polling.current === code) polling.current = null;
+      if (polling.current === request) polling.current = null;
     }
   }, [code, headersFor, apply]);
 

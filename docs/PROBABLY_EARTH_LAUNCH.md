@@ -4,6 +4,20 @@
 
 ### Current direction: polygon gameplay restored; percentile leagues
 
+Commit `a693caf2` passed CI run 35351192369. The final production build passed,
+and its 390px browser run verified Japanese polygon focus, expandable learning
+clues, a fully visible Next button, zero horizontal overflow, keyboard pinning,
+and Japanese/Pular scoring. A subsequent refresh exposed a separate save UX
+defect: plain game URLs did not restore their saved checkpoint without an
+explicit `resume=1`. The follow-up restores exact matching playthroughs on refresh
+for Street and Script, and gives deliberate replays their own saved-game identity.
+The browser reproduced a reset from 4,057 points/round two to zero before the fix;
+the PostgreSQL development app then recovered that same 4,057-point Pular reveal
+from the ordinary URL without a resume flag. A real-hook component regression
+tests refresh twice and then a deliberate fresh replay of the same seed.
+Follow-up suite: **163 suites, 1,574 passed, 10 existing todos**, including
+the 10 PostgreSQL checks. This does not establish real message delivery.
+
 The owner rejected the language-identification prototype. It has been removed
 from the client, API and tests, not promoted into the main game. Its code remains
 in Git history. Old `experience=detective` preview links now open the original

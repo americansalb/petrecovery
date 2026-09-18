@@ -61,3 +61,14 @@ test('signup return re-reads when the original tab acknowledged a save during th
   await waitFor(() => expect(restore).toHaveBeenCalledWith(config.snapshot));
   expect(fetch).toHaveBeenCalledTimes(2);
 });
+
+test('automatic resume never adopts a different playthrough or a different game', async () => {
+  const restore = jest.fn();
+  const saved = { ...config, url: '/geo/script/play?seed=test&replay=old&resume=1' };
+  global.fetch = jest.fn(async () => response({ accountId: 'A', revision: 2, savedGame: saved }));
+  const view = renderHook(() => useSavedGame({ ...config, url: '/geo/script/play?seed=test&replay=new&resume=1', enabled: false, resume: true, restore }));
+  await waitFor(() => expect(view.result.current.ready).toBe(true));
+  expect(restore).not.toHaveBeenCalled();
+  view.rerender();
+  expect(restore).not.toHaveBeenCalled();
+});

@@ -121,11 +121,12 @@ function StreetPlayGame({ params }) {
   // always is: a round that hid its own map would announce itself.
   const notEarth = state.current?.place || null;
   const configured = Boolean(server?.providers?.apple?.configured);
-  const resumeUrl = `/geo/play?${configToParams(config)}&resume=1`;
+  const playthrough = params.get('replay');
+  const resumeUrl = `/geo/play?${configToParams(config)}${playthrough ? `&replay=${encodeURIComponent(playthrough)}` : ''}&resume=1`;
   const { ready: saveReady, saveError } = useSavedGame({
     kind: 'street', url: resumeUrl, snapshot: state,
     enabled: state.status === 'result' || state.status === 'summary',
-    resume: params.get('resume') === '1',
+    resume: true,
     restore: (snapshot) => dispatch({ type: 'restore', snapshot }),
   });
 

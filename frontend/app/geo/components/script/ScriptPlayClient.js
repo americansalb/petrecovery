@@ -125,12 +125,15 @@ function ScriptPlayGame({ params }) {
   const [mapTrouble, setMapTrouble] = useState(false);
   const [mapkit, setMapkit] = useState(null);
   const [provider, setProvider] = useState('pending');
-  const resumeUrl = `/geo/script/play?${scriptConfigToQuery(config)}&resume=1`;
+  const playthrough = params.get('replay');
+  const resumeUrl = `/geo/script/play?${scriptConfigToQuery(config)}${playthrough ? `&replay=${encodeURIComponent(playthrough)}` : ''}&resume=1`;
   const { ready: saveReady, saveError } = useSavedGame({
     kind: 'script', url: resumeUrl,
     snapshot: { config, roundIndex, history, result },
     enabled: Boolean(result) || history.length >= config.rounds,
-    resume: params.get('resume') === '1',
+    // A refresh is still this playthrough. A deliberate replay has a fresh
+    // key in its URL, so it cannot accidentally restore the finished set.
+    resume: true,
     restore: (saved) => {
       if (!Array.isArray(saved.history)) return;
       // Older clients could let the last timer score again after the summary.
@@ -325,8 +328,7 @@ function ScriptPlayGame({ params }) {
                 Script &middot; {ladder.short}
               </span>
               <span className="text-sm font-semibold">
-                Round {Math.min(roundIndex + 1, config.rounds)} of{' '}
-                {config.rounds}
+                {saveReady ? <>Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}</> : 'Opening game…'}
               </span>
             </div>
             <div className="flex flex-col border-l border-sand-200 pl-3 leading-tight">
@@ -334,7 +336,7 @@ function ScriptPlayGame({ params }) {
                 Score
               </span>
               <span className="text-sm font-semibold tabular-nums text-sand-900">
-                {formatScore(total)}
+                {saveReady ? formatScore(total) : '…'}
               </span>
             </div>
           </div>
@@ -372,7 +374,7 @@ function ScriptPlayGame({ params }) {
         <div className="mx-auto max-w-4xl px-3 pb-4 pt-3 text-center sm:px-4">
           {loading ? (
             <p className="flex items-center justify-center gap-2 py-3 text-sand-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> Finding a sentence
+              <Loader2 className="h-4 w-4 animate-spin" /> {saveReady ? 'Finding a sentence' : 'Loading your progress'}
             </p>
           ) : error ? (
             <div className="py-2 text-sm">
