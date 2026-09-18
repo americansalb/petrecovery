@@ -133,6 +133,20 @@ jobs:
     name: Build Application
     runs-on: ubuntu-latest
     needs: [lint, test, geo-postgres, security]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: launchqa
+          POSTGRES_PASSWORD: local-launch-qa-only
+          POSTGRES_DB: probablyearth_launch_qa
+        ports:
+          - 55439:5432
+        options: >-
+          --health-cmd "pg_isready -U launchqa -d probablyearth_launch_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -157,6 +171,22 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
         run: npm run build
+
+      # A green compilation is not proof that the server survives startup.
+      # This gate runs on PRs too, with the same heap cap as production.
+      - name: Create isolated startup-test schema
+        working-directory: frontend
+        env:
+          DATABASE_URL: postgresql://launchqa:local-launch-qa-only@localhost:55439/probablyearth_launch_qa
+        run: npx prisma db push --skip-generate
+
+      - name: Production startup and two-site memory regression gate
+        working-directory: frontend
+        timeout-minutes: 5
+        env:
+          DATABASE_URL: postgresql://launchqa:local-launch-qa-only@localhost:55439/probablyearth_launch_qa
+          GEO_DATABASE_URL: postgresql://launchqa:local-launch-qa-only@localhost:55439/probablyearth_launch_qa
+        run: node scripts/production-memory-smoke.js
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
