@@ -16,6 +16,20 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '../..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
+describe('account and replay regression guards', () => {
+  test('room polling cannot restart the sign-in interval through a new callback', () => {
+    const src = read('app/geo/components/SignInCard.js');
+    expect(src).toContain('authenticatedRef.current = onAuthenticated');
+    expect(src).toContain('authenticatedRef.current?.()');
+    expect(src).not.toContain('[state, onAuthenticated]');
+    expect(src).toContain("document.addEventListener('visibilitychange', check)");
+  });
+  test('a different game URL remounts the game rather than keeping the previous result', () => {
+    expect(read('app/geo/components/PlayClient.js')).toContain('<StreetPlayGame key={params.toString()}');
+    expect(read('app/geo/components/script/ScriptPlayClient.js')).toContain('<ScriptPlayGame key={params.toString()}');
+  });
+});
+
 describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
   const src = read('app/geo/components/RoomClient.js');
 

@@ -31,7 +31,7 @@ function RatingCell({ row }) {
 }
 
 export default function GeoLeaderboardPage() {
-  const [ladder, setLadder] = useState('classic');
+  const [ladder, setLadder] = useState('duel');
   const [board, setBoard] = useState(null);
   const [error, setError] = useState('');
 
@@ -64,7 +64,7 @@ export default function GeoLeaderboardPage() {
           </p>
           <h1 className="mt-1 flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
             <Trophy className="h-7 w-7 text-clay-300" />
-            Find your place.
+            Rankings
           </h1>
           {/* How rating works is worth knowing once and reading never.
               It was three lines above the table on every visit. */}
@@ -74,8 +74,7 @@ export default function GeoLeaderboardPage() {
             </summary>
             <ul className="mt-2 space-y-1">
               <li>
-                Classic and Duel rate you against everyone else in a finished
-                room.
+                Street multiplayer rates you against the other players in a finished room.
               </li>
               <li>
                 Ranked solo rates this hour&apos;s five places against everyone
@@ -92,7 +91,7 @@ export default function GeoLeaderboardPage() {
         <RankPath />
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <Tabs
-            items={LADDERS.map((id) => ({
+            items={LADDERS.filter((id) => id !== 'classic').map((id) => ({
               id,
               label: LADDER_LABELS[id] || VARIANTS[id]?.label || id,
             }))}
@@ -257,7 +256,7 @@ export default function GeoLeaderboardPage() {
                   >
                     <div className="pe-ladder-empty">
                       <Trophy size={35} strokeWidth={1.2} />
-                      <strong>Be first on this ladder.</strong>
+                      <strong>No ranked players yet</strong>
                       <p>
                         Complete {PROVISIONAL_GAMES} placement games to reveal your
                         league.
@@ -269,7 +268,7 @@ export default function GeoLeaderboardPage() {
                             : `/geo/rooms?variant=${ladder}`
                         }
                       >
-                        Start your climb <span aria-hidden="true">↗</span>
+                        Play <span aria-hidden="true">↗</span>
                       </Link>
                     </div>
                   </td>
@@ -319,7 +318,7 @@ export default function GeoLeaderboardPage() {
 
         <p className="mt-4 flex items-center gap-2 text-sm text-white/60">
           <Users className="h-4 w-4" />
-          Only these three are rated.{' '}
+          Street multiplayer and ranked solo have separate ratings.{' '}
           <Link href="/geo" className="ml-1 underline hover:text-white">
             Everything else is in Play
           </Link>

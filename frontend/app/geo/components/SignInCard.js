@@ -15,7 +15,7 @@
  * account at all, and the copy says so rather than implying a gate.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, LogOut, Mail, Trash2, UserRound } from 'lucide-react';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 
@@ -33,6 +33,8 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   const [message, setMessage] = useState('');
   const [account, setAccount] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const authenticatedRef = useRef(onAuthenticated);
+  authenticatedRef.current = onAuthenticated;
   const name = playerName === undefined ? localName : playerName;
   const setName = (value) => {
     if (onPlayerNameChange) onPlayerNameChange(value);
@@ -42,7 +44,10 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   useEffect(() => {
     if (state !== 'sent') return;
     let alive = true;
+    let checking = false;
     const check = async () => {
+      if (checking) return;
+      checking = true;
       try {
         const response = await fetch('/api/geo/auth/me', { cache: 'no-store' });
         const data = response.ok ? await response.json() : null;
@@ -52,14 +57,17 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
           setMessage('Signed in.');
           window.dispatchEvent(new Event('geo:authenticated'));
           window.dispatchEvent(new Event('geo:session-changed'));
-          onAuthenticated?.();
+          authenticatedRef.current?.();
         }
       } catch { /* Try again when the player returns from email. */ }
+      finally { checking = false; }
     };
     window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    check();
     const timer = setInterval(check, 4000);
-    return () => { alive = false; clearInterval(timer); window.removeEventListener('focus', check); };
-  }, [state, onAuthenticated]);
+    return () => { alive = false; clearInterval(timer); window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check); };
+  }, [state]);
 
   useEffect(() => {
     let alive = true;

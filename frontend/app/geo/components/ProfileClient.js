@@ -443,8 +443,8 @@ export default function ProfileClient() {
             <Card data-ratings>
               <CardTitle icon={Medal}>Rating</CardTitle>
               {profile ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  {LADDERS.map((ladder) => (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {LADDERS.filter((ladder) => ladder !== 'classic').map((ladder) => (
                     <LadderCard
                       key={ladder}
                       ladder={ladder}

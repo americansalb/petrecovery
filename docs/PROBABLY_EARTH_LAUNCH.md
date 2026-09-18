@@ -15,7 +15,8 @@ JSON column; deployment must apply that additive schema change.
 
 Evidence from the current local working tree:
 
-- 135 Jest suites passed, 1,451 tests passed, 10 existing todos.
+- 135 Jest suites passed, 1,451 tests passed, 10 existing todos; two
+  additional account/replay guards pass in the targeted suite.
 - Full lint passed the repository's 360-warning ceiling.
 - Script solo: placed guesses, received scores, returned home, reopened
   the same saved result, continued, finished all five rounds, and reloaded
@@ -30,6 +31,16 @@ Evidence from the current local working tree:
   location was revealed, and score/points were returned.
 - A private temporary test inbox also received no sign-in email after
   production reported success. Delivery remains a launch blocker.
+- Local existing-account magic-link verification returned to Script room
+  setup, retained the player name and rules, and automatically closed the
+  signup gate in the original tab. A callback-identity polling race found
+  during this test is fixed. Sign-out now refreshes profile labels too.
+- Classic is removed from the active rankings and profile choices without
+  deleting historical ratings.
+
+Do not merge the multiplayer account gate while production mail is broken:
+that would prevent new players from entering multiplayer. Production mail
+inspection is awaiting the owner's required Render workspace confirmation.
 - Mail provider error responses are now failures, rather than false success.
 
 Still required before calling the game launch-ready:
