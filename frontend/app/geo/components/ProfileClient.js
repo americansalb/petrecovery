@@ -53,7 +53,7 @@ const PLAYABLE_COUNTRIES = playableCountryCodes('apple');
 
 /** One ladder: the rating, the tier, and what was won on it. */
 function LadderCard({ ladder, rating, provisionalGames }) {
-  const label = LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder;
+  const label = ladder === 'duel' ? 'Street multiplayer' : LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder;
   const games = rating?.games || 0;
   if (games < provisionalGames) {
     return (
@@ -180,7 +180,8 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
         type="button"
         disabled={busy}
         onClick={() => onEquip(item.id)}
-        className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5 disabled:opacity-50"
+        aria-label={`Wear ${item.name}`}
+        className="min-h-[44px] rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5 disabled:opacity-50"
       >
         Wear
       </button>
@@ -193,7 +194,8 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
         type="button"
         disabled={busy}
         onClick={() => onBuy(item.id)}
-        className="rounded-lg bg-ocean-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-ocean-800 disabled:opacity-50"
+        aria-label={`Buy ${item.name} for ${formatScore(item.price)} points`}
+        className="min-h-[44px] rounded-lg bg-ocean-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-ocean-800 disabled:opacity-50"
       >
         Buy for {formatScore(item.price)}
       </button>
@@ -471,7 +473,7 @@ export default function ProfileClient() {
             {/* Recent rated games. The server has sent these with every
                 profile since ratings shipped and nothing read them. */}
             <Card data-recent>
-              <CardTitle icon={History}>Last games</CardTitle>
+              <CardTitle icon={History}>Rated Street games</CardTitle>
               {profile?.recent?.length ? (
                 <ul className="mt-3 divide-y divide-white/10 text-sm">
                   {profile.recent.map((row, i) => (
@@ -587,7 +589,7 @@ export default function ProfileClient() {
                   <span className="font-semibold text-white">
                     {profile.usage.rounds}
                   </span>{' '}
-                  rounds today. Points earn on the first 50.
+                  Street rounds today.
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-white/60">Loading</p>

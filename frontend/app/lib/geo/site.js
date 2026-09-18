@@ -122,6 +122,8 @@ export const GAME_RATE_LIMITS = {
   // is here to slow a scraper walking the corpus, not to ration play.
   '/api/geo/script/round': { windowMs: 60000, maxRequests: 90 },
   '/api/geo/script/guess': { windowMs: 60000, maxRequests: 120 },
+  '/api/geo/script/detective/round': { windowMs: 60000, maxRequests: 90 },
+  '/api/geo/script/detective/guess': { windowMs: 60000, maxRequests: 120 },
   // A round is a burst of free metadata probes on the server; one
   // person plays a handful a minute, and a retry after "no imagery"
   // must not lock them out.

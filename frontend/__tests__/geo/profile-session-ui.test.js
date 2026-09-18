@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
-import { act, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ProfileClient from '@/app/geo/components/ProfileClient';
 import { ensureProfile } from '@/app/geo/lib/profile';
 jest.mock('@/app/geo/lib/profile', () => ({ ensureProfile: jest.fn(), profileHeaders: () => ({}) }));
@@ -35,3 +36,30 @@ test('session changes clear the old shop balance before displaying a new profile
 });
 
 beforeEach(() => { jest.clearAllMocks(); });
+
+test('cosmetic purchase and equip use named touch-sized controls and update the balance', async () => {
+  ensureProfile.mockResolvedValue(profile('Shop player', 200));
+  const item = { id: 'pin-ring', name: 'Ring', kind: 'pin', price: 100, affordable: true, owned: false, usable: false };
+  let shop = { points: 200, items: [item], equipped: {} };
+  global.fetch = jest.fn(async (url, options) => {
+    if (options?.method === 'POST') {
+      const { action, itemId } = JSON.parse(options.body);
+      expect(itemId).toBe('pin-ring');
+      shop = action === 'buy' ? { ...shop, points: 100, items: [{ ...item, owned: true, usable: true }] }
+        : { ...shop, equipped: { pin: 'pin-ring' } };
+    }
+    return { ok: true, json: async () => ({ shop }) };
+  });
+  render(<ProfileClient />);
+  await screen.findByRole('heading', { name: /^Shop player/ });
+  fireEvent.click(screen.getByRole('tab', { name: 'Shop', exact: true }));
+  const buy = await screen.findByRole('button', { name: 'Buy Ring for 100 points' });
+  expect(buy.className).toContain('min-h-[44px]');
+  await act(async () => fireEvent.click(buy));
+  const wear = screen.getByRole('button', { name: 'Wear Ring' });
+  expect(wear.className).toContain('min-h-[44px]');
+  expect(screen.getByText('100', { exact: true })).toBeInTheDocument();
+  await act(async () => fireEvent.click(wear));
+  expect(screen.getByText('Wearing')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Wear Ring' })).toBeNull();
+});

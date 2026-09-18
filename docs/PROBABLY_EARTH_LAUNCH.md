@@ -2,6 +2,52 @@
 
 ## Verification update (2026-09-18)
 
+### Script gameplay redesign: isolated playable prototype
+
+The player's feedback that Script is boring is an open acceptance requirement,
+not resolved by the previous visual polish. A language-first prototype is available
+at `/geo/script/play?experience=detective&rounds=3&seed=detective-qa`.
+It is deliberately not the default and does not change existing solo saves or
+multiplayer rules. It asks for one of four server-selected language choices,
+awards 4,000 points for identification, and offers an optional regional map bonus
+worth up to 1,000. The reveal focuses on one marker actually present in the
+sentence, with its explanation and the language's region. Old map-first rounds
+remain available while the revised direction is evaluated. There is no new
+Classic/Duel or gameplay-variant selector in the public menu.
+
+Browser evidence on the local PostgreSQL-backed app: a Nepali answer scored
+4,000 without a map pin; the saved reveal reopened in the 390x844 mobile tab;
+choosing Papiamento for Galician revealed the mistake and the `traballo` clue;
+Malayalam plus a deliberately distant keyboard-placed map pin scored 4,004.
+The three-round result was 2/3 languages and 8,004 points. Replay reset to zero
+with the same Nepali sentence and four choices. Desktop 1280x720 and mobile
+screenshots of play/reveal/results were inspected. This proves the mechanics,
+not that the new game is sufficiently fun or that multiplayer is redesigned.
+The production build also completed a three-round, 30-second Alphabets game:
+Telugu 4,000, unanswered Punjabi timeout 0, Tibetan 4,000, total 8,000. These
+were browser interactions against the built app, not mocked API scoring.
+
+New tests cover every pool's four unique deterministic choices, opaque answer
+tokens, exact/incorrect/no answer scoring, map bonus, invalid/expired tokens,
+API errors and no-store responses, keyboard focus boundaries, retries,
+double-submit prevention and timer completion without duplicate results.
+New endpoints have explicit middleware rate-limit buckets. Current local suite:
+**163 suites / 1,576 passed**, plus 10 pre-existing todos, including the isolated
+PostgreSQL concurrency checks. Changed production files lint cleanly. The
+production build exits successfully; unrelated pet-site prerender fetches have
+local sandbox network/database warnings and are not production verification.
+
+The prior release-fix commit `7f540dd` passed CI run 35314600261. Nothing is merged.
+Real email/SMS delivery, an authorized Street preview origin and production
+deployment remain unverified; access to the actual hosting service is still
+missing from the authorized Render workspace.
+
+Profile follow-up: buy/equip controls now have item-specific accessible names and
+44px minimum height; record headings explicitly refer to rated Street games.
+The existing synthetic Persistent QA account bought Mint for 150 earned test
+points (204 to 54), switched to Classic and back, then retained Mint and the
+54-point balance after reload. This involved no real payment.
+
 ### Screen sweep and timed Script fixes
 
 Commit `9cd8c02` passed every applicable CI job in run 35312790315. It is

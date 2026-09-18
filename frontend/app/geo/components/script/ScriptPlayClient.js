@@ -98,9 +98,11 @@ const LeafletScriptMap = dynamic(() => import('./LeafletScriptMap'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-[#dce9f2]" />,
 });
+const ScriptDetectiveClient = dynamic(() => import('./ScriptDetectiveClient'));
 
 export default function ScriptPlayClient() {
   const params = useSearchParams();
+  if (params.get('experience') === 'detective') return <ScriptDetectiveClient key={params.toString()} params={params} />;
   return <ScriptPlayGame key={params.toString()} params={params} />;
 }
 
