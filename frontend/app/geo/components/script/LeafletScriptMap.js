@@ -405,9 +405,12 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         else map.fitBounds(bounds, options);
       };
       fitRevealRef.current = fit;
-      fit();
-    } catch {
-      /* one layer, or none: leave the view alone */
+      // Restoration can mount directly into a reveal while layout is settling.
+      // An immediate fit is deterministic; an in-flight fly can be cancelled by
+      // Leaflet's resize handling and leave the answer offscreen.
+      fit(false);
+    } catch (error) {
+      console.warn('[Script map] Could not frame the answer', error?.message || error);
     }
   }, [answer, guess, nearestPoint, mode, ready]);
 

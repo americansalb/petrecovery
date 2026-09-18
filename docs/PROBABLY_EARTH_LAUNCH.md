@@ -2,6 +2,53 @@
 
 ## Current launch gate (2026-09-17)
 
+### Latest verification and security follow-up
+
+Still **not launch-approved**; no merge is authorized before every release gate
+passes. Commit `622792b` passed all applicable CI jobs, but its old package-name
+security allowlist hid newly published advisories. Green CI on that commit is
+therefore not evidence of security readiness.
+
+The follow-up upgrades Next.js to 15.5.24, Nodemailer to 10.0.10 and PostCSS to
+8.5.28. The unused Prisma Auth.js adapter is removed. Explicit overrides select
+patched Auth.js core 0.41.3, qs 6.16.0 and fflate 0.7.5; NextAuth 4 uses core only
+for adapter types, not runtime authentication. Nodemailer/PostCSS overrides
+prevent older transitive copies. React remains on its supported 18.x peer line.
+Production dependency audit of the isolated install: **zero known advisories**.
+The full audit still reports development-only Capacitor CLI/node-tar advisories;
+native-app packaging is not security-verified by this web release check.
+There are no longer blanket package exceptions. The audit gate fails on every
+high/critical production advisory, malformed report or failed registry check,
+and the build now depends on that gate. Regression tests cover those failures.
+
+Compatibility verification in an isolated copy: production build passed,
+151 suites / 1,528 tests passed including real PostgreSQL (10 existing todos),
+and lint passed its existing ceiling. Cleanup timers no longer hold test workers
+open; that full run exited normally without forceExit or the teardown warning.
+Actual Nodemailer MIME composition passed without sending any email. These are
+local checks, not proof of production email delivery or OAuth provider setup.
+Final rerun/CI and browser verification of follow-up map changes remain required.
+
+Persistent PostgreSQL browser checks: signup return restored the Hebrew clue and
+4,234 points, then retained both the login and result after restarting the entire
+web server. An automatically matched Script Duel kept its locked guess across
+reload, recovered round/health state after another server restart, and reached
+final standings with the API-driven peer. This was one real browser player and
+one API peer, not two physical devices. The database integration test additionally
+completed all five concurrent-guess rounds through separate connection pools.
+
+Public menu metadata and the game manifest no longer inherit pet-site noindex
+or app branding. Pet push-worker registration is skipped on game routes. Privacy
+is linked in the footer. Production-build browser checks found a restored Script
+answer-map framing issue; the reveal now has its own space instead of covering
+the map, and initial framing no longer depends on an interruptible fly animation.
+Desktop development preview shows the complete answer and guess. The rebuilt
+production version also restored 4,234 points at a measured 390x844 viewport,
+showed the full Hebrew answer region, advanced to Telugu and scored another
+975 points (5,209 total). The final follow-up keeps Next round outside the
+scrolling explanation; that small layout change still needs final CI/browser
+recheck. Apple imagery remains origin-blocked locally.
+
 ### Ongoing-goal acceptance ledger
 
 Owner requested an ongoing launch-readiness goal. The PR remains draft and

@@ -47,7 +47,7 @@ export async function POST(request) {
   try {
     const result = await requestSignIn(prismaRoomStore, {
       email: body?.email,
-      baseUrl: geoAuthOrigin(geoMetadataBase().origin),
+      baseUrl: geoAuthOrigin((await geoMetadataBase()).origin),
       profileId,
       returnTo: safeReturnTo(body?.returnTo),
     });

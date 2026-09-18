@@ -362,7 +362,7 @@ export default function ProfileClient() {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold uppercase tracking-wide text-white/60">
-              Your explorer profile
+                Your profile
             </p>
             <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
               <span style={view?.color ? { color: view.color } : undefined}>
@@ -676,7 +676,7 @@ export default function ProfileClient() {
                   : 'This profile lives in this browser.'}
               </p>
               <div className="mt-3">
-                <SignInCard />
+                <SignInCard requireName playerName={name} onPlayerNameChange={setName} />
               </div>
             </Card>
 

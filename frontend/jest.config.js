@@ -43,6 +43,8 @@ const customJestConfig = {
     // the suite is green and CI can hard-gate on it.
     '<rootDir>/lib/__tests__/logging.test.js',
   ],
+  // Standalone builds duplicate package.json; do not index generated output.
+  modulePathIgnorePatterns: ['<rootDir>/.next/'],
 
   // Coverage configuration
   collectCoverageFrom: [

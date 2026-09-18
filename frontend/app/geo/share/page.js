@@ -28,7 +28,7 @@ function regionLabelFor(config) {
 }
 
 export async function generateMetadata({ searchParams }) {
-  const code = readCode(searchParams);
+  const code = readCode(await searchParams);
   const summary = decodeShare(code);
   if (!summary) return genericShareMetadata('Probably Earth', LOBBY_DESCRIPTION);
   const headline = summaryHeadline(summary);
@@ -45,12 +45,12 @@ export async function generateMetadata({ searchParams }) {
       index: false,
     }),
     // The card must point at whichever domain served it (docs/GEO.md)
-    metadataBase: geoMetadataBase(),
+    metadataBase: await geoMetadataBase(),
   };
 }
 
-export default function GeoSharePage({ searchParams }) {
-  const code = readCode(searchParams);
+export default async function GeoSharePage({ searchParams }) {
+  const code = readCode(await searchParams);
   const summary = decodeShare(code);
 
   if (!summary) {

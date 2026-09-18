@@ -61,16 +61,7 @@ export default function DivisionPreviewCard({
         onClick={handleBackdropClick}
       >
         <div
-          className="
-            pointer-events-auto
-            w-full max-w-lg
-            bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900
-            border-2 border-flash-500/30
-            rounded-2xl
-            shadow-[0_0_60px_rgba(249,115,22,0.3)]
-            overflow-hidden
-            animate-slide-up
-          "
+          className="pointer-events-auto w-full max-w-lg bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-flash-500/30 rounded-2xl shadow-[0_0_60px_rgba(249,115,22,0.3)] overflow-hidden animate-slide-up"
           style={{
             animation: 'slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
           }}
@@ -78,15 +69,7 @@ export default function DivisionPreviewCard({
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="
-              absolute top-6 right-6 z-10
-              p-3 rounded-xl
-              bg-slate-800/50 backdrop-blur-sm border border-slate-700/50
-              text-slate-400 hover:text-white
-              hover:bg-slate-700 hover:border-flash-500/50
-              transition-all duration-200
-              hover:scale-110
-            "
+            className="absolute top-6 right-6 z-10 p-3 rounded-xl bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700 hover:border-flash-500/50 transition-all duration-200 hover:scale-110"
           >
             <X size={22} />
           </button>
@@ -179,16 +162,7 @@ export default function DivisionPreviewCard({
           <div className="p-8 pt-0">
             <button
               onClick={handleViewFullPage}
-              className="
-                w-full flex items-center justify-center gap-3
-                px-8 py-5 rounded-xl
-                bg-gradient-to-r from-flash-500 via-flash-400 to-flash-500
-                text-white font-bold text-lg
-                shadow-[0_0_40px_rgba(249,115,22,0.6)]
-                hover:shadow-[0_0_50px_rgba(249,115,22,0.8)]
-                hover:scale-105
-                transition-all duration-300
-              "
+              className="w-full flex items-center justify-center gap-3 px-8 py-5 rounded-xl bg-gradient-to-r from-flash-500 via-flash-400 to-flash-500 text-white font-bold text-lg shadow-[0_0_40px_rgba(249,115,22,0.6)] hover:shadow-[0_0_50px_rgba(249,115,22,0.8)] hover:scale-105 transition-all duration-300"
             >
               View Full {division.name} Page
               <ArrowRight size={22} strokeWidth={2.5} />

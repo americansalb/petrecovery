@@ -1,5 +1,3 @@
-'use client';
-
 /**
  * /geo: the game menu.
  *
@@ -12,6 +10,17 @@
  */
 
 import GameMenu from './components/home/GameMenu';
+import { buildShareMetadata } from '@/app/lib/geo/meta';
+
+export const metadata = {
+  ...buildShareMetadata({
+    title: 'Probably Earth — Street and language guessing games',
+    description: 'Guess the place from street views or written languages. Play free on your own, find an opponent, or invite friends.',
+    canonical: 'https://probablyearth.com/geo',
+    index: true,
+  }),
+  metadataBase: new URL('https://probablyearth.com'),
+};
 
 export default function GeoPage() {
   return <GameMenu />;

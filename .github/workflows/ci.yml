@@ -84,11 +84,10 @@ jobs:
       # pre-Jest logging.test.js (jest.config testPathIgnorePatterns — pending an
       # async-aware rewrite). No coverage threshold here so the gate blocks on
       # correctness/security regressions without flaking on the 20% target.
-      # --forceExit: rateLimit.js's cleanup setInterval lacks .unref() and would
-      # otherwise keep jest alive — flagged for a one-line .unref() fix.
+      # Cleanup timers are now unref'd/cleared; do not hide leaks with forceExit.
       - name: Run unit tests (required)
         working-directory: frontend
-        run: npx jest --ci --forceExit
+        run: npx jest --ci --maxWorkers=2
 
   # Isolated PostgreSQL: never credentials or network access to the live DB.
   geo-postgres:
@@ -133,7 +132,7 @@ jobs:
   build:
     name: Build Application
     runs-on: ubuntu-latest
-    needs: [lint, test, geo-postgres]
+    needs: [lint, test, geo-postgres, security]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -264,9 +263,8 @@ jobs:
       # anyone, and mixing them in was what made the old output easy to
       # wave through.
       #
-      # Six advisories currently have no fix that is not a framework major
-      # or a beta, so they are listed in audit-allowlist.json with the
-      # reason. Anything NEW fails the build.
+      # No package-name exceptions: new advisories must never inherit an old
+      # approval. Missing/failed audit responses also block the release.
       - name: Run npm audit
         working-directory: frontend
         run: node scripts/audit-gate.js

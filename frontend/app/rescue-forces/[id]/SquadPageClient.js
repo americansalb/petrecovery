@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import SquadHubV2 from '@/components/squad/SquadHubV2';
 import { getMockSquadData } from '@/lib/mockSquadData';
 
@@ -108,12 +109,12 @@ export default function SquadPage() {
             >
               Try Again
             </button>
-            <a
+            <Link
               href="/rescue-forces/search"
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
               Find a Rescue Force Near You
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const { randomUUID } = require('node:crypto');
 const { databaseStoreFor } = require('@/app/lib/geo/server/roomStore');
 const { matchmaking } = require('@/app/lib/geo/server/matchmaking');
-const { getRoomView } = require('@/app/lib/geo/server/rooms');
+const { getRoomView, roomAction } = require('@/app/lib/geo/server/rooms');
 const url = process.env.GEO_PG_TEST_URL;
 if (url) {
   const parsed = new URL(url);
@@ -64,6 +64,27 @@ if (url) {
       const view = await getRoomView(databaseStoreFor(restarted), { code: recovered.code, token: recovered.token, now });
       expect(view.me.id).toBe(recovered.playerId);
       expect(view.round.text).toBeTruthy();
+      const peer = seats.find((seat) => seat.code === recovered.code && seat.playerId !== recovered.playerId);
+      let at = now + 1000;
+      let state;
+      // Concurrent guesses, automatic reveals and five-round completion on the
+      // real database. Equal guesses preserve health so every round runs.
+      for (let round = 0; round < 5; round++) {
+        await Promise.all([recovered, peer].map((seat, index) => getRoomView(stores[index], { code: seat.code, token: seat.token, now: at })));
+        await Promise.all([recovered, peer].map((seat, index) => roomAction(stores[index], {
+          code: seat.code, token: seat.token, action: 'guess', body: { lat: 35, lng: 139 }, now: at + 100,
+        })));
+        state = await getRoomView(stores[0], { code: recovered.code, token: recovered.token, now: at + 200 });
+        expect(state.room.phase).toBe('reveal');
+        expect(state.reveal.guesses).toHaveLength(2);
+        expect(state.reveal.guesses.every((guess) => guess.damage === 0)).toBe(true);
+        at = +new Date(state.room.phaseEndsAt) + 1;
+        state = await getRoomView(stores[0], { code: recovered.code, token: recovered.token, now: at });
+      }
+      expect(state.room.status).toBe('finished');
+      const finished = await stores[1].getRoomByCode(recovered.code);
+      expect(finished.rounds).toHaveLength(5);
+      expect(finished.rounds.every((round) => round.guesses.length === 2)).toBe(true);
     } finally { await restarted.$disconnect(); }
   }, 30000);
 

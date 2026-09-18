@@ -51,7 +51,7 @@ function cwdDirectories() {
   return [...found];
 }
 
-const includes = Object.values(CONFIG.experimental?.outputFileTracingIncludes || {}).flat();
+const includes = Object.values(CONFIG.outputFileTracingIncludes || {}).flat();
 
 // The Dockerfile copies these whole trees beside the standalone server
 // (public/ and prisma/), so a read from them needs no tracing entry.

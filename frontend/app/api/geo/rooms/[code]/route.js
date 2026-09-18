@@ -28,6 +28,7 @@ function playerToken(request, body) {
 }
 
 export async function GET(request, { params }) {
+  params = await params;
   const code = normalizeRoomCode(params?.code);
   if (!code) return NextResponse.json({ error: 'No room with that code', code: 'not_found' }, { status: 404, ...NO_STORE });
   try {
@@ -39,6 +40,7 @@ export async function GET(request, { params }) {
 }
 
 export async function POST(request, { params }) {
+  params = await params;
   const code = normalizeRoomCode(params?.code);
   if (!code) return NextResponse.json({ error: 'No room with that code', code: 'not_found' }, { status: 404, ...NO_STORE });
 

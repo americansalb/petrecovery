@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
 import twilio from 'twilio';
 import prisma from '@/app/lib/prisma';
 import { SITE_DOMAIN, SUPPORT_EMAIL } from '@/app/lib/brand';
@@ -16,7 +15,7 @@ function verifyTwilioSignature(request, body) {
     return true; // Skip verification if not configured
   }
 
-  const signature = headers().get('x-twilio-signature');
+  const signature = request.headers.get('x-twilio-signature');
   if (!signature) {
     return false;
   }

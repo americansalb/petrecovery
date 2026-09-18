@@ -56,12 +56,8 @@ const GUESS = '#e08c0a';
 const FILL_OPACITY = 0.22;
 const STROKE_OPACITY = 0.95;
 
-/**
- * How much of the bottom of the map the reveal panel owns. Insetting
- * the map by it keeps Apple's logo and legal link above the panel,
- * which their terms require, and lands the answer where it can be seen.
- */
-const REVEAL_INSET = 230;
+/** The reveal panel is outside the map, leaving its full viewport visible. */
+const REVEAL_INSET = 0;
 /** The same, for the Guess button in the corner of a round in play. */
 const GUESS_INSET = 76;
 
@@ -245,9 +241,13 @@ export default function AppleScriptMap({
     try {
       map.showItems([...annotations, ...overlays], {
         animate: true,
-        // Small and even: the bottom of the map is already inset by
-        // map.padding above, so the panel's room is counted once.
-        padding: new mapkit.Padding(44, 44, 44, 44),
+        // Short mobile maps need enough unpadded space to fit the answer.
+        padding: new mapkit.Padding(
+          Math.min(44, (hostRef.current?.clientHeight || 320) * 0.1),
+          Math.min(44, (hostRef.current?.clientWidth || 320) * 0.1),
+          Math.min(44, (hostRef.current?.clientHeight || 320) * 0.1),
+          Math.min(44, (hostRef.current?.clientWidth || 320) * 0.1),
+        ),
         minimumSpan: new mapkit.CoordinateSpan(1.2, 1.2),
       });
     } catch {

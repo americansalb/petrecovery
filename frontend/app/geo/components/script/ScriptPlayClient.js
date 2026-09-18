@@ -378,7 +378,7 @@ function ScriptPlayGame({ params }) {
         </div>
       </header>
 
-      <div className="relative flex-1">
+      <div className="relative min-h-0 flex-1">
         {provider === 'apple' && mapkit ? (
           <AppleScriptMap
             mapkit={mapkit}
@@ -418,14 +418,7 @@ function ScriptPlayGame({ params }) {
           </div>
         ) : null}
 
-        {result ? (
-          <Reveal
-            result={result}
-            round={round}
-            last={history.length >= config.rounds}
-            onNext={next}
-          />
-        ) : (
+        {!result ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
             <div className="mx-auto max-w-md">
               {!pin && !loading && round ? (
@@ -450,8 +443,16 @@ function ScriptPlayGame({ params }) {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
+      {result ? (
+        <Reveal
+          result={result}
+          round={round}
+          last={history.length >= config.rounds}
+          onNext={next}
+        />
+      ) : null}
     </div>
   );
 }
@@ -461,8 +462,8 @@ function Reveal({ result, round, last, onNext }) {
   const { answer } = result;
   const score = useCountUp(result.score);
   return (
-    <div className="pe-script-reveal wg-panel-in absolute inset-x-0 bottom-0 z-30 max-h-[72%] overflow-y-auto border-t border-sand-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
-      <div className="mx-auto max-w-2xl">
+    <div className="pe-script-reveal wg-panel-in relative z-30 flex max-h-[50svh] shrink-0 flex-col overflow-hidden border-t border-sand-200 bg-[#fffdf8] p-4 shadow-[0_-12px_38px_rgba(43,38,32,0.18)]">
+      <div className="mx-auto min-h-0 w-full max-w-2xl overflow-y-auto">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-xl font-bold">
             {answer.name}{' '}
@@ -490,15 +491,15 @@ function Reveal({ result, round, last, onNext }) {
           </p>
         ) : null}
         <Tells answer={answer} text={round?.text} script={round?.script} />
-        <button
-          type="button"
-          onClick={onNext}
-          className="pe-button pe-button--primary mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
-        >
-          {last ? 'See the results' : 'Next round'}{' '}
-          <ArrowRight className="h-4 w-4" />
-        </button>
       </div>
+      <button
+        type="button"
+        onClick={onNext}
+        className="pe-button pe-button--primary mx-auto mt-4 flex min-h-[48px] w-full max-w-2xl shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
+      >
+        {last ? 'See the results' : 'Next round'}{' '}
+        <ArrowRight className="h-4 w-4" />
+      </button>
     </div>
   );
 }

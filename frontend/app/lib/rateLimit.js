@@ -65,10 +65,17 @@ async function getRedisClient() {
     });
 
     // connect() can stall while the client retries; cap the wait outright.
-    await Promise.race([
-      redisClient.connect(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('redis connect timeout')), 3000)),
-    ]);
+    let connectTimeout;
+    try {
+      await Promise.race([
+        redisClient.connect(),
+        new Promise((_, reject) => {
+          connectTimeout = setTimeout(() => reject(new Error('redis connect timeout')), 3000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(connectTimeout);
+    }
     redisAvailable = true;
     return redisClient;
   } catch (err) {
@@ -82,7 +89,7 @@ async function getRedisClient() {
 // Clean up old in-memory entries every 5 minutes
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  const cleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [key, data] of requestCounts.entries()) {
       if (now - data.windowStart > data.windowMs * 2) {
@@ -95,6 +102,8 @@ if (typeof setInterval !== 'undefined') {
       }
     }
   }, CLEANUP_INTERVAL);
+  // Housekeeping must not keep a server worker or test process alive.
+  cleanupTimer?.unref?.();
 }
 
 /**

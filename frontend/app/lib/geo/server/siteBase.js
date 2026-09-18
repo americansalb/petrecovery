@@ -8,9 +8,9 @@
 import { headers } from 'next/headers';
 import { shareMetadataBase } from '@/app/lib/geo/meta';
 
-export function geoMetadataBase() {
+export async function geoMetadataBase() {
   try {
-    const h = headers();
+    const h = await headers();
     const host = h.get('x-forwarded-host') || h.get('host');
     if (!host || !/^[a-z0-9.-]+(:\d+)?$/i.test(host)) return shareMetadataBase();
     const proto = h.get('x-forwarded-proto') || (/^(localhost|127\.0\.0\.1)/.test(host) ? 'http' : 'https');

@@ -30,7 +30,7 @@ export async function GET(request) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
   const returnTo = safeReturnTo(url.searchParams.get('next'));
-  const origin = geoAuthOrigin(geoMetadataBase().origin);
+  const origin = geoAuthOrigin((await geoMetadataBase()).origin);
 
   try {
     const { account, profile } = await verifySignIn(prismaRoomStore, { token });
