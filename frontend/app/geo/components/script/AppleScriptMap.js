@@ -37,6 +37,8 @@
 
 import { useEffect, useRef } from 'react';
 import { chooseLabels } from '../../lib/countryLabels';
+import { appleKeyboard } from '../../lib/mapKeyboard';
+import KeyboardMap from '../KeyboardMap';
 
 /** The country names, fetched once per page and cached like any chunk. */
 let labelsPromise = null;
@@ -260,12 +262,14 @@ export default function AppleScriptMap({
   }, [mapkit, answer, guess, nearestPoint, mode]);
 
   return (
+    <KeyboardMap className={className} interactive={mode === 'guess'} {...appleKeyboard(mapRef, mapkit, onPin)}>
     <div
       ref={hostRef}
-      className={`h-full w-full ${className}`}
+      className="h-full w-full"
       data-script-map="apple"
       data-map-mode={mode}
     />
+    </KeyboardMap>
   );
 }
 

@@ -91,7 +91,13 @@ export async function requestSignIn(store, { email: raw, baseUrl, profileId = nu
  * GeoAuthError('invalid' | 'expired' | 'used') and nothing else, so the
  * route can say which without leaking whether the address exists.
  */
-export async function verifySignIn(store, { token, profileToken = '', now = Date.now() } = {}) {
+export async function verifySignIn(store, options = {}) {
+  return store.withAccountLock
+    ? store.withAccountLock((locked) => completeSignIn(locked, options))
+    : completeSignIn(store, options);
+}
+
+async function completeSignIn(store, { token, profileToken = '', now = Date.now() } = {}) {
   if (!token || typeof token !== 'string') throw new GeoAuthError('invalid', 'That link is not valid');
 
   const row = await store.getLoginTokenByHash(hashLoginToken(token));

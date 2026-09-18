@@ -30,6 +30,7 @@ export function createMemoryRoomStore() {
   const finals = new Map(); // challenge key -> { finalizedAt, prizes }
   const matchmaking = new Map();
   let matchmakingTail = Promise.resolve();
+  let accountTail = Promise.resolve();
   let seq = 0;
   const id = (prefix) => `${prefix}_${++seq}`;
 
@@ -47,6 +48,13 @@ export function createMemoryRoomStore() {
   }
 
   const store = {
+    async withAccountLock(work) {
+      const previous = accountTail;
+      let release;
+      accountTail = new Promise((resolve) => { release = resolve; });
+      await previous;
+      try { return await work(store); } finally { release(); }
+    },
     async withMatchmakingLock(work) {
       const previous = matchmakingTail;
       let release;

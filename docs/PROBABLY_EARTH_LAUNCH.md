@@ -1,5 +1,48 @@
 # Probably Earth: what launch needs
 
+## Verification update (2026-09-18)
+
+**Not launch-approved. PR291 stays draft and unmerged.** Commit `c205840`
+passed every applicable GitHub CI job (run 35308189125), including the stricter
+production dependency audit, real PostgreSQL checks and production build.
+Main-only E2E was skipped; green CI is not a substitute for the journeys below.
+
+Follow-up changes have passed 154 suites / 1,538 tests, with 10 existing todos,
+including six real-PostgreSQL release tests. Full lint passes its existing
+warning ceiling; changed UI files pass without warnings. Follow-up CI and a
+fresh production build still remain required before release.
+
+- Account settings now show an honest loading/error/retry state, rather than
+  briefly showing signup to a logged-in player. Account buttons are at least
+  44px high. Regression tests cover delayed login checks and retry after failure.
+- Profile/shop tabs have keyboard arrows, Home/End, roving focus and associated
+  panels. Browser left-arrow changed Shop to Record and moved focus correctly.
+- Keyboard map controls support pan, zoom and placing a centre pin without
+  accidentally submitting it. Global game shortcuts leave controls, links and
+  account dialogs alone. A real browser at mobile width restored the saved game,
+  advanced to Uzbek, placed a pin with keyboard controls and submitted with Enter
+  on the Guess button: 262 points, 5,471 total. The target and instructions were
+  visually inspected. Apple's adapter has unit coverage only; its tiles remain
+  origin-blocked locally, so this is not real Apple-map verification.
+- Signup concurrency test reproduced seven failures out of eight simultaneous
+  first sign-ins for one email. Email token consumption, account creation and
+  profile binding now run together under a database transaction/advisory lock.
+  Phone profile binding uses the same lock, after provider verification. Across
+  two actual PostgreSQL pools, all eight sign-ins now recover one account and
+  one profile. Two different accounts cannot claim one guest profile. Injected
+  database failure rolls back the account and token burn; retry succeeds once.
+  These tests send no messages and do not prove real email/SMS delivery.
+- The mobile Next round button stays visible while a long explanation scrolls;
+  rechecked in the Next 15 development preview. Exact final production-build
+  browser verification remains outstanding.
+
+Unblocked work still includes manual room signup continuation, the remaining
+screen/error/accessibility sweep, and final desktop/mobile multiplayer checks.
+External gates remain: access to the actual Probably Earth production service
+(none of the 21 services in the authorized Render workspace matches it), real
+mail delivery/recovery, authorized phone-provider setup, and a working Apple
+imagery token for the verification deployment. Do not merge around these gates.
+
 ## Current launch gate (2026-09-17)
 
 ### Latest verification and security follow-up

@@ -423,12 +423,13 @@ export default function ProfileClient() {
           value={tab}
           onChange={setTab}
           label="Profile sections"
+          panelId="profile-panel"
           marker="profile-tab"
           className="mt-6"
         />
 
         {tab === 'record' ? (
-          <div className="mt-6 space-y-6">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 space-y-6">
             {/* Rating: every ladder, with what a player earned on it
                 rather than the word for where it sits. */}
             <Card data-ratings>
@@ -596,7 +597,7 @@ export default function ProfileClient() {
         ) : null}
 
         {tab === 'shop' ? (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
             <Card data-shop>
               <CardTitle icon={ShoppingBag}>Shop</CardTitle>
               <p className="mt-2 text-sm text-white/60">
@@ -607,9 +608,11 @@ export default function ProfileClient() {
                 value={kind}
                 onChange={setKind}
                 label="Shop sections"
+                panelId="shop-panel"
                 marker="shop-kind"
                 className="mt-3"
               />
+              <div id="shop-panel" role="tabpanel" aria-labelledby={`shop-panel-tab-${kind}`} tabIndex={0}>
               {shop ? (
                 <ul className="mt-3 space-y-2">
                   {items.map((item) => (
@@ -629,6 +632,7 @@ export default function ProfileClient() {
                   {error ? 'The shop is closed for now.' : 'Loading the shop'}
                 </p>
               )}
+              </div>
             </Card>
 
             {/* Where the points came from, beside what they buy. */}
@@ -666,7 +670,7 @@ export default function ProfileClient() {
         ) : null}
 
         {tab === 'settings' ? (
-          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 grid gap-6 sm:grid-cols-2">
             {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
             <Card>
               <CardTitle>Account</CardTitle>

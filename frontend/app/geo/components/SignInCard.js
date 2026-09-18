@@ -33,6 +33,9 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   const [state, setState] = useState('idle');
   const [message, setMessage] = useState('');
   const [account, setAccount] = useState(null);
+  const [checkingAccount, setCheckingAccount] = useState(true);
+  const [accountError, setAccountError] = useState('');
+  const [checkAttempt, setCheckAttempt] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [phoneAvailable, setPhoneAvailable] = useState(false);
   const [method, setMethod] = useState('email');
@@ -75,10 +78,6 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   useEffect(() => {
     let alive = true;
     fetch('/api/geo/auth/options', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((data) => { if (alive) setPhoneAvailable(Boolean(data?.phone)); }).catch(() => {});
-    fetch('/api/geo/auth/me')
-      .then((r) => r.json())
-      .then((d) => alive && setAccount(d?.signedIn ? d : null))
-      .catch(() => {});
     // A redirect back from the emailed link carries what happened.
     const params = new URLSearchParams(window.location.search);
     if (params.get('signed-in')) setMessage('Signed in.');
@@ -91,6 +90,21 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    setCheckingAccount(true);
+    setAccountError('');
+    fetch('/api/geo/auth/me', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error('Could not check your account. Your game is still here.');
+        return response.json();
+      })
+      .then((data) => { if (alive) setAccount(data?.signedIn ? data : null); })
+      .catch(() => { if (alive) setAccountError('Could not check your account. Your game is still here.'); })
+      .finally(() => { if (alive) setCheckingAccount(false); });
+    return () => { alive = false; };
+  }, [checkAttempt]);
 
   const request = async (event) => {
     event.preventDefault();
@@ -145,6 +159,14 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
     }
   };
 
+  if (checkingAccount) return <p role="status" className="py-4 text-sm text-white/70">Checking your account…</p>;
+  if (accountError) return (
+    <div className="py-4">
+      <p role="alert" className="text-sm text-white/80">{accountError}</p>
+      <button type="button" className="mt-2 min-h-[44px] px-3 underline" onClick={() => setCheckAttempt((n) => n + 1)}>Check again</button>
+    </div>
+  );
+
   if (account) {
     return (
       <div className="rounded-xl border border-white/10 p-4">
@@ -153,14 +175,14 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
         </p>
         <p className="mt-1 text-sm text-white/60">Your profile follows you to any device you sign in on. This device stays signed in for 90 days.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={signOut} className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/20">
+          <button type="button" onClick={signOut} className="flex min-h-[44px] items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/20">
             <LogOut className="h-4 w-4" /> Sign out
           </button>
           {confirmDelete ? null : (
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/60 hover:bg-red-950/60 hover:text-red-300"
+              className="flex min-h-[44px] items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/60 hover:bg-red-950/60 hover:text-red-300"
             >
               <Trash2 className="h-4 w-4" /> Delete account
             </button>
@@ -178,11 +200,11 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
                 type="button"
                 onClick={deleteAccount}
                 disabled={state === 'deleting'}
-                className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                className="min-h-[44px] rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
                 {state === 'deleting' ? 'Deleting' : 'Yes, delete it'}
               </button>
-              <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg bg-ocean-900/60 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/10">
+              <button type="button" onClick={() => setConfirmDelete(false)} className="min-h-[44px] rounded-lg bg-ocean-900/60 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/10">
                 Keep it
               </button>
             </div>

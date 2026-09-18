@@ -7,6 +7,8 @@
  */
 
 import { useEffect, useRef } from 'react';
+import KeyboardMap from './KeyboardMap';
+import { appleKeyboard } from '../lib/mapKeyboard';
 
 export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode = 'guess', interactive = true, className = '' }) {
   const containerRef = useRef(null);
@@ -125,7 +127,9 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     }
   }, [mapkit, results, mode]);
 
-  return <div ref={containerRef} className={`h-full w-full bg-ocean-900 ${className}`} />;
+  return <KeyboardMap className={className} interactive={interactive && mode === 'guess'} {...appleKeyboard(mapRef, mapkit, onPin)}>
+    <div ref={containerRef} className="h-full w-full bg-ocean-900" />
+  </KeyboardMap>;
 }
 
 function worldRegion(mapkit) {

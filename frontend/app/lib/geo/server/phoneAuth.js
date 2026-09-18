@@ -76,6 +76,12 @@ export async function verifyPhoneSignIn(store, { challenge, code, env = process.
     throw new GeoAuthError('phone_expired', 'That code has expired or has already been used. Ask for a new one.');
   }
   if (result?.status !== 'approved' || result.to !== payload.phone) throw new GeoAuthError('bad_code', 'That code did not match. Try again.');
+  return store.withAccountLock
+    ? store.withAccountLock((locked) => completePhoneSignIn(locked, payload, now))
+    : completePhoneSignIn(store, payload, now);
+}
+
+async function completePhoneSignIn(store, payload, now) {
   let account = await store.getAccountByPhone(payload.phone);
   if (!account) {
     try { account = await store.createAccount({ phone: payload.phone, createdAt: new Date(now), lastSeenAt: new Date(now) }); } catch (error) {

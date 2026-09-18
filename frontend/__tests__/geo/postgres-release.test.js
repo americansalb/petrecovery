@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { databaseStoreFor } = require('@/app/lib/geo/server/roomStore');
 const { matchmaking } = require('@/app/lib/geo/server/matchmaking');
 const { getRoomView, roomAction } = require('@/app/lib/geo/server/rooms');
+const { verifySignIn, hashLoginToken } = require('@/app/lib/geo/server/accounts');
 const url = process.env.GEO_PG_TEST_URL;
 if (url) {
   const parsed = new URL(url);
@@ -16,6 +17,7 @@ if (url) {
   let clients, stores, previousSecret;
   const accounts = [];
   const profiles = [];
+  const loginEmails = [];
   const now = Date.now();
   beforeAll(() => {
     previousSecret = process.env.GEO_TOKEN_SECRET;
@@ -28,6 +30,9 @@ if (url) {
     const rooms = await clients[0].geoRoomPlayer.findMany({ where: { profileId: { in: profiles } }, select: { roomId: true } });
     await clients[0].geoRoom.deleteMany({ where: { id: { in: rooms.map((row) => row.roomId) } } });
     await clients[0].geoAccount.deleteMany({ where: { id: { in: accounts } } });
+    await clients[0].geoAccount.deleteMany({ where: { email: { in: loginEmails } } });
+    await clients[0].geoLoginToken.deleteMany({ where: { email: { in: loginEmails } } });
+    await clients[0].geoProfile.deleteMany({ where: { id: { in: profiles } } });
     await Promise.all(clients.map((client) => client.$disconnect()));
     if (previousSecret === undefined) delete process.env.GEO_TOKEN_SECRET;
     else process.env.GEO_TOKEN_SECRET = previousSecret;
@@ -41,6 +46,55 @@ if (url) {
     return { signedIn: true, profileId: profile.id, profile, ipHash: key };
   }
   const find = (store, subjects, action = 'join') => matchmaking(store, { subjects, action, game: 'script', now });
+
+  test('simultaneous first sign-ins keep one account and profile across connections', async () => {
+    const email = `${randomUUID()}@example.test`;
+    loginEmails.push(email);
+    const tokens = await Promise.all(Array.from({ length: 8 }, async (_, i) => {
+      const token = randomUUID();
+      const guest = await stores[i % 2].createProfile({ name: `Guest ${i}`, tokenHash: randomUUID() });
+      profiles.push(guest.id);
+      await stores[i % 2].createLoginToken({ email, tokenHash: hashLoginToken(token), profileId: guest.id, expiresAt: new Date(now + 60000) });
+      return token;
+    }));
+    const attempts = await Promise.allSettled(tokens.map((token, i) => verifySignIn(stores[i % 2], { token, now })));
+    expect(attempts.map((attempt) => attempt.status)).toEqual(tokens.map(() => 'fulfilled'));
+    expect(new Set(attempts.map((attempt) => attempt.value.account.id)).size).toBe(1);
+    expect(new Set(attempts.map((attempt) => attempt.value.profile.id)).size).toBe(1);
+  });
+
+  test('two accounts cannot both adopt the same guest progress', async () => {
+    const guest = await stores[0].createProfile({ name: 'Shared device', tokenHash: randomUUID() });
+    profiles.push(guest.id);
+    const tokens = await Promise.all(stores.map(async (store) => {
+      const email = `${randomUUID()}@example.test`, token = randomUUID();
+      loginEmails.push(email);
+      await store.createLoginToken({ email, tokenHash: hashLoginToken(token), profileId: guest.id, expiresAt: new Date(now + 60000) });
+      return token;
+    }));
+    const results = await Promise.all(stores.map((store, i) => verifySignIn(store, { token: tokens[i], now })));
+    expect(new Set(results.map((result) => result.profile.id)).size).toBe(2);
+    expect(results.filter((result) => result.profile.id === guest.id)).toHaveLength(1);
+    for (const result of results) {
+      const profile = await stores[1].getProfileById(result.profile.id);
+      expect(profile.accountId).toBe(result.account.id);
+    }
+  });
+
+  test('a database failure does not burn a valid email link or leave a partial account', async () => {
+    const email = `${randomUUID()}@example.test`, token = randomUUID();
+    loginEmails.push(email);
+    await stores[0].createLoginToken({ email, tokenHash: hashLoginToken(token), expiresAt: new Date(now + 60000) });
+    const failing = { ...stores[0], withAccountLock: (work) => stores[0].withAccountLock((locked) => work({
+      ...locked, createProfile: async () => { throw new Error('simulated profile write failure'); },
+    })) };
+    await expect(verifySignIn(failing, { token, now })).rejects.toThrow('simulated profile write failure');
+    expect(await stores[1].getAccountByEmail(email)).toBeNull();
+    expect((await stores[1].getLoginTokenByHash(hashLoginToken(token))).usedAt).toBeNull();
+    const attempts = await Promise.allSettled(stores.map((store) => verifySignIn(store, { token, now })));
+    expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
+    expect(attempts.find((attempt) => attempt.status === 'rejected').reason.code).toBe('used');
+  });
 
   test('two independent connection pools pair concurrent duplicate joins exactly once', async () => {
     const people = await Promise.all(Array.from({ length: 10 }, player));

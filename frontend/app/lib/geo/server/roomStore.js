@@ -20,6 +20,16 @@ const include = {
 };
 
 export function databaseStoreFor(prisma) { return {
+  async withAccountLock(work) {
+    return prisma.$transaction(async (tx) => {
+      // First sign-in claims both an account and a guest profile. Serialize
+      // that small DB-only operation across instances, including email/phone
+      // attempts sharing one guest. Token consumption rolls back on failure.
+      // Sending mail and checking SMS codes must remain outside this lock.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(73041928)`;
+      return work(databaseStoreFor(tx));
+    }, { maxWait: 10000, timeout: 10000 });
+  },
   async withMatchmakingLock(work) {
     return prisma.$transaction(async (tx) => {
       // A transaction-scoped lock works across server instances and releases

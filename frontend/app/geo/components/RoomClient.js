@@ -27,6 +27,7 @@ import MatchHud from './rooms/MatchHud';
 import './round.css';
 import SetupNotice from './SetupNotice';
 import AccountDialog from './AccountDialog';
+import { ignoreGameShortcut } from '../lib/mapKeyboard';
 import { JoinPanel, LobbyPanel, LoadingPanel, Panel, ReactionToasts, ReactionsBar, RevealPanel, StandingsPanel, LocatingPanel } from './rooms/RoomPanels';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
@@ -239,7 +240,7 @@ export default function RoomClient({ code }) {
   // Keyboard: Space/Enter guess, R return to start, M map size, Esc closes the sheet.
   useEffect(() => {
     const onKey = (event) => {
-      if (event.target && ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(event.target.tagName)) return;
+      if (ignoreGameShortcut(event)) return;
       if (event.key === ' ' || event.key === 'Enter') {
         if (liveRef.current.phase === 'guessing' && liveRef.current.pin) {
           event.preventDefault();

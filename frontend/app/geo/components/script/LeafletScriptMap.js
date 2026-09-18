@@ -43,6 +43,7 @@ import './script-round.css';
 import { useEffect, useRef, useState } from 'react';
 import { chooseLabels } from '../../lib/countryLabels';
 import { revealMapPadding } from '../../lib/mapFit';
+import KeyboardMap from '../KeyboardMap';
 
 const ANSWER = '#16a34a';
 const GUESS = '#e08c0a';
@@ -259,6 +260,7 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
         minZoom: MIN_ZOOM,
         maxZoom: MAX_ZOOM,
         zoomControl: false,
+        keyboard: false,
         attributionControl: true,
       }).setView([20, 0], 2);
       showWorld(map);
@@ -414,7 +416,18 @@ export default function LeafletScriptMap({ pin, onPin, answer = null, guess = nu
     }
   }, [answer, guess, nearestPoint, mode, ready]);
 
-  return <div ref={hostRef} className={`h-full w-full ${className}`} style={{ background: '#dce9f2', '--wg-label': '#6a6050' }} data-script-map="leaflet" data-map-mode={mode} />;
+  return <KeyboardMap className={className} interactive={mode === 'guess'}
+    pan={(x, y) => mapRef.current?.panBy([x * 80, y * 80], { animate: false })}
+    zoom={(direction) => mapRef.current?.setZoom(mapRef.current.getZoom() + direction, { animate: false })}
+    place={() => {
+      const center = mapRef.current?.getCenter();
+      if (!center) return null;
+      const point = { lat: Math.max(-85, Math.min(85, center.lat)), lng: Math.max(-180, Math.min(180, center.lng)) };
+      onPinRef.current?.(point);
+      return point;
+    }}>
+    <div ref={hostRef} className="h-full w-full" style={{ background: '#dce9f2', '--wg-label': '#6a6050' }} data-script-map="leaflet" data-map-mode={mode} />
+  </KeyboardMap>;
 }
 
 /**

@@ -35,6 +35,7 @@ import RoundResult from './RoundResult';
 import GameSummary from './GameSummary';
 import SetupNotice from './SetupNotice';
 import { useSavedGame } from '../lib/savedGame';
+import { ignoreGameShortcut } from '../lib/mapKeyboard';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
 const DESKTOP_SIZE = {
@@ -331,7 +332,7 @@ function StreetPlayGame({ params }) {
   // Keyboard: Space/Enter guess or continue, R return to start, M map size, Esc closes the sheet.
   useEffect(() => {
     const onKey = (event) => {
-      if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+      if (ignoreGameShortcut(event)) return;
       const s = stateRef.current;
       if (event.key === ' ' || event.key === 'Enter') {
         if (s.status === 'playing' && s.pin) {

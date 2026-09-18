@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import React from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import LeafletScriptMap from '@/app/geo/components/script/LeafletScriptMap';
 
 const mockBounds = { isValid: () => true };
@@ -11,6 +11,7 @@ const mockMap = {
   on: jest.fn(), off: jest.fn(), remove: jest.fn(), removeLayer: jest.fn(),
   createPane: () => ({ style: {} }), getPane: () => ({ style: {} }),
   getZoom: () => 2, latLngToContainerPoint: () => ({ x: 0, y: 0 }),
+  getCenter: () => ({ lat: 20, lng: 35 }), panBy: jest.fn(), setZoom: jest.fn(),
 };
 function mockLayer() {
   return { addTo() { return this; }, bindTooltip() { return this; } };
@@ -36,4 +37,15 @@ test('mounting directly into a saved reveal frames the answer without an interru
   expect(options.paddingTopLeft[1] * 2).toBeLessThan(210);
   view.unmount();
   expect(mockMap.remove).toHaveBeenCalled();
+});
+
+test('Leaflet keyboard target places the visible centre and pans without animation', async () => {
+  const onPin = jest.fn();
+  render(<LeafletScriptMap onPin={onPin} />);
+  await waitFor(() => expect(mockMap.on).toHaveBeenCalled());
+  const map = screen.getByRole('group', { name: 'Guess map' });
+  fireEvent.keyDown(map, { key: 'ArrowRight' });
+  fireEvent.keyDown(map, { key: 'Enter' });
+  expect(mockMap.panBy).toHaveBeenCalledWith([80, 0], { animate: false });
+  expect(onPin).toHaveBeenCalledWith({ lat: 20, lng: 35 });
 });
