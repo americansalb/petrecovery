@@ -400,7 +400,7 @@ function StreetPlayGame({ params }) {
   const notEarthResult = state.status === 'result' && lastResult?.kind === 'not-earth';
   let mapClass;
   if (notEarthResult) {
-    mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
+    mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   } else if (mapMode === 'result') {
     // flex-col so the map's flex-1 fills the frame; without it the map
     // collapses to zero height and the panorama shows through the border.
@@ -415,7 +415,7 @@ function StreetPlayGame({ params }) {
       // makes MapKit's renderer resize to zero and can leave its tiles blank.
       : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
-    mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
+    mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   }
 
   const sdkReady = Boolean(mapkit);

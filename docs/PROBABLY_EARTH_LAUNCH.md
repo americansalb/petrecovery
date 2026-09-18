@@ -39,8 +39,14 @@ It now stays offscreen at a real size and hidden from interaction until opened.
 Browser verification showed geographic tiles, a tapped pin, a 2,603-point Linz
 reveal and a fully visible next-round button, without horizontal overflow.
 Refreshing preserved that 2,603-point reveal. Final local verification passed
-**164 suites / 1,586 tests**, including all ten PostgreSQL release checks;
+**164 suites / 1,587 tests**, including all ten PostgreSQL release checks;
 ten existing todos remain. Changed application files lint cleanly.
+Continuing the mobile game exposed the same zero-size problem during round
+loading: the parked map's parent also needed a flex layout. Corrected all parked
+states and applied stable drawer sizing and explicit resizing to multiplayer.
+The mobile game then completed to results: 2,603 + 785 + 0 = **3,388 / 15,000**.
+The multiplayer layout correction has automated coverage; its full mobile
+hosted match remains a release gate, not an inferred pass from solo testing.
 These are browser checks in the development QA app; final built/hosted mobile
 coverage is still required. The full release is **not ready to merge**.
 

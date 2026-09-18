@@ -28,11 +28,13 @@ describe('account and replay regression guards', () => {
     expect(read('app/geo/components/PlayClient.js')).toContain('<StreetPlayGame key={params.toString()}');
     expect(read('app/geo/components/script/ScriptPlayClient.js')).toContain('<ScriptPlayGame key={params.toString()}');
   });
-  test('closing the mobile Street map preserves its layout size for the Apple renderer', () => {
-    const src = read('app/geo/components/PlayClient.js');
+  test.each(['PlayClient.js', 'RoomClient.js'])('closing the mobile map in %s preserves its layout size', (component) => {
+    const src = read(`app/geo/components/${component}`);
     expect(src).not.toContain('hidden sm:flex absolute');
     expect(src).toContain('invisible pointer-events-none absolute -left-[9999px]');
     expect(src).toContain('sm:visible');
+    expect(src).toContain('top-0 flex h-64 w-64 flex-col');
+    expect(src).not.toContain('setMapHover');
   });
 });
 

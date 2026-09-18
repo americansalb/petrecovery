@@ -75,7 +75,6 @@ export default function RoomClient({ code }) {
   const [pin, setPin] = useState(null);
   const [heading, setHeading] = useState(0);
   const [mapSize, setMapSize] = useState('small');
-  const [mapHover, setMapHover] = useState(false);
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const [defaultName, setDefaultName] = useState('');
   const [accountGate, setAccountGate] = useState(false);
@@ -298,17 +297,17 @@ export default function RoomClient({ code }) {
   const iGuessed = Boolean(mine?.guessed);
   const inRound = phase === 'guessing' && me && !me.eliminated;
   const mapMode = phase === 'reveal' ? 'result' : 'guess';
-  const effectiveSize = mapHover && mapSize === 'small' ? 'medium' : mapSize;
+  const effectiveSize = mapSize;
   let mapClass;
   if (mapMode === 'result') {
     mapClass = 'pe-match-result-map absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl sm:top-24 bottom-[46%] sm:bottom-[40%]';
   } else if (inRound && !iGuessed) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
-      : `hidden sm:flex absolute bottom-14 right-4 z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 ${DESKTOP_SIZE[effectiveSize]}`;
-    if (isScript && !mobileMapOpen) mapClass = 'hidden sm:flex absolute right-4 top-[24%] bottom-24 w-[48%] z-30 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900';
+      : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
+    if (isScript && !mobileMapOpen) mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-64 w-72 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 sm:visible sm:pointer-events-auto sm:left-auto sm:right-4 sm:top-[24%] sm:bottom-24 sm:h-auto sm:w-[48%]';
   } else {
-    mapClass = 'pointer-events-none absolute -left-[9999px] top-0 h-64 w-64 opacity-0';
+    mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   }
 
   const notFound = error?.status === 404;
@@ -408,7 +407,7 @@ export default function RoomClient({ code }) {
 
       {/* The one map, moved by class between guessing and the reveal. */}
       {imageryReady && joined && (phase === 'guessing' || phase === 'reveal') ? (
-        <div className={`geo-map-frame ${mapClass}`} onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
+        <div className={`geo-map-frame ${mapClass}`}>
           {inRound && !iGuessed ? <div className="pe-map-toolbar"><span>Place your guess</span>{!isScript ? <div className="hidden sm:flex" role="group" aria-label="Map size">{MAP_SIZES.map(size => <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} aria-label={`${size} map`}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div> : null}{mobileMapOpen ? <button type="button" onClick={() => setMobileMapOpen(false)} aria-label="Close map"><X size={18} /></button> : null}</div> : null}
           <div className="min-h-0 flex-1">
             {isScript ? (
