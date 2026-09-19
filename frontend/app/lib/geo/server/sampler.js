@@ -23,6 +23,18 @@ export class GeoSamplerError extends Error {
   }
 }
 
+/**
+ * How far out an Apple city spot lands: r = radius * u**APPLE_SPREAD.
+ *
+ * 1.5 rather than the 0.5 that is uniform over the disk's area. It cuts
+ * the draws past half the radius from three in four to about one in
+ * three, so the first spot the browser tries is far more often a street
+ * Apple has driven. The edge of the city is still reachable, so a round
+ * in an outer suburb is still possible; it is just no longer the common
+ * case, and the common case was costing four seconds a miss.
+ */
+export const APPLE_SPREAD = 1.5;
+
 /** Search radius for a country: the preset, shrunk for small countries. */
 export function radiusForCountry(country, presetKm) {
   const area = country?.areaKm2 || 0;
@@ -84,7 +96,11 @@ function appleSource(config, rng, presetKm, holder) {
     byCountry.get(city.country).push(city);
   }
   const spot = (city) => {
-    const point = randomPointInDisk(rng, city, city.radiusKm);
+    // Toward the middle of the city, where Look Around actually is. See
+    // randomPointInDisk: the uniform-over-area default put three draws
+    // in four past half the radius, each miss cost a four-second browser
+    // timeout, and a round took a median of eleven seconds to start.
+    const point = randomPointInDisk(rng, city, city.radiusKm, { spread: APPLE_SPREAD });
     return { lat: point.lat, lng: point.lng, country: countryByCode(city.country), city: city.name, radiusKm: Math.min(presetKm, 2) };
   };
   const fromCities = (pool) => () => spot(pool[Math.floor(rng() * pool.length)]);

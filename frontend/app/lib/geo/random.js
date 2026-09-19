@@ -87,11 +87,28 @@ export function randomPointInBox(rng, box) {
 }
 
 /**
- * A point uniformly distributed inside a disk of `radiusKm` around a
- * centre, on a locally flat approximation (fine below a few hundred km).
+ * A point inside a disk of `radiusKm` around a centre, on a locally flat
+ * approximation (fine below a few hundred km).
+ *
+ * `spread` shapes how far out the point lands: r = radius * u**spread.
+ * The default 0.5 is the textbook answer, uniform over the disk's AREA,
+ * which is right when every part of the disk is equally good.
+ *
+ * It is not right for Apple Look Around. Uniform-over-area puts three
+ * draws in four beyond half the radius, and for a city that is the
+ * suburbs and the countryside, where Look Around stops. Each miss costs
+ * a four-second timeout in the browser, so the draw that looks fairest
+ * on paper is the reason the game took ten seconds to start. A larger
+ * spread pulls points toward the middle of the city, where the streets
+ * and the imagery are, without ever excluding the edge.
+ *
+ *   spread  share of draws beyond half the radius
+ *   0.5     75%   (uniform over area)
+ *   1.0     50%
+ *   1.5     37%
  */
-export function randomPointInDisk(rng, center, radiusKm) {
-  const r = radiusKm * Math.sqrt(rng());
+export function randomPointInDisk(rng, center, radiusKm, { spread = 0.5 } = {}) {
+  const r = radiusKm * rng() ** spread;
   const theta = rng() * TWO_PI;
   const dLat = (r * Math.cos(theta)) / 110.574;
   const cosLat = Math.cos(toRad(center.lat)) || 1e-9;

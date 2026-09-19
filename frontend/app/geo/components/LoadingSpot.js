@@ -30,8 +30,13 @@ export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal }) {
     return () => clearTimeout(timer);
   }, []);
 
+  // "of 12" was a promise the code does not keep: findLookAround stops at
+  // FIND_BUDGET_MS, which at four seconds a spot is about five of them,
+  // so a player watching "spot 2 of 12" was told there was far more
+  // runway left than there was. The count of what has been tried is true
+  // and is the part that shows something is happening.
   const message = appleTotal
-    ? `Trying spot ${Math.min(appleTotal, (appleAttempt || 0) + 1)} of ${appleTotal}`
+    ? `Trying spot ${(appleAttempt || 0) + 1}`
     : 'Picking a street';
 
   return (
