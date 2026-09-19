@@ -135,7 +135,10 @@ export default function ScriptLobby() {
             {starting ? 'Starting…' : `Play ${rounds} rounds`}
             <ArrowRight size={18} />
           </Button>
-          <small>No account needed.</small>
+          {/* This line used to tell players an account was unnecessary,
+              under the only button anybody presses. It says what the
+              game costs instead, and the bar above offers the account. */}
+          <small>Free to play.</small>
         </aside>
       </div>
     </main>

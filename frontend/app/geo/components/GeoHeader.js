@@ -15,7 +15,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Compass, ShieldCheck } from 'lucide-react';
+import { Compass, ShieldCheck, UserRound } from 'lucide-react';
 import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
@@ -61,16 +61,31 @@ export default function GeoHeader() {
   // never believed about it. The link is a convenience, and /geo/admin
   // checks again on every request behind it.
   const [admin, setAdmin] = useState(false);
+  // Signed in or not, for the one session-dependent slot the chrome rule
+  // allows. Starts null so the bar renders neither state until the
+  // answer is in: offering "Create account" to somebody who already has
+  // one, for half a second on every page, is its own small insult.
+  const [signedIn, setSignedIn] = useState(null);
+  const [who, setWho] = useState('');
   useEffect(() => {
     let live = true;
-    fetch('/api/geo/auth/me', { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data) => {
-        if (live) setAdmin(data?.account?.role === 'admin');
-      })
-      .catch(() => {});
+    const read = () =>
+      fetch('/api/geo/auth/me', { cache: 'no-store' })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
+          if (!live) return;
+          setAdmin(data?.account?.role === 'admin');
+          setSignedIn(Boolean(data?.signedIn));
+          setWho(String(data?.email || '').split('@')[0] || '');
+        })
+        .catch(() => {});
+    read();
+    // Signing in happens without a navigation, so the bar has to hear
+    // about it or it keeps asking a signed-in player to sign up.
+    window.addEventListener('geo:session-changed', read);
     return () => {
       live = false;
+      window.removeEventListener('geo:session-changed', read);
     };
   }, []);
 
@@ -112,9 +127,30 @@ export default function GeoHeader() {
             );
           })}
         </nav>
-        <span className="pe-header-free">
-          <span /> FREE TO PLAY
-        </span>
+        {/* The one session-dependent slot the chrome rule allows
+            (CLAUDE.md: "Sign in/Join vs the account menu"). It sat empty
+            for the game's whole life - a decorative FREE TO PLAY badge,
+            hidden entirely under 800px - so there was no way to make an
+            account from anywhere in the navigation, on any screen, and
+            the lobby told you not to bother. That is why players stayed
+            anonymous: not because they declined, but because they were
+            never asked. */}
+        <div className="pe-header-account">
+          <span className="pe-header-free">
+            <span /> FREE TO PLAY
+          </span>
+          {signedIn === false ? (
+            <Link href="/geo/signin" className="pe-header-cta">
+              Create account
+            </Link>
+          ) : null}
+          {signedIn === true ? (
+            <Link href="/geo/me" className="pe-header-who" title={who ? `Signed in as ${who}` : 'Your profile'}>
+              <UserRound size={15} strokeWidth={2} aria-hidden="true" />
+              <span>{who || 'Account'}</span>
+            </Link>
+          ) : null}
+        </div>
       </div>
     </header>
   );
