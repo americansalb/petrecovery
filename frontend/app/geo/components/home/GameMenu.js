@@ -204,7 +204,7 @@ export default function GameMenu() {
                         : "Find an opponent or invite friends"
                     : imagery === false && !script
                       ? "Street is unavailable here. Try Script."
-                      : `${DEFAULT_CONFIG.rounds} rounds · No timer · No account needed`}
+                      : `${DEFAULT_CONFIG.rounds} rounds · No timer · Free`}
                 </p>
               </div>
             </div>

@@ -100,6 +100,66 @@
   background: #bfdc9e;
   border-radius: 50%;
 }
+/* The account slot. The badge beside it is decoration and yields on a
+   narrow screen; the account control never does, because a phone is
+   where most people meet this game and it was the one screen with no
+   way to make an account at all. */
+.geo-surface .pe-header-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.geo-surface .pe-header-cta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 30px;
+  border: 1px solid #e59a7e80;
+  background: linear-gradient(155deg, #ae5743, #9e4537);
+  box-shadow:
+    0 3px 0 #703a30,
+    inset 0 1px #f2b39666;
+  color: #fff9ef;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s,
+    background 0.18s;
+}
+.geo-surface .pe-header-cta:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(155deg, #b15a45, #a34939);
+  box-shadow: 0 5px 0 #925238;
+}
+.geo-surface .pe-header-cta:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #925238;
+}
+.geo-surface .pe-header-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 30px;
+  border: 1px solid #c1dca435;
+  color: #d8e9c6;
+  font-size: 13px;
+  font-weight: 700;
+  max-width: 190px;
+  white-space: nowrap;
+}
+.geo-surface .pe-header-who span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.geo-surface .pe-header-who:hover {
+  border-color: #c1dca470;
+  color: #eaf4e0;
+}
 .geo-surface .pe-home {
   max-width: 1440px;
   margin: auto;
@@ -1230,6 +1290,16 @@
   .geo-surface .pe-header-free {
     display: none;
   }
+  /* The badge goes; the way to make an account stays. */
+  .geo-surface .pe-header-cta,
+  .geo-surface .pe-header-who {
+    min-height: 38px;
+    padding: 0 13px;
+    font-size: 12px;
+  }
+  .geo-surface .pe-header-who {
+    max-width: 120px;
+  }
   .geo-surface .pe-header-inner {
     gap: 12px;
     min-height: 70px;
@@ -1357,13 +1427,28 @@
   }
 }
 @media (max-width: 560px) {
+  /* Two rows: the name and the account control share the first, the
+     links take the second. It was one stacked column, which left the
+     account control marooned on a third row under the nav. */
   .geo-surface .pe-header-inner {
     padding: 12px 18px 0;
-    display: block;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand account"
+      "nav nav";
+    align-items: center;
+    column-gap: 10px;
   }
   .geo-surface .pe-brand {
+    grid-area: brand;
     font-size: 16px;
-    justify-content: center;
+    justify-content: flex-start;
+    margin-right: 0;
+  }
+  .geo-surface .pe-header-account {
+    grid-area: account;
+    justify-self: end;
   }
   .geo-surface .pe-brand-mark {
     height: 28px;
@@ -1373,6 +1458,7 @@
     width: 18px;
   }
   .geo-surface .pe-nav {
+    grid-area: nav;
     justify-content: center;
     margin-top: 4px;
   }
