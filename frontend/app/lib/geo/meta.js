@@ -48,17 +48,53 @@ export const FALLBACK_SHARE_IMAGE =
   '/geo-card.png';
 
 /**
+ * The game's own home, which is what its cards must point at.
+ *
+ * NEXT_PUBLIC_BASE_URL is one value for a deployment that serves two
+ * sites, so it cannot answer this: the pet site is www.reunitepets.org
+ * and the game is probablyearth.com. Falling through to it, or to the
+ * localhost default behind it, is what put
+ * `og:image="http://localhost:3000/geo-card.png"` on the live
+ * /geo/script, /geo/leaderboard and /geo/rooms. Every one of those
+ * links unfurled with no picture, on every platform, while /geo looked
+ * right because its page hardcoded the domain itself.
+ *
+ * So the canonical origin lives here, once, overridable per deployment.
+ */
+const GEO_HOME_DEFAULT = 'https://probablyearth.com';
+
+/** A literal fallback, so a malformed override cannot poison it too. */
+function validOrigin(value, fallback) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return fallback;
+  }
+}
+
+export const GEO_HOME_URL = validOrigin(
+  process.env.NEXT_PUBLIC_GEO_HOME_URL || GEO_HOME_DEFAULT,
+  GEO_HOME_DEFAULT
+);
+
+/**
  * Absolute base for resolving relative images. Messengers reject a
  * relative og:image, so every card needs one of these behind it.
  * A request-aware version, for pages served on the game's own domain,
- * is geoMetadataBase in server/siteBase.js.
+ * is geoMetadataBase in server/siteBase.js. This one is the static
+ * fallback, and it has to be the game's home rather than the pet
+ * site's: it is what every statically rendered game page inherits, and
+ * those pages stay static precisely because they do not read the
+ * request.
  */
 export function shareMetadataBase() {
-  try {
-    return new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
-  } catch {
-    return new URL('http://localhost:3000');
+  if (process.env.NEXT_PUBLIC_GEO_HOME_URL) return new URL(GEO_HOME_URL);
+  if (process.env.NODE_ENV === 'development') {
+    return new URL(
+      validOrigin(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000', 'http://localhost:3000')
+    );
   }
+  return new URL(GEO_HOME_URL);
 }
 
 /**
