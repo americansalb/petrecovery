@@ -32,6 +32,8 @@ import ScriptArtwork from "./ScriptArtwork";
 import Button from "../ui/Button";
 import { latestSavedGame } from '../../lib/savedGame';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
+import { randomSeedString } from '@/app/lib/geo/random';
+import { scriptConfigToQuery } from '@/app/lib/geo/script';
 
 const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
   .map(([code, name]) => ({
@@ -94,7 +96,7 @@ export default function GameMenu() {
   const start = () => {
     setStarting(true);
     if (multiplayer) router.push(`/geo/rooms?game=${game}`);
-    else if (script) router.push("/geo/script/play?ladder=world&rounds=5");
+    else if (script) router.push(`/geo/script/play?${scriptConfigToQuery({ ladder: 'world', rounds: 5, seed: randomSeedString() })}`);
     else router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
 
