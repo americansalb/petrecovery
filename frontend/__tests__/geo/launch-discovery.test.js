@@ -15,7 +15,12 @@ test('the game has its own manifest without pet branding or missing assets', () 
 test('the public menu is discoverable while private game pages remain noindex by default', () => {
   const menu = read('app/geo/page.js');
   expect(menu).toContain('index: true');
-  expect(menu).toContain("canonical: 'https://probablyearth.com/geo'");
+  // The canonical has to be the game's own domain. It used to be spelled
+  // out here, which is exactly why every other game page inherited a
+  // localhost base and served a dead og:image: the domain was known in
+  // one file and nowhere else. Either spelling is fine; what matters is
+  // that it resolves to the game's home (share-base.test.js pins that).
+  expect(menu).toMatch(/canonical:\s*(?:'https:\/\/probablyearth\.com\/geo'|`\$\{GEO_HOME_URL\}\/geo`)/);
   expect(read('app/geo/layout.js')).toContain('index: false');
   expect(read('app/geo/components/GeoFooter.js')).toContain('href="/geo/privacy"');
 });

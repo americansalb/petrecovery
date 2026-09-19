@@ -12,6 +12,7 @@
  */
 
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { isGameTakeover } from '@/app/lib/geo/site';
 
@@ -31,7 +32,7 @@ export default function GeoFooter() {
           </a>
           , CC-BY 2.0 FR.
         </p>
-        <a href="/geo/privacy" className="underline hover:text-ocean-200">Privacy</a>
+        <Link href="/geo/privacy" className="underline hover:text-ocean-200">Privacy</Link>
         <a href={HOME_URL} className="font-semibold text-white/80 hover:text-ocean-200 hover:underline">
           Made by ReunitePets
         </a>

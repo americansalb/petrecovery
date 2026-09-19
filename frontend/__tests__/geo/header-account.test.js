@@ -21,6 +21,8 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import GeoHeader from '@/app/geo/components/GeoHeader';
 
 jest.mock('next/navigation', () => ({ usePathname: () => '/geo' }));
+jest.mock('@/app/geo/lib/session', () => ({ isSignedIn: jest.fn(() => false) }));
+const { isSignedIn } = require('@/app/geo/lib/session');
 
 const answer = (body) => {
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => body }));
@@ -43,13 +45,30 @@ test('a signed-in player gets their account, not another invitation to sign up',
   expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
 });
 
-test('neither state renders until the answer is in', async () => {
-  // Offering "Create account" to somebody who has one, for half a second
-  // on every page load, is its own small insult.
+test('the cookie answers before the network does', async () => {
+  // /api/geo/auth/me is a round trip. On a phone that is long enough for
+  // the one thing we want a new player to do to be missing from the bar,
+  // so the readable companion cookie settles it first.
+  isSignedIn.mockReturnValue(true);
   global.fetch = jest.fn(() => new Promise(() => {}));
   await act(async () => { render(<GeoHeader />); });
+  // No email yet, so the control names itself "Account" until one arrives.
+  expect(await screen.findByRole('link', { name: 'Account' })).toHaveAttribute('href', '/geo/me');
   expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
-  expect(screen.queryByText(/example\.test/)).toBeNull();
+
+  isSignedIn.mockReturnValue(false);
+});
+
+test('a refused auth/me never demotes a signed-in player to a signup prompt', async () => {
+  // Sixty a minute per address, and an address is a household. A 429 used
+  // to read as "signed out" and put Create account in front of somebody
+  // who is already signed in.
+  isSignedIn.mockReturnValue(true);
+  global.fetch = jest.fn(async () => ({ ok: false, status: 429, json: async () => ({}) }));
+  await act(async () => { render(<GeoHeader />); });
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  isSignedIn.mockReturnValue(false);
 });
 
 test('signing in without a navigation updates the bar', async () => {
