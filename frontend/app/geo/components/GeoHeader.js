@@ -17,6 +17,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Compass, ShieldCheck, UserRound } from 'lucide-react';
 import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
+import { isSignedIn } from '../lib/session';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
@@ -62,21 +63,39 @@ export default function GeoHeader() {
   // checks again on every request behind it.
   const [admin, setAdmin] = useState(false);
   // Signed in or not, for the one session-dependent slot the chrome rule
-  // allows. Starts null so the bar renders neither state until the
-  // answer is in: offering "Create account" to somebody who already has
-  // one, for half a second on every page, is its own small insult.
+  // allows. null means "not known yet" and renders neither control: the
+  // server and the first client render have to agree, and offering
+  // "Create account" to somebody who already has one, even for a moment
+  // on every page, is its own small insult. The cookie below settles it
+  // on the first effect, so null lasts one render rather than a request.
   const [signedIn, setSignedIn] = useState(null);
   const [who, setWho] = useState('');
   useEffect(() => {
     let live = true;
+    // Answer from the readable companion cookie first (app/geo/lib/session.js
+    // exists for exactly this: the session itself is httpOnly, so this one
+    // carries "am I signed in" and no secret). Waiting on the network instead
+    // left the slot empty for the length of a request, which on a phone is
+    // long enough that the one thing we want a new player to do is missing
+    // from the screen. Read in an effect rather than in the initial state so
+    // the server and the first client render still agree.
+    setSignedIn(isSignedIn());
     const read = () =>
       fetch('/api/geo/auth/me', { cache: 'no-store' })
         .then((response) => (response.ok ? response.json() : null))
         .then((data) => {
           if (!live) return;
-          setAdmin(data?.account?.role === 'admin');
-          setSignedIn(Boolean(data?.signedIn));
-          setWho(String(data?.email || '').split('@')[0] || '');
+          // A refusal is not an answer. /api/geo/auth/me shares the
+          // /api/geo/auth bucket, sixty a minute per address, and an
+          // address is a household: a 429 or a dropped connection used
+          // to read here as "signed out" and put "Create account" in
+          // front of somebody who is already signed in. The cookie
+          // above already said which they are; leave it alone unless
+          // the server actually answered.
+          if (!data) return;
+          setAdmin(data.account?.role === 'admin');
+          setSignedIn(Boolean(data.signedIn));
+          setWho(String(data.email || '').split('@')[0] || '');
         })
         .catch(() => {});
     read();
