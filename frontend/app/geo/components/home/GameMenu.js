@@ -28,6 +28,7 @@ import { untilText } from "@/app/lib/geo/meter";
 import { APPLE_COVERAGE_NAMES } from "@/app/lib/geo/coverage";
 import { profileHeaders } from "../../lib/profile";
 import { loadGeoConfig } from "../../lib/serverConfig";
+import { initializeMapKit } from "../../lib/appleMapKit";
 import ScriptArtwork from "./ScriptArtwork";
 import Button from "../ui/Button";
 import { latestSavedGame } from '../../lib/savedGame';
@@ -84,9 +85,21 @@ export default function GameMenu() {
       Array.isArray(d.rooms) ? d.rooms.length : null,
     );
     loadGeoConfig({ shouldStop: () => !live })
-      .then(
-        (d) => live && d && setImagery(Boolean(d.providers?.apple?.configured)),
-      )
+      .then((d) => {
+        if (!live || !d) return;
+        const apple = Boolean(d.providers?.apple?.configured);
+        setImagery(apple);
+        // Start Apple's SDK here rather than on the round screen.
+        // Measured on the live site: a Street round spent about three and
+        // a half seconds initialising MapKit before it could even try its
+        // first spot, and the player watched a spinner for all of it.
+        // initializeMapKit memoises on a module-level promise and the
+        // lobby reaches the round by a client navigation, so the work
+        // done while somebody is still choosing is work the round does
+        // not repeat. It loads the script and mints a token; it looks up
+        // no imagery, so it costs nothing against the Look Around quota.
+        if (apple) initializeMapKit().catch(() => {});
+      })
       .catch(() => {});
     return () => {
       live = false;
