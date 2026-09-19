@@ -82,6 +82,10 @@ const KNOWN_PRIVATE = [
   'rescue-forces/[id]/mission-control/page.js',
   'rescue-forces/[id]/settings/page.js',
   'communities/[id]/page.js', // legacy; next.config redirects /communities/*
+  // Not a page: it exists so an unmatched /geo/* URL reaches the game's
+  // own not-found instead of the pet site's 404. It only ever calls
+  // notFound(), so there is nothing to unfurl and a card would be a lie.
+  'geo/[...unmatched]/page.js',
 ];
 
 function walkPages(dir, rel = '') {

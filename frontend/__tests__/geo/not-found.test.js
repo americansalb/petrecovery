@@ -39,3 +39,20 @@ test('the file exists where Next looks for it', () => {
   // A not-found at any other path silently does nothing.
   expect(fs.existsSync(path.resolve(__dirname, '../..', 'app/geo/not-found.js'))).toBe(true);
 });
+
+test('a catch-all hands unmatched game URLs to it', () => {
+  // The trap this pins: a segment's not-found.js only renders when a
+  // route inside the segment calls notFound(). A URL matching no route
+  // never enters the segment, so without this the pet site's 404 came
+  // back and the first version of the fix looked done but was not.
+  const p = path.resolve(__dirname, '../..', 'app/geo/[...unmatched]/page.js');
+  expect(fs.existsSync(p)).toBe(true);
+  expect(fs.readFileSync(p, 'utf8')).toMatch(/notFound\(\)/);
+});
+
+test('the footer links to the privacy page rather than reloading the app', () => {
+  // A raw <a> to an internal route throws away the client navigation and
+  // fails next lint outright once the segment has a catch-all.
+  const src = fs.readFileSync(path.resolve(__dirname, '../..', 'app/geo/components/GeoFooter.js'), 'utf8');
+  expect(src).not.toMatch(/<a\s+href="\/geo\//);
+});
