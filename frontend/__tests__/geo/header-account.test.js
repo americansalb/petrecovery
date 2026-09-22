@@ -33,7 +33,7 @@ afterEach(() => { jest.clearAllMocks(); });
 test('a signed-out player is offered an account, from the navigation, on every screen', async () => {
   answer({ ok: true, signedIn: false, email: null, account: null });
   await act(async () => { render(<GeoHeader />); });
-  const cta = await screen.findByRole('link', { name: 'Create account' });
+  const cta = await screen.findByRole('link', { name: 'Sign in' });
   expect(cta).toHaveAttribute('href', '/geo/signin');
 });
 
@@ -42,7 +42,7 @@ test('a signed-in player gets their account, not another invitation to sign up',
   await act(async () => { render(<GeoHeader />); });
   const who = await screen.findByRole('link', { name: /kevin/i });
   expect(who).toHaveAttribute('href', '/geo/me');
-  expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
 });
 
 test('the cookie answers before the network does', async () => {
@@ -54,7 +54,7 @@ test('the cookie answers before the network does', async () => {
   await act(async () => { render(<GeoHeader />); });
   // No email yet, so the control names itself "Account" until one arrives.
   expect(await screen.findByRole('link', { name: 'Account' })).toHaveAttribute('href', '/geo/me');
-  expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
 
   isSignedIn.mockReturnValue(false);
 });
@@ -67,18 +67,18 @@ test('a refused auth/me never demotes a signed-in player to a signup prompt', as
   global.fetch = jest.fn(async () => ({ ok: false, status: 429, json: async () => ({}) }));
   await act(async () => { render(<GeoHeader />); });
   await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-  expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
   isSignedIn.mockReturnValue(false);
 });
 
 test('signing in without a navigation updates the bar', async () => {
   answer({ ok: true, signedIn: false, email: null, account: null });
   await act(async () => { render(<GeoHeader />); });
-  await screen.findByRole('link', { name: 'Create account' });
+  await screen.findByRole('link', { name: 'Sign in' });
 
   answer({ ok: true, signedIn: true, email: 'kevin@example.test', account: { email: 'kevin@example.test' } });
   await act(async () => { window.dispatchEvent(new Event('geo:session-changed')); });
-  await waitFor(() => expect(screen.queryByRole('link', { name: 'Create account' })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull());
   expect(screen.getByRole('link', { name: /kevin/i })).toBeInTheDocument();
 });
 

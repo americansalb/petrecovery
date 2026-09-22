@@ -160,7 +160,7 @@ export default function GeoHeader() {
           </span>
           {signedIn === false ? (
             <Link href="/geo/signin" className="pe-header-cta">
-              Create account
+              Sign in
             </Link>
           ) : null}
           {signedIn === true ? (
