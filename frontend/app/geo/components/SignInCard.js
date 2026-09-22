@@ -112,7 +112,16 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
     setState('sending');
     setMessage('');
     try {
-      if (requireName && !name.trim()) throw new Error('Choose a player name first.');
+      // No longer a blocker. A player coming back was made to invent a
+      // name before the form would send them a link, and then the name
+      // was thrown away: following the link binds the account, and the
+      // account's own profile wins (accounts.js, completeSignIn), so the
+      // name they had just typed onto the browser's anonymous profile
+      // was discarded. Being asked to name yourself and then not being
+      // remembered is what "it signs me up as a new user" feels like
+      // (founder, 2026-09-22). An address is the whole of signing in;
+      // somebody who ends up without a name is asked for one on the
+      // profile page, where it is theirs to keep.
       // Mint the browser profile before asking for mail. The request route
       // records that profile, so following the link keeps this player\'s
       // score, badges and room identity instead of making a blank one.
@@ -231,10 +240,14 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   return (
     <div className={compact ? '' : 'rounded-xl border border-white/10 p-4'}>
       {!compact ? <>
-      <p className="font-semibold text-white">{requireName ? 'Make this your player' : 'Keep this profile across devices'}</p>
+      {/* One door. The old copy told everyone they were making
+          something new, which is wrong half the time and is why coming
+          back felt like signing up again. The same sentence has to be
+          true for a first-timer and for somebody returning. */}
+      <p className="font-semibold text-white">{requireName ? 'Sign in, or start an account' : 'Keep this profile across devices'}</p>
       <p className="mt-1 text-sm text-white/60">
         {requireName
-          ? 'One link keeps your name, games and progress on this device and the next one.'
+          ? 'Your email is all it takes. Played before? The same address brings your player, rating and badges back.'
           : 'Your rating, points and badges live in this browser. An email address moves them to your phone too, and brings them back if you clear it.'}
       </p>
       </> : null}
@@ -242,11 +255,13 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
       <form method="post" onSubmit={request} className="pe-account-form">
         {requireName ? (
           <label className="w-full text-sm font-semibold text-white/80" htmlFor="geo-signin-name">
-            <span className="flex items-center gap-2"><UserRound size={16} aria-hidden="true" /> Player name</span>
+            {/* Not required. It is only used when this address has no
+                player yet; a returning account already has a name and
+                this field never touches it. */}
+            <span className="flex items-center gap-2"><UserRound size={16} aria-hidden="true" /> Player name <span className="font-normal text-white/45">(new players)</span></span>
             <input
               id="geo-signin-name"
               type="text"
-              required
               maxLength={20}
               value={name}
               onChange={(e) => setName(e.target.value)}

@@ -30,5 +30,5 @@ test('a failed session check is retryable and is not presented as signed out', a
   expect(screen.queryByLabelText('Email')).toBeNull();
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check again' })));
   expect(await screen.findByLabelText('Email')).toBeInTheDocument();
-  expect(screen.getByLabelText('Player name')).toBeInTheDocument();
+  expect(screen.getByLabelText(/Player name/)).toBeInTheDocument();
 });
