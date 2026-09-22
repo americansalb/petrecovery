@@ -28,6 +28,7 @@ import {
   timeLabel,
 } from "@/app/lib/geo/modes";
 import {
+  DEFAULT_PLAYER_NAME,
   REACTION_EMOJI,
   VARIANTS,
   describeRoomMode,
@@ -144,7 +145,14 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
           className="mt-5 flex flex-col gap-3 sm:flex-row"
           onSubmit={(e) => {
             e.preventDefault();
-            onJoin(name);
+            // Somebody who followed a friend's invite link is here to
+            // play, not to fill in a form. The button used to be dead
+            // until they typed a name - and joining asks them to sign
+            // in anyway, so there were two gates where the code needs
+            // one, and the first of them explained nothing. They are a
+            // Player until they choose otherwise, on the profile page
+            // where the name is theirs to keep.
+            onJoin(name.trim() || DEFAULT_PLAYER_NAME);
           }}
         >
           <input
@@ -153,7 +161,7 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
             onChange={(e) => { editedName.current = true; setName(e.target.value); }}
             maxLength={20}
             placeholder="Your name"
-            aria-label="Your name"
+            aria-label="Your name (optional)"
             className="flex-1 rounded-xl border border-white/15 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-clay-500 focus:outline-none"
             style={{
               backgroundColor: "rgba(2, 6, 23, 0.85)",
@@ -163,7 +171,7 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
           />
           <button
             type="submit"
-            disabled={busy || !name.trim()}
+            disabled={busy}
             className="rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50"
           >
             {busy ? "Joining" : room.status === "playing" ? "Rejoin" : "Join"}

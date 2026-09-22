@@ -119,6 +119,16 @@ describe("a profile with nothing in it", () => {
     expect(screen.queryByText(/It starts with one game/)).toBeNull();
   });
 
+  test('points outlive the day, so yesterday still counts', async () => {
+    // usage.rounds is today's meter and resets overnight. Somebody who
+    // played yesterday, never got within 100 km of anything and has
+    // not touched a rated game would otherwise be told this morning
+    // that their record had not started.
+    await renderProfile({ ...blank, points: 46, usage: { rounds: 0 } });
+    expect(await screen.findByRole('tabpanel')).toBeInTheDocument();
+    expect(screen.queryByText(/It starts with one game/)).toBeNull();
+  });
+
   test('one badge is a record too', async () => {
     await renderProfile({
       ...blank,
