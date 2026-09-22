@@ -158,7 +158,10 @@ export default function GeoHeader() {
           <span className="pe-header-free">
             <span /> FREE TO PLAY
           </span>
-          {signedIn === false ? (
+          {/* Not on the sign-in page itself: a button whose whole job is
+              to bring you to the screen you are reading is one more
+              control that does nothing, and there are enough of those. */}
+          {signedIn === false && !pathname.startsWith('/geo/signin') ? (
             <Link href="/geo/signin" className="pe-header-cta">
               Sign in
             </Link>

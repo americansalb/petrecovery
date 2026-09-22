@@ -195,7 +195,7 @@ export default function GameSummary({
                   href="/geo/me"
                   className="underline decoration-white/30 hover:text-white"
                 >
-                  Customize your explorer
+                  Spend them on a pin or a name colour
                 </Link>
               </p>
             ) : null}
@@ -221,7 +221,7 @@ export default function GameSummary({
             className="pe-button pe-button--primary inline-flex min-h-[48px] items-center gap-2 rounded-xl px-6 py-3 font-bold"
           >
             <RefreshCw size={17} />
-            {shared ? 'Explore these places again' : 'Next expedition'}
+            {shared ? 'Play these places again' : 'Play again'}
           </Link>
           <Link
             href="/geo"

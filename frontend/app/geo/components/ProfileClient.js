@@ -15,6 +15,7 @@ import {
   Gauge,
   History,
   Medal,
+  Play,
   ShoppingBag,
   Tag,
   Trophy,
@@ -350,6 +351,30 @@ export default function ProfileClient() {
   const view = shop?.view || profile?.equipped || null;
   const points = shop?.points ?? profile?.points ?? 0;
 
+  /**
+   * Has this player done anything yet?
+   *
+   * Record was five headings over five zeros for everybody who had not
+   * played: three identical "Unplaced - 0 of 5 placement games" cards
+   * (one per ladder, because there are three ladders), "No rated games
+   * yet", "None yet", and "0 Street rounds today". Six ways of saying
+   * nothing has happened, which is the feature list rendered as a page
+   * rather than a record of anything (founder, 2026-09-22: "like the
+   * person that made it does not know the purpose of the app but only
+   * each individual feature").
+   *
+   * A record with nothing in it gets one card and a way to start one.
+   * The moment any of it is true, the real sections come back, each
+   * carrying what it now has.
+   */
+  const hasRecord = Boolean(
+    profile &&
+      (profile.recent?.length ||
+        profile.badges?.length ||
+        profile.usage?.rounds ||
+        LADDERS.some((ladder) => profile.ratings?.[ladder]?.games)),
+  );
+
   return (
     <div className="pe-secondary-page pe-profile-page min-h-screen text-white">
       <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
@@ -455,7 +480,37 @@ export default function ProfileClient() {
           className="mt-6"
         />
 
-        {tab === 'record' ? (
+        {tab === 'record' && profile && !hasRecord ? (
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6">
+            <Card data-no-record>
+              <CardTitle icon={Medal}>Your record</CardTitle>
+              <p className="mt-3 text-sm text-white/75">
+                It starts with one game. Every round you play is kept
+                here: your rating on each ladder, the games you have
+                played against other people, and a badge for every
+                country you guess within 100 km.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  href="/geo"
+                  className="pe-button pe-button--primary inline-flex min-h-[48px] items-center gap-2 px-5 py-3 font-bold"
+                >
+                  <Play size={17} fill="currentColor" aria-hidden="true" />
+                  Play a game
+                </Link>
+                <Link
+                  href="/geo/rooms"
+                  className="inline-flex min-h-[48px] items-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm font-semibold hover:bg-white/5"
+                >
+                  <Users className="h-4 w-4" aria-hidden="true" />
+                  Play with a friend
+                </Link>
+              </div>
+            </Card>
+          </div>
+        ) : null}
+
+        {tab === 'record' && (!profile || hasRecord) ? (
           <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 space-y-6">
             {/* Rating: every ladder, with what a player earned on it
                 rather than the word for where it sits. */}
