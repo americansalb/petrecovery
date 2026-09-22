@@ -274,8 +274,18 @@ export default function GameHud({
             ) : null}
           </div>
           {/* One line, and only the part that is true for this game: an
-            NMPZ round that says "drag to look around" is a lie. */}
-          <p className="hidden max-w-[10rem] text-xs leading-snug text-sand-300/80 sm:block">
+            NMPZ round that says "drag to look around" is a lie.
+
+            It carries the same dark backing as the buttons beside it,
+            because it sits on the photograph rather than on the app. As
+            bare text it was styled against a dark mock and then shown
+            over whatever Apple returns: on a sunlit pavement, which is
+            a lot of Look Around, sand-300 at 80% over near-white is
+            close to invisible. scripts/geo-contrast.js cannot catch
+            this one - it composites translucent layers down to an
+            opaque background, and there is no knowing what colour the
+            imagery under this will be. */}
+          <p className={`${pill} hidden max-w-[11rem] px-3 py-1.5 text-xs leading-snug text-sand-100 sm:block`}>
             {canPan
               ? 'Drag to look around. R goes back to where you started.'
               : 'One view, no looking around. That is the format.'}
