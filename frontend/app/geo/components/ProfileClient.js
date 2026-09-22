@@ -372,6 +372,13 @@ export default function ProfileClient() {
       (profile.recent?.length ||
         profile.badges?.length ||
         profile.usage?.rounds ||
+        // Points outlive the day. usage.rounds is today's meter and
+        // resets overnight, so somebody who played yesterday, never got
+        // within 100 km of anything and has not touched a rated game
+        // would otherwise be told tomorrow that their record had not
+        // started. Every finished round pays at least roundBase, so a
+        // balance above zero is somebody who has played.
+        profile.points ||
         LADDERS.some((ladder) => profile.ratings?.[ladder]?.games)),
   );
 
