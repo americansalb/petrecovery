@@ -281,7 +281,16 @@ export default function ProfileClient() {
         const profile = await ensureProfile('');
         if (!alive || current !== generation) return;
         setProfile(profile); setName(profile?.name || '');
-        if (profile?.name) saveName(profile.name);
+        // Not the placeholder. resolveProfile stores DEFAULT_PLAYER_NAME
+        // for anybody who has not chosen one, so saving it here wrote
+        // "Player" into this browser the first time somebody so much as
+        // opened their profile - and every room they hosted afterwards
+        // was called Player, with the field pre-filled as though they
+        // had typed it. Founder, 2026-09-17: "why does it pretend I
+        // have an account named player". A name goes in the browser
+        // when a person chooses one, which is what saveTheName below
+        // is for.
+        if (profile?.name && profile.name !== DEFAULT_PLAYER_NAME) saveName(profile.name);
         const res = await fetch('/api/geo/shop', { headers: profileHeaders(), cache: 'no-store' });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(json.error || 'Could not load the shop');
