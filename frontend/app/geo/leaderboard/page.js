@@ -72,6 +72,13 @@ export default function GeoLeaderboardPage() {
             <summary className="cursor-pointer font-semibold text-white/70 hover:text-white">
               How rating works
             </summary>
+            {/* The six leagues, and where each one starts. This was the
+                first thing on the page: a grid of six emblems above a
+                table with nobody in it, explaining a rating that a
+                first-time visitor does not have and cannot get without
+                playing. It is the legend for the Rating column, so it
+                reads once with the rest of the explanation. */}
+            <RankPath />
             <ul className="mt-2 space-y-1">
               <li>
                 Street and Script have separate ratings, based on your results against other players.
@@ -90,7 +97,6 @@ export default function GeoLeaderboardPage() {
           </details>
         </header>
 
-        <RankPath />
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <Tabs
             items={LADDERS.filter((id) => id !== 'classic').map((id) => ({

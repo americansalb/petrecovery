@@ -21,6 +21,7 @@ import {
 } from "@/app/lib/geo/modes";
 import Button from "../ui/Button";
 import {
+  DEFAULT_PLAYER_NAME,
   MAX_PLAYERS,
   ROOM_MODES,
   ROOM_ROUND_OPTIONS,
@@ -202,11 +203,14 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
   const create = async (event) => {
     event?.preventDefault();
     if (searching || submitting.current) return;
-    const hostName = name.trim();
-    if (!hostName) {
-      setError("Type your name first.");
-      return;
-    }
+    // Opening a room used to be refused until the host typed a name,
+    // with the button dead until they did - and then it asked them to
+    // sign in anyway, so there were two hurdles where the code needs
+    // one. A guest who just wants to send a friend a link gets one
+    // (founder, 2026-09-19: "WE don't make it easy"). Signing in fills
+    // this from the account, so anybody who has a name keeps it, and
+    // anybody who does not is a Player until they choose one.
+    const hostName = name.trim() || DEFAULT_PLAYER_NAME;
     if (!signedIn) {
       requestId.current ||= crypto.randomUUID();
       pendingAction.current = 'create';
@@ -362,7 +366,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
               <Compass size={25} />
             </span>
             <label htmlFor="host-name">
-              Your player name
+              Your player name (optional)
               <input
                 id="host-name"
                 type="text"
@@ -386,7 +390,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
           <Button
             type="submit"
             size="lg"
-            disabled={busy || !configured || !name.trim()}
+            disabled={busy || !configured}
           >
             <Plus size={18} />
             {busy

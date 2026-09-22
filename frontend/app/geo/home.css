@@ -10,6 +10,12 @@
   border-radius: 0;
   box-shadow: none;
   animation: none;
+  /* The scene is as tall as the viewport and the content is not, so
+     without this the headline and the Play button sit against the top
+     and leave a few hundred pixels of empty navy under them on a
+     desktop screen. */
+  display: flex;
+  align-items: center;
 }
 .geo-surface .pe-home--immersive .pe-world-art {
   background-position: 70% 45%;
@@ -66,44 +72,6 @@
   background: none;
   box-shadow: none;
   animation: none;
-}
-.geo-surface .pe-home--immersive .pe-dock-heading {
-  display: block;
-}
-.geo-surface .pe-home--immersive .pe-company {
-  display: flex;
-  width: max-content;
-  gap: 26px;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid #a9c7b644;
-  border-radius: 0;
-  background: none;
-}
-.geo-surface .pe-home--immersive .pe-company button {
-  min-width: 0;
-  min-height: 47px;
-  padding: 0 0 13px;
-  font-size: 14px;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: #aac1b9;
-  position: relative;
-}
-.geo-surface .pe-home--immersive .pe-company button[aria-pressed="true"] {
-  color: #cce8b6;
-}
-.geo-surface .pe-home--immersive .pe-company button[aria-pressed="true"]:after {
-  content: "";
-  position: absolute;
-  height: 3px;
-  bottom: -1px;
-  inset-inline: 0;
-  background: #91c47b;
-}
-.geo-surface .pe-home--immersive .pe-dock-note {
-  display: none;
 }
 .geo-surface .pe-home--immersive .pe-dock-body {
   display: flex;

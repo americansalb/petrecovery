@@ -81,9 +81,20 @@ describe('the game menu shows the whole product', () => {
 
   test('every status on it comes from the server or is not shown', () => {
     // Never a fabricated player count, rank or streak for atmosphere.
-    for (const endpoint of ['/api/geo/daily', '/api/geo/cup', '/api/geo/leaderboard?ladder=solo', '/api/geo/rooms']) {
+    // One status per line the menu prints: today's daily, the weekly
+    // cup's clock, and your own standing on the solo ladder.
+    for (const endpoint of ['/api/geo/daily', '/api/geo/cup', '/api/geo/leaderboard?ladder=solo']) {
       expect({ endpoint, fetched: menu.includes(endpoint) }).toEqual({ endpoint, fetched: true });
     }
+  });
+
+  test('it does not ask the server for a status it no longer shows', () => {
+    // The open-room count was the label under a Solo/Multiplayer toggle
+    // that put the word Multiplayer on the front door twice. The toggle
+    // is gone, so the count has nowhere to appear, and a request whose
+    // answer is never rendered is a request the front door should not
+    // make.
+    expect(menu).not.toContain('/api/geo/rooms');
   });
 });
 

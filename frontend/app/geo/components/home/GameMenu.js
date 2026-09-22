@@ -1,6 +1,18 @@
 "use client";
 
-/** The game hub: choose company, choose a game, play. Live status is never invented. */
+/**
+ * The front door: choose Street or Script, play. Live status is never
+ * invented.
+ *
+ * It used to carry a Solo/Multiplayer toggle beside that choice, which
+ * put the word Multiplayer on the screen twice - once in the
+ * navigation, once here - with both ending at /geo/rooms. Two controls
+ * for one destination on the one screen a stranger meets first is the
+ * product described rather than played (founder, 2026-09-22: "like the
+ * person that made it does not know the purpose of the app but only
+ * each individual feature"). The navigation keeps multiplayer, on every
+ * screen; this page asks the one question a game needs.
+ */
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,7 +24,6 @@ import {
   Languages,
   Play,
   Trophy,
-  UserRound,
   Users,
 } from "lucide-react";
 import {
@@ -46,7 +57,6 @@ const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
 
 export default function GameMenu() {
   const router = useRouter();
-  const [company, setCompany] = useState("solo");
   const [game, setGame] = useState("street");
   const [starting, setStarting] = useState(false);
   const [savedGame, setSavedGame] = useState(null);
@@ -54,11 +64,9 @@ export default function GameMenu() {
   const [daily, setDaily] = useState(null);
   const [cup, setCup] = useState(null);
   const [solo, setSolo] = useState(null);
-  const [openRooms, setOpenRooms] = useState(null);
   const [answered, setAnswered] = useState({});
   const [continent, setContinent] = useState("europe");
   const [country, setCountry] = useState("JP");
-  const multiplayer = company === "multi";
   const script = game === "script";
 
   useEffect(() => {
@@ -80,9 +88,6 @@ export default function GameMenu() {
       "/api/geo/leaderboard?ladder=solo",
       setSolo,
       (d) => d.you || null,
-    );
-    get("rooms", "/api/geo/rooms", setOpenRooms, (d) =>
-      Array.isArray(d.rooms) ? d.rooms.length : null,
     );
     loadGeoConfig({ shouldStop: () => !live })
       .then((d) => {
@@ -108,8 +113,7 @@ export default function GameMenu() {
 
   const start = () => {
     setStarting(true);
-    if (multiplayer) router.push(`/geo/rooms?game=${game}`);
-    else if (script) router.push(`/geo/script/play?${scriptConfigToQuery({ ladder: 'world', rounds: 5, seed: randomSeedString() })}`);
+    if (script) router.push(`/geo/script/play?${scriptConfigToQuery({ ladder: 'world', rounds: 5, seed: randomSeedString() })}`);
     else router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
 
@@ -136,27 +140,6 @@ export default function GameMenu() {
             className="pe-play-dock pe-enter"
             aria-label="Choose how to play"
           >
-            <div className="pe-dock-heading">
-              <div className="pe-company" role="group" aria-label="Play with">
-                <button
-                  type="button"
-                  aria-pressed={!multiplayer}
-                  onClick={() => setCompany("solo")}
-                >
-                  <UserRound size={18} /> Solo
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={multiplayer}
-                  onClick={() => setCompany("multi")}
-                >
-                  <Users size={19} /> Multiplayer
-                </button>
-              </div>
-              <span className="pe-dock-note">
-                Street or Script
-              </span>
-            </div>
             <div className="pe-dock-body">
               <div
                 className="pe-game-choices"
@@ -197,9 +180,7 @@ export default function GameMenu() {
               <div className="pe-launch">
                 <Button
                   onClick={start}
-                  disabled={
-                    starting || (!multiplayer && !script && imagery === false)
-                  }
+                  disabled={starting || (!script && imagery === false)}
                   size="lg"
                   data-cold-open-play
                   className="pe-play-button"
@@ -211,15 +192,9 @@ export default function GameMenu() {
                   <ArrowRight size={20} />
                 </Button>
                 <p>
-                  {multiplayer
-                    ? openRooms === null
-                      ? "Find an opponent or invite friends"
-                      : openRooms
-                        ? `${openRooms} open ${openRooms === 1 ? "room" : "rooms"} · or create your own`
-                        : "Find an opponent or invite friends"
-                    : imagery === false && !script
-                      ? "Street is unavailable here. Try Script."
-                      : `${DEFAULT_CONFIG.rounds} rounds · No timer · Free`}
+                  {imagery === false && !script
+                    ? "Street is unavailable here. Try Script."
+                    : `${DEFAULT_CONFIG.rounds} rounds · No timer · Free`}
                 </p>
               </div>
             </div>
@@ -230,7 +205,7 @@ export default function GameMenu() {
                 <ArrowRight size={14} />
               </Link>
               <Link href="/geo/rooms" data-menu-friends>
-                <Users size={15} /> Have a room code? <ArrowRight size={14} />
+                <Users size={15} /> Play with a friend <ArrowRight size={14} />
               </Link>
             </div>
           </section>

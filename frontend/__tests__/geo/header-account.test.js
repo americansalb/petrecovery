@@ -82,6 +82,18 @@ test('signing in without a navigation updates the bar', async () => {
   expect(screen.getByRole('link', { name: /kevin/i })).toBeInTheDocument();
 });
 
+test('the bar does not offer to take you to the page you are reading', async () => {
+  // A control whose whole job is to navigate to the current screen is
+  // one more thing on the bar that does nothing.
+  const nav = require('next/navigation');
+  const was = nav.usePathname;
+  nav.usePathname = () => '/geo/signin';
+  answer({ ok: true, signedIn: false, email: null, account: null });
+  await act(async () => { render(<GeoHeader />); });
+  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+  nav.usePathname = was;
+});
+
 test('the lobby no longer talks players out of an account', () => {
   const fs = require('fs');
   const path = require('path');
