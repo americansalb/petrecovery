@@ -224,7 +224,9 @@ export async function GET(request, { params }) {
     // "Not provided" when the finder left the field blank, and the page
     // turned that into a Call button.
     const contactFirstName = String(missionData.ownerName || '').trim().split(/\s+/)[0] || 'The owner';
-    const contactPhone = casePhone({ contact: { phone: missionData.ownerPhone } })?.display || null;
+    // The number as stored (so a +1 survives into the page's tel: link); the
+    // page formats it for reading.
+    const contactPhone = casePhone({ contact: { phone: missionData.ownerPhone } }) ? String(missionData.ownerPhone).trim() : null;
     response.contact = {
       available: Boolean(contactPhone),
       name: contactFirstName,

@@ -125,13 +125,17 @@ export function caseDescription(c) {
 /**
  * The contact number as something a phone can dial, or null. Found
  * reports stored the words "Not provided" when the finder left it blank,
- * which made a Call button that dialled nothing.
+ * which made a Call button that dialled nothing. US numbers read the way
+ * people write them, (407) 492-2284, whether stored as +14074922284 or
+ * 407-492-2284; anything else shows as stored.
  */
 export function casePhone(c) {
-  const display = String(c.contact?.phone || '').trim();
-  const digits = display.replace(/\D/g, '');
+  const raw = String(c.contact?.phone || '').trim();
+  const digits = raw.replace(/\D/g, '');
   if (digits.length < 7 || digits.length > 15) return null;
-  return { display, tel: `${display.startsWith('+') ? '+' : ''}${digits}` };
+  const us = digits.length === 10 ? digits : digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : null;
+  const display = us ? `(${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}` : raw;
+  return { display, tel: `${raw.startsWith('+') ? '+' : ''}${digits}` };
 }
 
 /** "Aug 18", or "Aug 18, 2025" when it was another year. */

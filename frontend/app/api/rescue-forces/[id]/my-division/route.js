@@ -196,7 +196,7 @@ export async function GET(request, { params }) {
         name: true,
         description: true,
         totalMembers: true,
-        activeMissions: true,
+        activeCases: true, // the column; activeMissions does not exist and made this throw
       },
       orderBy: {
         name: 'asc',

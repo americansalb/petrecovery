@@ -44,7 +44,9 @@ export async function GET(request, { params }) {
             lastSeenLongitude: true,
           }
         },
-        volunteers: {
+        // The relation is activeVolunteers; `volunteers` does not exist and
+        // made Prisma throw, so this route answered 500 for every force.
+        activeVolunteers: {
           where: { status: 'ACTIVE' },
           select: { id: true }
         },
@@ -68,7 +70,7 @@ export async function GET(request, { params }) {
     // Format response
     const formattedMissions = missions.map(mission => ({
       id: mission.id,
-      missionId: mission.missionId,
+      missionId: mission.caseId,
       missionNumber: mission.case?.caseNumber,
       mode: mission.mode,
       startedAt: mission.activatedAt,
@@ -82,7 +84,7 @@ export async function GET(request, { params }) {
         lat: mission.case?.lastSeenLatitude,
         lng: mission.case?.lastSeenLongitude,
       },
-      activeVolunteers: mission.volunteers?.length || 0,
+      activeVolunteers: mission.activeVolunteers?.length || 0,
       totalZones: mission.zones?.length || 0,
       zonesSearched: mission.zones?.filter(z => z.status === 'SEARCHED').length || 0,
       sightings: mission.sightings?.length || 0,

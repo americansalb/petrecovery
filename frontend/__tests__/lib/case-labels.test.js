@@ -106,7 +106,14 @@ describe('caseDescription', () => {
 describe('casePhone', () => {
   test('a real number becomes a dialable tel value', () => {
     expect(casePhone({ contact: { phone: '(512) 555-0100' } })).toEqual({ display: '(512) 555-0100', tel: '5125550100' });
-    expect(casePhone({ contact: { phone: '+1 512 555 0100' } })).toEqual({ display: '+1 512 555 0100', tel: '+15125550100' });
+    expect(casePhone({ contact: { phone: '+1 512 555 0100' } })).toEqual({ display: '(512) 555-0100', tel: '+15125550100' });
+  });
+
+  test('US numbers read the way people write them; others show as stored', () => {
+    expect(casePhone({ contact: { phone: '+14074922284' } }).display).toBe('(407) 492-2284');
+    expect(casePhone({ contact: { phone: '512-555-0100' } }).display).toBe('(512) 555-0100');
+    expect(casePhone({ contact: { phone: '+44 20 7946 0958' } })).toEqual({ display: '+44 20 7946 0958', tel: '+442079460958' });
+    expect(casePhone({ contact: { phone: '555-0147' } }).display).toBe('555-0147');
   });
 
   test('placeholders and junk give no Call button', () => {

@@ -66,7 +66,7 @@ export async function getPublicForce(id) {
           role: true,
           divisionId: true,
           availabilityStatus: true,
-          user: { select: { id: true, firstName: true, lastName: true, profileImage: true } },
+          user: { select: { id: true, firstName: true, profileImage: true } },
         },
       },
       activities: {
@@ -80,7 +80,7 @@ export async function getPublicForce(id) {
           id: true,
           participants: {
             select: {
-              user: { select: { id: true, firstName: true, lastName: true, profileImage: true } },
+              user: { select: { id: true, firstName: true, profileImage: true } },
             },
           },
           case: {
@@ -106,10 +106,12 @@ export async function getPublicForce(id) {
   if (!force) return null;
 
   // The User model stores firstName/lastName/profileImage; the page wants
-  // a plain display shape.
+  // a plain display shape. This page is public, so it shows first names
+  // only, the same rule /api/rescue-forces/[id]/members applies to anyone
+  // who is not in the force. It used to print every volunteer's full name.
   const displayUser = (u) => ({
     id: u.id,
-    name: [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || null,
+    name: (u.firstName || '').trim() || null,
     image: u.profileImage || null,
   });
   force.members = force.members.map((m) => ({ ...m, user: displayUser(m.user) }));
