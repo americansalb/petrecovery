@@ -22,7 +22,7 @@ import {
   CheckCircle2, Pill, MessagesSquare, PawPrint, Megaphone, Clock, Building2,
 } from 'lucide-react';
 import { cn } from '@/components/ui';
-import { looksLikeCoordinates, PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
+import { casePlace } from '@/app/lib/caseLabels';
 import { SARAMA_AVATAR_PNG, SARAMA_NAME, SARAMA_TAGLINE } from '@/lib/brandAssets';
 
 const BrowseMap = dynamic(() => import('@/app/lost-and-found/BrowseMap'), { ssr: false });
@@ -483,8 +483,7 @@ function ActiveMissions({ missions, loading }) {
                   </div>
                   <p className="text-midnight-300 text-sm truncate">
                     <MapPin className="inline w-3.5 h-3.5 -mt-0.5 mr-1" />
-                    {[m.city, m.state].filter(Boolean).join(', ')
-                      || (m.lastSeenAddress && !looksLikeCoordinates(m.lastSeenAddress) ? m.lastSeenAddress : PIN_ONLY_LABEL)}
+                    {casePlace(m)}
                   </p>
                   <p className="text-midnight-400 text-xs mt-1.5">
                     <Clock className="inline w-3 h-3 -mt-0.5 mr-1" />

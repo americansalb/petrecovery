@@ -59,6 +59,9 @@ test('the shared basemap needs no key and credits OpenStreetMap', () => {
 test('dark maps invert the shared tiles, and the stylesheet defines how', () => {
   const tiles = require('@/app/lib/maps/tiles');
   expect(tiles.tileLayerOptions({ dark: true }).className).toBe('map-tiles-dark');
+  expect(tiles.tileLayerOptions({ calm: true }).className).toBe('map-tiles-calm');
   expect(tiles.tileLayerOptions().className).toBeUndefined();
-  expect(fs.readFileSync(path.join(ROOT, 'app/globals.css'), 'utf8')).toMatch(/\.map-tiles-dark\s*\{[^}]*filter:\s*invert/);
+  const css = fs.readFileSync(path.join(ROOT, 'app/globals.css'), 'utf8');
+  expect(css).toMatch(/\.map-tiles-dark\s*\{[^}]*filter:\s*invert/);
+  expect(css).toMatch(/\.map-tiles-calm\s*\{[^}]*filter:/);
 });

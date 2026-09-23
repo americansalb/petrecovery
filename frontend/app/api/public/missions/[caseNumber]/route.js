@@ -10,7 +10,7 @@
  * to match where /api/reports/create writes data.
  */
 
-import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { parsePlace } from '@/app/lib/placeLabel';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
@@ -140,18 +140,10 @@ export async function GET(request, { params }) {
       }, { status: 404 });
     }
 
-    // Parse city/state from lastSeenAddress if available
-    // Format is typically "123 Main St, City, ST 12345"
-    let city = 'Unknown';
-    let state = 'XX';
-    if (missionData.lastSeenAddress && !looksLikeCoordinates(missionData.lastSeenAddress)) {
-      const parts = missionData.lastSeenAddress.split(',');
-      if (parts.length >= 2) {
-        city = parts[parts.length - 2]?.trim() || 'Unknown';
-        const stateZip = parts[parts.length - 1]?.trim() || '';
-        state = stateZip.substring(0, 2).toUpperCase() || 'XX';
-      }
-    }
+    // Town and state from the last-seen address (app/lib/placeLabel.js)
+    const parsedPlace = parsePlace(missionData.lastSeenAddress);
+    const city = parsedPlace?.city || 'Unknown';
+    const state = parsedPlace?.state || 'XX';
 
     // Build response
     const response = {
@@ -170,6 +162,7 @@ export async function GET(request, { params }) {
       // Location
       city,
       state,
+      place: parsedPlace?.label || null,
       lastSeenAddress: missionData.lastSeenAddress,
       lastSeenLatitude: missionData.lastSeenLatitude,
       lastSeenLongitude: missionData.lastSeenLongitude,
