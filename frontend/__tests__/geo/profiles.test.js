@@ -151,6 +151,17 @@ describe('profiles', () => {
     expect(summary.ratings.duel.value).toBe(RATING_DEFAULT);
     expect(summary.recent).toEqual([]);
   });
+
+  test('Mars and Moon badges from the retired rounds stay stored but are not listed', async () => {
+    const store = createMemoryRoomStore();
+    const { profile } = await profileFor(store, 'Ada');
+    await store.upsertBadge(profile.id, 'XM', 0, T0);
+    await store.upsertBadge(profile.id, 'XL', 0, T0);
+    await store.upsertBadge(profile.id, 'FR', 12, T0);
+    const summary = await profileSummary(store, profile, { now: T0 });
+    expect(summary.badges).toEqual([expect.objectContaining({ countryCode: 'FR', name: 'France', bestKm: 12 })]);
+    expect((await store.listBadges(profile.id)).map((b) => b.countryCode).sort()).toEqual(['FR', 'XL', 'XM']);
+  });
 });
 
 describe('rating a finished room', () => {

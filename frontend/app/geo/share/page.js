@@ -10,7 +10,6 @@ import { decodeShare, summaryHeadline, averageMissKm, scoreGlyph } from '@/app/l
 import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
 import { countryByCode } from '@/app/lib/geo/server/countries';
-import { bodyByCode } from '@/app/lib/geo/notEarth';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
 import ShareRounds from '@/app/geo/components/ShareRounds';
 
@@ -83,9 +82,7 @@ export default async function GeoSharePage({ searchParams }) {
       {/* A daily's or a cup's places are the puzzle: hidden until the reader has played it (ShareRounds). */}
       <ShareRounds
         rounds={summary.rounds.map((round) => {
-          // XM and XL are Mars and the Moon, from a Not Earth round
-          // (app/lib/geo/notEarth.js).
-          const country = round.countryCode ? countryByCode(round.countryCode) || bodyByCode(round.countryCode) : null;
+          const country = round.countryCode ? countryByCode(round.countryCode) : null;
           return { flag: country?.flag || '', name: country?.name || '', distanceKm: round.distanceKm, score: round.score, correct: round.correct };
         })}
         isStreak={isStreak}

@@ -117,14 +117,8 @@ export async function awardSoloRound(store, { profileId, result, token = '', now
 
   let badge = null;
   const code = result.answer?.country?.code;
-  // A Not Earth round called right earns the badge for that world, and
-  // there is no distance to be near: the badge row keeps 0 km. The code
-  // is XM or XL, from the user-assigned ISO range, so it shares the
-  // GeoBadge table with the countries without a migration
-  // (app/lib/geo/notEarth.js).
-  const earnsBadge = result.kind === 'not-earth' ? Boolean(result.correct) : result.kind === 'pin' && badgeEarned(result.distanceKm);
-  if (code && earnsBadge) {
-    const { created } = await store.upsertBadge(profileId, code, result.kind === 'not-earth' ? 0 : result.distanceKm, now);
+  if (code && result.kind === 'pin' && badgeEarned(result.distanceKm)) {
+    const { created } = await store.upsertBadge(profileId, code, result.distanceKm, now);
     if (created) {
       const country = countryByCode(code);
       badge = { countryCode: code, name: country?.name || result.answer.country.name || code, flag: country?.flag || result.answer.country.flag || '' };

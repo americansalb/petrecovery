@@ -105,7 +105,7 @@ API, all under `frontend/app/api/geo/`:
 | Endpoint | Method | Does |
 |---|---|---|
 | `config` | GET | Whether the game is set up, today's daily seed, the day's limits, the country list. Never a secret. |
-| `round` | POST `{ config, roundIndex, attempt }` | A round and its sealed answer token: a short list of coordinates to try, or, rarely, a Not Earth panorama. |
+| `round` | POST `{ config, roundIndex, attempt }` | A round and its sealed answer token: a short list of coordinates to try. |
 | `guess` | POST `{ token, guess }` | Scores the guess against the token and reveals the answer. `guess` is `{lat,lng}`, `{countryCode}` for streaks, or `null` when the timer ran out. |
 | `og` | GET `?s=<code>` | The 1200x630 link-preview PNG for a share code (satori + resvg, same pipeline as the lost-pet social cards). |
 | `rooms` | GET / POST `{ name, hostName, settings }` | Public rooms active in the last 20 minutes / open a room (returns the host's player token). |
@@ -132,23 +132,20 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    country equally makes Monaco as likely as Brazil, and the meta
    becomes learning a list. The square root sits between the two and is
    the setting the founder signed off on.
-2. **Or no point at all.** About one casual round in two hundred is a
-   Not Earth round, drawn before the sampler runs because there is no
-   point on Earth to draw (below).
-3. **The imagery probe.** MapKit JS has no availability call, so the
+2. **The imagery probe.** MapKit JS has no availability call, so the
    round goes out as twelve candidate coordinates and the browser
    creates a Look Around view for each in turn, listening for `load` or
    `error` (`app/geo/lib/lookAround.js`). The first that opens is the
    round, and it reports which one back.
-4. **The sealed token.** The answer (coordinates, country, scoring scale,
-   and the Not Earth place when there is one) is AES-256-GCM encrypted
-   under a key derived from `NEXTAUTH_SECRET`
-   (`app/lib/geo/server/tokens.js`) and handed to the browser opaque.
+3. **The sealed token.** The answer (coordinates, country and scoring
+   scale) is AES-256-GCM encrypted under a key derived from
+   `NEXTAUTH_SECRET` (`app/lib/geo/server/tokens.js`) and handed to the
+   browser opaque.
    The guess endpoint opens it. No table, no cleanup, works across
    instances. An Apple round issues twelve of them, one per candidate,
    all carrying the same round id so the points ledger pays for one
    round rather than twelve.
-5. **The country.** Named from Natural Earth 1:110m polygons
+4. **The country.** Named from Natural Earth 1:110m polygons
    (`world-atlas`) with metadata from `world-countries`, joined on the ISO
    numeric code (`app/lib/geo/server/countries.js`). No geocoder call.
    Regenerate the metadata with `node scripts/build-geo-countries.js`.
@@ -194,60 +191,9 @@ from the countries Google never entered, on user photo spheres. Apple
 has neither road links nor photo spheres, so both went when Google did
 (2026-09-16). A link to either opens World.
 
-## Not Earth: the round that is not on this planet
+## Not Earth
 
-About one casual round in two hundred is a photograph taken on Mars or
-on the Moon, and every round carries a button that says **Not Earth**.
-Calling it right is 5,000 points and the badge for that world. Calling
-it on an ordinary round costs you the round: no pin, no distance, no
-score, and in a streak it is the miss that ends the run. That cost is
-the whole design. A free button gets pressed every round and means
-nothing; a button that can lose you 5,000 points makes a round in the
-Atacama or in Iceland a decision instead of a shrug.
-
-Founder direction, 2026-09-16: **real NASA panoramas, not invented
-places.** Nothing here is generated and nothing is a painting of
-somewhere that does not exist. There are ten of them in
-`app/lib/geo/notEarth.js`, six from Mars and four from the Moon: the
-Mastcam-Z and Curiosity panoramas of Jezero and Gale, Opportunity in
-Marathon Valley, Spirit on Low Ridge, and Apollo 11, 15 and 16 on the
-surface. Every one is public domain, was checked against the NASA image
-library on 2026-09-16, and is served from our own `/public` so a round
-never waits on a third party. The reveal prints the mission, the date,
-NASA's own credit line and a link to the original.
-
-**Where it can happen.** `NOT_EARTH_MODES` lists World and Streak. Ranked, the daily and the weekly cup are excluded by
-being left off that list, on purpose: those are one set of places shared
-by everyone playing them, and a surprise that lands for one player and
-not the next is not a shared set. The list names the modes that CAN
-serve one rather than the ones that cannot, so a mode added later has to
-be added there deliberately.
-
-**How it is drawn.** From the round's seed where there is one, so a
-challenge link surprises everyone who opens it in the same place, and
-fresh where there is not.
-
-**What the browser is told.** The picture, its width and its height. Not
-the id, not the title, not the world. On the wire the round's provider
-is `photo`, which is what the browser has to do with it, and the file is
-`/geo/scenery/04.jpg` rather than anything reading `mars-gale-crater`.
-The browser has to fetch the picture to show it, so the filename is in
-the network tab of every player who opens one; a round that announced
-itself there would be over before the picture finished decoding. The
-answer lives in the sealed token and comes back with the reveal.
-
-**The badge.** Mars is `XM` and the Moon is `XL`, which are in the ISO
-3166-1 user-assigned range (XA to XZ). No country will ever be given
-those, so a Not Earth badge is an ordinary `GeoBadge` row and the
-feature needed no migration on the database ReunitePets shares.
-
-**The picture.** `NotEarthPane` scales the panorama to fill the height
-and drags it sideways, with the far edge wrapping round to the near one.
-Every one of these was shot as a full circle from a fixed spot, so
-sideways is the only direction there is to look, which is the same thing
-Look Around gives you on a No Move round. It answers the same handle as
-the Look Around pane, so the HUD's return-to-start and zoom work without
-knowing which kind of round is on.
+Not Earth, a rare round on a NASA panorama from Mars or the Moon, was retired on 2026-09-23.
 
 ## Script: pin the language, not the country
 
@@ -1237,17 +1183,16 @@ with a fake, so the imagery is not a dependency:
 npm i --no-save playwright-core                  # not a project dependency
 DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
 node scripts/geo-e2e/run.js                      # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
-GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario
+GEO_E2E_ONLY=pinGame node scripts/geo-e2e/run.js    # one scenario
 ```
 
-Sixteen scenarios: the cold open, the admin backend, a pin game with
+Fifteen scenarios: the cold open, the admin backend, a pin game with
 keyboard shortcuts, a country streak, a timed NMPZ round that runs out,
 the mobile map sheet, a two-browser room played to standings and a
-rematch, a solo game on Look Around, a room on it, a refused token, a
-Not Earth round called right and called wrong, the first-run screen, the
-daily board, the ranked board, the profile and its shop, and a script
-game with and without a map key. The ones that write to the database
-need `DATABASE_URL`.
+rematch, a solo game on Look Around, a room on it, a refused token, the
+first-run screen, the daily board, the ranked board, the profile and its
+shop, and a script game with and without a map key. The ones that
+write to the database need `DATABASE_URL`.
 
 ## Terms that shape the design
 
@@ -1258,8 +1203,6 @@ need `DATABASE_URL`.
   them, so every mode is a draw from the city list. The line that once
   said the guess map and the panorama had to come from the same company
   went with the other company.
-- The NASA panoramas a Not Earth round serves are public domain, and the
-  reveal credits them anyway, by name and with a link to the original.
 
 ## Files
 

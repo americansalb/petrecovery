@@ -30,7 +30,7 @@ const { POST: postProfile } = require('@/app/api/geo/profile/route');
 const { GET: getDaily } = require('@/app/api/geo/daily/route');
 const { GET: getShop, POST: postShop } = require('@/app/api/geo/shop/route');
 const { GET: getCup } = require('@/app/api/geo/cup/route');
-const { openToken } = require('@/app/lib/geo/server/tokens');
+const { openToken, sealToken } = require('@/app/lib/geo/server/tokens');
 
 /**
  * The token a round can be scored with. A Google round has one; an
@@ -139,8 +139,6 @@ describe('POST /api/geo/round', () => {
   });
 
   test('Apple rounds are candidate lists', async () => {
-    // Casual play deliberately includes a 1-in-200 NASA photo round. Pin an
-    // Earth seed for this contract; the surprise path has its own test suite.
     const body = await (await postRound(request({ config: { provider: 'apple', mode: 'cities', seed: 'twice' } }))).json();
     expect(body.round.provider).toBe('apple');
     expect(body.round.candidates.length).toBeGreaterThan(5);
@@ -193,6 +191,13 @@ describe('POST /api/geo/guess', () => {
     const res = await postGuess(request({ token: 'g1.garbage', guess: null }));
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe('invalid');
+  });
+
+  test('a token from a retired Mars or Moon round gets the expired-round answer', async () => {
+    const token = sealToken({ v: 1, ne: 'moon-hadley-rille', p: 'photo', lat: 0, lng: 0, cc: 'XL', cn: 'The Moon', size: 0, mode: 'balanced', seed: '', i: 0 }, { secret: TOKEN_SECRET });
+    const res = await postGuess(request({ token, guess: { lat: 0, lng: 0 } }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'This round has expired. Start a new game.', code: 'expired' });
   });
 
   test("a daily round lands on today's board for the profile, first guess only, and the board answers with your rank", async () => {

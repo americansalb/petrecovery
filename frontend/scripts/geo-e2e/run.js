@@ -6,13 +6,12 @@
  *
  * Exercises: a three-round pin game with keyboard shortcuts, the summary
  * and its share page, seeded replay, a country streak, a timed NMPZ
- * round that runs out, the mobile map sheet, a Not Earth round called
- * right and called wrong, a two-browser room (lobby, rounds, reveal,
- * reactions, standings with ratings, rematch, leaderboard), the daily
- * and the ranked boards, the profile and its shop, a five-round script
- * game where the answer is a linguistic region rather than a point, and
- * that same round with the MapKit token refused, which is what a clone
- * sees.
+ * round that runs out, the mobile map sheet, a two-browser room (lobby,
+ * rounds, reveal, reactions, standings with ratings, rematch,
+ * leaderboard), the daily and the ranked boards, the profile and its
+ * shop, a five-round script game where the answer is a linguistic region
+ * rather than a point, and that same round with the MapKit token
+ * refused, which is what a clone sees.
  *
  * The rooms, daily, ranked, profile and admin scenarios write to the
  * database, so they need a DATABASE_URL (see docs/GEO.md).
@@ -21,7 +20,7 @@
  *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
- *   GEO_E2E_ONLY=notEarth node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, regionPill, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback)
+ *   GEO_E2E_ONLY=pinGame node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, regionPill, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback)
  *
  * Screenshots land in GEO_E2E_OUT (default: the OS temp dir).
  */
@@ -412,80 +411,6 @@ async function appleSolo(browser) {
   await shot(page, 'apple-solo-summary');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
-}
-
-/**
- * The Not Earth round (docs/GEO.md, "Not Earth").
- *
- * Seeds `ne757` and `ne719` draw one on round 0; `earth1` does not.
- * What this run proves, in a real browser rather than a reducer:
- * the panorama is on screen instead of Look Around, the picture the
- * browser fetches gives nothing away, calling it right pays 5,000 and
- * names the place, and calling it on an ordinary round costs the round.
- */
-async function notEarth(browser) {
-  const page = await newPage(browser, { width: 1280, height: 800 });
-  const images = [];
-  page.on('request', (r) => {
-    if (r.resourceType() === 'image' && r.url().startsWith(BASE)) images.push(r.url());
-  });
-
-  // 1. A Not Earth round, called right.
-  await page.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=ne757&time=0`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-not-earth-pane]', { timeout: 60000 });
-  if (await page.$('[data-fake-lookaround]')) throw new Error('a Not Earth round opened Look Around');
-  await page.waitForSelector('button:has-text("Not Earth")', { timeout: 20000 });
-  await page.waitForTimeout(600);
-  await shot(page, 'not-earth-round');
-
-  const leak = images.filter((u) => /mars|moon|jezero|apollo|not-earth/i.test(u));
-  if (leak.length) throw new Error('the picture names the answer in the network tab: ' + leak.join(', '));
-  const pano = images.find((u) => /\/geo\/scenery\/\d\d\.jpg$/.test(u));
-  if (!pano) throw new Error('no panorama was fetched: ' + images.join(', '));
-  log('not earth: picture fetched as', pano.slice(BASE.length));
-
-  await page.click('button:has-text("Not Earth")');
-  await page.waitForSelector('text=Sure? A wrong call scores nothing.', { timeout: 5000 });
-  await page.click('button:has-text("Call it")');
-  await page.waitForSelector('text=/Called it\\. That was (Mars|the Moon)\\./', { timeout: 20000 });
-  const reveal = await page.textContent('text=/NASA/');
-  log('not earth reveal credit:', (reveal || '').trim());
-  if (!/NASA/.test(reveal || '')) throw new Error('the reveal did not credit NASA');
-  await shot(page, 'not-earth-called');
-
-  // 2. The next round is an ordinary one, and the button is still there.
-  await page.click('button:has-text("Round 2 of 3")');
-  await waitPlayable(page);
-  await waitForLookAround(page);
-  if (await page.$('[data-not-earth-pane]')) throw new Error('round 2 was another Not Earth round');
-  await page.click('button:has-text("Not Earth")');
-  await page.click('button:has-text("Call it")');
-  await page.waitForSelector('text=That was Earth. No points this round.', { timeout: 20000 });
-  // The whole paragraph, not the "of 5,000" span inside it.
-  const score = await page.textContent('p:has-text("of 5,000")');
-  if (!/^0\s+of 5,000/.test((score || '').trim())) throw new Error('a wrong call scored something: ' + score);
-  log('not earth: a wrong call scored', (score || '').trim());
-  await shot(page, 'not-earth-wrong-call');
-
-  // 3. A Not Earth round pinned on the map instead: zero, and still revealed.
-  const second = await newPage(browser, { width: 1280, height: 800 });
-  await second.goto(`${BASE}/geo/play?provider=apple&mode=balanced&rounds=3&seed=ne719&time=0`, { waitUntil: 'domcontentloaded' });
-  await second.waitForSelector('[data-not-earth-pane]', { timeout: 60000 });
-  await pinApple(second);
-  await second.click('[data-geo-guess]');
-  await second.waitForSelector('text=/That was (Mars|the Moon)\\./', { timeout: 20000 });
-  // The reveal for a Not Earth round prints the place rather than a
-  // distance, so the score to check is the game's running total.
-  await second.waitForSelector('text=The Not Earth button was the answer. No points this round.', { timeout: 10000 });
-  const total = await second.textContent('[data-geo-score]');
-  if ((total || '').trim() !== '0') throw new Error('a pin on a Not Earth round scored something: ' + total);
-  log('not earth: a pin on it left the score at', (total || '').trim());
-  await shot(second, 'not-earth-pinned');
-
-  if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
-  if (second.errors.length) throw new Error('page errors: ' + second.errors.join(' | '));
-  await page.close();
-  await second.close();
 }
 
 /**
@@ -931,9 +856,7 @@ async function profile(browser) {
   }
   // Badge progress counts countries against countries. This browser
   // has no badges, so all it can check is the shape when there are
-  // none; the counting itself, including a player holding Mars, is
-  // __tests__/geo/badges.test.js, which can build that profile without
-  // waiting for a 0.5% round to come up.
+  // none.
   const badges = await page.evaluate(() => document.querySelector('[data-badges]')?.innerText.replace(/\s+/g, ' ') || '');
   if (!badges) throw new Error('the record tab should carry the badges card');
   const progress = badges.match(/(\d+) of (\d+) countries/i);
@@ -1539,7 +1462,7 @@ async function keyboard(browser) {
   const launch = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {};
   const browser = await chromium.launch(launch);
   try {
-    const all = { coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, regionPill, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, notEarth, firstRun, daily, ranked, profile, script, scriptFallback };
+    const all = { coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, regionPill, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback };
     const only = (process.env.GEO_E2E_ONLY || '').split(',').map((x) => x.trim()).filter(Boolean);
     const steps = only.length ? only.map((name) => all[name]).filter(Boolean) : Object.values(all);
     for (const step of steps) {

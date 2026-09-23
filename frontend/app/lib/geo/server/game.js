@@ -3,9 +3,7 @@
  *
  * createRound: draw candidates for the mode, hand the browser a short
  * list of places to try Look Around at, and seal the answer for each one
- * in its own token. The response never carries the answer. About one
- * casual round in two hundred is a Not Earth round instead, which is a
- * NASA panorama and one token (app/lib/geo/notEarth.js).
+ * in its own token. The response never carries the answer.
  *
  * evaluateGuess: open the token, score the guess, return the answer.
  *
@@ -14,12 +12,11 @@
 
 import { haversineKm, MAX_ROUND_SCORE, scoreForDistance } from '../distance';
 import { normalizeConfig } from '../modes';
-import { bodyOf, notEarthFor, notEarthPlace, playablePlace, revealPlace } from '../notEarth';
 import { getGeoServerConfig } from './config';
 import { publicCountry } from './countries';
 import { createCandidateSource } from './sampler';
 import { randomBytes } from 'node:crypto';
-import { openToken, sealToken } from './tokens';
+import { GeoTokenError, openToken, sealToken } from './tokens';
 
 export const APPLE_CANDIDATES_PER_ROUND = 12;
 
@@ -34,13 +31,9 @@ export class GeoGameError extends Error {
 
 const round6 = (n) => Math.round(Number(n) * 1e6) / 1e6;
 
-function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date, subject, roundId, notEarth }) {
+function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm, panoId, city, date, subject, roundId }) {
   return {
     v: 1,
-    // The NASA panorama this round is, when it is one. Its presence is
-    // what makes the round a Not Earth round: everything below it
-    // describes a place on the planet and means nothing here.
-    ne: notEarth || '',
     // This round's identity, the same in every token it issues. An
     // Apple round issues twelve, one per candidate place, and without
     // this the points ledger keyed them by token and paid all twelve
@@ -67,16 +60,8 @@ function answerPayload({ provider, config, roundIndex, lat, lng, country, sizeKm
 }
 
 /**
- * Create round `roundIndex` for a config.
- * Ordinary:  { provider: 'apple', roundIndex, candidates: [{ lat, lng, token }] }
- * Not Earth: { provider: 'photo', roundIndex, place, token }
- *
- * A Not Earth round goes out as 'photo', which is what the browser has
- * to do with it: draw a still picture instead of opening Look Around.
- * It is not called 'not-earth' on the wire for the same reason the
- * files are numbered (app/lib/geo/notEarth.js): the round is a surprise,
- * and a response that announces it hands the answer to anyone with the
- * network tab open.
+ * Create round `roundIndex` for a config:
+ * { provider: 'apple', roundIndex, candidates: [{ lat, lng, token }] }
  */
 export async function createRound({ config: rawConfig, roundIndex = 0, attempt = 0, subject = '', fetchImpl, now = Date.now(), env, cache } = {}) {
   const config = normalizeConfig(rawConfig);
@@ -85,38 +70,7 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
     throw new GeoGameError('no_secret', 'Set NEXTAUTH_SECRET or GEO_TOKEN_SECRET before starting a game');
   }
   const roundId = randomBytes(9).toString('base64url');
-  // Built before the rare panorama branch, so a config the sampler cannot
-  // play fails the same way whichever branch wins. No candidate is drawn
-  // until the ordinary-round branch.
   const source = createCandidateSource(config, roundIndex);
-
-  // One casual round in two hundred is not on this planet. Drawn before
-  // sampling a coordinate, because there is no point on Earth to draw: the
-  // round is a NASA panorama and a single token.
-  const place = notEarthFor({ config, roundIndex });
-  if (place) {
-    const body = bodyOf(place);
-    return {
-      provider: 'photo',
-      roundIndex,
-      place: playablePlace(place),
-      token: sealToken(
-        answerPayload({
-          provider: 'photo',
-          config,
-          roundIndex,
-          lat: 0,
-          lng: 0,
-          country: { cca2: body.code, name: body.name, flag: body.flag },
-          sizeKm: 0,
-          subject,
-          roundId,
-          notEarth: place.id,
-        }),
-        { secret: tokenSecret, now }
-      ),
-    };
-  }
 
   // A retry of a seeded round must not replay the same failed points:
   // skip ahead in the deterministic sequence instead.
@@ -144,18 +98,15 @@ export async function createRound({ config: rawConfig, roundIndex = 0, attempt =
  * Score a guess against a sealed token.
  * Pin modes: { kind: 'pin', distanceKm, score, maxScore, answer, guess }
  * Streak:    { kind: 'streak', correct, answer, guessCountry }
- * Not Earth: { kind: 'not-earth', correct, score, place, answer }
  * A missing guess (timer ran out) scores 0 and still reveals the answer.
- *
- * `guess.notEarth` is the Not Earth button, and it is on every round.
- * On a Not Earth round it is the right answer and pays full marks. On
- * any other round it forfeits: no pin, no distance, no score, and in a
- * streak it is the miss that ends the run. That cost is the point. A
- * button that were free would be pressed on every round.
  */
 export function evaluateGuess({ token, guess, now = Date.now(), env } = {}) {
   const { tokenSecret } = getGeoServerConfig(env);
   const payload = openToken(token, { secret: tokenSecret, now });
+  // `ne` marks a Mars or Moon panorama round (retired 2026-09-23), sealed
+  // with 0,0 as its answer. A token that still carries one is refused as
+  // expired ("This round has expired" on the play page), not scored as a pin.
+  if (payload.ne) throw new GeoTokenError('expired', 'Mars and Moon rounds are retired');
   const answer = {
     lat: payload.lat,
     lng: payload.lng,
@@ -165,44 +116,6 @@ export function evaluateGuess({ token, guess, now = Date.now(), env } = {}) {
     country: payload.cc || payload.cn ? { code: payload.cc, name: payload.cn, flag: payload.cf } : null,
   };
   const base = { provider: payload.p, mode: payload.mode, seed: payload.seed || '', roundIndex: payload.i, sizeKm: payload.size, subject: payload.sub || '', roundId: payload.rid || '', answer };
-  const calledNotEarth = Boolean(guess?.notEarth);
-
-  if (payload.ne) {
-    const place = notEarthPlace(payload.ne);
-    return {
-      ...base,
-      kind: 'not-earth',
-      notEarth: true,
-      calledNotEarth,
-      correct: calledNotEarth,
-      score: calledNotEarth ? MAX_ROUND_SCORE : 0,
-      maxScore: MAX_ROUND_SCORE,
-      distanceKm: null,
-      guess: null,
-      timedOut: !calledNotEarth && !guess,
-      place: revealPlace(place),
-      // The lat/lng in the token is 0,0, which is a place in the Gulf of
-      // Guinea. The summary map draws whatever answer it is handed, so
-      // this round hands it none.
-      answer: { ...answer, lat: null, lng: null },
-    };
-  }
-
-  if (calledNotEarth) {
-    return {
-      ...base,
-      kind: payload.mode === 'streak' ? 'streak' : 'pin',
-      notEarth: false,
-      calledNotEarth,
-      correct: false,
-      score: 0,
-      maxScore: MAX_ROUND_SCORE,
-      distanceKm: null,
-      guess: null,
-      guessCountry: '',
-      timedOut: false,
-    };
-  }
 
   if (payload.mode === 'streak') {
     const code = String(guess?.countryCode || '').toUpperCase();
