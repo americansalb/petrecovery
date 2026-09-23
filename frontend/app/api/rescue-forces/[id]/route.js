@@ -4,6 +4,28 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 
+// logEvent accepts only its own ACTOR_ROLES (lib/logging.js) and throws on
+// anything else. This route passed 'anonymous' for signed-out visitors, so
+// every public view threw, and the catch block threw again the same way:
+// the force page's API answered an empty 500 for everyone.
+function actorRole(session) {
+  if (!session?.user) return null;
+  return session.user.role === 'ADMIN' ? 'ADMIN' : 'USER';
+}
+
+/**
+ * How much of a member's name this viewer sees, the same rules as
+ * /api/rescue-forces/[id]/members: the force's founders and leaders see
+ * full names (they manage the roster in settings), other members see a
+ * last initial, and the public sees first names. Email never leaves.
+ */
+function visibleName(user, viewer) {
+  const last = user.lastName || '';
+  if (viewer === 'leader') return last;
+  if (viewer === 'member') return last ? `${last.charAt(0)}.` : '';
+  return '';
+}
+
 // GET /api/rescue-forces/:id - Get single rescue force details
 export async function GET(request, { params }) {
   const session = await getServerSession(authOptions);
@@ -19,7 +41,6 @@ export async function GET(request, { params }) {
                 id: true,
                 firstName: true,
                 lastName: true,
-                email: true,
               },
             },
           },
@@ -35,7 +56,9 @@ export async function GET(request, { params }) {
             name: true,
             description: true,
             totalMembers: true,
-            activeMissions: true,
+            // The column is activeCases; asking for activeMissions (which
+            // does not exist) made Prisma throw on every request.
+            activeCases: true,
           },
         },
         _count: {
@@ -57,7 +80,7 @@ export async function GET(request, { params }) {
         error_code: 'NOT_FOUND',
         error_message: `Squad not found: ${params.id}`,
         actor_user_id: session?.user?.id || null,
-        actor_role: session?.user?.role || 'anonymous',
+        actor_role: actorRole(session),
         metadata: { squad_id: params.id }
       });
       return NextResponse.json(
@@ -73,7 +96,7 @@ export async function GET(request, { params }) {
       action: 'read',
       result: 'success',
       actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'anonymous',
+      actor_role: actorRole(session),
       metadata: {
         squad_id: squad.id,
         squad_name: squad.name,
@@ -83,7 +106,16 @@ export async function GET(request, { params }) {
       }
     });
 
-    return NextResponse.json({ squad });
+    const me = squad.members.find((m) => m.userId === session?.user?.id);
+    const viewer = !me ? 'public' : ['FOUNDER', 'LEADER'].includes(me.role) ? 'leader' : 'member';
+    const members = squad.members.map((m) => ({
+      ...m,
+      user: { id: m.user.id, firstName: m.user.firstName, lastName: visibleName(m.user, viewer) },
+    }));
+    // Pages written against the old field name keep working.
+    const divisions = squad.divisions.map((d) => ({ ...d, activeMissions: d.activeCases }));
+
+    return NextResponse.json({ squad: { ...squad, members, divisions } });
   } catch (error) {
     await logEvent({
       event_type: 'squad.detail_failed',
@@ -94,7 +126,7 @@ export async function GET(request, { params }) {
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || 'anonymous',
+      actor_role: actorRole(session),
       metadata: {
         squad_id: params.id,
         error_name: error.name,

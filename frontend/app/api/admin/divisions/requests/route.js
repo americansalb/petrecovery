@@ -54,7 +54,7 @@ export async function GET(request) {
             name: true,
             isActive: true,
             totalMembers: true,
-            activeMissions: true,
+            activeCases: true, // the column; activeMissions does not exist and made this throw
           },
         },
       },
