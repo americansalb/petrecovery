@@ -113,3 +113,74 @@ test('every button is thumb-sized', () => {
   }
   expect(block).toMatch(/min-height: 44px;/);
 });
+
+test('no utility on a ui-btn or ui-input sets what the component already sets', () => {
+  // `.geo-surface .ui-btn` carries two classes of weight and a utility
+  // carries one, so a utility for anything the component sets is dead on
+  // arrival: `pl-10` never moved the text off the country picker's search
+  // glass, and `sm:hidden` never hid a button. A class that does nothing
+  // reads as if it does something. Change the component (a modifier in
+  // theme.css) instead, or drop the class.
+  const theme = fs.readFileSync(path.join(GEO, 'theme.css'), 'utf8');
+  const setBy = (selector) => {
+    const props = new Set();
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const m of theme.matchAll(new RegExp(`\\.geo-surface ${escaped} \\{([^}]*)\\}`, 'g'))) {
+      for (const decl of m[1].split(';')) {
+        const prop = decl.split(':')[0].replace(/\/\*[\s\S]*?\*\//g, '').trim();
+        if (prop) props.add(prop);
+      }
+    }
+    return props;
+  };
+  // What each utility sets, for the properties the components use.
+  const UTILITY = [
+    [/^-?p[xylrtb]?-[0-9[]/, ['padding']],
+    [/^(hidden|block|inline|inline-block|flex|inline-flex|grid|inline-grid|contents)$/, ['display']],
+    [/^min-h-/, ['min-height']],
+    [/^text-(xs|sm|base|lg|[2-9]?xl|\[\d)/, ['font-size', 'font']],
+    [/^text-(?!(xs|sm|base|lg|[2-9]?xl|left|center|right|justify|start|end|\[\d))/, ['color']],
+    [/^rounded(-|$)/, ['border-radius']],
+    [/^w-/, ['width']],
+    [/^gap-/, ['gap']],
+    [/^font-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$/, ['font-weight', 'font']],
+    [/^whitespace-/, ['white-space']],
+    [/^leading-/, ['line-height', 'font']],
+    [/^items-/, ['align-items']],
+    [/^justify-/, ['justify-content']],
+    [/^bg-/, ['background', 'background-color']],
+    [/^border(-|$)/, ['border', 'border-color', 'border-width']],
+  ];
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.js')) files.push(full);
+    }
+  };
+  walk(GEO);
+  const dead = [];
+  for (const file of files) {
+    const src = fs.readFileSync(file, 'utf8');
+    for (const m of src.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\}|'([^']*)')/g)) {
+      const tokens = (m[1] ?? m[2] ?? m[3]).replace(/['"]/g, ' ').split(/\s+/).filter(Boolean);
+      for (const base of ['ui-btn', 'ui-input']) {
+        if (!tokens.includes(base)) continue;
+        const props = setBy(`.${base}`);
+        for (const modifier of tokens.filter((t) => t.startsWith(`${base}--`))) {
+          for (const prop of setBy(`.${modifier}`)) props.add(prop);
+        }
+        for (const token of tokens) {
+          const utility = token.split(':').pop().replace(/^!/, '');
+          for (const [pattern, sets] of UTILITY) {
+            if (pattern.test(utility) && sets.some((prop) => props.has(prop))) {
+              dead.push(`${path.relative(GEO, file)}: ${token} on ${base}`);
+            }
+          }
+        }
+      }
+    }
+  }
+  expect(dead).toEqual([]);
+});

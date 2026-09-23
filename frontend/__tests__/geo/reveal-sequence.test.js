@@ -32,8 +32,9 @@ function fakeMapKit() {
     set points(value) { this._points = value; this.history.push(value); }
   }
   class Map {
-    constructor() { this.annotations = []; this.overlays = []; log.push(['map']); }
-    addEventListener() {}
+    constructor() { this.annotations = []; this.overlays = []; this.listeners = {}; log.push(['map']); }
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+    removeEventListener(type, fn) { this.listeners[type] = (this.listeners[type] || []).filter((f) => f !== fn); }
     addAnnotation(a) { this.annotations.push(a); }
     addAnnotations(list) { this.annotations.push(...list); log.push(['addAnnotations', list.map((a) => a.title)]); }
     removeAnnotation(a) { this.annotations = this.annotations.filter((x) => x !== a); }
@@ -41,7 +42,12 @@ function fakeMapKit() {
     addOverlays(list) { this.overlays.push(...list); log.push(['addOverlays', list.length]); }
     removeOverlays(list) { this.overlays = this.overlays.filter((x) => !list.includes(x)); }
     showItems(items, options) { log.push(['showItems', items.length, options.animate]); }
-    setRegionAnimated(region, animate) { log.push(['setRegion', region, animate]); }
+    // Lands at once and says so, as MapKit does when an animation ends.
+    setRegionAnimated(region, animate) {
+      log.push(['setRegion', region, animate]);
+      this.region = region;
+      (this.listeners['region-change-end'] || []).forEach((fn) => fn());
+    }
     destroy() {}
   }
   return {

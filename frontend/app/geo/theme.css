@@ -258,6 +258,13 @@
 .geo-surface .ui-input:disabled {
   opacity: 0.6;
 }
+/* Room on the left for an icon drawn inside the field (the search glass
+   on the country picker). A utility cannot do this: `pl-10` loses to the
+   padding above, which has two classes of weight to its one, and the
+   glass sat on the first letter. */
+.geo-surface .ui-input--icon {
+  padding-left: 40px;
+}
 /* The six digits from the email, typed where they can be checked. */
 .geo-surface .ui-input--code {
   min-height: 60px;

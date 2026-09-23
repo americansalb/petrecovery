@@ -194,3 +194,23 @@ describe('RoomClient: only players load billed imagery', () => {
     expect(src).toMatch(/const showApple = !isScript && mapkit && joined &&/);
   });
 });
+
+describe('the compass over Look Around', () => {
+  test('the game draws no compass of its own', () => {
+    // It was drawn with a heading that nothing ever set, so it said north
+    // whichever way the player faced, beside Apple's, which works.
+    expect(read('app/geo/components/GameHud.js')).not.toContain('function Compass');
+    expect(read('app/geo/components/PlayClient.js')).not.toContain('setHeading');
+    expect(read('app/geo/components/RoomClient.js')).not.toContain('setHeading');
+  });
+
+  test("the game's controls stand clear of Apple's compass", () => {
+    // Look Around puts its compass in the top right corner and cannot be
+    // told not to; the way out of the game sat on top of it. The controls
+    // move instead, so nothing changes Apple's view mid-round to move the
+    // compass.
+    expect(read('app/geo/components/GameHud.js')).toContain('absolute right-14 top-3 z-30 flex items-center gap-2 sm:top-4');
+    expect(read('app/geo/match.css')).toMatch(/\.pe-match-clock \{[^}]*margin-right: 44px;/);
+    expect(read('app/geo/components/AppleLookAroundPane.js')).not.toContain('padding');
+  });
+});

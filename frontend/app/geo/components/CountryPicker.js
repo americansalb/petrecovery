@@ -77,7 +77,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Which country is this?"
-          className="ui-input pl-10"
+          className="ui-input ui-input--icon"
           autoComplete="off"
           spellCheck={false}
           disabled={disabled}

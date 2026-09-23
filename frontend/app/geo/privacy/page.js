@@ -20,7 +20,7 @@ export default function GamePrivacyPage() {
         </section>
         <section aria-labelledby="privacy-account">
           <h2 id="privacy-account" className="mb-2 text-xl font-semibold text-white">Signing in</h2>
-          <p>An account uses your email address or phone number. Email sign-in uses a link sent to that address through Resend; the game stores a hash of the link. When phone sign-in is enabled, Twilio Verify sends and checks a text-message code. The game stores the verified phone number, not the code. There is no password.</p>
+          <p>An account uses your email address or phone number. Email sign-in uses a link sent to that address through Resend, with a six-digit code in the same email; the game stores a hash of each, not the link or the code. When phone sign-in is enabled, Twilio Verify sends and checks a text-message code. The game stores the verified phone number, not the code. There is no password.</p>
           <p className="mt-3">The geo_session and geo_signed_in cookies keep you signed in for 90 days. You can sign out in Profile settings.</p>
         </section>
         <section aria-labelledby="privacy-matches">

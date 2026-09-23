@@ -88,7 +88,6 @@ export default function RoomClient({ code }) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [pin, setPin] = useState(null);
-  const [heading, setHeading] = useState(0);
   const [mapSize, setMapSize] = useState('small');
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
   const [defaultName, setDefaultName] = useState('');

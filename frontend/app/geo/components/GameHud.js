@@ -26,37 +26,6 @@ import { REVEAL, useTween } from '../lib/motion';
 import { CONTINENTS, MODES } from '@/app/lib/geo/modes';
 import SaveGameButton from './SaveGameButton';
 
-export function Compass({ heading = 0 }) {
-  return (
-    <div
-      className="relative h-14 w-14 rounded-full border border-white/15 bg-pe-canvas/75 shadow-lg backdrop-blur"
-      aria-label={`Facing ${Math.round(heading)} degrees`}
-      role="img"
-    >
-      <div
-        className="absolute inset-0 transition-transform duration-150"
-        style={{ transform: `rotate(${-heading}deg)` }}
-      >
-        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-pe-warm">
-          N
-        </span>
-        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white/60">
-          S
-        </span>
-        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">
-          E
-        </span>
-        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">
-          W
-        </span>
-        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-pe-warm" />
-        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 rounded bg-white/40" />
-      </div>
-      <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
-    </div>
-  );
-}
-
 export function TimerRing({ secondsLeft, total }) {
   const fraction =
     total > 0 ? Math.max(0, Math.min(1, secondsLeft / total)) : 0;
@@ -110,9 +79,9 @@ const pill =
 const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-pe-fg transition hover:bg-pe-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-pe-accent-fg disabled:opacity-40`;
 
 /** A small label above a value, which is the only shape the top row uses. */
-function Stat({ label, children }) {
+function Stat({ label, children, className = '' }) {
   return (
-    <div className="flex flex-col leading-tight">
+    <div className={`flex flex-col leading-tight ${className}`}>
       <span className="text-[11px] font-medium uppercase tracking-wide text-pe-fg/60">
         {label}
       </span>
@@ -128,7 +97,6 @@ export default function GameHud({
   score,
   streak,
   secondsLeft,
-  heading,
   canZoom,
   canReturn = true,
   canPan = true,
@@ -191,13 +159,23 @@ export default function GameHud({
 
       {/* Top right: the score, the clock, and the way out. The total
           climbs to its new value on the reveal's clock, landing as the
-          answer's pin does, instead of jumping a second early. */}
-      <div className="pointer-events-none absolute right-3 top-3 z-30 flex items-center gap-2 sm:right-4 sm:top-4">
+          answer's pin does, instead of jumping a second early.
+
+          Inset from the corner, because the corner is Apple's: Look
+          Around draws its compass there and cannot be told not to, and
+          the way out sat on top of it. Look Around's padding can move the
+          compass down, but only by changing Apple's view mid-round every
+          time the controls here change height (three times a round in a
+          room), so the game's controls stand clear of it instead. */}
+      <div className="pointer-events-none absolute right-14 top-3 z-30 flex items-center gap-2 sm:top-4">
         {!isStreak ? (
           <div
             className={`pointer-events-auto flex items-center gap-4 px-5 py-2 ${pill}`}
           >
-            <Stat label="Score">
+            {/* On a phone with a clock, the clock alone: the row has
+                room for one of them beside the mode and the way out, and
+                the running total is on every reveal. */}
+            <Stat label="Score" className={timed ? 'hidden sm:flex' : ''}>
               <span
                 className="text-lg font-semibold tabular-nums text-pe-warm"
                 data-geo-score
@@ -206,7 +184,7 @@ export default function GameHud({
               </span>
             </Stat>
             {timed ? (
-              <div className="border-l border-white/15 pl-4">
+              <div className="sm:border-l sm:border-white/15 sm:pl-4">
                 <TimerRing secondsLeft={secondsLeft} total={config.time} />
               </div>
             ) : null}
@@ -216,7 +194,9 @@ export default function GameHud({
             <TimerRing secondsLeft={secondsLeft} total={config.time} />
           </div>
         ) : null}
-        {saveUrl ? <SaveGameButton returnTo={saveUrl} className={`pointer-events-auto ${iconButton}`} /> : null}
+        {/* On a phone it is bottom left, beside the way back to the
+            start, because the top row is full there. */}
+        {saveUrl ? <SaveGameButton returnTo={saveUrl} className={`pointer-events-auto ${iconButton} hidden sm:flex`} /> : null}
         <Link
           href="/geo"
           className={`pointer-events-auto ${iconButton}`}
@@ -236,12 +216,13 @@ export default function GameHud({
 
       {/* Bottom left: looking around, and what the keys do. Only while
           the round is on: during the reveal the imagery is behind a
-          panel, and a compass ghosting through it was the giveaway. */}
+          panel.
+
+          There is no compass of ours here any more. It was drawn with a
+          heading nothing ever set, so it said north whichever way the
+          player faced, and Look Around draws a working one of its own. */}
       {showMapControls ? (
         <div className="pointer-events-none absolute bottom-16 left-3 z-30 flex flex-col items-start gap-3 sm:left-4">
-          <div className="pointer-events-auto">
-            <Compass heading={heading} />
-          </div>
           <div className="pointer-events-auto flex items-center gap-2">
             {canReturn ? (
               <button
@@ -276,6 +257,7 @@ export default function GameHud({
                 </button>
               </>
             ) : null}
+            {saveUrl ? <SaveGameButton returnTo={saveUrl} className={`${iconButton} sm:hidden`} /> : null}
           </div>
           {/* One line, and only the part that is true for this game: an
             NMPZ round that says "drag to look around" is a lie.
