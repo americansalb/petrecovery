@@ -89,8 +89,13 @@ export function regionAround(
   }
   const lngSpan = 360 - gap;
 
-  if (width > 0 && lngSpan > (360 * width) / worldWidth) {
-    const room = (360 * Math.max(width - padding * 2, width / 2)) / worldWidth;
+  // Compared with the room inside the padding, not the whole width: a
+  // span that fits the map only by eating its padding is framed wider
+  // than MapKit can go, and MapKit then cuts the edges instead (a Script
+  // reveal on a phone lost "Your guess" off the right and the answer's
+  // pin off the top).
+  const room = (360 * Math.max(width - padding * 2, width / 2)) / worldWidth;
+  if (width > 0 && lngSpan > room) {
     let best = null;
     for (const start of points) {
       const from = wrap(start.lng);
@@ -109,6 +114,29 @@ export function regionAround(
         fallbackSpan,
         minimumSpan: Math.max(minimumSpan, Math.min(room, fallbackSpan)),
       });
+    }
+  }
+
+  // The same limit upright. At its widest MapKit shows a world 1024px
+  // across, so a map `height` pixels tall shows at most 2π * height / 1024
+  // of the projection's height. A phone's Script reveal is under 300px
+  // tall, less than a language spoken from the Southern Cone to Spain
+  // spans, and MapKit cut the pin off the top. So upright too, the
+  // stretch holding the most is framed.
+  const roomY = (2 * Math.PI * Math.max(height - top - bottom, height / 2)) / worldWidth;
+  if (height > 0 && points.length > 1) {
+    const ys = points.map((p) => ({ p, y: mercatorY(p.lat) }));
+    const extent = Math.max(...ys.map((e) => e.y)) - Math.min(...ys.map((e) => e.y));
+    if (extent > roomY) {
+      let best = null;
+      for (const start of ys) {
+        const inside = ys.filter((e) => e.y <= start.y && e.y >= start.y - roomY).map((e) => e.p);
+        const score = inside.reduce((sum, p) => sum + (p.weight ?? 1), 0);
+        if (!best || score > best.score) best = { score, inside };
+      }
+      if (best.inside.length < points.length) {
+        return regionAround(best.inside, { width, height, padding, top, bottom, worldWidth, fallbackSpan, minimumSpan });
+      }
     }
   }
 

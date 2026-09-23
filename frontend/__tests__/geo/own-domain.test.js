@@ -14,17 +14,21 @@
 
 const fs = require('fs');
 const path = require('path');
-const { GAME_SHORT_PATHS } = require('@/app/lib/geo/site');
+const { GAME_HOSTNAMES, GAME_SHORT_PATHS, isGameHost } = require('@/app/lib/geo/site');
 
 const middleware = fs.readFileSync(path.resolve(__dirname, '../../middleware.js'), 'utf8');
 
 describe('the game answers on its own domain', () => {
   test('probablyearth.com is built in, not configured', () => {
-    const list = middleware.slice(middleware.indexOf('const geoHosts'), middleware.indexOf('const gameSite'));
-    expect(list).toContain("'probablyearth.com'");
-    expect(list).toContain("'www.probablyearth.com'");
+    // One list (app/lib/geo/site.js), asked by the middleware, robots.txt
+    // and the sitemap alike, so they cannot disagree about which host is
+    // the game's.
+    expect(GAME_HOSTNAMES).toEqual(expect.arrayContaining(['probablyearth.com', 'www.probablyearth.com']));
+    expect(isGameHost('probablyearth.com', '')).toBe(true);
+    expect(middleware).toContain('isGameHost(host)');
     // And more can still be added without a deploy.
-    expect(list).toContain('GEO_DOMAINS');
+    expect(isGameHost('staging.example', 'staging.example')).toBe(true);
+    expect(isGameHost('staging.example', '')).toBe(false);
   });
 
   test('the short paths cover everything a player would type', () => {

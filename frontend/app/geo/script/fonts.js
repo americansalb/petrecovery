@@ -17,6 +17,14 @@
  * Every family is loaded with display: 'swap' and its own subset, so a
  * round shows its text immediately in whatever the device has and
  * upgrades when the real face arrives.
+ *
+ * None of them is preloaded. next/font preloads every family a route's
+ * modules declare, whether or not the page draws a word in it, so every
+ * game page, the front door and the rankings included, asked for all
+ * twenty-eight at once: 2.6 MB of fonts on a phone's first visit, one of
+ * them 714 KB, ahead of the game's own code. A family's @font-face still
+ * loads the moment a sentence in its script is on screen, which is the
+ * only time it is needed.
  */
 
 import {
@@ -52,41 +60,41 @@ import {
 
 // next/font reads these calls at build time, so every argument has to
 // be a literal here: no shared options object, no spread, no loop.
-const arabic = Noto_Sans_Arabic({ display: 'swap', weight: 'variable', subsets: ['arabic'], variable: '--font-s-arab' });
-const armenian = Noto_Sans_Armenian({ display: 'swap', weight: 'variable', subsets: ['armenian'], variable: '--font-s-armn' });
-const bengali = Noto_Sans_Bengali({ display: 'swap', weight: 'variable', subsets: ['bengali'], variable: '--font-s-beng' });
-const devanagari = Noto_Sans_Devanagari({ display: 'swap', weight: 'variable', subsets: ['devanagari'], variable: '--font-s-deva' });
-const ethiopic = Noto_Sans_Ethiopic({ display: 'swap', weight: 'variable', subsets: ['ethiopic'], variable: '--font-s-ethi' });
-const georgian = Noto_Sans_Georgian({ display: 'swap', weight: 'variable', subsets: ['georgian'], variable: '--font-s-geor' });
-const gujarati = Noto_Sans_Gujarati({ display: 'swap', weight: 'variable', subsets: ['gujarati'], variable: '--font-s-gujr' });
-const gurmukhi = Noto_Sans_Gurmukhi({ display: 'swap', weight: 'variable', subsets: ['gurmukhi'], variable: '--font-s-guru' });
-const hebrew = Noto_Sans_Hebrew({ display: 'swap', weight: 'variable', subsets: ['hebrew'], variable: '--font-s-hebr' });
-const kannada = Noto_Sans_Kannada({ display: 'swap', weight: 'variable', subsets: ['kannada'], variable: '--font-s-knda' });
-const khmer = Noto_Sans_Khmer({ display: 'swap', weight: 'variable', subsets: ['khmer'], variable: '--font-s-khmr' });
-const lao = Noto_Sans_Lao({ display: 'swap', weight: 'variable', subsets: ['lao'], variable: '--font-s-laoo' });
-const malayalam = Noto_Sans_Malayalam({ display: 'swap', weight: 'variable', subsets: ['malayalam'], variable: '--font-s-mlym' });
-const oriya = Noto_Sans_Oriya({ display: 'swap', weight: 'variable', subsets: ['oriya'], variable: '--font-s-orya' });
-const sinhala = Noto_Sans_Sinhala({ display: 'swap', weight: 'variable', subsets: ['sinhala'], variable: '--font-s-sinh' });
-const tamil = Noto_Sans_Tamil({ display: 'swap', weight: 'variable', subsets: ['tamil'], variable: '--font-s-taml' });
-const telugu = Noto_Sans_Telugu({ display: 'swap', weight: 'variable', subsets: ['telugu'], variable: '--font-s-telu' });
-const thai = Noto_Sans_Thai({ display: 'swap', weight: 'variable', subsets: ['thai'], variable: '--font-s-thai' });
+const arabic = Noto_Sans_Arabic({ display: 'swap', preload: false, weight: 'variable', subsets: ['arabic'], variable: '--font-s-arab' });
+const armenian = Noto_Sans_Armenian({ display: 'swap', preload: false, weight: 'variable', subsets: ['armenian'], variable: '--font-s-armn' });
+const bengali = Noto_Sans_Bengali({ display: 'swap', preload: false, weight: 'variable', subsets: ['bengali'], variable: '--font-s-beng' });
+const devanagari = Noto_Sans_Devanagari({ display: 'swap', preload: false, weight: 'variable', subsets: ['devanagari'], variable: '--font-s-deva' });
+const ethiopic = Noto_Sans_Ethiopic({ display: 'swap', preload: false, weight: 'variable', subsets: ['ethiopic'], variable: '--font-s-ethi' });
+const georgian = Noto_Sans_Georgian({ display: 'swap', preload: false, weight: 'variable', subsets: ['georgian'], variable: '--font-s-geor' });
+const gujarati = Noto_Sans_Gujarati({ display: 'swap', preload: false, weight: 'variable', subsets: ['gujarati'], variable: '--font-s-gujr' });
+const gurmukhi = Noto_Sans_Gurmukhi({ display: 'swap', preload: false, weight: 'variable', subsets: ['gurmukhi'], variable: '--font-s-guru' });
+const hebrew = Noto_Sans_Hebrew({ display: 'swap', preload: false, weight: 'variable', subsets: ['hebrew'], variable: '--font-s-hebr' });
+const kannada = Noto_Sans_Kannada({ display: 'swap', preload: false, weight: 'variable', subsets: ['kannada'], variable: '--font-s-knda' });
+const khmer = Noto_Sans_Khmer({ display: 'swap', preload: false, weight: 'variable', subsets: ['khmer'], variable: '--font-s-khmr' });
+const lao = Noto_Sans_Lao({ display: 'swap', preload: false, weight: 'variable', subsets: ['lao'], variable: '--font-s-laoo' });
+const malayalam = Noto_Sans_Malayalam({ display: 'swap', preload: false, weight: 'variable', subsets: ['malayalam'], variable: '--font-s-mlym' });
+const oriya = Noto_Sans_Oriya({ display: 'swap', preload: false, weight: 'variable', subsets: ['oriya'], variable: '--font-s-orya' });
+const sinhala = Noto_Sans_Sinhala({ display: 'swap', preload: false, weight: 'variable', subsets: ['sinhala'], variable: '--font-s-sinh' });
+const tamil = Noto_Sans_Tamil({ display: 'swap', preload: false, weight: 'variable', subsets: ['tamil'], variable: '--font-s-taml' });
+const telugu = Noto_Sans_Telugu({ display: 'swap', preload: false, weight: 'variable', subsets: ['telugu'], variable: '--font-s-telu' });
+const thai = Noto_Sans_Thai({ display: 'swap', preload: false, weight: 'variable', subsets: ['thai'], variable: '--font-s-thai' });
 // Google does not publish these three as variable fonts.
-const myanmar = Noto_Sans_Myanmar({ display: 'swap', weight: ['400', '600'], subsets: ['myanmar'], variable: '--font-s-mymr' });
-const nko = Noto_Sans_NKo({ display: 'swap', weight: ['400'], subsets: ['nko'], variable: '--font-s-nkoo' });
-const tifinagh = Noto_Sans_Tifinagh({ display: 'swap', weight: ['400'], subsets: ['tifinagh'], variable: '--font-s-tfng' });
+const myanmar = Noto_Sans_Myanmar({ display: 'swap', preload: false, weight: ['400', '600'], subsets: ['myanmar'], variable: '--font-s-mymr' });
+const nko = Noto_Sans_NKo({ display: 'swap', preload: false, weight: ['400'], subsets: ['nko'], variable: '--font-s-nkoo' });
+const tifinagh = Noto_Sans_Tifinagh({ display: 'swap', preload: false, weight: ['400'], subsets: ['tifinagh'], variable: '--font-s-tfng' });
 
 // Scripts a phone almost certainly does not have. Thaana, Tibetan, Ol
 // Chiki, Meetei Mayek, Cherokee, Canadian syllabics, N'Ko, Adlam and
 // Tifinagh are each written for a handful of languages, and a device
 // that has never needed one will draw empty boxes for the whole round.
 // Bundling them is the difference between a hard round and a broken one.
-const adlam = Noto_Sans_Adlam({ display: 'swap', weight: 'variable', subsets: ['adlam'], variable: '--font-s-adlm' });
-const canadian = Noto_Sans_Canadian_Aboriginal({ display: 'swap', weight: 'variable', subsets: ['canadian-aboriginal'], variable: '--font-s-cans' });
-const cherokee = Noto_Sans_Cherokee({ display: 'swap', weight: 'variable', subsets: ['cherokee'], variable: '--font-s-cher' });
-const meetei = Noto_Sans_Meetei_Mayek({ display: 'swap', weight: 'variable', subsets: ['meetei-mayek'], variable: '--font-s-mtei' });
-const olchiki = Noto_Sans_Ol_Chiki({ display: 'swap', weight: 'variable', subsets: ['ol-chiki'], variable: '--font-s-olck' });
-const thaana = Noto_Sans_Thaana({ display: 'swap', weight: 'variable', subsets: ['thaana'], variable: '--font-s-thaa' });
-const tibetan = Noto_Serif_Tibetan({ display: 'swap', weight: 'variable', subsets: ['tibetan'], variable: '--font-s-tibt' });
+const adlam = Noto_Sans_Adlam({ display: 'swap', preload: false, weight: 'variable', subsets: ['adlam'], variable: '--font-s-adlm' });
+const canadian = Noto_Sans_Canadian_Aboriginal({ display: 'swap', preload: false, weight: 'variable', subsets: ['canadian-aboriginal'], variable: '--font-s-cans' });
+const cherokee = Noto_Sans_Cherokee({ display: 'swap', preload: false, weight: 'variable', subsets: ['cherokee'], variable: '--font-s-cher' });
+const meetei = Noto_Sans_Meetei_Mayek({ display: 'swap', preload: false, weight: 'variable', subsets: ['meetei-mayek'], variable: '--font-s-mtei' });
+const olchiki = Noto_Sans_Ol_Chiki({ display: 'swap', preload: false, weight: 'variable', subsets: ['ol-chiki'], variable: '--font-s-olck' });
+const thaana = Noto_Sans_Thaana({ display: 'swap', preload: false, weight: 'variable', subsets: ['thaana'], variable: '--font-s-thaa' });
+const tibetan = Noto_Serif_Tibetan({ display: 'swap', preload: false, weight: 'variable', subsets: ['tibetan'], variable: '--font-s-tibt' });
 
 export const scriptShowcaseFonts = [devanagari, tamil, ethiopic].map((font) => font.variable).join(' ');
 

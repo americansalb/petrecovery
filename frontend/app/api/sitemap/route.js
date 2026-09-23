@@ -2,12 +2,24 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { US_STATES } from '@/app/lib/usStates';
 import { getBaseUrl } from '@/app/lib/config';
+import { isGameHost } from '@/app/lib/geo/site';
+import { gameSitemapXml } from '@/app/lib/geo/crawl';
 
 // The canonical host. middleware.js 301s petrecovery.org here, so declaring the
 // old domain in a sitemap meant every URL Google fetched was a redirect.
 const BASE_URL = getBaseUrl();
 
-export async function GET() {
+export async function GET(request) {
+  if (isGameHost(request?.headers?.get('host'))) {
+    // The game's domain gets the game's sitemap (app/lib/geo/crawl.js). Its
+    // pages are canonical there, so none of them is listed below either.
+    return new Response(gameSitemapXml(), {
+      headers: {
+        'Content-Type': 'application/xml',
+        'Cache-Control': 'public, max-age=3600',
+      },
+    });
+  }
   try {
     // Get active cases for sitemap (using Case model)
     const cases = await prisma.case.findMany({
@@ -43,9 +55,6 @@ export async function GET() {
       { url: '/advice', priority: 0.6, changefreq: 'weekly' },
       { url: '/hub', priority: 0.5, changefreq: 'daily' },
       { url: '/about', priority: 0.5, changefreq: 'monthly' },
-      { url: '/geo', priority: 0.6, changefreq: 'daily' },
-      { url: '/geo/rooms', priority: 0.4, changefreq: 'daily' },
-      { url: '/geo/leaderboard', priority: 0.4, changefreq: 'daily' },
       { url: '/legal/terms', priority: 0.3, changefreq: 'yearly' },
       { url: '/privacy', priority: 0.3, changefreq: 'yearly' },
     ];

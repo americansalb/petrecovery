@@ -651,7 +651,7 @@ function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
         <p className="text-sm uppercase tracking-wide text-sand-500">
           Script &middot; {ladder.label}
         </p>
-        <h1 className="pe-script-total mt-1 text-3xl font-bold">
+        <h1 className="pe-script-total mt-2 text-3xl font-bold">
           {formatScore(total)}
           <span> points</span>
         </h1>

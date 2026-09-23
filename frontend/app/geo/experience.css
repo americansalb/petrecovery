@@ -816,6 +816,9 @@
 }
 .geo-surface .pe-script-total {
   font-size: 64px;
+  /* The heading carries text-3xl, whose 36px line is half this size, so
+     the figure rose out of its own line into the label above it. */
+  line-height: 1.05;
   letter-spacing: -0.065em;
   color: #1b4a4c;
 }

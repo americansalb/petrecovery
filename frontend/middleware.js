@@ -9,7 +9,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { GAME_CSP_HOSTS, GAME_RATE_LIMITS, GAME_SHORT_PATHS } from '@/app/lib/geo/site';
+import { GAME_CSP_HOSTS, GAME_RATE_LIMITS, GAME_SHORT_PATHS, isGameHost } from '@/app/lib/geo/site';
 import { clientAddress } from '@/app/lib/geo/clientAddress';
 import { getToken } from 'next-auth/jwt';
 import { SITE_URL } from '@/app/lib/brand';
@@ -264,20 +264,9 @@ export async function middleware(request) {
   // pathname drives the chrome, and anything that is not the game goes
   // to the pet site. Redirects, not rewrites, for the same reason as the
   // rasuwa branch below.
-  // The game's own domains. probablyearth.com is built in rather than
-  // configured: it is the game's address, it does not change with the
-  // deployment, and a domain that needs an environment variable set
-  // before it works is a domain that is broken the day it is pointed.
-  // GEO_DOMAINS adds more (a staging host, a second name).
-  const geoHosts = ['probablyearth.com', 'www.probablyearth.com'].concat(
-    (process.env.GEO_DOMAINS || '')
-      .split(',')
-      .map((h) => h.trim().toLowerCase())
-      .filter(Boolean)
-  );
-  const gameSite =
-    process.env.NEXT_PUBLIC_SITE === 'geo' ||
-    (geoHosts.length > 0 && geoHosts.includes(host.toLowerCase().replace(/:\d+$/, '')));
+  // The game's own domains (app/lib/geo/site.js, GAME_HOSTNAMES): built
+  // in, plus GEO_DOMAINS. robots.txt and the sitemap ask the same list.
+  const gameSite = process.env.NEXT_PUBLIC_SITE === 'geo' || isGameHost(host);
   if (gameSite) {
     const target = GAME_SHORT_PATHS[pathname] || (pathname.startsWith('/room/') ? `/geo${pathname}` : null);
     if (target) {

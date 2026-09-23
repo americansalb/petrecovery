@@ -214,7 +214,9 @@ export default function GameSummary({
           ) : null}
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        {/* One column of equal buttons on a phone: side by side they
+            wrapped to two rows of two different widths. */}
+        <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
           <Link
             href={newSeedUrl}
             onClick={onPlayAgain}
@@ -237,12 +239,14 @@ export default function GameSummary({
           className="pe-recap-list pe-stagger mt-5 divide-y divide-pe-line bg-transparent"
         >
           {summary.rounds.map((round, i) => (
-            <li key={i} style={{ '--i': i + 2 }} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <span className="w-6 text-pe-subtle">{i + 1}</span>
-              <span className="w-7 text-lg leading-none">
+            <li key={i} style={{ '--i': i + 2 }} className="flex items-center gap-2 px-3 py-2 text-sm sm:gap-3">
+              <span className="w-5 shrink-0 text-pe-subtle sm:w-6">{i + 1}</span>
+              <span className="w-7 shrink-0 text-lg leading-none">
                 {round.country?.flag || ''}
               </span>
-              <span className="flex-1 truncate">
+              {/* Wraps rather than truncating: on a phone the fixed
+                  columns cut "United States" to "United St...". */}
+              <span className="min-w-0 flex-1 break-words">
                 {round.country?.name || 'Unknown'}
                 {isStreak && !round.correct && round.guessCountry ? (
                   <span className="text-pe-muted">
@@ -263,10 +267,10 @@ export default function GameSummary({
                 </span>
               ) : (
                 <>
-                  <span className="w-24 text-right text-pe-muted">
+                  <span className="w-[4.75rem] shrink-0 text-right text-pe-muted sm:w-24">
                     {roundNote(round)}
                   </span>
-                  <span className="w-16 text-right font-semibold tabular-nums text-pe-warm">
+                  <span className="w-12 shrink-0 text-right font-semibold tabular-nums text-pe-warm sm:w-16">
                     {formatScore(round.score)}
                   </span>
                 </>

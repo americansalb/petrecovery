@@ -304,9 +304,15 @@ export default function AppleScriptMap({
     // language spoken either side of the Pacific framed the whole world,
     // and it cannot be queued behind a move that is still animating.
     const focused = selectedRegion != null ? (answer.regions || [])[selectedRegion] : null;
+    // When they cannot all be shown, the pin and the nearest place win:
+    // the line between them is the round's feedback, and the chips frame
+    // any other region. So the regions together weigh less than those
+    // two, however many pieces a language is spoken in (Spanish is dozens,
+    // and corner by corner they outweighed the player's own pin).
+    const corners = (focused ? [focused] : answer.regions || []).flatMap(regionCorners);
     const points = [
       ...(focused ? [] : [guess && { ...guess, weight: 3 }, nearest && { lat: nearest.lat, lng: nearest.lng, weight: 3 }]),
-      ...(focused ? [focused] : answer.regions || []).flatMap(regionCorners),
+      ...corners.map((corner) => ({ ...corner, weight: 4 / corners.length })),
     ].filter(Boolean);
     const animate = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const fit = (moving) => {
