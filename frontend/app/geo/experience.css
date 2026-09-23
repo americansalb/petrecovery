@@ -420,12 +420,18 @@
     inset 0 1px #f2b39666;
   color: #fff9ef;
 }
-.geo-surface .pe-button--primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  background: linear-gradient(155deg, #b15a45, #a34939);
-  box-shadow:
-    0 6px 0 #925238,
-    0 10px 20px #0019233b;
+/* Only where there is a pointer to hover with. On a touchscreen :hover
+   sticks to whatever was last tapped, so "Round 2 of 5" and Create room
+   stayed lifted off the page after a tap until something else was
+   touched. */
+@media (hover: hover) {
+  .geo-surface .pe-button--primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: linear-gradient(155deg, #b15a45, #a34939);
+    box-shadow:
+      0 6px 0 #925238,
+      0 10px 20px #0019233b;
+  }
 }
 .geo-surface .pe-button--primary:active:not(:disabled) {
   transform: translateY(3px);
@@ -680,10 +686,23 @@
 .geo-surface .pe-world--script .pe-world-art {
   opacity: 0.1;
 }
-.geo-surface .pe-world--script .pe-world-shade {
+/* Script's shade is its own layer over Street's, faded in and out. It
+   used to replace Street's background outright, and a gradient cannot
+   interpolate, so switching game snapped the whole scene from one
+   colour to the other. Opaque at the end, so what is left on screen is
+   exactly Script's shade, as before. */
+.geo-surface .pe-world-shade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
   background:
     radial-gradient(ellipse at 77% 40%, #37695e70, transparent 60%),
     linear-gradient(100deg, #07323e, #0d444a);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.geo-surface .pe-world--script .pe-world-shade::after {
+  opacity: 1;
 }
 .geo-surface .pe-script-art {
   position: absolute;
@@ -1680,7 +1699,8 @@
   }
   .geo-surface .pe-button,
   .geo-surface .pe-mode-choice,
-  .geo-surface .pe-world-art {
+  .geo-surface .pe-world-art,
+  .geo-surface .pe-world-shade::after {
     transition: none;
   }
 }
@@ -1689,9 +1709,26 @@
   border: 1px solid #789a9438;
   background: #042a34;
 }
+/* The selected tab paints nothing of its own: the green is a single
+   pill behind the row (.pe-tab-pill, motion.css) that travels to it.
+   A gradient on the tab itself cannot interpolate, so the selection
+   used to jump from one tab to the next. */
+.geo-surface .pe-tabs {
+  position: relative;
+  isolation: isolate;
+}
+.geo-surface .pe-tabs [role="tab"] {
+  position: relative;
+  z-index: 1;
+}
 .geo-surface .pe-tabs [aria-selected="true"] {
-  background: linear-gradient(#a1cd85, #87b770);
+  background: transparent;
   color: #173926;
+  box-shadow: none;
+}
+.geo-surface .pe-tabs .pe-tab-pill {
+  z-index: 0;
+  background: linear-gradient(#a1cd85, #87b770);
   box-shadow: 0 2px 5px #00192255;
 }
 .geo-surface .pe-profile-banner {

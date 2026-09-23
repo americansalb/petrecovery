@@ -6,32 +6,65 @@
  * numbers already at their final value. Nothing moved, and a screen
  * where nothing moves is the one the founder called 1980s.
  *
- * The timings are the ones the Script round already uses
- * (script-round.css), so the two halves of the game move the same way.
+ * It was still snapping after the first pass at this file. Measured on
+ * the live site, frame by frame: the map, the line, both pins and both
+ * final numbers all landed in one frame. The pieces now keep to one
+ * timeline (REVEAL in lib/motion.js), and the frame opens out of the
+ * guess card with the Web Animations API (openFromRect) rather than
+ * with CSS transitions, for the reason below.
+ *
  * Everything here is opacity and transform, which the compositor can do
  * without laying the page out again, so it stays smooth over imagery.
  */
 
-/* The map frame grows into the reveal frame instead of jumping. The
-   desktop card already had this transition; the reveal frame did not,
-   so the same element moved smoothly one way and snapped the other. */
-.geo-map-frame {
-  transition:
-    top 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    bottom 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    left 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    right 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    width 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    height 320ms cubic-bezier(0.16, 1, 0.3, 1);
+/* The map frame snaps to its final box, on purpose.
+ *
+ * This used to transition top, bottom, left, right, width and height.
+ * Two things were wrong with that. Those are layout properties, so every
+ * frame of the transition laid the page out again, over a WebGL
+ * panorama. And it could not run: the guess card is anchored with
+ * `right` and `bottom` and the frame with `left` and `top`, and `auto`
+ * does not interpolate, so the box jumped anyway. openFromRect measures
+ * the final box and animates a window out of the old one with transform
+ * and clip-path - which only works if the box is already at its final
+ * size when it is measured. So no transition.
+ *
+ * Except on a guess card that brings its own. A room keeps this class
+ * on its frame in both modes, and its guess card resizes (S, M, L) with
+ * Tailwind's transition-all; a bare `.geo-map-frame` rule would outrank
+ * that by source order and make the resize snap. The reveal frame never
+ * carries transition-all, in a room or in solo play, so it still snaps
+ * to its box on the way in. */
+.geo-map-frame:not(.transition-all) {
+  transition: none;
 }
 
-/* The panel rises from the bottom edge rather than being there. */
+/* From the last round's reveal to the end of the game, the frame only
+   gets shorter - its top and sides stay put and its bottom rises to
+   make room for the summary. A window cannot be opened out of a bigger
+   box, so this one change eases the real `bottom`. It is scoped to the
+   summary class on purpose: on the way into a reveal the frame must
+   snap to its final box so openFromRect can measure it. */
+.geo-map-frame--summary {
+  transition: bottom 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The panel rises from the bottom edge rather than being there, while
+   the map is still opening above it. */
 .geo-reveal-panel {
-  animation: geo-panel-up 420ms 80ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: geo-panel-up 460ms 60ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes geo-panel-up {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0; transform: translateY(28px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* The distance is a fact, not an achievement, so it is not counted up
+   (RoundResult explains why). It arrives when the line reaches the
+   answer, which is the moment it becomes true. The delay is set inline
+   from REVEAL.landMs. */
+.geo-reveal-land {
+  animation: geo-award-in 320ms both cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Each award arrives after the total it is part of, one after another,
@@ -45,14 +78,16 @@
 }
 
 /* Somebody who asked for less motion gets less motion: every animation
-   above ends where it was going, at once, and the frame stops easing.
-   __tests__/geo/motion.test.js fails on a keyframe with no counterpart
-   here. */
+   above ends where it was going, at once. openFromRect and the line in
+   AppleGuessMap check the same preference in script and skip straight
+   to the end. __tests__/geo/motion.test.js fails on a keyframe with no
+   counterpart here. */
 @media (prefers-reduced-motion: reduce) {
-  .geo-map-frame {
+  .geo-map-frame--summary {
     transition: none;
   }
   .geo-reveal-panel,
+  .geo-reveal-land,
   .geo-award {
     animation: none !important;
     opacity: 1;

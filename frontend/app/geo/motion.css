@@ -1,0 +1,238 @@
+/**
+ * How the game moves.
+ *
+ * Founder, 2026-09-23: "a smooth, enjoyable experience that has
+ * beautiful animations and transitions rather than feeling like a
+ * website from the 90s". Measured before this file existed, frame by
+ * frame on the live site: every navigation between the game's pages
+ * was a hard swap with no frame in between; the profile tabs, the
+ * ranking ladders, and Street against Script all snapped; and the
+ * reveal - the moment the game exists for - landed its map, its line,
+ * both pins and both final numbers in a single frame.
+ *
+ * The motion that did exist had grown the way the screens had: fifteen
+ * keyframes across six stylesheets under three prefixes (pe-, geo-,
+ * wg-), each feature choosing its own curve and its own timing. This
+ * is one vocabulary instead. Everything new moves with these tokens,
+ * and the old keyframes keep working beside them.
+ *
+ * Three rules, all of them load-bearing:
+ *
+ * 1. Opacity and transform only, wherever something is moving on
+ *    screen. The compositor can do those without laying the page out
+ *    again, which matters in a game that is running a WebGL panorama
+ *    underneath everything. The reveal map used to transition top,
+ *    left, width and height, which lays the page out on every frame -
+ *    and could not run anyway, because it went from right-anchored to
+ *    left-anchored and `auto` does not interpolate.
+ *
+ * 2. Never leave a transform on an ancestor of something fixed. A
+ *    transformed element becomes the containing block for its
+ *    `position: fixed` descendants. The round and the room are both
+ *    `fixed inset-0`, so a page transition that rose on translateY
+ *    would, for its whole duration, collapse the game screen to the
+ *    height of its wrapper. Takeovers fade; only pages that mount
+ *    nothing fixed rise. And every arrival uses fill-mode `backwards`,
+ *    so once it has played, nothing is left behind on the element.
+ *
+ * 3. Somebody who asked for less motion gets the end state. The block
+ *    at the bottom names every class here, and motion.test.js fails on
+ *    one it does not.
+ */
+
+.geo-surface {
+  /* The one curve. Expo-out: fast off the mark, long gentle landing.
+     It was already the game's most-used curve, in six places. */
+  --pe-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* For something travelling from one place to another, like the line
+     from a guess to the answer: it gathers itself and then settles. */
+  --pe-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* A touch of overshoot, for things that land: a pin, a badge, a
+     control being let go. */
+  --pe-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --pe-dur-press: 120ms;   /* a finger going down */
+  --pe-dur-fast: 180ms;    /* hover, a control settling back */
+  --pe-dur-base: 260ms;    /* tabs, a panel swapping */
+  --pe-dur-page: 380ms;    /* arriving on a page */
+  --pe-dur-slow: 520ms;    /* the map opening into the reveal */
+}
+
+/* ---- Arriving on a page -------------------------------------------- */
+
+/* Every page but the takeovers: it rises into place. The header stays
+   where it is, because it lives in the layout and does not re-mount,
+   so the bar holds still and the page arrives under it. */
+.geo-surface .pe-page-enter {
+  animation: pe-page-rise var(--pe-dur-page) var(--pe-ease-out) backwards;
+}
+/* The round and the room are fixed to the viewport (rule 2): they fade
+   in and never move. */
+.geo-surface .pe-page-enter--takeover {
+  animation: pe-page-fade var(--pe-dur-base) var(--pe-ease-out) backwards;
+}
+/* `translate`, not `transform`: the individual property composes with
+   whatever transform the element already has, so a piece of artwork
+   that is rotated three degrees or scaled down for a phone keeps that
+   while it arrives. `transform` here would replace it for the length of
+   the animation and snap it back at the end. */
+@keyframes pe-page-rise {
+  from { opacity: 0; translate: 0 10px; }
+}
+@keyframes pe-page-fade {
+  from { opacity: 0; }
+}
+
+/* ---- Content that swaps in place ----------------------------------- */
+
+/* A tab panel, a ladder's board, the lobby copy for Street or Script.
+   Keyed in React, so a new key is a new element and this plays again. */
+.geo-surface .pe-swap {
+  animation: pe-swap-in var(--pe-dur-base) var(--pe-ease-out) backwards;
+}
+@keyframes pe-swap-in {
+  from { opacity: 0; translate: 0 6px; }
+}
+
+/* Rows that arrive one after another. The delay comes from --i on each
+   child, set inline, and stops growing after eight so a long list does
+   not make the last row wait. */
+.geo-surface .pe-stagger > * {
+  animation: pe-swap-in var(--pe-dur-page) var(--pe-ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 45ms);
+}
+
+/* A plain fade, for something that covers the screen: the dimming over
+   the panorama when a reveal starts, which used to switch on in a
+   frame. No movement, so it is safe over anything fixed. */
+.geo-surface .pe-fade-in {
+  animation: pe-page-fade var(--pe-dur-base) var(--pe-ease-out) backwards;
+}
+
+/* ---- Controls that answer a finger --------------------------------- */
+
+/* Press. The `scale` property, not `transform`, so it composes with
+   whatever transform an element already has: a button centred with
+   -translate-x-1/2 keeps its translate and still gives under a finger,
+   where `transform: scale()` would have thrown the translate away and
+   jumped it sideways. */
+.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(:disabled):not([aria-disabled='true']) {
+  /* This outranks Tailwind's `transition` class, so it has to carry
+     every property a control here already animated, or it would stop
+     them: the Play button's press-down is a translateY, and the lobby's
+     choices lift on transform. */
+  transition-property: scale, translate, transform, background-color, border-color, color, box-shadow, opacity, filter;
+  transition-duration: var(--pe-dur-fast);
+  transition-timing-function: var(--pe-ease-out);
+}
+.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(:disabled):not([aria-disabled='true']):active {
+  transition-duration: var(--pe-dur-press);
+}
+/* The primary button is a key: it rises on hover and goes down on press
+   while its shadow collapses under it (experience.css). A squash on top
+   of that would pull it off its own shadow, so it keeps its own model
+   and everything else gets the squash. */
+.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(.pe-button--primary):not(:disabled):not([aria-disabled='true']):active {
+  scale: 0.97;
+}
+
+/* ---- The sliding selection under a row of tabs --------------------- */
+
+/* One pill that travels to the selected tab, drawn by Tabs.js. The
+   selected tab used to swap to a gradient background, and a gradient
+   cannot interpolate, so the selection jumped between tabs. The pill
+   moves on transform; its size follows on width and height, which is
+   cheap here because it is absolutely positioned and has no children
+   to lay out. */
+.geo-surface .pe-tab-pill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 0.5rem;
+  pointer-events: none;
+  transition:
+    transform var(--pe-dur-base) var(--pe-ease-out),
+    width var(--pe-dur-base) var(--pe-ease-out),
+    height var(--pe-dur-base) var(--pe-ease-out);
+}
+
+/* ---- Holding a shape while it loads -------------------------------- */
+
+/* The shape of what is coming, so it does not push the page when it
+   lands. Rankings dropped its board 242px down the page about three
+   seconds in, while the player was reading it; sign-in pushed its own
+   footer 367px. A shimmer rather than a spinner, because a spinner says
+   "wait" and a shape says "here is where it goes". */
+.geo-surface .pe-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: rgb(255 255 255 / 0.06);
+}
+.geo-surface .pe-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.07), transparent);
+  animation: pe-shimmer 1.4s var(--pe-ease-in-out) infinite;
+}
+@keyframes pe-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* A placeholder for the player's own card on Rankings, shown only when
+   this browser has a profile - which is exactly when the server will
+   send a card back. The flag is set on <html> by an inline script at
+   the top of the game layout, before the first paint, so the space is
+   either there from the start or never there; either way nothing moves
+   when the board lands. */
+.geo-surface .pe-you-skeleton {
+  display: none;
+}
+:root[data-geo-profile] .geo-surface .pe-you-skeleton {
+  display: block;
+}
+
+/* ---- Leaving ------------------------------------------------------- */
+
+/* Something on its way out: the loading curtain over a round that has
+   just found its spot. It stays mounted long enough to fade, rather
+   than vanishing and letting the panorama pop into being. */
+.geo-surface .pe-fade-out {
+  animation: pe-fade-out var(--pe-dur-base) var(--pe-ease-out) forwards;
+  pointer-events: none;
+}
+@keyframes pe-fade-out {
+  to { opacity: 0; }
+}
+
+/* ---- Less motion --------------------------------------------------- */
+
+/* Everything above ends where it was going, at once. The press gives no
+   squash, the pill jumps, the curtain goes, the skeleton stops
+   shimmering. __tests__/geo/motion.test.js fails on any animated class
+   in this file that this block does not name. */
+@media (prefers-reduced-motion: reduce) {
+  .geo-surface .pe-page-enter,
+  .geo-surface .pe-page-enter--takeover,
+  .geo-surface .pe-fade-in,
+  .geo-surface .pe-swap,
+  .geo-surface .pe-stagger > *,
+  .geo-surface .pe-skeleton::after {
+    animation: none !important;
+  }
+  .geo-surface .pe-fade-out {
+    animation: none !important;
+    opacity: 0;
+  }
+  .geo-surface .pe-tab-pill {
+    transition: none;
+  }
+  /* The same selector as the press above, so it wins on order rather
+     than losing on specificity - a shorter one here was outranked by
+     the press's :not() chain and the squash played anyway. */
+  .geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(.pe-button--primary):not(:disabled):not([aria-disabled='true']):active {
+    scale: none;
+  }
+}

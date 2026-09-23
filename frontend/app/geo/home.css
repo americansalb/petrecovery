@@ -19,7 +19,12 @@
 }
 .geo-surface .pe-home--immersive .pe-world-art {
   background-position: 70% 45%;
-  animation: pe-home-arrive 1.6s ease-out both;
+  /* backwards, not both. With `both` the last keyframe (opacity 1) held
+     on after the arrival had played, and an animation's held value
+     outranks an ordinary rule - so Script mode's dimmed backdrop
+     (opacity 0.1, with a 0.6s fade) never took effect on this page, and
+     the coastline stayed at full strength behind the script artwork. */
+  animation: pe-home-arrive 1.6s ease-out backwards;
 }
 .geo-surface .pe-home--immersive .pe-world-shade {
   background:
@@ -233,7 +238,7 @@
   right: 5%;
   transform: rotate(3deg);
 }
-.geo-surface .pe-home--immersive .pe-world--script .pe-world-shade {
+.geo-surface .pe-home--immersive .pe-world-shade::after {
   background:
     radial-gradient(ellipse at 75% 45%, #467c6675, transparent 62%),
     linear-gradient(95deg, #082d49 35%, #295e48);

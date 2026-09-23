@@ -164,7 +164,7 @@ function PinPreview({ style = 'dot', fill = '#facc15' }) {
   );
 }
 
-function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
+function ItemCard({ item, points, busy, onBuy, onEquip, equippedId, index = 0 }) {
   const wearing = equippedId === item.id;
   const tierOnly = Boolean(item.requires?.tier);
   let action = null;
@@ -218,6 +218,7 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId }) {
     );
   return (
     <li
+      style={{ '--i': index }}
       className={`flex items-center gap-3 rounded-xl border p-3 ${wearing ? 'border-clay-400 bg-ocean-950' : 'border-white/10 bg-ocean-900/60'}`}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5">
@@ -497,7 +498,7 @@ export default function ProfileClient() {
         />
 
         {tab === 'record' && profile && !hasRecord ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6">
             <Card data-no-record>
               <CardTitle icon={Medal}>Your record</CardTitle>
               <p className="mt-3 text-sm text-white/75">
@@ -527,7 +528,7 @@ export default function ProfileClient() {
         ) : null}
 
         {tab === 'record' && (!profile || hasRecord) ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 space-y-6">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6 space-y-6">
             {/* Rating: every ladder, with what a player earned on it
                 rather than the word for where it sits. */}
             <Card data-ratings>
@@ -695,7 +696,7 @@ export default function ProfileClient() {
         ) : null}
 
         {tab === 'shop' ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
             <Card data-shop>
               <CardTitle icon={ShoppingBag}>Shop</CardTitle>
               <p className="mt-2 text-sm text-white/60">
@@ -712,9 +713,13 @@ export default function ProfileClient() {
               />
               <div id="shop-panel" role="tabpanel" aria-labelledby={`shop-panel-tab-${kind}`} tabIndex={0}>
               {shop ? (
-                <ul className="mt-3 space-y-2">
-                  {items.map((item) => (
+                // Keyed on the kind, so choosing Pins after Colours is a
+                // new list that arrives row by row rather than the old
+                // rows' text changing under the player's eye.
+                <ul key={kind} className="pe-stagger mt-3 space-y-2">
+                  {items.map((item, index) => (
                     <ItemCard
+                      index={index}
                       key={item.id}
                       item={item}
                       points={points}
@@ -768,7 +773,7 @@ export default function ProfileClient() {
         ) : null}
 
         {tab === 'settings' ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="mt-6 grid gap-6 sm:grid-cols-2">
+          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6 grid gap-6 sm:grid-cols-2">
             {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
             <Card>
               <CardTitle>Account</CardTitle>

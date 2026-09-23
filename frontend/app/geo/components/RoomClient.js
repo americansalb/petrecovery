@@ -21,6 +21,7 @@ import { ensureProfile } from '../lib/profile';
 import AppleLookAroundPane from './AppleLookAroundPane';
 import AppleGuessMap from './AppleGuessMap';
 import { ensureLookAround } from '../lib/lookAround';
+import { useOpenFrom } from '../lib/motion';
 import { mapKitAuth, mapKitRefusalMessage, onMapKitAuth } from '../lib/appleMapKit';
 import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
 import MatchHud from './rooms/MatchHud';
@@ -101,6 +102,7 @@ export default function RoomClient({ code }) {
     return () => { live = false; window.removeEventListener('geo:session-changed', check); window.removeEventListener('focus', check); };
   }, []);
   const paneRef = useRef(null);
+  const mapFrameRef = useRef(null);
   const lastRoundRef = useRef(null);
   const myLocateRef = useRef(null);
   const candidatesCacheRef = useRef({ key: '', value: null });
@@ -297,6 +299,10 @@ export default function RoomClient({ code }) {
   const iGuessed = Boolean(mine?.guessed);
   const inRound = phase === 'guessing' && me && !me.eliminated;
   const mapMode = phase === 'reveal' ? 'result' : 'guess';
+  // The reveal opens out of the card the guess was made on, as it does in
+  // solo play. Here the server starts it, seconds after the guess, so the
+  // card's resting place is tracked rather than read at a click.
+  useOpenFrom(mapFrameRef, mapMode === 'result');
   const effectiveSize = mapSize;
   let mapClass;
   if (mapMode === 'result') {
@@ -410,7 +416,7 @@ export default function RoomClient({ code }) {
 
       {/* The one map, moved by class between guessing and the reveal. */}
       {imageryReady && joined && (phase === 'guessing' || phase === 'reveal') ? (
-        <div className={`geo-map-frame ${mapClass}`}>
+        <div ref={mapFrameRef} className={`geo-map-frame ${mapClass}`}>
           {inRound && !iGuessed ? <div className="pe-map-toolbar"><span>Place your guess</span>{!isScript ? <div className="hidden sm:flex" role="group" aria-label="Map size">{MAP_SIZES.map(size => <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} aria-label={`${size} map`}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div> : null}{mobileMapOpen ? <button type="button" onClick={() => setMobileMapOpen(false)} aria-label="Close map"><X size={18} /></button> : null}</div> : null}
           <div className="min-h-0 flex-1">
             {isScript ? (

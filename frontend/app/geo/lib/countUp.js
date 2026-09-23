@@ -14,17 +14,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { easeOut, prefersReducedMotion } from './motion';
 
-const EASE_OUT = (t) => 1 - (1 - t) ** 3;
-
-export function prefersReducedMotion() {
-  if (typeof window === 'undefined' || !window.matchMedia) return false;
-  try {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  } catch {
-    return false;
-  }
-}
+// Kept as an export so nothing that reached for it here breaks; the
+// game's one definition now lives in motion.js.
+export { prefersReducedMotion };
 
 /**
  * @param {number} target what to count to
@@ -52,7 +46,7 @@ export function useCountUp(target, { durationMs = 700, delayMs = 0, key = null }
         return;
       }
       const t = Math.min(1, elapsed / durationMs);
-      setShown(value * EASE_OUT(t));
+      setShown(value * easeOut(t));
       if (t < 1) frame.current = requestAnimationFrame(step);
     };
     frame.current = requestAnimationFrame(step);

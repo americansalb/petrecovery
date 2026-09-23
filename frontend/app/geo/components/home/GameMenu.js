@@ -130,7 +130,9 @@ export default function GameMenu() {
             <h1 id="world-title">
               Where on<br /><em>Earth?</em>
             </h1>
-            <p className="pe-hero-description">
+            {/* Keyed on the game, so choosing Script fades the new line in
+                rather than swapping the words under the reader. */}
+            <p key={script ? "script" : "street"} className="pe-hero-description pe-swap">
               {script
                 ? "Find the place from its language."
                 : "Look around. Guess where you are."}
@@ -210,10 +212,15 @@ export default function GameMenu() {
             </div>
           </section>
         </div>
+        {/* Each is a fresh element when the game changes, so each arrives
+            (pe-swap) instead of being there. Both are positioned with a
+            transform of their own - a tilt, and a smaller scale on a
+            phone - which the arrival keeps, because it moves them with
+            the separate `translate` property (motion.css). */}
         {script ? (
-          <ScriptArtwork />
+          <ScriptArtwork className="pe-swap" />
         ) : (
-          <div className="pe-world-marker" aria-hidden="true">
+          <div className="pe-world-marker pe-swap" aria-hidden="true">
             <div className="pe-marker-pin">
               <Compass size={32} strokeWidth={1.5} />
             </div>

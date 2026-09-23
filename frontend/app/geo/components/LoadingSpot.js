@@ -20,7 +20,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { SLOW_AFTER_MS } from '../lib/lookAround';
 
-export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal }) {
+export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal, leaving = false }) {
   const [slow, setSlow] = useState(false);
 
   // The caller gives this a key per round and per retry, so mounting is
@@ -40,7 +40,7 @@ export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal }) {
     : 'Picking a street';
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 px-6 text-center" role="status" aria-live="polite">
+    <div className={`absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 px-6 text-center ${leaving ? 'pe-fade-out' : 'pe-fade-in'}`} role={leaving ? undefined : 'status'} aria-live="polite" aria-hidden={leaving || undefined}>
       <Loader2 className="h-10 w-10 animate-spin text-clay-300" />
       <p className="mt-5 text-lg font-semibold text-white">Round {roundNumber}</p>
       <p className="mt-1 text-sm text-white/70">{message}</p>

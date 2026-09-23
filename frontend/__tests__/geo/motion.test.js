@@ -65,3 +65,110 @@ test('the reveal moves at all', () => {
     expect({ name, there: round.css.includes(name) }).toEqual({ name, there: true });
   }
 });
+
+/*
+ * The rules the game's one motion vocabulary rests on (app/geo/motion.css).
+ * Each one is a mistake that is easy to make again, and each was found
+ * on the live site rather than imagined.
+ */
+describe('the motion vocabulary', () => {
+  const motion = sheets.find((s) => s.rel === 'motion.css');
+
+  test('there is one, and the game layout loads it', () => {
+    expect(motion).toBeTruthy();
+    const layout = fs.readFileSync(path.join(GEO, 'layout.js'), 'utf8');
+    expect(layout).toMatch(/import '\.\/motion\.css'/);
+  });
+
+  test('arrivals move with `translate`, which composes, never with `transform`, which replaces', () => {
+    // The script artwork is tilted three degrees and the world marker
+    // scaled for a phone, both with `transform`. An arrival animating
+    // `transform` wipes that out for its length and snaps it back after.
+    for (const name of ['pe-page-rise', 'pe-swap-in']) {
+      const block = motion.css.slice(motion.css.indexOf(`@keyframes ${name}`));
+      const body = block.slice(0, block.indexOf('}') + 1);
+      expect({ name, usesTranslate: /translate:/.test(body), usesTransform: /transform:/.test(body) })
+        .toEqual({ name, usesTranslate: true, usesTransform: false });
+    }
+  });
+
+  test('nothing that arrives keeps its end state on the element', () => {
+    // A held transform on an ancestor of the round (fixed inset-0) would
+    // make it the containing block and shrink the game to its wrapper.
+    for (const cls of ['.pe-page-enter', '.pe-page-enter--takeover', '.pe-swap', '.pe-fade-in']) {
+      const at = motion.css.indexOf(`.geo-surface ${cls} {`);
+      expect({ cls, found: at >= 0 }).toEqual({ cls, found: true });
+      const rule = motion.css.slice(at, motion.css.indexOf('}', at));
+      expect({ cls, fill: /\bbackwards\b/.test(rule), holds: /\b(both|forwards)\b/.test(rule) })
+        .toEqual({ cls, fill: true, holds: false });
+    }
+  });
+
+  test('the round and the room fade in and never move', () => {
+    const at = motion.css.indexOf('.geo-surface .pe-page-enter--takeover {');
+    const rule = motion.css.slice(at, motion.css.indexOf('}', at));
+    expect(rule).toMatch(/pe-page-fade/);
+    const fade = motion.css.slice(motion.css.indexOf('@keyframes pe-page-fade'));
+    expect(fade.slice(0, fade.indexOf('}') + 1)).not.toMatch(/translate|transform/);
+  });
+
+  test('the press squash composes too, and leaves the primary key its own press', () => {
+    expect(motion.css).toMatch(/:active \{\s*scale: 0\.97;/);
+    expect(motion.css).toMatch(/:not\(\.pe-button--primary\)/);
+  });
+
+  test('asking for less motion really does switch the squash off', () => {
+    // A shorter selector in the reduced block lost to the press rule's
+    // :not() chain on specificity, and the squash played anyway -
+    // caught in a browser with reduce-motion on. Same selector, later in
+    // the file, wins.
+    const press = motion.css.match(/(\.geo-surface :is\([^{]*):active \{\s*scale: 0\.97;/)[1];
+    const reduced = motion.css.slice(motion.css.indexOf('@media (prefers-reduced-motion: reduce)'));
+    expect(reduced).toContain(`${press}:active {\n    scale: none;`);
+  });
+});
+
+describe('the reveal map frame', () => {
+  const round = sheets.find((s) => s.rel.endsWith('round.css'));
+
+  test('it does not animate layout on the way into a reveal', () => {
+    // top/left/width/height laid the page out on every frame over a
+    // WebGL panorama, and could not run anyway: `left: auto` does not
+    // interpolate. openFromRect needs the box at its final size.
+    const at = round.css.indexOf('.geo-map-frame:not(.transition-all) {');
+    expect(at).toBeGreaterThanOrEqual(0);
+    const rule = round.css.slice(at, round.css.indexOf('}', at));
+    expect(rule).toMatch(/transition: none/);
+    expect(rule).not.toMatch(/\b(top|left|width|height)\b/);
+  });
+
+  test("it leaves the guess card's own resize transition alone", () => {
+    // A room's frame carries geo-map-frame while guessing too, and its
+    // S/M/L resize is Tailwind's transition-all. A bare `.geo-map-frame
+    // { transition: none }` outranked that by source order and made the
+    // room's card snap between sizes.
+    expect(round.css).not.toMatch(/\.geo-map-frame \{\s*transition: none/);
+  });
+});
+
+describe('the front door', () => {
+  const home = sheets.find((s) => s.rel === 'home.css');
+  const experience = sheets.find((s) => s.rel === 'experience.css');
+
+  test('the arrival does not pin the backdrop at full strength', () => {
+    // With fill `both` the last keyframe held opacity 1 over Script
+    // mode's dimmed backdrop for good: measured, the coastline never
+    // dimmed behind the script artwork.
+    const at = home.css.indexOf('.pe-home--immersive .pe-world-art {');
+    const rule = home.css.slice(at, home.css.indexOf('}', at));
+    expect(rule).toMatch(/pe-home-arrive[^;]*backwards/);
+    expect(rule).not.toMatch(/pe-home-arrive[^;]*\bboth\b/);
+  });
+
+  test("Script's shade fades in over Street's instead of replacing it", () => {
+    // A gradient cannot interpolate, so replacing the background snapped
+    // the whole scene between the two games.
+    expect(experience.css).toMatch(/\.pe-world-shade::after \{[^}]*opacity: 0;[^}]*transition: opacity/);
+    expect(experience.css).toMatch(/\.pe-world--script \.pe-world-shade::after \{\s*opacity: 1;/);
+  });
+});

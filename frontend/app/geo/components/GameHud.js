@@ -22,6 +22,7 @@
 import Link from 'next/link';
 import { Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
+import { REVEAL, useTween } from '../lib/motion';
 import { CONTINENTS, MODES } from '@/app/lib/geo/modes';
 import SaveGameButton from './SaveGameButton';
 
@@ -141,6 +142,7 @@ export default function GameHud({
   saveUrl,
 }) {
   const isStreak = config.mode === 'streak';
+  const shownScore = useTween(score, { delayMs: REVEAL.lineDelayMs, durationMs: REVEAL.lineMs });
   const modeLabel =
     MODES[config.mode]?.label || MODES[config.mode]?.short || config.mode;
   const timed = config.time > 0 && Number.isFinite(secondsLeft);
@@ -187,7 +189,9 @@ export default function GameHud({
         </div>
       ) : null}
 
-      {/* Top right: the score, the clock, and the way out */}
+      {/* Top right: the score, the clock, and the way out. The total
+          climbs to its new value on the reveal's clock, landing as the
+          answer's pin does, instead of jumping a second early. */}
       <div className="pointer-events-none absolute right-3 top-3 z-30 flex items-center gap-2 sm:right-4 sm:top-4">
         {!isStreak ? (
           <div
@@ -198,7 +202,7 @@ export default function GameHud({
                 className="text-lg font-semibold tabular-nums text-clay-300"
                 data-geo-score
               >
-                {formatScore(score)}
+                {formatScore(Math.round(shownScore))}
               </span>
             </Stat>
             {timed ? (

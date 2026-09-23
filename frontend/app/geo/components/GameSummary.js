@@ -231,13 +231,16 @@ export default function GameSummary({
           </Link>
         </div>
 
+        {/* The rounds come in one after another, after the total has
+            started to climb, so the list reads as the game being told
+            back rather than a table that was always there. */}
         <Card
           as="ol"
           pad="none"
-          className="pe-recap-list mt-4 divide-y divide-white/10 bg-transparent"
+          className="pe-recap-list pe-stagger mt-4 divide-y divide-white/10 bg-transparent"
         >
           {summary.rounds.map((round, i) => (
-            <li key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
+            <li key={i} style={{ '--i': i + 2 }} className="flex items-center gap-3 px-3 py-2 text-sm">
               <span className="w-6 text-white/60">{i + 1}</span>
               <span className="w-7 text-lg leading-none">
                 {round.country?.flag || ''}
