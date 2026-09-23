@@ -47,7 +47,6 @@
 import { haversineKm } from '../distance';
 import { LANGUAGES } from '../languages';
 import { MAX_ROUND_SCORE, scoreForDistance, sizeForBox } from '../distance';
-import { languagesForLadder } from '../script';
 import DATA from '../data/language-regions.json';
 
 /** The admin-1 units, by ISO 3166-2 code: `IN-TN`, `LK-41`, `PK-SD`. */
@@ -325,18 +324,21 @@ export function languagesAt(guess, pool = LANGUAGES) {
 }
 
 /**
- * The scoring scale for a ladder: the diagonal of the box its answers
- * live in. This is what makes the South Asia ladder hard. In the world
- * ladder, pinning the right continent for Tamil is worth real points;
- * inside South Asia, where every answer is already in that box, the
- * same pin is worth almost nothing.
+ * The scoring scale: the diagonal of the box every answer lives in.
+ * One scale for every game, because there is one pool. Pinning the
+ * right continent for Tamil is worth real points; the right state is
+ * worth all of them.
+ *
+ * There used to be one per set of languages, and a South Asia set
+ * whose smaller box made the same miss cost more. The sets are gone
+ * (app/lib/geo/script.js), and so is the difference.
  */
-const LADDER_SIZE = new Map();
+let SCALE_KM = null;
 
-export function ladderSizeKm(id) {
-  if (LADDER_SIZE.has(id)) return LADDER_SIZE.get(id);
+export function scriptScaleKm() {
+  if (SCALE_KM !== null) return SCALE_KM;
   const box = { minLat: 90, minLng: 180, maxLat: -90, maxLng: -180 };
-  for (const language of languagesForLadder(id)) {
+  for (const language of LANGUAGES) {
     for (const region of resolveRegions(language)) {
       box.minLat = Math.min(box.minLat, region.box.minLat);
       box.maxLat = Math.max(box.maxLat, region.box.maxLat);
@@ -344,9 +346,8 @@ export function ladderSizeKm(id) {
       box.maxLng = Math.max(box.maxLng, region.box.maxLng);
     }
   }
-  const size = sizeForBox(box);
-  LADDER_SIZE.set(id, size);
-  return size;
+  SCALE_KM = sizeForBox(box);
+  return SCALE_KM;
 }
 
 /**
@@ -356,12 +357,12 @@ export function ladderSizeKm(id) {
  * measured against, and what else is spoken where the player pinned:
  * "you put Marathi in Punjabi country" teaches more than a number.
  */
-export function scoreScriptGuess({ guess, language, ladder = 'world', sizeKm }) {
+export function scoreScriptGuess({ guess, language, sizeKm }) {
   if (!guess || !language) return null;
-  const scale = Number.isFinite(sizeKm) && sizeKm > 0 ? sizeKm : ladderSizeKm(ladder);
+  const scale = Number.isFinite(sizeKm) && sizeKm > 0 ? sizeKm : scriptScaleKm();
   const nearest = distanceToLanguage(guess, language);
   const points = scoreForDistance(nearest.distanceKm, scale);
-  const here = languagesAt(guess, languagesForLadder(ladder))
+  const here = languagesAt(guess)
     .filter((other) => other.code !== language.code)
     .slice(0, 3)
     .map((other) => ({ code: other.code, name: other.name }));

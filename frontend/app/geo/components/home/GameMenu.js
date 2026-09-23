@@ -19,8 +19,8 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Compass,
-  Languages,
   Play,
+  SlidersHorizontal,
   Users,
 } from "lucide-react";
 import {
@@ -170,7 +170,7 @@ export default function GameMenu() {
 
   const start = () => {
     setStarting(true);
-    if (script) router.push(`/geo/script/play?${scriptConfigToQuery({ ladder: 'world', rounds: 5, seed: randomSeedString() })}`);
+    if (script) router.push(`/geo/script/play?${scriptConfigToQuery({ rounds: 5, seed: randomSeedString() })}`);
     else router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
   };
 
@@ -259,11 +259,13 @@ export default function GameMenu() {
             </div>
             <div className="pe-dock-foot">
               {savedGame?.url ? <Link href={safeReturnTo(savedGame.url, '/geo')}><Play size={15} /> Continue {savedGame.kind === 'script' ? 'Script' : 'Street'}</Link> : null}
-              {/* Only beside Script: under "Play Street" a link to every
-                  Script language answered a question nobody had asked. */}
+              {/* Only beside Script. It said "All Script languages" and
+                  led to a list of them; there is no list to show now
+                  (app/lib/geo/script.js), and the page it leads to sets
+                  the rounds and the timer. */}
               {script ? (
                 <Link href="/geo/script" data-menu-script>
-                  <Languages size={15} /> All Script languages{" "}
+                  <SlidersHorizontal size={15} /> Rounds and timer{" "}
                   <ArrowRight size={14} />
                 </Link>
               ) : null}

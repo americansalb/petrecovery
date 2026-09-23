@@ -400,8 +400,8 @@ every view is a view against the 250,000 a day the token covers.
 **Apple writes nothing on it.** `map.labels = false` stops the tiles
 carrying any text at all, and points of interest are off separately.
 This is not a preference, it is what makes Apple's map usable for this
-round: half the South Asia pool is named after the state it is spoken
-in, so a map that writes "Tamil Nadu", "Punjab", "Gujarat", "Karnataka"
+round: half the South Asian languages are named after the state they
+are spoken in, so a map that writes "Tamil Nadu", "Punjab", "Gujarat", "Karnataka"
 or "West Bengal" on itself has answered the round before the player has.
 The names on the map are the game's own instead, the same 10 KB of
 Natural Earth label anchors the keyless map uses
@@ -454,22 +454,23 @@ wide monitor sooner, because what fits is a question about the screen.
 Both maps that draw their own names use it, and
 `__tests__/geo/country-labels.test.js` holds the rule.
 
-**The pools**, easiest first (`LADDERS` in `app/lib/geo/script.js`):
+**One pool, and it is never shown.** Every game draws from every
+language, weighted by how many people speak it, and nothing tells the
+player what the languages are (founder decision, 2026-09-23: players
+should not know what could come up). There used to be seven pools to
+choose from, World, Alphabets, South Asia, Devanagari, Arabic script,
+Cyrillic and Latin script, each shown with its size; a link that still
+carries `ladder=` plays the one pool. The corpus is server only:
+`app/lib/geo/script.js`, which the browser shares with the server, does
+not import `languages.js`. `__tests__/geo/coverage-secret.test.js` fails
+if a client screen reaches the corpus by any path, if the game's copy
+states a count, or if a hint describes the rest of the pool ("no other
+language here does this"); a hint compares with named languages or says
+what is true anywhere.
 
-| Pool | What it is |
-|---|---|
-| World | Everything, drawn by how many people speak it |
-| Alphabets | One language per writing system: learn to tell Devanagari from Bengali from Tamil |
-| South Asia | Seventeen languages, eleven scripts, one subcontinent |
-| Devanagari | Hindi, Marathi, Nepali, Bhojpuri, Maithili: same alphabet, five answers |
-| Arabic script | Arabic, Persian, Urdu, Pashto, Kurdish, Sindhi, Uyghur: four families, one alphabet |
-| Cyrillic | Four Slavic answers and two that are not Slavic at all |
-| Latin script | The hardest: the alphabet tells you nothing, every clue is in the words |
-
-**The pool sets the scale.** The scoring size is the diagonal of the box
-the pool's answers live in, so a pin on the right continent is worth
-real points in World and almost nothing in South Asia, where every
-answer was already inside that box.
+**One scale.** The scoring size is the diagonal of the box every answer
+lives in, so a pin on the right continent is worth real points and the
+right state is worth all of them.
 
 **Script rounds never touch the play meter.** No imagery and no key.
 That is arithmetic rather than generosity: a text round has no marginal

@@ -86,7 +86,7 @@ export default function ColdOpen() {
   const start = () => {
     setStarting(true);
     if (imagery === false) {
-      router.push('/geo/script/play?ladder=world&rounds=5');
+      router.push('/geo/script/play?rounds=5');
       return;
     }
     router.push(`/geo/play?${configToParams(DEFAULT_CONFIG).toString()}`);
@@ -121,7 +121,7 @@ export default function ColdOpen() {
         </h1>
         <p className="geo-rise mt-4 max-w-md text-balance text-lg text-sand-100/85 sm:text-xl" style={{ animationDelay: '80ms' }}>
           {scriptOnly
-            ? 'You get a sentence in one of 159 languages. Put a pin where you think it is spoken.'
+            ? 'You get a sentence. Put a pin where you think its language is spoken.'
             : 'You get dropped on a street somewhere in the world. Put a pin where you think you are.'}
         </p>
 

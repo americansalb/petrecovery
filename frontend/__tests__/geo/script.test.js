@@ -15,32 +15,26 @@
  *   game into a quiz with the answers printed on it.
  *
  * The rest cover the scoring: that a pin is measured against regions
- * rather than borders, and that the ladder sets the scale.
+ * rather than borders, and that every game is one pool on one scale.
  */
 
-const { LANGUAGES, SCRIPTS, SHARED_CHARS, inScript, languagesInScript, scriptsInCorpus } = require('@/app/lib/geo/languages');
+const { LANGUAGES, SCRIPTS, SHARED_CHARS, inScript, scriptsInCorpus } = require('@/app/lib/geo/languages');
 const { SAMPLES, samplesFor } = require('@/app/lib/geo/server/samples');
 const { markersFor } = require('@/app/lib/geo/server/markers');
-const {
-  LADDERS,
-  LADDER_ORDER,
-  languagesForLadder,
-  normalizeScriptConfig,
-  scriptConfigToQuery,
-} = require('@/app/lib/geo/script');
+const { normalizeScriptConfig, scriptConfigToQuery } = require('@/app/lib/geo/script');
 const {
   COUNTRIES,
   UNITS,
   adminUnit,
   countryShape,
   distanceToLanguage,
-  ladderSizeKm,
   languagesAt,
   resolveRegions,
   scoreScriptGuess,
+  scriptScaleKm,
 } = require('@/app/lib/geo/server/regions');
 const { createScriptRound, drawLanguages, evaluateScriptGuess, ScriptGameError } = require('@/app/lib/geo/server/scriptGame');
-const { openToken } = require('@/app/lib/geo/server/tokens');
+const { openToken, sealToken } = require('@/app/lib/geo/server/tokens');
 
 const SECRET = 'a-long-enough-test-secret';
 const env = { NEXTAUTH_SECRET: SECRET };
@@ -149,42 +143,35 @@ describe('the corpus', () => {
   });
 });
 
-describe('the ladders', () => {
-  test('each offers a real choice, and the shared-script ones share a script', () => {
-    for (const id of LADDER_ORDER) {
-      const pool = languagesForLadder(id);
-      expect(pool.length).toBeGreaterThanOrEqual(2);
-      if (SCRIPTS[id]) for (const language of pool) expect(language.script).toBe(id);
-    }
-    // Devanagari is the ladder the mode was built for: same alphabet,
-    // several answers, so reading the script gets you nothing.
-    expect(languagesInScript('deva').length).toBeGreaterThanOrEqual(5);
+describe('one pool', () => {
+  // Founder decision, 2026-09-23: players do not choose a set of
+  // languages, and nothing tells them what could come up. There were
+  // seven sets; every game now draws from every language, on one scale.
+  test('a link that still names a set plays the one pool', () => {
+    expect(normalizeScriptConfig({ ladder: 'india', rounds: 5, seed: 's' })).toEqual({ rounds: 5, timer: 0, seed: 's' });
+    const old = drawLanguages({ ladder: 'deva', rounds: 10, seed: 'old-link' }, SECRET).map((l) => l.code);
+    const plain = drawLanguages({ rounds: 10, seed: 'old-link' }, SECRET).map((l) => l.code);
+    expect(old).toEqual(plain);
   });
 
-  test('Alphabets asks each writing system exactly once', () => {
-    const pool = languagesForLadder('alphabets');
-    const scripts = pool.map((language) => language.script);
-    expect(new Set(scripts).size).toBe(scripts.length);
-    expect(scripts.length).toBe(scriptsInCorpus().length);
-  });
-
-  test('an unknown ladder falls back rather than serving an empty game', () => {
-    expect(languagesForLadder('nonsense').length).toBe(LANGUAGES.length);
-    expect(normalizeScriptConfig({ ladder: 'nonsense' }).ladder).toBe('world');
-  });
-
-  test('the ladder sets the scale, which is what makes South Asia hard', () => {
-    const world = ladderSizeKm('world');
-    const india = ladderSizeKm('india');
-    expect(india).toBeLessThan(world / 2);
-    // The same miss is worth far less when every answer is already
-    // inside the box: pinning "somewhere in India" for Tamil is an
-    // answer in the world ladder and a shrug in the India one.
+  test('one scale for every game, and a token from a smaller set is scored on it', () => {
+    // The South Asia set used a box one subcontinent wide, so the same
+    // miss cost more there. With one pool there is one box: the one
+    // every answer lives in.
+    const scale = scriptScaleKm();
+    expect(scale).toBeGreaterThan(10000);
     const tamil = find('tam');
     const punjab = { lat: 30.9, lng: 75.5 };
-    const inWorld = scoreScriptGuess({ guess: punjab, language: tamil, ladder: 'world' });
-    const inIndia = scoreScriptGuess({ guess: punjab, language: tamil, ladder: 'india' });
-    expect(inIndia.points).toBeLessThan(inWorld.points / 4);
+    expect(scoreScriptGuess({ guess: punjab, language: tamil }).sizeKm).toBe(scale);
+    // A round sealed before the sets went names its set in the token.
+    const old = sealToken({ c: 'tam', l: 'india', i: 0, seed: 'old-token' }, { secret: SECRET });
+    const result = evaluateScriptGuess({ token: old, guess: punjab, env });
+    expect(result.sizeKm).toBe(scale);
+    expect(result.score).toBe(scoreScriptGuess({ guess: punjab, language: tamil }).points);
+    // Pinning the right subcontinent for Tamil is worth something; the
+    // right state is worth all of it.
+    expect(result.score).toBeGreaterThan(0);
+    expect(result.score).toBeLessThan(2500);
   });
 });
 
@@ -192,7 +179,7 @@ describe('scoring a pin', () => {
   test('anywhere inside the heartland is full marks, because a language is an area', () => {
     const tamil = find('tam');
     for (const point of [{ lat: 11.1, lng: 78.6 }, { lat: 12.9, lng: 79.1 }, { lat: 9.9, lng: 78.1 }]) {
-      const result = scoreScriptGuess({ guess: point, language: tamil, ladder: 'world' });
+      const result = scoreScriptGuess({ guess: point, language: tamil });
       expect(result.inRegion).toBe(true);
       expect(result.points).toBe(5000);
       expect(result.distanceKm).toBe(0);
@@ -203,8 +190,8 @@ describe('scoring a pin', () => {
     // Punjabi is spoken on both sides of a border, and a pin on either
     // side is right. A country dropdown cannot express that.
     const punjabi = find('pan');
-    const indian = scoreScriptGuess({ guess: { lat: 30.9, lng: 75.6 }, language: punjabi, ladder: 'world' });
-    const pakistani = scoreScriptGuess({ guess: { lat: 31.4, lng: 73.1 }, language: punjabi, ladder: 'world' });
+    const indian = scoreScriptGuess({ guess: { lat: 30.9, lng: 75.6 }, language: punjabi });
+    const pakistani = scoreScriptGuess({ guess: { lat: 31.4, lng: 73.1 }, language: punjabi });
     expect(indian.points).toBe(5000);
     expect(pakistani.points).toBe(5000);
     expect(indian.region.name).not.toBe(pakistani.region.name);
@@ -256,7 +243,7 @@ describe('scoring a pin', () => {
       const here = languagesAt({ lat, lng }).map((language) => language.code);
       for (const code of expected) {
         if (!here.includes(code)) wrong.push(`${city}: ${code} not spoken here, only ${here.join(',') || 'nothing'}`);
-        const scored = scoreScriptGuess({ guess: { lat, lng }, language: find(code), ladder: 'india' });
+        const scored = scoreScriptGuess({ guess: { lat, lng }, language: find(code) });
         if (scored.points !== 5000) wrong.push(`${city}: ${code} scored ${scored.points}`);
       }
     }
@@ -264,10 +251,10 @@ describe('scoring a pin', () => {
     // And the wrong state is the wrong answer, inside the same country.
     expect(languagesAt({ lat: 17.33, lng: 76.83 }).map((l) => l.code)).toEqual(['kan']);
     expect(languagesAt({ lat: 27.33, lng: 86.08 }).map((l) => l.code)).toEqual(['npi']);
-    // Chennai is 600 km from Maharashtra, which inside the South Asia
-    // ladder is most of the round gone.
-    const marathiInChennai = scoreScriptGuess({ guess: { lat: 13.08, lng: 80.27 }, language: find('mar'), ladder: 'india' });
-    expect(marathiInChennai.points).toBeLessThan(1800);
+    // Chennai is 600 km from Maharashtra: the right part of the world,
+    // the wrong state, and a third of the round gone.
+    const marathiInChennai = scoreScriptGuess({ guess: { lat: 13.08, lng: 80.27 }, language: find('mar') });
+    expect(marathiInChennai.points).toBeLessThan(4000);
     expect(marathiInChennai.distanceKm).toBeGreaterThan(400);
   });
 
@@ -295,9 +282,9 @@ describe('scoring a pin', () => {
     // area, and anywhere inside it is full marks.
     const kochi = { lat: 9.93, lng: 76.27 };
     expect(languagesAt(kochi).map((l) => l.code)).toContain('mal');
-    expect(scoreScriptGuess({ guess: kochi, language: find('mal'), ladder: 'world' }).points).toBe(5000);
+    expect(scoreScriptGuess({ guess: kochi, language: find('mal') }).points).toBe(5000);
     const kasaragod = { lat: 12.5, lng: 74.99 };
-    expect(scoreScriptGuess({ guess: kasaragod, language: find('mal'), ladder: 'world' }).points).toBe(5000);
+    expect(scoreScriptGuess({ guess: kasaragod, language: find('mal') }).points).toBe(5000);
   });
 
   test('the same ground can speak more than one, and often does', () => {
@@ -331,7 +318,7 @@ describe('scoring a pin', () => {
     // either side of the Ganges around Bhojpur, and Patna, a hundred
     // kilometres east, is Magahi rather than Bhojpuri.
     const bhojpuri = find('bho');
-    const varanasi = scoreScriptGuess({ guess: { lat: 25.32, lng: 82.97 }, language: bhojpuri, ladder: 'india' });
+    const varanasi = scoreScriptGuess({ guess: { lat: 25.32, lng: 82.97 }, language: bhojpuri });
     expect(varanasi.points).toBe(5000);
     expect(languagesAt({ lat: 25.61, lng: 85.14 }).map((l) => l.code)).not.toContain('bho');
     // The clip keeps the state's own outline, so the region is a piece
@@ -347,7 +334,7 @@ describe('scoring a pin', () => {
     // The teaching half: "you put Tamil in Marathi country" is worth
     // more to a player than a number of kilometres.
     const tamil = find('tam');
-    const result = scoreScriptGuess({ guess: { lat: 19.2, lng: 75.5 }, language: tamil, ladder: 'india' });
+    const result = scoreScriptGuess({ guess: { lat: 19.2, lng: 75.5 }, language: tamil });
     expect(result.alsoSpokenHere.map((l) => l.code)).toContain('mar');
     expect(result.alsoSpokenHere.every((l) => l.code !== 'tam')).toBe(true);
     expect(languagesAt({ lat: 19.2, lng: 75.5 }).map((l) => l.code)).toContain('mar');
@@ -355,7 +342,7 @@ describe('scoring a pin', () => {
 
   test('a pin nowhere near scores nothing, and a missing pin is not a crash', () => {
     const icelandic = find('isl');
-    const result = scoreScriptGuess({ guess: { lat: -33.9, lng: 151.2 }, language: icelandic, ladder: 'world' });
+    const result = scoreScriptGuess({ guess: { lat: -33.9, lng: 151.2 }, language: icelandic });
     expect(result.points).toBeLessThan(50);
     expect(scoreScriptGuess({ guess: null, language: icelandic })).toBeNull();
     expect(scoreScriptGuess({ guess: { lat: 0, lng: 0 }, language: null })).toBeNull();
@@ -364,7 +351,7 @@ describe('scoring a pin', () => {
 
 describe('the draw', () => {
   test('a seed replays the same game, and a game does not repeat itself', () => {
-    const config = { ladder: 'world', rounds: 5, seed: 'sc-1' };
+    const config = { rounds: 5, seed: 'sc-1' };
     const first = drawLanguages(config).map((l) => l.code);
     const again = drawLanguages({ ...config }).map((l) => l.code);
     expect(again).toEqual(first);
@@ -373,12 +360,12 @@ describe('the draw', () => {
   });
 
   test('the server\'s secret decides the draw, so the browser cannot compute the game', () => {
-    // Everything else the draw reads is in the page bundle: the ladder,
-    // the language rows, the speaker counts and the generator all ship
-    // to a 'use client' component, and the seed is in the address bar.
-    // Without the secret in the mix the whole answer sequence was
-    // computable before the first sentence was read.
-    const config = { ladder: 'world', rounds: 5, seed: 'sc-secret' };
+    // The seed is in the address bar, and the language rows, the
+    // speaker counts and the generator are code. They used to ship to
+    // the browser; they stay on the server now, but a list is a small
+    // thing to leak, and without the secret in the mix the whole answer
+    // sequence would be computable before the first sentence was read.
+    const config = { rounds: 5, seed: 'sc-secret' };
     const unsalted = drawLanguages(config).map((l) => l.code);
     const salted = drawLanguages(config, SECRET).map((l) => l.code);
     const other = drawLanguages(config, 'a-different-long-secret').map((l) => l.code);
@@ -388,33 +375,23 @@ describe('the draw', () => {
     expect(drawLanguages({ ...config }, SECRET).map((l) => l.code)).toEqual(salted);
   });
 
-  test('a ladder smaller than the round count refills instead of refusing', () => {
-    // Whichever pool is smallest, rather than a named one: Cyrillic used
-    // to be six languages and a ten round game had to refill, and then
-    // Macedonian, Belarusian, Tajik and Kyrgyz arrived and it did not.
-    // The behaviour under test is the refill, not the size of a pool.
-    const [id] = LADDER_ORDER.map((ladder) => [ladder, languagesForLadder(ladder).length]).sort((a, b) => a[1] - b[1])[0];
-    const pool = languagesForLadder(id);
-    // Ten is the longest game on offer, and the smallest pool has to be
-    // smaller than that or there is no refill to test.
-    expect(pool.length).toBeLessThan(10);
-    const drawn = drawLanguages({ ladder: id, rounds: 10, seed: 'sc-3' });
-    expect(drawn.length).toBe(10);
-    expect(drawn.length).toBeGreaterThan(pool.length);
-    const codes = new Set(pool.map((language) => language.code));
-    for (const language of drawn) expect(codes.has(language.code)).toBe(true);
-  });
-
-  test('the draw stays inside the ladder', () => {
-    const drawn = drawLanguages({ ladder: 'india', rounds: 10, seed: 'sc-4' });
-    const allowed = new Set(languagesForLadder('india').map((l) => l.code));
-    for (const language of drawn) expect(allowed.has(language.code)).toBe(true);
+  test('the draw is from every language, not from any one part of the world', () => {
+    const scripts = new Set();
+    const codes = new Set(LANGUAGES.map((l) => l.code));
+    for (let i = 0; i < 30; i++) {
+      for (const language of drawLanguages({ rounds: 10, seed: `sc-wide-${i}` }, SECRET)) {
+        expect(codes.has(language.code)).toBe(true);
+        scripts.add(language.script);
+      }
+    }
+    // Three hundred rounds reach most of the writing systems there are.
+    expect(scripts.size).toBeGreaterThan(20);
   });
 });
 
 describe('a round', () => {
   test('is a sentence from the corpus with the answer sealed', () => {
-    const config = { ladder: 'world', rounds: 5, seed: 'r-1' };
+    const config = { rounds: 5, seed: 'r-1' };
     const round = createScriptRound({ config, roundIndex: 2, env });
     expect(round.roundIndex).toBe(2);
     expect(round.text.length).toBeGreaterThan(8);
@@ -441,7 +418,7 @@ describe('a round', () => {
     // The script ID stays, because the browser cannot choose a font
     // without it, and the script is visible on screen regardless.
     for (let i = 0; i < 12; i++) {
-      const config = { ladder: 'world', rounds: 3, seed: `leak-${i}` };
+      const config = { rounds: 3, seed: `leak-${i}` };
       const round = createScriptRound({ config, roundIndex: 0, env });
       const answer = find(openToken(round.token, { secret: SECRET }).c);
       // The sentence IS the round, and a three-letter code like "por"
@@ -473,7 +450,7 @@ describe('a round', () => {
   });
 
   test('the same seed and index give the same round every time', () => {
-    const config = { ladder: 'india', rounds: 5, seed: 'r-2' };
+    const config = { rounds: 5, seed: 'r-2' };
     const a = createScriptRound({ config, roundIndex: 1, env });
     const b = createScriptRound({ config, roundIndex: 1, env });
     expect(b.text).toBe(a.text);
@@ -487,10 +464,10 @@ describe('a round', () => {
 
 describe('scoring a round', () => {
   const roundFor = (code) => {
-    // Walk the world ladder until the language we want comes up, so the
-    // test scores a real token rather than a hand-built one.
+    // Walk the draw until the language we want comes up, so the test
+    // scores a real token rather than a hand-built one.
     for (let i = 0; i < 400; i++) {
-      const config = { ladder: 'world', rounds: 3, seed: `hunt-${i}` };
+      const config = { rounds: 3, seed: `hunt-${i}` };
       const drawn = drawLanguages(config, SECRET);
       const index = drawn.findIndex((language) => language.code === code);
       if (index >= 0) return createScriptRound({ config, roundIndex: index, env });
@@ -541,28 +518,21 @@ describe('scoring a round', () => {
 
 describe('the link', () => {
   test('carries the whole game, and drops what the game does not support', () => {
+    // A set of languages is no longer part of a game, so an old link's
+    // is dropped with the rest of what the game does not support.
     const query = scriptConfigToQuery({ ladder: 'deva', rounds: 10, timer: 60, seed: 'abc' });
-    expect(query).toBe('ladder=deva&rounds=10&timer=60&seed=abc');
+    expect(query).toBe('rounds=10&timer=60&seed=abc');
     const config = normalizeScriptConfig(Object.fromEntries(new URLSearchParams(query)));
-    expect(config).toEqual({ ladder: 'deva', rounds: 10, timer: 60, seed: 'abc' });
+    expect(config).toEqual({ rounds: 10, timer: 60, seed: 'abc' });
     // Nonsense from a hand-edited link becomes the defaults.
     expect(normalizeScriptConfig({ rounds: 7, timer: 45 })).toMatchObject({ rounds: 5, timer: 0 });
-  });
-
-  test('every ladder in the order exists and describes itself', () => {
-    for (const id of LADDER_ORDER) {
-      expect(LADDERS[id]).toBeTruthy();
-      expect(LADDERS[id].label).toBeTruthy();
-      expect(LADDERS[id].description.length).toBeGreaterThan(20);
-    }
-    expect(LADDER_ORDER.length).toBe(Object.keys(LADDERS).length);
   });
 });
 
 describe('what gave it away', () => {
   test('the reveal carries the features in the sentence that was shown, and nothing from other sentences', () => {
     for (let i = 0; i < 20; i++) {
-      const config = { ladder: 'world', rounds: 3, seed: `tells-${i}` };
+      const config = { rounds: 3, seed: `tells-${i}` };
       const round = createScriptRound({ config, roundIndex: 0, env });
       const { result } = { result: evaluateScriptGuess({ token: round.token, guess: { lat: 0, lng: 0 }, env }) };
       // Every marker sent back is really in the sentence the player
@@ -579,13 +549,14 @@ describe('what gave it away', () => {
     }
   });
 
-  test('says when the alphabet alone was the answer, and only when it was', () => {
-    const solo = createScriptRound({ config: { ladder: 'world', rounds: 1, seed: 'alpha-1' }, roundIndex: 0, env });
-    const result = evaluateScriptGuess({ token: solo.token, guess: null, env });
-    const rivals = LANGUAGES.filter((l) => l.script === result.answer.script);
-    // The claim is about the pool being played, so it has to match the
-    // pool: world is every language, and there the shared scripts are
-    // genuinely shared.
-    expect(result.answer.onlyOneInScript).toBe(rivals.length === 1);
+  test('the reveal says nothing about what else is in the game', () => {
+    // It used to add "In this pool, Odia is written for Odia and nothing
+    // else", and to name the set being played. Both told a player what
+    // could come up.
+    const round = createScriptRound({ config: { rounds: 1, seed: 'alpha-1' }, roundIndex: 0, env });
+    const result = evaluateScriptGuess({ token: round.token, guess: null, env });
+    expect(result.answer.onlyOneInScript).toBeUndefined();
+    expect(result.ladder).toBeUndefined();
+    expect(round.ladder).toBeUndefined();
   });
 });
