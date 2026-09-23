@@ -218,7 +218,7 @@ export default function GameSummary({
           <Link
             href={newSeedUrl}
             onClick={onPlayAgain}
-            className="pe-button pe-button--primary inline-flex min-h-[48px] items-center gap-2 rounded-xl px-6 py-3 font-bold"
+            className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
           >
             <RefreshCw size={17} />
             {shared ? 'Play these places again' : 'Play again'}

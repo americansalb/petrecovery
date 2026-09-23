@@ -26,16 +26,18 @@ test('signup continues the original matchmaking intent', async () => {
   expect(fetch.mock.calls.map(([, options]) => JSON.parse(options.body).action)).toEqual(['join', 'join']);
 });
 
-test('search disables game switching and tells the room browser it is active', async () => {
+test('search tells the room browser it is active, and when it stops', async () => {
+  // The Street/Script switch is the page's now, one for the whole
+  // screen (RoomBrowser), and the page locks it while this is active
+  // (multiplayer-page.test.js). This card no longer carries its own.
   global.fetch = jest.fn().mockImplementationOnce(waiting).mockResolvedValueOnce(response({ status: 'cancelled' }));
   const callbacks = props();
   render(<Matchmaker {...callbacks} />);
+  expect(screen.queryByRole('button', { name: 'Street', exact: true })).toBeNull();
   await click(/Find match/);
-  expect(screen.getByRole('button', { name: 'Street', exact: true }).disabled).toBe(true);
   expect(callbacks.onActiveChange).toHaveBeenLastCalledWith(true);
   await click('Cancel search');
   expect(callbacks.onActiveChange).toHaveBeenLastCalledWith(false);
-  expect(screen.getByRole('button', { name: 'Street', exact: true }).disabled).toBe(false);
 });
 
 test('lost cancellation response polls the existing ticket without joining again', async () => {

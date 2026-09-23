@@ -107,6 +107,9 @@ export const GAME_RATE_LIMITS = {
   // than a script needs to be a nuisance. Verify is a link click.
   '/api/geo/auth/request': { windowMs: 60000, maxRequests: 5 },
   '/api/geo/auth/verify': { windowMs: 60000, maxRequests: 20 },
+  // Typing the emailed code. Each email also dies after five wrong
+  // codes (accounts.js); this caps how fast anyone can ask at all.
+  '/api/geo/auth/code': { windowMs: 60000, maxRequests: 10 },
   '/api/geo/auth/phone/request': { windowMs: 60000, maxRequests: 3 },
   '/api/geo/auth/phone/verify': { windowMs: 60000, maxRequests: 5 },
   // Deleting an account is not something a person does twice.

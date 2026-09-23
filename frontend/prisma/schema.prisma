@@ -5960,6 +5960,13 @@ model GeoLoginToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+  // The six-digit code in the same email, typed into the tab that asked
+  // for it. A link opened from a mail app often lands in another
+  // browser, which signed that browser in and left the game's tab
+  // signed out. Only an HMAC of the code is kept; wrong guesses are
+  // counted, and the code dies at five (accounts.js, CODE_ATTEMPTS).
+  codeHash     String?
+  codeAttempts Int     @default(0)
 
   @@index([email])
   @@index([expiresAt])

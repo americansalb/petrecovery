@@ -55,7 +55,8 @@ test('a signed-in account still called Player is told, and the prompt opens the 
 
   expect(screen.getByText(PROMPT)).toBeInTheDocument();
   const fix = screen.getByRole('button', { name: 'Choose your name' });
-  expect(fix.className).toContain('min-h-[44px]');
+  // Touch size: a .ui-btn is at least 44px (theme.css, components.test.js).
+  expect(fix.className).toMatch(/\bui-btn\b/);
 
   // It has to land on the field, not merely somewhere in Settings.
   await act(async () => fireEvent.click(fix));

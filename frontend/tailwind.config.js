@@ -25,6 +25,40 @@ module.exports = {
          These belong to /geo. Nothing outside the game uses them, and
          the game uses nothing else. */
       colors: {
+        /* === Probably Earth v2: the interface's semantic colours ===
+           Founder, 2026-09-23: "extremely ugly", "full UI UX rework
+           needed". Every screen had grown its own tints (480 distinct
+           colours for 527 uses in the game's stylesheets), so nothing
+           matched. These are the only colours a rebuilt screen uses,
+           and they are CSS variables, set once in app/geo/theme.css:
+
+             canvas   the page            surface  a card on it
+             raised   a control, hover    line     every border
+             fg       text                muted    secondary text
+             subtle   hints, placeholders
+             accent   ocean blue: every primary action and selection
+             good     forest green: close, correct, gained
+             warm     clay: scores, points, streaks
+             bad      errors and losses
+
+           Written rgb(var(--x) / <alpha-value>) so `bg-pe-canvas/90`
+           and friends work. */
+        pe: {
+          canvas: 'rgb(var(--pe-canvas) / <alpha-value>)',
+          surface: 'rgb(var(--pe-surface) / <alpha-value>)',
+          raised: 'rgb(var(--pe-raised) / <alpha-value>)',
+          line: 'rgb(var(--pe-line) / <alpha-value>)',
+          'line-strong': 'rgb(var(--pe-line-strong) / <alpha-value>)',
+          fg: 'rgb(var(--pe-fg) / <alpha-value>)',
+          muted: 'rgb(var(--pe-muted) / <alpha-value>)',
+          subtle: 'rgb(var(--pe-subtle) / <alpha-value>)',
+          accent: 'rgb(var(--pe-accent) / <alpha-value>)',
+          'accent-hover': 'rgb(var(--pe-accent-hover) / <alpha-value>)',
+          'accent-fg': 'rgb(var(--pe-accent-fg) / <alpha-value>)',
+          good: 'rgb(var(--pe-good) / <alpha-value>)',
+          warm: 'rgb(var(--pe-warm) / <alpha-value>)',
+          bad: 'rgb(var(--pe-bad) / <alpha-value>)',
+        },
         ocean: {
           50: '#f0f7fa',
           100: '#dcedf4',

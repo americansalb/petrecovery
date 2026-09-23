@@ -61,13 +61,13 @@
   font-weight: 800;
 }
 .geo-surface .pe-home--immersive .pe-hero-copy h1 em {
-  color: #91c47b;
+  color: rgb(var(--pe-accent-fg));
 }
 .geo-surface .pe-home--immersive .pe-hero-description {
   max-width: 370px;
   font-size: 14px;
   line-height: 1.7;
-  color: #c4d5ce;
+  color: rgb(var(--pe-fg) / 0.85);
 }
 .geo-surface .pe-home--immersive .pe-play-dock {
   margin: 30px 0 0;
@@ -91,53 +91,32 @@
 .geo-surface .pe-home--immersive .pe-mode-choice {
   min-height: 76px;
   padding: 6px 0 14px;
-  border-bottom: 1px solid #a9c7b633;
+  border-bottom: 1px solid rgb(var(--pe-fg) / 0.18);
   gap: 13px;
   border-radius: 0;
   background: none;
   box-shadow: none;
 }
 .geo-surface .pe-home--immersive .pe-mode-choice[aria-pressed="true"] {
-  border-bottom-color: #91c47b;
-  background: linear-gradient(0deg, #638d4533, transparent);
+  border-bottom: 2px solid rgb(var(--pe-accent-fg));
+  background: linear-gradient(0deg, rgb(var(--pe-accent) / 0.22), transparent);
 }
 .geo-surface .pe-home--immersive .pe-mode-choice strong {
   font-size: 20px;
-  font-weight: 750;
-  color: #abc1b7;
+  font-weight: 700;
+  color: rgb(var(--pe-fg) / 0.7);
 }
 .geo-surface .pe-home--immersive .pe-mode-choice[aria-pressed="true"] strong {
-  color: #eef3df;
+  color: rgb(var(--pe-fg));
 }
 .geo-surface .pe-home--immersive .pe-mode-choice small {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
-  color: #b1c8bc;
+  color: rgb(var(--pe-fg) / 0.7);
   max-width: 150px;
 }
 .geo-surface .pe-home--immersive .pe-choice-dot {
   display: none;
-}
-.geo-surface .pe-home--immersive .pe-mode-icon {
-  background: linear-gradient(145deg, #638d45, #315b3c);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1px solid #c8dcb677;
-  box-shadow:
-    inset 0 0 0 4px #0c303655,
-    inset 0 0 0 5px #a7c89f44,
-    0 4px 0 #041e25,
-    0 8px 12px #041e2555;
-}
-.geo-surface .pe-home--immersive .pe-mode-icon--duel {
-  background: linear-gradient(145deg, #b86049, #723e35);
-  border-color: #e5ba9677;
-  box-shadow:
-    inset 0 0 0 4px #55372b66,
-    inset 0 0 0 5px #d8af8755,
-    0 4px 0 #3d3026,
-    0 8px 12px #041e2555;
 }
 .geo-surface .pe-home--immersive .pe-mode-thumb,
 .geo-surface .pe-home--immersive .pe-mode-glyph {
@@ -152,13 +131,13 @@
   font-size: 17px;
   max-width: 100%;
   padding-inline: 24px;
-  border-radius: 5px;
+  border-radius: 14px;
 }
 .geo-surface .pe-home--immersive .pe-launch > p {
   text-align: left;
-  color: #b4c9bb;
+  color: rgb(var(--pe-fg) / 0.75);
   margin-top: 13px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .geo-surface .pe-home--immersive .pe-dock-foot {
   border: 0;
@@ -168,9 +147,10 @@
   justify-content: flex-start;
 }
 .geo-surface .pe-home--immersive .pe-dock-foot a {
-  font-size: 10px;
-  color: #c1d5be;
-  min-height: 35px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--pe-accent-fg));
+  min-height: 44px;
 }
 .geo-surface .pe-home--immersive .pe-dock-foot a > svg:first-child {
   display: none;
@@ -182,41 +162,6 @@
 }
 .geo-surface .pe-home--immersive .pe-world-marker i {
   top: 128px;
-}
-.geo-surface .pe-scene-caption {
-  position: absolute;
-  z-index: 1;
-  right: 6%;
-  bottom: 18%;
-  width: 31%;
-  padding-left: 24px;
-  border-left: 1px solid #dce9c660;
-  color: #f2f1da;
-  text-shadow: 0 2px 14px #123235;
-}
-.geo-surface .pe-scene-coordinate {
-  display: block;
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  color: #d1dfc3;
-}
-.geo-surface .pe-scene-caption p {
-  font-size: clamp(20px, 2.15vw, 32px);
-  line-height: 1.2;
-  letter-spacing: -0.04em;
-  font-weight: 650;
-  margin-top: 15px;
-}
-.geo-surface .pe-scene-caption em {
-  color: #cfe4b8;
-  font-style: normal;
-}
-.geo-surface .pe-scene-line {
-  display: block;
-  height: 1px;
-  width: 42px;
-  background: #cde3b0;
-  margin-top: 22px;
 }
 .geo-surface .pe-scene-next {
   position: absolute;
@@ -244,8 +189,7 @@
     linear-gradient(95deg, #082d49 35%, #295e48);
 }
 .geo-surface .pe-home--immersive .pe-competition,
-.geo-surface .pe-home--immersive .pe-expeditions,
-.geo-surface .pe-home--immersive .pe-profile-invite {
+.geo-surface .pe-home--immersive .pe-expeditions {
   max-width: 1360px;
   margin-inline: auto;
   padding-inline: clamp(24px, 5.3vw, 88px);
@@ -288,12 +232,6 @@
 .geo-surface .pe-home--immersive .pe-event-arrow {
   display: none;
 }
-.geo-surface .pe-home--immersive .pe-profile-invite {
-  border-radius: 0;
-  background: none;
-  border: 0;
-  box-shadow: none;
-}
 @keyframes pe-home-arrive {
   from {
     transform: scale(1.035);
@@ -335,12 +273,6 @@
   }
   .geo-surface .pe-scene-next {
     left: 32px;
-  }
-  .geo-surface .pe-scene-caption {
-    right: 4%;
-    width: 32%;
-    bottom: 19%;
-    padding-left: 18px;
   }
   .geo-surface .pe-home--immersive .pe-dock-foot {
     gap: 15px;
@@ -391,8 +323,7 @@
     flex-wrap: wrap;
     row-gap: 0;
   }
-  .geo-surface .pe-home--immersive .pe-world-marker,
-  .geo-surface .pe-scene-caption {
+  .geo-surface .pe-home--immersive .pe-world-marker {
     display: none;
   }
   .geo-surface .pe-scene-next {
@@ -439,13 +370,6 @@
   }
   .geo-surface .pe-home--immersive .pe-hero-copy h1 {
     font-size: 70px;
-  }
-  .geo-surface .pe-home--immersive .pe-mode-icon {
-    width: 36px;
-    height: 36px;
-  }
-  .geo-surface .pe-home--immersive .pe-mode-icon svg {
-    width: 19px;
   }
   .geo-surface .pe-home--immersive .pe-game-choices {
     gap: 12px;
@@ -554,22 +478,4 @@
   .geo-surface .pe-home--immersive .pe-play-dock {
     animation: none;
   }
-}
-.pe-matchmaker {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
-  margin: 2rem 0;
-  padding: clamp(1.25rem, 3vw, 2rem);
-  border: 1px solid rgba(148, 187, 140, .35);
-  border-radius: 1.25rem;
-  background: rgba(57, 105, 78, .16);
-}
-.pe-matchmaker h2 { font-size: 1.5rem; font-weight: 700; }
-.pe-matchmaker p { margin: .5rem 0; color: #b8cecb; }
-.pe-matchmaker .pe-rule-choice { margin: 1rem 0; }
-.pe-matchmaker > button { flex-shrink: 0; }
-@media (max-width: 600px) {
-  .pe-matchmaker { align-items: stretch; flex-direction: column; }
 }

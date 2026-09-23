@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, LoaderCircle, Users } from 'lucide-react';
+import { LoaderCircle, Users } from 'lucide-react';
 import AccountDialog from '../AccountDialog';
 import Button from '../ui/Button';
 import { ensureProfile, profileHeaders } from '../../lib/profile';
@@ -121,19 +121,31 @@ export default function Matchmaker({ game, name, onNameChange, onGameChange, onA
   const active = ['joining', 'waiting', 'cancelling', 'matched'].includes(status);
   useEffect(() => { onActiveChange?.(active); }, [active, onActiveChange]);
 
-  return <section className="pe-matchmaker" aria-labelledby="matchmaker-title">
+  const statusText = status === 'waiting'
+    ? `Looking for a ${game === 'script' ? 'Script' : 'Street'} player… ${elapsed}s`
+    : status === 'matched'
+      ? 'Match found. Opening your game…'
+      : status === 'cancelling'
+        ? 'Cancelling…'
+        : status === 'joining'
+          ? 'Joining the queue…'
+          : 'Starts as soon as another player joins.';
+
+  // The game (Street or Script) is chosen once, for the whole page, by
+  // RoomBrowser. This card had its own Street/Script switch, and so did
+  // the room card beside it: two identical switches on one screen
+  // (founder, 2026-09-23: "extremely confusing").
+  return <section className="ui-card flex flex-col p-5 sm:p-6" aria-labelledby="matchmaker-title" data-matchmaker>
     {gate ? <AccountDialog name={name} onNameChange={onNameChange} returnTo={`/geo/rooms?game=${game}`} onClose={() => setGate(false)} onAuthenticated={() => { setGate(false); runRef.current('join'); }} /> : null}
-    <div>
-      <h2 id="matchmaker-title">Find an opponent</h2>
-      <p>One against one. Five rounds. One minute per guess.</p>
-      <div className="pe-rule-choice" role="group" aria-label="Match game">
-        {['street', 'script'].map((choice) => <button key={choice} type="button" disabled={active} aria-pressed={choice === game} onClick={() => onGameChange(choice)}>{choice === 'street' ? 'Street' : 'Script'}</button>)}
-      </div>
-      <p role="status" aria-live="polite">{status === 'waiting' ? `Looking for a ${game === 'script' ? 'Script' : 'Street'} player… ${elapsed}s` : status === 'matched' ? 'Match found. Opening your game…' : status === 'cancelling' ? 'Cancelling…' : status === 'joining' ? 'Joining the queue…' : 'Starts automatically when another player joins.'}</p>
-      {status === 'waiting' && elapsed >= 20 ? <p>No opponent yet. Keep waiting, or cancel and invite a friend below.</p> : null}
-      {error ? <p role="alert">{error}</p> : null}
+    <h2 id="matchmaker-title" className="ui-h2">Quick match</h2>
+    <p className="mt-1 text-sm text-pe-muted">Play one other person who is looking right now. Five rounds, one minute per guess.</p>
+    <div className="pt-6">
+      {active
+        ? <Button variant="secondary" size="lg" block onClick={cancel} disabled={status !== 'waiting'}><LoaderCircle size={18} className="animate-spin" />{status === 'matched' ? 'Opening game' : 'Cancel search'}</Button>
+        : <Button size="lg" block onClick={() => { if (name.trim()) saveName(name.trim()); run('join'); }}><Users size={18} /> Find match</Button>}
+      <p role="status" aria-live="polite" className="mt-3 text-sm text-pe-muted">{statusText}</p>
+      {status === 'waiting' && elapsed >= 20 ? <p className="ui-small mt-1">No opponent yet. Keep waiting, or play with friends instead.</p> : null}
+      {error ? <p role="alert" className="ui-error mt-2">{error}</p> : null}
     </div>
-    {active ? <Button onClick={cancel} disabled={status !== 'waiting'}><LoaderCircle size={18} className="animate-spin" />{status === 'matched' ? 'Opening game' : 'Cancel search'}</Button>
-      : <Button size="lg" onClick={() => { if (name.trim()) saveName(name.trim()); run('join'); }}><Users size={19} /> Find match <ArrowRight size={19} /></Button>}
   </section>;
 }

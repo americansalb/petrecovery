@@ -220,6 +220,18 @@ export function createMemoryRoomStore() {
       const row = [...loginTokens.values()].find((x) => x.tokenHash === tokenHash);
       return row ? { ...row } : null;
     },
+    async getLatestLoginTokenForEmail(email) {
+      // Insertion order is creation order, so the last match is the newest.
+      const rows = [...loginTokens.values()].filter((x) => x.email === email);
+      const row = rows[rows.length - 1];
+      return row ? { ...row } : null;
+    },
+    async countLoginCodeAttempt(tokenId) {
+      const row = loginTokens.get(tokenId);
+      if (!row) return 0;
+      row.codeAttempts = (row.codeAttempts || 0) + 1;
+      return row.codeAttempts;
+    },
     async useLoginToken(tokenId, at) {
       const row = loginTokens.get(tokenId);
       if (!row || row.usedAt) return false;

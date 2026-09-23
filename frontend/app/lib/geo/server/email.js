@@ -21,7 +21,7 @@
 
 const DEVELOPMENT_FROM = 'Probably Earth <onboarding@resend.dev>';
 
-export async function sendSignInEmail({ to, url, env = process.env, sendImpl } = {}) {
+export async function sendSignInEmail({ to, url, code = '', env = process.env, sendImpl } = {}) {
   if (!to || !url) return { sent: false, reason: 'missing_arguments' };
 
   const key = env.RESEND_API_KEY || '';
@@ -36,7 +36,7 @@ export async function sendSignInEmail({ to, url, env = process.env, sendImpl } =
       console.error('[geo/email] no RESEND_API_KEY: no sign-in link can be sent');
       return { sent: false, delivered: false, reason: 'no_mail_key' };
     }
-    console.log(`[geo/email] no RESEND_API_KEY, sign-in link for ${to}:\n  ${url}`);
+    console.log(`[geo/email] no RESEND_API_KEY, sign-in for ${to}:${code ? `\n  code ${code}` : ''}\n  ${url}`);
     return { sent: true, delivered: false, reason: 'logged_not_sent' };
   }
 
@@ -54,9 +54,11 @@ export async function sendSignInEmail({ to, url, env = process.env, sendImpl } =
     const result = await send({
       from: configuredFrom || DEVELOPMENT_FROM,
       to,
-      subject: 'Your sign-in link',
-      text: signInText(url),
-      html: signInHtml(url),
+      // The code in the subject, so it can be read off the notification
+      // without opening the mail at all.
+      subject: code ? `${code} is your Probably Earth code` : 'Your sign-in link',
+      text: signInText(url, code),
+      html: signInHtml(url, code),
     });
     if (result?.error) throw new Error('Mail provider rejected the sign-in email');
     return { sent: true, delivered: true };
@@ -76,9 +78,9 @@ async function resendSender(key) {
   return (message) => client.emails.send(message);
 }
 
-export function signInText(url) {
+export function signInText(url, code = '') {
   return [
-    'Here is your sign-in link:',
+    ...(code ? [`Your sign-in code is ${code}`, '', 'Type it into the page that asked for it. Or open this link instead:'] : ['Here is your sign-in link:']),
     '',
     url,
     '',
@@ -87,11 +89,14 @@ export function signInText(url) {
   ].join('\n');
 }
 
-export function signInHtml(url) {
+export function signInHtml(url, code = '') {
   const safe = String(url).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-  return `<div style="font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#0f172a">
-  <p>Here is your sign-in link:</p>
-  <p><a href="${safe}" style="display:inline-block;background:#facc15;color:#0f172a;font-weight:600;padding:12px 20px;border-radius:10px;text-decoration:none">Sign in</a></p>
+  const digits = String(code).replace(/\D/g, '');
+  return `<div style="font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#0f172a;max-width:480px">
+  ${digits ? `<p style="margin:0 0 8px">Your Probably Earth sign-in code:</p>
+  <p style="margin:0 0 20px;font:700 32px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:6px">${digits}</p>
+  <p style="margin:0 0 12px;color:#475569">Type it into the page that asked for it. Or sign in with this button instead:</p>` : '<p>Here is your sign-in link:</p>'}
+  <p><a href="${safe}" style="display:inline-block;background:#2563eb;color:#ffffff;font-weight:600;padding:12px 20px;border-radius:10px;text-decoration:none">Sign in</a></p>
   <p style="color:#64748b;font-size:14px">It works once and expires in fifteen minutes. If you did not ask for it, nothing has happened to your account and you can ignore this.</p>
 </div>`;
 }

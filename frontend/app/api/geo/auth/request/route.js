@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 const SAME_ANSWER = {
   ok: true,
-  message: 'If that address can receive mail, a sign-in link is on its way. It expires in fifteen minutes.',
+  message: 'If that address can receive mail, a six-digit code is on its way. It works for fifteen minutes.',
 };
 
 // A sign-in link may return somebody to the game screen that asked for
@@ -70,7 +70,7 @@ export async function POST(request) {
     // player to watch an inbox nothing is coming to.
     if (!result.delivered) {
       return NextResponse.json(
-        { ok: true, message: 'No mail account is set up here, so the sign-in link was written to the server log.', code: 'logged_not_sent' },
+        { ok: true, message: 'No mail account is set up here, so the sign-in code was written to the server log.', code: 'logged_not_sent' },
         { headers: { 'Cache-Control': 'no-store' } }
       );
     }

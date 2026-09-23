@@ -439,7 +439,7 @@ export default function RoomClient({ code }) {
                 onClick={submitGuess}
                 disabled={!pin || busy}
                 data-geo-guess
-                className="pe-button pe-button--primary shrink-0 rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-ocean-950/40"
+                className="ui-btn ui-btn--primary pe-button pe-button--primary shrink-0"
               >
                 {busy ? 'Locking in…' : pin ? 'Lock in guess' : 'Place a pin'}
               </button>

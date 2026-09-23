@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import SignInCard from '@/app/geo/components/SignInCard';
 
+jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/app/geo/lib/profile', () => ({ ensureProfile: jest.fn(), profileHeaders: () => ({}) }));
 const response = (data, ok = true) => ({ ok, json: async () => data });
 afterEach(() => jest.restoreAllMocks());
@@ -18,7 +19,8 @@ test('does not flash a signup form while an existing session is loading', async 
   await act(async () => resolveAccount(response({ signedIn: true, email: 'test@example.test' })));
   expect(screen.getByText(/Signed in as/).textContent).toContain('test@example.test');
   expect(screen.queryByLabelText('Email')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Sign out' }).className).toContain('min-h-[44px]');
+  // Thumb-sized: .ui-btn is 44px tall (theme.css).
+  expect(screen.getByRole('button', { name: 'Sign out' }).className).toContain('ui-btn');
 });
 
 test('a failed session check is retryable and is not presented as signed out', async () => {
@@ -30,5 +32,6 @@ test('a failed session check is retryable and is not presented as signed out', a
   expect(screen.queryByLabelText('Email')).toBeNull();
   await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Check again' })));
   expect(await screen.findByLabelText('Email')).toBeInTheDocument();
-  expect(screen.getByLabelText(/Player name/)).toBeInTheDocument();
+  // The first screen is the address alone (returning-player.test.js).
+  expect(screen.queryByLabelText(/Player name/)).toBeNull();
 });

@@ -26,7 +26,7 @@ import path from 'path';
 
 const read = (rel) => fs.readFileSync(path.resolve(__dirname, '../..', rel), 'utf8');
 
-jest.mock('next/navigation', () => ({ usePathname: jest.fn(() => '/geo/rooms') }));
+jest.mock('next/navigation', () => ({ usePathname: jest.fn(() => '/geo/rooms'), useRouter: () => ({ push: jest.fn() }) }));
 const { usePathname } = require('next/navigation');
 
 describe('arriving on a page', () => {
@@ -88,7 +88,8 @@ describe('sign-in, while it checks who you are', () => {
       : new Promise(() => {})));
     const { container } = render(<SignInCard requireName />);
     expect(screen.getByRole('status')).toHaveTextContent('Checking your account');
-    expect(container.querySelectorAll('.pe-skeleton').length).toBeGreaterThanOrEqual(5);
+    // The email step's shape: its label, field, button and the line under it.
+    expect(container.querySelectorAll('.pe-skeleton').length).toBeGreaterThanOrEqual(4);
     expect(container.querySelectorAll('input')).toHaveLength(0);
   });
 });

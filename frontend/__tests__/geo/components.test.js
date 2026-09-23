@@ -87,17 +87,31 @@ test('the primitives exist and say what they are for', () => {
 });
 
 test('the primary button clears AA on its own surface', () => {
-  // clay-400 (#c68e6b) on ocean-950 (#132937) is 5.34:1; white on
-  // clay-500 was 3.68 and shipped on every screen in the game.
+  // Ocean blue with white text (theme.css). The old primary was rust
+  // with a painted 3D edge (founder, 2026-09-23: "ugly"); before that,
+  // white on clay-500 was 3.68:1 and shipped on every screen.
+  const theme = fs.readFileSync(path.join(GEO, 'theme.css'), 'utf8');
+  const rgb = theme.match(/--pe-accent:\s*(\d+) (\d+) (\d+);/).slice(1).map(Number);
+  const lum = ([r, g, b]) => {
+    const f = (c) => { const x = c / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+  };
+  const contrast = (1.05) / (lum(rgb) + 0.05);
+  expect(contrast).toBeGreaterThanOrEqual(4.5);
+  expect(theme).toMatch(/\.ui-btn--primary \{\s*background: rgb\(var\(--pe-accent\)\);\s*color: #fff;/);
   const button = fs.readFileSync(path.join(UI, 'Button.js'), 'utf8');
-  expect(button).toContain('bg-clay-400');
-  expect(button).toContain('text-ocean-950');
-  expect(button).not.toMatch(/bg-clay-500[^;]*text-white/);
+  expect(button).toContain('`ui-btn--${kind}`');
 });
 
 test('every button is thumb-sized', () => {
-  const button = fs.readFileSync(path.join(UI, 'Button.js'), 'utf8');
-  const heights = [...button.matchAll(/min-h-\[(\d+)px\]/g)].map((m) => Number(m[1]));
-  expect(heights.length).toBeGreaterThan(0);
-  for (const h of heights) expect(h).toBeGreaterThanOrEqual(44);
+  // 44px everywhere a finger is the pointer; the small size is small
+  // only under a mouse.
+  const theme = fs.readFileSync(path.join(GEO, 'theme.css'), 'utf8');
+  expect(theme).toMatch(/\.geo-surface \.ui-btn \{[^}]*min-height: 44px;/);
+  const coarse = theme.slice(theme.indexOf('@media (pointer: coarse)'));
+  const block = coarse.slice(0, coarse.indexOf('}\n}') + 3);
+  for (const control of ['.ui-btn--sm', '.ui-seg > button', '.ui-nav a', '.ui-account']) {
+    expect({ control, thumb: block.includes(control) }).toEqual({ control, thumb: true });
+  }
+  expect(block).toMatch(/min-height: 44px;/);
 });

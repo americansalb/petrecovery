@@ -28,7 +28,7 @@ export default function GeoNotFound() {
         Check the link, or start a game from the menu.
       </p>
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <Link href="/geo" className="pe-button pe-button--primary min-h-[44px] px-5 py-3">
+        <Link href="/geo" className="ui-btn ui-btn--primary pe-button pe-button--primary">
           Play
         </Link>
         <Link href="/geo/rooms" className="pe-button min-h-[44px] rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold">

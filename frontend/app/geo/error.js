@@ -20,8 +20,8 @@ export default function GameError({ error, reset }) {
           // A full navigation retries a rejected dynamic import; resetting the
           // React boundary alone can immediately throw the same cached error.
           // eslint-disable-next-line @next/next/no-html-link-for-pages
-          <a href="" className="pe-button pe-button--primary">Reload game</a>
-          : <button type="button" onClick={reset} className="pe-button pe-button--primary">Try again</button>}
+          <a href="" className="ui-btn ui-btn--primary pe-button pe-button--primary">Reload game</a>
+          : <button type="button" onClick={reset} className="ui-btn ui-btn--primary pe-button pe-button--primary">Try again</button>}
         {/* Full navigation also works if the client router is the failing part. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/geo" className="pe-button pe-button--secondary">Back to games</a>

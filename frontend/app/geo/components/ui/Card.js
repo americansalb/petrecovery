@@ -20,14 +20,14 @@
 import Link from 'next/link';
 
 const TONES = {
-  panel: 'border-white/10 bg-ocean-900/60',
-  sunken: 'border-white/10 bg-ocean-950/40',
-  marked: 'border-clay-400 bg-ocean-900',
+  panel: 'border-pe-line bg-pe-surface',
+  sunken: 'border-pe-line bg-pe-canvas',
+  marked: 'border-pe-accent bg-pe-surface',
 };
 
-const PADS = { md: 'p-5', sm: 'p-4', none: '' };
+const PADS = { md: 'p-5 sm:p-6', sm: 'p-4', none: '' };
 
-const HOVER = 'transition hover:border-white/25 hover:bg-ocean-900/80';
+const HOVER = 'transition hover:border-pe-line-strong hover:bg-pe-raised';
 
 export default function Card({
   tone = 'panel',
@@ -59,11 +59,11 @@ export default function Card({
 /** A card's heading: an icon, a name, and nothing else on the line. */
 export function CardTitle({ icon: Icon, children, trailing = null }) {
   return (
-    <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-      {Icon ? <Icon className="h-4 w-4 text-clay-300" /> : null}
+    <h2 className="flex items-center gap-2 text-base font-semibold text-pe-fg">
+      {Icon ? <Icon className="h-4 w-4 text-pe-muted" /> : null}
       {children}
       {trailing ? (
-        <span className="font-normal normal-case tracking-normal text-white/50">
+        <span className="font-normal text-pe-subtle">
           {trailing}
         </span>
       ) : null}

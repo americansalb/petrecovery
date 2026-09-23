@@ -3,23 +3,19 @@
 /**
  * Signing in.
  *
- * The Sign in link used to point at /geo/me, the profile page. Somebody
- * who has never played, clicking Sign in, was shown "YOUR PROFILE", a
- * name they never chose ("Player"), a rating of 1500, a shop full of
- * things priced in points they do not have, and a line reading "In this
- * browser only". Every word of that is true of the anonymous profile
- * the browser gets on its first round, and none of it is an answer to
- * "let me sign in" (founder, 2026-09-17: "why does it pretend I have an
- * account named player").
- *
- * So this page does one thing and says one thing.
+ * One heading, one line saying what happens, and the form: an email,
+ * then the code from it (components/SignInCard.js). It used to carry
+ * two headings ("Sign in", then "Sign in, or start an account"), a
+ * paragraph explaining accounts, and a player-name field for people who
+ * did not have one, all above the one field that mattered (founder,
+ * 2026-09-23: "Very unclear. Why not just have normal sign in
+ * process?").
  *
  * `next` is read with useSearchParams rather than the searchParams prop:
- * this is a client page, and Next 15 hands a client page a promise there,
- * so reading `searchParams.next` logged a sync-dynamic-api warning and is
- * removed in a later major. It silently returning undefined would land a
- * signed-in player on the profile page instead of the round they left,
- * which is the failure this whole return path exists to prevent.
+ * this is a client page, and Next 15 hands a client page a promise
+ * there. It silently returning undefined would land a signed-in player
+ * on the profile page instead of the round they left, which is the
+ * failure this whole return path exists to prevent.
  */
 
 import { Suspense } from 'react';
@@ -31,24 +27,23 @@ import { safeReturnTo } from '@/app/lib/geo/authReturn';
 
 function SignInForm() {
   const searchParams = useSearchParams();
-  return <SignInCard requireName returnTo={safeReturnTo(searchParams.get('next'))} />;
+  const next = safeReturnTo(searchParams.get('next'));
+  return <SignInCard requireName returnTo={next} continueTo={next} />;
 }
 
 export default function GeoSignInPage() {
   return (
-    <main className="mx-auto max-w-md px-4 py-12 sm:py-20">
-      <Link href="/geo" className="inline-flex items-center gap-2 text-sm font-semibold text-white/60 transition hover:text-white">
-        <ArrowLeft className="h-4 w-4" />
-        Probably Earth
+    <main className="ui-page ui-page--narrow">
+      <Link href="/geo" className="ui-btn ui-btn--ghost ui-btn--sm -ml-3">
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back
       </Link>
-      <h1 className="mt-6 text-3xl font-bold tracking-tight sm:text-4xl">Sign in</h1>
-      {/* No paragraph here. The card below says what signing in does,
-          and a page that says it first makes the screen read the same
-          sentence twice. */}
-      <div className="mt-6">
+      <h1 className="ui-h1 mt-6">Sign in</h1>
+      <p className="ui-lead mt-2">Keep your scores, rating and badges on every device.</p>
+      <div className="ui-card mt-8 p-5 sm:p-6">
         {/* useSearchParams needs a boundary or the whole route opts out
             of static rendering at build time. */}
-        <Suspense fallback={<SignInCard requireName returnTo="/geo/me" />}>
+        <Suspense fallback={<SignInCard requireName returnTo="/geo/me" continueTo="/geo/me" />}>
           <SignInForm />
         </Suspense>
       </div>

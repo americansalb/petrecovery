@@ -116,7 +116,7 @@ export default function Tabs({
           onClick={() => onChange(item.id)}
           {...(marker ? { [`data-${marker}`]: item.id } : {})}
           className={`min-h-[44px] rounded-lg px-4 py-1.5 text-sm font-semibold ${
-            value === item.id ? 'text-white' : 'text-white/70 hover:bg-ocean-900/60'
+            value === item.id ? 'text-pe-fg' : 'text-pe-muted hover:text-pe-fg'
           }`}
         >
           {item.label}
