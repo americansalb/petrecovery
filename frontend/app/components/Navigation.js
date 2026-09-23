@@ -67,7 +67,7 @@ import { isImmersiveRoute } from '@/app/lib/navChrome';
 const CENTER_LINKS = [
   { href: '/care', label: 'Pet Care', icon: Heart, activePrefixes: ['/pets'] },
   { href: '/lost-and-found', label: 'Lost & Found', icon: Search, activePrefixes: ['/cases'] },
-  { href: '/rescue-forces/search', label: 'Rescue Forces', icon: Shield, activePrefixes: ['/rescue-forces', '/divisions'] },
+  { href: '/rescue-forces', label: 'Rescue Forces', icon: Shield, activePrefixes: ['/rescue-forces', '/divisions'] },
   { href: '/shelters', label: 'Shelters', icon: MapPin, activePrefixes: ['/for-shelters', '/shelter/', '/my-shelter'] },
   { href: '/hub', label: 'Hub', icon: Sparkles, activePrefixes: [] },
 ];
@@ -341,8 +341,12 @@ export default function Navigation() {
         />
       )}
 
-      {/* Mobile Menu Drawer */}
-      <div className={`fixed top-0 right-0 w-[300px] max-w-[85vw] h-full bg-white z-[110] transform transition-transform duration-300 ease-out lg:hidden ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+      {/* Mobile Menu Drawer. Closed, it is slid off screen AND invisible:
+          off screen alone left its links in the tab order and the screen
+          reader's list, so a keyboard user tabbed into a menu they could not
+          see. Visibility is transitioned with the slide, so it flips at the
+          start of opening and at the end of closing. */}
+      <div className={`fixed top-0 right-0 w-[300px] max-w-[85vw] h-full bg-white z-[110] transform transition-[transform,visibility] duration-300 ease-out lg:hidden ${mobileMenuOpen ? 'visible translate-x-0' : 'invisible translate-x-full'
         }`}>
         {/* Mobile Header */}
         <div className="bg-midnight-900 p-4 text-white">

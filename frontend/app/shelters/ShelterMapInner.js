@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * The directory map (client-only Leaflet), daylight sibling of the
- * lantern map: light tiles, midnight pins, flash only on the selected
- * shelter. Markers always mirror the visible list; selection flows both
- * ways (pin click selects the card, card click pans the map).
+ * The directory map (client-only Leaflet): light tiles, midnight pins,
+ * flash only on the selected shelter. Markers always mirror the visible
+ * list; selection flows both ways (pin click selects the card, card click
+ * pans the map).
  */
 
 import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';

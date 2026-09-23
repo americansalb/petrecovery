@@ -41,7 +41,7 @@ describe('GET /api/account/modes', () => {
     expect(body.modes.map((m) => m.id)).toEqual(['owner', 'searcher']);
     // Not a member of any force: a plain invitation to the network
     expect(body.modes[1]).toEqual(
-      expect.objectContaining({ label: 'Help find lost pets', href: '/rescue-forces/search' })
+      expect.objectContaining({ label: 'Help find lost pets', href: '/rescue-forces' })
     );
   });
 

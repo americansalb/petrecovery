@@ -54,7 +54,7 @@ How the renames were physically executed (see §6 Data Model): the LostReport→
 - **Stack**: Next.js 14 app router in `frontend/`; mostly JavaScript with newer `.ts` API routes (the "Actions Guide" era: mission close/flyers/points/shelters/tips, analytics, users/me/points, webhooks/resend, places/search, simulate). Prisma + PostgreSQL; NextAuth (JWT strategy, no DB sessions); Tailwind; Leaflet 1.9.4 + react-leaflet 4.2.1 (+ leaflet-draw); framer-motion 12.23 (narrow use); recharts 3.6 (one consumer); lucide-react icons; Capacitor 6 native shell.
 - **Deploy/runtime reality**: prod boots with `"start": "node scripts/boot.js"`, which runs `prisma db push --skip-generate`, then `prisma/sync-legal-docs.js`, then `next start`, reporting a failed step loudly and starting the server regardless (a destructive-looking schema delta used to take the whole site down through the old `&&` chain). `next start` warns that it "does not work" with `output: 'standalone'` and then serves everything (checked 2026-09-12: pages and API routes all 200). Schema sync is **push-based, no migrate deploy** (a separate unused `db:migrate` script exists). This single fact shapes multiple schema decisions (no new unique constraints on live tables; legacy columns kept so `db push` stays additive). Dev historically shares the **PROD** database (`HANDOFF.md` hazard: never write test users; never run `next build` while the dev server is up — shared `.next` corruption).
 - **Middleware** (`frontend/middleware.js`) does: canonical-host 301 (`petrecovery.org` → `https://www.reunitepets.org`), bot-probe 404 fast path, health endpoints, per-IP in-memory API rate limiting, auth gates (`PROTECTED_ROUTES` = `/dashboard`, `/settings`, `/missions/new`, `/missions/edit`, `/rescue-forces/create`, `/admin`; `ADMIN_ROUTES` = `/admin`, `/api/admin` — verified at lines 43–58), CAPTCHA enforcement, and security headers.
-- **`next.config.js` legacy 301s**: `/missions` and `/database` → `/lost-and-found`; `/communities` and `/communities/:path*` → `/rescue-forces/search`; `/report` → `/report/new`; `/terms` → `/legal/terms`; `/rescue-squads*` → `/rescue-forces*` (+ API rewrite).
+- **`next.config.js` legacy 301s**: `/missions` and `/database` → `/lost-and-found`; `/communities` and `/communities/:path*` → `/rescue-forces`; `/rescue-forces/search` → `/rescue-forces` (query kept); `/report` → `/report/new`; `/terms` → `/legal/terms`; `/rescue-squads*` → `/rescue-forces*` (+ API rewrite).
 - **Realtime**: SSE with in-memory connection maps in `app/lib/sse/*` (single-instance assumption) — `mission/[missionId]/stream` (public), `realtime/notifications` (session), `simulator/batch/stream`.
 - **External integrations**: Anthropic Claude (Sarama chat wizard + `ai/*` vision/parsing on `claude-haiku-4-5`), Stripe (donations/rewards/subscriptions), Twilio (SMS + webhook), Resend (email + Svix-signed webhook, nodemailer/SMTP fallbacks), Bunny.net (uploads/CDN, brand assets on `petrescue.b-cdn.net`), Apple MapKit JS + Apple Maps Server API, Google Maps Platform for the geo game (Street View metadata + Maps JavaScript API, docs/GEO.md), OSM Nominatim/Overpass, CARTO/Esri tiles, Petfinder/RescueGroups, web-push VAPID, reCAPTCHA v2/v3, optional Redis for rate limiting/cache.
 - **Mobile**: Capacitor remote-URL shell (`com.reunitepets.app` loads the live site); one mobile-specific endpoint `api/mobile/auth/login` mints a genuine NextAuth JWT so the whole API works unchanged.
@@ -143,10 +143,9 @@ All `/pets/[id]/*` share the client shell `app/pets/[id]/layout.js` (breadcrumb 
 
 | route | purpose | client/server | auth | dynamic params & source |
 |---|---|---|---|---|
-| `/rescue-forces` | Client redirect → `/rescue-forces/search` | client | n/a | — |
-| `/rescue-forces/search` | Find your local Rescue Force by city/zip + radius | client | none | optional `?q=` (homepage deep-link) runs search on arrival |
-| `/rescue-forces/create` | Create a Rescue Force | client | logged-in (middleware + client check) | — |
-| `/rescue-forces/[id]` | Squad Hub — public squad profile/overview | server wrapper + client (`SquadPageClient`) | none | `RescueForce.id` (cuid, `isDeleted: false`) |
+| `/rescue-forces` | What a Rescue Force is, search by town or ZIP (25 mi, `TownPicker` suggestions), and every active force | server + client search | none | optional `?q=` (homepage deep-link; old `/rescue-forces/search?q=` 308s here) runs the search on arrival |
+| `/rescue-forces/create` | Start a Rescue Force: pick the town (`TownPicker`); the API names it "{Town} Rescue Force". Handles the waiver (link to `/legal/consent`) and an existing force (link to it) | client | logged-in (middleware + client check) | — |
+| `/rescue-forces/[id]` | Public force page: identity + join (or member tools for leaders), pets missing in its area (board `PetCard`s), area map (`TerritoryMapCard`, light), members by first name, reunions, activity | server (`app/lib/forcePublic.js`) + client map/join | none | `RescueForce.id` (cuid, `isDeleted: false`); `?created=true` shows the founder a set-up banner |
 | `/rescue-forces/[id]/settings` | Squad settings & member management (FOUNDER/LEADER tools) | client | logged-in (redirect); squad-role gated in UI/API | `RescueForce.id` where session user is member |
 | `/rescue-forces/[id]/divisions` | Division management for founders/leaders | client | no hard redirect; membership checked client-side, features gated | `RescueForce.id` |
 | `/rescue-forces/[id]/divisions/[divisionId]` | Division page (SquadHubV2 scoped to division) | client | none (public hub API) | `RescueForce.id` + `Division.id` belonging to that force |
@@ -266,7 +265,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 | `/legal/terms` | Terms of Service (canonical; `/terms` 301s here) | server (static) | none |
 | `/privacy` | Privacy policy | server (static) | none |
 
-### Legacy communities (all **unreachable**: `next.config.js` 301s `/communities` and `/communities/:path*` → `/rescue-forces/search`)
+### Legacy communities (all **unreachable**: `next.config.js` 301s `/communities` and `/communities/:path*` → `/rescue-forces`)
 
 | route | purpose | auth | params |
 |---|---|---|---|
@@ -279,7 +278,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 
 - **Dead-on-arrival via `next.config.js` 301s** (never reachable at their own path): `/missions`, `/database`, `/communities`, `/communities/*`, `/report` → `/report/new`, `/terms` → `/legal/terms`, `/rescue-squads*` → `/rescue-forces*`. Middleware also 301s `petrecovery.org` hosts → `www.reunitepets.org`.
 - **In-page redirect stubs** (only a spinner is visible): server `redirect()` (instant): `/found`, `/missions/report`, `/pets/[id]/care`, `/pets/[id]/medications`; client `useEffect` (brief flash): `/patrol/database`, `/rescue-forces`, `/rescue-forces/[id]/command-center`, `/rescue-forces/[id]/mission-control`, `/missions/[missionNumber]` (→ `/mission-control?mission=`), `/missions/[missionNumber]/coordinate`, `/reports/[id]`.
-- **Query strings required**: `/mission-control?mission=<Case.caseNumber>`, `/sightings/report?alertId=<Case.id>`, `/reset-password?token=`, `/verify-email?token=`, `/hub/search?q=`, `/rescue-forces/search?q=`, `/pets/[id]/medications/new?edit=<PetMedication.id>`.
+- **Query strings required**: `/mission-control?mission=<Case.caseNumber>`, `/sightings/report?alertId=<Case.id>`, `/reset-password?token=`, `/verify-email?token=`, `/hub/search?q=`, `/rescue-forces?q=`, `/pets/[id]/medications/new?edit=<PetMedication.id>`.
 - **Logged out**: most protected client pages render `null`/spinner then bounce to `/login` after hydration; `/shelter/dashboard` redirects server-side; `/admin/*` logged-in-but-not-admin shows **raw 403 JSON** from middleware. Some redirects omit `callbackUrl` (`/alerts`, `/profile`, `/dashboard`); two use nonstandard `?redirect=` (`/hub/new`, `/shelter/request`).
 - **Auth hidden behind APIs**: `/mission-control` renders its shell logged out but can't load a mission (API 401 / waiver 403 modal); `/hub/new` bounces only after session resolves.
 

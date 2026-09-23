@@ -23,7 +23,7 @@ const DO_LINKS = [
   { href: '/report/new', label: 'Report a lost pet' },
   { href: '/report/found', label: 'Report a found pet' },
   { href: '/lost-and-found', label: 'Browse Lost & Found' },
-  { href: '/rescue-forces/search', label: 'Find your Rescue Force' },
+  { href: '/rescue-forces', label: 'Find your Rescue Force' },
 ];
 
 const EXPLORE_LINKS = [
