@@ -22,7 +22,7 @@ export function PlayerBadge({ player, size = "md" }) {
         : "h-9 w-9 text-xs";
   return (
     <span
-      className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-ocean-950/60`}
+      className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-white ring-2 ring-pe-canvas`}
       style={{
         backgroundColor: player.color,
         opacity: player.eliminated ? 0.45 : 1,
@@ -36,7 +36,7 @@ export function PlayerBadge({ player, size = "md" }) {
       {initials(player.name)}
       {player.online === false ? (
         <span
-          className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-sand-500 ring-2 ring-ocean-950"
+          className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-pe-subtle ring-2 ring-pe-canvas"
           title="Away"
         />
       ) : null}
@@ -60,7 +60,7 @@ export function HpBar({ hp, max = 6000, color, damage = 0 }) {
     >
       <span
         className="pe-hp-fill"
-        style={{ width: `${pct}%`, backgroundColor: color || "#bad992" }}
+        style={{ width: `${pct}%`, backgroundColor: color || "rgb(var(--pe-good))" }}
       />
       {loss > 0 ? (
         <span
@@ -84,22 +84,22 @@ export default function PlayersPanel({
   const isDuel = variant === "duel";
   if (phase === "lobby" && !compact) {
     return (
-      <ul className="pe-party-players">
+      <ul className="grid gap-2 sm:grid-cols-2">
         {players.map((p) => (
-          <li key={p.id}>
-            <PlayerBadge player={p} size="lg" />
-            <div>
+          <li key={p.id} className="flex items-center gap-3 rounded-xl border border-pe-line bg-pe-surface p-3">
+            <PlayerBadge player={p} />
+            <div className="min-w-0 flex-1">
               <PlayerName
                 name={p.name}
                 cosmetics={p.cosmetics}
                 you={p.you}
-                className="font-semibold"
+                className="max-w-full font-semibold"
               />
-              <span>
+              <span className="block text-xs text-pe-muted">
                 {p.isHost ? "Host" : p.online === false ? "Away" : "Joined"}
               </span>
             </div>
-            {p.isHost ? <Crown size={15} /> : null}
+            {p.isHost ? <Crown size={16} className="shrink-0 text-pe-warm" aria-label="Host" /> : null}
           </li>
         ))}
       </ul>
@@ -111,12 +111,12 @@ export default function PlayersPanel({
         {players.map((p) => (
           <div
             key={p.id}
-            className="flex items-center gap-1 rounded-full border border-white/15 bg-ocean-900/80 py-0.5 pl-0.5 pr-2 backdrop-blur"
+            className="flex items-center gap-1 rounded-full border border-white/15 bg-pe-canvas/80 py-0.5 pl-0.5 pr-2 backdrop-blur"
             title={`${p.name}: ${isDuel ? `${p.hp} HP` : `${formatScore(p.score)} points`}`}
           >
             <PlayerBadge player={p} size="sm" />
             <span
-              className={`text-xs font-semibold ${p.you ? "text-clay-300" : "text-white"}`}
+              className={`text-xs font-semibold ${p.you ? "text-pe-warm" : "text-white"}`}
               data-player={p.name}
               data-player-hp={isDuel ? p.hp : undefined}
             >
@@ -124,7 +124,7 @@ export default function PlayersPanel({
             </span>
             {phase === "guessing" ? (
               <span
-                className={`text-xs ${p.guessed ? "text-green-400" : "text-white/30"}`}
+                className={`text-xs ${p.guessed ? "text-pe-good" : "text-white/30"}`}
                 aria-label={p.guessed ? "guessed" : "still guessing"}
               >
                 {p.guessed ? "✓" : "·"}
@@ -137,7 +137,7 @@ export default function PlayersPanel({
   }
 
   return (
-    <ul className="divide-y divide-white/10">
+    <ul className="divide-y divide-pe-line">
       {players.map((p) => (
         <li key={p.id} className="flex items-center gap-3 py-2">
           <PlayerBadge player={p} />
@@ -147,27 +147,27 @@ export default function PlayersPanel({
                 name={p.name}
                 cosmetics={p.cosmetics}
                 you={p.you}
-                className={`font-semibold ${p.you && !p.cosmetics?.color ? "text-clay-300" : "text-white"}`}
+                className={`font-semibold ${p.you && !p.cosmetics?.color ? "text-pe-warm" : "text-pe-fg"}`}
               />
               {p.isHost ? (
                 <Crown
-                  className="h-3.5 w-3.5 text-clay-300"
+                  className="h-3.5 w-3.5 text-pe-warm"
                   aria-label="Host"
                 />
               ) : null}
               {p.eliminated ? (
-                <span className="rounded-full bg-red-500/20 px-1.5 text-[10px] font-bold uppercase text-red-300">
+                <span className="rounded-full bg-pe-bad/20 px-1.5 text-[10px] font-bold uppercase text-pe-bad">
                   out
                 </span>
               ) : null}
               {p.online === false ? (
-                <span className="text-[10px] uppercase tracking-wide text-white/40">
+                <span className="text-[10px] uppercase tracking-wide text-pe-subtle">
                   away
                 </span>
               ) : null}
             </div>
             {p.rating ? (
-              <div className="text-[11px] text-white/60">
+              <div className="text-[11px] text-pe-muted">
                 {/* 1500 is where everyone starts, not something earned.
                     "Silver 1500 (provisional)" beside a player who has
                     never been rated reads as a rank they hold, which is
@@ -183,7 +183,7 @@ export default function PlayersPanel({
                 )}
               </div>
             ) : p.rated === false ? (
-              <div className="text-[11px] text-white/40">unrated</div>
+              <div className="text-[11px] text-pe-subtle">unrated</div>
             ) : null}
             {isDuel ? (
               <div className="mt-1 w-40 max-w-full">
@@ -193,7 +193,7 @@ export default function PlayersPanel({
           </div>
           <div className="text-right">
             <div
-              className="font-semibold tabular-nums text-white"
+              className="font-semibold tabular-nums text-pe-fg"
               data-player={p.name}
               data-player-hp={isDuel ? p.hp : undefined}
             >
@@ -201,20 +201,20 @@ export default function PlayersPanel({
             </div>
             {phase === "finished" && Number.isFinite(p.ratingDelta) ? (
               <div
-                className={`text-[11px] font-semibold tabular-nums ${p.ratingDelta >= 0 ? "text-green-400" : "text-red-300"}`}
+                className={`text-[11px] font-semibold tabular-nums ${p.ratingDelta >= 0 ? "text-pe-good" : "text-pe-bad"}`}
               >
                 {p.ratingDelta >= 0 ? "+" : ""}
                 {p.ratingDelta} rating
               </div>
             ) : null}
             {!isDuel && p.roundWins ? (
-              <div className="text-[11px] text-white/60">
+              <div className="text-[11px] text-pe-muted">
                 {p.roundWins} round {p.roundWins === 1 ? "win" : "wins"}
               </div>
             ) : null}
             {phase === "guessing" ? (
               <div
-                className={`text-[11px] ${p.guessed ? "text-green-400" : "text-white/40"}`}
+                className={`text-[11px] ${p.guessed ? "text-pe-good" : "text-pe-subtle"}`}
               >
                 {p.guessed ? "guessed" : "thinking"}
               </div>

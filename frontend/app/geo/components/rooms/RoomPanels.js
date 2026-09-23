@@ -46,13 +46,15 @@ import {
 import { PROVISIONAL_GAMES } from "@/app/lib/geo/rating";
 
 export function Panel({ children, wide = false }) {
+  // A narrow panel is one card (joining, a message); a wide one is a
+  // page of its own (the lobby, the final standings) and brings its own.
   return (
-    <div className="pe-room-stage absolute inset-0 z-40 flex items-center justify-center overflow-y-auto bg-ocean-950/95 p-4">
-      <div
-        className={`w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-2xl border border-white/10 bg-ocean-900 p-5 text-white shadow-2xl sm:p-6`}
-      >
-        {children}
-      </div>
+    <div className="absolute inset-0 z-40 flex items-start justify-center overflow-y-auto bg-pe-canvas px-4 py-12 sm:items-center sm:py-16">
+      {wide ? (
+        <div className="w-full max-w-2xl">{children}</div>
+      ) : (
+        <Card className="w-full max-w-md">{children}</Card>
+      )}
     </div>
   );
 }
@@ -71,7 +73,7 @@ function useCopy() {
   return [copied, copy];
 }
 
-export function RoomSummary({ room, countries }) {
+export function RoomSummary({ room, countries, chip = true }) {
   const regionLabel =
     room.config.mode === "country"
       ? countries?.find((c) => c.code === room.config.region)?.name
@@ -86,34 +88,37 @@ export function RoomSummary({ room, countries }) {
   if (room.config.provider && room.config.provider !== PRIMARY_PROVIDER)
     parts.push(PROVIDERS[room.config.provider]?.label || room.config.provider);
   return (
-    <p className="text-sm text-white/70">
-      <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-clay-300">
-        {VARIANTS[room.variant]?.label || room.variant}
-      </span>{" "}
+    <p className="text-sm text-pe-muted">
+      {chip ? (
+        <>
+          <span className="rounded-full bg-pe-raised px-2 py-0.5 text-xs font-semibold text-pe-fg">
+            {VARIANTS[room.variant]?.label || room.variant}
+          </span>{" "}
+        </>
+      ) : null}
       {parts.join(". ")}.
     </p>
   );
 }
 
 export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
-  const [name, setName] = useState(defaultName || "");
-  const editedName = useRef(false);
-  useEffect(() => {
-    if (!editedName.current) setName(defaultName || "");
-  }, [defaultName]);
   const room = state.room;
   const finished = room.status === "finished";
+  const playing = room.status === "playing";
+  // Somebody who followed a friend's invite link is here to play, not to
+  // fill in a form. They play under their account's name, which is
+  // theirs to change on their profile; the panel used to hold a name box
+  // whose contents renamed the account (RoomClient, onJoin).
+  const named = defaultName && defaultName !== DEFAULT_PLAYER_NAME;
   return (
     <Panel>
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-        Room {room.code}
-      </p>
-      <h1 className="mt-1 text-2xl font-bold">{room.name}</h1>
+      <p className="text-sm font-medium text-pe-muted">Room {room.code}</p>
+      <h1 className="ui-h2 mt-1">{room.name}</h1>
       <div className="mt-2">
         <RoomSummary room={room} />
       </div>
-      <p className="mt-3 flex items-center gap-2 text-sm text-white/70">
-        <Users className="h-4 w-4" />
+      <p className="mt-3 flex items-center gap-2 text-sm text-pe-muted">
+        <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
         {state.players.length}{" "}
         {state.players.length === 1 ? "player" : "players"}
         {state.players.length
@@ -121,69 +126,51 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
           : ""}
       </p>
       {finished ? (
-        <div className="mt-4">
-          <p className="text-white/80">This game is over.</p>
-          {room.rematchCode ? (
-            <Link
-              href={`/geo/room/${room.rematchCode}`}
-              className="mt-3 inline-flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2 font-bold text-ocean-950 hover:bg-clay-300"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Join the rematch
+        <div className="mt-6">
+          <p className="text-pe-fg">This game is over.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {room.rematchCode ? (
+              <Link href={`/geo/room/${room.rematchCode}`} className="ui-btn ui-btn--primary">
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Join the rematch
+              </Link>
+            ) : null}
+            <Link href="/geo/rooms" className="ui-btn ui-btn--secondary">
+              Back to Multiplayer
             </Link>
-          ) : null}
-          <Link
-            href="/geo/rooms"
-            className="mt-3 ml-2 inline-block rounded-xl border border-white/20 px-4 py-2 font-semibold hover:bg-white/10"
-          >
-            All rooms
-          </Link>
+          </div>
         </div>
       ) : (
         <form
           method="post"
-          className="mt-5 flex flex-col gap-3 sm:flex-row"
+          className="mt-6 grid gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            // Somebody who followed a friend's invite link is here to
-            // play, not to fill in a form. The button used to be dead
-            // until they typed a name - and joining asks them to sign
-            // in anyway, so there were two gates where the code needs
-            // one, and the first of them explained nothing. They are a
-            // Player until they choose otherwise, on the profile page
-            // where the name is theirs to keep.
-            onJoin(name.trim() || DEFAULT_PLAYER_NAME);
+            onJoin();
           }}
         >
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => { editedName.current = true; setName(e.target.value); }}
-            maxLength={20}
-            placeholder="Your name"
-            aria-label="Your name (optional)"
-            className="flex-1 rounded-xl border border-white/15 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-clay-500 focus:outline-none"
-            style={{
-              backgroundColor: "rgba(2, 6, 23, 0.85)",
-              color: "#ffffff",
-            }}
-            autoFocus
-          />
+          {named ? (
+            <p className="text-sm text-pe-muted">
+              You will play as{" "}
+              <span className="font-semibold text-pe-fg">{defaultName}</span>.
+            </p>
+          ) : null}
           <button
             type="submit"
             disabled={busy}
-            className="rounded-xl bg-clay-400 px-5 py-2.5 font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50"
+            className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block"
+            autoFocus
           >
-            {busy ? "Joining" : room.status === "playing" ? "Rejoin" : "Join"}
+            {busy ? "Joining…" : playing ? "Rejoin" : "Join"}
           </button>
         </form>
       )}
-      {error ? <p className="mt-3 text-sm text-red-300">{error}</p> : null}
-      {!finished && room.status === "playing" ? <p className="mt-3 text-sm text-white/70">Already playing? Use the same account to rejoin. New players can join the next game.</p> : null}
-      <p className="mt-4 text-xs text-white/40">
+      {error ? <p role="alert" className="ui-error mt-3">{error}</p> : null}
+      {!finished && playing ? <p className="mt-3 text-sm text-pe-muted">Already playing? Use the same account to rejoin. New players can join the next game.</p> : null}
+      <p className="mt-5 text-sm text-pe-subtle">
         Not this room?{" "}
-        <Link href="/geo/rooms" className="underline">
-          Back to the room list
+        <Link href="/geo/rooms" className="font-medium text-pe-accent-fg hover:underline">
+          Back to Multiplayer
         </Link>
       </p>
     </Panel>
@@ -202,72 +189,89 @@ export function LobbyPanel({
   const room = state.room;
   const me = state.me;
   const ready = state.players.length >= 2;
+  const host = state.players.find((p) => p.isHost);
   const link =
     typeof window !== "undefined"
       ? `${window.location.origin}/geo/room/${room.code}`
       : `/geo/room/${room.code}`;
   return (
     <Panel wide>
-      <div className="pe-party-heading">
-        <p className="pe-eyebrow">
-          {room.config?.game === 'script' ? 'Script multiplayer' : 'Street multiplayer'}
-        </p>
-        <h1>{ready ? "Ready to play" : "Invite a friend"}</h1>
-        <p>
-          {ready
-            ? `${state.players.length} players have joined. ${me?.isHost ? "Start whenever you’re ready." : "Your host will start the game."}`
-            : "Send an invite to a friend. Start when they join."}
-        </p>
-      </div>
-      <div className="pe-party-invite">
-        <div>
-          <span>Share this room code</span>
-          <strong>{room.code}</strong>
+      <p className="text-sm font-medium text-pe-muted">
+        {room.config?.game === "script" ? "Script multiplayer" : "Street multiplayer"}
+        {" · "}
+        {VARIANTS[room.variant]?.label || room.variant}
+      </p>
+      <h1 className="ui-h1 mt-1">{ready ? "Ready to play" : "Invite a friend"}</h1>
+      <p className="ui-lead mt-2">
+        {ready
+          ? me?.isHost
+            ? `${state.players.length} players are here. Start whenever you’re ready.`
+            : `${state.players.length} players are here. ${host?.name || "Your host"} will start the game.`
+          : "Send the link to a friend. You can start once they join."}
+      </p>
+
+      <Card className="mt-6">
+        <p className="text-sm font-medium text-pe-muted">Room code</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <strong className="font-mono text-3xl font-bold tracking-[0.2em] text-pe-fg">
+            {room.code}
+          </strong>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => copy("link", link)}
+              className="ui-btn ui-btn--primary"
+            >
+              {copied === "link" ? <Check size={18} aria-hidden="true" /> : <Link2 size={18} aria-hidden="true" />}
+              {copied === "link" ? "Invite link copied" : "Copy invite link"}
+            </button>
+            <button
+              type="button"
+              onClick={() => copy("code", room.code)}
+              className="ui-btn ui-btn--secondary"
+            >
+              {copied === "code" ? "Code copied" : "Copy code"}
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => copy("link", link)}
-          className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
-        >
-          {copied === "link" ? <Check size={18} /> : <Link2 size={18} />}
-          {copied === "link" ? "Invite link copied" : "Copy invite link"}
-        </button>
-        <button
-          type="button"
-          onClick={() => copy("code", room.code)}
-          className="pe-copy-code"
-        >
-          {copied === "code" ? "Code copied" : "Copy code"}
-        </button>
-      </div>
-      <div className="pe-party-roster">
-        <h2>Who’s playing</h2>
-        <PlayersPanel
-          players={state.players}
-          variant={room.variant}
-          phase="lobby"
-        />
+      </Card>
+
+      <section className="mt-6" aria-labelledby="lobby-players">
+        <h2 id="lobby-players" className="ui-h2">
+          Players <span className="text-pe-muted">({state.players.length})</span>
+        </h2>
+        <div className="mt-3">
+          <PlayersPanel
+            players={state.players}
+            variant={room.variant}
+            phase="lobby"
+          />
+        </div>
         {!ready ? (
-          <p className="pe-party-wait">
-            <Users size={18} /> Waiting for someone to join your room
+          <p className="mt-3 flex items-center gap-2 text-sm text-pe-muted">
+            <Users size={16} aria-hidden="true" /> Waiting for someone to join
           </p>
         ) : null}
-      </div>
-      <div className="pe-party-rules">
-        <strong>{VARIANTS[room.variant]?.label}</strong>
-        <p>
+      </section>
+
+      <section className="mt-6 border-t border-pe-line pt-5" aria-label="Rules">
+        <p className="text-sm text-pe-fg">
+          <span className="font-semibold">{VARIANTS[room.variant]?.label}.</span>{" "}
           {room.variant === "duel"
             ? "Better guesses damage your rivals. Last player standing wins."
             : "Everyone guesses the same places. Highest total score wins."}
         </p>
-        <RoomSummary room={room} countries={countries} />
-      </div>
+        <div className="mt-1">
+          <RoomSummary room={room} countries={countries} chip={false} />
+        </div>
+      </section>
+
       {room.lastError || error ? (
-        <p role="alert" className="mt-4 text-sm text-red-200">
+        <p role="alert" className="ui-error mt-4">
           {error || room.lastError}
         </p>
       ) : null}
-      <div className="pe-party-actions">
+      <div className="mt-8 flex flex-wrap items-center gap-3">
         {me?.isHost ? (
           <button
             type="button"
@@ -275,16 +279,15 @@ export function LobbyPanel({
             onClick={onStart}
             className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
           >
-            <Play size={18} />
+            <Play size={18} aria-hidden="true" />
             {busy ? "Starting…" : ready ? "Start game" : "Waiting for a player"}
           </button>
         ) : (
-          <p>
-            Waiting for{" "}
-            {state.players.find((p) => p.isHost)?.name || "your host"} to start.
+          <p className="text-pe-muted">
+            Waiting for {host?.name || "your host"} to start.
           </p>
         )}
-        <button type="button" onClick={onLeave} className="pe-leave-room">
+        <button type="button" onClick={onLeave} className="ui-btn ui-btn--ghost">
           Leave room
         </button>
       </div>
@@ -295,21 +298,21 @@ export function LobbyPanel({
 export function LoadingPanel({ state }) {
   return (
     <div
-      className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center text-white"
+      className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-pe-canvas/95 text-center text-pe-fg"
       role="status"
       aria-live="polite"
     >
       {/* The dark screen is there at once, so the last round does not
           show through it; what it says rises in. */}
       <div className="pe-swap flex flex-col items-center">
-        <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
+        <RefreshCw className="h-9 w-9 animate-spin text-pe-accent-fg" aria-hidden="true" />
         <p className="mt-4 text-lg font-semibold">
           Round{" "}
           {state.room.roundIndex + 2 > state.room.roundsTotal
             ? state.room.roundsTotal
             : state.room.roundIndex + 2}
         </p>
-        <p className="mt-1 text-sm text-white/70">
+        <p className="mt-1 text-sm text-pe-muted">
           Finding a place with imagery for everyone
         </p>
       </div>
@@ -322,16 +325,16 @@ export function LocatingPanel({ state, attempt = 0 }) {
   const total = state.locating?.candidates?.length || 0;
   return (
     <div
-      className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 text-center text-white"
+      className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-pe-canvas/95 text-center text-pe-fg"
       role="status"
       aria-live="polite"
     >
       <div className="pe-swap flex flex-col items-center">
-        <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
+        <RefreshCw className="h-9 w-9 animate-spin text-pe-accent-fg" aria-hidden="true" />
         <p className="mt-4 text-lg font-semibold">
           Round {state.room.roundIndex + 1} of {state.room.roundsTotal}
         </p>
-        <p className="mt-1 text-sm text-white/70">
+        <p className="mt-1 text-sm text-pe-muted">
           Finding Look Around imagery for everyone
           {attempt
             ? `, place ${Math.min(attempt, total || attempt)} of ${total || "?"}`
@@ -625,7 +628,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
           <MatchRating player={own} />
         </div>
         {error ? (
-          <p role="alert" className="mt-3 text-sm text-red-200">
+          <p role="alert" className="ui-error mt-3">
             {error}
           </p>
         ) : null}
@@ -717,14 +720,14 @@ export function ReactionsBar({ onReact, disabled, emoji = REACTION_EMOJI }) {
     }
   };
   return (
-    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-ocean-900/80 p-1 backdrop-blur">
+    <div className="flex items-center gap-1 rounded-full border border-white/15 bg-pe-canvas/75 p-1 shadow-lg backdrop-blur">
       {emoji.map((e) => (
         <button
           key={e}
           type="button"
           onClick={() => send(e)}
           disabled={disabled || cooldown}
-          className="h-9 w-9 rounded-full text-lg transition hover:bg-white/10 disabled:opacity-50"
+          className="h-10 w-10 rounded-full text-lg transition hover:bg-white/10 disabled:opacity-50"
           aria-label={`React ${e}`}
         >
           {e}
@@ -773,7 +776,7 @@ export function ReactionToasts({ reactions, players }) {
         return (
           <div
             key={r.key}
-            className="pe-reaction flex items-center gap-1.5 rounded-full border border-white/15 bg-ocean-900/85 px-3 py-1 text-sm shadow-lg backdrop-blur"
+            className="pe-reaction flex items-center gap-1.5 rounded-full border border-white/15 bg-pe-canvas/85 px-3 py-1 text-sm shadow-lg backdrop-blur"
           >
             <span className="text-lg">{r.e}</span>
             <span
