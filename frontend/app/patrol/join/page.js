@@ -9,6 +9,7 @@
  * (zipCode, centerLat/Lng, radiusMiles, notifications{text,email,push}).
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
@@ -126,9 +127,7 @@ export default function JoinPatrol() {
       if (cancelled || !mapRef.current || mapInstanceRef.current) return;
       const L = mod.default || mod;
       const map = L.map(mapRef.current, { zoomControl: true }).setView(center, 12);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
       const marker = L.marker(center, {
         draggable: true,

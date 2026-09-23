@@ -7,6 +7,7 @@
  * see docs/RESCUE_FORCES_REDESIGN.md §5.2.1.
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -44,13 +45,9 @@ export default function TerritoryMapInner({
       dragging: !L.Browser.mobile,
     }).setView(center, 11);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19,
-    }).addTo(map);
-    L.control.attribution({ position: 'bottomright', prefix: false })
-      .addAttribution('&copy; OSM &copy; CARTO')
-      .addTo(map);
+    L.tileLayer(TILE_URL, tileLayerOptions({ dark: true })).addTo(map);
+    // The tile layer brings its own attribution (app/lib/maps/tiles.js).
+    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
 
     // Force boundary - a faint flash dashed ring; the edge of the watch.
     const boundary = L.circle(center, {

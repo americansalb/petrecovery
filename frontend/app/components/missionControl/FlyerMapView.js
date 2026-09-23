@@ -13,6 +13,7 @@
  * Per Actions_Guide.md Phase 4 specification.
  */
 
+import { SATELLITE_URL, SATELLITE_LABELS_URL, SATELLITE_ATTRIBUTION } from '@/app/lib/maps/tiles';
 import { useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -129,15 +130,10 @@ export default function FlyerMapView({
     });
 
     // Add satellite layer
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-    }).addTo(mapInstance.current);
+    L.tileLayer(SATELLITE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION }).addTo(mapInstance.current);
 
     // Add street labels overlay
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      pane: 'overlayPane',
-    }).addTo(mapInstance.current);
+    L.tileLayer(SATELLITE_LABELS_URL, { maxZoom: 19, pane: 'overlayPane' }).addTo(mapInstance.current);
 
     // Handle map clicks for posting flyers
     if (onMapClick) {

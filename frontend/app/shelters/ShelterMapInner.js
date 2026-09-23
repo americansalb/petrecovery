@@ -7,6 +7,7 @@
  * ways (pin click selects the card, card click pans the map).
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -38,13 +39,9 @@ export default function ShelterMapInner({ shelters, selectedId, onSelect, origin
       scrollWheelZoom: true,
     }).setView(US_CENTER, 4);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      subdomains: 'abcd',
-      maxZoom: 19,
-    }).addTo(map);
-    L.control.attribution({ position: 'bottomright', prefix: false })
-      .addAttribution('&copy; OSM &copy; CARTO')
-      .addTo(map);
+    L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
+    // The tile layer brings its own attribution (app/lib/maps/tiles.js).
+    L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     mapRef.current = map;

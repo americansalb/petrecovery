@@ -13,6 +13,7 @@
  * - Dark theme styling
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // Pet travel speed estimates (miles per hour)
@@ -113,23 +114,11 @@ export default function MissionMapPanel({ missionData, searchAreas = [], onSight
       // Add zoom control to bottom right
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // Dark tile layer (CartoDB Dark Matter)
-      const darkLayer = L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        {
-          attribution: '© OpenStreetMap contributors © CARTO',
-          maxZoom: 19,
-        }
-      );
+      // Dark tile layer: the shared basemap, inverted (app/lib/maps/tiles.js)
+      const darkLayer = L.tileLayer(TILE_URL, tileLayerOptions({ dark: true }));
 
       // Standard layer
-      const standardLayer = L.tileLayer(
-        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        {
-          attribution: '© OpenStreetMap contributors © CARTO',
-          maxZoom: 19,
-        }
-      );
+      const standardLayer = L.tileLayer(TILE_URL, tileLayerOptions());
 
       // Add default dark layer
       darkLayer.addTo(map);

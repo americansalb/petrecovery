@@ -1,5 +1,6 @@
 'use client';
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -33,11 +34,7 @@ export default function MissionMap({ squad, cases, selectedMission, onSelectCase
     }).setView(center, 12);
 
     // Dark theme tile layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(mapInstanceRef.current);
+    L.tileLayer(TILE_URL, tileLayerOptions({ dark: true })).addTo(mapInstanceRef.current);
 
     // Add squad center marker
     if (squad?.centerLatitude && squad?.centerLongitude) {

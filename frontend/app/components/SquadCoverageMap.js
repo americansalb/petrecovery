@@ -1,5 +1,6 @@
 'use client';
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -29,10 +30,7 @@ export default function SquadCoverageMap({ latitude, longitude, radiusMiles, cit
     }).setView([latitude, longitude], 11);
 
     // Add tile layer (OpenStreetMap)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19
-    }).addTo(map);
+    L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
     // Add marker for squad center
     const markerIcon = L.divIcon({

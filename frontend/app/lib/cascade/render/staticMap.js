@@ -5,10 +5,12 @@
  * lost. Node runtime, network best-effort: any failure returns null and the
  * flyer renders without a map rather than failing.
  *
- * Tiles are fetched @2x and drawn at half size (≈144dpi in print). One spec
+ * Each 256px tile is drawn at TILE_PT (≈144dpi in print). One spec
  * is built at the largest size a variant needs; smaller variants render a
  * centered crop, so the network cost is paid once per case.
  */
+
+import { tileUrl, TILE_ATTRIBUTION_TEXT } from '@/app/lib/maps/tiles';
 
 const TILE_PT = 128; // one 256px @2x tile drawn at 128pt
 const MAX_TILES = 24;
@@ -21,18 +23,14 @@ export function zoomForSpecies(species) {
   return 16;
 }
 
+// Both styles draw OpenStreetMap's standard tiles (app/lib/maps/tiles.js).
+// They used to try CARTO first and fall back to OpenStreetMap, but CARTO
+// now answers keyless requests with a tile stamped "API KEY REQUIRED" and a
+// 200, so the fallback never ran and every flyer printed the stamp.
+// OpenStreetMap serves 256px tiles only, drawn at TILE_PT each.
 const TILE_STYLES = {
-  light: [
-    (z, x, y) => `https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}@2x.png`,
-    (z, x, y) => `https://a.basemaps.cartocdn.com/light_all/${z}/${x}/${y}@2x.png`,
-    (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
-  ],
-  // Warm-toned basemap the poster design system uses (Leaflet voyager).
-  voyager: [
-    (z, x, y) => `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`,
-    (z, x, y) => `https://a.basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}@2x.png`,
-    (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
-  ],
+  light: [tileUrl],
+  voyager: [tileUrl],
 };
 
 async function fetchTileDataUrl(z, x, y, style = 'light') {
@@ -125,6 +123,6 @@ export async function buildFlyerMapSpec(lat, lng, { width = 680, height = 210, z
     pin: { x: width / 2, y: height / 2 },
     ring,
     halo: { r: haloR },
-    attribution: '© OpenStreetMap contributors · © CARTO',
+    attribution: TILE_ATTRIBUTION_TEXT,
   };
 }

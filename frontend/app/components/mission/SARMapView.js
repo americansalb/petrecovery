@@ -14,6 +14,7 @@
  * - Historical coverage trails from team members
  */
 
+import { TILE_URL, tileLayerOptions, SATELLITE_URL, SATELLITE_ATTRIBUTION } from '@/app/lib/maps/tiles';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -194,12 +195,8 @@ export default function SARMapView({
       keyboard: interactive
     });
 
-    baseLayersRef.current.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19
-    });
-    baseLayersRef.current.street = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
-    });
+    baseLayersRef.current.satellite = L.tileLayer(SATELLITE_URL, { maxZoom: 19, attribution: SATELLITE_ATTRIBUTION });
+    baseLayersRef.current.street = L.tileLayer(TILE_URL, tileLayerOptions({ dark: true }));
 
     baseLayersRef.current[mapLayer].addTo(mapInstance.current);
 

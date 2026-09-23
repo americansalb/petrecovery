@@ -13,6 +13,7 @@
  * Uses Leaflet for mapping (lighter than Google Maps, free)
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { TOUCH_TARGETS, COLORS } from '@/app/lib/missionControl/accessibility';
@@ -96,9 +97,7 @@ export default function MissionMap({
     });
 
     // Dark tile layer for better visibility
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-    }).addTo(map);
+    L.tileLayer(TILE_URL, tileLayerOptions({ dark: true })).addTo(map);
 
     setLeafletMap(map);
 

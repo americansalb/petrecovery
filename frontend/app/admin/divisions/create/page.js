@@ -1,5 +1,6 @@
 'use client';
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import { useState, useEffect, useRef } from 'react';
@@ -105,9 +106,7 @@ export default function AdminCreateDivisionPage() {
     // Initialize map centered on the ZIP location
     const map = L.map(mapRef.current).setView([centerLat, centerLng], 13);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
     // Add a marker at the ZIP code center
     L.marker([centerLat, centerLng]).addTo(map)

@@ -13,6 +13,7 @@
  * - Calculate and display total acreage
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
@@ -106,10 +107,7 @@ export default function SearchAreaMap({
       }).setView(center, 14);
 
       // Add tile layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
       // Add marker for last seen location
       if (missionData?.lastSeenLatitude && missionData?.lastSeenLongitude) {

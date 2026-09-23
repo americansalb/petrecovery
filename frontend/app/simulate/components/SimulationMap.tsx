@@ -8,6 +8,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Circle, Polygon, useMap, useMapEvents } from 'react-leaflet';
 import * as L from 'leaflet';
+import { TILE_URL, TILE_ATTRIBUTION, TILE_MAX_ZOOM } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 
 interface PathPoint {
@@ -482,11 +483,8 @@ export default function SimulationMap({
         className="w-full h-full"
         style={{ minHeight: '400px' }}
       >
-        {/* Dark-mode friendly map tiles */}
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {/* The shared basemap (app/lib/maps/tiles.js) */}
+        <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} maxZoom={TILE_MAX_ZOOM} />
 
         {/* Click handler for location selection */}
         <LocationSelector onSelect={onLocationSelect} />

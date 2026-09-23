@@ -9,6 +9,7 @@
  * pre-warm the group directory or grow shelter data next.
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -71,10 +72,7 @@ export default function AdminCoveragePage() {
         [39.5, -98.35],
         4
       );
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 19,
-      }).addTo(mapInstanceRef.current);
+      L.tileLayer(TILE_URL, tileLayerOptions()).addTo(mapInstanceRef.current);
     }
     const map = mapInstanceRef.current;
 
