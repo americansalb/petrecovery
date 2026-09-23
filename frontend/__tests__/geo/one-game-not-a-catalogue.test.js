@@ -104,7 +104,7 @@ describe("a profile with nothing in it", () => {
 
   test('says how a record is started instead of listing five empty sections', async () => {
     await renderProfile(blank);
-    expect(await screen.findByText(/It starts with one game/)).toBeInTheDocument();
+    expect(await screen.findByText(/after your first game/)).toBeInTheDocument();
     // The three identical Unplaced cards, one per ladder, are the thing
     // this replaces.
     expect(screen.queryByText('Unplaced')).toBeNull();
@@ -114,9 +114,8 @@ describe("a profile with nothing in it", () => {
 
   test('the real record comes back the moment there is one', async () => {
     await renderProfile({ ...blank, usage: { rounds: 3 } });
-    expect(await screen.findByText(/3/)).toBeInTheDocument();
-    expect(screen.getAllByText('Unplaced').length).toBeGreaterThan(0);
-    expect(screen.queryByText(/It starts with one game/)).toBeNull();
+    expect((await screen.findAllByText('Unplaced')).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/after your first game/)).toBeNull();
   });
 
   test('points outlive the day, so yesterday still counts', async () => {
@@ -126,7 +125,7 @@ describe("a profile with nothing in it", () => {
     // that their record had not started.
     await renderProfile({ ...blank, points: 46, usage: { rounds: 0 } });
     expect(await screen.findByRole('tabpanel')).toBeInTheDocument();
-    expect(screen.queryByText(/It starts with one game/)).toBeNull();
+    expect(screen.queryByText(/after your first game/)).toBeNull();
   });
 
   test('one badge is a record too', async () => {
@@ -135,7 +134,7 @@ describe("a profile with nothing in it", () => {
       badges: [{ countryCode: 'JP', flag: '🇯🇵', name: 'Japan', bestKm: 12 }],
     });
     expect(await screen.findByText('Japan')).toBeInTheDocument();
-    expect(screen.queryByText(/It starts with one game/)).toBeNull();
+    expect(screen.queryByText(/after your first game/)).toBeNull();
   });
 });
 

@@ -313,8 +313,11 @@
 }
 
 /* A rebuilt page's frame. */
+/* One column for the whole game: the header, every page and the footer
+   share its width and its 16px (phone) or 24px gutters, so their edges
+   line up on every screen. */
 .geo-surface .ui-page {
-  max-width: 1080px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 16px 72px;
 }
@@ -324,6 +327,9 @@
 @media (min-width: 640px) {
   .geo-surface .ui-page {
     padding: 48px 24px 96px;
+  }
+  .geo-surface .ui-header-inner {
+    padding: 0 24px;
   }
 }
 
@@ -460,6 +466,5 @@
   }
   .geo-surface .ui-header-inner {
     height: 64px;
-    padding: 0 24px;
   }
 }
