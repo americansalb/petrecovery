@@ -110,7 +110,7 @@ export default function SquadPage() {
               Try Again
             </button>
             <Link
-              href="/rescue-forces/search"
+              href="/rescue-forces"
               className="px-6 py-3 bg-flash-500 text-midnight-900 font-semibold rounded-lg hover:bg-flash-600 transition"
             >
               Find a Rescue Force Near You

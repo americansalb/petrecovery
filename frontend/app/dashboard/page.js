@@ -391,7 +391,7 @@ export default function DashboardPage() {
                           </p>
                         </Link>
                       ))}
-                      <Link href="/rescue-forces/search" className="inline-flex items-center gap-1 text-[13px] font-semibold text-midnight-500 hover:text-midnight-900 transition">
+                      <Link href="/rescue-forces" className="inline-flex items-center gap-1 text-[13px] font-semibold text-midnight-500 hover:text-midnight-900 transition">
                         Find more <ArrowUpRight className="w-3.5 h-3.5" />
                       </Link>
                     </>
@@ -400,7 +400,7 @@ export default function DashboardPage() {
                       <p className="text-sm text-midnight-600">
                         Volunteers near you who turn out when a pet goes missing, including yours.
                       </p>
-                      <Link href="/rescue-forces/search" className="inline-flex items-center gap-1 text-sm font-bold text-midnight-900 hover:text-flash-600 transition mt-2">
+                      <Link href="/rescue-forces" className="inline-flex items-center gap-1 text-sm font-bold text-midnight-900 hover:text-flash-600 transition mt-2">
                         Find one near you <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </>

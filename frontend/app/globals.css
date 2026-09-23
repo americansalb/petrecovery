@@ -850,37 +850,49 @@ img {
 }
 
 
-/* Lantern Map (rescue-force territory) - flare + zone labels */
-.lantern-flare {
+/* Rescue Force territory map: light like every other map on the pet site.
+   A red dot is a pet missing now, the same red as the Lost & Found pins. */
+.territory-map.leaflet-container {
+  background: #e2e8f0; /* midnight-200 while tiles load */
+}
+.territory-pet {
   display: block;
-  width: 10px;
-  height: 10px;
+  width: 16px;
+  height: 16px;
   border-radius: 9999px;
-  background: #facc15;
-  box-shadow: 0 0 10px 3px rgba(250, 204, 21, 0.55);
-  animation: lanternFlare 1.8s ease-in-out infinite;
+  background: #ef4444;
+  border: 3px solid #ffffff;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.35);
 }
-@keyframes lanternFlare {
-  0%, 100% { box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.45); }
-  50% { box-shadow: 0 0 16px 6px rgba(250, 204, 21, 0.75); }
-}
-.lantern-zone-label {
+.territory-zone-label {
   display: block;
   text-align: center;
-  font-size: 10px;
+  white-space: nowrap;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  color: #1e293b;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
   pointer-events: none;
 }
-/* The Lantern Map stays midnight even while (or if) tiles load */
-.lantern-map.leaflet-container {
-  background: #0b1526;
+.territory-popup-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.territory-popup-link {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  background: #0f172a;
+  color: #fff !important;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-/* Civic directory map (daylight sibling of the lantern map): midnight
+/* Civic directory map (shelters): midnight
    pins carry identity, flash appears only on the selected place. */
 .civic-map.leaflet-container {
   background: #e2e8f0; /* midnight-200 while tiles load or when blocked */

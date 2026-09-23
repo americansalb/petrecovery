@@ -433,7 +433,7 @@ export async function POST(request) {
         error: 'Liability waiver required',
         code: 'WAIVER_NOT_ACCEPTED',
         message: 'You must accept the liability waiver before creating a rescue force. Rescue force participation involves physical risks.',
-        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/rescue-forces/search')}`
+        redirectTo: `/legal/consent?returnUrl=${encodeURIComponent('/rescue-forces')}`
       }, { status: 403 });
     }
 
@@ -598,7 +598,12 @@ export async function POST(request) {
         actor_role: null,
         metadata: { city, state, zipCode, country, existingSquadId: existingActive.id, existingSquadName: existingActive.name }
       });
-      return NextResponse.json({ error: 'Rescue Force already exists for this city' }, { status: 400 });
+      // The id lets "Start a Rescue Force" send the person to the one that
+      // exists instead of leaving them at an error.
+      return NextResponse.json(
+        { error: 'Rescue Force already exists for this city', code: 'FORCE_EXISTS', existingForceId: existingActive.id },
+        { status: 400 }
+      );
     }
 
     // Check if there's a deleted squad we can reactivate

@@ -44,7 +44,7 @@ const GUEST_MODES = [
   // the two read as a duplicated entry. This one names what is behind the
   // door instead.
   { id: 'owner', label: 'Health Book', detail: 'Vaccinations, meds and vet info in one place', href: '/care' },
-  { id: 'searcher', label: 'Help find lost pets', detail: 'Join searchers near you', href: '/rescue-forces/search' },
+  { id: 'searcher', label: 'Help find lost pets', detail: 'Join searchers near you', href: '/rescue-forces' },
 ];
 
 /**

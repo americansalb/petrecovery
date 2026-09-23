@@ -73,7 +73,7 @@ export async function GET() {
         id: 'searcher',
         label: 'Help find lost pets',
         detail: 'Join searchers near you',
-        href: '/rescue-forces/search',
+        href: '/rescue-forces',
       });
     }
 

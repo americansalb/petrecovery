@@ -46,7 +46,7 @@ export async function GET(request) {
     const staticPages = [
       { url: '/', priority: 1.0, changefreq: 'daily' },
       { url: '/lost-and-found', priority: 0.9, changefreq: 'hourly' },
-      { url: '/rescue-forces/search', priority: 0.8, changefreq: 'daily' },
+      { url: '/rescue-forces', priority: 0.8, changefreq: 'daily' },
       { url: '/report/new', priority: 0.8, changefreq: 'monthly' },
       { url: '/report/found', priority: 0.8, changefreq: 'monthly' },
       { url: '/shelters', priority: 0.7, changefreq: 'daily' },

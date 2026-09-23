@@ -7,6 +7,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
+import { parsePlace } from '@/app/lib/placeLabel';
 
 const LIVE_CASE_STATUSES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'];
 const LIVE_ASSIGNMENT_STATUSES = ['ACCEPTED', 'ACTIVE', 'STANDBY'];
@@ -89,14 +90,18 @@ export async function getPublicForce(id) {
               caseNumber: true,
               status: true,
               reportType: true,
+              resolution: true,
               petName: true,
               petSpecies: true,
               petBreed: true,
+              petColor: true,
               petPhotoUrl: true,
               lastSeenAddress: true,
               lastSeenAt: true,
               lastSeenLatitude: true,
               lastSeenLongitude: true,
+              createdAt: true,
+              _count: { select: { sightings: true } },
             },
           },
         },
@@ -116,9 +121,23 @@ export async function getPublicForce(id) {
   });
   force.members = force.members.map((m) => ({ ...m, user: displayUser(m.user) }));
 
+  // Shaped for the Lost & Found PetCard: a readable place instead of the
+  // first comma part of the address (which was the house number, "6701",
+  // on most real reports), a sighting count, and dates as strings so the
+  // server page can hand them to a client component.
+  const cardShape = (c) => ({
+    ...c,
+    place: parsePlace(c.lastSeenAddress)?.label || null,
+    sightingCount: c._count?.sightings || 0,
+    lastSeenAt: c.lastSeenAt ? new Date(c.lastSeenAt).toISOString() : null,
+    createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : null,
+    resolvedAt: c.resolvedAt ? new Date(c.resolvedAt).toISOString() : null,
+    _count: undefined,
+  });
+
   const liveMissions = force.caseAssignments
     .filter((a) => LIVE_CASE_STATUSES.includes(a.case?.status))
-    .map((a) => ({ ...a.case, searchers: a.participants.map((p) => displayUser(p.user)) }))
+    .map((a) => ({ ...cardShape(a.case), searchers: a.participants.map((p) => displayUser(p.user)) }))
     .sort((a, b) => new Date(b.lastSeenAt || 0) - new Date(a.lastSeenAt || 0));
 
   // Best-effort flare→zone placement: a mission belongs to the nearest
@@ -155,10 +174,20 @@ export async function getPublicForce(id) {
       case: {
         select: {
           id: true,
+          caseNumber: true,
+          status: true,
+          reportType: true,
+          resolution: true,
           petName: true,
+          petSpecies: true,
+          petBreed: true,
+          petColor: true,
           petPhotoUrl: true,
+          lastSeenAddress: true,
           lastSeenAt: true,
+          createdAt: true,
           resolvedAt: true,
+          _count: { select: { sightings: true } },
         },
       },
     },
@@ -168,7 +197,7 @@ export async function getPublicForce(id) {
     force,
     zones,
     liveMissions,
-    reunions: reunions.map((r) => r.case),
+    reunions: reunions.map((r) => cardShape(r.case)),
     onDutyCount: force.members.filter((m) => m.availabilityStatus === 'AVAILABLE').length,
   };
 }

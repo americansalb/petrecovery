@@ -287,12 +287,19 @@ const nextConfig = {
       // the communities now
       {
         source: '/communities',
-        destination: '/rescue-forces/search',
+        destination: '/rescue-forces',
         permanent: true,
       },
       {
         source: '/communities/:path*',
-        destination: '/rescue-forces/search',
+        destination: '/rescue-forces',
+        permanent: true,
+      },
+      // The search page became the Rescue Forces page itself. The query
+      // string (?q=Austin, TX) carries over, and the page runs it.
+      {
+        source: '/rescue-forces/search',
+        destination: '/rescue-forces',
         permanent: true,
       },
       // "Rescue Squad" is PawBoost's trademark; the brand here is Rescue

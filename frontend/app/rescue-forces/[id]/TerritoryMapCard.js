@@ -1,61 +1,77 @@
 'use client';
 
 /**
- * The Lantern Map card (docs/RESCUE_FORCES_REDESIGN.md §5.2.1): a dark
- * window into the operational layer, set inside the light civic page.
- * Holds the selected-zone state; the Leaflet map itself loads client-only.
+ * The force's area on a map, with the pets missing in it and its divisions.
+ * Holds the selected division; the Leaflet map itself loads client-only.
+ * A division's own page is for members, so only members get the link to it.
  */
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { ArrowRight, Users } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 
 const TerritoryMapInner = dynamic(() => import('./TerritoryMapInner'), {
   ssr: false,
-  loading: () => <div className="h-64 bg-[#0b1526] animate-pulse" />,
+  loading: () => <div className="h-72 animate-pulse bg-midnight-100" />,
 });
 
-export default function TerritoryMapCard({ forceId, center, radiusMiles, zones, flares }) {
+function plural(n, one, many) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+export default function TerritoryMapCard({ forceId, center, radiusMiles, zones, pets, isMember }) {
   const [selected, setSelected] = useState(null);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-midnight-800 bg-[#0b1526] shadow-card">
-      <TerritoryMapInner
-        center={center}
-        radiusMiles={radiusMiles}
-        zones={zones}
-        flares={flares}
-        selectedId={selected?.id || null}
-        onSelectZone={setSelected}
-      />
+    <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-midnight-200">
+      {/* isolate keeps Leaflet's own z-indexes inside the card */}
+      <div className="relative isolate">
+        <TerritoryMapInner
+          center={center}
+          radiusMiles={radiusMiles}
+          zones={zones}
+          pets={pets}
+          selectedId={selected?.id || null}
+          onSelectZone={setSelected}
+        />
+      </div>
       {selected ? (
-        <div className="px-4 py-3 border-t border-white/10 animate-fade-in">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-midnight-400">
-            Division · {selected.name}
-          </p>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <p className="text-sm text-midnight-200 inline-flex items-center gap-1.5 min-w-0">
-              <Users className="w-3.5 h-3.5 shrink-0 text-midnight-400" />
-              <span className="truncate">
-                {selected.memberCount} {selected.memberCount === 1 ? 'member' : 'members'}
-                {selected.onDuty > 0 && ` · ${selected.onDuty} on duty`}
-                {selected.missionCount > 0 && ` · ${selected.missionCount} live`}
-              </span>
+        <div className="flex items-center justify-between gap-3 border-t border-midnight-100 px-4 py-3">
+          <div className="min-w-0">
+            <p className="truncate font-medium text-midnight-900">{selected.name}</p>
+            <p className="text-sm text-midnight-500">
+              {plural(selected.memberCount, 'member', 'members')}
+              {selected.missionCount > 0 && ` · ${plural(selected.missionCount, 'pet missing', 'pets missing')}`}
             </p>
+          </div>
+          {isMember ? (
             <Link
               href={`/rescue-forces/${forceId}/divisions/${selected.id}`}
-              className="inline-flex items-center gap-1 text-[13px] font-bold text-flash-300 hover:text-flash-200 transition shrink-0"
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-midnight-700 hover:text-midnight-900"
             >
-              Open <ArrowRight className="w-3.5 h-3.5" />
+              Open division
+              <ChevronRight size={16} aria-hidden="true" />
             </Link>
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="shrink-0 text-sm font-medium text-midnight-500 hover:text-midnight-900"
+            >
+              Close
+            </button>
+          )}
         </div>
       ) : (
-        <p className="px-4 py-2.5 text-[11px] text-midnight-400 border-t border-white/10">
-          lit&nbsp;=&nbsp;volunteers on duty · <span className="text-flash-400">✦</span>&nbsp;=&nbsp;mission live
-          {zones.length > 0 && ' · tap a zone'}
-        </p>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-midnight-100 px-4 py-2.5 text-sm text-midnight-600">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden="true" />
+            Pet missing now
+          </span>
+          <span>Dashed line: the force&apos;s area</span>
+          {zones.length > 0 && <span>Tap a division for details</span>}
+        </div>
       )}
     </div>
   );

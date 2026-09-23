@@ -7,7 +7,7 @@
  *
  * One story, top to bottom: report in a minute -> your city's Rescue Force
  * gets it -> a coordinated Mission brings them home. One canonical location
- * entry (deep-links to /rescue-forces/search) instead of three competing
+ * entry (deep-links to /rescue-forces) instead of three competing
  * search bars. Every section renders something real at zero data, so the
  * page never shows empty voids.
  */
@@ -322,7 +322,7 @@ function FindYourForce() {
               ) : (
                 <Link
                   key={`${c.city}-${c.state}`}
-                  href={`/rescue-forces/search?q=${encodeURIComponent(`${c.city}, ${c.state}`)}`}
+                  href={`/rescue-forces?q=${encodeURIComponent(`${c.city}, ${c.state}`)}`}
                   className="group flex items-center gap-3 rounded-2xl border-2 border-dashed border-midnight-200 hover:border-flash-400 px-4 py-3.5 transition-colors"
                 >
                   <span className="w-9 h-9 rounded-xl bg-flash-100 text-flash-700 flex items-center justify-center shrink-0">
@@ -343,7 +343,7 @@ function FindYourForce() {
 
         <div className="mt-4 text-right">
           <Link
-            href="/rescue-forces/search"
+            href="/rescue-forces"
             className="inline-flex items-center gap-1 text-sm font-semibold text-midnight-400 hover:text-midnight-700 transition-colors"
           >
             Browse all forces <ArrowRight className="w-3.5 h-3.5" />
@@ -444,7 +444,7 @@ function ActiveMissions({ missions, loading }) {
             <PawPrint className="w-10 h-10 text-midnight-500 mx-auto mb-3" />
             <p className="text-white font-bold text-lg mb-1">No active missions right now</p>
             <p className="text-midnight-300 text-sm mb-5">That&apos;s a good day. Join your local force so you&apos;re ready when a neighbor needs you.</p>
-            <Link href="/rescue-forces/search" className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-6 py-3 rounded-xl transition-colors">
+            <Link href="/rescue-forces" className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-6 py-3 rounded-xl transition-colors">
               <Shield className="w-4 h-4" /> Find your Rescue Force
             </Link>
           </div>
@@ -496,7 +496,7 @@ function ActiveMissions({ missions, loading }) {
             {/* Fill sparse grids with an invitation instead of a void */}
             {missions.length < 3 && (
               <Link
-                href="/rescue-forces/search"
+                href="/rescue-forces"
                 className="group border-2 border-dashed border-midnight-700 hover:border-flash-400/60 rounded-2xl flex flex-col items-center justify-center text-center p-6 min-h-[176px] transition-colors"
               >
                 <Shield className="w-8 h-8 text-midnight-500 group-hover:text-flash-400 transition-colors mb-3" />
@@ -679,7 +679,7 @@ function FooterCta() {
             reachable when a pet near you needs more eyes.
           </p>
           <Link
-            href="/rescue-forces/search"
+            href="/rescue-forces"
             className="inline-flex items-center gap-2.5 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold text-lg px-8 py-4 rounded-2xl transition-all hover:scale-[1.02]"
           >
             <Users className="w-5 h-5" />
