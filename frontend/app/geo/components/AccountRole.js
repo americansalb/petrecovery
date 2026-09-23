@@ -51,17 +51,17 @@ export default function AccountRole() {
 
   return (
     <Card data-account-role>
-      <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-white/60">
-        <ShieldCheck className="h-4 w-4" />
+      <h2 className="ui-h2 flex items-center gap-2">
+        <ShieldCheck className="h-5 w-5 text-pe-muted" />
         Role
       </h2>
-      <p className="mt-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm font-bold text-ocean-200">
+      <p className="mt-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-pe-accent/15 px-3 py-1 text-sm font-bold text-pe-accent-fg">
           <ShieldCheck className="h-3.5 w-3.5" />
           {LABELS[role]}
         </span>
       </p>
-      <p className="mt-2 text-sm text-white/60">
+      <p className="mt-2 text-sm text-pe-muted">
         {role === 'admin' ? 'You can open the backend at /geo/admin.' : 'You can open private rooms.'}
       </p>
     </Card>

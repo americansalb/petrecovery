@@ -12,12 +12,12 @@ import Link from 'next/link';
 export default function SetupNotice({ provider = 'apple', missing = [], compact = false, tone = 'dark' }) {
   const list = missing.length ? missing : ['GEO_TOKEN_SECRET'];
   const light = tone === 'light';
-  const body = light ? 'text-white/70' : 'text-white/80';
-  const code = light ? 'text-white' : 'text-clay-200';
-  const faint = light ? 'text-white/60' : 'text-white/60';
+  const body = 'text-pe-muted';
+  const code = light ? 'text-pe-fg' : 'text-pe-warm';
+  const faint = 'text-pe-subtle';
   return (
     <div
-      className={`rounded-2xl border ${light ? 'border-clay-600/60 bg-clay-500/10 text-white' : 'border-clay-500/40 bg-clay-500/10 text-white'} ${compact ? 'p-4' : 'p-5 sm:p-6'}`}
+      className={`rounded-2xl border border-pe-warm/40 bg-pe-warm/10 text-pe-fg ${compact ? 'p-4' : 'p-5 sm:p-6'}`}
     >
       <h2 className="text-lg font-bold">This server is not set up to run the game</h2>
       <p className={`mt-2 text-sm ${body}`}>Missing environment variables:</p>
@@ -32,8 +32,8 @@ export default function SetupNotice({ provider = 'apple', missing = [], compact 
       </p>
       <p className={`mt-3 text-xs ${faint}`}>Full steps: docs/GEO.md in the repository.</p>
       {!compact ? (
-        <Link href="/geo" className={`mt-4 inline-block rounded-xl border px-4 py-2 text-sm font-semibold ${light ? 'border-white/15 hover:bg-ocean-900/60' : 'border-white/20 hover:bg-white/10'}`}>
-          Back to Probably Earth
+        <Link href="/geo" className="ui-btn ui-btn--secondary mt-4">
+          Back to the start
         </Link>
       ) : null}
     </div>

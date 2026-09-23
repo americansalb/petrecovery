@@ -40,22 +40,19 @@ export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal, lea
     : 'Picking a street';
 
   return (
-    <div className={`absolute inset-0 z-40 flex flex-col items-center justify-center bg-ocean-950/95 px-6 text-center ${leaving ? 'pe-fade-out' : 'pe-fade-in'}`} role={leaving ? undefined : 'status'} aria-live="polite" aria-hidden={leaving || undefined}>
-      <Loader2 className="h-10 w-10 animate-spin text-clay-300" />
-      <p className="mt-5 text-lg font-semibold text-white">Round {roundNumber}</p>
-      <p className="mt-1 text-sm text-white/70">{message}</p>
+    <div className={`absolute inset-0 z-40 flex flex-col items-center justify-center bg-pe-canvas/95 px-6 text-center ${leaving ? 'pe-fade-out' : 'pe-fade-in'}`} role={leaving ? undefined : 'status'} aria-live="polite" aria-hidden={leaving || undefined}>
+      <Loader2 className="h-10 w-10 animate-spin text-pe-accent-fg" />
+      <p className="mt-5 text-lg font-semibold text-pe-fg">Round {roundNumber}</p>
+      <p className="mt-1 text-sm text-pe-muted">{message}</p>
       {slow ? (
         <>
           {/* A slow connection is the usual reason now: a spot is waited
               for while Apple keeps sending it data, and on a slow link
               that measured 26 to 41 seconds (lib/lookAround.js). */}
-          <p className="mt-4 max-w-xs text-sm text-white/60">Still loading. Street imagery can take a while on a slow connection.</p>
-          <Link
-            href="/geo"
-            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
+          <p className="mt-4 max-w-xs text-sm text-pe-muted">Still loading. Street imagery can take a while on a slow connection.</p>
+          <Link href="/geo" className="ui-btn ui-btn--secondary mt-4">
             <ArrowLeft className="h-4 w-4" />
-            Back to Probably Earth
+            Back to the start
           </Link>
         </>
       ) : null}

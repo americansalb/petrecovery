@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import KeyboardMap from '@/app/geo/components/KeyboardMap';
 import { appleKeyboard, ignoreGameShortcut } from '@/app/geo/lib/mapKeyboard';
 
@@ -9,7 +9,7 @@ test('keyboard map pans, zooms and places without submitting the game', () => {
   const gameKey = jest.fn();
   const view = render(<div onKeyDown={gameKey}><KeyboardMap interactive pan={pan} zoom={zoom} place={place}><button>Zoom control</button></KeyboardMap></div>);
   const map = screen.getByRole('group', { name: 'Guess map' });
-  fireEvent.focus(map);
+  act(() => map.focus());
   expect(screen.getByText(/Arrow keys move ·/)).toBeVisible();
   fireEvent.keyDown(map, { key: 'ArrowLeft' });
   fireEvent.keyDown(map, { key: '+' });
@@ -28,6 +28,24 @@ test('keyboard map pans, zooms and places without submitting the game', () => {
   expect(place).toHaveBeenCalledTimes(1);
   view.rerender(<KeyboardMap interactive place={place}>Next round</KeyboardMap>);
   expect(screen.getByRole('status')).toBeEmptyDOMElement();
+});
+
+/**
+ * A tap or a click focuses the map too, because it is the nearest
+ * focusable thing under the pointer. That is not a keyboard player, and
+ * drawing the keyboard instructions over the map for it put "Arrow keys
+ * move" across the top of every phone's map the moment it was touched.
+ */
+test('a tap on the map does not draw the keyboard instructions over it', () => {
+  render(<KeyboardMap interactive pan={jest.fn()} zoom={jest.fn()} place={jest.fn()}><span>Tiles</span></KeyboardMap>);
+  const map = screen.getByRole('group', { name: 'Guess map' });
+  fireEvent.pointerDown(map);
+  act(() => map.focus());
+  expect(screen.queryByText(/Arrow keys move ·/)).toBeNull();
+  // Leaving and coming back by keyboard still gets them.
+  act(() => map.blur());
+  act(() => map.focus());
+  expect(screen.getByText(/Arrow keys move ·/)).toBeVisible();
 });
 
 test('Apple keyboard adapter wraps longitude, bounds zoom and uses the visible centre', () => {

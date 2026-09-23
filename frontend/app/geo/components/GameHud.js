@@ -29,7 +29,7 @@ import SaveGameButton from './SaveGameButton';
 export function Compass({ heading = 0 }) {
   return (
     <div
-      className="relative h-14 w-14 rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur"
+      className="relative h-14 w-14 rounded-full border border-white/15 bg-pe-canvas/75 shadow-lg backdrop-blur"
       aria-label={`Facing ${Math.round(heading)} degrees`}
       role="img"
     >
@@ -37,7 +37,7 @@ export function Compass({ heading = 0 }) {
         className="absolute inset-0 transition-transform duration-150"
         style={{ transform: `rotate(${-heading}deg)` }}
       >
-        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-clay-300">
+        <span className="absolute left-1/2 top-1 -translate-x-1/2 text-[10px] font-bold text-pe-warm">
           N
         </span>
         <span className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-white/60">
@@ -49,7 +49,7 @@ export function Compass({ heading = 0 }) {
         <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-white/60">
           W
         </span>
-        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-clay-300" />
+        <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-full rounded bg-pe-warm" />
         <div className="absolute left-1/2 top-1/2 h-5 w-0.5 -translate-x-1/2 rounded bg-white/40" />
       </div>
       <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
@@ -71,7 +71,7 @@ export function TimerRing({ secondsLeft, total }) {
       : `${seconds}`;
   return (
     <div
-      className={`pe-timer flex items-center gap-2 ${urgent ? 'text-red-200' : 'text-white'}`} data-urgent={urgent || undefined}
+      className={`pe-timer flex items-center gap-2 ${urgent ? 'text-pe-bad' : 'text-pe-fg'}`} data-urgent={urgent || undefined}
     >
       <svg width="24" height="24" viewBox="0 0 40 40" aria-hidden="true">
         <circle
@@ -86,7 +86,7 @@ export function TimerRing({ secondsLeft, total }) {
           cx="20"
           cy="20"
           r={radius}
-          stroke={urgent ? '#efae83' : '#bad992'}
+          stroke={urgent ? 'rgb(var(--pe-bad))' : 'rgb(var(--pe-good))'}
           strokeWidth="4"
           fill="none"
           strokeDasharray={circumference}
@@ -106,14 +106,14 @@ export function TimerRing({ secondsLeft, total }) {
 }
 
 const pill =
-  'pe-hud-pill rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur';
-const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-white transition hover:bg-ocean-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500 disabled:opacity-40`;
+  'pe-hud-pill rounded-full border border-white/15 bg-pe-canvas/75 shadow-lg backdrop-blur';
+const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-pe-fg transition hover:bg-pe-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-pe-accent-fg disabled:opacity-40`;
 
 /** A small label above a value, which is the only shape the top row uses. */
 function Stat({ label, children }) {
   return (
     <div className="flex flex-col leading-tight">
-      <span className="text-[11px] uppercase tracking-wide text-white/55">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-pe-fg/60">
         {label}
       </span>
       {children}
@@ -199,7 +199,7 @@ export default function GameHud({
           >
             <Stat label="Score">
               <span
-                className="text-lg font-semibold tabular-nums text-clay-300"
+                className="text-lg font-semibold tabular-nums text-pe-warm"
                 data-geo-score
               >
                 {formatScore(Math.round(shownScore))}
@@ -216,7 +216,7 @@ export default function GameHud({
             <TimerRing secondsLeft={secondsLeft} total={config.time} />
           </div>
         ) : null}
-        {saveUrl ? <SaveGameButton returnTo={saveUrl} className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-ocean-900/80 text-white" /> : null}
+        {saveUrl ? <SaveGameButton returnTo={saveUrl} className={`pointer-events-auto ${iconButton}`} /> : null}
         <Link
           href="/geo"
           className={`pointer-events-auto ${iconButton}`}
@@ -229,7 +229,7 @@ export default function GameHud({
 
       {/* A round with something to say about how it was found */}
       {notice ? (
-        <div className="pointer-events-none absolute left-1/2 top-20 z-30 max-w-[90vw] -translate-x-1/2 rounded-full border border-white/15 bg-ocean-900/85 px-4 py-1.5 text-center text-xs text-white/80 shadow-lg backdrop-blur sm:top-24 sm:text-sm">
+        <div className="pointer-events-none absolute left-1/2 top-20 z-30 max-w-[90vw] -translate-x-1/2 rounded-full border border-white/15 bg-pe-canvas/80 px-4 py-1.5 text-center text-xs text-pe-fg/85 shadow-lg backdrop-blur sm:top-24 sm:text-sm">
           {notice}
         </div>
       ) : null}
@@ -289,7 +289,7 @@ export default function GameHud({
             this one - it composites translucent layers down to an
             opaque background, and there is no knowing what colour the
             imagery under this will be. */}
-          <p className={`${pill} hidden max-w-[11rem] px-3 py-1.5 text-xs leading-snug text-sand-100 sm:block`}>
+          <p className={`${pill} hidden max-w-[11rem] px-3 py-1.5 text-xs leading-snug text-pe-fg sm:block`}>
             {canPan
               ? 'Drag to look around. R goes back to where you started.'
               : 'One view, no looking around. That is the format.'}
@@ -298,13 +298,15 @@ export default function GameHud({
       ) : null}
 
       {/* The map, on a phone, where it lives behind a button. The size
-          controls are on the card itself, next to what they change. */}
-      {showMapControls ? (
+          controls are on the card itself, next to what they change.
+          Only while the map is closed: open, it covers this button, and
+          the sheet carries its own Hide map (PlayClient). */}
+      {showMapControls && !mobileMapOpen ? (
         <div className="pointer-events-auto absolute bottom-16 right-3 z-30 flex items-center gap-2 sm:hidden">
           <button
             type="button"
             onClick={onToggleMobileMap}
-            className={`${pill} flex h-12 items-center gap-2 px-4 text-sm font-semibold text-white`}
+            className={`${pill} flex h-12 items-center gap-2 px-4 text-sm font-semibold text-pe-fg`}
             aria-expanded={mobileMapOpen}
           >
             <MapIcon className="h-5 w-5" />

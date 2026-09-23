@@ -31,21 +31,21 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
   return (
     <>
       {hideUntilPlayed && !revealed ? (
-        <p className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-ocean-900/60 px-4 py-3 text-sm text-white/70">
+        <Card as="p" pad="sm" className="mt-6 flex flex-wrap items-center gap-3 text-sm text-pe-muted">
           <span className="flex-1">The places are hidden until you have played this one yourself.</span>
-          <button type="button" onClick={() => setRevealed(true)} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5">
+          <button type="button" onClick={() => setRevealed(true)} className="ui-btn ui-btn--secondary ui-btn--sm">
             Show them anyway
           </button>
-        </p>
+        </Card>
       ) : null}
-      <Card as="ol" pad="none" className={`${hideUntilPlayed && !revealed ? 'mt-3' : 'mt-6'} divide-y divide-white/10 bg-transparent bg-ocean-900/60`}>
+      <Card as="ol" pad="none" className={`${hideUntilPlayed && !revealed ? 'mt-3' : 'mt-6'} divide-y divide-pe-line`}>
         {rounds.map((round, i) => (
           <li key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-            <span className="w-6 text-white/40">{i + 1}</span>
+            <span className="w-6 text-pe-subtle">{i + 1}</span>
             <span className="w-7 text-lg leading-none">{revealed ? round.flag || '' : ''}</span>
             <span className="flex-1 truncate">{revealed ? round.name || 'Somewhere' : 'Hidden'}</span>
             {isStreak ? (
-              <span className={round.correct ? 'font-semibold text-green-400' : 'font-semibold text-red-300'}>{round.correct ? 'Right' : 'Miss'}</span>
+              <span className={round.correct ? 'font-semibold text-pe-good' : 'font-semibold text-pe-bad'}>{round.correct ? 'Right' : 'Miss'}</span>
             ) : (
               <>
                 <span className="w-24 text-right text-white/60">{round.distanceKm === null ? 'no guess' : formatDistance(round.distanceKm)}</span>

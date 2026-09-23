@@ -69,7 +69,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
   return (
     <div className="flex h-full flex-col">
       <label className="relative block">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-pe-muted" />
         <input
           ref={inputRef}
           type="text"
@@ -77,9 +77,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Which country is this?"
-          className="w-full rounded-xl border border-white/15 py-2.5 pl-9 pr-3 text-sm placeholder:text-white/40 focus:border-clay-500 focus:outline-none"
-          // globals.css paints every input white for the light pages; this one sits on the dark HUD
-          style={{ backgroundColor: 'rgba(2, 6, 23, 0.85)', color: '#ffffff' }}
+          className="ui-input pl-10"
           autoComplete="off"
           spellCheck={false}
           disabled={disabled}
@@ -103,7 +101,7 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
                 onSubmit?.();
               }}
               onMouseEnter={() => setActive(i)}
-              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${value === country.code ? 'bg-clay-400 text-ocean-950' : i === active ? 'bg-white/10 text-white' : 'text-white/85 hover:bg-white/10'}`}
+              className={`flex min-h-[40px] w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${value === country.code ? 'bg-pe-accent text-white' : i === active ? 'bg-pe-raised text-pe-fg' : 'text-pe-fg/85 hover:bg-pe-raised'}`}
             >
               <span className="w-6 text-base leading-none">{country.flag}</span>
               <span className="flex-1 truncate">{country.name}</span>
@@ -111,13 +109,13 @@ export default function CountryPicker({ countries = [], value, onChange, onSubmi
             </button>
           </li>
         ))}
-        {!matches.length ? <li className="px-2 py-2 text-sm text-white/60">No country matches that.</li> : null}
+        {!matches.length ? <li className="px-2 py-2 text-sm text-pe-muted">No country matches that.</li> : null}
       </ul>
       <button
         type="button"
         onClick={onSubmit}
         disabled={!selected || disabled}
-        className="mt-2 w-full rounded-xl bg-clay-400 py-3 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 disabled:cursor-not-allowed disabled:opacity-40"
+        className="ui-btn ui-btn--primary ui-btn--block mt-2"
       >
         {selected ? `Guess ${selected.flag} ${selected.name}` : 'Pick a country'}
       </button>

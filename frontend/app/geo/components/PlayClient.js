@@ -47,7 +47,7 @@ const DESKTOP_SIZE = {
 
 function Panel({ children }) {
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950/95 p-4">
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-pe-canvas/95 p-4">
       <div className="w-full max-w-lg">{children}</div>
     </div>
   );
@@ -56,24 +56,24 @@ function Panel({ children }) {
 function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
   return (
     <Panel>
-      <Card tone="panel" className="bg-ocean-900 text-white">
+      <Card tone="panel">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-300" />
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-pe-warm" />
           <div className="min-w-0">
-            <h2 className="text-lg font-bold">{title}</h2>
-            <p className="mt-1 text-sm text-white/80">{message}</p>
-            {resetAt ? <p className="mt-1 text-sm text-white/60">Rounds come back {untilText(resetAt)}.</p> : null}
+            <h2 className="ui-h2">{title}</h2>
+            <p className="mt-1 text-sm text-pe-muted">{message}</p>
+            {resetAt ? <p className="mt-1 text-sm text-pe-subtle">Rounds come back {untilText(resetAt)}.</p> : null}
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap gap-2">
           {onRetry ? (
-            <button type="button" onClick={onRetry} disabled={retrying} className="flex items-center gap-2 rounded-xl bg-clay-400 px-4 py-2 text-sm font-bold text-ocean-950 hover:bg-clay-300 disabled:opacity-50">
+            <button type="button" onClick={onRetry} disabled={retrying} className="ui-btn ui-btn--primary">
               <RefreshCw className={`h-4 w-4 ${retrying ? 'animate-spin' : ''}`} />
               {retrying ? 'Trying again' : 'Try again'}
             </button>
           ) : null}
-          <Link href="/geo" className="rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/10">
-            Back to Probably Earth
+          <Link href="/geo" className="ui-btn ui-btn--secondary">
+            Back to the start
           </Link>
         </div>
       </Card>
@@ -415,13 +415,20 @@ function StreetPlayGame({ params }) {
     // geo-map-frame: the desktop card already eased between its three
     // sizes and this one snapped, so the same element moved smoothly
     // one way and jumped the other.
-    mapClass = `geo-map-frame absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl sm:top-24 ${state.status === 'summary' ? 'geo-map-frame--summary bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
+    //
+    // At the end of a game on a wide screen the map takes the left half
+    // and the summary the right. As a full-width strip a third of the
+    // screen tall it could not show a game's answers at all: MapKit
+    // will not zoom out past the width of the world, and at that zoom
+    // a strip that shape covers about thirty degrees of latitude, so
+    // Denmark and Australia were both off it.
+    mapClass = `geo-map-frame absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/15 bg-pe-surface shadow-2xl sm:top-24 ${state.status === 'summary' ? 'geo-map-frame--summary bottom-[63%] sm:bottom-[59%] lg:bottom-6 lg:left-6 lg:right-[calc(50%+12px)]' : 'bottom-[40%] sm:bottom-[30%]'}`;
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
-      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
+      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-pe-line bg-pe-surface'
       // Keep a real size while the mobile drawer is closed. display:none
       // makes MapKit's renderer resize to zero and can leave its tiles blank.
-      : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
+      : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-white/15 bg-pe-surface shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
     mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   }
@@ -439,8 +446,8 @@ function StreetPlayGame({ params }) {
   const roundNumber = state.roundIndex + 1;
 
   return (
-    <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white">
-      {saveError ? <p role="status" className="absolute left-4 top-20 z-[70] max-w-sm rounded-lg bg-ocean-900 p-3 text-sm">{saveError}</p> : null}
+    <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-pe-canvas text-pe-fg">
+      {saveError ? <p role="status" className="absolute left-4 top-20 z-[70] max-w-sm rounded-xl border border-pe-line bg-pe-surface p-3 text-sm">{saveError}</p> : null}
       {/* Imagery */}
       {notEarth ? (
         <NotEarthPane ref={paneRef} place={notEarth} roundKey={state.roundIndex} allowPan={config.pan} allowZoom={config.zoom} />
@@ -474,7 +481,7 @@ function StreetPlayGame({ params }) {
 
       {/* Backdrop behind results. Lighter over a Not Earth reveal, which
           has the place itself behind it rather than a map. */}
-      {mapMode === 'result' ? <div className={`pe-fade-in absolute inset-0 z-20 ${notEarthResult ? 'bg-ocean-950/45' : 'bg-ocean-950/85'}`} /> : null}
+      {mapMode === 'result' ? <div className={`pe-fade-in absolute inset-0 z-20 ${notEarthResult ? 'bg-pe-canvas/45' : 'bg-pe-canvas/85'}`} /> : null}
 
       {/* HUD */}
       {(inRound || mapMode === 'result') && state.status !== 'summary' ? (
@@ -514,7 +521,7 @@ function StreetPlayGame({ params }) {
                     key={size}
                     type="button"
                     onClick={() => setMapSize(size)}
-                    className={`h-7 w-7 rounded-full border text-xs font-semibold shadow backdrop-blur transition ${mapSize === size ? 'border-clay-500 bg-clay-400 text-ocean-950' : 'border-white/20 bg-ocean-900/85 text-white/80 hover:bg-ocean-800'}`}
+                    className={`h-7 w-7 rounded-full border text-xs font-semibold shadow backdrop-blur transition ${mapSize === size ? 'border-pe-accent bg-pe-accent text-white' : 'border-white/20 bg-pe-canvas/85 text-pe-fg/80 hover:bg-pe-raised'}`}
                     aria-pressed={mapSize === size}
                     title={`${size} map (M cycles)`}
                   >
@@ -529,18 +536,40 @@ function StreetPlayGame({ params }) {
               the button's label, which made the only call to action on
               the screen change its words under the cursor. */}
           {inRound && !isStreak ? (
-            <div className="flex shrink-0 items-center gap-3 border-t border-white/10 bg-ocean-900 px-4 py-3">
+            <div className="flex shrink-0 items-center gap-3 border-t border-pe-line bg-pe-surface px-3 py-3 sm:px-4">
+              {/* On a phone the map covers the picture, and the button
+                  that opened it is underneath: this is the way back to
+                  looking, without having to guess first. */}
+              {mobileMapOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setMobileMapOpen(false)}
+                  className="ui-btn ui-btn--secondary shrink-0 sm:hidden"
+                >
+                  Hide map
+                </button>
+              ) : null}
               {/* The smallest card is a peek, and two lines of hint
                   there squeeze the only button on it. */}
-              <p className={`min-w-0 flex-1 text-xs leading-snug text-sand-300/80 ${effectiveSize === 'small' ? 'hidden' : ''}`}>
-                {state.pin ? 'Space or Enter guesses too.' : 'Tap the map to drop your pin.'}
+              <p className={`min-w-0 flex-1 text-xs leading-snug text-pe-muted ${effectiveSize === 'small' ? 'sm:hidden' : ''}`}>
+                {state.pin ? (
+                  <>
+                    <span className="sm:hidden">Tap Guess when you are sure.</span>
+                    <span className="hidden sm:inline">Space or Enter guesses too.</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="sm:hidden">Tap the map to drop your pin.</span>
+                    <span className="hidden sm:inline">Click the map to drop your pin.</span>
+                  </>
+                )}
               </p>
               <button
                 type="button"
                 onClick={() => submitGuess()}
                 disabled={!state.pin || state.status !== 'playing'}
                 data-geo-guess
-                className={`rounded-full bg-clay-400 px-8 py-2.5 text-sm font-bold text-ocean-950 transition hover:bg-clay-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-ocean-800 disabled:text-sand-300 ${effectiveSize === 'small' ? 'w-full' : 'shrink-0'}`}
+                className={`ui-btn ui-btn--primary px-8 ${effectiveSize === 'small' ? 'sm:w-full' : ''} shrink-0`}
               >
                 {state.status === 'submitting' ? 'Scoring' : 'Guess'}
               </button>
@@ -551,7 +580,16 @@ function StreetPlayGame({ params }) {
 
       {/* Streak: the country picker instead of a map */}
       {inRound && isStreak ? (
-        <div className={mobileMapOpen ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 rounded-t-2xl border-t border-white/10 bg-ocean-900/95 p-3 backdrop-blur' : 'absolute bottom-14 right-4 z-30 hidden h-[26rem] w-80 rounded-2xl border border-white/10 bg-ocean-900/90 p-3 shadow-2xl backdrop-blur sm:block'}>
+        <div className={mobileMapOpen ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col rounded-t-2xl border-t border-pe-line bg-pe-surface/95 p-3 backdrop-blur' : 'absolute bottom-14 right-4 z-30 hidden h-[26rem] w-80 rounded-2xl border border-white/15 bg-pe-surface/95 p-3 shadow-2xl backdrop-blur sm:block'}>
+          {mobileMapOpen ? (
+            <button
+              type="button"
+              onClick={() => setMobileMapOpen(false)}
+              className="ui-btn ui-btn--ghost ui-btn--sm mb-2 self-start sm:hidden"
+            >
+              Hide the list
+            </button>
+          ) : null}
           <CountryPicker countries={server?.countries || []} provider={config.provider} value={state.pin?.countryCode || ''} onChange={(code) => dispatch({ type: 'pin', pin: { countryCode: code } })} onSubmit={() => submitGuess()} disabled={state.status !== 'playing'} />
         </div>
       ) : null}
@@ -598,7 +636,7 @@ function StreetPlayGame({ params }) {
         />
       ) : null}
       {state.status === 'summary' ? (
-        <Link href="/geo" className="absolute right-4 top-4 z-50 rounded-full border border-white/20 bg-ocean-900/80 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-ocean-800">
+        <Link href="/geo" className="absolute right-3 top-3 z-50 inline-flex min-h-[44px] items-center rounded-xl border border-white/15 bg-pe-canvas/80 px-4 text-sm font-semibold backdrop-blur hover:bg-pe-raised sm:right-4 sm:top-4">
           Leave
         </Link>
       ) : null}
@@ -623,12 +661,12 @@ function StreetPlayGame({ params }) {
         </Panel>
       ) : null}
       {!server && !serverError ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-pe-canvas text-pe-muted">Loading</div>
       ) : null}
       {serverError ? <ErrorPanel title="The game cannot start" message={serverError} /> : null}
       {sdkError ? <ErrorPanel title="Apple Look Around did not load" message={sdkError} /> : null}
       {configured && !sdkReady && !sdkError && server ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading Look Around</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-pe-canvas text-pe-muted">Loading Look Around</div>
       ) : null}
       {state.status === 'error' && !autoRetrying && !sdkError && !serverError ? (
         <ErrorPanel
@@ -657,8 +695,9 @@ function StreetPlayGame({ params }) {
         />
       ) : null}
       {state.status === 'playing' && state.error ? (
-        <div className="absolute left-1/2 top-24 z-40 -translate-x-1/2 rounded-xl border border-red-400/40 bg-red-950/90 px-4 py-2 text-sm text-red-100 shadow-lg">
-          {state.error.message} <button type="button" className="ml-2 underline" onClick={() => submitGuess(undefined, { allowEmpty: true })}>Retry</button>
+        <div role="alert" className="absolute left-1/2 top-24 z-40 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-xl border border-pe-bad/40 bg-pe-canvas/95 px-4 py-2 text-sm text-pe-fg shadow-lg">
+          <span className="min-w-0">{state.error.message}</span>
+          <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm shrink-0" onClick={() => submitGuess(undefined, { allowEmpty: true })}>Try again</button>
         </div>
       ) : null}
     </div>

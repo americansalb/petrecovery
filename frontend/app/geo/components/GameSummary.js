@@ -53,25 +53,25 @@ function RankedResult({ rated }) {
       data-ranked-result
     >
       <RankEmblem tier={rated.provisional ? null : rated.tier} />
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+      <p className="text-sm font-semibold text-pe-fg">
         {rated.provisional ? 'Placement in progress' : rated.tier ? `${rated.tier} league` : 'Rating updated'}
       </p>
-      <p className="mt-1 text-sm text-white/80">
+      <p className="mt-1 text-sm text-pe-muted">
         {rated.field.players
           ? `You scored ${formatScore(rated.total)} against ${formatScore(rated.field.total)}, the average of ${rated.field.players} other ${rated.field.players === 1 ? 'player' : 'players'} on these five.`
           : `You scored ${formatScore(rated.total)}. Nobody else has finished this hour yet, so you were set against par.`}
       </p>
       <p className="mt-2 text-lg font-bold tabular-nums">
-        <span className={up ? 'text-emerald-300' : 'text-rose-300'}>
+        <span className={up ? 'text-pe-good' : 'text-pe-bad'}>
           {up ? '+' : ''}
           {Math.round(rated.delta)} rating
         </span>
-        <span className="ml-2 text-sm font-medium text-white/60">
+        <span className="ml-2 text-sm font-medium text-pe-muted">
           now {Math.round(rated.after)}
         </span>
       </p>
       {rated.provisional ? (
-        <p className="mt-1 text-sm text-white/60">
+        <p className="mt-1 text-sm text-pe-muted">
           {rated.placements} more {rated.placements === 1 ? 'game' : 'games'} to
           be placed.
         </p>
@@ -86,11 +86,11 @@ function DailyBoard({ daily, cup = false }) {
   const you = daily.you;
   const what = cup ? "this week's ten" : "today's five";
   return (
-    <Card pad="sm" className="mt-4 border-white/10 bg-white/5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
+    <Card pad="sm" className="mt-4">
+      <p className="text-sm font-semibold text-pe-fg">
         {cup ? "This week's board" : "Today's board"}
       </p>
-      <p className="mt-1 text-sm text-white/90">
+      <p className="mt-1 text-sm text-pe-muted">
         {you?.rank
           ? `You are ${ordinal(you.rank)} of ${daily.finished} who finished ${what}.`
           : you
@@ -105,9 +105,9 @@ function DailyBoard({ daily, cup = false }) {
         <ol className="mt-2 space-y-0.5 text-sm">
           {daily.board.slice(0, 5).map((row) => (
             <li key={row.profileId} className="flex items-center gap-2">
-              <span className="w-6 tabular-nums text-white/60">{row.rank}</span>
+              <span className="w-6 tabular-nums text-pe-subtle">{row.rank}</span>
               <span className="flex-1 truncate">{row.name}</span>
-              <span className="font-semibold tabular-nums text-clay-300">
+              <span className="font-semibold tabular-nums text-pe-warm">
                 {formatScore(row.total)}
               </span>
             </li>
@@ -165,26 +165,25 @@ export default function GameSummary({
   const newSeedUrl = `/geo/play?${configToParams({ ...config, seed: shared ? config.seed : randomSeedString() }).toString()}&replay=${randomSeedString()}`;
 
   return (
-    <div className="geo-reveal-panel pe-solo-finish absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto rounded-t-3xl border-t border-white/10 bg-ocean-950/95 text-white shadow-2xl backdrop-blur sm:max-h-[58%]">
+    <div className="geo-reveal-panel pe-solo-finish absolute inset-x-0 bottom-0 top-auto z-40 max-h-[62%] overflow-y-auto border-t border-pe-line bg-pe-canvas/95 text-pe-fg shadow-2xl backdrop-blur sm:max-h-[58%] lg:left-1/2 lg:top-0 lg:max-h-none lg:border-l lg:border-t-0 lg:pt-16">
       <div className="mx-auto max-w-3xl p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide text-white/60">
+            <p className="text-sm text-pe-muted">
               {describeConfig(config, { regionLabel })}
             </p>
-            <p className="pe-score-total mt-1 text-4xl font-bold tabular-nums text-clay-300">
+            <p className="pe-score-total mt-1 text-4xl font-bold tabular-nums text-pe-warm">
               {isStreak
                 ? `Streak of ${summary.streak}`
                 : formatScore(Math.round(shownTotal))}
               {!isStreak ? (
-                <span className="text-lg font-medium text-white/60">
-                  {' '}
+                <span className="ml-2 text-lg font-medium tracking-normal text-pe-muted">
                   of {formatScore(max)}
                 </span>
               ) : null}
             </p>
             {points && (points.earned > 0 || points.badges?.length) ? (
-              <p className="mt-1 text-sm text-clay-300">
+              <p className="mt-1 text-sm text-pe-warm">
                 {points.earned > 0
                   ? `+${points.earned} points this game, ${formatScore(points.balance)} in all.`
                   : ''}
@@ -193,14 +192,14 @@ export default function GameSummary({
                   : ''}{' '}
                 <Link
                   href="/geo/me"
-                  className="underline decoration-white/30 hover:text-white"
+                  className="font-medium text-pe-accent-fg hover:underline"
                 >
                   Spend them on a pin or a name colour
                 </Link>
               </p>
             ) : null}
             {best ? (
-              <p className="mt-1 text-sm text-white/70">
+              <p className="mt-1 text-sm text-pe-muted">
                 {(isStreak ? summary.streak : summary.total) >= best
                   ? 'Your best for these settings.'
                   : `Your best for these settings: ${isStreak ? best : formatScore(best)}.`}
@@ -223,10 +222,7 @@ export default function GameSummary({
             <RefreshCw size={17} />
             {shared ? 'Play these places again' : 'Play again'}
           </Link>
-          <Link
-            href="/geo"
-            className="inline-flex min-h-[48px] items-center px-4 text-sm font-semibold text-white/75"
-          >
+          <Link href="/geo" className="ui-btn ui-btn--secondary ui-btn--lg">
             Choose another game
           </Link>
         </div>
@@ -237,18 +233,18 @@ export default function GameSummary({
         <Card
           as="ol"
           pad="none"
-          className="pe-recap-list pe-stagger mt-4 divide-y divide-white/10 bg-transparent"
+          className="pe-recap-list pe-stagger mt-5 divide-y divide-pe-line bg-transparent"
         >
           {summary.rounds.map((round, i) => (
             <li key={i} style={{ '--i': i + 2 }} className="flex items-center gap-3 px-3 py-2 text-sm">
-              <span className="w-6 text-white/60">{i + 1}</span>
+              <span className="w-6 text-pe-subtle">{i + 1}</span>
               <span className="w-7 text-lg leading-none">
                 {round.country?.flag || ''}
               </span>
               <span className="flex-1 truncate">
                 {round.country?.name || 'Unknown'}
                 {isStreak && !round.correct && round.guessCountry ? (
-                  <span className="text-white/60">
+                  <span className="text-pe-muted">
                     {' '}
                     (you said {round.guessCountry})
                   </span>
@@ -258,18 +254,18 @@ export default function GameSummary({
                 <span
                   className={
                     round.correct
-                      ? 'font-semibold text-green-400'
-                      : 'font-semibold text-red-400'
+                      ? 'font-semibold text-pe-good'
+                      : 'font-semibold text-pe-bad'
                   }
                 >
                   {round.correct ? 'Right' : 'Miss'}
                 </span>
               ) : (
                 <>
-                  <span className="w-24 text-right text-white/70">
+                  <span className="w-24 text-right text-pe-muted">
                     {roundNote(round)}
                   </span>
-                  <span className="w-16 text-right font-semibold tabular-nums text-clay-300">
+                  <span className="w-16 text-right font-semibold tabular-nums text-pe-warm">
                     {formatScore(round.score)}
                   </span>
                 </>
@@ -290,10 +286,10 @@ export default function GameSummary({
           <button
             type="button"
             onClick={() => copy('text', text)}
-            className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10"
+            className="ui-btn ui-btn--secondary"
           >
             {copied === 'text' ? (
-              <Check className="h-4 w-4 text-green-400" />
+              <Check className="h-4 w-4 text-pe-good" />
             ) : (
               <Copy className="h-4 w-4" />
             )}
@@ -303,7 +299,7 @@ export default function GameSummary({
             <button
               type="button"
               onClick={systemShare}
-              className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10"
+              className="ui-btn ui-btn--secondary"
             >
               <Share2 className="h-4 w-4" />
               Share
@@ -313,11 +309,11 @@ export default function GameSummary({
             <button
               type="button"
               onClick={() => copy('challenge', challengeUrl)}
-              className="flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-semibold hover:bg-white/10"
+              className="ui-btn ui-btn--secondary"
               title="A link that plays these exact places"
             >
               {copied === 'challenge' ? (
-                <Check className="h-4 w-4 text-green-400" />
+                <Check className="h-4 w-4 text-pe-good" />
               ) : (
                 <Link2 className="h-4 w-4" />
               )}
@@ -325,11 +321,11 @@ export default function GameSummary({
             </button>
           ) : null}
         </div>
-        <p className="mt-3 text-xs text-white/40">
+        <p className="mt-3 text-xs text-pe-subtle">
           Result page:{' '}
           <a
             href={shareUrl}
-            className="underline decoration-white/30 hover:text-white"
+            className="underline decoration-pe-line-strong hover:text-pe-fg"
           >
             {shareUrl.replace(/^https?:\/\//, '').slice(0, 60)}...
           </a>

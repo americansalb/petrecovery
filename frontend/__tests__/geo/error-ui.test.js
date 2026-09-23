@@ -11,7 +11,7 @@ test('ordinary game errors retry in place without pet-site copy or unverified mo
   render(<GameError error={error} reset={reset} />);
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(reset).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole('link', { name: 'Back to games' }).getAttribute('href')).toBe('/geo');
+  expect(screen.getByRole('link', { name: 'Back to the start' }).getAttribute('href')).toBe('/geo');
   expect(document.body.textContent).not.toMatch(/private diagnostic|petrecovery|team.*notified|data.*safe/i);
   expect(log).toHaveBeenCalledWith('[geo] screen failed', 'Error');
 });
