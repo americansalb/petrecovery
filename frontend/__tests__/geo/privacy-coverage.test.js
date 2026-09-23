@@ -78,8 +78,10 @@ describe('the privacy page covers Probably Earth', () => {
   });
 
   test('the game is in the sitemap, live games are out of the index, and what unfurls stays fetchable', () => {
-    expect(read('app/api/sitemap/route.js')).toContain("url: '/geo'");
-    const robots = read('app/api/robots/route.js');
+    // The game's own sitemap, served on its own domain (app/lib/geo/crawl.js,
+    // __tests__/game-host-files.test.js).
+    expect(read('app/lib/geo/crawl.js')).toContain('<loc>${origin}/geo</loc>');
+    const robots = read('app/lib/geo/crawl.js');
     expect(robots).toContain('Disallow: /geo/play');
     expect(robots).toContain('Disallow: /geo/me');
     // A room and a share page are pasted into chat, and the bots that

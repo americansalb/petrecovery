@@ -172,3 +172,23 @@ export const GAME_SHORT_PATHS = {
   '/leaderboard': '/geo/leaderboard',
   '/daily': '/geo/play?mode=daily',
 };
+
+/**
+ * The game's own hostnames. Built in rather than configured: it is the
+ * game's address, it does not change with the deployment, and a domain
+ * that needs an environment variable set before it works is a domain
+ * that is broken the day it is pointed. GEO_DOMAINS adds more (a staging
+ * host, a second name). One list for everything that asks "is this the
+ * game's site?": the middleware, robots.txt and the sitemap.
+ */
+export const GAME_HOSTNAMES = Object.freeze(['probablyearth.com', 'www.probablyearth.com']);
+
+export function isGameHost(host, domains = process.env.GEO_DOMAINS || '') {
+  const name = String(host || '').split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+  if (!name) return false;
+  const extra = String(domains)
+    .split(',')
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+  return GAME_HOSTNAMES.includes(name) || extra.includes(name);
+}

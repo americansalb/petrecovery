@@ -7,9 +7,27 @@
  * This is a Next.js convention for loading states.
  */
 
+import { usePathname } from 'next/navigation';
 import { SARAMA_AVATAR } from '@/lib/brandAssets';
 
+/**
+ * The game's routes are another product with its own look and its own
+ * domain. This screen is the fallback for every route, so on
+ * probablyearth.com a game page first showed the pet site's mascot on a
+ * light page for up to two seconds, and because the mascot is an <img>
+ * in the first HTML React sends, every game page also preloaded it: a
+ * 1.1 MB SVG that is never shown there. The game gets its own dark
+ * canvas, the colour every one of its pages has (app/geo/theme.css).
+ */
+function isGameRoute(pathname) {
+  return pathname === '/geo' || pathname.startsWith('/geo/');
+}
+
 export default function Loading() {
+  const pathname = usePathname() || '';
+  if (isGameRoute(pathname)) {
+    return <div role="status" aria-label="Loading" style={{ minHeight: '100vh', background: 'rgb(11 15 20)' }} />;
+  }
   return (
     <div style={{
       minHeight: '100vh',
