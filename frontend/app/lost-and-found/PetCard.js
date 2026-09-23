@@ -12,24 +12,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { MapPin, Clock, Eye, Dog, Cat, Bird, Rabbit, PawPrint } from 'lucide-react';
+import { MapPin, Clock, Eye } from 'lucide-react';
+import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { caseStatus, caseTitle, caseDescriptor, casePlace, caseTimeline } from '@/app/lib/caseLabels';
 
 export const STATUS_DOT = {
   lost: 'bg-red-500',
   found: 'bg-sky-500',
   home: 'bg-emerald-500',
+  closed: 'bg-midnight-400',
 };
-
-function SpeciesIcon({ species, ...props }) {
-  switch (String(species || '').toUpperCase()) {
-    case 'DOG': return <Dog {...props} />;
-    case 'CAT': return <Cat {...props} />;
-    case 'BIRD': return <Bird {...props} />;
-    case 'RABBIT': return <Rabbit {...props} />;
-    default: return <PawPrint {...props} />;
-  }
-}
 
 export default function PetCard({ c }) {
   const status = caseStatus(c);
@@ -54,7 +46,7 @@ export default function PetCard({ c }) {
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-midnight-400">
-            <SpeciesIcon species={c.petSpecies} size={34} strokeWidth={1.5} aria-hidden="true" />
+            <SpeciesIcon species={String(c.petSpecies || '').toUpperCase()} size={34} />
             <span className="text-xs">No photo yet</span>
           </div>
         )}

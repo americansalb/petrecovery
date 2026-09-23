@@ -9,13 +9,15 @@
  * endpoint as the success screen, so any neighbor who lands on the case can
  * grab a flyer and spread the word. Renders nothing for older cases with no
  * activation (RecoveryKit returns the null fallback).
+ *
+ * `onEmptyChange` tells the page whether there is a kit, so its "Print a
+ * flyer" row can point here only when there is something to print.
  */
 
 import { useCallback, useState } from 'react';
-import { motion } from 'framer-motion';
 import RecoveryKit from '@/app/components/report/recoveryKit/RecoveryKit';
 
-export default function RecoveryKitPanel({ caseNumber, petName }) {
+export default function RecoveryKitPanel({ caseNumber, petName, onEmptyChange }) {
   // The wrapper paints a border, a background and padding. When the kit had
   // nothing to show, RecoveryKit returned null and this drew an empty white
   // card on the public case page - verified against
@@ -28,20 +30,23 @@ export default function RecoveryKitPanel({ caseNumber, petName }) {
   // appear at all. So the element stays and loses its card styling, which
   // leaves nothing visible around a child rendering null.
   const [isEmpty, setIsEmpty] = useState(true);
-  const handleEmptyChange = useCallback((empty) => setIsEmpty(empty), []);
+  const handleEmptyChange = useCallback(
+    (empty) => {
+      setIsEmpty(empty);
+      if (onEmptyChange) onEmptyChange(empty);
+    },
+    [onEmptyChange]
+  );
 
   if (!caseNumber) return null;
 
   return (
-    <motion.div
+    <div
       id="share-kit"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
       className={
         isEmpty
-          ? 'scroll-mt-20'
-          : 'scroll-mt-20 rounded-2xl border border-midnight-200 bg-white p-5 sm:p-6 shadow-sm'
+          ? 'scroll-mt-24'
+          : 'scroll-mt-24 rounded-2xl bg-white p-5 ring-1 ring-midnight-200 sm:p-6'
       }
     >
       <RecoveryKit
@@ -51,6 +56,6 @@ export default function RecoveryKitPanel({ caseNumber, petName }) {
         initialStatus="COMPLETE"
         onEmptyChange={handleEmptyChange}
       />
-    </motion.div>
+    </div>
   );
 }

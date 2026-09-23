@@ -1,8 +1,8 @@
-// Case Landing Page Components
-export { default as HeroSection } from './HeroSection';
-export { default as SocialProofBar } from './SocialProofBar';
-export { default as MapPreview } from './MapPreview';
-export { default as ActivityTimeline } from './ActivityTimeline';
-export { default as ActionCards } from './ActionCards';
-export { default as StickyMobileCTA } from './StickyMobileCTA';
+// Pieces of a pet's public page (../CasePageClient.js). LastSeenMap is not
+// here: the page loads it with next/dynamic so Leaflet never runs on the server.
+export { default as Activity } from './Activity';
 export { default as RecoveryKitPanel } from './RecoveryKitPanel';
+export { default as ShareSheet } from './ShareSheet';
+export { default as SightingSheet } from './SightingSheet';
+export { default as StickyActions } from './StickyActions';
+export { default as WaysToHelp } from './WaysToHelp';

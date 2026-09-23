@@ -101,10 +101,7 @@ export default function SheltersDirectoryClient({ initialShelters }) {
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedId]);
 
-  async function searchWider(e) {
-    if (e) e.preventDefault();
-    const location = query.trim();
-    if (!location || searching) return;
+  async function runSearch(location, label = location) {
     setSearching(true);
     setSearchError(null);
     try {
@@ -113,7 +110,7 @@ export default function SheltersDirectoryClient({ initialShelters }) {
       );
       if (!res.ok) throw new Error('search failed');
       const data = await res.json();
-      setRemote({ label: location, shelters: (data.shelters || []).map(normalizeRemote) });
+      setRemote({ label, shelters: (data.shelters || []).map(normalizeRemote) });
       setSelectedId(null);
       setQuery('');
     } catch {
@@ -122,6 +119,24 @@ export default function SheltersDirectoryClient({ initialShelters }) {
       setSearching(false);
     }
   }
+
+  function searchWider(e) {
+    if (e) e.preventDefault();
+    const location = query.trim();
+    if (!location || searching) return;
+    runSearch(location);
+  }
+
+  // A pet's page links here as /shelters?near=Orlando, FL (or near=lat,lng
+  // with a label), so "Check shelters near Orlando" opens on Orlando rather
+  // than the whole country. Read once, on arrival.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const near = (params.get('near') || '').trim().slice(0, 120);
+    if (near) runSearch(near, (params.get('label') || near).trim().slice(0, 120));
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function locateMe() {
     if (locating) return;
@@ -225,7 +240,7 @@ export default function SheltersDirectoryClient({ initialShelters }) {
                 onClick={() => { setRemote(null); setSelectedId(null); }}
                 className="inline-flex items-center gap-1 text-[12px] font-semibold text-midnight-600 bg-midnight-50 hover:bg-midnight-100 rounded-full pl-2.5 pr-1.5 py-1 transition"
               >
-                Showing {remote.label}
+                Near {remote.label}
                 <X className="w-3.5 h-3.5" />
               </button>
             )}

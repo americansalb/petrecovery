@@ -154,15 +154,22 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
     if (caseNumber) fetchKit();
   }, [caseNumber, fetchKit]);
 
-  // poll until terminal
+  // Nothing more is coming: the cascade finished, or (on the public page)
+  // the case never had one. Older cases answer exists:false with status
+  // 'unknown', which is not terminal, so the public page used to poll this
+  // endpoint every 3 seconds for as long as anyone kept it open, and to
+  // open a live stream that answers 404.
+  const settled = isTerminal(status) || (shareMode && kit?.exists === false);
+
+  // poll until settled
   useEffect(() => {
-    if (!caseNumber || isTerminal(status)) {
+    if (!caseNumber || settled) {
       if (pollRef.current) clearInterval(pollRef.current);
       return;
     }
     pollRef.current = setInterval(fetchKit, 3000);
     return () => pollRef.current && clearInterval(pollRef.current);
-  }, [caseNumber, status, fetchKit]);
+  }, [caseNumber, settled, fetchKit]);
 
   // live SSE: refetch on any event (cheap; keeps the durable read authoritative)
   const debRef = useRef(null);
@@ -172,7 +179,7 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
       if (debRef.current) clearTimeout(debRef.current);
       debRef.current = setTimeout(fetchKit, 400);
     },
-    { enabled: Boolean(caseNumber) && !isTerminal(status) }
+    { enabled: Boolean(caseNumber) && !settled }
   );
 
   const steps = kit?.steps ? Object.fromEntries(kit.steps.map((s) => [s.key, s])) : {};

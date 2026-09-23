@@ -20,6 +20,9 @@ export const STATE_ABBR = {
 
 export const US_STATES = [...new Set(Object.values(STATE_ABBR))].sort();
 
+/** "FL" -> "florida": the name as geocoded addresses spell it (lowercase). */
+export const STATE_NAME = Object.fromEntries(Object.entries(STATE_ABBR).map(([name, code]) => [code, name]));
+
 /** "Illinois" -> "IL", " il " -> "IL"; anything unrecognized passes through
  *  trimmed (uppercased when it already looks like a 2-letter code). */
 export function normalizeState(state) {

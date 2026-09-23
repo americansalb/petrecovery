@@ -1,660 +1,603 @@
 'use client';
 
 /**
- * Public Case Landing Page - The Perfect Lost Pet Page
+ * A pet's public page, the one most people reach first from a link in a
+ * group chat. From the top it answers: which pet, where and when it was
+ * last seen, and what to do now (report a sighting, call the owner,
+ * share). Below that come the map, sightings and updates, other ways to
+ * help, and the flyer kit when the report has one.
  *
- * A living command center that serves two audiences:
- * 1. Pet Owner - checking status, managing their case
- * 2. Community Stranger - clicking a shared link, looking to help
- *
- * Design Philosophy: "Make the pet unforgettable in 3 seconds"
+ * The link preview is built by the server page (page.js). This fetches
+ * the public case, which never includes the owner's email. Wording comes
+ * from app/lib/caseLabels.js, shared with the Lost & Found board.
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
-  Loader2, AlertCircle, ArrowRight, X, Eye, Phone, Mail,
-  ChevronRight, Camera, MapPin, Facebook, Twitter, Copy, Check,
-  ExternalLink, MessageSquare, HeartHandshake, Share2, Radar, Shield
+  ChevronLeft, MapPin, Clock, Eye, Phone, Share2, Printer, Building2, Users,
+  HeartHandshake, Radar, PawPrint, ExternalLink, Megaphone,
 } from 'lucide-react';
 
-// Import components
+import { Button } from '@/components/ui';
+import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
+import { STATUS_DOT } from '@/app/lost-and-found/PetCard';
 import {
-  HeroSection,
-  SocialProofBar,
-  MapPreview,
-  ActivityTimeline,
-  ActionCards,
-  StickyMobileCTA,
-  RecoveryKitPanel
-} from './components';
+  caseStatus, caseTitle, caseDescriptor, casePlace, caseTimeline, caseSize,
+  caseDescription, casePhone, known, shortDate, timeAgo,
+} from '@/app/lib/caseLabels';
+import { PIN_ONLY_LABEL, looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { speciesLabel } from '@/app/lib/species';
+import { getBaseUrl } from '@/app/lib/config';
 import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
-import ConfettiBurst from '@/app/mission-control/components/overlays/ConfettiBurst';
+import { Activity, RecoveryKitPanel, ShareSheet, SightingSheet, StickyActions, WaysToHelp } from './components';
+
+const LastSeenMap = dynamic(() => import('./components/LastSeenMap'), {
+  ssr: false,
+  loading: () => <div className="h-full w-full animate-pulse bg-midnight-100" />,
+});
+
+const ACTIONS_ID = 'pet-actions';
+const HOT_SIGHTING_MS = 60 * 60 * 1000;
+
+const OUTLINE_LINK =
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-midnight-300 px-3 py-3 text-base font-semibold text-midnight-700 transition hover:border-midnight-400 hover:bg-midnight-50';
+const PRIMARY_LINK =
+  'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-flash-400 px-6 py-3 text-base font-semibold text-midnight-900 shadow-sm transition hover:bg-flash-500';
+const ICON_BUTTON =
+  'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-midnight-100 text-midnight-700 transition hover:bg-midnight-200';
+
+/* ------------------------------- Page states ------------------------------ */
+
+function Loading() {
+  return (
+    <div className="min-h-screen bg-midnight-50" aria-busy="true">
+      <div className="border-b border-midnight-200 bg-white">
+        <div className="mx-auto grid max-w-5xl gap-6 px-4 pb-8 pt-16 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-10">
+          <div className="aspect-[3/2] animate-pulse rounded-2xl bg-midnight-100 md:aspect-square" />
+          <div className="space-y-4">
+            <div className="h-7 w-20 animate-pulse rounded-full bg-midnight-100" />
+            <div className="h-10 w-2/3 animate-pulse rounded-lg bg-midnight-100" />
+            <div className="h-5 w-1/2 animate-pulse rounded bg-midnight-100" />
+            <div className="h-5 w-3/4 animate-pulse rounded bg-midnight-100" />
+            <div className="h-12 w-full animate-pulse rounded-xl bg-midnight-100" />
+          </div>
+        </div>
+      </div>
+      <p className="sr-only">Loading</p>
+    </div>
+  );
+}
+
+function Problem({ title, body, children }) {
+  return (
+    <div className="min-h-screen bg-midnight-50 px-4 py-20">
+      <div className="mx-auto max-w-md rounded-2xl bg-white px-6 py-10 text-center ring-1 ring-midnight-200">
+        <PawPrint size={36} className="mx-auto text-midnight-300" aria-hidden="true" />
+        <h1 className="mt-4 text-xl font-semibold text-midnight-900">{title}</h1>
+        <p className="mt-2 text-midnight-500">{body}</p>
+        <div className="mt-6 flex flex-col items-center gap-3">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------- Pieces --------------------------------- */
+
+function Photo({ c, alt }) {
+  const [failed, setFailed] = useState(false);
+  const src = c.petPhotoUrl;
+  return (
+    <div className="relative aspect-[3/2] overflow-hidden rounded-2xl bg-midnight-100 md:aspect-square">
+      {src && !failed ? (
+        <a href={src} target="_blank" rel="noopener noreferrer" aria-label="Open the full-size photo" className="block h-full w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt={alt} onError={() => setFailed(true)} className="h-full w-full object-cover" />
+        </a>
+      ) : (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-midnight-400">
+          <SpeciesIcon species={String(c.petSpecies || '').toUpperCase()} size={56} />
+          <span className="text-sm">No photo yet</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HotSighting({ s }) {
+  const where = s.address && !looksLikeCoordinates(s.address) ? s.address.split(',')[0].trim().replace(/^near\s+/i, '') : '';
+  return (
+    <div role="status" className="flex items-start gap-3 rounded-2xl bg-flash-50 p-4 ring-1 ring-flash-300">
+      <span className="relative mt-1.5 flex h-3 w-3 shrink-0" aria-hidden="true">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-flash-400 opacity-75" />
+        <span className="relative inline-flex h-3 w-3 rounded-full bg-flash-500" />
+      </span>
+      <div className="min-w-0">
+        <p className="font-semibold text-midnight-900">
+          Seen {timeAgo(s.sightedAt)}{where ? ` near ${where}` : ''}
+        </p>
+        {s.description && <p className="mt-0.5 break-words text-midnight-600">{s.description}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------- Page ---------------------------------- */
 
 export default function CasePageClient() {
-  const params = useParams();
-  const router = useRouter();
-  const caseNumber = params.caseNumber;
-  const { data: session } = useSession();
+  const { caseNumber } = useParams();
+  const { data: session, status: authStatus } = useSession();
   const { instrument } = useInstrument();
 
-  // State
-  const [caseData, setCaseData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Modal states
-  const [showContactModal, setShowContactModal] = useState(false);
-  const [showSightingModal, setShowSightingModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [showReunitedModal, setShowReunitedModal] = useState(false);
-  const [savingReunited, setSavingReunited] = useState(false);
-  const [reunitedError, setReunitedError] = useState(null);
-  const [copied, setCopied] = useState(false);
-
-  // Fetch case data
-  const fetchCase = async () => {
-    try {
-      const res = await fetch(`/api/public/missions/${caseNumber}`);
-      if (!res.ok) {
-        if (res.status === 404) {
-          setError('Case not found');
-        } else {
-          setError('Failed to load case');
-        }
-        return;
-      }
-      const data = await res.json();
-      setCaseData(data);
-    } catch (err) {
-      setError('Failed to load case');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [c, setC] = useState(null);
+  const [state, setState] = useState('loading'); // loading | ready | missing | busy | failed
+  const [attempt, setAttempt] = useState(0);
+  const [sheet, setSheet] = useState(null); // 'share' | 'sighting' | 'home'
+  const [kitReady, setKitReady] = useState(false);
+  const [savingHome, setSavingHome] = useState(false);
+  const [homeError, setHomeError] = useState(null);
 
   useEffect(() => {
-    if (!caseNumber) return;
-    fetchCase();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [caseNumber]);
+    if (!caseNumber) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/public/missions/${encodeURIComponent(caseNumber)}`);
+        if (cancelled) return;
+        if (res.status === 404) return setState('missing');
+        if (res.status === 429) return setState('busy');
+        if (!res.ok) return setState('failed');
+        const data = await res.json();
+        if (cancelled) return;
+        setC(data);
+        setState('ready');
+      } catch {
+        if (!cancelled) setState('failed');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [caseNumber, attempt]);
 
-  // The page tells the truth about the mission's moment
-  const isReunited = caseData?.status === 'REUNITED' || caseData?.resolution === 'REUNITED';
-  const isOwner = !!session?.user?.id && session.user.id === caseData?.reporterId;
+  const retry = () => {
+    setState('loading');
+    setAttempt((n) => n + 1);
+  };
+  const closeSheet = useCallback(() => setSheet(null), []);
+  const onKitChange = useCallback((empty) => setKitReady(!empty), []);
 
-  const hotSighting = useMemo(() => {
-    const s = caseData?.sightings?.[0];
-    if (!s || isReunited) return null;
-    const at = new Date(s.sightedAt).getTime();
-    return Date.now() - at <= 60 * 60 * 1000 ? s : null;
-  }, [caseData, isReunited]);
+  if (state === 'loading') return <Loading />;
+  if (state === 'missing') {
+    return (
+      <Problem title="We couldn't find this pet" body="The report may have been removed, or the link is missing part of its address.">
+        <Button href="/lost-and-found">Browse Lost &amp; Found</Button>
+      </Problem>
+    );
+  }
+  if (state !== 'ready' || !c) {
+    return (
+      <Problem
+        title="This page didn't load"
+        body={state === 'busy' ? 'Too many requests from your network. Wait a minute, then try again.' : 'Check your connection, then try again.'}
+      >
+        <Button onClick={retry}>Try again</Button>
+        <Link href="/lost-and-found" className="inline-flex items-center text-sm font-medium text-midnight-600 hover:text-midnight-900">
+          Browse Lost &amp; Found
+        </Link>
+      </Problem>
+    );
+  }
 
-  const daysSearching = useMemo(() => {
-    if (!caseData?.lastSeenAt) return null;
-    const end = caseData.resolvedAt ? new Date(caseData.resolvedAt) : new Date();
-    return Math.max(1, Math.round((end - new Date(caseData.lastSeenAt)) / 86400000));
-  }, [caseData]);
+  /* ----------------------------- What the page says ---------------------------- */
 
-  const handleConfirmReunited = async ({ resolution, resolutionNotes }) => {
-    if (!caseData?.id) return;
-    setSavingReunited(true);
-    setReunitedError(null);
+  const status = caseStatus(c);
+  const open = status.key === 'lost' || status.key === 'found';
+  const isFound = status.key === 'found';
+  const title = caseTitle(c);
+  const species = speciesLabel(c.petSpecies).toLowerCase();
+  const petName = c.reportType === 'FOUND' ? '' : known(c.petName);
+  const name = petName || `this ${species}`;
+  const Name = petName || `This ${species}`;
+  const descriptor = [caseDescriptor(c), caseSize(c)].filter(Boolean).join(' · ');
+  const description = caseDescription(c);
+  const place = casePlace(c);
+  const pinOnly = place === PIN_ONLY_LABEL;
+  const sightings = c.sightings || [];
+  const updates = c.updates || [];
+  const phone = casePhone(c);
+  const contactName = c.contact?.name && c.contact.name !== 'The owner' ? c.contact.name : '';
+  const signedIn = authStatus === 'authenticated';
+  const isOwner = signedIn && Boolean(session?.user?.id) && session.user.id === c.reporterId;
+  const lat = Number(c.lastSeenLatitude);
+  const lng = Number(c.lastSeenLongitude);
+  const hasCoords = c.lastSeenLatitude != null && c.lastSeenLongitude != null && Number.isFinite(lat) && Number.isFinite(lng);
+  const caseRef = c.missionNumber || caseNumber;
+
+  const seenWord = isFound ? 'Found' : 'Last seen';
+  const whereText = !pinOnly
+    ? `${seenWord} near ${place}`
+    : hasCoords
+      ? `${seenWord} at the spot pinned on the map below`
+      : `${seenWord}: no location given`;
+  const since = shortDate(c.lastSeenAt || c.createdAt);
+  const whenText =
+    status.key === 'lost' ? `${caseTimeline(c)}, since ${since}` : isFound ? `${caseTimeline(c)}, on ${since}` : caseTimeline(c);
+  const facts = [
+    { icon: MapPin, text: whereText },
+    { icon: Clock, text: whenText },
+    open && sightings.length > 0 && {
+      icon: Eye,
+      text: `${sightings.length} ${sightings.length === 1 ? 'sighting' : 'sightings'} reported`,
+    },
+  ].filter(Boolean);
+
+  const backHref = isFound ? '/lost-and-found?tab=found' : status.key === 'home' ? '/lost-and-found?tab=reunited' : '/lost-and-found';
+  const hot = open && sightings[0] && Date.now() - new Date(sightings[0].sightedAt).getTime() <= HOT_SIGHTING_MS ? sightings[0] : null;
+
+  /* ---------------------------------- Links ---------------------------------- */
+
+  const missionHref = `/mission-control?mission=${encodeURIComponent(c.id)}`;
+  const reportSightingHref = signedIn ? `${missionHref}&action=sighting` : `/join/${encodeURIComponent(c.id)}`;
+  const joinHref = signedIn ? missionHref : `/join/${encodeURIComponent(c.id)}`;
+  const directionsHref = hasCoords ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null;
+  const sheltersHref = !pinOnly
+    ? `/shelters?near=${encodeURIComponent(place)}`
+    : hasCoords
+      ? `/shelters?near=${encodeURIComponent(`${lat},${lng}`)}&label=${encodeURIComponent('the last-seen spot')}`
+      : '/shelters';
+
+  const shareUrl = `${getBaseUrl()}/cases/${encodeURIComponent(caseRef)}`;
+  const nearText = pinOnly ? '' : ` near ${place}`;
+  const shareTitle = status.key === 'home' ? `${Name} is home` : isFound ? `${title}${nearText}` : `Help find ${Name}`;
+  const shareText =
+    status.key === 'home'
+      ? `${Name} is back home. Thank you to everyone who shared.`
+      : isFound
+        ? `${title}${nearText}. Do you know who owns this ${species}?`
+        : `Help find ${petName ? `${petName}, a lost ${species},` : `this lost ${species},`} last seen${nearText}.`;
+
+  const share = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({ title: shareTitle, text: shareText, url: shareUrl });
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return; // the person closed the share sheet
+      }
+    }
+    setSheet('share');
+  };
+
+  const confirmHome = async ({ resolution, resolutionNotes }) => {
+    setSavingHome(true);
+    setHomeError(null);
     try {
-      const res = await fetch(`/api/missions/${caseData.id}/status`, {
+      const res = await fetch(`/api/missions/${encodeURIComponent(c.id)}/status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'REUNITED', resolution, resolutionNotes }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || data.error || 'Could not update the case');
+        throw new Error(data.message || data.error || 'Could not update the report');
       }
-      setShowReunitedModal(false);
-      await fetchCase();
+      setSheet(null);
+      setAttempt((n) => n + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setReunitedError(err.message);
+      setHomeError(err.message);
     } finally {
-      setSavingReunited(false);
+      setSavingHome(false);
     }
   };
 
-  // Sharing
-  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const shareText = caseData
-    ? isReunited
-      ? `${caseData.petName} is home! Reunited after ${daysSearching} ${daysSearching === 1 ? 'day' : 'days'}. Thank you to everyone who searched.`
-      : `Help find ${caseData.petName}! Lost ${caseData.petSpecies?.toLowerCase() || 'pet'} last seen near ${caseData.city || 'unknown location'}.`
-    : '';
+  /* ------------------------------ Other ways to help ------------------------------ */
 
-  const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(shareUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const flyerItem = kitReady
+    ? { key: 'flyer', icon: Printer, label: 'Print a flyer', sub: `Put it up near where ${name} was last seen.`, href: '#share-kit' }
+    : signedIn
+      ? { key: 'flyer', icon: Printer, label: 'Print a flyer', sub: `Put it up near where ${name} was last seen.`, href: `${missionHref}&tab=flyer` }
+      : null;
+  const helpItems =
+    status.key === 'lost'
+      ? [
+          { key: 'share', icon: Share2, label: 'Share this page', sub: 'Post it in local groups and neighborhood apps.', onClick: share },
+          {
+            key: 'shelters',
+            icon: Building2,
+            label: pinOnly ? 'Check nearby shelters' : `Check shelters near ${place}`,
+            sub: 'Lost pets are often taken to a shelter. Call or visit.',
+            href: sheltersHref,
+          },
+          flyerItem,
+          {
+            key: 'join',
+            icon: Users,
+            label: 'Join the search',
+            sub: signedIn ? 'Open the search in Mission Control.' : 'Sign up to search the area. No account needed.',
+            href: joinHref,
+          },
+        ].filter(Boolean)
+      : [];
 
-  const handleNativeShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `Help Find ${caseData?.petName}!`,
-          text: shareText,
-          url: shareUrl
-        });
-      } catch (err) {
-        // User cancelled or not supported
-        setShowShareModal(true);
-      }
-    } else {
-      setShowShareModal(true);
-    }
-  };
+  /* ---------------------------------- Actions ---------------------------------- */
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
-        <div className="flex items-center justify-center py-32">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 text-flash-500 animate-spin mx-auto mb-4" />
-            <p className="text-midnight-500 text-lg">Loading case details...</p>
-          </div>
+  let actions;
+  if (open && isOwner) {
+    // The owner's own page: no "I've seen" or "Call the owner" (that is them).
+    // Their tools are in the panel below.
+    actions = (
+      <Button size="lg" fullWidth leftIcon={Share2} onClick={share}>
+        Share this page
+      </Button>
+    );
+  } else if (status.key === 'lost') {
+    actions = (
+      <div className="space-y-3">
+        <Button size="lg" fullWidth leftIcon={Eye} onClick={() => setSheet('sighting')}>
+          I&apos;ve seen {name}
+        </Button>
+        <div className={`grid gap-3 ${phone ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {phone && (
+            <a href={`tel:${phone.tel}`} className={OUTLINE_LINK}>
+              <Phone className="h-4 w-4" aria-hidden="true" />
+              Call the owner
+            </a>
+          )}
+          <Button variant="outline" size="lg" leftIcon={Share2} onClick={share}>
+            Share
+          </Button>
         </div>
+        {phone && <p className="hidden text-sm text-midnight-500 md:block">Owner&apos;s phone: {phone.display}</p>}
+      </div>
+    );
+  } else if (isFound) {
+    actions = (
+      <div className="space-y-3">
+        {phone ? (
+          <a href={`tel:${phone.tel}`} className={PRIMARY_LINK}>
+            <Phone className="h-4 w-4" aria-hidden="true" />
+            Call the finder
+          </a>
+        ) : (
+          <Button size="lg" fullWidth href="/report/new" leftIcon={Megaphone}>
+            Report your lost pet
+          </Button>
+        )}
+        <Button variant="outline" size="lg" fullWidth leftIcon={Share2} onClick={share}>
+          Share
+        </Button>
+        <p className="text-sm text-midnight-500">
+          {phone
+            ? `Is this your pet? Call the finder, and have a photo or vet record ready to show it's yours.`
+            : `The finder didn't leave a phone number. If this is your pet, report it lost: new lost reports are checked against found pets nearby.`}
+        </p>
+        {phone && <p className="hidden text-sm text-midnight-500 md:block">Finder&apos;s phone: {phone.display}</p>}
+      </div>
+    );
+  } else if (status.key === 'home') {
+    actions = (
+      <div className="space-y-3">
+        <p className="rounded-xl bg-emerald-50 px-4 py-3 font-medium text-emerald-800 ring-1 ring-emerald-200">
+          {Name} is back home.
+        </p>
+        <Button size="lg" fullWidth leftIcon={Share2} onClick={share}>
+          Share the good news
+        </Button>
+      </div>
+    );
+  } else {
+    actions = (
+      <div className="space-y-3">
+        <p className="rounded-xl bg-midnight-50 px-4 py-3 text-midnight-700 ring-1 ring-midnight-200">This search has closed.</p>
+        <Button size="lg" variant="outline" fullWidth href="/lost-and-found">
+          See pets still missing
+        </Button>
       </div>
     );
   }
 
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
-        <div className="max-w-lg mx-auto px-4 py-32 text-center">
-          <div className="bg-white rounded-3xl shadow-lg p-8">
-            <AlertCircle className="w-16 h-16 text-midnight-300 mx-auto mb-6" />
-            <h1 className="text-2xl font-bold text-midnight-900 mb-3">{error}</h1>
-            <p className="text-midnight-500 mb-8">This case may have been resolved or removed.</p>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2 bg-midnight-900 hover:bg-midnight-800 text-white px-6 py-3 rounded-xl font-semibold transition"
-            >
-              Go to Homepage
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const petName = caseData?.petName || 'Unknown';
-
-  // Build latest activity for social proof bar
-  const latestActivity = (() => {
-    if (caseData?.sightings?.length > 0) {
-      const latest = caseData.sightings[0];
-      return {
-        type: 'sighting',
-        message: `${latest.reporterName} reported a sighting near ${latest.address?.split(',')[0] || 'the area'}`,
-        time: latest.sightedAt
-      };
-    }
-    if (caseData?.updates?.length > 0) {
-      const latest = caseData.updates[0];
-      return {
-        type: 'update',
-        message: latest.content?.substring(0, 80) + (latest.content?.length > 80 ? '...' : ''),
-        time: latest.createdAt
-      };
-    }
-    return null;
-  })();
+  /* ----------------------------------- View ----------------------------------- */
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-midnight-50 to-white">
-      {/* Hero Section */}
-      <HeroSection
-        caseData={caseData}
-        onContactOwner={() => setShowContactModal(true)}
-      />
+    <div className="min-h-screen bg-midnight-50">
+      <header className="border-b border-midnight-200 bg-white">
+        <div className="mx-auto max-w-5xl px-4 pb-8 pt-3 sm:pt-5">
+          <Link href={backHref} className="-ml-1 inline-flex items-center gap-1 px-1 text-sm font-medium text-midnight-500 hover:text-midnight-900">
+            <ChevronLeft size={16} aria-hidden="true" />
+            Lost &amp; Found
+          </Link>
 
-      {/* The page's one big moment: reunion story, hot sighting, or the CTA */}
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
-        {isReunited ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-3xl bg-midnight-900 border-2 border-emerald-400 p-6 sm:p-8"
-          >
-            <ConfettiBurst count={20} />
-            <div className="relative flex flex-wrap items-center justify-between gap-5">
-              <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500 text-midnight-950 text-xs font-bold tracking-wide">
-                  <HeartHandshake size={13} />
-                  HOME
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-bold text-white mt-3">
-                  {petName} is home.
-                </h2>
-                <p className="text-midnight-300 mt-1">
-                  Reunited after {daysSearching} {daysSearching === 1 ? 'day' : 'days'}
-                  {caseData?.sightingsCount > 0 && `, with ${caseData.sightingsCount} community ${caseData.sightingsCount === 1 ? 'sighting' : 'sightings'}`}
-                  . This is what a neighborhood can do.
-                </p>
+          <div className="mt-2 grid gap-6 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-10">
+            <Photo c={c} alt={`Photo of ${title}`} />
+
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-midnight-100 px-3 py-1 text-sm font-semibold text-midnight-800">
+                <span className={`h-2 w-2 rounded-full ${STATUS_DOT[status.key]}`} aria-hidden="true" />
+                {status.label}
+              </span>
+              <h1 className="mt-3 break-words text-3xl font-bold tracking-tight text-midnight-900 sm:text-4xl">{title}</h1>
+              {descriptor && <p className="mt-1 text-lg text-midnight-500">{descriptor}</p>}
+
+              <ul className="mt-5 space-y-2.5">
+                {facts.map((f) => (
+                  <li key={f.text} className="flex items-start gap-2.5 text-midnight-700">
+                    <f.icon size={18} className="mt-0.5 shrink-0 text-midnight-400" aria-hidden="true" />
+                    <span className="min-w-0 break-words">{f.text}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div id={ACTIONS_ID} className="mt-6">
+                {actions}
               </div>
-              <div className="flex flex-col gap-2 w-full sm:w-auto">
-                <button
-                  onClick={handleNativeShare}
-                  className="flex items-center justify-center gap-2 px-5 py-3 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold rounded-2xl transition"
-                >
-                  <Share2 size={17} />
-                  Share the good news
-                </button>
-                <Link
-                  href="/rescue-forces/search"
-                  className="flex items-center justify-center gap-2 px-5 py-3 bg-midnight-800 hover:bg-midnight-700 text-white font-semibold rounded-2xl border border-midnight-700 transition text-sm"
-                >
-                  <Shield size={15} />
-                  Meet your local rescue force
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <>
-            {hotSighting && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl border-2 border-flash-400 bg-flash-50 p-4 flex items-center gap-3"
-              >
-                <span className="w-10 h-10 rounded-xl bg-flash-400 flex items-center justify-center shrink-0 animate-pulse">
-                  <Radar size={20} className="text-midnight-900" />
-                </span>
-                <div className="min-w-0">
-                  <p className="font-bold text-midnight-900">
-                    Sighted {Math.max(1, Math.round((Date.now() - new Date(hotSighting.sightedAt)) / 60000))} minutes ago
-                    {hotSighting.address ? ` near ${hotSighting.address.split(',')[0]}` : ''}
-                  </p>
-                  <p className="text-sm text-midnight-600 truncate">
-                    {hotSighting.description || 'The trail is fresh. Eyes up in that area.'}
-                  </p>
-                </div>
-              </motion.div>
-            )}
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => setShowSightingModal(true)}
-              id="inline-sighting-cta"
-              className="w-full bg-flash-400 hover:bg-flash-500 text-midnight-900 rounded-2xl p-5 shadow-xl shadow-flash-400/30 transition group"
-            >
-              <div className="flex items-center justify-center gap-4">
-                <div className="w-14 h-14 bg-midnight-900/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
-                  <Eye className="w-7 h-7" />
-                </div>
-                <div className="text-left">
-                  <p className="font-bold text-xl">I've Seen {petName}</p>
-                  <p className="text-midnight-700">Report a sighting to help bring them home</p>
-                </div>
-                <ChevronRight className="w-6 h-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition hidden lg:block" />
-              </div>
-            </motion.button>
-          </>
-        )}
-      </div>
 
-      {/* Social Proof Bar */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <SocialProofBar
-          viewCount={caseData?.viewCount || 0}
-          shareCount={caseData?.shareCount || 0}
-          activeSearchers={caseData?.activeSearchers || 0}
-          sightingsCount={caseData?.sightingsCount || 0}
-          latestActivity={latestActivity}
-        />
-      </div>
-
-      {/* Main Content */}
-      <section className="max-w-6xl mx-auto px-4 pb-32 lg:pb-12">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column - Map & Timeline.
-              min-w-0 because a grid item defaults to min-width: auto and so
-              refuses to shrink below its widest content. Without it this
-              column measured 429px inside a 358px grid on a 390px phone,
-              pushing card contents past the screen edge - which is what
-              clipped the Search Area header to "2 sigh". */}
-          <div className="lg:col-span-2 min-w-0 space-y-6">
-            {/* Map Preview - Same map as Mission Control */}
-            <MapPreview
-              caseNumber={caseNumber}
-              lastSeenLatitude={caseData?.lastSeenLatitude}
-              lastSeenLongitude={caseData?.lastSeenLongitude}
-              lastSeenAddress={caseData?.lastSeenAddress}
-              sightings={caseData?.sightings || []}
-              petSpecies={caseData?.petSpecies || 'DOG'}
-              hoursElapsed={caseData?.lastSeenAt ? Math.floor((Date.now() - new Date(caseData.lastSeenAt).getTime()) / (1000 * 60 * 60)) : 24}
-            />
-
-            {/* Activity Timeline */}
-            <ActivityTimeline
-              sightings={caseData?.sightings || []}
-              updates={caseData?.updates || []}
-              caseCreatedAt={caseData?.createdAt}
-            />
-
-            {/* Share kit - printable flyers, social images + captions, scannable
-                QR generated at report time. Renders nothing for older cases. */}
-            {!isReunited && (
-              <RecoveryKitPanel caseNumber={caseNumber} petName={caseData?.petName} />
-            )}
-          </div>
-
-          {/* Right Column - Actions */}
-          <div className="min-w-0 space-y-6">
-            {/* Owner tools: close the loop right here */}
-            {isOwner && !isReunited && (
-              <div className="rounded-2xl border-2 border-midnight-900 bg-midnight-900 p-5">
-                <p className="text-xs font-bold text-midnight-400 uppercase tracking-wider mb-3">
-                  Your case
-                </p>
-                <div className="space-y-2.5">
-                  <Link
-                    href={`/mission-control?mission=${caseData?.id}`}
-                    className="flex items-center justify-center gap-2 w-full py-3 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold rounded-2xl transition"
-                  >
-                    <Radar size={17} />
-                    {instrument === INSTRUMENTS.COMMAND ? 'Open Command Center' : 'Open Mission Control'}
-                  </Link>
-                  <button
-                    onClick={() => setShowReunitedModal(true)}
-                    className="flex items-center justify-center gap-2 w-full py-3 border-2 border-emerald-500/60 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold rounded-2xl transition"
-                  >
-                    <HeartHandshake size={17} />
-                    Found {petName}? Mark as reunited
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <ActionCards
-              caseNumber={caseNumber}
-              caseData={caseData}
-              onShare={handleNativeShare}
-              onReportSighting={() => setShowSightingModal(true)}
-            />
-
-            {/* Case Info Footer */}
-            <div className="bg-midnight-50 rounded-2xl p-4 text-center">
-              <p className="text-sm text-midnight-500">
-                Case #{caseData?.missionNumber}
-              </p>
-              <p className="text-xs text-midnight-400 mt-1">
-                Reported {new Date(caseData?.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Sticky Mobile CTA (a reunited case rallies shares, not sightings) */}
-      {!isReunited && (
-        <StickyMobileCTA
-          petName={petName}
-          onReportSighting={() => setShowSightingModal(true)}
-          onShare={handleNativeShare}
-          ownerPhone={caseData?.contact?.phone}
-        />
-      )}
-
-      {/* Owner: mark as reunited */}
-      {showReunitedModal && (
-        <MarkReunitedModal
-          mission={caseData}
-          onClose={() => setShowReunitedModal(false)}
-          onConfirm={handleConfirmReunited}
-          isSaving={savingReunited}
-          error={reunitedError}
-        />
-      )}
-
-      {/* Contact Owner Modal */}
-      {showContactModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowContactModal(false)}
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 z-10"
-          >
-            <button
-              onClick={() => setShowContactModal(false)}
-              className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600 transition"
-              aria-label="Close"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            <h2 className="text-2xl font-bold text-midnight-900 mb-6">Contact Owner</h2>
-
-            {caseData?.contact ? (
-              <div className="space-y-4">
-                {caseData.contact.name && (
-                  <p className="text-midnight-600">
-                    <span className="font-semibold text-midnight-900">{caseData.contact.name}</span> is looking for {petName}.
-                  </p>
-                )}
-
-                {caseData.contact.phone && (
-                  <a
-                    href={`tel:${caseData.contact.phone}`}
-                    className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
-                  >
-                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                      <Phone className="w-6 h-6 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-midnight-900">Call</p>
-                      <p className="text-midnight-500">{caseData.contact.phone}</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-midnight-400 ml-auto" />
-                  </a>
-                )}
-
-                {caseData.contact.email && (
-                  <a
-                    href={`mailto:${caseData.contact.email}?subject=Regarding ${petName} - Case ${caseNumber}`}
-                    className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
-                  >
-                    <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                      <Mail className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-midnight-900">Email</p>
-                      <p className="text-midnight-500">{caseData.contact.email}</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-midnight-400 ml-auto" />
-                  </a>
-                )}
-
-                <p className="text-xs text-midnight-400 mt-4 p-3 bg-amber-50 rounded-lg">
-                  {caseData.contact.disclaimer}
-                </p>
-              </div>
-            ) : (
-              <p className="text-midnight-500">Contact information not available.</p>
-            )}
-          </motion.div>
-        </div>
-      )}
-
-      {/* Report Sighting Modal */}
-      {showSightingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowSightingModal(false)}
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 z-10"
-          >
-            <button
-              onClick={() => setShowSightingModal(false)}
-              className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600 transition"
-              aria-label="Close"
-            >
-              <X className="w-6 h-6" />
-            </button>
-
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-flash-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Eye className="w-8 h-8 text-midnight-900" />
-              </div>
-              <h2 className="text-2xl font-bold text-midnight-900">You've Seen {petName}?</h2>
-              <p className="text-midnight-500 mt-2">This could help reunite them with their family!</p>
-            </div>
-
-            <div className="space-y-4">
-              {/* Quick sighting with location. Signed-in helpers report on
-                  the board; a stranger holding a shared link goes through
-                  the no-account join flow, which takes sightings too. */}
-              <Link
-                href={
-                  session?.user
-                    ? `/mission-control?mission=${caseNumber}&action=sighting`
-                    : `/join/${caseData?.id || caseNumber}`
-                }
-                className="flex items-center gap-4 p-4 bg-flash-50 border-2 border-flash-300 rounded-xl hover:bg-flash-100 transition"
-              >
-                <div className="w-12 h-12 bg-flash-400 rounded-xl flex items-center justify-center">
-                  <MapPin className="w-6 h-6 text-midnight-900" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-midnight-900">Submit Sighting Report</p>
-                  <p className="text-midnight-500 text-sm">Add location, photos & details</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-midnight-400" />
-              </Link>
-
-              {/* Call owner directly */}
-              {caseData?.contact?.phone && (
-                <a
-                  href={`tel:${caseData.contact.phone}`}
-                  className="flex items-center gap-4 p-4 bg-midnight-50 rounded-xl hover:bg-midnight-100 transition"
-                >
-                  <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
-                    <Phone className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-midnight-900">Call Owner Now</p>
-                    <p className="text-midnight-500 text-sm">For live sightings - fastest response</p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-midnight-400" />
-                </a>
+              {description && (
+                <p className="mt-6 whitespace-pre-line break-words leading-relaxed text-midnight-700">{description}</p>
               )}
             </div>
-
-            {/* Help text */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-xl">
-              <p className="text-sm text-blue-800 font-medium mb-2">Tips for reporting:</p>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Note the exact location and time</li>
-                <li>• Take a photo if possible (even from distance)</li>
-                <li>• Don't chase - scared pets may run</li>
-              </ul>
-            </div>
-          </motion.div>
+          </div>
         </div>
-      )}
+      </header>
 
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowShareModal(false)}
-          />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 z-10"
-          >
-            <button
-              onClick={() => setShowShareModal(false)}
-              className="absolute top-4 right-4 text-midnight-400 hover:text-midnight-600 transition"
-              aria-label="Close"
-            >
-              <X className="w-6 h-6" />
-            </button>
+      <main className="mx-auto max-w-5xl space-y-6 px-4 pb-40 pt-6 lg:pb-12">
+        {hot && <HotSighting s={hot} />}
 
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="w-8 h-8 text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-midnight-900">Share This Alert</h2>
-              <p className="text-midnight-500 mt-2">Every share increases the chance of finding {petName}</p>
+        {isOwner && open && (
+          <section className="flex flex-col gap-4 rounded-2xl bg-midnight-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold">This is your report</p>
+              <p className="text-sm text-midnight-300">Manage the search from Mission Control.</p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <a
-                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 p-4 bg-[#1877F2] text-white rounded-xl hover:opacity-90 transition font-semibold"
-              >
-                <Facebook className="w-5 h-5" />
-                Facebook
-              </a>
-              <a
-                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 p-4 bg-[#1DA1F2] text-white rounded-xl hover:opacity-90 transition font-semibold"
-              >
-                <Twitter className="w-5 h-5" />
-                Twitter
-              </a>
-              <a
-                href={`https://nextdoor.com/share/?url=${encodeURIComponent(shareUrl)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 p-4 bg-[#8ED500] text-white rounded-xl hover:opacity-90 transition font-semibold"
-              >
-                <ExternalLink className="w-5 h-5" />
-                Nextdoor
-              </a>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button href={missionHref} leftIcon={Radar}>
+                {instrument === INSTRUMENTS.COMMAND ? 'Open Command Center' : 'Open Mission Control'}
+              </Button>
+              {/* A plain button: Button's outline variant is dark text for a
+                  light page, and its classes are joined, not merged, so they
+                  can't be overridden for this dark panel. */}
               <button
-                onClick={handleCopyLink}
-                className="flex items-center justify-center gap-2 p-4 bg-midnight-100 text-midnight-900 rounded-xl hover:bg-midnight-200 transition font-semibold"
+                type="button"
+                onClick={() => setSheet('home')}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/30 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-white/60 hover:bg-white/10"
               >
-                {copied ? <Check className="w-5 h-5 text-emerald-600" /> : <Copy className="w-5 h-5" />}
-                {copied ? 'Copied!' : 'Copy Link'}
+                <HeartHandshake className="h-4 w-4" aria-hidden="true" />
+                Mark as reunited
               </button>
             </div>
+          </section>
+        )}
 
-            {/* WhatsApp - very popular for local sharing */}
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 w-full flex items-center justify-center gap-2 p-4 bg-[#25D366] text-white rounded-xl hover:opacity-90 transition font-semibold"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
-              WhatsApp
-            </a>
-          </motion.div>
+        <div className={`grid gap-6 ${helpItems.length ? 'lg:grid-cols-3' : ''}`}>
+          <div className={`min-w-0 space-y-6 ${helpItems.length ? 'lg:col-span-2' : ''}`}>
+            {/* Only while the search is open. Once the pet is home the exact
+                spot (often the family's own street) helps nobody, and the
+                town in the facts above says enough. */}
+            {open && (
+            <section aria-labelledby="map-heading" className="overflow-hidden rounded-2xl bg-white ring-1 ring-midnight-200">
+              <div className="px-5 pb-4 pt-5 sm:px-6">
+                <h2 id="map-heading" className="text-lg font-semibold text-midnight-900">
+                  {isFound ? `Where ${name} was found` : `Where ${name} was last seen`}
+                </h2>
+                <p className="mt-1 break-words text-midnight-500">
+                  {c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress)
+                    ? c.lastSeenAddress
+                    : hasCoords
+                      ? 'The spot pinned on the map'
+                      : 'The report does not give a location.'}
+                </p>
+              </div>
+              {hasCoords && (
+                <>
+                  {/* isolate keeps Leaflet's own z-indexes (400 to 1000) inside the
+                      map, so its zoom buttons never paint over this page's dialogs. */}
+                  <div className="relative isolate h-64 sm:h-80">
+                    <LastSeenMap
+                      lat={lat}
+                      lng={lng}
+                      address={c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress) ? c.lastSeenAddress : ''}
+                      sightings={sightings}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-midnight-100 px-5 py-2 text-sm sm:px-6">
+                    {/* Same colours as the pins in LastSeenMap.js */}
+                    <span className="inline-flex items-center gap-1.5 text-midnight-600">
+                      <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden="true" />
+                      {isFound ? 'Found here' : 'Last seen'}
+                    </span>
+                    {sightings.length > 0 && (
+                      <span className="inline-flex items-center gap-1.5 text-midnight-600">
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" aria-hidden="true" />
+                        Sighting
+                      </span>
+                    )}
+                    <span className="ml-auto flex flex-wrap items-center gap-x-4">
+                      {signedIn && open && (
+                        <Link href={missionHref} className="inline-flex items-center font-medium text-midnight-700 hover:text-midnight-900">
+                          Open the search map
+                        </Link>
+                      )}
+                      <a
+                        href={directionsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-medium text-midnight-700 hover:text-midnight-900"
+                      >
+                        Open in Google Maps
+                        <ExternalLink size={14} aria-hidden="true" />
+                      </a>
+                    </span>
+                  </div>
+                </>
+              )}
+            </section>
+            )}
+
+            <Activity
+              sightings={sightings}
+              updates={updates}
+              reportedAt={c.createdAt}
+              emptyText={open ? 'No sightings reported yet.' : 'No sightings were reported.'}
+            />
+
+            {open && <RecoveryKitPanel caseNumber={caseRef} petName={petName || title} onEmptyChange={onKitChange} />}
+
+            {!helpItems.length && <p className="text-center text-xs text-midnight-400">Case {caseRef}</p>}
+          </div>
+
+          {helpItems.length > 0 && (
+            <aside className="min-w-0 space-y-4">
+              <WaysToHelp items={helpItems} />
+              <p className="text-center text-xs text-midnight-400">Case {caseRef}</p>
+            </aside>
+          )}
         </div>
+      </main>
+
+      {status.key === 'lost' && !isOwner && (
+        <StickyActions watchId={ACTIONS_ID}>
+          <Button size="lg" className="flex-1" leftIcon={Eye} onClick={() => setSheet('sighting')}>
+            I&apos;ve seen {name}
+          </Button>
+          <button type="button" onClick={share} aria-label="Share" className={ICON_BUTTON}>
+            <Share2 size={20} aria-hidden="true" />
+          </button>
+          {phone && (
+            <a href={`tel:${phone.tel}`} aria-label="Call the owner" className={ICON_BUTTON}>
+              <Phone size={20} aria-hidden="true" />
+            </a>
+          )}
+        </StickyActions>
+      )}
+      {isFound && phone && !isOwner && (
+        <StickyActions watchId={ACTIONS_ID}>
+          <a href={`tel:${phone.tel}`} className={`${PRIMARY_LINK} flex-1`}>
+            <Phone className="h-4 w-4" aria-hidden="true" />
+            Call the finder
+          </a>
+          <button type="button" onClick={share} aria-label="Share" className={ICON_BUTTON}>
+            <Share2 size={20} aria-hidden="true" />
+          </button>
+        </StickyActions>
+      )}
+
+      <ShareSheet open={sheet === 'share'} onClose={closeSheet} url={shareUrl} title={shareTitle} text={shareText} />
+      <SightingSheet
+        open={sheet === 'sighting'}
+        onClose={closeSheet}
+        name={name}
+        phone={phone}
+        contactName={contactName}
+        reportHref={reportSightingHref}
+        signedIn={signedIn}
+      />
+      {sheet === 'home' && (
+        <MarkReunitedModal mission={c} onClose={closeSheet} onConfirm={confirmHome} isSaving={savingHome} error={homeError} />
       )}
     </div>
   );

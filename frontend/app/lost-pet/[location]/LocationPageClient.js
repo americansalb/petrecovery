@@ -1,476 +1,279 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+/**
+ * A town's lost-and-found page (/lost-pet/orlando-fl), where a search for
+ * "lost dog Orlando" lands. Someone arriving here has usually just lost a
+ * pet, so it leads with the pets people have found in town, then the pets
+ * reported missing, then shelters, the local Rescue Force, and what to do.
+ *
+ * The server page (page.js) checks the slug is a real town and state and
+ * builds the link preview. Every number is counted from real reports.
+ */
+
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  Search,
-  MapPin,
-  PawPrint,
-  Users,
-  ArrowRight,
-  Filter,
-  Clock,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Megaphone, Building2, Users } from 'lucide-react';
+
+import { Button } from '@/components/ui';
+import PetCard from '@/app/lost-and-found/PetCard';
 import { formatLocationSlug } from '@/app/lib/utils';
-import { caseStatusLabel } from '@/app/lib/caseStatus';
 
-/**
- * SEO Landing Page for Location-based Lost Pet Searches
- * e.g., /lost-pet/chicago-il, /lost-pet/los-angeles-ca
- */
-export default function LocationLandingPage() {
-  const params = useParams();
-  const [loading, setLoading] = useState(true);
-  const [cases, setCases] = useState([]);
-  const [squads, setSquads] = useState([]);
-  const [stats, setStats] = useState({});
+function plural(n, one, many) {
+  return `${n} ${n === 1 ? one : many}`;
+}
 
-  const locationSlug = params.location;
-  const location = formatLocationSlug(locationSlug);
+/** The forces API answers per-town rows with the force nested inside. */
+function forcesFrom(data) {
+  const fromCities = (data?.cities || [])
+    .filter((row) => row.exists && row.squad)
+    .map((row) => ({ ...row.squad, city: row.city, state: row.state }));
+  return fromCities.length ? fromCities : data?.squads || [];
+}
 
-  useEffect(() => {
-    loadLocationData();
-  }, [locationSlug]);
-
-  const loadLocationData = async () => {
-    setLoading(true);
-    try {
-      const city = encodeURIComponent(location.city);
-      const state = encodeURIComponent(location.state);
-
-      // /api/missions needs a session, so on this page - the one Google sends
-      // strangers to - it answered 401 and the board rendered empty. The public
-      // endpoint is the correct source here, and it reports a real total.
-      const [openRes, reunitedRes, squadsRes] = await Promise.all([
-        fetch(`/api/public/missions?city=${city}&state=${state}&limit=6`),
-        fetch(`/api/public/missions?city=${city}&state=${state}&status=REUNITED&limit=1`),
-        // The forces API requires a city (state-only answered 400, so this
-        // section said "No rescue forces" on every city page, including
-        // ones that have one).
-        fetch(`/api/rescue-forces?search=${city}&state=${state}&limit=4`),
-      ]);
-
-      let activeMissions = 0;
-      if (openRes.ok) {
-        const data = await openRes.json();
-        setCases(data.cases || []);
-        activeMissions = data.pagination?.totalCount ?? (data.cases || []).length;
-      } else {
-        setCases([]);
-      }
-
-      let reunited = 0;
-      if (reunitedRes.ok) {
-        const data = await reunitedRes.json();
-        reunited = data.pagination?.totalCount ?? 0;
-      }
-
-      if (squadsRes.ok) {
-        const data = await squadsRes.json();
-        // The forces API answers per-city rows with the squad nested
-        // inside; this page reads a flat list.
-        const fromCities = (data.cities || [])
-          .filter((c) => c.exists && c.squad)
-          .map((c) => c.squad);
-        setSquads(fromCities.length ? fromCities : data.squads || []);
-      }
-
-      // These are counted, not invented. They used to be Math.random(), which
-      // published a different "Pets Reunited" figure on every page load of a
-      // public, indexed page.
-      setStats({ activeMissions, reunited });
-    } catch (err) {
-      console.error('Error loading location data:', err);
-      setCases([]);
-      setStats({ activeMissions: 0, reunited: 0 });
-    } finally {
-      setLoading(false);
-    }
-  };
-
+function CardSkeletons() {
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      {/* Hero Section */}
-      <div style={{
-        // Brand midnight, matching the navbar this sits directly under.
-        // Was a violet-to-purple gradient with an indigo accent, which
-        // belonged to no part of this site - and these city pages are the
-        // first thing most people see of it, arriving from a search.
-        background: '#0f172a',
-        color: 'white',
-        padding: '4rem 1.5rem',
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            background: 'rgba(255,255,255,0.2)',
-            padding: '0.5rem 1rem',
-            borderRadius: '20px',
-            marginBottom: '1rem',
-            fontSize: '0.9rem',
-          }}>
-            <MapPin size={16} />
-            {location.display}
-          </div>
-
-          {/* clamp() instead of a fixed 2.5rem: at 390px the fixed size
-              broke this into "Lost & Found / Pets in Austin, / TX". The
-              city and state are kept together on their own line. */}
-          <h1 style={{
-            fontSize: 'clamp(1.75rem, 6vw, 2.5rem)',
-            fontWeight: 800,
-            marginBottom: '1rem',
-            lineHeight: 1.15,
-          }}>
-            Lost &amp; Found Pets in{' '}
-            <span style={{ whiteSpace: 'nowrap' }}>{location.city}, {location.state}</span>
-          </h1>
-
-          <p style={{
-            fontSize: '1.1rem',
-            opacity: 0.9,
-            maxWidth: '600px',
-            margin: '0 auto 2rem',
-          }}>
-            Join the community effort to reunite lost pets with their families.
-            Report a lost pet or help search in your neighborhood.
-          </p>
-
-          <div style={{
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-          }}>
-            <Link
-              href="/report/new"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '1rem 2rem',
-                background: '#facc15',
-                color: '#0f172a',
-                borderRadius: '12px',
-                fontWeight: 600,
-                textDecoration: 'none',
-              }}
-            >
-              Report Lost Pet
-              <ArrowRight size={18} />
-            </Link>
-
-            <Link
-              href="/report/found"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '1rem 2rem',
-                background: 'rgba(255,255,255,0.2)',
-                color: 'white',
-                borderRadius: '12px',
-                fontWeight: 600,
-                textDecoration: 'none',
-              }}
-            >
-              Report Found Pet
-            </Link>
+    <div className="grid gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex gap-4 rounded-2xl bg-white p-3 ring-1 ring-midnight-200 sm:flex-col sm:p-0">
+          <div className="h-28 w-28 shrink-0 animate-pulse rounded-xl bg-midnight-100 sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none" />
+          <div className="flex-1 space-y-2 py-1 sm:p-4">
+            <div className="h-5 w-1/2 animate-pulse rounded bg-midnight-100" />
+            <div className="h-4 w-2/3 animate-pulse rounded bg-midnight-100" />
+            <div className="h-4 w-1/3 animate-pulse rounded bg-midnight-100" />
           </div>
         </div>
-      </div>
+      ))}
+    </div>
+  );
+}
 
-      {/* Stats */}
-      <div style={{
-        maxWidth: '1200px',
-        margin: '-2rem auto 0',
-        padding: '0 2rem',
-      }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-        }}>
-          {/* Two counted numbers, not three invented ones. There is no honest
-              source for "Active Searchers" per city, so that card is gone
-              rather than filled with a plausible-looking figure. */}
-          <StatCard
-            icon={<PawPrint size={24} color="#0f172a" />}
-            value={stats.activeMissions || 0}
-            label={stats.activeMissions === 1 ? 'Pet missing now' : 'Pets missing now'}
-          />
-          <StatCard
-            icon={<Search size={24} color="#10b981" />}
-            value={stats.reunited || 0}
-            label={stats.reunited === 1 ? 'Pet reunited here' : 'Pets reunited here'}
-          />
+function PetSection({ id, title, sub, cases, total, loading, empty, allHref }) {
+  return (
+    <section aria-labelledby={id}>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h2 id={id} className="text-xl font-semibold text-midnight-900">{title}</h2>
+          {sub && <p className="mt-0.5 text-midnight-500">{sub}</p>}
         </div>
-      </div>
-
-      {/* Active Cases */}
-      <div style={{ maxWidth: '1200px', margin: '3rem auto', padding: '0 2rem' }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem',
-        }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
-            Active Cases in {location.city}
-          </h2>
-          <Link
-            href={`/cases?location=${encodeURIComponent(location.city)}`}
-            style={{
-              color: '#0f172a',
-              textDecoration: 'none',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
-          >
-            View All <ArrowRight size={16} />
+        {!loading && total > cases.length && (
+          <Link href={allHref} className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-midnight-700 hover:text-midnight-900">
+            See all {total}
+            <ChevronRight size={16} aria-hidden="true" />
           </Link>
-        </div>
-
+        )}
+      </div>
+      <div className="mt-4">
         {loading ? (
-          <p style={{ color: '#64748b' }}>Loading...</p>
+          <CardSkeletons />
         ) : cases.length === 0 ? (
-          <div style={{
-            background: 'white',
-            padding: '3rem',
-            borderRadius: '16px',
-            textAlign: 'center',
-            color: '#64748b',
-          }}>
-            <PawPrint size={48} color="#cbd5e1" style={{ marginBottom: '1rem' }} />
-            <p>No active cases in this area right now.</p>
-            <p>That's good news! Help us stay ready by joining a rescue force.</p>
-          </div>
+          <p className="rounded-2xl bg-white px-5 py-6 text-midnight-500 ring-1 ring-midnight-200">{empty}</p>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: '1.5rem',
-          }}>
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {cases.map((c) => (
-              <MissionCard key={c.id} missionData={c} />
+              <PetCard key={c.id} c={c} />
             ))}
           </div>
         )}
       </div>
+    </section>
+  );
+}
 
-      {/* Rescue Forces */}
-      <div style={{
-        background: 'white',
-        padding: '3rem 2rem',
-      }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            color: '#0f172a',
-            marginBottom: '1.5rem',
-          }}>
-            Rescue Forces in {location.city}
-          </h2>
+export default function LocationPageClient() {
+  const { location: slug } = useParams();
+  const place = formatLocationSlug(slug);
+  const town = place.city;
 
-          {squads.length === 0 ? (
-            <div style={{
-              background: '#f8fafc',
-              padding: '2rem',
-              borderRadius: '12px',
-              textAlign: 'center',
-            }}>
-              <p style={{ color: '#64748b' }}>
-                No rescue forces in this area yet.
+  const [status, setStatus] = useState('loading'); // loading | ready | failed
+  const [attempt, setAttempt] = useState(0);
+  const [lost, setLost] = useState({ cases: [], total: 0 });
+  const [found, setFound] = useState({ cases: [], total: 0 });
+  const [reunited, setReunited] = useState(0);
+  const [forces, setForces] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const where = `city=${encodeURIComponent(place.city)}&state=${encodeURIComponent(place.state)}`;
+    const page = (data) => ({ cases: data?.cases || [], total: data?.pagination?.totalCount ?? (data?.cases || []).length });
+
+    (async () => {
+      try {
+        const [lostRes, foundRes, reunitedRes, forcesRes] = await Promise.all([
+          fetch(`/api/public/missions?${where}&limit=6`),
+          fetch(`/api/public/missions?${where}&type=FOUND&limit=6`),
+          fetch(`/api/public/missions?${where}&status=REUNITED&type=ALL&limit=1`),
+          // The forces API requires a town; the state picks the right one.
+          fetch(`/api/rescue-forces?search=${encodeURIComponent(place.city)}&state=${encodeURIComponent(place.state)}&limit=4`),
+        ]);
+        if (!lostRes.ok) throw new Error('lost');
+        const lostData = await lostRes.json();
+        const foundData = foundRes.ok ? await foundRes.json() : null;
+        const reunitedData = reunitedRes.ok ? await reunitedRes.json() : null;
+        const forcesData = forcesRes.ok ? await forcesRes.json() : null;
+        if (cancelled) return;
+        setLost(page(lostData));
+        setFound(page(foundData));
+        setReunited(reunitedData?.pagination?.totalCount ?? 0);
+        setForces(forcesFrom(forcesData));
+        setStatus('ready');
+      } catch {
+        if (!cancelled) setStatus('failed');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [place.city, place.state, attempt]);
+
+  const loading = status === 'loading';
+  const sheltersHref = `/shelters?near=${encodeURIComponent(place.display)}`;
+
+  return (
+    <div className="min-h-screen bg-midnight-50">
+      <header className="border-b border-midnight-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 pb-6 pt-3 sm:pt-5">
+          <Link href="/lost-and-found" className="-ml-1 inline-flex items-center gap-1 px-1 text-sm font-medium text-midnight-500 hover:text-midnight-900">
+            <ChevronLeft size={16} aria-hidden="true" />
+            Lost &amp; Found
+          </Link>
+          <div className="mt-2 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <h1 className="text-3xl font-bold tracking-tight text-midnight-900 sm:text-4xl">
+                Lost and found pets in {place.display}
+              </h1>
+              <p className="mt-2 text-midnight-500">
+                {status === 'ready'
+                  ? `${plural(lost.total, 'pet', 'pets')} missing, ${plural(found.total, 'pet', 'pets')} found and ${reunited} reunited near ${town} on ReunitePets.`
+                  : `Pets reported lost or found near ${town} on ReunitePets.`}
               </p>
-              <Link
-                href="/rescue-forces/create"
-                style={{
-                  display: 'inline-block',
-                  marginTop: '1rem',
-                  padding: '0.75rem 1.5rem',
-                  background: '#0f172a',
-                  color: 'white',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                }}
-              >
-                Start a Rescue Force
-              </Link>
             </div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '1rem',
-            }}>
-              {squads.map((squad) => (
-                <SquadCard key={squad.id} squad={squad} />
-              ))}
+            <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row">
+              <Button href="/report/new" size="lg" leftIcon={Megaphone}>
+                Report a lost pet
+              </Button>
+              <Button href="/report/found" size="lg" variant="outline">
+                Report a found pet
+              </Button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* SEO Content */}
-      <div style={{
-        maxWidth: '800px',
-        margin: '3rem auto',
-        padding: '0 2rem',
-      }}>
-        <h2 style={{
-          fontSize: '1.25rem',
-          fontWeight: 600,
-          color: '#0f172a',
-          marginBottom: '1rem',
-        }}>
-          Lost Pet Resources in {location.display}
-        </h2>
+      <main className="mx-auto max-w-6xl space-y-10 px-4 py-8">
+        {status === 'failed' ? (
+          <div className="mx-auto max-w-md rounded-2xl bg-white px-6 py-10 text-center ring-1 ring-midnight-200">
+            <h2 className="text-lg font-semibold text-midnight-900">This page didn&apos;t load</h2>
+            <p className="mt-1 text-midnight-500">Check your connection, then try again.</p>
+            <Button
+              className="mt-5"
+              onClick={() => {
+                setStatus('loading');
+                setAttempt((n) => n + 1);
+              }}
+            >
+              Try again
+            </Button>
+          </div>
+        ) : (
+          <>
+            {(loading || found.cases.length > 0) && (
+              <PetSection
+                id="found-heading"
+                title={`Found near ${town}`}
+                sub="Pets people have found. Is one of them yours?"
+                cases={found.cases}
+                total={found.total}
+                loading={loading}
+                empty=""
+                allHref={`/lost-and-found?tab=found&q=${encodeURIComponent(town)}`}
+              />
+            )}
+            <PetSection
+              id="lost-heading"
+              title={`Missing near ${town}`}
+              cases={lost.cases}
+              total={lost.total}
+              loading={loading}
+              empty={`No pets are reported missing near ${town} right now.`}
+              allHref={`/lost-and-found?q=${encodeURIComponent(town)}`}
+            />
+          </>
+        )}
 
-        <div style={{ color: '#475569', lineHeight: 1.7 }}>
-          <p style={{ marginBottom: '1rem' }}>
-            If you've lost a pet in {location.city}, {location.state}, ReunitePets.org
-            is here to help. Our community-powered platform connects pet owners with
-            local volunteers who can help search for missing pets.
-          </p>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section aria-labelledby="shelters-heading" className="rounded-2xl bg-white p-5 ring-1 ring-midnight-200 sm:p-6">
+            <h2 id="shelters-heading" className="flex items-center gap-2 text-lg font-semibold text-midnight-900">
+              <Building2 size={20} className="text-midnight-400" aria-hidden="true" />
+              Shelters near {town}
+            </h2>
+            <p className="mt-1 text-midnight-500">Lost pets are often taken to a shelter. Call each one near you, and visit if you can.</p>
+            <Button href={sheltersHref} variant="secondary" className="mt-4">
+              See shelters near {town}
+            </Button>
+          </section>
 
-          <h3 style={{ fontWeight: 600, marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-            What to do if you've lost a pet in {location.city}:
-          </h3>
-          <ol style={{ paddingLeft: '1.5rem' }}>
-            <li>Report your lost pet on ReunitePets.org immediately</li>
-            <li>Search your neighborhood and nearby areas</li>
-            <li>Contact local shelters and animal control</li>
-            <li>Post on social media and neighborhood apps</li>
-            <li>Put up flyers in your area</li>
+          <section aria-labelledby="force-heading" className="rounded-2xl bg-white p-5 ring-1 ring-midnight-200 sm:p-6">
+            <h2 id="force-heading" className="flex items-center gap-2 text-lg font-semibold text-midnight-900">
+              <Users size={20} className="text-midnight-400" aria-hidden="true" />
+              Rescue Force in {town}
+            </h2>
+            {loading ? (
+              <div className="mt-3 h-12 animate-pulse rounded-xl bg-midnight-100" />
+            ) : forces.length > 0 ? (
+              <ul className="mt-3 divide-y divide-midnight-100">
+                {forces.map((f) => (
+                  <li key={f.id}>
+                    <Link href={`/rescue-forces/${f.id}`} className="flex items-center justify-between gap-3 py-3 hover:text-midnight-900">
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-midnight-900">{f.name}</span>
+                        <span className="block text-sm text-midnight-500">
+                          {plural(f.memberCount ?? 0, 'member', 'members')} · {plural(f.successfulReunions || 0, 'reunion', 'reunions')}
+                        </span>
+                      </span>
+                      <ChevronRight size={18} className="shrink-0 text-midnight-300" aria-hidden="true" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <>
+                <p className="mt-1 text-midnight-500">
+                  No Rescue Force covers {town} yet. A Rescue Force is a group of local volunteers who search for lost pets together.
+                </p>
+                <Button href="/rescue-forces/create" variant="outline" className="mt-4">
+                  Start one in {town}
+                </Button>
+              </>
+            )}
+          </section>
+        </div>
+
+        <section aria-labelledby="help-heading" className="max-w-2xl">
+          <h2 id="help-heading" className="text-xl font-semibold text-midnight-900">Lost a pet in {town}?</h2>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-midnight-700">
+            <li>
+              <Link href="/report/new" className="font-medium text-midnight-900 underline underline-offset-4">Report it on ReunitePets</Link>.
+              It goes on the Lost &amp; Found board and gets its own page to share.
+            </li>
+            <li>Walk your street and the blocks around it, and ask neighbors to check garages and sheds.</li>
+            <li>
+              <Link href={sheltersHref} className="font-medium text-midnight-900 underline underline-offset-4">Call the shelters near {town}</Link>,
+              and visit in person if you can.
+            </li>
+            <li>Post your pet&apos;s page in local Facebook groups and on Nextdoor.</li>
+            <li>Put up flyers near where your pet was last seen.</li>
           </ol>
 
-          <h3 style={{ fontWeight: 600, marginTop: '1.5rem', marginBottom: '0.5rem' }}>
-            Found a pet in {location.city}?
-          </h3>
-          <p>
-            If you've found a lost pet, please <Link href="/report/found" style={{ color: '#0f172a' }}>report it here</Link>.
-            We'll help match it with owners who are searching.
+          <h2 className="mt-8 text-xl font-semibold text-midnight-900">Found a pet in {town}?</h2>
+          <p className="mt-2 text-midnight-700">
+            Report it and we will compare it with the lost pets reported nearby.
           </p>
-        </div>
-      </div>
+          <Button href="/report/found" variant="secondary" className="mt-4">
+            Report a found pet
+          </Button>
+        </section>
+      </main>
     </div>
   );
 }
-
-function StatCard({ icon, value, label }) {
-  return (
-    <div style={{
-      background: 'white',
-      padding: '1.5rem',
-      borderRadius: '16px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-      textAlign: 'center',
-    }}>
-      <div style={{ marginBottom: '0.5rem' }}>{icon}</div>
-      <div style={{ fontSize: '2rem', fontWeight: 700, color: '#0f172a' }}>{value}</div>
-      <div style={{ color: '#64748b', fontSize: '0.9rem' }}>{label}</div>
-    </div>
-  );
-}
-
-function MissionCard({ missionData }) {
-  return (
-    <Link
-      href={`/cases/${missionData.missionNumber}`}
-      style={{
-        display: 'block',
-        background: 'white',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        textDecoration: 'none',
-      }}
-    >
-      {missionData.petPhotoUrl && (
-        <img
-          src={missionData.petPhotoUrl}
-          alt={missionData.petName}
-          style={{
-            width: '100%',
-            height: '200px',
-            objectFit: 'cover',
-          }}
-        />
-      )}
-      <div style={{ padding: '1rem' }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginBottom: '0.5rem',
-        }}>
-          <span style={{
-            padding: '0.25rem 0.5rem',
-            background: '#fef3c7',
-            color: '#92400e',
-            borderRadius: '4px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-          }}>
-            {caseStatusLabel(missionData.status)}
-          </span>
-          <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-            <Clock size={12} style={{ display: 'inline', marginRight: '4px' }} />
-            {new Date(missionData.createdAt).toLocaleDateString()}
-          </span>
-        </div>
-        <h3 style={{
-          fontSize: '1.1rem',
-          fontWeight: 600,
-          color: '#0f172a',
-          margin: '0 0 0.25rem 0',
-        }}>
-          {missionData.petName}
-        </h3>
-        <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>
-          {missionData.petSpecies} • {missionData.lastSeenAddress?.split(',')[0]}
-        </p>
-      </div>
-    </Link>
-  );
-}
-
-function SquadCard({ squad }) {
-  return (
-    <Link
-      href={`/rescue-forces/${squad.id}`}
-      style={{
-        display: 'block',
-        background: '#f8fafc',
-        padding: '1.25rem',
-        borderRadius: '12px',
-        textDecoration: 'none',
-      }}
-    >
-      <h3 style={{
-        fontSize: '1rem',
-        fontWeight: 600,
-        color: '#0f172a',
-        margin: '0 0 0.5rem 0',
-      }}>
-        {squad.name}
-      </h3>
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        color: '#64748b',
-        fontSize: '0.85rem',
-      }}>
-        <span>{squad.memberCount ?? squad._count?.members ?? 0} members</span>
-        <span>{squad.successfulReunions || 0} reunions</span>
-      </div>
-    </Link>
-  );
-}
-

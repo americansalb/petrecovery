@@ -20,6 +20,7 @@ const PIN_COLOR = {
   lost: '#ef4444',
   found: '#0ea5e9',
   home: '#10b981',
+  closed: '#94a3b8',
 };
 
 /** Only http(s) photo URLs go into an img element. */
