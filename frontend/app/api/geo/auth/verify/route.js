@@ -1,51 +1,76 @@
 /**
- * GET /api/geo/auth/verify?token=...
+ * /api/geo/auth/verify
  *
- * Follow a sign-in link. A GET because it is a link in an email, so the
- * link is single use and short-lived rather than idempotent: following
- * it twice signs you in once and then says the link is spent.
+ * The Sign in button in the sign-in email.
  *
- * Redirects rather than returning JSON, because a person clicked it and
- * should land on their profile, not on a wall of braces.
+ * GET is the link itself, and it spends nothing. It used to sign in on
+ * the spot, and opening links is exactly what mail security scanners do:
+ * Microsoft Defender, Mimecast, Proofpoint and others fetch every link in
+ * a message as it arrives. The scanner's visit spent the link and, with
+ * it, the six-digit code from the same email (they are one sign-in), so
+ * a player behind one was told "That code has already been used" for
+ * every code they were sent, and could not sign in at all.
+ *
+ * So GET only takes the browser to the sign-in page with the link, and
+ * that page asks for one press of Sign in: POST, below, which is the only
+ * thing that spends it. A scanner fetches pages; it does not press
+ * buttons.
+ *
+ * POST answers with JSON, because the page asked, not a person.
  */
 
 import { NextResponse } from 'next/server';
 import { GeoAuthError, verifySignIn } from '@/app/lib/geo/server/accounts';
 import { applySession } from '@/app/lib/geo/server/identity';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
 import { geoMetadataBase } from '@/app/lib/geo/server/siteBase';
 import { geoAuthOrigin } from '@/app/lib/geo/authOrigin';
 
 export const dynamic = 'force-dynamic';
 
-const WHY = {
-  invalid: 'that-link-is-not-valid',
-  expired: 'that-link-expired',
-  used: 'that-link-was-already-used',
-};
-
-
 export async function GET(request) {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
   const returnTo = safeReturnTo(url.searchParams.get('next'));
   const origin = geoAuthOrigin((await geoMetadataBase()).origin);
+  const target = new URL('/geo/signin', origin);
+  if (token) target.searchParams.set('link', token);
+  target.searchParams.set('next', returnTo);
+  return NextResponse.redirect(target);
+}
 
+export async function POST(request) {
+  let body;
   try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Send a JSON body with the link token' }, { status: 400 });
+  }
+  const token = typeof body?.token === 'string' ? body.token : '';
+  try {
+    // No profile token, on purpose: the link binds the profile recorded
+    // when the email was asked for (accounts.js, bindAccount), the same
+    // as it did when following it signed in by itself.
     const { account, profile } = await verifySignIn(prismaRoomStore, { token });
-    const target = new URL(returnTo, origin);
-    target.searchParams.set('signed-in', '1');
-    const done = NextResponse.redirect(target);
+    const done = NextResponse.json(
+      {
+        ok: true,
+        signedIn: true,
+        email: account.email || null,
+        profile: profile ? { id: profile.id, name: profile.name } : null,
+        next: safeReturnTo(body?.next),
+      },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
     applySession(done, { accountId: account.id, email: account.email });
-    // The browser keeps playing as whichever profile the account owns.
-    done.headers.set('x-geo-profile-id', profile?.id || '');
     return done;
   } catch (error) {
     if (error instanceof GeoAuthError) {
-      return NextResponse.redirect(new URL(`/geo/signin?sign-in-failed=${WHY[error.code] || 'unknown'}&next=${encodeURIComponent(returnTo)}`, origin));
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.code === 'suspended' ? 403 : 400 });
     }
     console.error('[geo/auth/verify]', error?.message || error);
-    return NextResponse.redirect(new URL(`/geo/signin?sign-in-failed=unknown&next=${encodeURIComponent(returnTo)}`, origin));
+    return NextResponse.json(schemaErrorBody(error, 'Could not sign you in'), { status: 500 });
   }
 }

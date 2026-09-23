@@ -147,7 +147,7 @@ test('no utility on a ui-btn or ui-input sets what the component already sets', 
     [/^whitespace-/, ['white-space']],
     [/^leading-/, ['line-height', 'font']],
     [/^items-/, ['align-items']],
-    [/^justify-/, ['justify-content']],
+    [/^justify-(?!self|items)/, ['justify-content']],
     [/^bg-/, ['background', 'background-color']],
     [/^border(-|$)/, ['border', 'border-color', 'border-width']],
   ];

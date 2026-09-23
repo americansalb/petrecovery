@@ -24,7 +24,8 @@ process.env.GEO_TOKEN_SECRET = SECRET;
 
 const { GET: getMe } = require('@/app/api/geo/auth/me/route');
 const { POST: postRequest } = require('@/app/api/geo/auth/request/route');
-const { GET: getVerify } = require('@/app/api/geo/auth/verify/route');
+const { GET: getVerify, POST: postVerify } = require('@/app/api/geo/auth/verify/route');
+const { POST: postCode } = require('@/app/api/geo/auth/code/route');
 const { POST: postSignOut } = require('@/app/api/geo/auth/signout/route');
 const { POST: postDelete } = require('@/app/api/geo/auth/delete/route');
 const { POST: postProfile } = require('@/app/api/geo/profile/route');
@@ -46,6 +47,15 @@ function linkFromLog(spy, email) {
   const line = spy.mock.calls.map((c) => c.join(' ')).find((c) => c.includes(email));
   return line ? line.slice(line.indexOf('http')).trim() : '';
 }
+
+/** The six-digit code this run wrote to the log, by address. */
+function codeFromLog(spy, email) {
+  const line = spy.mock.calls.map((c) => c.join(' ')).find((c) => c.includes(email)) || '';
+  return (line.match(/code (\d{6})/) || [])[1] || '';
+}
+
+/** The token in a sign-in link. */
+const tokenOf = (url) => new URL(url).searchParams.get('token');
 
 /** The Set-Cookie value a route handed back, as a request header. */
 function cookieFrom(response) {
@@ -97,10 +107,21 @@ describe('the sign-in routes', () => {
     spy.mockRestore();
     expect(url).toContain('/api/geo/auth/verify?token=');
 
-    // Following it is a plain navigation: no headers at all.
-    const done = await getVerify({ url, headers: new Map() });
-    expect(done.status).toBe(307);
-    expect(done.headers.get('location')).toContain('/geo/me?signed-in=1');
+    // Following it is a plain navigation, and it signs nobody in: it
+    // lands on the sign-in page with the link, and nothing is spent.
+    const opened = await getVerify({ url, headers: new Map() });
+    expect(opened.status).toBe(307);
+    const landing = new URL(opened.headers.get('location'));
+    expect(landing.pathname).toBe('/geo/signin');
+    expect(landing.searchParams.get('link')).toBe(tokenOf(url));
+    expect(landing.searchParams.get('next')).toBe('/geo/me');
+    expect(opened.headers.get('set-cookie') || '').not.toContain(SESSION_COOKIE);
+
+    // The page's Sign in button is what signs in. A mail link carries no
+    // headers, and the button sends none of the browser's either.
+    const done = await postVerify(request({ token: tokenOf(url), next: '/geo/me' }));
+    expect(done.status).toBe(200);
+    expect(await done.json()).toMatchObject({ signedIn: true, email: 'ada@example.com', next: '/geo/me' });
     const cookie = cookieFrom(done);
     expect(cookie).toContain(SESSION_COOKIE);
 
@@ -123,12 +144,36 @@ describe('the sign-in routes', () => {
     const url = linkFromLog(spy, 'grace@example.com');
     spy.mockRestore();
 
-    await getVerify({ url, headers: new Map() });
-    const again = await getVerify({ url, headers: new Map() });
-    expect(again.headers.get('location')).toContain('sign-in-failed=that-link-was-already-used');
+    expect((await postVerify(request({ token: tokenOf(url) }))).status).toBe(200);
+    const again = await postVerify(request({ token: tokenOf(url) }));
+    expect(again.status).toBe(400);
+    expect((await again.json()).code).toBe('used');
 
-    const madeUp = await getVerify({ url: 'http://localhost/api/geo/auth/verify?token=nope', headers: new Map() });
-    expect(madeUp.headers.get('location')).toContain('sign-in-failed=that-link-is-not-valid');
+    const madeUp = await postVerify(request({ token: 'nope' }));
+    expect(madeUp.status).toBe(400);
+    expect((await madeUp.json()).code).toBe('invalid');
+  });
+
+  // Mail security scanners (Microsoft Defender, Mimecast, Proofpoint)
+  // open every link in a message as it arrives. When opening the link
+  // signed in, the scanner spent it, and the code from the same email
+  // with it: "That code has already been used", for every code sent.
+  test('a scanner opening the link spends nothing, and the code still works', async () => {
+    delete process.env.RESEND_API_KEY;
+    const spy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await postRequest(request({ email: 'scanned@example.com' }));
+    const url = linkFromLog(spy, 'scanned@example.com');
+    const code = codeFromLog(spy, 'scanned@example.com');
+    spy.mockRestore();
+    expect(code).toMatch(/^\d{6}$/);
+
+    await getVerify({ url, headers: new Map() });
+    await getVerify({ url, headers: new Map() });
+
+    const typed = await postCode(request({ email: 'scanned@example.com', code }));
+    expect(typed.status).toBe(200);
+    expect((await typed.json()).signedIn).toBe(true);
+    expect(cookieFrom(typed)).toContain(SESSION_COOKIE);
   });
 
   test('Render internal localhost origin never becomes the production sign-in destination', async () => {
@@ -141,11 +186,14 @@ describe('the sign-in routes', () => {
     try {
       process.env.NODE_ENV = 'production';
       const internalUrl = `https://localhost:10000${url.pathname}${url.search}`;
-      const done = await getVerify({ url: internalUrl, headers: new Map() });
-      expect(done.headers.get('location')).toBe('https://probablyearth.com/geo/rooms?game=script&signed-in=1');
+      const opened = await getVerify({ url: internalUrl, headers: new Map() });
+      const landing = new URL(opened.headers.get('location'));
+      expect(landing.origin).toBe('https://probablyearth.com');
+      expect(landing.pathname).toBe('/geo/signin');
+      expect(landing.searchParams.get('next')).toBe('/geo/rooms?game=script');
+      const done = await postVerify(request({ token: tokenOf(url.href), next: '/geo/rooms?game=script' }));
+      expect((await done.json()).next).toBe('/geo/rooms?game=script');
       expect(done.headers.get('set-cookie')).toContain('Secure');
-      const replay = await getVerify({ url: internalUrl, headers: new Map() });
-      expect(new URL(replay.headers.get('location')).origin).toBe('https://probablyearth.com');
     } finally {
       if (previous === undefined) delete process.env.NODE_ENV;
       else process.env.NODE_ENV = previous;
@@ -158,8 +206,13 @@ describe('the sign-in routes', () => {
     await postRequest(request({ email: 'return@example.com', returnTo: '/geo/rooms?variant=duel' }));
     const url = linkFromLog(spy, 'return@example.com');
     spy.mockRestore();
-    const done = await getVerify({ url, headers: new Map() });
-    expect(done.headers.get('location')).toContain('/geo/rooms?variant=duel&signed-in=1');
+    const opened = await getVerify({ url, headers: new Map() });
+    expect(new URL(opened.headers.get('location')).searchParams.get('next')).toBe('/geo/rooms?variant=duel');
+    // And the page's answer names it, never anywhere outside the game.
+    const done = await postVerify(request({ token: tokenOf(url), next: '/geo/rooms?variant=duel' }));
+    expect((await done.json()).next).toBe('/geo/rooms?variant=duel');
+    const outside = await postVerify(request({ token: 'nope', next: 'https://elsewhere.test' }));
+    expect(outside.status).toBe(400);
 
     // A caller cannot turn an email link into an open redirect.
     const unsafe = await postRequest(request({ email: 'safe@example.com', returnTo: 'https://elsewhere.test' }));
@@ -189,7 +242,7 @@ describe('the sign-in routes', () => {
     await postRequest(request({ email: 'linus@example.com' }));
     const url = linkFromLog(spy, 'linus@example.com');
     spy.mockRestore();
-    const done = await getVerify({ url, headers: new Map() });
+    const done = await postVerify(request({ token: tokenOf(url) }));
     const cookie = cookieFrom(done);
 
     expect((await postDelete(request(null))).status).toBe(401);
