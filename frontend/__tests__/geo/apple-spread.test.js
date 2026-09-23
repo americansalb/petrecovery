@@ -7,8 +7,10 @@
  * draw: randomPointInDisk was uniform over the disk's AREA, which puts
  * three points in four beyond half the radius. For a city with a median
  * 8km radius that is 4-8km out, which is suburbs, countryside and water,
- * where Look Around stops. Each miss costs a four-second browser timeout
- * (PER_CANDIDATE_MS), and the whole search gives up at FIND_BUDGET_MS.
+ * where Look Around stops. Each miss cost a four-second browser timeout
+ * then (PER_CANDIDATE_MS, since found to be the bigger problem and
+ * replaced: lib/lookAround.js, STALL_MS), and the whole search gives up
+ * at FIND_BUDGET_MS.
  *
  * So the spot is drawn toward the middle of the city now. The edge is
  * still reachable - a round in an outer suburb is still possible - it is
@@ -71,7 +73,7 @@ test('the loading label does not promise spots the budget will not buy', () => {
   const path = require('path');
   const src = fs.readFileSync(path.resolve(__dirname, '../..', 'app/geo/components/LoadingSpot.js'), 'utf8');
   const code = src.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
-  // FIND_BUDGET_MS / PER_CANDIDATE_MS is about five, not the twelve the
-  // candidate list holds.
+  // The search stops at FIND_BUDGET_MS, or at the first spot that never
+  // answers, well before the twelve the candidate list holds.
   expect(code).not.toMatch(/of \$\{appleTotal\}/);
 });

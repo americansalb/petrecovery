@@ -31,10 +31,10 @@ export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal, lea
   }, []);
 
   // "of 12" was a promise the code does not keep: findLookAround stops at
-  // FIND_BUDGET_MS, which at four seconds a spot is about five of them,
-  // so a player watching "spot 2 of 12" was told there was far more
-  // runway left than there was. The count of what has been tried is true
-  // and is the part that shows something is happening.
+  // FIND_BUDGET_MS, and at the first spot that never answers, so a player
+  // watching "spot 2 of 12" could be told there was far more runway left
+  // than there was. The count of what has been tried is true and is the
+  // part that shows something is happening.
   const message = appleTotal
     ? `Trying spot ${(appleAttempt || 0) + 1}`
     : 'Picking a street';
@@ -46,7 +46,10 @@ export default function LoadingSpot({ roundNumber, appleAttempt, appleTotal, lea
       <p className="mt-1 text-sm text-white/70">{message}</p>
       {slow ? (
         <>
-          <p className="mt-4 max-w-xs text-sm text-white/60">This is taking longer than it should.</p>
+          {/* A slow connection is the usual reason now: a spot is waited
+              for while Apple keeps sending it data, and on a slow link
+              that measured 26 to 41 seconds (lib/lookAround.js). */}
+          <p className="mt-4 max-w-xs text-sm text-white/60">Still loading. Street imagery can take a while on a slow connection.</p>
           <Link
             href="/geo"
             className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
