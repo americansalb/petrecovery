@@ -38,30 +38,18 @@ describe('createCandidateSource', () => {
     expect([unseeded1.lat, unseeded1.lng]).not.toEqual([unseeded2.lat, unseeded2.lng]);
   });
 
-  test('country mode stays inside the country and scales its radius and scoring', () => {
-    const source = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'country', region: 'JP', seed: 'ch' }), 0);
-    for (let i = 0; i < 50; i++) {
-      const c = source.next();
-      expect(countryAt(c.lat, c.lng)?.cca2).toBe('JP');
-      expect(c.radiusKm).toBeLessThanOrEqual(10);
+  test('a retired country or continent link plays World, at world scale', () => {
+    // Choosing a place meant being shown what is covered, which is kept
+    // secret (founder decision, 2026-09-23): a link to either mode now
+    // draws exactly what World draws for the same seed.
+    for (const config of [{ mode: 'country', region: 'JP', seed: 'ch' }, { mode: 'continent', region: 'europe', seed: 'sa' }]) {
+      const retired = createCandidateSource(normalizeConfig({ provider: 'apple', ...config }), 0);
+      const world = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'balanced', seed: config.seed }), 0);
+      expect(retired.next()).toEqual(world.next());
+      expect(retired.sizeKm).toBe(world.sizeKm);
     }
-    // Japan is long and thin: the scoring scale is its real diagonal.
-    expect(source.sizeKm).toBeGreaterThan(1000);
-    expect(source.sizeKm).toBeLessThan(3000);
     expect(radiusForCountry({ areaKm2: 100 }, 10)).toBe(2.5);
     expect(radiusForCountry({ areaKm2: 9000000 }, 10)).toBe(10);
-  });
-
-  test('continent mode only draws covered countries in that continent', () => {
-    const source = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'continent', region: 'europe', seed: 'sa' }), 0);
-    const seen = new Set();
-    for (let i = 0; i < 40; i++) {
-      const c = source.next();
-      expect(c.country.region).toBe('Europe');
-      seen.add(c.country.cca2);
-    }
-    expect(seen.size).toBeGreaterThan(1);
-    expect(seen.has('VE')).toBe(false);
   });
 
   test('balanced mode spreads across many countries', () => {
@@ -81,7 +69,10 @@ describe('createCandidateSource', () => {
     expect(c.city).toBeTruthy();
     expect(c.country).not.toBeNull();
     expect(c.radiusKm).toBeLessThanOrEqual(2);
-    expect(() => createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'country', region: 'ZZ' }), 0)).toThrow(/Unknown country/);
+    // A room made before the place modes were retired keeps its old mode
+    // in the config it was created with, unnormalised, and plays World.
+    const stale = createCandidateSource({ ...normalizeConfig({ provider: 'apple', mode: 'balanced', seed: 'c' }), mode: 'country', region: 'ZZ' }, 0);
+    expect(stale.next()).toEqual(createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'balanced', seed: 'c' }), 0).next());
     // Kidnapped draws from the covered pool like balanced: same seed, same road.
     const driven = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'balanced', seed: 'kid' }), 0).next();
     const balanced = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'balanced', seed: 'kid' }), 0).next();
@@ -116,18 +107,6 @@ describe('the Apple samplers', () => {
     expect(cities.size).toBeGreaterThan(60);
   });
 
-  test('a continent is its covered countries, and one Apple has not reached says so', () => {
-    for (const c of draw({ mode: 'continent', region: 'europe', seed: 'eu' }, 60)) expect(c.country.region).toBe('Europe');
-    expect(() => draw({ mode: 'continent', region: 'africa' })).toThrow(/no city streets in Africa/);
-    expect(() => draw({ mode: 'continent', region: 'south-america' })).toThrow(/South America/);
-  });
-
-  test('a country is its cities, and one with none is refused plainly', () => {
-    for (const c of draw({ mode: 'country', region: 'JP', seed: 'jp' }, 40)) expect(c.country.cca2).toBe('JP');
-    expect(() => draw({ mode: 'country', region: 'BR' })).toThrow(/Brazil/);
-    expect(() => draw({ mode: 'country', region: 'ZZ' })).toThrow(/Unknown country/);
-  });
-
   test('a seeded Apple draw replays, so a daily is the same places for everyone', () => {
     const a = draw({ mode: 'daily', seed: 'daily-2026-09-12' }, 12);
     const b = draw({ mode: 'daily', seed: 'daily-2026-09-12' }, 12);
@@ -135,13 +114,7 @@ describe('the Apple samplers', () => {
     expect(normalizeConfig({ mode: 'daily' }).provider).toBe('apple');
   });
 
-  test('a continent or country on Apple is scored at its own size', () => {
-    const eu = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'continent', region: 'europe', seed: 'x' }), 0);
-    const jp = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'country', region: 'JP', seed: 'x' }), 0);
-    const world = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'balanced', seed: 'x' }), 0);
-    expect(jp.sizeKm).toBeLessThan(eu.sizeKm);
-    expect(eu.sizeKm).toBeLessThan(world.sizeKm);
-  });
+
 });
 
 describe('createRound and evaluateGuess', () => {
@@ -189,19 +162,22 @@ describe('createRound and evaluateGuess', () => {
     // for a point in it: truthy, so the row's own country never got a
     // look in, and the reveal named the neighbour. Hong Kong, Geneva
     // and Jerusalem failed the same way.
-    const { answer } = await first({ mode: 'country', region: 'SG', seed: 'sg' });
-    expect(answer.city).toBe('Singapore');
+    //
+    // There is no country mode to ask for Singapore any more, so the
+    // test finds a World seed that offers it, the way a player meets it.
+    let found = null;
+    for (let i = 0; i < 20000 && !found; i++) {
+      const seed = `sg-${i}`;
+      const source = createCandidateSource(normalizeConfig({ provider: 'apple', mode: 'balanced', seed }), 0);
+      for (let k = 0; k < APPLE_CANDIDATES_PER_ROUND; k++) if (source.next().city === 'Singapore') found = seed;
+    }
+    expect(found).toBeTruthy();
+    const round = await createRound({ config: { provider: 'apple', mode: 'balanced', seed: found }, roundIndex: 0, env: ENV });
+    const answer = round.candidates
+      .map((candidate) => openToken(candidate.token, { secret: ENV.NEXTAUTH_SECRET }))
+      .find((a) => a.city === 'Singapore');
     expect(answer.cc).toBe('SG');
     expect(countryAt(answer.lat, answer.lng)?.cca2).toBe('MY');
-  });
-
-  test('a country round measures a seam-crossing country by its real width', async () => {
-    // A country cut by the antimeridian has a bounding box from -180 to
-    // +180, and its diagonal collapses to the latitude span because the
-    // longitude term is sin(180deg) = 0. The United States was scored on
-    // that, roughly twice as harshly as intended.
-    const { round: us } = await first({ mode: 'country', region: 'US', seed: 'us-1' });
-    expect(us.sizeKm).toBeGreaterThan(4000);
   });
 
   test('a seeded round replays the same places', async () => {
@@ -229,10 +205,6 @@ describe('createRound and evaluateGuess', () => {
     // Apple needs no key, so the only thing that can be missing is the
     // secret the answers are sealed with.
     await expect(createRound({ config: { provider: 'apple', mode: 'balanced' }, env: {} })).rejects.toMatchObject({ code: 'no_secret' });
-    // A mode with no city streets in it says so rather than crashing.
-    // Keep the rare Not Earth surprise deterministic: an unseeded test
-    // occasionally receives a valid NASA round instead of city streets.
-    await expect(createRound({ config: { provider: 'apple', mode: 'country', region: 'CN', seed: 'no-coverage' }, env: ENV })).rejects.toThrow(/no city streets/);
   });
 
   test('a tampered or expired token cannot be scored', async () => {

@@ -73,13 +73,9 @@ function useCopy() {
   return [copied, copy];
 }
 
-export function RoomSummary({ room, countries, chip = true }) {
-  const regionLabel =
-    room.config.mode === "country"
-      ? countries?.find((c) => c.code === room.config.region)?.name
-      : undefined;
+export function RoomSummary({ room, chip = true }) {
   const parts = [
-    describeRoomMode(room.config, { regionLabel }),
+    describeRoomMode(room.config),
     `${room.roundsTotal} rounds`,
     `${timeLabel(room.config.time)} each`,
   ];
@@ -179,7 +175,6 @@ export function JoinPanel({ state, defaultName, onJoin, busy, error }) {
 
 export function LobbyPanel({
   state,
-  countries,
   onStart,
   onLeave,
   busy,
@@ -262,7 +257,7 @@ export function LobbyPanel({
             : "Everyone guesses the same places. Highest total score wins."}
         </p>
         <div className="mt-1">
-          <RoomSummary room={room} countries={countries} chip={false} />
+          <RoomSummary room={room} chip={false} />
         </div>
       </section>
 

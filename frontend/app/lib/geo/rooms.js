@@ -24,7 +24,11 @@ export const MAX_ROOM_NAME_LENGTH = 40;
 // roomConfig filters the list against MODES before using it - so the
 // dead ids were invisible here and a real one added to MODES would not
 // have been.
-export const ROOM_MODES = ['balanced', 'continent', 'country'];
+//
+// Continent and country went with the solo modes of the same names: a
+// host choosing where to send people was shown what is covered, and
+// that is kept secret (app/lib/geo/modes.js, RETIRED_MODES).
+export const ROOM_MODES = ['balanced'];
 export const ROOM_ROUND_OPTIONS = [3, 5, 10];
 export const ROOM_TIME_OPTIONS = [30, 60, 90, 120, 180];
 export const DEFAULT_ROOM_TIME = 60;
@@ -230,19 +234,19 @@ export function describeRoomStatus(room) {
   return rounds ? `Round ${room.roundIndex + 1} of ${rounds}` : `Round ${room.roundIndex + 1}`;
 }
 
-export function describeRoomMode(config, { regionLabel } = {}) {
+export function describeRoomMode(config) {
   if (config?.game === 'script') return 'Script';
   const mode = MODES[config?.mode];
-  if (!mode) return config?.mode || '';
-  if (mode.needs === 'continent') return `Continent: ${regionLabel || config.region}`;
-  if (mode.needs === 'country') return `Country: ${regionLabel || config.region}`;
+  // A room made before the region modes were retired still says so in
+  // its config; it plays, and reads, as World.
+  if (!mode) return config?.mode === 'continent' || config?.mode === 'country' ? MODES.balanced.label : config?.mode || '';
   return mode.label;
 }
 
 /** "City streets, No Move, on Apple Look Around": the room card's one line. */
-export function describeRoomRules(config, { regionLabel } = {}) {
+export function describeRoomRules(config) {
   if (config?.game === 'script') return 'Script';
-  const parts = [describeRoomMode(config, { regionLabel })];
+  const parts = [describeRoomMode(config)];
   if (formatOf(config) !== 'moving') parts.push(formatLabel(config));
   if (config?.provider && config.provider !== PRIMARY_PROVIDER) parts.push(`on ${PROVIDERS[config.provider]?.label || config.provider}`);
   return parts.join(', ');

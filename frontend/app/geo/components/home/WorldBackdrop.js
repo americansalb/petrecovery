@@ -11,9 +11,10 @@
  * open with, because it says nothing about being anywhere.
  *
  * So it is a globe. Orthographic, tilted, turning slowly, and you can
- * take hold of it and spin it. The dots are the 117 cities a round can
- * actually start in, so what is lit up is the game's real reach rather
- * than decoration.
+ * take hold of it and spin it. It used to light up the cities a round
+ * can start in, which was a map of what the game covers; that is kept
+ * secret now (app/lib/geo/modes.js, RETIRED_MODES), so it is land and
+ * sea only.
  *
  * It still needs no key and no tile server, which was always the point:
  * Apple's token is not set on every deployment, and a front page that
@@ -31,7 +32,6 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { citiesFor } from '@/app/lib/geo/coverage';
 
 const RAD = Math.PI / 180;
 /** A square viewBox, so the globe is round at any window shape. */
@@ -86,14 +86,12 @@ function graticule(pr) {
 export default function WorldBackdrop() {
   const landRef = useRef(null);
   const gratRef = useRef(null);
-  const dotsRef = useRef(null);
   const frameRef = useRef(0);
   const ringsRef = useRef([]);
   const viewRef = useRef({ lon: -28, drag: null, last: 0 });
 
   useEffect(() => {
     let alive = true;
-    const cities = citiesFor().map((c) => [c.lng, c.lat]);
     const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const draw = () => {
@@ -120,15 +118,6 @@ export default function WorldBackdrop() {
       }
       landRef.current?.setAttribute('d', land);
       gratRef.current?.setAttribute('d', graticule(pr));
-
-      let dots = '';
-      for (const [lng, lat] of cities) {
-        const p = pr(lng, lat);
-        if (!p) continue;
-        const r = 3.2;
-        dots += `M${(p[0] - r).toFixed(1)} ${p[1].toFixed(1)}a${r} ${r} 0 1 0 ${r * 2} 0a${r} ${r} 0 1 0 ${-r * 2} 0Z`;
-      }
-      dotsRef.current?.setAttribute('d', dots);
     };
 
     const tick = (t) => {
@@ -233,7 +222,6 @@ export default function WorldBackdrop() {
         <g clipPath="url(#geo-globe-clip)">
           <path ref={gratRef} d="" fill="none" stroke="rgba(143,195,218,0.16)" strokeWidth="1" />
           <path ref={landRef} d="" className="fill-forest-700/90 stroke-forest-400/60" strokeWidth="1" />
-          <path ref={dotsRef} d="" className="fill-clay-400" opacity="0.9" />
         </g>
         <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(143,195,218,0.35)" strokeWidth="1.5" />
       </svg>

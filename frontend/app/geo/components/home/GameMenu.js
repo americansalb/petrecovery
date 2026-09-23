@@ -24,8 +24,6 @@ import {
   Users,
 } from "lucide-react";
 import {
-  CONTINENTS,
-  CONTINENT_ORDER,
   configToParams,
   DEFAULT_CONFIG,
   MODES,
@@ -33,7 +31,6 @@ import {
 import { PROVISIONAL_GAMES } from "@/app/lib/geo/rating";
 import { ordinal } from "@/app/lib/geo/distance";
 import { untilText } from "@/app/lib/geo/meter";
-import { APPLE_COVERAGE_NAMES } from "@/app/lib/geo/coverage";
 import { profileHeaders } from "../../lib/profile";
 import { loadGeoConfig } from "../../lib/serverConfig";
 import { initializeMapKit } from "../../lib/appleMapKit";
@@ -44,14 +41,6 @@ import { latestSavedGame } from '../../lib/savedGame';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { scriptConfigToQuery } from '@/app/lib/geo/script';
-
-const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
-  .map(([code, name]) => ({
-    code,
-    name: name.replace(/^the /, ""),
-    flag: String.fromCodePoint(...(code === "UK" ? "GB" : code).split("").map((letter) => 127397 + letter.charCodeAt(0))),
-  }))
-  .sort((a, b) => a.name.localeCompare(b.name));
 
 /**
  * One line of the lists under the scene: the name, what it is, and the
@@ -81,37 +70,6 @@ function MenuRow({ href, marker, title, detail, status = "" }) {
   );
 }
 
-/** A place to play in: pick it, then play it. */
-function RegionRow({ title, label, value, onChange, options, href, marker }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 sm:flex-nowrap sm:px-5">
-      <h3 className="w-full font-semibold text-pe-fg sm:w-36 sm:shrink-0">{title}</h3>
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={label}
-          className="ui-input min-w-0 flex-1 sm:max-w-xs"
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <Link
-          href={href}
-          {...{ [marker]: "" }}
-          aria-label={`Play ${label.toLowerCase()}`}
-          className="ui-btn ui-btn--secondary shrink-0"
-        >
-          Play
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 export default function GameMenu() {
   const router = useRouter();
   const [game, setGame] = useState("street");
@@ -122,8 +80,6 @@ export default function GameMenu() {
   const [cup, setCup] = useState(null);
   const [solo, setSolo] = useState(null);
   const [answered, setAnswered] = useState({});
-  const [continent, setContinent] = useState("europe");
-  const [country, setCountry] = useState("JP");
   const script = game === "script";
 
   useEffect(() => {
@@ -370,24 +326,9 @@ export default function GameMenu() {
               title="Country streak"
               detail="Name the country. One wrong answer ends the run."
             />
-            <RegionRow
-              title="One continent"
-              label="Continent"
-              value={continent}
-              onChange={setContinent}
-              options={CONTINENT_ORDER.map((id) => ({ value: id, label: CONTINENTS[id].label }))}
-              href={`/geo/play?mode=continent&region=${continent}`}
-              marker="data-menu-continent"
-            />
-            <RegionRow
-              title="One country"
-              label="Country"
-              value={country}
-              onChange={setCountry}
-              options={COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} ${c.name}` }))}
-              href={`/geo/play?mode=country&region=${country}`}
-              marker="data-menu-country"
-            />
+            {/* One continent and One country were here, and the country
+                list was every country the game covers. That is kept
+                secret now (app/lib/geo/modes.js, RETIRED_MODES). */}
           </div>
         </section>
       </div>

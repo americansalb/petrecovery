@@ -109,13 +109,13 @@ export function averageMissKm(summary) {
 }
 
 /** Text for the clipboard / share sheet. */
-export function shareText(summary, url, { regionLabel } = {}) {
+export function shareText(summary, url) {
   const mode = MODES[summary.config.mode]?.label || summary.config.mode;
   const lines = [];
   if (summary.config.mode === 'streak') {
     lines.push(`Probably Earth: streak of ${summary.streak} in ${mode}.`);
   } else {
-    lines.push(`Probably Earth: ${summaryHeadline(summary)} in ${describeConfig(summary.config, { regionLabel })}`);
+    lines.push(`Probably Earth: ${summaryHeadline(summary)} in ${describeConfig(summary.config)}`);
     const avg = averageMissKm(summary);
     if (avg !== null) lines.push(`Average miss ${formatDistance(avg)}.`);
     lines.push(summary.rounds.map((r) => scoreGlyph(r.score)).join(''));

@@ -115,7 +115,10 @@ describe('rules', () => {
     expect(config).toMatchObject({ provider: 'apple', mode: 'balanced', time: 60, rounds: 5 });
     expect(variant).toBe('duel');
     expect(visibility).toBe('private');
-    expect(rules.normalizeRoomConfig({ mode: 'country', region: 'jp', time: 90, rounds: 10 }).config).toMatchObject({ mode: 'country', region: 'JP', time: 90, rounds: 10 });
+    // A room cannot be sent to one country or continent any more: choosing
+    // one showed what is covered, which is kept secret. It plays World.
+    expect(rules.normalizeRoomConfig({ mode: 'country', region: 'jp', time: 90, rounds: 10 }).config).toMatchObject({ mode: 'balanced', region: '', time: 90, rounds: 10 });
+    expect(rules.normalizeRoomConfig({ mode: 'continent', region: 'asia' }).config).toMatchObject({ mode: 'balanced', region: '' });
     // Apple Look Around rooms play the modes Apple imagery covers; City
     // streets is Google's name for what every Apple mode already is.
     expect(rules.normalizeRoomConfig({ provider: 'apple', mode: 'balanced', time: 90 }).config).toMatchObject({ provider: 'apple', mode: 'balanced', time: 90 });
@@ -126,7 +129,8 @@ describe('rules', () => {
 
   test('the rules line names the places, the format when it is not moving, and Apple imagery', () => {
     expect(rules.describeRoomRules({ mode: 'balanced', move: true, pan: true, zoom: true })).toBe('World');
-    expect(rules.describeRoomRules({ mode: 'country', region: 'JP', move: false, pan: true, zoom: true }, { regionLabel: 'Japan' })).toBe('Country: Japan, No Move');
+    // A room made before the place modes were retired reads as what it plays.
+    expect(rules.describeRoomRules({ mode: 'country', region: 'JP', move: false, pan: true, zoom: true })).toBe('World, No Move');
     expect(rules.describeRoomRules({ provider: 'apple', mode: 'balanced', move: false, pan: false, zoom: false })).toBe('World, NMPZ');
     expect(rules.describeRoomRules({ provider: 'apple', mode: 'streak', move: false, pan: false, zoom: false })).toBe('Country streak, NMPZ');
   });
@@ -573,12 +577,14 @@ describe('robustness', () => {
 
   test('a round with no places to offer sends the lobby back with a reason', async () => {
     // Apple never probes, so a start cannot fail for want of imagery.
-    // What can fail is a mode with nowhere to draw from: a country with
-    // no city streets in the list.
-    const { store, code, tokens } = await setupRoom({ settings: { mode: 'country', region: 'CN' } });
+    // What can fail is a config the sampler cannot draw from. The place
+    // modes that could come up empty are retired, so it is forced here.
+    const { store, code, tokens } = await setupRoom();
+    const room = await store.getRoomByCode(code);
+    await store.updateRoom(room.id, { config: { ...room.config, mode: 'nowhere' }, version: room.version + 1 });
     const failed = await act(store, { code, token: tokens[0], action: 'start', now: T0, fetchImpl: hitFetch });
     expect(failed.state.room).toMatchObject({ status: 'lobby', phase: 'lobby' });
-    expect(failed.state.room.lastError).toMatch(/no city streets/i);
+    expect(failed.state.room.lastError).toMatch(/not a mode/i);
   });
 
   test('a build that never finished is handed back after the loading timeout', async () => {

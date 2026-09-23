@@ -68,15 +68,13 @@ export async function GET(request) {
   if (!summary) return fallbackCard(request);
 
   try {
-    const [{ default: satori }, { Resvg }, { ShareCard }, fonts, { countryByCode }] = await Promise.all([
+    const [{ default: satori }, { Resvg }, { ShareCard }, fonts] = await Promise.all([
       import('satori'),
       import('@resvg/resvg-js'),
       import('@/app/lib/geo/server/ShareCard.jsx'),
       import('@/app/lib/geo/server/fonts/index.js'),
-      import('@/app/lib/geo/server/countries'),
     ]);
 
-    const regionLabel = summary.config.mode === 'country' ? countryByCode(summary.config.region)?.name : undefined;
     const avg = averageMissKm(summary);
     const subline =
       summary.config.mode === 'streak'
@@ -84,7 +82,7 @@ export async function GET(request) {
         : avg !== null
           ? `${summary.rounds.length} rounds, average miss ${formatDistance(avg)}`
           : `${summary.rounds.length} rounds`;
-    const footer = [describeConfig(summary.config, { regionLabel }).replace(/\.$/, ''), summary.date].filter(Boolean).join('  ·  ');
+    const footer = [describeConfig(summary.config).replace(/\.$/, ''), summary.date].filter(Boolean).join('  ·  ');
 
     const svg = await satori(
       <ShareCard

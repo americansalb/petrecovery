@@ -51,11 +51,11 @@ describe('normalizeConfig', () => {
     }
   });
 
-  test('country and continent modes carry a region, with sane defaults', () => {
-    expect(normalizeConfig({ mode: 'country', region: 'jp' }).region).toBe('JP');
-    expect(normalizeConfig({ mode: 'country', region: 'japan' }).region).toBe('US');
-    expect(normalizeConfig({ mode: 'continent', region: 'asia' }).region).toBe('asia');
-    expect(normalizeConfig({ mode: 'continent', region: 'atlantis' }).region).toBe('europe');
+  test('country and continent are retired: a link to either plays World, with no region', () => {
+    // Choosing a place meant being shown what is covered, which is kept
+    // secret (founder decision, 2026-09-23).
+    expect(normalizeConfig({ mode: 'country', region: 'jp' })).toMatchObject({ mode: 'balanced', region: '' });
+    expect(normalizeConfig({ mode: 'continent', region: 'asia' })).toMatchObject({ mode: 'balanced', region: '' });
     expect(normalizeConfig({ mode: 'balanced', region: 'JP' }).region).toBe('');
   });
 
@@ -142,7 +142,8 @@ describe('formats', () => {
 
 describe('describeConfig', () => {
   test('says what the game was in one line', () => {
-    expect(describeConfig({ mode: 'country', region: 'JP' }, { regionLabel: 'Japan' })).toBe('Country: Japan. 5 rounds. No timer.');
+    // A result from a retired country game reads as the World game it now links to.
+    expect(describeConfig({ mode: 'country', region: 'JP' })).toBe('World. 5 rounds. No timer.');
     expect(describeConfig({ mode: 'streak', time: 60, move: false, pan: false, zoom: false })).toBe('Country streak. Until the first miss. 1 minute. NMPZ.');
     expect(describeConfig({ mode: 'balanced', time: 60, move: false, pan: true, zoom: true })).toBe('World. 5 rounds. 1 minute. No Move.');
     // The default imagery goes without saying; the other one is named.

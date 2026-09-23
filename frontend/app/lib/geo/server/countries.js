@@ -20,8 +20,6 @@
 import topology from 'world-atlas/countries-110m.json';
 import { feature } from 'topojson-client';
 import META from '../data/countries-meta.json';
-import { CONTINENTS } from '../modes';
-import { hasAppleCoverage } from '../coverage';
 import { randomPointInBox, randomPointInDisk, randomPointOnSphere, weightedIndex } from '../random';
 
 const toRad = (deg) => (deg * Math.PI) / 180;
@@ -269,18 +267,6 @@ export function countryAt(lat, lng) {
   return null;
 }
 
-/** Countries in a continent preset (see modes.CONTINENTS). */
-export function countriesInContinent(continentId) {
-  const preset = CONTINENTS[continentId];
-  if (!preset) return [];
-  return index().list.filter((c) => {
-    if (!c.cca2) return false;
-    if (preset.regions && preset.regions.includes(c.region)) return true;
-    if (preset.subregions && preset.subregions.includes(c.subregion)) return true;
-    return false;
-  });
-}
-
 /**
  * A random point inside a country: pick a polygon part by area, then
  * rejection-sample its bounding box. Disk-backed countries sample the
@@ -321,7 +307,15 @@ export function sampleOnLand(rng, { exclude = ['AQ'], maxAttempts = 5000 } = {})
   return null;
 }
 
-/** Compact rows for the lobby's country picker. */
+/**
+ * Compact rows for the Country streak answer list: every country, in
+ * alphabetical order.
+ *
+ * Each row used to carry `apple`, whether Look Around covers it, and the
+ * list put those first. That was the coverage list, sent to every
+ * browser that opened a game; what the game covers is kept secret now
+ * (app/lib/geo/modes.js, RETIRED_MODES).
+ */
 export function countryOptions() {
   return index()
     .list.filter((c) => c.cca2 && c.region !== 'Antarctic')
@@ -331,7 +325,6 @@ export function countryOptions() {
       flag: c.flag,
       region: c.region,
       subregion: c.subregion,
-      apple: hasAppleCoverage(c.cca2),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

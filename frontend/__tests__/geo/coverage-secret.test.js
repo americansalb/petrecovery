@@ -8,12 +8,17 @@
  *   with a count beside each, its link preview said "159 languages
  *   across 34 writing systems", the reveal said "In this pool, Odia is
  *   written for Odia and nothing else", and the hints said what else
- *   was "here".
+ *   was "here". Street's front page had a One country list of every
+ *   covered country, rooms offered every country with "(no city
+ *   streets yet)" beside the rest, the streak list marked them "no
+ *   imagery", and the profile counted badges "of 23 countries".
  * - The browser was sent it. The module the browser shares with the
  *   server imported the language list to build those sets, so every
  *   page that could start a Script game, the front page included,
  *   shipped every language and where each is spoken to anybody who
- *   opened the page's code.
+ *   opened the page's code. The street modes and the profile did the
+ *   same with the city list, and the config API tagged every country
+ *   with whether Apple covers it.
  *
  * The second is the one a read of the copy cannot see, so it is checked
  * as a graph: nothing a 'use client' file imports, directly or through
@@ -26,7 +31,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 /** What the game covers, which only the server may hold. */
-const SECRET_FILES = ['app/lib/geo/languages.js', 'app/lib/geo/data/language-regions.json'];
+const SECRET_FILES = ['app/lib/geo/languages.js', 'app/lib/geo/data/language-regions.json', 'app/lib/geo/coverage.js'];
 
 const CODE = /\.(js|jsx|mjs)$/;
 
@@ -112,6 +117,10 @@ describe('no screen says what the game covers', () => {
     /\bin this pool\b/i,
     /All Script languages/,
     /\bchoose (?:other )?languages\b/i,
+    /\$\{[^}]+\}\s+countries\b/i,
+    /\bof\s*\{[^}]+\}\s*countries\b/i,
+    /\bno city streets\b/i,
+    /\bno longer visits\b/i,
   ];
 
   test('no count of languages or writing systems in the game\'s copy', () => {
@@ -122,6 +131,28 @@ describe('no screen says what the game covers', () => {
       });
     }
     expect(found).toEqual([]);
+  });
+
+  test('a link to a retired place mode plays World, with no place', () => {
+    const { normalizeConfig, MODES, MODE_ORDER } = require('@/app/lib/geo/modes');
+    for (const mode of ['continent', 'country']) {
+      expect(MODES[mode]).toBeUndefined();
+      expect(MODE_ORDER).not.toContain(mode);
+      expect(normalizeConfig({ mode, region: mode === 'country' ? 'JP' : 'europe' })).toMatchObject({ mode: 'balanced', region: '' });
+    }
+    const { ROOM_MODES } = require('@/app/lib/geo/rooms');
+    expect(ROOM_MODES).toEqual(['balanced']);
+  });
+
+  test('the country list a browser is sent says nothing about coverage', () => {
+    // It is the Country streak answer list, and every row carried
+    // `apple`, whether Look Around covers it.
+    const { countryOptions } = require('@/app/lib/geo/server/countries');
+    const rows = countryOptions();
+    expect(rows.length).toBeGreaterThan(150);
+    for (const row of rows) expect(Object.keys(row).sort()).toEqual(['code', 'flag', 'name', 'region', 'subregion']);
+    const names = rows.map((row) => row.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
   test('no hint describes the rest of the pool', () => {

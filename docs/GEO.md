@@ -37,9 +37,19 @@ What that buys and what it costs, plainly:
   beyond Japan, Singapore and Hong Kong. Apple keeps adding countries; the
   list is maintained by hand and should be checked against Apple's
   coverage page when it grows.
-- **What plays on Apple.** World, Balanced, Daily, Cup, Continent,
-  Country and Country streak, all as draws of city streets (see "How a
-  round is built").
+- **Coverage is a secret.** Players are never shown which countries are
+  covered, or how many (founder decision, 2026-09-23: players should not
+  know what could come up). There is no country or continent to choose;
+  `continent` and `country` are retired to World (`RETIRED_MODES` in
+  `app/lib/geo/modes.js`), and rooms play World only. `coverage.js` is
+  server only, the Country streak list is every country in alphabetical
+  order with nothing marking the covered ones, and the profile counts a
+  player's country badges without a total.
+  `__tests__/geo/coverage-secret.test.js` fails if a client screen
+  reaches `coverage.js` by any path, if the config API's country rows
+  carry a coverage flag, or if the copy states a count.
+- **What plays on Apple.** World, Daily, Ranked, Cup and Country streak,
+  all as draws of city streets (see "How a round is built").
   The Apple world is the city list: adding a covered city to
   `CITY_ROWS` is how it grows.
 - **The token, and the host it is for.** MapKit JS needs a token from an
@@ -77,7 +87,7 @@ What that buys and what it costs, plainly:
 | `/geo/share?s=<code>` | A finished game as a page with its own link preview (server page, `generateMetadata`) | universal bar + game subtabs |
 | `/geo/rooms` | Multiplayer: open a room, join by code, return to a room you were in, or pick a public room | universal bar + game subtabs |
 | `/geo/room/<code>` | A room: join, lobby, rounds on a shared clock, reveal with everyone's pins, standings, rematch. Link unfurls with the room's name and players | full screen; X leads to `/geo/rooms` |
-| `/geo/leaderboard` | The ladders (classic, duel, ranked solo) for the season and your own rating, plus every mode that is not the default: Ranked, the daily and the weekly cup with their boards, then country streak, one continent and one country | universal bar + game subtabs |
+| `/geo/leaderboard` | The ladders (classic, duel, ranked solo) for the season and your own rating, plus every mode that is not the default: Ranked, the daily and the weekly cup with their boards, then country streak | universal bar + game subtabs |
 | `/geo/me` | Your profile: name, rating, points, country badges, today's meter, recent points, the cosmetics shop, and signing in ("Signing in" below) | universal bar + game subtabs |
 
 Chrome follows the house rule in `app/lib/navChrome.js`: the room
@@ -112,9 +122,10 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    the curated city list (`app/lib/geo/coverage.js`), because that is
    the whole of what Apple covers: *World*, *Daily*, *Ranked*, *Cup* and
    *Streak* pick a covered country first, weighted by the square root of
-   its area so small countries still come up, then one of its cities;
-   *Continent* and *Country* are the covered cities inside them, and a
-   continent or country Apple has not reached is refused in plain words.
+   its area so small countries still come up, then one of its cities.
+   *Continent* and *Country* drew from one part of the list and are
+   retired (see "Coverage is a secret"); a room created with one before
+   then plays World.
 
    The square root is the lever. Weighting by raw area makes Russia,
    Canada and the United States almost the whole game; weighting every
@@ -143,8 +154,7 @@ Rate limits are in `frontend/middleware.js` next to the other API entries.
    Regenerate the metadata with `node scripts/build-geo-countries.js`.
 
 Scoring (`app/lib/geo/distance.js`): `5000 * e^(-10 d / size)`, where
-`size` is 14,916 km for the world and the bounding-box diagonal for a
-continent or country (floor 100 km). Within 25 m is 5,000.
+`size` is 14,916 km, the world, for every mode. Within 25 m is 5,000.
 
 The search radius has no control any more - the lobby that carried it
 was deleted - so it is a query-string setting on a shared link, at
@@ -206,8 +216,7 @@ library on 2026-09-16, and is served from our own `/public` so a round
 never waits on a third party. The reveal prints the mission, the date,
 NASA's own credit line and a link to the original.
 
-**Where it can happen.** `NOT_EARTH_MODES` lists World, Continent,
-Country and Streak. Ranked, the daily and the weekly cup are excluded by
+**Where it can happen.** `NOT_EARTH_MODES` lists World and Streak. Ranked, the daily and the weekly cup are excluded by
 being left off that list, on purpose: those are one set of places shared
 by everyone playing them, and a surprise that lands for one player and
 not the next is not a shared set. The list names the modes that CAN

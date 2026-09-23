@@ -10,11 +10,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Plus } from "lucide-react";
 import {
-  CONTINENTS,
-  CONTINENT_ORDER,
   FORMATS,
   FORMAT_ORDER,
-  MODES,
   PRIMARY_PROVIDER,
   formatSettings,
   timeLabel,
@@ -23,7 +20,6 @@ import Button from "../ui/Button";
 import {
   DEFAULT_PLAYER_NAME,
   MAX_PLAYERS,
-  ROOM_MODES,
   ROOM_ROUND_OPTIONS,
   ROOM_TIME_OPTIONS,
   VARIANTS,
@@ -42,7 +38,6 @@ import { ago } from "../../lib/time";
 import SetupNotice from "../SetupNotice";
 import AccountDialog from "../AccountDialog";
 import Matchmaker from './Matchmaker';
-import { APPLE_COVERAGE } from "@/app/lib/geo/coverage";
 
 function Field({ label, hint, children }) {
   // The hint sits outside the label so the label reads as its name alone.
@@ -99,9 +94,6 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
     variant: "duel",
     game: initialGame === 'script' ? 'script' : 'street',
     provider: PRIMARY_PROVIDER,
-    mode: "balanced",
-    continent: "europe",
-    country: "US",
     rounds: 5,
     time: 60,
     format: "moving",
@@ -172,9 +164,6 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
   }, [signedIn, hydrated]);
 
   const configured = form.game === 'script' || Boolean(server?.providers?.apple?.configured);
-  const modesFor = (provider) =>
-    ROOM_MODES.filter((id) => MODES[id]?.providers?.includes(provider));
-  const countries = server?.countries || [];
   const update = (patch) => setForm((f) => ({ ...f, ...patch }));
 
   const settings = useMemo(
@@ -182,13 +171,11 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
       variant: form.variant,
       game: form.game,
       provider: form.provider,
-      mode: form.mode,
-      region:
-        form.mode === "continent"
-          ? form.continent
-          : form.mode === "country"
-            ? form.country
-            : "",
+      // A room is played on the whole of what is covered. The host used
+      // to choose a continent or a country, from a list that showed what
+      // is covered; that is kept secret (app/lib/geo/rooms.js).
+      mode: "balanced",
+      region: "",
       rounds: form.rounds,
       time: form.time,
       ...formatSettings(form.format),
@@ -415,56 +402,6 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
                     <option value="private">Only people with the link</option>
                   </select>
                 </Field>
-                {/* There is one imagery, so there is no choice to offer.
-                    The line says where a room will actually take people. */}
-                {game !== 'script' ? (
-                  <Field label="Places" hint={`City streets in ${APPLE_COVERAGE.size} countries.`}>
-                    <select
-                      value={form.mode}
-                      onChange={(e) => update({ mode: e.target.value })}
-                      className={select}
-                    >
-                      {modesFor(form.provider).map((id) => (
-                        <option key={id} value={id}>
-                          {MODES[id].label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                ) : null}
-                {game !== 'script' && form.mode === "continent" ? (
-                  <Field label="Continent">
-                    <select
-                      value={form.continent}
-                      onChange={(e) => update({ continent: e.target.value })}
-                      className={select}
-                    >
-                      {CONTINENT_ORDER.map((id) => (
-                        <option key={id} value={id}>
-                          {CONTINENTS[id].label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                ) : game !== 'script' && form.mode === "country" ? (
-                  <Field label="Country">
-                    <select
-                      value={form.country}
-                      onChange={(e) => update({ country: e.target.value })}
-                      className={select}
-                    >
-                      {countries.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.flag} {c.name}
-                          {!c.apple ? " (no city streets yet)" : ""}
-                        </option>
-                      ))}
-                      {!countries.length ? (
-                        <option value={form.country}>{form.country}</option>
-                      ) : null}
-                    </select>
-                  </Field>
-                ) : null}
                 <Field label="Rounds">
                   <select
                     value={form.rounds}

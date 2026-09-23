@@ -10,10 +10,10 @@
  */
 
 import { createRng, randomPointInDisk, randomSeedString, roundSeed, weightedIndex } from '../random';
-import { WORLD_SIZE_KM, sizeForBox } from '../distance';
-import { CONTINENTS, RADIUS_PRESETS } from '../modes';
+import { WORLD_SIZE_KM } from '../distance';
+import { RADIUS_PRESETS } from '../modes';
 import { citiesFor, hasAppleCoverage } from '../coverage';
-import { countriesInContinent, countryByCode, getCountries } from './countries';
+import { countryByCode, getCountries } from './countries';
 
 export class GeoSamplerError extends Error {
   constructor(code, message) {
@@ -43,35 +43,6 @@ export function radiusForCountry(country, presetKm) {
 }
 
 /**
- * A box to measure a country by. spanBox, not box: a country cut by the
- * antimeridian has a raw box from -180 to +180, whose diagonal drops
- * the east-west term entirely (sin(180deg) = 0) and leaves the latitude
- * span pretending to be the diagonal.
- */
-function countryBox(country) {
-  if (country.spanBox) return country.spanBox;
-  if (country.box) return country.box;
-  if (country.disk) {
-    const { center, radiusKm } = country.disk;
-    const dLat = radiusKm / 110.574;
-    const dLng = radiusKm / (111.32 * Math.max(0.1, Math.cos((center.lat * Math.PI) / 180)));
-    return { minLat: center.lat - dLat, maxLat: center.lat + dLat, minLng: center.lng - dLng, maxLng: center.lng + dLng };
-  }
-  return null;
-}
-
-function unionBox(countries) {
-  const boxes = countries.map(countryBox).filter(Boolean);
-  if (!boxes.length) return null;
-  return boxes.reduce((acc, b) => ({
-    minLat: Math.min(acc.minLat, b.minLat),
-    maxLat: Math.max(acc.maxLat, b.maxLat),
-    minLng: Math.min(acc.minLng, b.minLng),
-    maxLng: Math.max(acc.maxLng, b.maxLng),
-  }));
-}
-
-/**
  * Apple Look Around is city streets, and only city streets: no
  * countryside, no photo spheres, and no server-side probe. So on Apple
  * every mode is a draw from the curated city list (app/lib/geo/coverage.js),
@@ -79,15 +50,16 @@ function unionBox(countries) {
  * spots in order until Look Around loads one. The list is the whole
  * Apple world; adding a covered city to it is how that world grows.
  *
- *   world      every covered city, each as likely as the next
  *   balanced,  a covered country first, weighted like the Google pool
  *   daily, cup,  (square root of area, so small ones still come up),
- *   streak     then one of its cities
- *   continent  the covered countries inside it; none is an error the
- *              lobby already prevents, said plainly if reached
- *   country    that country's cities, or an error if it has none
+ *   ranked,    then one of its cities
+ *   streak
+ *
+ * There were continent and country modes too, drawing from one part of
+ * the list. They are retired (app/lib/geo/modes.js, RETIRED_MODES),
+ * because choosing a place showed the player what is covered.
  */
-function appleSource(config, rng, presetKm, holder) {
+function appleSource(config, rng, presetKm) {
   const cities = citiesFor('apple');
   if (!cities.length) throw new GeoSamplerError('no_cities', 'No cities for Apple Look Around');
   const byCountry = new Map();
@@ -103,7 +75,6 @@ function appleSource(config, rng, presetKm, holder) {
     const point = randomPointInDisk(rng, city, city.radiusKm, { spread: APPLE_SPREAD });
     return { lat: point.lat, lng: point.lng, country: countryByCode(city.country), city: city.name, radiusKm: Math.min(presetKm, 2) };
   };
-  const fromCities = (pool) => () => spot(pool[Math.floor(rng() * pool.length)]);
   const fromCountries = (countries) => {
     const pool = countries.filter((c) => byCountry.has(c.cca2));
     if (!pool.length) return null;
@@ -121,29 +92,12 @@ function appleSource(config, rng, presetKm, holder) {
     case 'cup':
     case 'ranked':
     case 'streak':
+    // A room made before the region modes were retired carries its old
+    // mode in the config it was created with, and plays World.
+    case 'continent':
+    case 'country':
       next = fromCountries(getCountries().filter((c) => c.cca2 && hasAppleCoverage(c.cca2)));
       break;
-    case 'continent': {
-      const all = countriesInContinent(config.region);
-      if (!all.length) throw new GeoSamplerError('unknown_continent', `Unknown continent: ${config.region}`);
-      const covered = all.filter((c) => hasAppleCoverage(c.cca2) && byCountry.has(c.cca2));
-      if (!covered.length) {
-        const label = CONTINENTS[config.region]?.label || config.region;
-        throw new GeoSamplerError('no_cities', `There are no city streets in ${label} yet.`);
-      }
-      holder.sizeKm = sizeForBox(unionBox(covered));
-      next = fromCountries(covered);
-      break;
-    }
-    case 'country': {
-      const country = countryByCode(config.region);
-      if (!country) throw new GeoSamplerError('unknown_country', `Unknown country: ${config.region}`);
-      const list = byCountry.get(country.cca2);
-      if (!list) throw new GeoSamplerError('no_cities', `There are no city streets in ${country.name} yet.`);
-      holder.sizeKm = sizeForBox(countryBox(country));
-      next = fromCities(list);
-      break;
-    }
     default:
       throw new GeoSamplerError('unknown_mode', `${config.mode} is not a mode Apple Look Around can play`);
   }
@@ -165,7 +119,9 @@ export function createCandidateSource(config, roundIndex = 0) {
   // (appleSource above). The Google branch that used to live here, with
   // its land sampler, its off-coverage pool and its covered-country
   // gate, went with Google.
-  const holder = { sizeKm: WORLD_SIZE_KM };
-  const next = appleSource(config, rng, presetKm, holder);
-  return { next, stats, sizeKm: holder.sizeKm, rng };
+  // Every mode draws from the whole list, so every round is scored at
+  // world scale. A country or continent round used to be scored against
+  // that place's own box.
+  const next = appleSource(config, rng, presetKm);
+  return { next, stats, sizeKm: WORLD_SIZE_KM, rng };
 }

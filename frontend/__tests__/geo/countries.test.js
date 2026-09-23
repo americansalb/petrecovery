@@ -6,7 +6,6 @@
 const {
   countryAt,
   countryByCode,
-  countriesInContinent,
   sampleInCountry,
   sampleOnLand,
   countryOptions,
@@ -161,30 +160,18 @@ describe('sampling', () => {
 });
 
 describe('lists', () => {
-  test('continents group the right countries', () => {
-    const europe = countriesInContinent('europe').map((c) => c.cca2);
-    expect(europe).toEqual(expect.arrayContaining(['FR', 'DE', 'PL']));
-    expect(europe).not.toContain('US');
-    const northAmerica = countriesInContinent('north-america').map((c) => c.cca2);
-    expect(northAmerica).toEqual(expect.arrayContaining(['US', 'CA', 'MX', 'CR']));
-    expect(northAmerica).not.toContain('BR');
-    expect(countriesInContinent('nowhere')).toEqual([]);
-  });
-
-  test('the picker lists every country with a code, a flag and whether it has imagery', () => {
+  test('the picker lists every country with a code and a flag, and nothing about coverage', () => {
     const options = countryOptions();
     expect(options.length).toBeGreaterThan(200);
     const us = options.find((o) => o.code === 'US');
-    expect(us).toMatchObject({ name: 'United States', apple: true });
+    expect(us).toMatchObject({ name: 'United States' });
     expect(us.flag.length).toBeGreaterThan(0);
     expect(options.find((o) => o.code === 'SG')).toBeTruthy();
     expect(options.find((o) => o.code === 'AQ')).toBeUndefined();
-    // Apple has not driven Brazil, and the picker says so rather than
-    // hiding the country: a country with no city streets is a country
-    // you can still look at on the map.
-    expect(options.find((o) => o.code === 'BR').apple).toBe(false);
-    // There is one imagery, so there is one flag per row.
-    expect(Object.keys(us).sort()).toEqual(['apple', 'code', 'flag', 'name', 'region', 'subregion']);
+    // Covered or not, every country is there and looks the same: the
+    // rows used to say whether Apple covers each, which is kept secret.
+    expect(options.find((o) => o.code === 'BR')).toBeTruthy();
+    expect(Object.keys(us).sort()).toEqual(['code', 'flag', 'name', 'region', 'subregion']);
   });
 
   test('every polygon country has a bounding box and area weights', () => {

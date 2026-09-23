@@ -32,7 +32,7 @@ export const NOT_EARTH_CHANCE = 0.005;
  * in a rated set: two players on the "same" five places would be asked
  * different questions in the same seat.
  */
-export const NOT_EARTH_MODES = Object.freeze(['balanced', 'continent', 'country', 'streak']);
+export const NOT_EARTH_MODES = Object.freeze(['balanced', 'streak']);
 
 /**
  * The worlds, as the badge and the reveal name them.
