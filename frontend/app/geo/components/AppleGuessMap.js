@@ -191,7 +191,9 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     // it starts, and the answer's pin lands inside it.
     map.addAnnotations(guesses);
     map.addOverlays(overlays);
-    const everything = results.flatMap((r) => [r.guess, r.answer]).filter(Boolean);
+    // Answers weigh double when the map cannot show everything
+    // (regionAround): the answer is what the player came to see.
+    const everything = results.flatMap((r) => [r.guess && { ...r.guess, weight: 1 }, r.answer && { ...r.answer, weight: 2 }]).filter(Boolean);
     const fit = (animate) => {
       if (!everything.length) return;
       const node = containerRef.current;
@@ -242,6 +244,9 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
   </KeyboardMap>;
 }
 
+/** How wide the world is, in pixels, with MapKit zoomed out as far as it goes. */
+export const MAPKIT_WORLD_PX = 1024;
+
 /**
  * The region that shows every point, the short way round, with room
  * for the pins at its edges.
@@ -254,9 +259,10 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
  * from the largest gap between neighbouring longitudes, and it can
  * cross the Pacific. Padding is in pixels, like showItems' was.
  */
-export function regionAround(points, { width = 0, height = 0, padding = 56, minimumSpan = 0.6 } = {}) {
+export function regionAround(points, { width = 0, height = 0, padding = 56, minimumSpan = 0.6, worldWidth = MAPKIT_WORLD_PX } = {}) {
+  const wrap = (value) => ((((value + 180) % 360) + 360) % 360) - 180;
   const lats = points.map((p) => p.lat);
-  const lngs = points.map((p) => ((((p.lng + 180) % 360) + 360) % 360) - 180).sort((a, b) => a - b);
+  const lngs = points.map((p) => wrap(p.lng)).sort((a, b) => a - b);
   let gap = lngs[0] + 360 - lngs[lngs.length - 1];
   let west = lngs[0];
   for (let i = 1; i < lngs.length; i += 1) {
@@ -266,6 +272,27 @@ export function regionAround(points, { width = 0, height = 0, padding = 56, mini
     }
   }
   const lngSpan = 360 - gap;
+
+  // MapKit zooms out no further than a world `worldWidth` pixels wide, so
+  // a map `width` pixels wide shows at most 360 * width / worldWidth
+  // degrees of longitude: about 135 on a phone. A world game's answers
+  // can span more, and framed on the middle of them the phone's summary
+  // showed open sea and hardly a pin. When they cannot all be shown,
+  // frame the stretch that holds the most, weighing each point by its
+  // `weight` (answers count double: they are what the player wants to see).
+  if (width > 0 && lngSpan > (360 * width) / worldWidth) {
+    const room = (360 * Math.max(width - padding * 2, width / 2)) / worldWidth;
+    let best = null;
+    for (const start of points) {
+      const from = wrap(start.lng);
+      const inside = points.filter((p) => (wrap(p.lng) - from + 360) % 360 <= room);
+      const score = inside.reduce((sum, p) => sum + (p.weight ?? 1), 0);
+      if (!best || score > best.score) best = { score, inside };
+    }
+    if (best.inside.length < points.length) {
+      return regionAround(best.inside, { width, height, padding, minimumSpan, worldWidth });
+    }
+  }
   let lng = west + lngSpan / 2;
   if (lng > 180) lng -= 360;
   const south = Math.min(...lats);
