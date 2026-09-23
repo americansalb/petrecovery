@@ -299,16 +299,20 @@ export function LoadingPanel({ state }) {
       role="status"
       aria-live="polite"
     >
-      <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
-      <p className="mt-4 text-lg font-semibold">
-        Round{" "}
-        {state.room.roundIndex + 2 > state.room.roundsTotal
-          ? state.room.roundsTotal
-          : state.room.roundIndex + 2}
-      </p>
-      <p className="mt-1 text-sm text-white/70">
-        Finding a place with imagery for everyone
-      </p>
+      {/* The dark screen is there at once, so the last round does not
+          show through it; what it says rises in. */}
+      <div className="pe-swap flex flex-col items-center">
+        <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
+        <p className="mt-4 text-lg font-semibold">
+          Round{" "}
+          {state.room.roundIndex + 2 > state.room.roundsTotal
+            ? state.room.roundsTotal
+            : state.room.roundIndex + 2}
+        </p>
+        <p className="mt-1 text-sm text-white/70">
+          Finding a place with imagery for everyone
+        </p>
+      </div>
     </div>
   );
 }
@@ -322,16 +326,18 @@ export function LocatingPanel({ state, attempt = 0 }) {
       role="status"
       aria-live="polite"
     >
-      <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
-      <p className="mt-4 text-lg font-semibold">
-        Round {state.room.roundIndex + 1} of {state.room.roundsTotal}
-      </p>
-      <p className="mt-1 text-sm text-white/70">
-        Finding Look Around imagery for everyone
-        {attempt
-          ? `, place ${Math.min(attempt, total || attempt)} of ${total || "?"}`
-          : ""}
-      </p>
+      <div className="pe-swap flex flex-col items-center">
+        <RefreshCw className="h-9 w-9 animate-spin text-clay-300" />
+        <p className="mt-4 text-lg font-semibold">
+          Round {state.room.roundIndex + 1} of {state.room.roundsTotal}
+        </p>
+        <p className="mt-1 text-sm text-white/70">
+          Finding Look Around imagery for everyone
+          {attempt
+            ? `, place ${Math.min(attempt, total || attempt)} of ${total || "?"}`
+            : ""}
+        </p>
+      </div>
     </div>
   );
 }
@@ -744,8 +750,14 @@ export function ReactionToasts({ reactions, players }) {
     if (!fresh.length) return;
     seenRef.current = fresh[fresh.length - 1].at;
     const shownAt = Date.now();
+    // Each toast keeps one key for its whole life. It was keyed on its
+    // place in the list, so when the oldest went every other toast got
+    // a new key, was mounted again, and started its animation over.
     setShown((list) =>
-      [...list, ...fresh.map((r) => ({ ...r, shownAt }))].slice(-6),
+      [
+        ...list,
+        ...fresh.map((r, j) => ({ ...r, shownAt, key: `${r.at}-${r.p}-${j}` })),
+      ].slice(-6),
     );
     setTimeout(
       () =>
@@ -756,12 +768,12 @@ export function ReactionToasts({ reactions, players }) {
   if (!shown.length) return null;
   return (
     <div className="pointer-events-none absolute bottom-32 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-1">
-      {shown.map((r, i) => {
+      {shown.map((r) => {
         const p = byId[r.p];
         return (
           <div
-            key={`${r.at}-${i}`}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-ocean-900/85 px-3 py-1 text-sm shadow-lg backdrop-blur"
+            key={r.key}
+            className="pe-reaction flex items-center gap-1.5 rounded-full border border-white/15 bg-ocean-900/85 px-3 py-1 text-sm shadow-lg backdrop-blur"
           >
             <span className="text-lg">{r.e}</span>
             <span

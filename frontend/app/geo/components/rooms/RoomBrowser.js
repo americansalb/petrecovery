@@ -534,7 +534,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
               <p className="pe-directory-note">Finding open rooms…</p>
             ) : null}
             {rooms && !rooms.length ? (
-              <div className="pe-empty-rooms">
+              <div className="pe-empty-rooms pe-swap">
                 <span className="pe-empty-orbits" aria-hidden="true">
                   <Compass size={35} />
                   <Users size={25} />
@@ -546,10 +546,13 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
                 </p>
               </div>
             ) : null}
+            {/* The list refreshes every four seconds. Rows are keyed on
+                the room code, so a room that is already listed stays
+                still and only a new one arrives. */}
             {rooms?.length ? (
-              <ul className="pe-room-list">
-                {rooms.map((room) => (
-                  <li key={room.code}>
+              <ul className="pe-room-list pe-stagger">
+                {rooms.map((room, i) => (
+                  <li key={room.code} style={{ "--i": i }}>
                     <div>
                       <strong>{room.name}</strong>
                       <span>

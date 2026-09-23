@@ -207,6 +207,89 @@
   to { opacity: 0; }
 }
 
+/* ---- Opening over the page ---------------------------------------- */
+
+/* The sign-in sheet. It is the one screen that asks a player for
+   something, and it was there, whole, in the frame after the click, and
+   gone in the frame after Close. It rises into place over a backdrop
+   that dims in, and leaves the same way: AccountDialog adds
+   pe-dialog-leaving and waits DIALOG_EXIT_MS before the page removes
+   it. A modal dialog sits in the top layer, which no ancestor's
+   transform can reach, so moving it disturbs nothing behind it. The
+   backdrop's timings are written out because ::backdrop does not
+   inherit the tokens in every browser. */
+.geo-surface .pe-account-dialog[open] {
+  animation: pe-dialog-in var(--pe-dur-page) var(--pe-ease-out) backwards;
+}
+.geo-surface .pe-account-dialog[open]::backdrop {
+  animation: pe-page-fade 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.geo-surface .pe-account-dialog.pe-dialog-leaving {
+  animation: pe-dialog-out 180ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+.geo-surface .pe-account-dialog.pe-dialog-leaving::backdrop {
+  animation: pe-fade-out 180ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes pe-dialog-in {
+  from { opacity: 0; translate: 0 18px; scale: 0.97; }
+}
+@keyframes pe-dialog-out {
+  to { opacity: 0; translate: 0 10px; scale: 0.98; }
+}
+
+/* A disclosure opens rather than snapping: More ways to play, a room's
+   custom rules, a Script clue, the rank ladder. What it holds rises
+   into place, and where the browser can animate a height to `auto`
+   the box grows to fit it (Chromium today; elsewhere it opens at once,
+   as it always has). The clip margin leaves room for a focus ring on
+   the edge of the box. */
+.geo-surface details[open] > :not(summary) {
+  animation: pe-swap-in var(--pe-dur-base) var(--pe-ease-out) backwards;
+}
+@supports (interpolate-size: allow-keywords) {
+  .geo-surface details {
+    interpolate-size: allow-keywords;
+  }
+  .geo-surface details::details-content {
+    block-size: 0;
+    overflow: clip;
+    overflow-clip-margin: 6px;
+    transition:
+      block-size var(--pe-dur-base) var(--pe-ease-out),
+      content-visibility var(--pe-dur-base) allow-discrete;
+  }
+  .geo-surface details[open]::details-content {
+    block-size: auto;
+  }
+}
+
+/* ---- A room -------------------------------------------------------- */
+
+/* A room moves between its screens - joining, the lobby, the final
+   standings - by replacing one with the next. The dark stage is there
+   at once, so the round behind it never shows through while it
+   arrives; the card on it rises into place. */
+.geo-surface .pe-room-stage > div {
+  animation: pe-card-rise var(--pe-dur-page) var(--pe-ease-out) backwards;
+}
+@keyframes pe-card-rise {
+  from { opacity: 0; translate: 0 16px; scale: 0.985; }
+}
+
+/* A reaction floats up into the room, holds, and goes, instead of
+   blinking on and off. ReactionToasts keeps each one for four seconds
+   and so does this, so it has already faded when React takes it away.
+   It pops in on the springy curve and leaves on the travelling one. */
+.geo-surface .pe-reaction {
+  animation: pe-reaction 4s linear forwards;
+}
+@keyframes pe-reaction {
+  0% { opacity: 0; translate: 0 14px; scale: 0.7; animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  9% { opacity: 1; translate: 0 0; scale: 1; }
+  82% { opacity: 1; translate: 0 0; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+  100% { opacity: 0; translate: 0 -12px; }
+}
+
 /* ---- Less motion --------------------------------------------------- */
 
 /* Everything above ends where it was going, at once. The press gives no
@@ -219,8 +302,24 @@
   .geo-surface .pe-fade-in,
   .geo-surface .pe-swap,
   .geo-surface .pe-stagger > *,
-  .geo-surface .pe-skeleton::after {
+  .geo-surface .pe-skeleton::after,
+  .geo-surface .pe-account-dialog[open],
+  .geo-surface .pe-account-dialog[open]::backdrop,
+  .geo-surface .pe-account-dialog.pe-dialog-leaving,
+  .geo-surface .pe-account-dialog.pe-dialog-leaving::backdrop,
+  .geo-surface details[open] > :not(summary),
+  .geo-surface .pe-room-stage > div {
     animation: none !important;
+  }
+  /* A reaction still has to go after its four seconds, so it keeps the
+     timing and loses the movement. */
+  .geo-surface .pe-reaction {
+    animation-name: pe-fade-out;
+    animation-duration: 0s;
+    animation-delay: 4s;
+  }
+  .geo-surface details::details-content {
+    transition: none;
   }
   .geo-surface .pe-fade-out {
     animation: none !important;

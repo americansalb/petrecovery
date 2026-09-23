@@ -172,3 +172,68 @@ describe('the front door', () => {
     expect(experience.css).toMatch(/\.pe-world--script \.pe-world-shade::after \{\s*opacity: 1;/);
   });
 });
+
+/*
+ * The second pass: what still appeared or vanished in a single frame
+ * after the pages and the reveal moved. Found by walking every overlay,
+ * disclosure and room screen after #304 shipped.
+ */
+describe('things that open over the page', () => {
+  const motion = sheets.find((s) => s.rel === 'motion.css');
+  const rule = (selector) => {
+    const at = motion.css.indexOf(`${selector} {`);
+    expect({ selector, found: at >= 0 }).toEqual({ selector, found: true });
+    return motion.css.slice(at, motion.css.indexOf('}', at));
+  };
+  const read = (rel) => fs.readFileSync(path.join(GEO, rel), 'utf8');
+
+  test('the sign-in sheet rises in over a backdrop that dims in', () => {
+    expect(rule('.geo-surface .pe-account-dialog[open]')).toMatch(/animation: pe-dialog-in [^;]*backwards/);
+    expect(rule('.geo-surface .pe-account-dialog[open]::backdrop')).toMatch(/animation: pe-page-fade/);
+    // ::backdrop does not inherit the tokens everywhere; a var() there
+    // is an animation that silently does nothing in those browsers.
+    expect(rule('.geo-surface .pe-account-dialog[open]::backdrop')).not.toMatch(/var\(/);
+  });
+
+  test('a disclosure opens instead of snapping', () => {
+    expect(rule('.geo-surface details[open] > :not(summary)')).toMatch(/animation: pe-swap-in/);
+    // The height only animates where the browser can interpolate to
+    // `auto`; everywhere else it must open exactly as it always has.
+    expect(motion.css).toMatch(/@supports \(interpolate-size: allow-keywords\) \{\s*\.geo-surface details \{/);
+  });
+
+  test("a room's card rises, and its dark stage is there at once", () => {
+    // Fading the stage in would show the last round through it for a
+    // quarter of a second on every change of screen.
+    expect(rule('.geo-surface .pe-room-stage > div')).toMatch(/animation: pe-card-rise [^;]*backwards/);
+    expect(motion.css).not.toMatch(/\.pe-room-stage \{[^}]*animation/);
+    const panels = read('components/rooms/RoomPanels.js');
+    for (const panel of ['LoadingPanel', 'LocatingPanel']) {
+      const body = panels.slice(panels.indexOf(`export function ${panel}`));
+      const markup = body.slice(0, body.indexOf('\n}\n'));
+      // The spinner sits inside the arriving wrapper, never carrying
+      // the arrival itself: the arrival's `animation` would replace its
+      // spin and stop it.
+      expect({ panel, wrapped: /<div className="pe-swap flex flex-col items-center">\s*<RefreshCw className="h-9 w-9 animate-spin/.test(markup) })
+        .toEqual({ panel, wrapped: true });
+    }
+  });
+
+  test('each sign-in step arrives as a new element', () => {
+    // Same element type at the same place, so without a key React would
+    // rewrite the step in place and the arrival would never replay.
+    const card = read('components/SignInCard.js');
+    for (const key of ['checking', 'error', 'account', 'sent', 'form']) {
+      expect({ key, keyed: card.includes(`key="${key}"`) }).toEqual({ key, keyed: true });
+    }
+    expect(card).toMatch(/key="sent" className="pe-swap/);
+    expect(card).toMatch(/key="form" className=\{`pe-swap /);
+  });
+
+  test("the bar's session control fades in, and nothing else in the bar moves", () => {
+    const header = read('components/GeoHeader.js');
+    expect(header).toMatch(/className="pe-header-cta pe-fade-in"/);
+    expect(header).toMatch(/className="pe-header-who pe-fade-in"/);
+    expect(header.match(/pe-fade-in|pe-swap|pe-stagger/g)).toHaveLength(2);
+  });
+});
