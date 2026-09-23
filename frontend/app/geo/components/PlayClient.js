@@ -642,7 +642,17 @@ function StreetPlayGame({ params }) {
                   : 'Could not start the round'
           }
           message={state.error?.message || 'Something went wrong.'}
-          onRetry={metered && state.error.code !== 'speed' ? null : () => dispatch({ type: 'retry' })}
+          onRetry={
+            metered && state.error.code !== 'speed'
+              ? null
+              : state.error?.code === 'imagery_unresponsive'
+                // A spot that never answered is still holding this page's
+                // Look Around, and every view asked for here would wait
+                // behind it (lib/lookAround.js, STALL_MS). A reload is a
+                // fresh MapKit.
+                ? () => window.location.reload()
+                : () => dispatch({ type: 'retry' })
+          }
           resetAt={metered ? state.error.resetAt : null}
         />
       ) : null}

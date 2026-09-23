@@ -6,8 +6,9 @@
  * Measured on the live site, broken down per stage:
  *
  *   ~3.5s  MapKit initialising, before the first spot is even tried
- *    4.2s  each spot with no imagery (the full PER_CANDIDATE_MS: Apple
- *          does not fire `error` for these, it simply never answers)
+ *    4.2s  each spot with no imagery (the full PER_CANDIDATE_MS. That
+ *          silence was a page the timeout itself had wedged; a healthy
+ *          page answers a miss in about 1.5s: lib/lookAround.js, STALL_MS)
  *   ~2.9s  the spot that works
  *
  * The first line is the one that is free to remove. initializeMapKit
