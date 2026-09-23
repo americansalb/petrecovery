@@ -28,13 +28,15 @@ export const TILE_MAX_ZOOM = 19;
 
 /**
  * Leaflet options for the basemap. `dark: true` draws it inverted, for the
- * screens designed on a dark map.
+ * screens designed on a dark map; `calm: true` mutes OpenStreetMap's
+ * colours so pins stand out on the redesigned light pages.
  */
-export function tileLayerOptions({ dark = false, ...rest } = {}) {
+export function tileLayerOptions({ dark = false, calm = false, ...rest } = {}) {
+  const className = dark ? 'map-tiles-dark' : calm ? 'map-tiles-calm' : undefined;
   return {
     attribution: TILE_ATTRIBUTION,
     maxZoom: TILE_MAX_ZOOM,
-    ...(dark ? { className: 'map-tiles-dark' } : {}),
+    ...(className ? { className } : {}),
     ...rest,
   };
 }

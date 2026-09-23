@@ -8,7 +8,7 @@
  * NO AUTHENTICATION REQUIRED (public endpoints)
  */
 
-import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
+import { parsePlace } from '@/app/lib/placeLabel';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
@@ -151,23 +151,17 @@ export async function GET(request) {
       prisma.case.count({ where })
     ]);
 
-    // Parse city/state from lastSeenAddress for each case
+    // Town and state from the last-seen address (app/lib/placeLabel.js).
+    // `place` is the ready label ("Orlando, FL"); city and state keep
+    // their old fallbacks for the pages that print them side by side.
     const cases = casesRaw.map(caseItem => {
-      let city = 'Unknown';
-      let state = 'XX';
-      if (caseItem.lastSeenAddress && !looksLikeCoordinates(caseItem.lastSeenAddress)) {
-        const parts = caseItem.lastSeenAddress.split(',');
-        if (parts.length >= 2) {
-          city = parts[parts.length - 2]?.trim() || 'Unknown';
-          const stateZip = parts[parts.length - 1]?.trim() || '';
-          state = stateZip.substring(0, 2).toUpperCase() || 'XX';
-        }
-      }
+      const place = parsePlace(caseItem.lastSeenAddress);
       return {
         ...caseItem,
         petPhotoUrl: normalizePhotoUrl(caseItem.petPhotoUrl),
-        city,
-        state,
+        city: place?.city || 'Unknown',
+        state: place?.state || 'XX',
+        place: place?.label || null,
         isUrgent: caseItem.priority === 'URGENT',
         sightingCount: caseItem._count?.sightings || 0,
       };

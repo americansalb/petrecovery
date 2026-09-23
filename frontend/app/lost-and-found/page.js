@@ -1,41 +1,35 @@
 'use client';
 
 /**
- * Lost & Found - the corkboard
+ * Lost & Found: every pet reported lost or found, and every reunion.
  *
- * Design language: the lost-pet flyer, made digital. Every case is a
- * flyer pinned a little crooked to the board: full-bleed photo, a
- * rubber-stamped status, the name in poster capitals, and tear-off
- * tabs carrying the case number. Above it all, a search beacon sweeps
- * the night sky. Urgency you can feel; reunions stamped HOME in green.
+ * One search box, species chips, three tabs (Lost / Found / Reunited), a
+ * list or a map, and a URL that shares exactly what is on screen. Cards
+ * and map pins describe a pet the same way (app/lib/caseLabels.js).
  *
- * Same machinery as before: one search box, species chips, three tabs
- * (Lost now / Found pets / Reunited), list or map, shareable URLs.
+ * One request per change of question. Per-tab counts were left out on
+ * purpose: they cost three more requests per filter change against a
+ * public limit of 60 a minute, shared by everyone behind one address.
  */
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
-  Search, MapPin, List, Map as MapIcon,
-  Loader2, PawPrint, Megaphone, HeartHandshake, ChevronLeft, ChevronRight,
+  Search, X, List, Map as MapIcon, Megaphone, ChevronLeft, ChevronRight, PawPrint,
 } from 'lucide-react';
 
-import FlyerCard from '@/app/components/FlyerCard';
+import { Button } from '@/components/ui';
+import PetCard from './PetCard';
 
 const BrowseMap = dynamic(() => import('./BrowseMap'), {
   ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-midnight-100 rounded-3xl">
-      <Loader2 size={28} className="animate-spin text-midnight-400" />
-    </div>
-  ),
+  loading: () => <div className="h-full w-full animate-pulse bg-midnight-100" />,
 });
 
 const TABS = [
-  { id: 'lost', label: 'Lost now', params: { type: 'LOST', status: 'LIVE' } },
-  { id: 'found', label: 'Found pets', params: { type: 'FOUND', status: 'LIVE' } },
+  { id: 'lost', label: 'Lost', params: { type: 'LOST', status: 'LIVE' } },
+  { id: 'found', label: 'Found', params: { type: 'FOUND', status: 'LIVE' } },
   { id: 'reunited', label: 'Reunited', params: { type: 'ALL', status: 'REUNITED' } },
 ];
 
@@ -47,19 +41,30 @@ const SPECIES = [
   { id: 'OTHER', label: 'Other' },
 ];
 
+const VIEWS = [
+  { id: 'list', label: 'List', icon: List },
+  { id: 'map', label: 'Map', icon: MapIcon },
+];
+
+const PAGE_SIZE = 18;
+
+function plural(n, one, many) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 /* --------------------------------- Page ----------------------------------- */
 
 function LostAndFoundContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState(searchParams.get('tab') || 'lost');
+  const [tab, setTab] = useState(TABS.some((t) => t.id === searchParams.get('tab')) ? searchParams.get('tab') : 'lost');
   const [species, setSpecies] = useState(searchParams.get('species') || '');
   const [q, setQ] = useState(searchParams.get('q') || '');
-  const [view, setView] = useState(searchParams.get('view') || 'list');
-  const [page, setPage] = useState(Math.max(parseInt(searchParams.get('page') || '1'), 1));
+  const [view, setView] = useState(searchParams.get('view') === 'map' ? 'map' : 'list');
+  const [page, setPage] = useState(Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1));
 
-  const [debouncedQ, setDebouncedQ] = useState(q);
+  const [debouncedQ, setDebouncedQ] = useState(q.trim());
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim()), 400);
     return () => clearTimeout(t);
@@ -68,6 +73,8 @@ function LostAndFoundContent() {
   const [cases, setCases] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   // Keep the URL shareable
   useEffect(() => {
@@ -87,301 +94,277 @@ function LostAndFoundContent() {
     const params = new URLSearchParams({
       ...tabDef.params,
       page: String(page),
-      limit: view === 'map' ? '100' : '18',
+      limit: view === 'map' ? '100' : String(PAGE_SIZE),
     });
     if (species) params.set('species', species);
     if (debouncedQ) params.set('q', debouncedQ);
 
     setLoading(true);
+    setFailed(false);
     fetch(`/api/public/missions?${params}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         if (!alive) return;
         setCases(data.cases || []);
         setPagination(data.pagination || null);
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!alive) return;
+        setCases([]);
+        setPagination(null);
+        setFailed(true);
+      })
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [tab, species, debouncedQ, page, view]);
+  }, [tab, species, debouncedQ, page, view, attempt]);
 
-  // Reset page when the question changes
+  // A new question starts on the first page
   useEffect(() => { setPage(1); }, [tab, species, debouncedQ]);
 
-  const countLine = useMemo(() => {
+  const filtered = Boolean(species || debouncedQ);
+  const clearFilters = () => { setSpecies(''); setQ(''); };
+
+  const resultLine = useMemo(() => {
     if (loading || !pagination) return null;
     const n = pagination.totalCount;
-    // With a search active the count describes the MATCHES, not the
-    // neighborhood: "0 pets missing right now" under a nonsense query
-    // read as good news that wasn't true.
-    if (debouncedQ) {
-      return `${n} ${n === 1 ? 'match' : 'matches'} for "${debouncedQ}"`;
-    }
-    if (tab === 'reunited') return `${n} ${n === 1 ? 'pet' : 'pets'} brought home`;
-    if (tab === 'found') return `${n} found ${n === 1 ? 'pet' : 'pets'} waiting to be claimed`;
-    return `${n} ${n === 1 ? 'pet' : 'pets'} missing right now`;
+    // With a search active the count describes the matches, not the
+    // neighborhood: "0 pets missing" under a typo is not good news.
+    if (debouncedQ) return `${plural(n, 'match', 'matches')} for “${debouncedQ}”`;
+    if (tab === 'reunited') return `${plural(n, 'pet', 'pets')} back home`;
+    if (tab === 'found') return `${plural(n, 'found pet', 'found pets')} waiting for their owners`;
+    return `${plural(n, 'pet', 'pets')} missing right now`;
   }, [loading, pagination, tab, debouncedQ]);
 
   return (
     <div className="min-h-screen bg-midnight-50">
-      <style>{`
-        @keyframes beacon-sweep {
-          0%   { transform: translateX(-30%) skewX(-12deg); opacity: 0.0; }
-          12%  { opacity: 0.55; }
-          50%  { transform: translateX(120%) skewX(-12deg); opacity: 0.45; }
-          88%  { opacity: 0.55; }
-          100% { transform: translateX(-30%) skewX(-12deg); opacity: 0.0; }
-        }
-        @keyframes beacon-pulse {
-          0%, 100% { opacity: 0.25; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
-
-      {/* Night sky + search beacon */}
-      <div className="relative overflow-hidden bg-midnight-950 border-b-4 border-flash-400">
-        {/* Street-map texture */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 opacity-[0.13]"
-          style={{
-            backgroundImage:
-              'linear-gradient(#94a3b8 1px, transparent 1px), linear-gradient(90deg, #94a3b8 1px, transparent 1px)',
-            backgroundSize: '56px 56px',
-          }}
-        />
-        {/* The beacon */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-24 bottom-0 w-[420px]"
-          style={{
-            background: 'linear-gradient(180deg, rgba(250,204,21,0.16) 0%, rgba(250,204,21,0.05) 60%, transparent 100%)',
-            animation: 'beacon-sweep 9s ease-in-out infinite',
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-32 right-[12%] w-[480px] h-[480px] rounded-full bg-flash-400/15 blur-3xl"
-          style={{ animation: 'beacon-pulse 6s ease-in-out infinite' }}
-        />
-
-        <div className="relative max-w-6xl mx-auto px-4 pt-12 pb-10 sm:pt-16 sm:pb-12">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div className="max-w-2xl">
-              <p className="text-flash-400 font-black uppercase tracking-[0.3em] text-xs mb-3">
-                The neighborhood board
-              </p>
-              <h1 className="font-black uppercase text-white leading-[0.92] tracking-tight text-5xl sm:text-7xl">
-                Lost is<br />
-                <span className="relative inline-block">
-                  not gone.
-                  <span aria-hidden="true" className="absolute left-0 right-0 -bottom-1 h-3 bg-flash-400 -skew-x-6" />
-                </span>
-              </h1>
-              <p className="text-midnight-300 mt-5 text-lg">
-                Every lost pet, every found pet, every reunion. One board.
+      {/* Title, the two reports, and the controls */}
+      <header className="border-b border-midnight-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 pb-5 pt-8 sm:pt-10">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-xl">
+              <h1 className="text-3xl font-bold tracking-tight text-midnight-900 sm:text-4xl">Lost &amp; Found</h1>
+              <p className="mt-2 text-midnight-500">
+                Pets reported lost or found on ReunitePets. Open one to see where it was last seen and how you can help.
               </p>
             </div>
-            <Link
-              href="/report/new"
-              className="group relative flex items-center gap-2.5 px-6 py-4 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-black uppercase tracking-wide rounded-none -rotate-1 hover:rotate-0 transition-all shadow-[4px_4px_0_rgba(250,204,21,0.25)]"
-            >
-              <Megaphone size={19} />
-              Report a pet
-            </Link>
+            <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row">
+              <Button href="/report/new" variant="primary" size="lg" leftIcon={Megaphone}>
+                Report a lost pet
+              </Button>
+              <Button href="/report/found" variant="outline" size="lg">
+                Report a found pet
+              </Button>
+            </div>
           </div>
 
-          {/* The spotlight search */}
-          <div className="relative mt-9 max-w-3xl">
-            <Search size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-midnight-400" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Name, breed, color, city or ZIP..."
-              className="w-full h-16 pl-14 pr-5 bg-white text-midnight-950 text-lg font-medium placeholder:text-midnight-400 focus:outline-none focus:ring-4 focus:ring-flash-400/60 shadow-[0_12px_40px_rgba(250,204,21,0.12)]"
-            />
+          <div className="mt-7 flex flex-col gap-3 lg:flex-row lg:items-center">
+            {/* Lost / Found / Reunited */}
+            <div role="tablist" aria-label="Which pets" className="grid grid-cols-3 rounded-xl bg-midnight-100 p-1 lg:w-80 lg:shrink-0">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
+                    tab === t.id ? 'bg-white text-midnight-900 shadow-sm' : 'text-midnight-500 hover:text-midnight-900'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-midnight-400" aria-hidden="true" />
+              <input
+                type="search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Name, breed, color, city or ZIP"
+                aria-label="Search pets"
+                className="h-11 w-full rounded-xl border border-midnight-200 bg-white pl-10 pr-10 text-midnight-900 placeholder:text-midnight-400 focus:border-midnight-400 focus:outline-none focus:ring-2 focus:ring-flash-400/60"
+              />
+              {q && (
+                <button
+                  type="button"
+                  onClick={() => setQ('')}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-midnight-400 hover:bg-midnight-100 hover:text-midnight-700"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 mt-5">
-            <div className="flex gap-1.5 flex-wrap">
+          {/* Species */}
+          <div className="mt-3">
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {SPECIES.map((s) => (
                 <button
                   key={s.id}
                   type="button"
+                  aria-pressed={species === s.id}
                   onClick={() => setSpecies(s.id)}
-                  className={`px-4 py-1.5 text-xs font-black uppercase tracking-wider transition ${
+                  className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
                     species === s.id
-                      ? 'bg-flash-400 text-midnight-950 -rotate-1'
-                      : 'bg-midnight-800/80 text-midnight-300 hover:text-white border border-midnight-700'
+                      ? 'bg-midnight-900 text-white'
+                      : 'bg-white text-midnight-600 ring-1 ring-midnight-200 hover:ring-midnight-300'
                   }`}
                 >
                   {s.label}
                 </button>
               ))}
             </div>
-            <div className="flex border border-midnight-700">
-              {[{ id: 'list', icon: List, label: 'Board' }, { id: 'map', icon: MapIcon, label: 'Map' }].map(({ id, icon: Icon, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setView(id)}
-                  className={`flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-wider transition ${
-                    view === id ? 'bg-flash-400 text-midnight-950' : 'bg-midnight-900 text-midnight-300 hover:text-white'
-                  }`}
-                >
-                  <Icon size={14} />
-                  {label}
-                </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Results */}
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="min-h-[1.25rem] text-sm text-midnight-500" aria-live="polite">{resultLine}</p>
+          <div className="flex shrink-0 rounded-xl bg-midnight-100 p-1" role="group" aria-label="Show as">
+            {VIEWS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={view === id}
+                onClick={() => setView(id)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flash-400 ${
+                  view === id ? 'bg-white text-midnight-900 shadow-sm' : 'text-midnight-500 hover:text-midnight-900'
+                }`}
+              >
+                <Icon size={15} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loading ? (
+          view === 'map' ? (
+            <div className="h-[70vh] min-h-[420px] animate-pulse rounded-2xl bg-midnight-100" />
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex gap-4 rounded-2xl bg-white p-3 ring-1 ring-midnight-200 sm:block sm:p-0">
+                  <div className="h-28 w-28 shrink-0 animate-pulse rounded-xl bg-midnight-100 sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none sm:rounded-t-2xl" />
+                  <div className="flex-1 space-y-2 py-1 sm:p-4">
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-midnight-100" />
+                    <div className="h-3 w-1/2 animate-pulse rounded bg-midnight-100" />
+                    <div className="h-3 w-3/5 animate-pulse rounded bg-midnight-100" />
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tape tabs */}
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex gap-2 pt-5 -mb-px">
-          {TABS.map((t, i) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`px-5 py-2.5 text-xs font-black uppercase tracking-wider transition-all shadow-sm ${
-                tab === t.id
-                  ? `bg-flash-400 text-midnight-950 ${i % 2 ? 'rotate-1' : '-rotate-1'} shadow-md`
-                  : 'bg-white/70 text-midnight-400 hover:text-midnight-800 hover:bg-white rotate-0'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* The corkboard */}
-      <div
-        className="border-t-2 border-midnight-200"
-        style={{
-          backgroundImage: 'radial-gradient(rgba(15,23,42,0.07) 1.2px, transparent 1.2px)',
-          backgroundSize: '18px 18px',
-          backgroundColor: '#f6f4ee',
-        }}
-      >
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          {countLine && (
-            <p className="text-[11px] font-black uppercase tracking-[0.25em] text-midnight-400 mb-7">{countLine}</p>
-          )}
-
-          {loading ? (
-            <div className="flex justify-center py-24">
-              <Loader2 size={32} className="animate-spin text-midnight-300" />
-            </div>
-          ) : cases.length === 0 ? (
-            <div className="text-center py-20 max-w-md mx-auto">
-              <PawPrint size={36} className="text-midnight-300 mx-auto mb-4" />
-              <h3 className="text-xl font-black uppercase tracking-tight text-midnight-900">
-                {tab === 'reunited' ? 'No reunions match yet' : 'Nothing on the board'}
-              </h3>
-              <p className="text-sm text-midnight-500 mt-1.5 mb-6">
-                {tab === 'lost'
-                  ? 'Good news for the neighborhood, or time to widen the search.'
-                  : tab === 'found'
-                    ? 'No found pets reported here yet.'
-                    : 'Every reunion gets pinned here, named and celebrated.'}
-              </p>
-              <Link
-                href={tab === 'found' ? '/report/found' : '/report/new'}
-                className="inline-flex items-center gap-2 px-6 py-3.5 bg-flash-400 hover:bg-flash-300 text-midnight-950 font-black uppercase tracking-wide -rotate-1 hover:rotate-0 transition-all"
-              >
-                <Megaphone size={16} />
-                {tab === 'found' ? 'Report a found pet' : 'Report a lost pet'}
-              </Link>
-            </div>
-          ) : view === 'map' ? (
-            <div className="h-[560px] overflow-hidden border-4 border-midnight-950 shadow-[8px_8px_0_rgba(15,23,42,0.15)]">
-              <BrowseMap cases={cases} />
-            </div>
+          )
+        ) : failed ? (
+          <EmptyState
+            title="The list did not load"
+            body="Check your connection and try again."
+            action={<Button variant="secondary" onClick={() => setAttempt((a) => a + 1)}>Try again</Button>}
+          />
+        ) : cases.length === 0 ? (
+          filtered ? (
+            <EmptyState
+              title="No pets match"
+              body={`Nothing in ${TABS.find((t) => t.id === tab)?.label.toLowerCase()} matches. Try another word or clear the filters.`}
+              action={<Button variant="secondary" onClick={clearFilters}>Clear filters</Button>}
+            />
+          ) : tab === 'found' ? (
+            <EmptyState
+              title="No found pets reported"
+              body="If you have found a pet, report it and we will compare it with the lost pets reported nearby."
+              action={<Button href="/report/found" variant="primary">Report a found pet</Button>}
+            />
+          ) : tab === 'reunited' ? (
+            <EmptyState title="No reunions yet" body="Pets that make it home are listed here." />
           ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-7 gap-y-9 pt-2">
-                {cases.map((c, i) => (
-                  <FlyerCard key={c.id} c={c} index={i} />
-                ))}
-              </div>
-
-              {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 mt-10">
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    aria-label="Previous page"
-                    className="w-10 h-10 border-2 border-midnight-300 bg-white flex items-center justify-center text-midnight-600 hover:border-midnight-900 disabled:opacity-40 transition"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <span className="text-xs font-black uppercase tracking-widest text-midnight-500">
-                    Page {page} / {pagination.totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => p + 1)}
-                    disabled={!pagination.hasMore}
-                    aria-label="Next page"
-                    className="w-10 h-10 border-2 border-midnight-300 bg-white flex items-center justify-center text-midnight-600 hover:border-midnight-900 disabled:opacity-40 transition"
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Found-a-pet strip */}
-      <div className="bg-midnight-950 border-t-4 border-flash-400">
-        <div className="max-w-6xl mx-auto px-4 py-10 flex flex-wrap items-center justify-between gap-5">
-          <div className="flex items-center gap-4">
-            <span className="w-13 h-13 p-3 bg-flash-400 -rotate-3 shrink-0">
-              <HeartHandshake size={26} className="text-midnight-950" />
-            </span>
-            <div>
-              <h2 className="text-xl font-black uppercase tracking-tight text-white">Found a pet wandering?</h2>
-              <p className="text-sm text-midnight-300">
-                Report it and our match engine compares it with every lost report nearby.
-              </p>
+            <EmptyState
+              title="No lost pets reported"
+              body="If your pet is missing, report it and neighbors can start looking."
+              action={<Button href="/report/new" variant="primary" leftIcon={Megaphone}>Report a lost pet</Button>}
+            />
+          )
+        ) : view === 'map' ? (
+          <div className="h-[70vh] min-h-[420px] overflow-hidden rounded-2xl ring-1 ring-midnight-200">
+            <BrowseMap cases={cases} />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+              {cases.map((c) => (
+                <PetCard key={c.id} c={c} />
+              ))}
             </div>
+
+            {pagination && pagination.totalPages > 1 && (
+              <nav className="mt-8 flex items-center justify-center gap-3" aria-label="Pages">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  leftIcon={ChevronLeft}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-midnight-500">
+                  Page {page} of {pagination.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={!pagination.hasMore}
+                  rightIcon={ChevronRight}
+                >
+                  Next
+                </Button>
+              </nav>
+            )}
+          </>
+        )}
+
+        {/* Found a pet */}
+        <section className="mt-12 flex flex-col gap-4 rounded-2xl bg-white p-6 ring-1 ring-midnight-200 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-midnight-900">Found a pet?</h2>
+            <p className="mt-1 text-sm text-midnight-500">
+              Report it and we will compare it with the lost pets reported nearby.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-2.5">
-            <Link
-              href="/report/found"
-              className="px-5 py-3 bg-white hover:bg-flash-50 text-midnight-950 font-black uppercase tracking-wide text-sm -rotate-1 hover:rotate-0 transition-all"
-            >
-              Report a found pet
-            </Link>
-            <Link
-              href="/shelters"
-              className="px-5 py-3 border-2 border-midnight-600 hover:border-flash-400 text-white font-bold uppercase tracking-wide text-sm transition"
-            >
-              Shelters near you
-            </Link>
+          <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row">
+            <Button href="/report/found" variant="secondary">Report a found pet</Button>
+            <Button href="/shelters" variant="outline">Find a shelter</Button>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function EmptyState({ title, body, action }) {
+  return (
+    <div className="mx-auto max-w-md rounded-2xl bg-white px-6 py-12 text-center ring-1 ring-midnight-200">
+      <PawPrint size={32} className="mx-auto text-midnight-300" aria-hidden="true" />
+      <h2 className="mt-3 text-lg font-semibold text-midnight-900">{title}</h2>
+      <p className="mt-1 text-sm text-midnight-500">{body}</p>
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
 export default function LostAndFoundPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-midnight-50 flex items-center justify-center">
-          <Loader2 size={32} className="animate-spin text-midnight-300" />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="min-h-screen bg-midnight-50" />}>
       <LostAndFoundContent />
     </Suspense>
   );

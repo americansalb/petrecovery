@@ -334,6 +334,12 @@ img {
   filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
 }
 
+/* The redesigned light pages mute the standard tiles so the pins, not the
+   roads, carry the colour (tileLayerOptions({ calm: true })). */
+.map-tiles-calm {
+  filter: saturate(0.35) brightness(1.04) contrast(0.92);
+}
+
 /* Leaflet map mobile fixes */
 .leaflet-container {
   touch-action: pan-x pan-y;
