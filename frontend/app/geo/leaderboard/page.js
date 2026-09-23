@@ -124,15 +124,38 @@ export default function GeoLeaderboardPage() {
               : 'Play multiplayer'}
           </Button>
         </div>
+        {/* The line is always there. It used to appear when the board
+            arrived and push the table down 28px while the page was being
+            read, so the shape is held with a placeholder the height of
+            one line of text. */}
         {board?.season ? (
           <p className="mt-2 text-sm text-white/60" data-season>
             {board.season.label} &middot; {board.season.daysLeft}{' '}
             {board.season.daysLeft === 1 ? 'day' : 'days'} left
           </p>
+        ) : !error ? (
+          <p className="mt-2 flex h-5 items-center" aria-hidden="true">
+            <span className="pe-skeleton h-3 w-56" />
+          </p>
+        ) : null}
+
+        {/* Somebody with a profile will get a card here; reserve it before
+            the first paint so it does not shove the board down when it
+            lands. :root[data-geo-profile] is set by an inline script in
+            the layout, before anything is drawn (motion.css). */}
+        {board === null && !error ? (
+          <div className="pe-you-skeleton mt-6" aria-hidden="true">
+            <Card tone="marked">
+              <span className="pe-skeleton block h-3 w-24" />
+              <span className="pe-skeleton mt-4 block h-9 w-40" />
+              <span className="pe-skeleton mt-3 block h-3 w-52" />
+              <span className="pe-skeleton mt-6 block h-3 w-64" />
+            </Card>
+          </div>
         ) : null}
 
         {you ? (
-          <Card tone="marked" className="mt-6 text-white">
+          <Card tone="marked" className="pe-swap mt-6 text-white">
             <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
               You, {you.name}
             </p>
@@ -221,7 +244,10 @@ export default function GeoLeaderboardPage() {
         {/* Rank, player and rating on a phone; the rest as the screen
             allows. Nine columns behind a sideways scroll meant the one
             number this page is about was the one you could not see. */}
-        <Card pad="none" className="mt-6 overflow-x-auto">
+        {/* Keyed on the ladder and on whether it has loaded, so both
+            choosing a ladder and the rows arriving are a fade rather than
+            a swap. */}
+        <Card key={`${ladder}:${board ? 'board' : 'loading'}`} pad="none" className="pe-swap mt-6 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-ocean-950 text-left text-xs uppercase tracking-wide text-white/60">
               <tr>
@@ -247,13 +273,23 @@ export default function GeoLeaderboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10">
+              {/* While the board loads: the empty state itself, invisible,
+                  under a shimmer. The one-line "Loading" row this replaces
+                  was 50px tall and the empty state is 282, so the page
+                  grew by 232px about three seconds in - measured, that was
+                  most of this page's layout shift. Rendering the real
+                  shape invisibly keeps them the same height by
+                  construction, rather than by a number that drifts. */}
               {board === null && !error ? (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-4 py-6 text-center text-white/60"
-                  >
-                    Loading
+                <tr aria-hidden="true">
+                  <td colSpan={9} className="relative px-4 py-6 text-center">
+                    <div className="pe-ladder-empty invisible">
+                      <Trophy size={35} strokeWidth={1.2} />
+                      <strong>No ranked players yet</strong>
+                      <p>Finish {PROVISIONAL_GAMES} placement matches to appear here.</p>
+                      <span>Play</span>
+                    </div>
+                    <span className="pe-skeleton absolute inset-x-4 inset-y-6" />
                   </td>
                 </tr>
               ) : null}

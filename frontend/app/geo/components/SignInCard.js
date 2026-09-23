@@ -168,7 +168,33 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
     }
   };
 
-  if (checkingAccount) return <p role="status" className="py-4 text-sm text-white/70">Checking your account…</p>;
+  // The card's shape while the session is checked. This used to be one
+  // line of text, and the form that replaced it is a card four hundred
+  // pixels tall, so the footer was shoved 367px down the page about
+  // three quarters of a second in (measured: layout shift 0.12, which
+  // is "poor"). The placeholders stand where the title, the two fields
+  // and the button will be; nothing here is a field, so nothing can be
+  // typed into before the page knows who is signed in.
+  if (checkingAccount) return (
+    <div className={compact ? '' : 'rounded-xl border border-white/10 p-4'}>
+      <p role="status" className="text-sm font-semibold text-white/70">Checking your account…</p>
+      <div aria-hidden="true">
+        {!compact ? <>
+          <span className="pe-skeleton mt-2 block h-3.5 w-full" />
+          <span className="pe-skeleton mt-2 block h-3.5 w-3/4" />
+          <span className="pe-skeleton mt-2 block h-3.5 w-1/2" />
+        </> : null}
+        {requireName ? <>
+          <span className="pe-skeleton mt-5 block h-3.5 w-40" />
+          <span className="pe-skeleton mt-2 block h-12 w-full rounded-xl" />
+        </> : null}
+        <span className="pe-skeleton mt-4 block h-3.5 w-16" />
+        <span className="pe-skeleton mt-2 block h-12 w-full rounded-xl" />
+        <span className="pe-skeleton mt-3 block h-12 w-full rounded-xl" />
+        <span className="pe-skeleton mt-2 block h-3 w-2/3" />
+      </div>
+    </div>
+  );
   if (accountError) return (
     <div className="py-4">
       <p role="alert" className="text-sm text-white/80">{accountError}</p>

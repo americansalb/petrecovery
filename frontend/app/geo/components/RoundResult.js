@@ -11,6 +11,7 @@
 import { ArrowRight, Flag, Rocket } from 'lucide-react';
 import { formatDistance, formatScore, MAX_ROUND_SCORE } from '@/app/lib/geo/distance';
 import { useCountUp } from '../lib/countUp';
+import { REVEAL } from '../lib/motion';
 
 /**
  * The reveal for a round that was not on this planet: what it was, and
@@ -59,7 +60,14 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
   // counting it from zero puts "1 m away" on screen for a frame, which
   // at a glance reads as a perfect guess on a round that missed by
   // fifteen thousand kilometres.
-  const shownScore = useCountUp(result.score, { key: roundNumber });
+  //
+  // It climbs on the same clock as the line on the map (REVEAL): it
+  // starts when the line leaves the guess and lands when the line
+  // reaches the answer, so the number and the distance are one event.
+  // It used to count for 700ms from the instant the panel appeared,
+  // which was over before the eye had found the panel.
+  const shownScore = useCountUp(result.score, { key: roundNumber, delayMs: REVEAL.lineDelayMs, durationMs: REVEAL.lineMs });
+  const landDelay = `${REVEAL.landMs}ms`;
   const country = result.answer?.country;
   const place = [result.answer?.city, country?.name].filter(Boolean).join(', ');
   const isNotEarth = result.kind === 'not-earth';
@@ -91,8 +99,8 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
               <p className="text-3xl font-bold tabular-nums text-clay-300">
                 {formatScore(Math.round(shownScore))} <span className="text-base font-medium text-white/60">of {formatScore(MAX_ROUND_SCORE)}</span>
               </p>
-              <div className="pe-score-meter" role="meter" aria-label="Round score" aria-valuemin={0} aria-valuemax={MAX_ROUND_SCORE} aria-valuenow={result.score}><span style={{width:`${Math.max(0,Math.min(100,result.score/MAX_ROUND_SCORE*100))}%`}} /></div>
-              <p className="mt-1 text-white/80">
+              <div className="pe-score-meter" role="meter" aria-label="Round score" aria-valuemin={0} aria-valuemax={MAX_ROUND_SCORE} aria-valuenow={result.score}><span style={{width:`${Math.max(0,Math.min(100,result.score/MAX_ROUND_SCORE*100))}%`, animationDelay: `${REVEAL.lineDelayMs}ms`, animationDuration: `${REVEAL.lineMs}ms`}} /></div>
+              <p className="geo-reveal-land mt-1 text-white/80" style={{ animationDelay: landDelay }}>
                 {wrongCall
                   ? 'That was Earth. No points this round.'
                   : result.timedOut
@@ -102,7 +110,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                       : ''}
               </p>
               {points && (points.earned > 0 || points.badge) ? (
-                <p className="mt-1 text-sm text-clay-300">
+                <p className="geo-reveal-land mt-1 text-sm text-clay-300" style={{ animationDelay: landDelay }}>
                   {points.earned > 0 ? `+${points.earned} points` : ''}
                   {/* What the total is made of, not more on top of it:
                       "+12 points +2 round, +10 first of the day" read
@@ -112,7 +120,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                     <span className="text-white/60">
                       {' ('}
                       {points.lines.map((line, i) => (
-                        <span key={`${line.reason}:${i}`} className="geo-award" style={{ animationDelay: `${420 + i * 90}ms` }}>
+                        <span key={`${line.reason}:${i}`} className="geo-award" style={{ animationDelay: `${REVEAL.landMs + 160 + i * 90}ms` }}>
                           {i ? ' + ' : ''}
                           {line.amount} {line.reason.toLowerCase()}
                         </span>
@@ -124,7 +132,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                 </p>
               ) : null}
               {points && points.allowed === false ? <p className="mt-1 text-xs text-white/60">Points paused for today: the first 50 rounds earn.</p> : null}
-              <p className="mt-1 flex items-center gap-2 text-sm text-white/70">
+              <p className="geo-reveal-land mt-1 flex items-center gap-2 text-sm text-white/70" style={{ animationDelay: landDelay }}>
                 <Flag className="h-4 w-4 text-clay-300" />
                 <span>
                   You were in {country?.flag} <span className="font-semibold text-white">{place || 'a place not on the country map'}</span>

@@ -36,6 +36,7 @@ import GameSummary from './GameSummary';
 import SetupNotice from './SetupNotice';
 import { useSavedGame } from '../lib/savedGame';
 import { ignoreGameShortcut } from '../lib/mapKeyboard';
+import { useOpenFrom, usePresence } from '../lib/motion';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
 const DESKTOP_SIZE = {
@@ -109,6 +110,8 @@ function StreetPlayGame({ params }) {
   const [profile, setProfile] = useState(null);
   const [profileSettled, setProfileSettled] = useState(false);
   const paneRef = useRef(null);
+  // The map's frame, which the reveal opens out of (lib/motion.js).
+  const mapFrameRef = useRef(null);
   const requestRef = useRef(0);
   const recordedRef = useRef(false);
   const timerFiredRef = useRef(null);
@@ -368,6 +371,11 @@ function StreetPlayGame({ params }) {
   // What the map shows.
   const lastResult = state.rounds[state.rounds.length - 1];
   const mapMode = state.status === 'result' || state.status === 'summary' ? 'result' : 'guess';
+  // The reveal frame opens out of the card the guess was made on. It
+  // used to snap: the card is anchored bottom-right and the frame spans
+  // the top, and `left: auto` does not interpolate, so the transition
+  // round.css declared for it could never run.
+  useOpenFrom(mapFrameRef, mapMode === 'result');
   const mapResults = useMemo(() => {
     // A Not Earth round has no answer on this map, so it plots none.
     const answerOf = (r) => (Number.isFinite(r?.answer?.lat) && Number.isFinite(r?.answer?.lng) ? { lat: r.answer.lat, lng: r.answer.lng } : null);
@@ -407,7 +415,7 @@ function StreetPlayGame({ params }) {
     // geo-map-frame: the desktop card already eased between its three
     // sizes and this one snapped, so the same element moved smoothly
     // one way and jumped the other.
-    mapClass = `geo-map-frame absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl sm:top-24 ${state.status === 'summary' ? 'bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
+    mapClass = `geo-map-frame absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-ocean-400/30 bg-ocean-900 shadow-2xl sm:top-24 ${state.status === 'summary' ? 'geo-map-frame--summary bottom-[63%] sm:bottom-[59%]' : 'bottom-[40%] sm:bottom-[30%]'}`;
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
@@ -427,6 +435,7 @@ function StreetPlayGame({ params }) {
   // above a line that says you get one view.
   const canReturn = config.pan || config.move;
   const showLoading = state.status === 'loading' || state.status === 'locating' || (state.status === 'idle' && configured);
+  const curtain = usePresence(showLoading && sdkReady);
   const roundNumber = state.roundIndex + 1;
 
   return (
@@ -465,7 +474,7 @@ function StreetPlayGame({ params }) {
 
       {/* Backdrop behind results. Lighter over a Not Earth reveal, which
           has the place itself behind it rather than a map. */}
-      {mapMode === 'result' ? <div className={`absolute inset-0 z-20 ${notEarthResult ? 'bg-ocean-950/45' : 'bg-ocean-950/85'}`} /> : null}
+      {mapMode === 'result' ? <div className={`pe-fade-in absolute inset-0 z-20 ${notEarthResult ? 'bg-ocean-950/45' : 'bg-ocean-950/85'}`} /> : null}
 
       {/* HUD */}
       {(inRound || mapMode === 'result') && state.status !== 'summary' ? (
@@ -493,7 +502,7 @@ function StreetPlayGame({ params }) {
 
       {/* The one map, moved by class */}
       {sdkReady ? (
-        <div className={mapClass}>
+        <div ref={mapFrameRef} className={mapClass}>
           <div className="relative min-h-0 flex-1">
             <AppleGuessMap mapkit={mapkit} pin={state.pin && !isStreak ? state.pin : null} onPin={(pin) => dispatch({ type: 'pin', pin })} results={mapResults} mode={mapMode} interactive={state.status === 'playing'} />
             {/* On the card, next to what they change. Under the score
@@ -595,15 +604,17 @@ function StreetPlayGame({ params }) {
       ) : null}
 
       {/* Loading, setup and errors */}
-      {showLoading && sdkReady ? (
+      {curtain.mounted ? (
         /* The key restarts the "taking too long" clock for each new
            round and each retry, rather than letting it run from the
-           first one. */
+           first one. It fades out over the panorama once the spot is
+           found, instead of vanishing and letting the picture pop in. */
         <LoadingSpot
           key={`${state.roundIndex}:${state.attempt}`}
           roundNumber={roundNumber}
           appleAttempt={appleAttempt}
           appleTotal={state.current?.candidates?.length || 0}
+          leaving={curtain.leaving}
         />
       ) : null}
       {server && !configured ? (

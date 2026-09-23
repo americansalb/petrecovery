@@ -1,10 +1,10 @@
 /** Real writing systems, presented as a collection of field notes. */
 import { fontStackFor } from '../../script/fonts';
 
-export default function ScriptArtwork({ compact = false }) {
+export default function ScriptArtwork({ compact = false, className = '' }) {
   return (
     <div
-      className={`pe-script-art ${compact ? 'pe-script-art--compact' : ''}`}
+      className={`pe-script-art ${compact ? 'pe-script-art--compact' : ''} ${className}`}
       aria-label="Writing from around the world"
     >
       <div className="pe-script-orbit" aria-hidden="true" />

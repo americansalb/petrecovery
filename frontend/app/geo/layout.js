@@ -13,6 +13,9 @@ import './experience.css';
 import './home.css';
 import './match.css';
 import './accounts.css';
+// Last, so the game's one motion vocabulary sits over the per-screen
+// sheets above it (app/geo/motion.css).
+import './motion.css';
 import { scriptShowcaseFonts } from './script/fonts';
 
 export const metadata = { ...buildShareMetadata({
@@ -53,6 +56,17 @@ export default function GeoLayout({ children }) {
       <div
         className="pointer-events-none fixed inset-0 -z-10 bg-ocean-950"
         aria-hidden="true"
+      />
+      {/* Before anything is painted: does this browser have a player?
+          Pages that will show a player's own card use it to hold that
+          card's space from the first frame, so it does not shove the
+          page down when it arrives (motion.css, .pe-you-skeleton). One
+          attribute and no secret: the profile key's presence, not its
+          value. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: "try{localStorage.getItem('geo:profile:v1')&&document.documentElement.setAttribute('data-geo-profile','')}catch(e){}",
+        }}
       />
       <GeoHeader />
       {children}
