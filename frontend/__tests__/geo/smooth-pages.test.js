@@ -56,7 +56,7 @@ describe('holding a shape while it loads', () => {
     // Same markup, invisible, so the two are the same height by
     // construction rather than by a number that drifts.
     const page = read('app/geo/leaderboard/page.js');
-    const loading = page.slice(page.indexOf('board === null && !error ? (\n                <tr'));
+    const loading = page.slice(page.search(/board === null && !error \? \(\s*<tr/));
     const row = loading.slice(0, loading.indexOf('</tr>'));
     expect(row).toMatch(/pe-ladder-empty invisible/);
     expect(row).toMatch(/pe-skeleton/);

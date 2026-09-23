@@ -60,7 +60,7 @@ test('a signed-in account still called Player is told, and the prompt opens the 
 
   // It has to land on the field, not merely somewhere in Settings.
   await act(async () => fireEvent.click(fix));
-  expect(screen.getByLabelText('Your name')).toBeInTheDocument();
+  expect(screen.getByLabelText('Your name')).toHaveFocus();
 });
 
 test('a signed-in account with a chosen name is not nagged', async () => {
@@ -78,8 +78,8 @@ test('a guest is offered an account rather than a rename', async () => {
   render(<ProfileClient />);
   await screen.findByRole('heading', { name: /^Player/ });
   expect(screen.queryByText(PROMPT)).toBeNull();
-  expect(screen.getByText('Guest, this browser')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Save your player' })).toBeInTheDocument();
+  expect(screen.getByText(/Guest on this browser/)).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/geo/signin?next=%2Fgeo%2Fme');
 });
 
 test('cosmetic purchase and equip use named touch-sized controls and update the balance', async () => {
@@ -99,10 +99,10 @@ test('cosmetic purchase and equip use named touch-sized controls and update the 
   await screen.findByRole('heading', { name: /^Shop player/ });
   fireEvent.click(screen.getByRole('tab', { name: 'Shop', exact: true }));
   const buy = await screen.findByRole('button', { name: 'Buy Ring for 100 points' });
-  expect(buy.className).toContain('min-h-[44px]');
+  expect(buy.className).toMatch(/\bui-btn\b/);
   await act(async () => fireEvent.click(buy));
   const wear = screen.getByRole('button', { name: 'Wear Ring' });
-  expect(wear.className).toContain('min-h-[44px]');
+  expect(wear.className).toMatch(/\bui-btn\b/);
   expect(screen.getByText('100', { exact: true })).toBeInTheDocument();
   await act(async () => fireEvent.click(wear));
   expect(screen.getByText('Wearing')).toBeInTheDocument();

@@ -18,12 +18,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  CalendarDays,
   Compass,
-  Flame,
   Languages,
   Play,
-  Trophy,
   Users,
 } from "lucide-react";
 import {
@@ -55,6 +52,65 @@ const COUNTRIES = Object.entries(APPLE_COVERAGE_NAMES)
     flag: String.fromCodePoint(...(code === "UK" ? "GB" : code).split("").map((letter) => 127397 + letter.charCodeAt(0))),
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
+
+/**
+ * One line of the lists under the scene: the name, what it is, and the
+ * player's own standing when the server has said (never a placeholder
+ * standing for atmosphere). The whole row is the link.
+ */
+function MenuRow({ href, marker, title, detail, status = "" }) {
+  return (
+    <Link
+      href={href}
+      {...{ [marker]: "" }}
+      className="group flex min-h-[64px] items-center gap-4 px-4 py-3.5 transition-colors hover:bg-pe-raised sm:px-5"
+    >
+      <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-6">
+        <h3 className="font-semibold text-pe-fg sm:w-36 sm:shrink-0">{title}</h3>
+        <p className="mt-0.5 text-sm text-pe-muted sm:mt-0 sm:flex-1">{detail}</p>
+        {status ? (
+          <p className="pe-fade-in mt-1 text-sm font-medium text-pe-accent-fg sm:mt-0 sm:text-right">{status}</p>
+        ) : null}
+      </div>
+      <ArrowRight
+        size={18}
+        aria-hidden="true"
+        className="shrink-0 text-pe-subtle transition group-hover:translate-x-0.5 group-hover:text-pe-fg"
+      />
+    </Link>
+  );
+}
+
+/** A place to play in: pick it, then play it. */
+function RegionRow({ title, label, value, onChange, options, href, marker }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3.5 sm:flex-nowrap sm:px-5">
+      <h3 className="w-full font-semibold text-pe-fg sm:w-36 sm:shrink-0">{title}</h3>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={label}
+          className="ui-input min-w-0 flex-1 sm:max-w-xs"
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <Link
+          href={href}
+          {...{ [marker]: "" }}
+          aria-label={`Play ${label.toLowerCase()}`}
+          className="ui-btn ui-btn--secondary shrink-0"
+        >
+          Play
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 export default function GameMenu() {
   const router = useRouter();
@@ -203,10 +259,14 @@ export default function GameMenu() {
             </div>
             <div className="pe-dock-foot">
               {savedGame?.url ? <Link href={safeReturnTo(savedGame.url, '/geo')}><Play size={15} /> Continue {savedGame.kind === 'script' ? 'Script' : 'Street'}</Link> : null}
-              <Link href="/geo/script" data-menu-script>
-                <Languages size={15} /> All Script languages{" "}
-                <ArrowRight size={14} />
-              </Link>
+              {/* Only beside Script: under "Play Street" a link to every
+                  Script language answered a question nobody had asked. */}
+              {script ? (
+                <Link href="/geo/script" data-menu-script>
+                  <Languages size={15} /> All Script languages{" "}
+                  <ArrowRight size={14} />
+                </Link>
+              ) : null}
               <Link href="/geo/rooms" data-menu-friends>
                 <Users size={15} /> Play with a friend <ArrowRight size={14} />
               </Link>
@@ -234,7 +294,7 @@ export default function GameMenu() {
           className="pe-scene-next"
           href="#compete-title"
           onClick={(event) => {
-            const target = document.querySelector(".pe-competition");
+            const target = document.querySelector(".pe-home-challenges");
             if (!target) return;
             event.preventDefault();
             target.scrollIntoView({
@@ -247,142 +307,88 @@ export default function GameMenu() {
         </a>
       </section>
 
-      <section className="pe-competition" aria-labelledby="compete-title">
-        <div className="pe-section-heading">
-          <div>
-            <h2 id="compete-title">Challenges</h2>
+      {/* What else there is, as two short lists: one line per thing,
+          what it is, and where you stand in it when the server knows.
+          They were three icon tiles in 10px type and a collapsed
+          "More ways to play" that most people never opened. */}
+      <div className="pe-home-more mx-auto max-w-[1200px] px-4 sm:px-6">
+        <section className="pe-home-challenges scroll-mt-20 pt-12 sm:pt-16" aria-labelledby="compete-title">
+          <div className="flex items-center justify-between gap-4">
+            <h2 id="compete-title" className="ui-h2">Challenges</h2>
+            <Link
+              href="/geo/leaderboard"
+              className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-pe-accent-fg hover:underline"
+            >
+              Rankings <ArrowRight size={16} aria-hidden="true" />
+            </Link>
           </div>
-          <Link href="/geo/leaderboard">
-            Rankings <ArrowRight size={16} />
-          </Link>
-        </div>
-        <div className="pe-event-list">
-          <Link
-            href="/geo/play?mode=daily"
-            data-menu-daily
-            className="pe-event"
-          >
-            <span className="pe-event-emblem">
-              <CalendarDays size={25} />
-            </span>
-            <div>
-              <h3>Daily</h3>
-              <p>{MODES.daily.fixed.rounds} places · No timer</p>
-              <small>
-                {answered.daily && daily?.you?.rank
+          <div className="mt-2 divide-y divide-pe-line overflow-hidden rounded-xl border border-pe-line bg-pe-surface">
+            <MenuRow
+              href="/geo/play?mode=daily"
+              marker="data-menu-daily"
+              title="Daily"
+              detail={`${MODES.daily.fixed.rounds} places · No timer · Same places for everyone`}
+              status={
+                answered.daily && daily?.you?.rank
                   ? `You’re ${ordinal(daily.you.rank)} of ${daily.finished} today`
                   : answered.daily && daily?.finished
-                    ? `${daily.finished} players finished today`
-                    : "Same places for everyone"}
-              </small>
-            </div>
-            <ArrowRight className="pe-event-arrow" size={20} />
-          </Link>
-          <Link
-            href="/geo/play?mode=ranked"
-            data-menu-ranked
-            className="pe-event"
-          >
-            <span className="pe-event-emblem pe-event-emblem--rank">
-              <Compass size={29} />
-            </span>
-            <div>
-              <h3>Ranked</h3>
-              <p>
-                {MODES.ranked.fixed.rounds} rounds. {MODES.ranked.fixed.time}{" "}
-                seconds. No moving.
-              </p>
-              <small>
-                {answered.solo
+                    ? `${daily.finished} ${daily.finished === 1 ? "player" : "players"} finished today`
+                    : ""
+              }
+            />
+            <MenuRow
+              href="/geo/play?mode=ranked"
+              marker="data-menu-ranked"
+              title="Ranked"
+              detail={`${MODES.ranked.fixed.rounds} rounds · ${MODES.ranked.fixed.time} seconds · No moving`}
+              status={
+                answered.solo
                   ? solo?.games >= PROVISIONAL_GAMES
                     ? `${solo.tier} · ${solo.value} rating`
-                    : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games`
-                  : "A new challenge every hour."}
-              </small>
-            </div>
-            <ArrowRight className="pe-event-arrow" size={20} />
-          </Link>
-          <Link href="/geo/play?mode=cup" data-menu-cup className="pe-event">
-            <span className="pe-event-emblem pe-event-emblem--cup">
-              <Trophy size={28} />
-            </span>
-            <div>
-              <h3>Weekly cup</h3>
-              <p>{MODES.cup.fixed.rounds} places · One entry</p>
-              <small>
-                {cup?.endsAt
-                  ? `Ends ${untilText(cup.endsAt)}`
-                  : "Resets weekly"}
-              </small>
-            </div>
-            <ArrowRight className="pe-event-arrow" size={20} />
-          </Link>
-        </div>
-      </section>
+                    : `${solo?.games || 0} of ${PROVISIONAL_GAMES} placement games played`
+                  : ""
+              }
+            />
+            <MenuRow
+              href="/geo/play?mode=cup"
+              marker="data-menu-cup"
+              title="Weekly cup"
+              detail={`${MODES.cup.fixed.rounds} places · One entry a week`}
+              status={cup?.endsAt ? `Ends ${untilText(cup.endsAt)}` : ""}
+            />
+          </div>
+        </section>
 
-      <details className="pe-expeditions pe-practice">
-        <summary>More ways to play <span>Country streak · Choose a region</span></summary>
-        <div className="pe-expedition-options">
-          <Link
-            href="/geo/play?mode=streak"
-            data-menu-streak
-            className="pe-streak"
-          >
-            <Flame size={24} />
-            <span>
-              <strong>Country streak</strong>
-              <small>One wrong country ends the run.</small>
-            </span>
-            <ArrowRight size={18} />
-          </Link>
-          <div className="pe-region">
-            <label>
-              <span>Continent</span>
-              <select
-                value={continent}
-                onChange={(e) => setContinent(e.target.value)}
-                aria-label="Continent"
-              >
-                {CONTINENT_ORDER.map((id) => (
-                  <option key={id} value={id}>
-                    {CONTINENTS[id].label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Link
+        <section className="pe-home-practice pt-10" aria-labelledby="more-title">
+          <h2 id="more-title" className="ui-h2">More ways to play</h2>
+          <div className="mt-4 divide-y divide-pe-line overflow-hidden rounded-xl border border-pe-line bg-pe-surface">
+            <MenuRow
+              href="/geo/play?mode=streak"
+              marker="data-menu-streak"
+              title="Country streak"
+              detail="Name the country. One wrong answer ends the run."
+            />
+            <RegionRow
+              title="One continent"
+              label="Continent"
+              value={continent}
+              onChange={setContinent}
+              options={CONTINENT_ORDER.map((id) => ({ value: id, label: CONTINENTS[id].label }))}
               href={`/geo/play?mode=continent&region=${continent}`}
-              data-menu-continent
-              aria-label="Play continent"
-            >
-              <ArrowRight size={20} />
-            </Link>
-          </div>
-          <div className="pe-region">
-            <label>
-              <span>Country</span>
-              <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                aria-label="Country"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Link
+              marker="data-menu-continent"
+            />
+            <RegionRow
+              title="One country"
+              label="Country"
+              value={country}
+              onChange={setCountry}
+              options={COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} ${c.name}` }))}
               href={`/geo/play?mode=country&region=${country}`}
-              data-menu-country
-              aria-label="Play country"
-            >
-              <ArrowRight size={20} />
-            </Link>
+              marker="data-menu-country"
+            />
           </div>
-        </div>
-      </details>
+        </section>
+      </div>
     </main>
   );
 }

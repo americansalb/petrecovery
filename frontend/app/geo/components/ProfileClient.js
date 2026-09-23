@@ -3,24 +3,20 @@
 /**
  * The profile page: who you are in the game and what your points buy.
  * Everything comes from /api/geo/profile (the summary: ratings, points,
- * badges, recent points, today's meter) and /api/geo/shop (the catalog
- * with what you own, may wear and can afford). Buying and wearing go
- * through the shop route; the name through the profile route.
+ * badges, recent points) and /api/geo/shop (the catalog with what you
+ * own, may wear and can afford). Buying and wearing go through the shop
+ * route; the name through the profile route.
+ *
+ * The page is a header saying who this is and what they hold, at most
+ * one line asking for something (sign in, or pick a name), and three
+ * tabs. Nothing about the player paints until the profile has answered:
+ * it used to print "Player" and a full record first and then swap both,
+ * so every visit opened on the wrong name and a jump.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import {
-  Award,
-  Gauge,
-  History,
-  Medal,
-  Play,
-  ShoppingBag,
-  Tag,
-  Trophy,
-  Users,
-} from 'lucide-react';
+import { Play, Tag, Users } from 'lucide-react';
 import { formatScore, ordinal } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
 import {
@@ -36,7 +32,7 @@ import {
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { saveName } from '../lib/useRoom';
 import { ago } from '../lib/time';
-import Card, { CardTitle } from './ui/Card';
+import Card from './ui/Card';
 import Tabs from './ui/Tabs';
 import SignInCard from './SignInCard';
 import AccountRole from './AccountRole';
@@ -58,12 +54,10 @@ function LadderCard({ ladder, rating, provisionalGames }) {
   const games = rating?.games || 0;
   if (games < provisionalGames) {
     return (
-      <Card tone="sunken" pad="sm" className="rounded-xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-          {label}
-        </p>
-        <p className="mt-1 text-2xl font-bold text-white/70">Unplaced</p>
-        <p className="mt-1 text-xs text-white/60">
+      <Card pad="sm">
+        <p className="text-sm font-medium text-pe-muted">{label}</p>
+        <p className="mt-1 text-2xl font-bold text-pe-subtle">Unplaced</p>
+        <p className="mt-1 text-xs text-pe-muted">
           {games} of {provisionalGames} placement games
         </p>
         <div className="pe-placement-track" aria-hidden="true">
@@ -79,38 +73,39 @@ function LadderCard({ ladder, rating, provisionalGames }) {
               : `/geo/rooms?game=${ladder === 'script' ? 'script' : 'street'}`
           }
         >
-          Play to place <span aria-hidden="true">↗</span>
+          Play to place <span aria-hidden="true">→</span>
         </Link>
       </Card>
     );
   }
   return (
-    <Card tone="sunken" pad="sm" className="rounded-xl">
-      <p className="text-xs font-semibold uppercase tracking-wide text-white/60">
-        {label}
-      </p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-clay-300">
+    <Card pad="sm">
+      <p className="text-sm font-medium text-pe-muted">{label}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums text-pe-fg">
         {rating.value}
       </p>
-      <p className="text-xs text-white/70">{rating.tier}</p>
-      <p className="mt-1 text-xs text-white/70">{rating.rank ? `#${rating.rank} of ${rating.population}` : ''}{rating.accuracy != null ? ` · ${Math.floor(rating.accuracy * 1000) / 10}% accuracy` : ''}</p>
-      <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+      <p className="text-xs text-pe-muted">
+        {rating.tier}
+        {rating.rank ? ` · #${rating.rank} of ${rating.population}` : ''}
+        {rating.accuracy != null ? ` · ${Math.floor(rating.accuracy * 1000) / 10}% accuracy` : ''}
+      </p>
+      <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-pe-line pt-3 text-xs">
         <div>
-          <dt className="text-white/60">Played</dt>
+          <dt className="text-pe-subtle">Played</dt>
           <dd className="font-semibold tabular-nums">{games}</dd>
         </div>
         <div>
-          <dt className="text-white/60">Won</dt>
+          <dt className="text-pe-subtle">Won</dt>
           <dd className="font-semibold tabular-nums">{rating.wins}</dd>
         </div>
         <div>
-          <dt className="text-white/60">Best</dt>
+          <dt className="text-pe-subtle">Best</dt>
           <dd className="font-semibold tabular-nums">{rating.peak}</dd>
         </div>
       </dl>
       {rating.streak > 1 ? (
-        <p className="mt-2 text-xs font-semibold text-forest-300">
-          {rating.streak} in a row
+        <p className="mt-2 text-xs font-semibold text-pe-good">
+          {rating.streak} wins in a row
         </p>
       ) : null}
     </Card>
@@ -164,17 +159,17 @@ function PinPreview({ style = 'dot', fill = '#facc15' }) {
   );
 }
 
-function ItemCard({ item, points, busy, onBuy, onEquip, equippedId, index = 0 }) {
+function ItemCard({ item, busy, onBuy, onEquip, equippedId, index = 0 }) {
   const wearing = equippedId === item.id;
   const tierOnly = Boolean(item.requires?.tier);
   let action = null;
   if (item.kind === 'reactions') {
     action = item.owned ? (
-      <span className="text-xs font-semibold text-forest-300">Yours</span>
+      <span className="text-sm font-semibold text-pe-good">Yours</span>
     ) : null;
   } else if (wearing) {
     action = (
-      <span className="text-xs font-semibold text-forest-300">Wearing</span>
+      <span className="text-sm font-semibold text-pe-good">Wearing</span>
     );
   } else if (item.usable) {
     action = (
@@ -183,7 +178,7 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId, index = 0 })
         disabled={busy}
         onClick={() => onEquip(item.id)}
         aria-label={`Wear ${item.name}`}
-        className="min-h-[44px] rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5 disabled:opacity-50"
+        className="ui-btn ui-btn--secondary ui-btn--sm"
       >
         Wear
       </button>
@@ -197,7 +192,7 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId, index = 0 })
         disabled={busy}
         onClick={() => onBuy(item.id)}
         aria-label={`Buy ${item.name} for ${formatScore(item.price)} points`}
-        className="min-h-[44px] rounded-lg bg-ocean-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-ocean-800 disabled:opacity-50"
+        className="ui-btn ui-btn--primary ui-btn--sm"
       >
         Buy for {formatScore(item.price)}
       </button>
@@ -205,38 +200,38 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId, index = 0 })
       // The balance is at the top of the page. Repeating it on every
       // row of a long list is noise, and it made each row read as a
       // refusal rather than a price.
-      <span className="text-xs text-white/60">
+      <span className="text-sm tabular-nums text-pe-subtle">
         {formatScore(item.price)} points
       </span>
     );
   }
   if (tierOnly && !item.usable)
     buy = (
-      <span className="text-xs text-white/60">
-        Free at {item.requires.tier} on any ladder
+      <span className="text-xs text-pe-subtle">
+        Unlocks at {item.requires.tier} on any ladder
       </span>
     );
   return (
     <li
       style={{ '--i': index }}
-      className={`flex items-center gap-3 rounded-xl border p-3 ${wearing ? 'border-clay-400 bg-ocean-950' : 'border-white/10 bg-ocean-900/60'}`}
+      className={`flex items-center gap-3 rounded-xl border p-3 ${wearing ? 'border-pe-accent bg-pe-accent/10' : 'border-pe-line bg-pe-surface'}`}
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/5">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-pe-raised">
         {item.kind === 'pin' ? (
           <PinPreview style={item.style} fill={item.fill} />
         ) : null}
         {item.kind === 'color' ? (
           <span
-            className="h-5 w-5 rounded-full border border-white/15"
+            className="h-5 w-5 rounded-full border border-pe-line-strong"
             style={{ backgroundColor: item.value || '#ffffff' }}
           />
         ) : null}
         {item.kind === 'title' ? (
-          <Tag className="h-4 w-4 text-white/60" />
+          <Tag className="h-4 w-4 text-pe-muted" />
         ) : null}
         {item.kind === 'frame' ? (
           <span
-            className="h-6 w-6 rounded-full bg-sand-300"
+            className="h-6 w-6 rounded-full bg-pe-line-strong"
             style={
               item.value ? { boxShadow: `0 0 0 3px ${item.value}` } : undefined
             }
@@ -249,14 +244,27 @@ function ItemCard({ item, points, busy, onBuy, onEquip, equippedId, index = 0 })
         ) : null}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold">{item.name}</p>
-        <p className="truncate text-xs text-white/60">{item.description}</p>
+        <p className="font-semibold text-pe-fg">{item.name}</p>
+        <p className="truncate text-sm text-pe-muted">{item.description}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         {action}
         {buy}
       </div>
     </li>
+  );
+}
+
+/** The header's shape before the profile answers, so nothing moves. */
+function HeaderSkeleton() {
+  return (
+    <div className="flex items-center gap-4" aria-hidden="true">
+      <span className="pe-skeleton block h-14 w-14 shrink-0 rounded-full sm:h-16 sm:w-16" />
+      <div className="min-w-0 flex-1">
+        <span className="pe-skeleton block h-8 w-44" />
+        <span className="pe-skeleton mt-2 block h-4 w-60 max-w-full" />
+      </div>
+    </div>
   );
 }
 
@@ -269,6 +277,8 @@ export default function ProfileClient() {
   const [savedName, setSavedName] = useState('');
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState('pin');
+  const nameField = useRef(null);
+  const focusName = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -307,6 +317,15 @@ export default function ProfileClient() {
       window.removeEventListener('geo:session-changed', refresh);
     };
   }, []);
+
+  // "Choose your name" lands in the field itself, not just on the tab
+  // that holds it.
+  useEffect(() => {
+    if (tab === 'settings' && focusName.current) {
+      focusName.current = false;
+      nameField.current?.focus();
+    }
+  }, [tab]);
 
   const saveTheName = async (e) => {
     e.preventDefault();
@@ -392,251 +411,243 @@ export default function ProfileClient() {
         LADDERS.some((ladder) => profile.ratings?.[ladder]?.games)),
   );
 
+  const displayName = profile?.name || name || DEFAULT_PLAYER_NAME;
+  const panel = {
+    id: 'profile-panel',
+    role: 'tabpanel',
+    'aria-labelledby': `profile-panel-tab-${tab}`,
+    tabIndex: 0,
+  };
+
   return (
-    <div className="pe-secondary-page pe-profile-page min-h-screen text-white">
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
-        <header className="pe-profile-banner flex flex-col gap-4 sm:flex-row sm:items-center">
+    <main className="ui-page">
+      {profile ? (
+        <header className="pe-fade-in flex items-center gap-4">
           <span
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-clay-400 text-xl font-bold text-ocean-950"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-pe-raised text-lg font-bold text-pe-fg sm:h-16 sm:w-16 sm:text-xl"
             style={
-              view?.frame ? { boxShadow: `0 0 0 4px ${view.frame}` } : undefined
+              view?.frame ? { boxShadow: `0 0 0 3px ${view.frame}` } : undefined
             }
             aria-hidden="true"
           >
-            {initialsOf(profile?.name || name)}
+            {initialsOf(displayName)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold uppercase tracking-wide text-white/60">
-                Your profile
-            </p>
-            <h1 className="mt-1 flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
-              <span style={view?.color ? { color: view.color } : undefined}>
-                {profile?.name || name || 'Player'}
+            <h1 className="ui-h1 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="min-w-0 break-words" style={view?.color ? { color: view.color } : undefined}>
+                {displayName}
               </span>
               {view?.title ? (
-                <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white/60">
+                <span className="rounded-full bg-pe-raised px-2.5 py-0.5 text-xs font-semibold text-pe-muted">
                   {view.title}
                 </span>
               ) : null}
+            </h1>
+            <p className="mt-1 text-sm text-pe-muted">
               {/* A profile called "Player" with nothing saying where it
                   came from reads as an account somebody made for you
                   (founder, 2026-09-17: "why does it pretend I have an
                   account named player"). */}
-              {profile && !profile.signedIn ? (
-                <span className="rounded-full border border-white/15 px-2 py-0.5 text-xs font-semibold text-white/70">
-                  Guest, this browser
+              {profile.signedIn ? 'Signed in' : 'Guest on this browser'}
+              {/* The season is Rankings' to explain; on a phone it
+                  wrapped this line to three. */}
+              {profile.season ? (
+                <span data-season className="hidden sm:inline">
+                  {' · '}
+                  {profile.season.label}, {profile.season.daysLeft}{' '}
+                  {profile.season.daysLeft === 1 ? 'day' : 'days'} left
                 </span>
               ) : null}
-            </h1>
-            {profile?.season ? (
-              <p className="mt-1 text-sm text-white/60" data-season>
-                {profile.season.label} &middot; {profile.season.daysLeft}{' '}
-                {profile.season.daysLeft === 1 ? 'day' : 'days'} left
-              </p>
-            ) : null}
+            </p>
           </div>
-          <div className="text-right">
-            <p className="text-3xl font-bold tabular-nums">
+          <div className="shrink-0 text-right">
+            <p className="text-2xl font-bold tabular-nums text-pe-fg sm:text-3xl">
               {formatScore(points)}
             </p>
             {/* Not just "points": a round score is points too, and a
-                rating is a third number. Each one says which it is. */}
-            <p className="text-sm text-white/60">cosmetic points</p>
+                rating is a third number. These are the ones the shop
+                takes. */}
+            <p className="text-xs text-pe-muted sm:text-sm">points to spend</p>
           </div>
         </header>
+      ) : (
+        <HeaderSkeleton />
+      )}
 
-        {profile && !profile.signedIn ? (
-          <div className="mt-5 flex items-center justify-between gap-4 border-b border-white/15 pb-5">
-            <p className="text-sm text-white/75">Keep your games on every device.</p>
-            <Link href="/geo/signin" className="ui-btn ui-btn--primary pe-button pe-button--primary">Save your player</Link>
-          </div>
-        ) : null}
-
-        {/* A signed-in account still carrying the placeholder renders
-            as "Player", which is the same screen the founder rejected
-            on a guest: an account that pretends to be named for you
-            (2026-09-17: "why does it pretend I have an account named
-            player"). The name is not empty in that case - resolveProfile
-            stores the placeholder - so this compares against it rather
-            than checking for a blank. Every signup path asks for a name
-            now, so an account in this state was made before they did.
-            Say what is happening and point at the one field that fixes
-            it, rather than leaving the name buried in a tab nobody
-            opens. */}
-        {profile?.signedIn && (!profile.name || profile.name === DEFAULT_PLAYER_NAME) ? (
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-b border-white/15 pb-5">
-            <p className="text-sm text-white/75">Your account has no name yet, so scoreboards show you as Player.</p>
-            <button
-              type="button"
-              onClick={() => setTab('settings')}
-              className="ui-btn ui-btn--primary pe-button pe-button--primary"
-            >
-              Choose your name
-            </button>
-          </div>
-        ) : null}
-
-        {error ? (
-          <p className="mt-4 rounded-xl border border-red-400/40 bg-red-950/60 px-4 py-2 text-sm text-red-200">
-            {error}
+      {profile && !profile.signedIn ? (
+        <Card pad="sm" className="pe-fade-in mt-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-pe-muted">
+            Your games are saved in this browser only. Sign in to keep them
+            on every device.
           </p>
-        ) : null}
+          <Link href="/geo/signin?next=%2Fgeo%2Fme" className="ui-btn ui-btn--primary">
+            Sign in
+          </Link>
+        </Card>
+      ) : null}
 
-        {/* One page had seven sections doing three unrelated jobs, and
-            the biggest of them was the shop, so the first thing a
-            player saw about themselves was a price list. Each tab is
-            one job (founder, 2026-09-17: the page has to know what it
-            is for). */}
-        <Tabs
-          items={TABS}
-          value={tab}
-          onChange={setTab}
-          label="Profile sections"
-          panelId="profile-panel"
-          marker="profile-tab"
-          className="mt-6"
-        />
+      {/* A signed-in account still carrying the placeholder renders
+          as "Player", which is the same screen the founder rejected
+          on a guest: an account that pretends to be named for you
+          (2026-09-17: "why does it pretend I have an account named
+          player"). The name is not empty in that case - resolveProfile
+          stores the placeholder - so this compares against it rather
+          than checking for a blank. Every signup path asks for a name
+          now, so an account in this state was made before they did. */}
+      {profile?.signedIn && (!profile.name || profile.name === DEFAULT_PLAYER_NAME) ? (
+        <Card pad="sm" className="pe-fade-in mt-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-pe-muted">Your account has no name yet, so scoreboards show you as Player.</p>
+          <button
+            type="button"
+            onClick={() => {
+              focusName.current = true;
+              setTab('settings');
+            }}
+            className="ui-btn ui-btn--primary"
+          >
+            Choose your name
+          </button>
+        </Card>
+      ) : null}
 
-        {tab === 'record' && profile && !hasRecord ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6">
-            <Card data-no-record>
-              <CardTitle icon={Medal}>Your record</CardTitle>
-              <p className="mt-3 text-sm text-white/75">
-                It starts with one game. Every round you play is kept
-                here: your rating on each ladder, the games you have
-                played against other people, and a badge for every
-                country you guess within 100 km.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link
-                  href="/geo"
-                  className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
-                >
-                  <Play size={17} fill="currentColor" aria-hidden="true" />
-                  Play a game
-                </Link>
-                <Link
-                  href="/geo/rooms"
-                  className="inline-flex min-h-[48px] items-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-sm font-semibold hover:bg-white/5"
-                >
-                  <Users className="h-4 w-4" aria-hidden="true" />
-                  Play with a friend
-                </Link>
-              </div>
-            </Card>
-          </div>
-        ) : null}
+      {error ? (
+        <p role="alert" className="mt-6 rounded-xl border border-pe-bad/40 bg-pe-bad/10 px-4 py-3 text-sm text-pe-fg">
+          {error}
+        </p>
+      ) : null}
 
-        {tab === 'record' && (!profile || hasRecord) ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6 space-y-6">
-            {/* Rating: every ladder, with what a player earned on it
-                rather than the word for where it sits. */}
-            <Card data-ratings>
-              <CardTitle icon={Medal}>Rating</CardTitle>
-              {profile ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {LADDERS.filter((ladder) => ladder !== 'classic').map((ladder) => (
-                    <LadderCard
-                      key={ladder}
-                      ladder={ladder}
-                      rating={profile.ratings?.[ladder]}
-                      provisionalGames={
-                        profile.provisionalGames ?? PROVISIONAL_GAMES
-                      }
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-white/60">Loading</p>
-              )}
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link
-                  href="/geo/leaderboard"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
-                >
-                  <Trophy className="h-3.5 w-3.5" />
-                  Rankings
-                </Link>
-                <Link
-                  href="/geo/rooms"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  Multiplayer
-                </Link>
-              </div>
-            </Card>
+      {/* One page had seven sections doing three unrelated jobs, and
+          the biggest of them was the shop, so the first thing a
+          player saw about themselves was a price list. Each tab is
+          one job (founder, 2026-09-17: the page has to know what it
+          is for). */}
+      <Tabs
+        items={TABS}
+        value={tab}
+        onChange={setTab}
+        label="Profile sections"
+        panelId="profile-panel"
+        marker="profile-tab"
+        className="mt-8"
+      />
 
+      {tab === 'record' && !profile && !error ? (
+        <div className="mt-6 grid gap-3 sm:grid-cols-3" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="pe-skeleton block h-40 rounded-2xl" />
+          ))}
+        </div>
+      ) : null}
+
+      {tab === 'record' && profile && !hasRecord ? (
+        <div key="empty" {...panel} className="pe-swap mt-6">
+          <Card data-no-record className="py-10 text-center">
+            <h2 className="ui-h2">No games yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-pe-muted">
+              Your ratings, rated games and country badges show up here
+              after your first game.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link href="/geo" className="ui-btn ui-btn--primary">
+                <Play size={16} fill="currentColor" aria-hidden="true" />
+                Play a game
+              </Link>
+              <Link href="/geo/rooms" className="ui-btn ui-btn--secondary">
+                <Users className="h-4 w-4" aria-hidden="true" />
+                Play with a friend
+              </Link>
+            </div>
+          </Card>
+        </div>
+      ) : null}
+
+      {tab === 'record' && profile && hasRecord ? (
+        <div key="record" {...panel} className="pe-swap mt-6 grid gap-10">
+          {/* Rating: every ladder, with what a player earned on it
+              rather than the word for where it sits. */}
+          <section data-ratings aria-labelledby="profile-ratings">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 id="profile-ratings" className="ui-h2">Ratings</h2>
+              <Link href="/geo/leaderboard" className="text-sm font-semibold text-pe-accent-fg hover:underline">
+                See rankings
+              </Link>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {LADDERS.filter((ladder) => ladder !== 'classic').map((ladder) => (
+                <LadderCard
+                  key={ladder}
+                  ladder={ladder}
+                  rating={profile.ratings?.[ladder]}
+                  provisionalGames={
+                    profile.provisionalGames ?? PROVISIONAL_GAMES
+                  }
+                />
+              ))}
+            </div>
+          </section>
+
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
             {/* Recent rated games. The server has sent these with every
                 profile since ratings shipped and nothing read them. */}
-            <Card data-recent>
-              <CardTitle icon={History}>Rated matches</CardTitle>
-              {profile?.recent?.length ? (
-                <ul className="mt-3 divide-y divide-white/10 text-sm">
-                  {profile.recent.map((row, i) => (
-                    <li
-                      key={`${row.roomId}:${i}`}
-                      className="flex items-center gap-3 py-2"
-                    >
-                      <span
-                        className={`w-14 shrink-0 font-bold tabular-nums ${row.placement === 1 ? 'text-clay-300' : 'text-white'}`}
+            <section data-recent aria-labelledby="profile-recent">
+              <h2 id="profile-recent" className="ui-h2">Rated games</h2>
+              {profile.recent?.length ? (
+                <Card pad="none" className="mt-3 overflow-hidden">
+                  <ul className="divide-y divide-pe-line text-sm">
+                    {profile.recent.map((row, i) => (
+                      <li
+                        key={`${row.roomId}:${i}`}
+                        className="flex items-center gap-3 px-4 py-3"
                       >
-                        {ordinal(row.placement)}
-                      </span>
-                      <span className="w-20 shrink-0 text-white/60">
-                        of {row.players}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-white/60">
-                        {LADDER_LABELS[row.ladder] ||
-                          VARIANTS[row.ladder]?.label ||
-                          row.ladder}{' '}
-                        &middot; {ago(row.at)}
-                      </span>
-                      <span
-                        className={`shrink-0 font-semibold tabular-nums ${row.delta > 0 ? 'text-forest-300' : row.delta < 0 ? 'text-red-300' : 'text-white/60'}`}
-                      >
-                        {row.delta > 0 ? '+' : ''}
-                        {row.delta}
-                      </span>
-                      <span className="w-14 shrink-0 text-right tabular-nums text-white/60">
-                        {row.after}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                        <span
+                          className={`w-12 shrink-0 font-bold tabular-nums ${row.placement === 1 ? 'text-pe-warm' : 'text-pe-fg'}`}
+                        >
+                          {ordinal(row.placement)}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-pe-muted">
+                          of {row.players} &middot;{' '}
+                          {LADDER_LABELS[row.ladder] ||
+                            VARIANTS[row.ladder]?.label ||
+                            row.ladder}{' '}
+                          &middot; {ago(row.at)}
+                        </span>
+                        <span
+                          className={`shrink-0 font-semibold tabular-nums ${row.delta > 0 ? 'text-pe-good' : row.delta < 0 ? 'text-pe-bad' : 'text-pe-muted'}`}
+                        >
+                          {row.delta > 0 ? '+' : ''}
+                          {row.delta}
+                        </span>
+                        <span className="w-12 shrink-0 text-right tabular-nums text-pe-muted">
+                          {row.after}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
               ) : (
-                <p className="mt-3 text-sm text-white/60">
-                  No rated games yet.{' '}
-                  <Link
-                    href="/geo/rooms"
-                    className="underline hover:text-white"
-                  >
-                    Open a room
+                <p className="mt-3 text-sm text-pe-muted">
+                  None yet. Rated games are{' '}
+                  <Link href="/geo/rooms" className="font-semibold text-pe-accent-fg hover:underline">
+                    multiplayer
                   </Link>{' '}
-                  or{' '}
-                  <Link
-                    href="/geo/play?mode=ranked"
-                    className="underline hover:text-white"
-                  >
-                    play the ranked hour
+                  and{' '}
+                  <Link href="/geo/play?mode=ranked" className="font-semibold text-pe-accent-fg hover:underline">
+                    ranked solo
                   </Link>
                   .
                 </p>
               )}
-            </Card>
+            </section>
 
-            {/* Badges */}
-            <Card data-badges>
-              <CardTitle
-                icon={Award}
-                trailing={
-                  badgeProgress.show
-                    ? `${badgeProgress.earned} of ${badgeProgress.total} countries`
-                    : null
-                }
-              >
-                Badges
-              </CardTitle>
+            <section data-badges aria-labelledby="profile-badges">
+              <h2 id="profile-badges" className="ui-h2 flex items-baseline justify-between gap-3">
+                Country badges
+                {badgeProgress.show ? (
+                  <span className="text-sm font-normal tabular-nums text-pe-muted">
+                    {badgeProgress.earned} of {badgeProgress.total} countries
+                  </span>
+                ) : null}
+              </h2>
               {/* Badges outlive the coverage that awarded them. The
                   city list holds 56 countries and 23 of them are
                   playable today, so a player from the Google era holds
@@ -644,23 +655,23 @@ export default function ProfileClient() {
                   print "40 of 23"; dropped, they vanish without a
                   word. */}
               {badgeProgress.elsewhere ? (
-                <p className="mt-1 text-xs text-white/60">
+                <p className="mt-1 text-xs text-pe-subtle">
                   {badgeProgress.elsewhere} more from places the game no longer
                   visits.
                 </p>
               ) : null}
-              {profile?.badges?.length ? (
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {profile.badges?.length ? (
+                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                   {profile.badges.map((b) => (
                     <li
                       key={b.countryCode}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-clay-400/40 bg-clay-500/10' : 'border-white/10'}`}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-pe-warm/40 bg-pe-warm/10' : 'border-pe-line bg-pe-surface'}`}
                     >
                       <span className="text-xl">{b.flag}</span>
                       <span className="min-w-0 flex-1 truncate font-semibold">
                         {b.name}
                       </span>
-                      <span className="text-xs text-white/60">
+                      <span className="text-xs text-pe-muted">
                         {b.notEarth
                           ? 'called it'
                           : b.bestKm < 1
@@ -671,58 +682,43 @@ export default function ProfileClient() {
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-white/60">
+                <p className="mt-3 text-sm text-pe-muted">
                   None yet. A guess within 100 km earns that country&apos;s
                   badge.
                 </p>
               )}
-            </Card>
-
-            {/* Today */}
-            <Card>
-              <CardTitle icon={Gauge}>Today</CardTitle>
-              {profile?.usage ? (
-                <p className="mt-2 text-sm text-white/70">
-                  <span className="font-semibold text-white">
-                    {profile.usage.rounds}
-                  </span>{' '}
-                  Street rounds today.
-                </p>
-              ) : (
-                <p className="mt-2 text-sm text-white/60">Loading</p>
-              )}
-            </Card>
+            </section>
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        {tab === 'shop' ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
-            <Card data-shop>
-              <CardTitle icon={ShoppingBag}>Shop</CardTitle>
-              <p className="mt-2 text-sm text-white/60">
-                Points buy how you look. Nothing here changes how you play.
-              </p>
-              <Tabs
-                items={KIND_ORDER.map((k) => ({ id: k, label: ITEM_KINDS[k] }))}
-                value={kind}
-                onChange={setKind}
-                label="Shop sections"
-                panelId="shop-panel"
-                marker="shop-kind"
-                className="mt-3"
-              />
-              <div id="shop-panel" role="tabpanel" aria-labelledby={`shop-panel-tab-${kind}`} tabIndex={0}>
+      {tab === 'shop' ? (
+        <div key="shop" {...panel} className="pe-swap mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+          <section data-shop aria-labelledby="profile-shop">
+            <h2 id="profile-shop" className="ui-h2">Shop</h2>
+            <p className="mt-1 text-sm text-pe-muted">
+              Points buy how you look. Nothing here changes how you play.
+            </p>
+            <Tabs
+              items={KIND_ORDER.map((k) => ({ id: k, label: ITEM_KINDS[k] }))}
+              value={kind}
+              onChange={setKind}
+              label="Shop sections"
+              panelId="shop-panel"
+              marker="shop-kind"
+              className="mt-4"
+            />
+            <div id="shop-panel" role="tabpanel" aria-labelledby={`shop-panel-tab-${kind}`} tabIndex={0}>
               {shop ? (
                 // Keyed on the kind, so choosing Pins after Colours is a
                 // new list that arrives row by row rather than the old
                 // rows' text changing under the player's eye.
-                <ul key={kind} className="pe-stagger mt-3 space-y-2">
+                <ul key={kind} className="pe-stagger mt-4 grid gap-2">
                   {items.map((item, index) => (
                     <ItemCard
                       index={index}
                       key={item.id}
                       item={item}
-                      points={points}
                       busy={busy}
                       onBuy={(id) => act('buy', id)}
                       onEquip={(id) => act('equip', id)}
@@ -730,99 +726,102 @@ export default function ProfileClient() {
                     />
                   ))}
                 </ul>
+              ) : error ? (
+                <p className="mt-4 text-sm text-pe-muted">The shop is closed for now.</p>
               ) : (
-                <p className="mt-3 text-sm text-white/60">
-                  {error ? 'The shop is closed for now.' : 'Loading the shop'}
-                </p>
+                <div className="mt-4 grid gap-2" aria-hidden="true">
+                  {[0, 1, 2, 3].map((i) => (
+                    <span key={i} className="pe-skeleton block h-[68px] rounded-xl" />
+                  ))}
+                </div>
               )}
-              </div>
-            </Card>
-
-            {/* Where the points came from, beside what they buy. */}
-            <aside>
-              <Card data-ledger>
-                <CardTitle>Recent points</CardTitle>
-                {profile?.ledger?.length ? (
-                  <ul className="mt-3 divide-y divide-white/10 text-sm">
-                    {profile.ledger.map((row, i) => (
-                      <li
-                        key={i}
-                        className="flex items-center justify-between gap-2 py-1.5"
-                      >
-                        <span className="min-w-0 flex-1 truncate text-white/70">
-                          {row.reason}{' '}
-                          <span className="text-white/50">{ago(row.at)}</span>
-                        </span>
-                        <span
-                          className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-forest-300' : 'text-white'}`}
-                        >
-                          {row.kind === 'earn' ? '+' : '-'}
-                          {row.amount}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-2 text-sm text-white/60">
-                    Nothing yet. Every scored round earns some.
-                  </p>
-                )}
-              </Card>
-            </aside>
-          </div>
-        ) : null}
-
-        {tab === 'settings' ? (
-          <div id="profile-panel" role="tabpanel" aria-labelledby={`profile-panel-tab-${tab}`} tabIndex={0} className="pe-swap mt-6 grid gap-6 sm:grid-cols-2">
-            {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
-            <Card>
-              <CardTitle>Account</CardTitle>
-              <p className="mt-2 text-sm text-white/60">
-                {profile?.signedIn
-                  ? 'Signed in, so this profile follows you to other devices.'
-                  : 'This profile lives in this browser.'}
-              </p>
-              <div className="mt-3">
-                <SignInCard requireName playerName={name} onPlayerNameChange={setName} />
-              </div>
-            </Card>
-
-            <div className="space-y-6">
-              {/* What this account is: tier, and role when it is not the
-                  ordinary one. Renders for signed-in players only. */}
-              <AccountRole />
-
-              <Card>
-                <CardTitle>Your name</CardTitle>
-                <form
-                  method="post"
-                  onSubmit={saveTheName}
-                  className="mt-3 flex gap-2"
-                >
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    maxLength={20}
-                    aria-label="Your name"
-                    className="w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={busy || !name.trim()}
-                    className="rounded-xl bg-ocean-900 px-4 py-2 text-sm font-semibold text-white hover:bg-ocean-800 disabled:opacity-50"
-                  >
-                    {savedName ? 'Saved' : 'Save'}
-                  </button>
-                </form>
-                <p className="mt-2 text-xs text-white/60">
-                  What rooms and the boards show.
-                </p>
-              </Card>
             </div>
-          </div>
-        ) : null}
-      </div>
-    </div>
+          </section>
+
+          {/* Where the points came from, beside what they buy. */}
+          <aside data-ledger aria-labelledby="profile-ledger">
+            <h2 id="profile-ledger" className="ui-h2">Recent points</h2>
+            {profile?.ledger?.length ? (
+              <Card pad="none" className="mt-3 overflow-hidden">
+                <ul className="divide-y divide-pe-line text-sm">
+                  {profile.ledger.map((row, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center justify-between gap-2 px-4 py-2.5"
+                    >
+                      <span className="min-w-0 flex-1 truncate text-pe-fg">
+                        {row.reason}{' '}
+                        <span className="text-pe-subtle">{ago(row.at)}</span>
+                      </span>
+                      <span
+                        className={`font-semibold tabular-nums ${row.kind === 'earn' ? 'text-pe-good' : 'text-pe-fg'}`}
+                      >
+                        {row.kind === 'earn' ? '+' : '-'}
+                        {row.amount}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            ) : (
+              <p className="mt-3 text-sm text-pe-muted">
+                Nothing yet. Every scored round earns some.
+              </p>
+            )}
+          </aside>
+        </div>
+      ) : null}
+
+      {tab === 'settings' ? (
+        <div key="settings" {...panel} className="pe-swap mt-6 grid items-start gap-6 md:grid-cols-2">
+          <Card>
+            <h2 className="ui-h2">Your name</h2>
+            <p className="mt-1 text-sm text-pe-muted">
+              What other players see in rooms and on the rankings.
+            </p>
+            <form
+              method="post"
+              onSubmit={saveTheName}
+              className="mt-4 flex gap-2"
+            >
+              <input
+                ref={nameField}
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={20}
+                aria-label="Your name"
+                autoComplete="nickname"
+                className="ui-input min-w-0 flex-1"
+              />
+              <button
+                type="submit"
+                disabled={busy || !name.trim()}
+                className="ui-btn ui-btn--secondary shrink-0"
+              >
+                {savedName ? 'Saved' : 'Save'}
+              </button>
+            </form>
+          </Card>
+
+          {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
+          <Card>
+            <h2 className="ui-h2">Account</h2>
+            <p className="mt-1 text-sm text-pe-muted">
+              {profile?.signedIn
+                ? 'Your profile follows you to every device you sign in on.'
+                : 'This profile is saved in this browser only.'}
+            </p>
+            <div className="mt-4">
+              <SignInCard requireName playerName={name} onPlayerNameChange={setName} />
+            </div>
+          </Card>
+
+          {/* What this account is: tier, and role when it is not the
+              ordinary one. Renders for signed-in players only. */}
+          <AccountRole />
+        </div>
+      ) : null}
+    </main>
   );
 }
