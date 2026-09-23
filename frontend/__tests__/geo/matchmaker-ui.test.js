@@ -87,3 +87,28 @@ test('a lost join response can recover the already assigned match', async () => 
   expect(push).toHaveBeenCalledWith('/geo/room/ABC123');
   expect(fetch.mock.calls.map(([, options]) => JSON.parse(options.body).action)).toEqual(['join', 'poll']);
 });
+
+/**
+ * A refusal for too many searches from one address ended the search, as
+ * though the player had cancelled. Players behind one school, office or
+ * carrier address hit it first. The ticket is still queued, so the
+ * search waits as long as the server asks and carries on.
+ */
+test('a refusal for too many requests keeps searching after the wait the server asks for', async () => {
+  global.fetch = jest.fn()
+    .mockImplementationOnce(waiting)
+    .mockResolvedValueOnce(response({ error: 'Too many requests', retryAfter: 20 }, 429))
+    .mockImplementation(waiting);
+  render(<Matchmaker {...props()} />);
+  await click(/Find match/);
+  await act(async () => { jest.advanceTimersByTime(4000); });
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(screen.getByText(/Still looking/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Cancel search' })).toBeTruthy();
+  // Not before the server's twenty seconds are up.
+  await act(async () => { jest.advanceTimersByTime(19000); });
+  expect(fetch).toHaveBeenCalledTimes(2);
+  await act(async () => { jest.advanceTimersByTime(1500); });
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(JSON.parse(fetch.mock.calls[2][1].body).action).toBe('poll');
+});

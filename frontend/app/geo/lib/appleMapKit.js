@@ -176,15 +176,26 @@ export function mapKitRefusalMessage() {
  * what broke this: the token below covers the apex, the site redirects
  * the apex to www, and Apple answers 401 on www.
  *
- * Asked for once per page and cached. If the answer is empty, because
- * no signing key is configured, the literal above is used and nothing
- * changes.
+ * A minted token lasts an hour (app/lib/geo/server/mapKitToken.js), and
+ * MapKit asks for a new one through the same callback when it runs out.
+ * It used to be asked for once per page and that answer kept for good,
+ * so an hour into one tab MapKit was handed the token that had just
+ * expired, Apple refused it, and Street stopped with "Apple refused this
+ * site's MapKit token". A minted token is reused until a few minutes
+ * before it expires, then asked for again. An empty answer (no signing
+ * key configured, so the literal above is used) is final; a failed
+ * request is not, and the next ask tries again.
  */
-let mintedPromise = null;
+export const TOKEN_REFRESH_MARGIN_MS = 5 * 60 * 1000;
+let minted = null;
 
-function mintedToken() {
-  if (mintedPromise) return mintedPromise;
-  mintedPromise = fetch('/api/geo/mapkit-token')
+export function mintedToken(now = Date.now()) {
+  if (minted && now < minted.freshUntil) return minted.promise;
+  const again = Boolean(minted);
+  const entry = { freshUntil: Infinity, promise: null };
+  // Past the first ask, around the browser's cache: the route allows
+  // ten minutes of caching, and an old copy is exactly what is not wanted.
+  entry.promise = fetch('/api/geo/mapkit-token', again ? { cache: 'no-store' } : undefined)
     .then((response) => (response.ok ? response.json() : null))
     .then((body) => {
       if (body && !body.token && body.reason) {
@@ -192,10 +203,17 @@ function mintedToken() {
         // map with no explanation is how this went unnoticed.
         console.info(`[MapKit] serving the built in token: ${body.reason}`);
       }
-      return body?.token || '';
+      const token = body?.token || '';
+      if (!body) entry.freshUntil = 0;
+      else if (token && Number.isFinite(body.expiresAt)) entry.freshUntil = body.expiresAt - TOKEN_REFRESH_MARGIN_MS;
+      return token;
     })
-    .catch(() => '');
-  return mintedPromise;
+    .catch(() => {
+      entry.freshUntil = 0;
+      return '';
+    });
+  minted = entry;
+  return entry.promise;
 }
 
 let initPromise = null;

@@ -195,7 +195,12 @@ path.wg-line {
 .wg-round-track span[data-complete='true'] { background: #3c7456; }
 .wg-region-explorer { margin-top: 12px; }
 .wg-region-key { display: inline-block; width: 12px; height: 12px; margin-left: 4px; border: 2px solid #16783d; background: #b6dec5; }
-.wg-region-choices { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; }
+/* Wrapped, not scrolled: a scrolled row cut "the Andes" and "lusophone
+   Africa" off at the right edge with nothing to say there was more. */
+.wg-region-choices { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; }
+/* Region names are written to sit mid-sentence ("the Cape and the Free
+   State"); on a button of their own they start with a capital. */
+.wg-region-choices button::first-letter { text-transform: uppercase; }
 .wg-region-choices button { flex-shrink: 0; min-height: 44px; padding: 8px 12px; border: 1px solid #b9c9b9; border-radius: 10px; color: #254c37; background: #f1f6ed; font-size: 13px; font-weight: 600; }
 .wg-region-choices button[aria-pressed='true'] { background: #28523b; color: #fffdf8; border-color: #28523b; }
 .wg-region-choices button:focus-visible, .wg-clue-details summary:focus-visible { outline: 3px solid #ad5939; outline-offset: 2px; }

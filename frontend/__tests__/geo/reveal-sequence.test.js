@@ -334,3 +334,33 @@ describe('regionAround', () => {
     expect(one.lngSpan).toBeGreaterThanOrEqual(0.6);
   });
 });
+
+/**
+ * A phone's Script reveal is a map under 300px tall. At MapKit's widest
+ * that shows less latitude than Spanish spans (the Southern Cone to
+ * Spain), and the answer's pin was cut off the top. Upright, as across,
+ * the stretch holding the most weight is framed.
+ */
+describe('regionAround on a short map', () => {
+  const RAD = Math.PI / 180;
+  const y = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2));
+  test('frames what it can show upright, the heaviest part first', () => {
+    const points = [
+      { lat: 12, lng: 12, weight: 3 },    // the pin, in Africa
+      { lat: 36.5, lng: -5.6, weight: 3 }, // the nearest place, Spain
+      { lat: -55, lng: -68, weight: 0.2 }, // Tierra del Fuego
+      { lat: -33, lng: -70, weight: 0.2 },
+    ];
+    const box = { width: 390, height: 285, padding: 46.8 };
+    const r = regionAround(points, box);
+    const visible = (2 * Math.PI * box.height) / 1024;
+    const scale = Math.min(box.width / (r.lngSpan * RAD), box.height / ((r.latSpan * RAD) / Math.cos(r.lat * RAD)), 1024 / (2 * Math.PI));
+    const top = (lat) => box.height / 2 - (y(lat) - y(r.lat)) * scale;
+    // The pin and Spain are on the map, with room above Spain's pin.
+    expect(top(36.5)).toBeGreaterThanOrEqual(40);
+    expect(top(12)).toBeLessThanOrEqual(box.height - 20);
+    // Tierra del Fuego is the part given up.
+    expect(top(-55)).toBeGreaterThan(box.height);
+    expect(visible).toBeGreaterThan(0);
+  });
+});
