@@ -26,11 +26,12 @@ test("the game's domain gets the game's robots.txt, with its share cards fetchab
     expect(text).toMatch(/^# Probably Earth/);
     expect(text).not.toMatch(/ReunitePets|reunitepets\.org/);
     expect(text).toContain('Allow: /api/geo/og');
-    expect(text).toContain('Disallow: /geo/play');
     expect(text).toContain('Disallow: /geo/me');
-    // A room and a share page unfurl in chat; the bots that draw the card honour this file.
+    // Rooms, share pages and play links unfurl in chat; the bots that
+    // draw the card honour this file, and the pages say noindex themselves.
     expect(text).not.toContain('Disallow: /geo/room');
     expect(text).not.toContain('Disallow: /geo/share');
+    expect(text).not.toContain('Disallow: /geo/play');
     expect(text).toContain(`Sitemap: ${GEO_HOME_URL}/sitemap.xml`);
   }
 });

@@ -35,6 +35,7 @@ import { ArrowLeft, Check, LogOut, Mail, Trash2 } from 'lucide-react';
 import { DEFAULT_PLAYER_NAME } from '@/app/lib/geo/rooms';
 import { ensureProfile, profileHeaders } from '../lib/profile';
 import { saveName } from '../lib/useRoom';
+import { isSignedIn } from '../lib/session';
 import PhoneSignIn from './PhoneSignIn';
 
 const WHY = {
@@ -116,6 +117,14 @@ export default function SignInCard({
         window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
       }
     }
+    // No link to finish and no session cookie on this browser: nobody is
+    // signed in here, so the email field shows now rather than after a
+    // round trip. On the live site "Checking your account" stood where
+    // the field should be for two to four seconds on a phone. The check
+    // still runs, and a session the cookie did not know about still wins;
+    // a failed check leaves the form, whose own send says what went wrong.
+    const signedOut = !linkRef.current && !isSignedIn();
+    if (signedOut) setStep('email');
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => {
         if (!response.ok) throw new Error('offline');
@@ -126,9 +135,9 @@ export default function SignInCard({
         if (data?.signedIn) {
           setAccount(data);
           setStep('account');
-        } else setStep(linkRef.current ? 'link' : 'email');
+        } else if (!signedOut) setStep(linkRef.current ? 'link' : 'email');
       })
-      .catch(() => { if (alive) setStep('unreachable'); });
+      .catch(() => { if (alive && !signedOut) setStep('unreachable'); });
     return () => { alive = false; };
   }, [checkAttempt]);
 
