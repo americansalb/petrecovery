@@ -257,6 +257,26 @@ describe('regionAround', () => {
     for (const p of points) expect(lngCovers(r, p.lng)).toBe(true);
   });
 
+  // MapKit goes no further out than a 1024px world, so a phone-width map
+  // shows about 130 degrees of longitude. Framed on the middle of a world
+  // game, the phone summary showed the Indian Ocean and one pin.
+  test('a map too narrow for every answer frames the most answers, not the empty middle', () => {
+    const answers = [{ lat: 38.7, lng: -9.1 }, { lat: 59.3, lng: 18.1 }, { lat: -33.9, lng: 151.2 }].map((p) => ({ ...p, weight: 2 }));
+    const guesses = [{ lat: 20, lng: 0 }, { lat: 25, lng: 5 }, { lat: 15, lng: -5 }].map((p) => ({ ...p, weight: 1 }));
+    const r = regionAround([...answers, ...guesses], { width: 374, height: 250 });
+    for (const p of [answers[0], answers[1], ...guesses]) expect(lngCovers(r, p.lng)).toBe(true);
+    expect(lngCovers(r, 151.2)).toBe(false);
+    // The same points on a desktop summary all fit, the short way round.
+    const wide = regionAround([...answers, ...guesses], { width: 682, height: 778 });
+    for (const p of [...answers, ...guesses]) expect(lngCovers(wide, p.lng)).toBe(true);
+  });
+
+  test('a reveal that cannot show both places shows the answer', () => {
+    const r = regionAround([{ lat: -15.8, lng: -47.9, weight: 1 }, { lat: 35.7, lng: 139.7, weight: 2 }], { width: 374, height: 250 });
+    expect(lngCovers(r, 139.7)).toBe(true);
+    expect(lngCovers(r, -47.9)).toBe(false);
+  });
+
   test('leaves room for the pins at the edges, and never zooms to a roof', () => {
     const wide = regionAround([{ lat: 0, lng: 0 }, { lat: 10, lng: 10 }], { width: 500, height: 500 });
     expect(wide.lngSpan).toBeGreaterThan(10);
