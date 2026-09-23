@@ -168,13 +168,14 @@ describe('POST /api/geo/round', () => {
 
   test('bad input is a 400', async () => {
     expect((await postRound({ json: async () => { throw new Error('nope'); } })).status).toBe(400);
-    expect((await postRound(request({ config: { mode: 'country', region: 'ZZ' } }))).status).toBe(400);
+    // A link to the retired country mode is not bad input: it plays World.
+    expect((await postRound(request({ config: { mode: 'country', region: 'ZZ' } }))).status).toBe(200);
   });
 });
 
 describe('POST /api/geo/guess', () => {
   test('scores a guess from the sealed token and reveals the answer', async () => {
-    const round = (await (await postRound(request({ config: { provider: 'google', mode: 'country', region: 'FR', seed: 'g' } }))).json()).round;
+    const round = (await (await postRound(request({ config: { provider: 'google', mode: 'balanced', seed: 'g' } }))).json()).round;
     const answer = openToken(roundToken(round), { secret: TOKEN_SECRET });
     const res = await postGuess(request({ token: roundToken(round), guess: { lat: answer.lat + 0.5, lng: answer.lng } }));
     expect(res.status).toBe(200);
@@ -184,7 +185,7 @@ describe('POST /api/geo/guess', () => {
     expect(result.distanceKm).toBeLessThan(60);
     expect(result.score).toBeGreaterThan(0);
     expect(result.score).toBeLessThan(5000);
-    expect(result.answer).toMatchObject({ lat: answer.lat, lng: answer.lng, country: { code: 'FR' } });
+    expect(result.answer).toMatchObject({ lat: answer.lat, lng: answer.lng, country: { code: answer.cc } });
   });
 
   test('rejects missing and invalid tokens', async () => {
@@ -262,15 +263,15 @@ describe('POST /api/geo/guess', () => {
   test('a scored round earns points and a badge for the profile, and the shop sells what they buy', async () => {
     const registered = await (await postProfile(request({ name: 'Grace' }, { 'x-test-ip': '198.51.100.30' }))).json();
     const mine = { 'x-test-ip': '198.51.100.30', 'x-geo-profile': registered.token };
-    const round = (await (await postRound(request({ config: { mode: 'country', region: 'JP', seed: 'pts' } }, mine))).json()).round;
+    const round = (await (await postRound(request({ config: { mode: 'balanced', seed: 'pts' } }, mine))).json()).round;
     const answer = openToken(roundToken(round), { secret: TOKEN_SECRET });
     const { points } = await (await postGuess(request({ token: roundToken(round), guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();
     expect(points.earned).toBeGreaterThan(0);
-    expect(points.badge).toMatchObject({ countryCode: 'JP' });
+    expect(points.badge).toMatchObject({ countryCode: answer.cc });
     expect(points.balance).toBe(points.earned);
     const me = await (await postProfile(request({}, mine))).json();
     expect(me.profile.points).toBe(points.earned);
-    expect(me.profile.badges[0].countryCode).toBe('JP');
+    expect(me.profile.badges[0].countryCode).toBe(answer.cc);
     expect(me.profile.ledger.length).toBeGreaterThan(0);
     expect(me.profile.equipped.pin.id).toBe('pin-classic');
 

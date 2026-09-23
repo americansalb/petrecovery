@@ -134,7 +134,6 @@ export default function GameSummary({
   summary,
   code,
   config,
-  regionLabel,
   best,
   daily = null,
   rated = null,
@@ -148,7 +147,7 @@ export default function GameSummary({
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const shareUrl = `${origin}/geo/share?s=${encodeURIComponent(code)}`;
   const challengeUrl = `${origin}/geo/play?${configToParams(config).toString()}`;
-  const text = shareText(summary, shareUrl, { regionLabel });
+  const text = shareText(summary, shareUrl);
   const isStreak = config.mode === 'streak';
   const max = summary.rounds.length * MAX_ROUND_SCORE;
   const canShare =
@@ -171,7 +170,7 @@ export default function GameSummary({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm text-pe-muted">
-              {describeConfig(config, { regionLabel })}
+              {describeConfig(config)}
             </p>
             <p className="pe-score-total mt-1 text-4xl font-bold tabular-nums text-pe-warm">
               {isStreak

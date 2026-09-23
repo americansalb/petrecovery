@@ -394,8 +394,6 @@ function StreetPlayGame({ params }) {
     [server]
   );
 
-  const regionLabel = config.mode === 'country' ? server?.countries?.find((c) => c.code === config.region)?.name : undefined;
-
   // What the map shows.
   const lastResult = state.rounds[state.rounds.length - 1];
   const mapMode = state.status === 'result' || state.status === 'summary' ? 'result' : 'guess';
@@ -523,7 +521,6 @@ function StreetPlayGame({ params }) {
           canZoom={canZoom && inRound}
           canReturn={canReturn}
           canPan={config.pan}
-          regionLabel={regionLabel}
           onReturn={() => paneRef.current?.returnToStart?.()}
           onZoom={(delta) => paneRef.current?.zoomBy?.(delta)}
           mobileMapOpen={mobileMapOpen}
@@ -617,7 +614,7 @@ function StreetPlayGame({ params }) {
               Hide the list
             </button>
           ) : null}
-          <CountryPicker countries={server?.countries || []} provider={config.provider} value={state.pin?.countryCode || ''} onChange={(code) => dispatch({ type: 'pin', pin: { countryCode: code } })} onSubmit={() => submitGuess()} disabled={state.status !== 'playing'} />
+          <CountryPicker countries={server?.countries || []} value={state.pin?.countryCode || ''} onChange={(code) => dispatch({ type: 'pin', pin: { countryCode: code } })} onSubmit={() => submitGuess()} disabled={state.status !== 'playing'} />
         </div>
       ) : null}
 
@@ -655,7 +652,6 @@ function StreetPlayGame({ params }) {
           resumeUrl={resumeUrl}
           code={share.code}
           config={config}
-          regionLabel={regionLabel}
           best={share.best}
           /* Not isChallengeMode: a finished daily or cup shows the board
              it was played against, and a finished ranked set shows the

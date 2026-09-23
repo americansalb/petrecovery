@@ -526,7 +526,7 @@ export default function RoomClient({ code }) {
         />
       ) : null}
       {joined && phase === 'lobby' ? (
-        <LobbyPanel state={state} countries={server?.countries} onStart={() => run(() => act('start'))} onLeave={onLeave} busy={busy} error={actionError} />
+        <LobbyPanel state={state} onStart={() => run(() => act('start'))} onLeave={onLeave} busy={busy} error={actionError} />
       ) : null}
       {joined && phase === 'loading' ? <LoadingPanel state={state} /> : null}
       {joined && phase === 'locating' ? <LocatingPanel state={state} attempt={locateAttempt} /> : null}

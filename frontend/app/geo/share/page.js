@@ -23,17 +23,13 @@ function readCode(searchParams) {
   return typeof value === 'string' ? value : '';
 }
 
-function regionLabelFor(config) {
-  return config.mode === 'country' ? countryByCode(config.region)?.name : undefined;
-}
-
 export async function generateMetadata({ searchParams }) {
   const code = readCode(await searchParams);
   const summary = decodeShare(code);
   if (!summary) return genericShareMetadata('Probably Earth', LOBBY_DESCRIPTION);
   const headline = summaryHeadline(summary);
   const avg = averageMissKm(summary);
-  const description = `${describeConfig(summary.config, { regionLabel: regionLabelFor(summary.config) })}${avg !== null ? ` Average miss ${formatDistance(avg)}.` : ''}`;
+  const description = `${describeConfig(summary.config)}${avg !== null ? ` Average miss ${formatDistance(avg)}.` : ''}`;
   const encoded = encodeURIComponent(code);
   return {
     ...buildShareMetadata({
@@ -66,7 +62,6 @@ export default async function GeoSharePage({ searchParams }) {
   }
 
   const isStreak = summary.config.mode === 'streak';
-  const regionLabel = regionLabelFor(summary.config);
   const avg = averageMissKm(summary);
   const sameParams = configToParams(summary.config).toString();
   const max = summary.rounds.length * MAX_ROUND_SCORE;
@@ -79,7 +74,7 @@ export default async function GeoSharePage({ searchParams }) {
         {!isStreak ? <span className="ml-2 text-lg font-medium text-pe-muted">of {formatScore(max)} points</span> : null}
       </h1>
       <p className="mt-2 text-pe-muted">
-        {describeConfig(summary.config, { regionLabel })}
+        {describeConfig(summary.config)}
         {avg !== null ? ` Average miss ${formatDistance(avg)}.` : ''}
         {summary.date ? ` Played ${summary.date}.` : ''}
       </p>

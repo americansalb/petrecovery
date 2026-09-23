@@ -23,7 +23,7 @@ import Link from 'next/link';
 import { Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
 import { REVEAL, useTween } from '../lib/motion';
-import { CONTINENTS, MODES } from '@/app/lib/geo/modes';
+import { MODES } from '@/app/lib/geo/modes';
 import SaveGameButton from './SaveGameButton';
 
 export function TimerRing({ secondsLeft, total }) {
@@ -100,7 +100,6 @@ export default function GameHud({
   canZoom,
   canReturn = true,
   canPan = true,
-  regionLabel = '',
   onReturn,
   onZoom,
   mobileMapOpen,
@@ -114,17 +113,10 @@ export default function GameHud({
   const modeLabel =
     MODES[config.mode]?.label || MODES[config.mode]?.short || config.mode;
   const timed = config.time > 0 && Number.isFinite(secondsLeft);
-  // The pill's second line is what you are playing. For a mode with a
-  // region that is the region: "CONTINENT / City streets" named every
-  // continent the same way and told a player nothing about the one
-  // constraint their round was under.
-  const needs = MODES[config.mode]?.needs;
-  const playing =
-    needs === 'continent'
-      ? CONTINENTS[config.region]?.label || config.region
-      : needs === 'country'
-        ? regionLabel || config.region
-        : 'City streets';
+  // The pill's second line is what you are playing. It named the
+  // region for the continent and country modes, which are retired
+  // (app/lib/geo/modes.js, RETIRED_MODES); every mode is city streets.
+  const playing = 'City streets';
 
   return (
     <>

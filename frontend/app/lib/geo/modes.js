@@ -3,8 +3,6 @@
  * the API and the share page all read. Pure data and pure functions.
  */
 
-import { APPLE_COVERAGE } from './coverage';
-
 /**
  * The imagery the game plays on.
  *
@@ -22,7 +20,10 @@ export const PROVIDERS = {
     id: 'apple',
     label: 'Apple Look Around',
     short: 'Apple',
-    description: `City streets in ${APPLE_COVERAGE.size} countries.`,
+    // No count and no list: what the game covers is kept secret
+    // (founder decision, 2026-09-23). app/lib/geo/coverage.js is server
+    // only, and __tests__/geo/coverage-secret.test.js keeps it there.
+    description: 'City streets in the countries Apple has driven.',
   },
 };
 
@@ -75,24 +76,6 @@ export const MODES = {
     description: 'Ten balanced rounds, No Move, 60 seconds each. Everyone gets the same ten places this week, and the week ends with prizes.',
     fixed: { provider: PRIMARY_PROVIDER, rounds: 10, time: 60, move: false, pan: true, zoom: true, radius: 'standard' },
   },
-  continent: {
-    id: 'continent',
-    label: 'Continent',
-    short: 'Continent',
-    providers: ['apple'],
-    needs: 'continent',
-    description: 'Random countries within one continent.',
-    apple: { description: 'Random covered countries within one continent. Apple has no city streets in Africa or South America yet.' },
-  },
-  country: {
-    id: 'country',
-    label: 'Country',
-    short: 'Country',
-    providers: ['apple'],
-    needs: 'country',
-    description: 'Random spots inside one country.',
-    apple: { description: 'Random streets in the cities of one covered country.' },
-  },
   streak: {
     id: 'streak',
     label: 'Country streak',
@@ -143,7 +126,7 @@ export function isChallengeMode(mode) {
   return CHALLENGE_MODES.includes(String(mode || ''));
 }
 
-export const MODE_ORDER = ['balanced', 'daily', 'ranked', 'cup', 'continent', 'country', 'streak'];
+export const MODE_ORDER = ['balanced', 'daily', 'ranked', 'cup', 'streak'];
 
 /**
  * Modes that no longer exist, and what a link to one opens instead.
@@ -154,8 +137,21 @@ export const MODE_ORDER = ['balanced', 'daily', 'ranked', 'cup', 'continent', 'c
  * the country by the square root of its area first, which is the same
  * game with an honest distribution, and now wears the name World.
  * The other three needed Google.
+ *
+ * `continent` and `country` let a player choose where to be dropped,
+ * and choosing meant being shown the choices: a list of every covered
+ * country, and a continent list that said Apple had no streets in
+ * Africa or South America. What the game covers is kept secret
+ * (founder decision, 2026-09-23), so a link to either plays World.
  */
-const RETIRED_MODES = { world: 'balanced', cities: 'balanced', everywhere: 'balanced', kidnapped: 'balanced' };
+const RETIRED_MODES = {
+  world: 'balanced',
+  cities: 'balanced',
+  everywhere: 'balanced',
+  kidnapped: 'balanced',
+  continent: 'balanced',
+  country: 'balanced',
+};
 
 /**
  * The three formats competitive play knows (docs/GEO.md, "Formats"):
@@ -185,21 +181,6 @@ export function formatSettings(id) {
 export function formatLabel(config = {}) {
   return FORMATS[formatOf(config)].label;
 }
-
-export const CONTINENTS = {
-  europe: { id: 'europe', label: 'Europe', regions: ['Europe'] },
-  asia: { id: 'asia', label: 'Asia', regions: ['Asia'] },
-  africa: { id: 'africa', label: 'Africa', regions: ['Africa'] },
-  'north-america': {
-    id: 'north-america',
-    label: 'North America',
-    subregions: ['North America', 'Central America', 'Caribbean'],
-  },
-  'south-america': { id: 'south-america', label: 'South America', subregions: ['South America'] },
-  oceania: { id: 'oceania', label: 'Oceania', regions: ['Oceania'] },
-};
-
-export const CONTINENT_ORDER = ['europe', 'asia', 'africa', 'north-america', 'south-america', 'oceania'];
 
 /**
  * How far from the random point the probe may look for imagery. Small
@@ -371,13 +352,9 @@ export function normalizeConfig(raw = {}, { now = new Date() } = {}) {
   // One imagery, so nothing to reconcile: every mode is Apple.
   const provider = 'apple';
 
-  let region = '';
-  if (MODES[mode].needs === 'continent') {
-    region = CONTINENTS[input.region] ? input.region : 'europe';
-  } else if (MODES[mode].needs === 'country') {
-    const code = String(input.region || '').toUpperCase();
-    region = /^[A-Z]{2}$/.test(code) ? code : 'US';
-  }
+  // Every mode plays the whole of what is covered, so there is no region
+  // to carry. The field stays, empty, for the rows and links that have it.
+  const region = '';
 
   let seed = String(input.seed || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 48);
 
@@ -430,7 +407,6 @@ export function configToParams(config) {
   const params = new URLSearchParams();
   params.set('provider', c.provider);
   params.set('mode', c.mode);
-  if (c.region) params.set('region', c.region);
   if (c.mode !== 'streak') params.set('rounds', String(c.rounds));
   params.set('time', String(c.time));
   params.set('move', c.move ? '1' : '0');
@@ -478,14 +454,10 @@ export function timeLabel(seconds) {
   return `${minutes} minute${minutes === 1 ? '' : 's'}`;
 }
 
-/** One line that says what a game was: "Country: Japan. 5 rounds. No timer." */
-export function describeConfig(config, { regionLabel } = {}) {
+/** One line that says what a game was: "World. 5 rounds. No timer." */
+export function describeConfig(config) {
   const c = normalizeConfig(config);
-  const mode = MODES[c.mode];
-  let name = mode.label;
-  if (mode.needs === 'continent') name = `Continent: ${CONTINENTS[c.region]?.label || c.region}`;
-  if (mode.needs === 'country') name = `Country: ${regionLabel || c.region}`;
-  const parts = [name];
+  const parts = [MODES[c.mode].label];
   if (c.mode === 'streak') parts.push('Until the first miss');
   else parts.push(`${c.rounds} rounds`);
   parts.push(timeLabel(c.time));

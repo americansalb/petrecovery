@@ -73,8 +73,11 @@ describe('the game menu shows the whole product', () => {
   });
 
   test('the casual modes are in Play rather than in Rankings', () => {
-    for (const marker of ['data-menu-streak', 'data-menu-continent', 'data-menu-country']) {
-      expect({ marker, present: menu.includes(marker) }).toEqual({ marker, present: true });
+    expect(menu).toContain('data-menu-streak');
+    // One continent and One country are retired: the country list was a
+    // list of what the game covers, which is kept secret.
+    for (const marker of ['data-menu-continent', 'data-menu-country']) {
+      expect({ marker, present: menu.includes(marker) }).toEqual({ marker, present: false });
     }
     expect(read('app/geo/leaderboard/page.js')).not.toContain('OtherModes');
   });
@@ -200,12 +203,10 @@ describe('every mode the game has is reachable from a page in the navigation', (
     }
   });
 
-  test('the two modes that need a region ask for one, and the rest do not', () => {
+  test('no mode asks where to play: every one draws from everywhere', () => {
     const other = read('app/geo/components/home/GameMenu.js');
-    // "One country" is not a mode until you say which, so this is the
-    // one place in the game where a control is the honest answer.
-    expect(other).toContain('mode=continent&region=');
-    expect(other).toContain('mode=country&region=');
+    expect(other).not.toContain('mode=continent');
+    expect(other).not.toContain('mode=country');
     // A streak needs nothing, so it is a link and not a form.
     expect(other).toContain("href=\"/geo/play?mode=streak\"");
   });

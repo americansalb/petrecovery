@@ -106,7 +106,7 @@ describe('game reducer', () => {
 
 describe('summary and share code', () => {
   test('round-trips through the share code', () => {
-    let s = createInitialState(normalizeConfig({ mode: 'country', region: 'JP', rounds: 3, time: 60, move: false, seed: 'abc' }));
+    let s = createInitialState(normalizeConfig({ mode: 'balanced', rounds: 3, time: 60, move: false, seed: 'abc' }));
     s = reducer(s, { type: 'load_success', round: google });
     s = reducer(s, { type: 'submit_success', result: result(4800, { distanceKm: 12.34 }) });
     s = reducer(s, { type: 'next' });
@@ -123,9 +123,9 @@ describe('summary and share code', () => {
     expect(back.rounds[0]).toMatchObject({ score: 4800, distanceKm: 12.3, countryCode: 'FR' });
     expect(back.rounds[1]).toMatchObject({ score: 0, distanceKm: null });
     expect(summaryHeadline(back)).toBe('4,800 of 10,000');
-    const text = shareText(back, 'https://example.org/geo/share?s=x', { regionLabel: 'Japan' });
+    const text = shareText(back, 'https://example.org/geo/share?s=x');
     expect(text).toContain('4,800 of 10,000');
-    expect(text).toContain('Country: Japan');
+    expect(text).toContain('World. 3 rounds');
     expect(text).toContain('https://example.org/geo/share?s=x');
     expect(text).toContain(scoreGlyph(4800) + scoreGlyph(0));
   });

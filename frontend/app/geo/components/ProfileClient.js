@@ -19,10 +19,6 @@ import Link from 'next/link';
 import { Play, Tag, Users } from 'lucide-react';
 import { formatScore, ordinal } from '@/app/lib/geo/distance';
 import { ITEM_KINDS } from '@/app/lib/geo/items';
-import {
-  countryBadgeProgress,
-  playableCountryCodes,
-} from '@/app/lib/geo/badges';
 import { VARIANTS, DEFAULT_PLAYER_NAME } from '@/app/lib/geo/rooms';
 import {
   LADDERS,
@@ -43,11 +39,6 @@ const TABS = [
   { id: 'shop', label: 'Shop' },
   { id: 'settings', label: 'Settings' },
 ];
-// What a badge can be earned in: the countries the game actually drops
-// you in. The badge model covers every country, which made "12 badges"
-// read against a denominator nobody can reach.
-const PLAYABLE_COUNTRIES = playableCountryCodes('apple');
-
 /** One ladder: the rating, the tier, and what was won on it. */
 function LadderCard({ ladder, rating, provisionalGames }) {
   const label = ladder === 'duel' ? 'Street multiplayer' : LADDER_LABELS[ladder] || VARIANTS[ladder]?.label || ladder;
@@ -373,10 +364,12 @@ export default function ProfileClient() {
     () => (shop?.items || []).filter((i) => i.kind === kind),
     [shop, kind],
   );
-  const badgeProgress = countryBadgeProgress(
-    profile?.badges,
-    PLAYABLE_COUNTRIES,
-  );
+  // How many countries a player has a badge for, and nothing about how
+  // many there are to get. The line read "12 of 23 countries", and 23
+  // was the number of countries the game covers, which is kept secret
+  // (app/lib/geo/modes.js, RETIRED_MODES). Mars and the Moon are badge
+  // rows too, but they are not countries.
+  const countryBadges = (profile?.badges || []).filter((badge) => !badge.notEarth).length;
   const view = shop?.view || profile?.equipped || null;
   const points = shop?.points ?? profile?.points ?? 0;
 
@@ -647,24 +640,12 @@ export default function ProfileClient() {
             <section data-badges aria-labelledby="profile-badges">
               <h2 id="profile-badges" className="ui-h2 flex items-baseline justify-between gap-3">
                 Country badges
-                {badgeProgress.show ? (
+                {countryBadges ? (
                   <span className="text-sm font-normal tabular-nums text-pe-muted">
-                    {badgeProgress.earned} of {badgeProgress.total} countries
+                    {countryBadges} {countryBadges === 1 ? 'country' : 'countries'}
                   </span>
                 ) : null}
               </h2>
-              {/* Badges outlive the coverage that awarded them. The
-                  city list holds 56 countries and 23 of them are
-                  playable today, so a player from the Google era holds
-                  rows for places no round can reach: counted in, they
-                  print "40 of 23"; dropped, they vanish without a
-                  word. */}
-              {badgeProgress.elsewhere ? (
-                <p className="mt-1 text-xs text-pe-subtle">
-                  {badgeProgress.elsewhere} more from places the game no longer
-                  visits.
-                </p>
-              ) : null}
               {profile.badges?.length ? (
                 <ul className="mt-3 grid gap-2 sm:grid-cols-2">
                   {profile.badges.map((b) => (

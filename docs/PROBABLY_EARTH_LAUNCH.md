@@ -691,7 +691,7 @@ is not a current diagnosis. Use the current launch gate above.
 
 | | State |
 |---|---|
-| The game itself: seven modes, rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge, ranked solo | code, live on `pet_main` |
+| The game itself: five modes (One continent and One country retired 2026-09-23, to keep coverage secret), rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge, ranked solo | code, live on `pet_main` |
 | Not Earth: one casual round in two hundred is a NASA panorama from Mars or the Moon, with a button to call it | code |
 | Script mode: 159 languages, 34 writing systems, region scoring | code, live on `pet_main` |
 | Its own accounts, its own session, its own mailer | code, live on `pet_main` |

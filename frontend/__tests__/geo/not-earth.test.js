@@ -101,12 +101,6 @@ describe('the panoramas', () => {
 });
 
 describe('when one comes up', () => {
-  test('a guaranteed surprise never bypasses country validation', async () => {
-    const config = casual({ mode: 'country', region: 'ZZ', seed: HIT_SEED });
-    expect(notEarthFor({ config, roundIndex: 0 })).not.toBeNull();
-    await expect(createRound({ config, env: ENV })).rejects.toMatchObject({ code: 'unknown_country' });
-  });
-
   test('about one round in two hundred', () => {
     expect(NOT_EARTH_CHANCE).toBeCloseTo(0.005, 6);
     let hits = 0;
@@ -123,7 +117,7 @@ describe('when one comes up', () => {
     // Ranked, the daily and the cup are one set of places shared by
     // everyone playing them. A surprise that lands for one player and
     // not the next is not a shared set.
-    expect(NOT_EARTH_MODES).toEqual(['balanced', 'continent', 'country', 'streak']);
+    expect(NOT_EARTH_MODES).toEqual(['balanced', 'streak']);
     for (const mode of ['ranked', 'daily', 'cup']) {
       expect(notEarthAllowed({ mode })).toBe(false);
       // Even on a seed that would otherwise hit.
