@@ -4,7 +4,9 @@
  * Schema.org structured data and meta tag generation
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.reunitepets.org';
+import { getBaseUrl } from '@/app/lib/config';
+
+const BASE_URL = getBaseUrl();
 
 /**
  * Generate Lost Pet schema.org JSON-LD

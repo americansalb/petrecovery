@@ -44,7 +44,7 @@ async function main() {
     cwd: path.resolve(__dirname, '..'),
     env: { ...process.env, NODE_ENV: 'production', NODE_OPTIONS: '',
       NEXT_TELEMETRY_DISABLED: '1', GEO_TOKEN_SECRET: 'memory-smoke-qa-only-secret',
-      NEXTAUTH_SECRET: 'memory-smoke-qa-only-auth', NEXTAUTH_URL: `http://localhost:${port}` },
+      NEXTAUTH_SECRET: 'memory-smoke-qa-only-auth' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let failure;

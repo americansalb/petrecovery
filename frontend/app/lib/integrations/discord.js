@@ -4,6 +4,8 @@
  * Sends notifications to Discord channels via webhooks.
  */
 
+import { getBaseUrl } from '@/app/lib/config';
+
 /**
  * Send a message to a Discord webhook
  */
@@ -75,7 +77,7 @@ export function formatLostPetAlert(missionData) {
     embed.thumbnail = { url: missionData.photoUrl };
   }
 
-  const caseUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${missionData.missionNumber}`;
+  const caseUrl = `${getBaseUrl()}/cases/${missionData.missionNumber}`;
 
   return {
     content: `**New Lost Pet Report** - Please help find ${missionData.petName}!`,
@@ -177,7 +179,7 @@ export function formatSightingAlert(sightingData) {
             type: 2,
             style: 5,
             label: 'View Case',
-            url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${sightingData.missionNumber}`,
+            url: `${getBaseUrl()}/cases/${sightingData.missionNumber}`,
           },
         ],
       },

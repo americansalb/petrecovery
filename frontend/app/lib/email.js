@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
+import { getBaseUrl } from '@/app/lib/config';
 
 /**
  * Outbound email with a provider chain:
@@ -70,11 +71,7 @@ function getSmtp() {
  * The address the app is reachable at, for links inside emails.
  */
 function siteOrigin() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXTAUTH_URL ||
-    'https://www.reunitepets.org'
-  ).replace(/\/$/, '');
+  return getBaseUrl();
 }
 
 /**

@@ -11,8 +11,9 @@
 import { sendEmail, unsubscribeTokenFor } from '@/app/lib/email';
 import { logEvent } from '@/lib/logging';
 import prisma from '@/app/lib/prisma';
+import { getBaseUrl } from '@/app/lib/config';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = getBaseUrl();
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL;
 
 /**

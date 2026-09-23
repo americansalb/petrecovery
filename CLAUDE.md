@@ -78,6 +78,20 @@ few words per line), and spend full sentences only where trust demands
 them. Grids of interchangeable icon-badge cards are slop furniture; do
 not build them.
 
+### The site's address is built in, never configured
+
+Every absolute URL the pet site produces (email and SMS links, flyer QR
+codes, canonical and OpenGraph tags, the sitemap, NextAuth's redirects and
+cookies) comes from `getBaseUrl()` in `frontend/app/lib/config.js`: `SITE_URL`
+from `frontend/app/lib/brand.js` everywhere except `next dev`. Never read it
+from `NEXTAUTH_URL`, `NEXT_PUBLIC_BASE_URL`, `RENDER_EXTERNAL_URL` or any other
+setting, and never fall back to localhost. Before launch, `NEXTAUTH_URL`
+named the Render hostname (every reset link and QR code went to
+petrecovery.onrender.com) and an unset `NEXT_PUBLIC_BASE_URL` put localhost
+in every canonical tag. `auth.js` hands the address to NextAuth; the game has
+its own built-in domain in `app/lib/geo/meta.js`. Enforced by
+`frontend/__tests__/site-address.test.js`.
+
 ### Other conventions
 
 - Tests: `cd frontend && npm test` (Jest, node env). CI runs on `pet_main`.

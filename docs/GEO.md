@@ -1057,7 +1057,6 @@ that shares the database, built as the game site:
 
    ```
    NEXT_PUBLIC_SITE=geo
-   NEXTAUTH_URL=https://whereonearth.example
    NEXT_PUBLIC_GEO_SITE_NAME=Probably Earth        # optional, the header's name
    NEXT_PUBLIC_GEO_HOME_URL=https://www.reunitepets.org   # optional, where its ReunitePets link goes
    ```

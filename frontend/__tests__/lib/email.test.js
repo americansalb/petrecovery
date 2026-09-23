@@ -116,7 +116,7 @@ describe('unsubscribe path', () => {
   const TOKEN = 'unsub_tok_123';
 
   test('adds the footer and the List-Unsubscribe headers when given a token', async () => {
-    const { sendEmail } = freshEmailLib({ RESEND_API_KEY: 're_test_123', NEXT_PUBLIC_SITE_URL: 'https://www.reunitepets.org' });
+    const { sendEmail } = freshEmailLib({ RESEND_API_KEY: 're_test_123' });
     sendViaResend.mockResolvedValue({ data: { id: 'email_1' }, error: null });
 
     await sendEmail({ ...MSG, html: '<html><body><p>hi</p></body></html>', unsubscribeToken: TOKEN });

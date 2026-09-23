@@ -91,8 +91,9 @@ segment default.
   noticed, because every check only asked whether a card was *present*.
   PNG/JPEG/GIF/WEBP. `scripts/build-geo-card.js` renders the game's card from
   its SVG source; the format is asserted in `link-previews.test.js`.
-- **Absolute image URLs.** `buildShareMetadata` sets `metadataBase` from
-  `NEXT_PUBLIC_BASE_URL`; pass paths or URLs, never `localhost` literals.
+- **Absolute image URLs.** `buildShareMetadata` sets `metadataBase` to the
+  site's built-in address (`getBaseUrl()` in `app/lib/config.js`); pass paths
+  or URLs, never `localhost` literals.
 - **Not-found never leaks.** Invalid ids/tokens return `genericShareMetadata()`
   — same card whether the entity exists or not (matters for tokenized links).
 - **`index` is an explicit decision.** Default is `false` (preview-only).

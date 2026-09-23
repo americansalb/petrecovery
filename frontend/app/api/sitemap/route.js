@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { US_STATES } from '@/app/lib/usStates';
+import { getBaseUrl } from '@/app/lib/config';
 import { isGameHost } from '@/app/lib/geo/site';
 import { gameSitemapXml } from '@/app/lib/geo/crawl';
 
 // The canonical host. middleware.js 301s petrecovery.org here, so declaring the
 // old domain in a sitemap meant every URL Google fetched was a redirect.
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.reunitepets.org';
+const BASE_URL = getBaseUrl();
 
 export async function GET(request) {
   if (isGameHost(request?.headers?.get('host'))) {

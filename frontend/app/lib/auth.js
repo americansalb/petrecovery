@@ -16,6 +16,19 @@ import FacebookProvider from 'next-auth/providers/facebook';
 import AppleProvider from 'next-auth/providers/apple';
 import prisma from './prisma';
 import bcrypt from 'bcryptjs';
+import { getBaseUrl } from './config';
+
+/**
+ * NextAuth v4 has no option for its own address: it reads NEXTAUTH_URL,
+ * and builds every sign-in and sign-out redirect from it. Hand it the
+ * site's built-in address (config.js), so no setting on the host can move
+ * those somewhere else. Set to the Render hostname, it sent everyone who
+ * signed out of reunitepets.org to petrecovery.onrender.com.
+ *
+ * This runs before NextAuth does, because every way into NextAuth goes
+ * through authOptions below.
+ */
+process.env.NEXTAUTH_URL = getBaseUrl();
 
 /**
  * Founder admin(s): these emails are always treated as ADMIN, and the role is
@@ -399,6 +412,12 @@ export const authOptions = {
   },
 
   secret: process.env.NEXTAUTH_SECRET,
+
+  // Named outright rather than inferred from NEXTAUTH_URL, so the session
+  // cookie's name cannot drift from the one middleware.js and the mobile
+  // login route read: __Secure-next-auth.session-token on the real site,
+  // next-auth.session-token on a plain-http development server.
+  useSecureCookies: getBaseUrl().startsWith('https://'),
 
   debug: process.env.NODE_ENV === 'development',
 };

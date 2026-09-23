@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { encode } from 'next-auth/jwt';
 import bcrypt from 'bcryptjs';
 import prisma from '@/app/lib/prisma';
+import { getBaseUrl } from '@/app/lib/config';
 
 // Mirror of the SEC-18 block in app/lib/auth.js - keep in lockstep.
 const SEC18_SEEDED_ADMINS = ['contact@aalb.org', 'sarama@petrecovery.app'];
@@ -62,9 +63,10 @@ export async function POST(request) {
       },
     });
 
-    // The cookie name getServerSession looks for depends on whether the site
-    // runs on https (production). Tell the app exactly which name to send.
-    const useSecure = (process.env.NEXTAUTH_URL || '').startsWith('https');
+    // The cookie name getServerSession looks for depends on whether the
+    // site's address is https (auth.js sets useSecureCookies from the same
+    // address). Tell the app exactly which name to send.
+    const useSecure = getBaseUrl().startsWith('https://');
     const cookieName = useSecure ? '__Secure-next-auth.session-token' : 'next-auth.session-token';
 
     // Fire-and-forget activity stamp (must never block/fail login).

@@ -12,6 +12,17 @@ import { NextResponse } from 'next/server';
 import { GAME_CSP_HOSTS, GAME_RATE_LIMITS, GAME_SHORT_PATHS, isGameHost } from '@/app/lib/geo/site';
 import { clientAddress } from '@/app/lib/geo/clientAddress';
 import { getToken } from 'next-auth/jwt';
+import { SITE_URL } from '@/app/lib/brand';
+import { getBaseUrl } from '@/app/lib/config';
+
+// Hosts that serve this deployment but are not the pet site's address.
+// petrecovery.onrender.com is Render's own name for the service, and it
+// stays reachable however the real domains are set up.
+const REDIRECT_TO_SITE_HOSTS = new Set([
+  'petrecovery.org',
+  'www.petrecovery.org',
+  'petrecovery.onrender.com',
+]);
 
 // Simple in-memory rate limiter (use Redis in production)
 const rateLimitMap = new Map();
@@ -237,16 +248,14 @@ function addSecurityHeaders(response) {
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
-  // One canonical domain. petrecovery.org serves this same app, which
-  // splits SEO authority and sessions across two hosts; 301 every
-  // request to the brand domain, path and query intact.
-  const host = request.headers.get('host') || '';
-  if (host === 'petrecovery.org' || host === 'www.petrecovery.org') {
-    const url = request.nextUrl.clone();
-    url.protocol = 'https:';
-    url.host = 'www.reunitepets.org';
-    url.port = '';
-    return NextResponse.redirect(url, 301);
+  // One canonical domain. petrecovery.org and the Render hostname both
+  // serve this same app, which splits SEO authority and sessions across
+  // hosts; 301 every request to the brand domain, path and query intact.
+  // The health check answers on any host, so Render's own probe is never
+  // redirected.
+  const host = (request.headers.get('host') || '').toLowerCase();
+  if (REDIRECT_TO_SITE_HOSTS.has(host) && pathname !== '/api/health' && pathname !== '/_health') {
+    return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, SITE_URL), 301);
   }
 
   // The game's own site (docs/GEO.md, "Hosting on another domain"): a
@@ -275,8 +284,10 @@ export async function middleware(request) {
       pathname.startsWith('/static') ||
       /\.[a-z0-9]{2,5}$/i.test(pathname);
     if (!isGame) {
-      const petSite = process.env.NEXT_PUBLIC_GEO_HOME_URL || 'https://www.reunitepets.org';
-      return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, petSite), 302);
+      // The pet site's built-in address. This read NEXT_PUBLIC_GEO_HOME_URL,
+      // which is the game's own home: setting it would have sent every
+      // non-game path on the game's domain back to the game's domain.
+      return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, SITE_URL), 302);
     }
   }
 
@@ -419,6 +430,10 @@ export async function middleware(request) {
     const token = await getToken({
       req: request,
       secret: process.env.NEXTAUTH_SECRET,
+      // The same cookie name auth.js tells NextAuth to use. Left to its
+      // default, getToken guesses from NEXTAUTH_URL, which is no longer
+      // what decides it.
+      secureCookie: getBaseUrl().startsWith('https://'),
     });
 
     if (!token) {

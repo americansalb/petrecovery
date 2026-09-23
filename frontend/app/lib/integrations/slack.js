@@ -4,6 +4,8 @@
  * Sends notifications to Slack channels via webhooks and app integrations.
  */
 
+import { getBaseUrl } from '@/app/lib/config';
+
 const SLACK_API_BASE = 'https://slack.com/api';
 
 /**
@@ -99,7 +101,7 @@ export function formatLostPetAlert(missionData) {
           text: 'View Case Details',
           emoji: true,
         },
-        url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${missionData.missionNumber}`,
+        url: `${getBaseUrl()}/cases/${missionData.missionNumber}`,
         style: 'primary',
       },
       {
@@ -109,7 +111,7 @@ export function formatLostPetAlert(missionData) {
           text: 'Report Sighting',
           emoji: true,
         },
-        url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${missionData.missionNumber}/sighting`,
+        url: `${getBaseUrl()}/cases/${missionData.missionNumber}/sighting`,
       },
     ],
   });
@@ -195,7 +197,7 @@ export function formatSightingAlert(sightingData) {
               text: 'View Sighting',
               emoji: true,
             },
-            url: `${process.env.NEXT_PUBLIC_BASE_URL}/cases/${sightingData.missionNumber}`,
+            url: `${getBaseUrl()}/cases/${sightingData.missionNumber}`,
             style: 'primary',
           },
         ],
