@@ -105,10 +105,10 @@ describe('the markers', () => {
     return [...NAMES].some((name) => !mine.has(name) && new RegExp(`\\b${name}\\b`).test(note));
   };
 
-  // Where a language is the only one here in its script, the alphabet
-  // has already answered the round and the reveal says so on its own.
-  // Those notes are free to be about the writing system. Everywhere
-  // else there is a rival on screen and the note has to beat it.
+  // Where a language is the only one in its script, the alphabet has
+  // already answered the round, and those notes are free to be about
+  // the writing system. Everywhere else there is a rival on screen and
+  // the note has to beat it.
   const contested = (code) => {
     const script = byCode.get(code)?.script;
     return LANGUAGES.some((l) => l.script === script && l.code !== code);

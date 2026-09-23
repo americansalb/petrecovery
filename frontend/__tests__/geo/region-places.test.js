@@ -218,7 +218,7 @@ describe('where each language is used', () => {
     for (const language of LANGUAGES) {
       for (const [lat, lng, where] of PLACES[language.code] || []) {
         const here = languagesAt({ lat, lng }).map((l) => l.code);
-        const scored = scoreScriptGuess({ guess: { lat, lng }, language, ladder: 'world' });
+        const scored = scoreScriptGuess({ guess: { lat, lng }, language });
         if (!here.includes(language.code)) {
           wrong.push(`${language.code} (${language.name}): ${where} is outside it, ${Math.round(scored.distanceKm)} km away`);
         } else if (scored.points !== 5000) {

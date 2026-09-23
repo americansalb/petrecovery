@@ -28,7 +28,6 @@ import { ArrowRight, Clock, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { randomSeedString } from '@/app/lib/geo/random';
 import {
-  LADDERS,
   highlightMarkers,
   normalizeScriptConfig,
   scriptConfigToQuery,
@@ -235,7 +234,6 @@ function ScriptPlayGame({ params }) {
     };
   }, []);
 
-  const ladder = LADDERS[config.ladder] || LADDERS.world;
   const done = history.length >= config.rounds && !result;
   const total = history.reduce((sum, row) => sum + row.score, 0);
 
@@ -338,7 +336,6 @@ function ScriptPlayGame({ params }) {
     return (
       <Summary
         config={config}
-        ladder={ladder}
         history={history}
         total={total}
         resumeUrl={resumeUrl}
@@ -356,11 +353,11 @@ function ScriptPlayGame({ params }) {
         <div className="mx-auto flex max-w-4xl items-start justify-between gap-3 px-3 pt-3 sm:px-4">
           <div className={`flex items-center gap-3 px-4 py-2 ${PILL}`}>
             <div className="flex flex-col leading-tight">
-              {/* "Script - World", not "World": the street game has a
-                  World mode too, and a header that says only the pool
-                  does not say which game you are in. */}
+              {/* Which game this is. It used to name the set of
+                  languages too, and there is one set now, which is not
+                  named anywhere (app/lib/geo/script.js). */}
               <span className="text-[11px] uppercase tracking-wide text-sand-500">
-                Script &middot; {ladder.short}
+                Script
               </span>
               <span className="text-sm font-semibold">
                 {saveReady ? <>Round {Math.min(roundIndex + 1, config.rounds)} of {config.rounds}</> : 'Opening game…'}
@@ -599,19 +596,13 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
  */
 function Tells({ answer, text, script }) {
   const markers = answer.markers || [];
-  if (!markers.length && !answer.onlyOneInScript) return null;
+  if (!markers.length) return null;
   const runs = highlightMarkers(text, markers);
   return (
     <div className="pe-script-tells mt-4 rounded-xl border border-sand-200 bg-white/70 p-3">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-sand-500">
         What gave it away
       </p>
-      {answer.onlyOneInScript ? (
-        <p className="mt-2 text-sm text-sand-700">
-          In this pool, {answer.scriptName} is written for {answer.name} and
-          nothing else. Recognizing its letters helps you find its regions.
-        </p>
-      ) : null}
       {runs.length ? (
         <p className="mt-2 break-words text-lg leading-relaxed" lang={script}>
           {runs.map((run, index) =>
@@ -640,7 +631,7 @@ function Tells({ answer, text, script }) {
 }
 
 /** The end of a game. */
-function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
+function Summary({ config, history, total, resumeUrl, saveError }) {
   const replay = `/geo/script/play?${scriptConfigToQuery({ ...config, seed: randomSeedString() })}`;
   // A same-URL Link leaves the completed component mounted. Change only the
   // playthrough key, not the seed/rules, so replay starts at round one.
@@ -649,7 +640,7 @@ function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
     <div className="pe-script-summary pe-paper fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
       <div className="mx-auto max-w-2xl px-5 py-10">
         <p className="text-sm uppercase tracking-wide text-sand-500">
-          Script &middot; {ladder.label}
+          Script
         </p>
         <h1 className="pe-script-total mt-2 text-3xl font-bold">
           {formatScore(total)}
@@ -673,8 +664,10 @@ function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
           <Link href={same} className="ui-btn ui-btn--secondary ui-btn--lg">
             <MapPin className="h-4 w-4" aria-hidden="true" /> Replay this set
           </Link>
+          {/* It said "Choose other languages". There are none to choose:
+              every game draws from the one pool (app/lib/geo/script.js). */}
           <Link href="/geo/script" className="ui-btn ui-btn--ghost ui-btn--lg">
-            Choose other languages
+            Rounds and timer
           </Link>
         </div>
 

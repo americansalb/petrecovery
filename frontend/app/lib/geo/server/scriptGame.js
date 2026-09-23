@@ -11,11 +11,13 @@
  * The whole game for a seed is decided by the seed AND the server's
  * token secret. The API is stateless: the client asks for round three
  * and gets the same round three every time, and a shared link replays
- * the same sentences in the same order. The secret is what stops the
- * browser doing the same arithmetic: the seed is in the address bar,
- * the language pool and the speaker counts ship in the page bundle, and
- * the draw is one weighted pick per round, so without it the whole
- * answer sequence is computable before the first sentence is read.
+ * the same sentences in the same order. The secret is what stops anyone
+ * doing the same arithmetic: the seed is in the address bar and the
+ * draw is one weighted pick per round, so without it the whole answer
+ * sequence is computable from the language list before the first
+ * sentence is read. The list stays on the server now
+ * (app/lib/geo/script.js says why), but the secret does not rely on
+ * that: a list is a small thing to leak.
  *
  * Nothing here costs money. There is no imagery provider, no metadata
  * probe and no key, so script rounds do not touch the play meter
@@ -25,9 +27,9 @@
 
 import { createHash } from 'crypto';
 import { createRng, roundSeed, weightedIndex } from '../random';
-import { languagesForLadder, normalizeScriptConfig } from '../script';
-import { ladderSizeKm, regionsForReveal, scoreScriptGuess } from './regions';
-import { SCRIPTS, languageByCode } from '../languages';
+import { normalizeScriptConfig } from '../script';
+import { regionsForReveal, scoreScriptGuess, scriptScaleKm } from './regions';
+import { LANGUAGES, SCRIPTS, languageByCode } from '../languages';
 import { samplesFor } from './samples';
 import { markersIn } from './markers';
 import { getGeoServerConfig } from './config';
@@ -53,9 +55,9 @@ function weightFor(language) {
 }
 
 /**
- * A seed the browser cannot reproduce. Everything else the draw reads -
- * the ladder, the language rows, the speaker counts, the generator - is
- * in the page bundle, so the secret is the only part that is not.
+ * A seed nobody outside the server can reproduce. Everything else the
+ * draw reads - the language rows, the speaker counts, the generator -
+ * is code, so the secret is the only part that cannot leak with it.
  */
 function saltedSeed(seed, purpose, secret) {
   if (!secret) return `${seed}#${purpose}`;
@@ -69,13 +71,17 @@ function saltedSeed(seed, purpose, secret) {
 
 /**
  * The languages for a whole game, in order, drawn without replacement
- * so a five-round game is five different answers. A ladder smaller than
- * the round count (Cyrillic has six languages, a ten-round game wants
- * ten) refills and may then repeat, which beats refusing to start.
+ * from every language there is, so a five-round game is five different
+ * answers. A pool smaller than the round count would refill and may
+ * then repeat, which beats refusing to start.
+ *
+ * The order of LANGUAGES is part of every seed: the world pool was
+ * always this array, so a seeded game from before the other pools were
+ * removed draws the same languages it did.
  */
 export function drawLanguages(config, secret = '') {
-  const { ladder, rounds, seed } = normalizeScriptConfig(config);
-  const source = languagesForLadder(ladder);
+  const { rounds, seed } = normalizeScriptConfig(config);
+  const source = LANGUAGES;
   const rng = createRng(saltedSeed(seed || 'script', 'draw', secret));
   const picked = [];
   let bag = [...source];
@@ -107,7 +113,6 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
 
   return {
     roundIndex: index,
-    ladder: config.ladder,
     // The script ID, and only the ID, because the client has to pick a
     // font (app/geo/script/fonts.js). Its human NAME used to be here
     // too, and that was a leak: for a script only one language uses -
@@ -118,13 +123,11 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
     // response, where it belongs.
     //
     // The ID is still a hint to anyone reading the network tab, and it
-    // cannot be removed while the browser chooses the font. That mostly
-    // does not matter, because the script is on screen anyway; where it
-    // does matter is the Alphabets ladder, whose whole game is naming
-    // the writing system. Treat that ladder as unranked-by-design.
+    // cannot be removed while the browser chooses the font. It does not
+    // matter much, because the script is on screen anyway.
     script: language.script,
     text,
-    token: sealToken({ c: language.code, l: config.ladder, i: index, seed: config.seed || '' }, { secret: tokenSecret, now }),
+    token: sealToken({ c: language.code, i: index, seed: config.seed || '' }, { secret: tokenSecret, now }),
   };
 }
 
@@ -160,21 +163,20 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
   const language = languageByCode(payload.c);
   if (!language) throw new ScriptGameError('unknown_language', 'That round names a language the corpus no longer has');
 
-  const ladder = payload.l || 'world';
-  const sizeKm = ladderSizeKm(ladder);
+  // Tokens sealed before the one pool also name the set they were drawn
+  // from (payload.l). Every guess is scored on the one scale now.
+  const sizeKm = scriptScaleKm();
   const pin = guess && Number.isFinite(Number(guess.lat)) && Number.isFinite(Number(guess.lng))
     ? { lat: Number(guess.lat), lng: Number(guess.lng) }
     : null;
-  const scored = pin ? scoreScriptGuess({ guess: pin, language, ladder, sizeKm }) : null;
+  const scored = pin ? scoreScriptGuess({ guess: pin, language, sizeKm }) : null;
   // The sentence that was on screen, so the reveal can point at the
   // things in it that gave the language away.
   const text = sentenceFor(language, payload.seed, payload.i, tokenSecret);
-  const rivals = languagesForLadder(ladder).filter((other) => other.script === language.script);
 
   return {
     kind: 'script',
     roundIndex: payload.i,
-    ladder,
     seed: payload.seed || '',
     sizeKm,
     score: scored ? scored.points : 0,
@@ -205,11 +207,6 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
       // is a string that identifies a language, so shipping the table
       // to the browser would hand over every round before the guess.
       markers: markersIn(language.code, text),
-      // Whether the alphabet alone settled it in the pool being played.
-      // Worth saying out loud: a player who does not know that Odia is
-      // the only language in the pool written in Odia has learned the
-      // most useful thing there is to learn about it.
-      onlyOneInScript: rivals.length === 1,
     },
   };
 }

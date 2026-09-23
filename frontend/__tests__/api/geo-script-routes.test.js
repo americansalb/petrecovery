@@ -29,7 +29,7 @@ const find = (code) => LANGUAGES.find((l) => l.code === code);
 
 describe('POST /api/geo/script/round', () => {
   test('returns a sentence and a sealed token, and never the answer', async () => {
-    const res = await postRound(request({ config: { ladder: 'world', rounds: 5, seed: 'route-1' }, roundIndex: 2 }));
+    const res = await postRound(request({ config: { rounds: 5, seed: 'route-1' }, roundIndex: 2 }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.round.roundIndex).toBe(2);
@@ -49,7 +49,7 @@ describe('POST /api/geo/script/round', () => {
   });
 
   test('the same seed and index give the same round', async () => {
-    const config = { ladder: 'india', rounds: 5, seed: 'route-2' };
+    const config = { rounds: 5, seed: 'route-2' };
     const a = await (await postRound(request({ config, roundIndex: 1 }))).json();
     const b = await (await postRound(request({ config, roundIndex: 1 }))).json();
     expect(b.round.text).toBe(a.round.text);
@@ -80,7 +80,7 @@ describe('POST /api/geo/script/round', () => {
 
 describe('POST /api/geo/script/guess', () => {
   test('scores a pin against the language and reveals where it is spoken', async () => {
-    const round = (await (await postRound(request({ config: { ladder: 'world', rounds: 3, seed: 'route-4' }, roundIndex: 0 }))).json()).round;
+    const round = (await (await postRound(request({ config: { rounds: 3, seed: 'route-4' }, roundIndex: 0 }))).json()).round;
     const answer = find(openToken(round.token, { secret: SECRET }).c);
     // A point on the region's own border, which is inside it: the
     // middle of the bounding box is not, for a country shaped like

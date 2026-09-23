@@ -467,7 +467,7 @@ function appleCandidates(config, index, attempt = 0) {
 async function buildRound(store, room, index, now, fetchImpl) {
   try {
     if (room.config.game === 'script') {
-      const sample = createScriptRound({ config: { ladder: 'world', rounds: room.config.rounds, seed: room.config.seed }, roundIndex: index, now });
+      const sample = createScriptRound({ config: { rounds: room.config.rounds, seed: room.config.seed }, roundIndex: index, now });
       await store.createRound({
         roomId: room.id, index, panoId: '', heading: 0,
         lat: 0, lng: 0, sizeKm: 20000,

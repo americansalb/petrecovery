@@ -47,8 +47,13 @@
  * own language is not ruling anything out.
  *
  * Where a script belongs to one language in the pool the script is the
- * marker, and the reveal says so on its own: that is computed, not
- * written here, and those notes are free to be about the alphabet.
+ * marker, and those notes are free to be about the alphabet.
+ *
+ * A note never describes the pool. "No other language here does this"
+ * and "in this pool Greek is one answer" told a player what else could
+ * come up, and what the game covers is kept secret
+ * (app/lib/geo/script.js). A note compares the language with named
+ * languages, or says what is true of it anywhere.
  */
 
 export const MARKERS = {
@@ -88,7 +93,7 @@ export const MARKERS = {
     { text: 'খেয়েছি', note: 'A perfect in -ছি. Assamese ends the same tense in -লোঁ.' },
   ],
   asm: [
-    { text: 'ৰ', note: 'Assamese ৰ, the r with a stroke. Bengali writes র. This is the quickest tell in the pool.' },
+    { text: 'ৰ', note: 'Assamese ৰ, the r with a stroke. Bengali writes র, so this one letter tells the two apart.' },
     { text: 'মই', note: 'I. Bengali says আমি, and the two languages differ more in the small words than the big ones.' },
     { text: 'তেওঁ', note: 'He or she, honorific, with a candrabindu Bengali does not use here.' },
     { text: 'লৈ', note: 'A postposition meaning towards. Bengali would use এ.' },
@@ -125,7 +130,7 @@ export const MARKERS = {
     { text: 'هذا', note: 'This. Persian says این, Urdu یہ.' },
   ],
   pes: [
-    { text: 'می‌', note: 'The present prefix mi-, joined to the verb with a zero width non joiner. Nothing else in this script does that.' },
+    { text: 'می‌', note: 'The present prefix mi-, which Persian joins to the verb with a zero width non joiner. Arabic and Urdu have no such prefix.' },
     { text: 'خوردم', note: 'A first person past in -م. Persian has no ٹ, ڈ or ے, which is what separates it from Urdu.' },
   ],
   pbu: [
@@ -176,12 +181,12 @@ export const MARKERS = {
     { text: 'куди', note: 'Where to. Russian куда, and Ukrainian has no ы anywhere.' },
   ],
   bul: [
-    { text: 'Тази', note: 'This, feminine. Bulgarian dropped noun cases, alone among the Slavic languages here.' },
+    { text: 'Тази', note: 'This, feminine. Bulgarian dropped noun cases; of the Slavic languages only Macedonian did the same.' },
     { text: 'всеки', note: 'Every. Macedonian секој, Serbian сваки, Russian каждый.' },
     { text: 'Той', note: 'He. Russian Он, Serbian Он.' },
   ],
   srp: [
-    { text: 'ћ', note: 'A soft ch, one of five letters Vuk added. Nothing else in Cyrillic here uses it.' },
+    { text: 'ћ', note: 'A soft ch, one of five letters Vuk added to write Serbian. Russian and Bulgarian have no such letter.' },
     { text: 'сваки', note: 'Every. Russian каждый, Bulgarian всеки.' },
     { text: 'посао', note: 'Work. Russian and Bulgarian write работа; Serbian turned a final l into o, and this is what it left.' },
   ],
@@ -196,7 +201,7 @@ export const MARKERS = {
     { text: 'явган', note: 'On foot. Mongolian puts the verb last, always, which Russian does not.' },
   ],
 
-  ell: [{ text: 'Σ', note: 'Greek, and in this pool Greek is one answer.' }, { text: 'Πηγαίνει', note: 'Goes. Greek puts the verb first and needs no pronoun, because the ending already carries it.' }],
+  ell: [{ text: 'Σ', note: 'Sigma. The Greek alphabet is written for Greek and nothing else today, so the letters settle it.' }, { text: 'Πηγαίνει', note: 'Goes. Greek puts the verb first and needs no pronoun, because the ending already carries it.' }],
   heb: [{ text: 'ש', note: 'Hebrew, written right to left with no vowels marked.' }, { text: 'ה', note: 'The definite article, one letter glued to the front. Arabic needs two for the same job, ال.' }],
   kat: [{ text: 'ღ', note: 'Georgian has no capitals and no other language uses this alphabet.' }, { text: 'ძ', note: 'Georgian distinguishes three kinds of stop, which is why it needs 33 letters.' }],
   hye: [{ text: '։', note: 'The Armenian full stop, two dots. Armenian punctuates with marks nobody else uses.' }, { text: 'օ', note: 'Armenian, a 36 letter alphabet invented in one go in the fifth century and used for one language.' }],
@@ -246,11 +251,11 @@ export const MARKERS = {
   ron: [
     { text: 'ă', note: 'A breve. Romanian is a Romance language with Slavic neighbours and its own vowels.' },
     { text: 'ș', note: 'S with a comma below, not a cedilla. Turkish writes ş, which is a different letter.' },
-    { text: 'ț', note: 'T with a comma below. Nothing else in this pool uses it.' },
+    { text: 'ț', note: 'T with a comma below, a Romanian letter. Italian, Spanish and French have nothing like it.' },
   ],
   fra: [
-    { text: 'faisait', note: 'An imperfect with three vowels for one sound. No other Romance language here writes ai where it says e.' },
-    { text: 'bureau', note: 'The -eau ending. No other Romance language here spells it that way.' },
+    { text: 'faisait', note: 'An imperfect with three vowels for one sound. Spanish and Italian never write ai for an e sound.' },
+    { text: 'bureau', note: 'The -eau ending, three letters for one sound. Spanish and Italian would write a plain o.' },
     { text: 'où', note: 'Where. The only French word with a grave over u.' },
   ],
   cat: [
@@ -309,8 +314,8 @@ export const MARKERS = {
   hun: [
     { text: 'ezért', note: 'Therefore. Hungarian is related to Finnish and Estonian and to nothing around it.' },
     { text: 'forró', note: 'Hot. Hungarian marks long vowels with an acute even on o, so ó sits where Polish or Czech would write a plain o.' },
-    { text: 'gyalog', note: 'On foot. Gy is a letter in its own right, and no other language here uses it; Hungarian has ly, ny and ty besides.' },
-    { text: 'dolgozni', note: 'To work. Every Hungarian infinitive ends -ni; Finnish, the other language here built out of endings, uses -a.' },
+    { text: 'gyalog', note: 'On foot. Gy is a letter in its own right in Hungarian, as are ly, ny and ty; Finnish has none of them.' },
+    { text: 'dolgozni', note: 'To work. Every Hungarian infinitive ends -ni; Finnish infinitives end in -a or -ä.' },
   ],
   pol: [
     { text: 'ę', note: 'A nasal e with a hook. Polish and Lithuanian both use hooks, for different sounds.' },
@@ -347,7 +352,7 @@ export const MARKERS = {
     { text: 'Roedd', note: 'Was. Welsh and Irish both put the verb first; what separates them on the page is ll, dd, and w used as a vowel.' },
     { text: 'felly', note: 'So. Welsh doubles l and f to make different sounds; Irish marks the same kind of change by adding an h after the letter.' },
     { text: 'cerdded', note: 'To walk. Dd is one letter, the th in this. Irish writes that sound dh.' },
-    { text: 'gwaith', note: 'Work. Welsh uses w as a vowel, which no other language here does.' },
+    { text: 'gwaith', note: 'Work. Welsh uses w as a vowel on its own, which English does only in words borrowed from Welsh.' },
   ],
   tur: [
     { text: 'ğ', note: 'A soft g, which lengthens the vowel before it and is silent. Azerbaijani does not use it.' },
@@ -365,8 +370,8 @@ export const MARKERS = {
     { text: 'ertalab', note: 'In the morning. Uzbek took this from Persian, as it did much of its vocabulary.' },
   ],
   vie: [
-    { text: 'ờ', note: 'A vowel with a horn and a tone mark stacked on it. No other Latin alphabet here puts two marks on one letter.' },
-    { text: 'ấy', note: 'That. Vietnamese writes one syllable per word, so a line breaks into short pieces; nothing else here breaks up that way.' },
+    { text: 'ờ', note: 'A vowel with a horn and a tone mark stacked on it. French and Portuguese never put two marks on one letter.' },
+    { text: 'ấy', note: 'That. Vietnamese writes each syllable as its own word, so a line breaks into short pieces, unlike Tagalog or Indonesian.' },
   ],
   ind: [
     { text: 'udaranya', note: 'The air. Indonesian and Malay are the same language in most sentences; the vocabulary is where they part.' },
@@ -380,8 +385,8 @@ export const MARKERS = {
     { text: 'pejabat', note: 'Office. Indonesian kantor, from Dutch. Malaysia borrowed from English and Arabic where Indonesia borrowed from Dutch.' },
   ],
   tgl: [
-    { text: 'Napakalamig', note: 'Very cold, in one word. Indonesian and Malay, the nearest relatives here, need two: sangat dingin.' },
-    { text: 'ngayong', note: 'Ng is one letter here and can open a word. Only Vietnamese does the same in this pool, and Vietnamese stacks accents on nearly every syllable.' },
+    { text: 'Napakalamig', note: 'Very cold, in one word. Indonesian and Malay need two: sangat dingin.' },
+    { text: 'ngayong', note: 'Ng is one letter in Tagalog and can open a word. Vietnamese words can start with ng too, but Vietnamese stacks accents on nearly every syllable.' },
     { text: 'Naglalakad', note: 'Is walking: the stem syllable said twice marks it in progress. Indonesian and Malay use ber- and meng- instead.' },
     { text: 'araw-araw', note: 'Every day, the word for day doubled. Indonesian doubles nouns too, but writes hari-hari.' },
   ],
@@ -400,12 +405,12 @@ export const MARKERS = {
   yor: [
     { text: 'ṣ', note: 'S with a dot under it. Igbo writes dots below as well, but never puts a tone accent on top of them the way Yoruba does.' },
     { text: 'ẹ', note: 'E with a dot under and a tone mark above. Two systems at once, which only Yoruba runs in ordinary writing.' },
-    { text: 'gan-an', note: 'Very. Yoruba writes a hyphen where a syllable repeats, which no other language here does.' },
+    { text: 'gan-an', note: 'Very. Yoruba writes a hyphen where a syllable repeats; Hausa would say sosai.' },
   ],
   som: [
-    { text: 'waxaan', note: 'A focus marker put in front of whatever is being asserted. No other language here needs a word like it before the sentence can start.' },
+    { text: 'waxaan', note: 'A focus marker put in front of whatever is being asserted. A Somali statement needs one before it can start; Swahili has nothing like it.' },
     { text: 'sidaas', note: 'So. Somali doubles vowels for length. Oromo, across the border, doubles consonants as well, and writes no x or c.' },
-    { text: 'ayuu', note: 'A focus marker fused with the subject. Somali builds sentences round waxaa and ayaa; nothing else here has a word class like it.' },
+    { text: 'ayuu', note: 'A focus marker fused with the subject. Somali builds sentences round waxaa and ayaa, and Swahili has no word that works this way.' },
     { text: 'shaqada', note: 'The work, definite in -da hung on the end. Oromo marks the same idea with -ni and -ti.' },
   ],
   zul: [
@@ -464,7 +469,7 @@ export const MARKERS = {
     { text: 'Bhí', note: 'Was, with lenition written as bh. Irish marks long vowels with an acute; Scottish Gaelic uses a grave.' },
     { text: 'dtéann', note: 'Eclipsis: Irish writes the new sound in front of the old letter, so the d is said and the t is silent. Scottish Gaelic does not eclipse.' },
     { text: 'Siúlann', note: 'Walks. Irish puts the verb first, and this ending is one Scottish Gaelic does not have.' },
-    { text: 'hoibre', note: 'An h wedged in after the article. Irish mutates the fronts of words; Welsh is the only other language here that does, and Welsh shows ll and dd.' },
+    { text: 'hoibre', note: 'An h wedged in after the article. Irish mutates the fronts of words. Welsh does too, but Welsh shows ll and dd.' },
   ],
   gla: [
     { text: 'glè', note: 'Very, with a grave accent. Irish writes every long vowel with an acute instead.' },
@@ -474,7 +479,7 @@ export const MARKERS = {
   ],
   mlt: [
     { text: 'għ', note: 'A silent digraph that lengthens the vowel beside it. Maltese only, and it is Arabic ain written in Latin letters.' },
-    { text: 'ħ', note: 'A barred h. Maltese is a Semitic language written in the Latin alphabet, which no other language here is.' },
+    { text: 'ħ', note: 'A barred h. Maltese is the one Semitic language whose standard spelling is Latin.' },
     { text: 'Kuljum', note: 'Every day, from Arabic kull yawm. The grammar is Arabic and half the vocabulary is Italian.' },
     { text: 'nafx', note: 'I do not know. The x is pronounced sh, as in Portuguese.' },
   ],
@@ -719,7 +724,7 @@ export const MARKERS = {
     { text: 'lool', note: 'Very. Wolof doubles vowels for length, so pairs turn up all through a sentence; French, which shares Senegal\'s page with it, never doubles.' },
     { text: 'Xamuma', note: 'I do not know. Wolof writes x for a sound made in the throat, as Somali does.' },
     { text: 'attaaya', note: 'Tea, from Arabic, and the whole ceremony with it.' },
-    { text: 'Dafay', note: 'Wolof puts the emphasis in the conjugation: dafa says the point of the sentence is the verb itself. Nothing else here conjugates for what matters.' },
+    { text: 'Dafay', note: 'Wolof puts the emphasis in the conjugation: dafa says the point of the sentence is the verb itself. French does that with word order instead.' },
     { text: 'liggéey', note: 'Work. Wolof doubles vowels for length and treats é as its own letter; Pulaar, the other written language of Senegal, has neither.' },
     { text: 'bu nekk', note: 'Every. Bés is a b-class noun, so each agrees with it as bu; Wolof marks noun class with a consonant on the end, where Bantu languages like Swahili put a prefix on the front.' },
   ],
@@ -738,7 +743,7 @@ export const MARKERS = {
   sna: [
     { text: 'Mangwanani', note: 'Morning. Chichewa m’mawa, Zulu ekuseni.' },
     { text: 'ndakanwa', note: 'I drank. Shona writes whole sentences as single words more than most Bantu languages.' },
-    { text: 'netsoka', note: 'With the feet. Shona writes sv, zv and tsv, clusters no other Bantu language here uses.' },
+    { text: 'netsoka', note: 'With the feet. Shona writes sv, zv and tsv for its whistled sounds, which Swahili does not have.' },
     { text: 'mugwagwa', note: 'Road. Chichewa msewu, Swahili barabara.' },
     { text: 'Handizivi', note: 'I do not know, negated with ha- on the front. Chichewa uses si-, Zulu angi-.' },
   ],
@@ -746,7 +751,7 @@ export const MARKERS = {
     { text: 'ndisele', note: 'I drank. Zulu would write ngiphuze: the two are close enough to understand each other and use different verbs here.' },
     { text: 'Andazi', note: 'I do not know. Zulu angazi.' },
     { text: 'ngeenyawo', note: 'By foot. Zulu ngezinyawo, and the doubled vowel is a Xhosa spelling Zulu does not use.' },
-    { text: 'ndlela', note: 'Road. Clicks are written c, q and x. Zulu writes them too, so a click narrows the answer to two; nothing else here has clicks at all.' },
+    { text: 'ndlela', note: 'Road. Clicks are written c, q and x. Zulu writes them the same way, so a click points to southern Africa.' },
   ],
   sot: [
     { text: 'Hoseng', note: 'In the morning. Tswana mosong.' },
@@ -774,7 +779,7 @@ export const MARKERS = {
     { text: 'namɛlaki', note: 'I drank. Swahili nilikunywa, and the pieces are in the same order in a different language.' },
     { text: 'Atambolaka', note: 'Walks, over and over: -aka marks a habit. Swahili puts hu- in front for the same idea, Lingala hangs it on the end.' },
     { text: 'nzela', note: 'Road. Swahili njia, and Lingala fronts more of its consonants with n.' },
-    { text: 'Nayebi', note: 'I know. Lingala negates by adding te at the end rather than a prefix, which no other Bantu language here does.' },
+    { text: 'Nayebi', note: 'I know. Lingala negates by adding te at the end, where Swahili uses a prefix.' },
   ],
   bam: [
     { text: 'sɔgɔma', note: 'Morning. This is the same language N’Ko was invented for, written in Latin letters instead.' },
@@ -852,7 +857,7 @@ export const MARKERS = {
     { text: 'pongipongi', note: 'Morning. Samoan taeao, Maori ata.' },
     { text: 'ʻikai', note: 'Not. Hawaiian ʻaʻole, Samoan le.' },
     { text: 'hala', note: 'Road. Samoan auala, Maori huarahi.' },
-    { text: 'ngāue', note: 'Work. Tongan is the only Polynesian language here that still has a definite accent as well as a macron.' },
+    { text: 'ngāue', note: 'Work. Tongan writes a definite accent as well as a macron; Samoan and Hawaiian use the macron alone.' },
   ],
   fij: [
     { text: 'batabata', note: 'Cold, said twice to soften it. Samoan and Maori double words too, but Fijian\'s b stands for mb, which is why the result looks unpronounceable.' },
@@ -861,7 +866,7 @@ export const MARKERS = {
     { text: 'nikua', note: 'Today. Samoan aso nei, Tongan ʻaho ni.' },
   ],
   haw: [
-    { text: 'kakahiaka', note: 'Morning. Hawaiian has eight consonants, the fewest of any language here, so words are long and mostly vowels.' },
+    { text: 'kakahiaka', note: 'Morning. Hawaiian has eight consonants, among the fewest of any language, so words are long and mostly vowels.' },
     { text: 'alanui', note: 'Road. Maori huarahi, Samoan auala.' },
     { text: 'wāwae', note: 'Feet. Hawaiian has w where Samoan has v and Tongan has v.' },
     { text: 'kēia', note: 'This. Maori tēnei, and Hawaiian turned every Polynesian t into a k.' },
@@ -888,7 +893,7 @@ export const MARKERS = {
     { text: 'ĩ', note: 'A nasal vowel with a tilde. Guarani nasalises whole words and marks it on the vowel; Portuguese marks only a and o that way.' },
     { text: 'mbaʼapo', note: 'Work. Guarani writes mb, nd and ng at the start of words, which Spanish beside it never does.' },
     { text: 'pyhareve', note: 'Morning. Guarani is co-official with Spanish and spoken by more people in the country than Spanish is.' },
-    { text: 'Ndaikuaái', note: 'I do not know, with the negative bracketing the verb as nd- and -i. Guarani is the only language here that wraps a verb to negate it.' },
+    { text: 'Ndaikuaái', note: 'I do not know, with the negative bracketing the verb as nd- and -i. Spanish, spoken beside it, puts a single no in front.' },
   ],
   hat: [
     { text: 'konnen', note: 'Know. French connaître, spelled the way it is said.' },
