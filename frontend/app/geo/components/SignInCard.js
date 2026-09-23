@@ -20,6 +20,10 @@
  *   3. Only for a player who has no name yet: what to call them, which
  *      they can skip.
  *
+ * The email's link lands on this screen with a Sign in button rather than
+ * signing in by itself (api/geo/auth/verify says why: mail scanners open
+ * links, and that used to spend the link and the code with it).
+ *
  * Probably Earth accounts are the game's own (docs/GEO.md, "Signing
  * in"), not ReunitePets accounts. There is no password. Playing needs
  * no account at all; this is how a player keeps their progress.
@@ -39,6 +43,20 @@ const WHY = {
   'that-link-was-already-used': 'That link had already been used. Send yourself a new code.',
   unknown: 'That did not work. Send yourself a new code.',
 };
+
+/** What a refused link says, by the code the server gives. */
+const LINK_REFUSED = {
+  invalid: WHY['that-link-is-not-valid'],
+  expired: WHY['that-link-expired'],
+  used: WHY['that-link-was-already-used'],
+};
+
+/** The page to go to after a link, marked the way the play page expects. */
+function markedSignedIn(path) {
+  const url = new URL(path, window.location.origin);
+  url.searchParams.set('signed-in', '1');
+  return `${url.pathname}${url.search}${url.hash}`;
+}
 
 /** Seconds before "Send a new code" is offered again. */
 const RESEND_AFTER = 30;
@@ -75,11 +93,26 @@ export default function SignInCard({
   const authenticatedRef = useRef(onAuthenticated);
   authenticatedRef.current = onAuthenticated;
   const finishedRef = useRef(false);
+  // The token from the email's link, when this page was opened from it:
+  // null until the address has been read, '' when there is none.
+  const linkRef = useRef(null);
+  const viaLinkRef = useRef(false);
 
   // Is this browser signed in already?
   useEffect(() => {
     let alive = true;
     setStep('checking');
+    if (linkRef.current === null) {
+      // Opened from the email's link: keep its token, and take it out of
+      // the address bar so it is not left in the history.
+      const params = new URLSearchParams(window.location.search);
+      linkRef.current = params.get('link') || '';
+      if (linkRef.current) {
+        params.delete('link');
+        const rest = params.toString();
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+      }
+    }
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => {
         if (!response.ok) throw new Error('offline');
@@ -90,7 +123,7 @@ export default function SignInCard({
         if (data?.signedIn) {
           setAccount(data);
           setStep('account');
-        } else setStep('email');
+        } else setStep(linkRef.current ? 'link' : 'email');
       })
       .catch(() => { if (alive) setStep('unreachable'); });
     return () => { alive = false; };
@@ -147,7 +180,9 @@ export default function SignInCard({
     if (finishedRef.current) return;
     finishedRef.current = true;
     authenticatedRef.current?.();
-    if (continueTo) router.push(continueTo);
+    // After the link, the page it returns to is told so (signed-in=1),
+    // which is how a game left mid-way is carried into the account.
+    if (continueTo) router.push(viaLinkRef.current ? markedSignedIn(continueTo) : continueTo);
     else setStep('account');
   };
 
@@ -215,6 +250,31 @@ export default function SignInCard({
     } catch (failure) {
       setError(failure.message);
       setCode('');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // The one press that spends the email's link.
+  const followLink = async (event) => {
+    event?.preventDefault();
+    if (busy || !linkRef.current) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch('/api/geo/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: linkRef.current, next: returnTo }),
+      });
+      const data = await response.json().catch(() => ({}));
+      linkRef.current = '';
+      if (!response.ok) throw new Error(LINK_REFUSED[data?.code] || data?.error || WHY.unknown);
+      viaLinkRef.current = true;
+      await signedIn(data);
+    } catch (failure) {
+      setError(failure.message);
+      setStep('email');
     } finally {
       setBusy(false);
     }
@@ -381,6 +441,33 @@ export default function SignInCard({
             Skip for now
           </button>
         ) : null}
+        {error ? <p role="alert" className="ui-error">{error}</p> : null}
+      </form>
+    );
+  }
+
+  if (step === 'link') {
+    return (
+      <form key="link" method="post" onSubmit={followLink} className="pe-swap grid gap-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pe-accent/15 text-pe-accent-fg">
+            <Mail className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="ui-h2">Finish signing in</p>
+            <p className="mt-1 text-sm text-pe-muted">You opened the link from your sign-in email. Press Sign in to finish.</p>
+          </div>
+        </div>
+        <button type="submit" disabled={busy} className="ui-btn ui-btn--primary ui-btn--block" autoFocus>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+        <button
+          type="button"
+          className="ui-btn ui-btn--ghost ui-btn--sm justify-self-start -ml-3"
+          onClick={() => { linkRef.current = ''; setStep('email'); }}
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Use a different email
+        </button>
         {error ? <p role="alert" className="ui-error">{error}</p> : null}
       </form>
     );
