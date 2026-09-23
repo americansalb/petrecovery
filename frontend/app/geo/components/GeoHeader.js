@@ -153,17 +153,25 @@ export default function GeoHeader() {
               control is only known once the page has read the session, a
               moment after it paints, so it fades in rather than popping
               into the bar. */}
-          {signedIn === false && !pathname.startsWith('/geo/signin') ? (
-            <Link href="/geo/signin" className="pe-fade-in ui-btn ui-btn--primary ui-btn--sm">
-              Sign in
-            </Link>
-          ) : null}
-          {signedIn === true ? (
-            <Link href="/geo/me" className="pe-fade-in ui-account" title={who ? `Signed in as ${who}` : 'Your profile'}>
-              <UserRound size={16} strokeWidth={2} aria-hidden="true" />
-              <span>{who || 'Account'}</span>
-            </Link>
-          ) : null}
+          {/* The slot is always there and always the same width, empty or
+              not, so the links beside it never move: not while the
+              session is being read, not on the sign-in page, and not
+              between a Sign in button and a name (the founder's rule for
+              the pet site's bar, and the reason for it holds here: a bar
+              that rearranges itself reads as broken). */}
+          <div className="ui-account-slot" data-account-slot>
+            {signedIn === false && !pathname.startsWith('/geo/signin') ? (
+              <Link href="/geo/signin" className="pe-fade-in ui-btn ui-btn--primary ui-btn--sm">
+                Sign in
+              </Link>
+            ) : null}
+            {signedIn === true ? (
+              <Link href="/geo/me" className="pe-fade-in ui-account" title={who ? `Signed in as ${who}` : 'Your profile'}>
+                <UserRound size={16} strokeWidth={2} aria-hidden="true" />
+                <span>{who || 'Account'}</span>
+              </Link>
+            ) : null}
+          </div>
         </div>
       </header>
       {/* The same four places, at the bottom of a phone's screen. */}

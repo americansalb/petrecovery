@@ -17,6 +17,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { MODES, configFromParams, configToParams, isChallengeMode } from '@/app/lib/geo/modes';
 import { METER_CODES, refusalTitle, untilText } from '@/app/lib/geo/meter';
 import { encodeShare } from '@/app/lib/geo/share';
+import { randomSeedString } from '@/app/lib/geo/random';
 import { reducer, createInitialState, isFinished, totalScore, streakLength, buildSummary } from '../lib/gameState';
 import { ensureLookAround } from '../lib/lookAround';
 import { mapKitAuth, mapKitRefusalMessage, onMapKitAuth } from '../lib/appleMapKit';
@@ -37,6 +38,7 @@ import SetupNotice from './SetupNotice';
 import { useSavedGame } from '../lib/savedGame';
 import { ignoreGameShortcut } from '../lib/mapKeyboard';
 import { useOpenFrom, usePresence } from '../lib/motion';
+import { playerMessage } from '../lib/networkError';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
 const DESKTOP_SIZE = {
@@ -83,6 +85,33 @@ function ErrorPanel({ title, message, onRetry, retrying, resetAt }) {
 
 export default function PlayClient() {
   const params = useSearchParams();
+  // A challenge's seed comes from the calendar (configFromParams); any
+  // other game without one in its link has none at all.
+  const seeded = Boolean(configFromParams(params).seed);
+  useEffect(() => {
+    if (seeded) return;
+    // The front page's Play, /play and a mode's own row all start a game
+    // with no seed. Its saved-game address was then the same as the last
+    // game played the same way, so a finished one matched and was
+    // restored: after one game, Play Street opened that game's results
+    // again, and so did Choose another game, Play Street. The link gets a
+    // game of its own before the game mounts, the way Script's links do,
+    // which also lets a refresh reopen this game rather than another.
+    const canonical = new URLSearchParams(params.toString());
+    canonical.set('seed', randomSeedString());
+    // null, not history.state: Next ignores a replaceState that carries
+    // its own state (it takes it for one of its own calls), and then
+    // useSearchParams never hears of the new address. Script's links sat
+    // on "Opening game" for good that way.
+    window.history.replaceState(null, '', `${window.location.pathname}?${canonical}${window.location.hash}`);
+  }, [params, seeded]);
+  if (!seeded) {
+    return (
+      <div role="status" className="fixed inset-0 z-[60] flex items-center justify-center bg-pe-canvas text-pe-muted">
+        Opening game
+      </div>
+    );
+  }
   return <StreetPlayGame key={params.toString()} params={params} />;
 }
 
@@ -210,7 +239,7 @@ function StreetPlayGame({ params }) {
       dispatch({ type: 'load_success', round: data.round });
     } catch (error) {
       if (id !== requestRef.current) return;
-      dispatch({ type: 'load_error', error: { message: error.message, code: error.code, resetAt: error.resetAt || null } });
+      dispatch({ type: 'load_error', error: { message: playerMessage(error, 'Could not start the round'), code: error.code, resetAt: error.resetAt || null } });
     }
   }, []);
 
@@ -278,7 +307,7 @@ function StreetPlayGame({ params }) {
       dispatch({ type: 'submit_success', result: { ...data.result, points: data.points || null, timedOut: data.result?.timedOut ?? !guess, roundIndex: s.roundIndex } });
       setMobileMapOpen(false);
     } catch (error) {
-      dispatch({ type: 'submit_error', error: { message: error.message } });
+      dispatch({ type: 'submit_error', error: { message: playerMessage(error, 'Could not score the guess') } });
     }
   }, []);
 
@@ -421,7 +450,7 @@ function StreetPlayGame({ params }) {
     // will not zoom out past the width of the world, and at that zoom
     // a strip that shape covers about thirty degrees of latitude, so
     // Denmark and Australia were both off it.
-    mapClass = `geo-map-frame absolute inset-x-2 top-16 z-30 flex flex-col overflow-hidden rounded-2xl border border-white/15 bg-pe-surface shadow-2xl sm:top-24 ${state.status === 'summary' ? 'geo-map-frame--summary bottom-[63%] sm:bottom-[59%] lg:bottom-6 lg:left-6 lg:right-[calc(50%+12px)]' : 'bottom-[40%] sm:bottom-[30%]'}`;
+    mapClass = `geo-map-frame absolute inset-x-2 top-[84px] z-30 flex flex-col overflow-hidden rounded-2xl border border-white/15 bg-pe-surface shadow-2xl sm:top-24 ${state.status === 'summary' ? 'geo-map-frame--summary bottom-[63%] sm:bottom-[59%] lg:bottom-6 lg:left-6 lg:right-[calc(50%+12px)]' : 'bottom-[40%] sm:bottom-[30%]'}`;
   } else if (inRound && !isStreak) {
     mapClass = mobileMapOpen
       ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-pe-line bg-pe-surface'

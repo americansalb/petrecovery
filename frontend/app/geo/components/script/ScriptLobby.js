@@ -133,16 +133,11 @@ export default function ScriptLobby() {
                 onChange={setTimer}
               />
             </details>
-            <Button
-              onClick={start}
-              disabled={starting}
-              size="lg"
-              block
-              className="mt-4"
-            >
-              <Play size={18} fill="currentColor" aria-hidden="true" />
-              {starting ? 'Starting…' : `Play ${rounds} rounds`}
-            </Button>
+            {/* On a wrapper: .ui-btn sets its own display, which a
+                utility class on the button itself cannot override. */}
+            <div className="mt-4 hidden lg:block">
+              <PlayButton onClick={start} starting={starting} rounds={rounds} />
+            </div>
             {/* This line used to tell players an account was unnecessary,
                 under the only button anybody presses. It says what the
                 game costs instead, and the bar above offers the account. */}
@@ -150,7 +145,26 @@ export default function ScriptLobby() {
           </Card>
         </aside>
       </div>
+      {/* Below the two-column width the card with Play comes after every
+          language set: on a 390px phone it was three screens down. The
+          button rides along the bottom of the screen there instead, above
+          the tab bar, and settles under the card at the end. */}
+      <div
+        className="sticky bottom-[calc(60px+env(safe-area-inset-bottom))] z-20 -mx-4 mt-6 border-t border-pe-line bg-pe-canvas/90 px-4 py-3 backdrop-blur min-[720px]:bottom-0 lg:hidden"
+        data-script-play-bar
+      >
+        <PlayButton onClick={start} starting={starting} rounds={rounds} label={LADDERS[ladder].label} />
+      </div>
     </main>
+  );
+}
+
+function PlayButton({ onClick, starting, rounds, label = '' }) {
+  return (
+    <Button onClick={onClick} disabled={starting} size="lg" block>
+      <Play size={18} fill="currentColor" aria-hidden="true" />
+      {starting ? 'Starting…' : `Play ${rounds} rounds${label ? ` of ${label}` : ''}`}
+    </Button>
   );
 }
 function Choice({ label, value, options, onChange }) {

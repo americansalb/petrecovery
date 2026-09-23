@@ -103,3 +103,28 @@ test('the lobby no longer talks players out of an account', () => {
     expect(src).not.toMatch(/No account needed/i);
   }
 });
+
+/**
+ * The links do not move when the account control changes. The slot was
+ * only there when it held something, so the links jumped sideways once
+ * the session was read on every page load, and again on the sign-in
+ * page, which has no Sign in button.
+ */
+test('the account slot is there whether or not it holds anything', async () => {
+  const nav = require('next/navigation');
+  const was = nav.usePathname;
+  nav.usePathname = () => '/geo/signin';
+  answer({ ok: true, signedIn: false, email: null, account: null });
+  let container;
+  await act(async () => { ({ container } = render(<GeoHeader />)); });
+  const slot = container.querySelector('[data-account-slot]');
+  expect(slot).toBeInTheDocument();
+  expect(slot).toBeEmptyDOMElement();
+  nav.usePathname = was;
+
+  const fs = require('fs');
+  const path = require('path');
+  const css = fs.readFileSync(path.resolve(__dirname, '../../app/geo/theme.css'), 'utf8');
+  // A fixed width where the links are beside it (the desktop bar).
+  expect(css).toMatch(/\.ui-account-slot \{\s*width: \d+px;/);
+});

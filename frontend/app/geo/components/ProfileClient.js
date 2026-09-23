@@ -411,7 +411,12 @@ export default function ProfileClient() {
         LADDERS.some((ladder) => profile.ratings?.[ladder]?.games)),
   );
 
-  const displayName = profile?.name || name || DEFAULT_PLAYER_NAME;
+  // A guest who never chose a name is stored as the placeholder, and the
+  // page was titled "Player": an account named for them that they never
+  // made (founder, 2026-09-17). They are a guest, so that is the title.
+  const chosen = profile?.name && profile.name !== DEFAULT_PLAYER_NAME ? profile.name : '';
+  const unnamedGuest = Boolean(profile) && !profile.signedIn && !chosen;
+  const displayName = chosen || (unnamedGuest ? 'Guest' : profile?.name || name || DEFAULT_PLAYER_NAME);
   const panel = {
     id: 'profile-panel',
     role: 'tabpanel',
@@ -448,7 +453,7 @@ export default function ProfileClient() {
                   came from reads as an account somebody made for you
                   (founder, 2026-09-17: "why does it pretend I have an
                   account named player"). */}
-              {profile.signedIn ? 'Signed in' : 'Guest on this browser'}
+              {profile.signedIn ? 'Signed in' : unnamedGuest ? 'Not signed in' : 'Guest on this browser'}
               {/* The season is Rankings' to explain; on a phone it
                   wrapped this line to three. */}
               {profile.season ? (
