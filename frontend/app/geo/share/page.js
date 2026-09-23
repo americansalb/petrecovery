@@ -55,13 +55,13 @@ export default async function GeoSharePage({ searchParams }) {
 
   if (!summary) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">That result link is not one of ours</h1>
-        <p className="mt-2 text-white/60">{LOBBY_DESCRIPTION}</p>
-        <Link href="/geo" className="mt-6 inline-block rounded-xl bg-clay-400 px-6 py-3 font-bold text-ocean-950 hover:bg-clay-300">
+      <main className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
+        <h1 className="ui-h1">That result link is not one of ours</h1>
+        <p className="ui-lead mt-3">{LOBBY_DESCRIPTION}</p>
+        <Link href="/geo" className="ui-btn ui-btn--primary ui-btn--lg mt-8">
           Play Probably Earth
         </Link>
-      </div>
+      </main>
     );
   }
 
@@ -72,13 +72,13 @@ export default async function GeoSharePage({ searchParams }) {
   const max = summary.rounds.length * MAX_ROUND_SCORE;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
-      <p className="text-sm font-semibold uppercase tracking-wide text-white/60">Probably Earth</p>
-      <h1 className="mt-1 text-4xl font-bold tabular-nums">
+    <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
+      <p className="text-sm font-medium text-pe-muted">A Probably Earth result</p>
+      <h1 className="mt-1 text-4xl font-bold tabular-nums text-pe-warm">
         {isStreak ? summaryHeadline(summary) : formatScore(summary.total)}
-        {!isStreak ? <span className="text-lg font-medium text-white/60"> of {formatScore(max)} points</span> : null}
+        {!isStreak ? <span className="ml-2 text-lg font-medium text-pe-muted">of {formatScore(max)} points</span> : null}
       </h1>
-      <p className="mt-2 text-white/70">
+      <p className="mt-2 text-pe-muted">
         {describeConfig(summary.config, { regionLabel })}
         {avg !== null ? ` Average miss ${formatDistance(avg)}.` : ''}
         {summary.date ? ` Played ${summary.date}.` : ''}
@@ -100,14 +100,14 @@ export default async function GeoSharePage({ searchParams }) {
 
       <div className="mt-6 flex flex-wrap gap-3">
         {summary.config.seed ? (
-          <Link href={`/geo/play?${sameParams}`} className="rounded-xl bg-clay-400 px-5 py-3 font-bold text-ocean-950 hover:bg-clay-300">
+          <Link href={`/geo/play?${sameParams}`} className="ui-btn ui-btn--primary ui-btn--lg">
             Play these same places
           </Link>
         ) : null}
-        <Link href="/geo" className="rounded-xl border-2 border-white/15 px-5 py-3 font-semibold text-white/80 hover:bg-white/5">
+        <Link href="/geo" className={`ui-btn ui-btn--lg ${summary.config.seed ? 'ui-btn--secondary' : 'ui-btn--primary'}`}>
           Play Probably Earth
         </Link>
       </div>
-    </div>
+    </main>
   );
 }

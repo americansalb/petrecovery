@@ -40,13 +40,19 @@
 }
 
 /* From the last round's reveal to the end of the game, the frame only
-   gets shorter - its top and sides stay put and its bottom rises to
-   make room for the summary. A window cannot be opened out of a bigger
-   box, so this one change eases the real `bottom`. It is scoped to the
-   summary class on purpose: on the way into a reveal the frame must
-   snap to its final box so openFromRect can measure it. */
-.geo-map-frame--summary {
-  transition: bottom 420ms cubic-bezier(0.16, 1, 0.3, 1);
+   gets smaller: on a phone its bottom rises to make room for the
+   summary, on a wide screen it draws into the left half. A window
+   cannot be opened out of a bigger box, so this one change eases the
+   real edges. It is scoped to the summary class on purpose: on the way
+   into a reveal the frame must snap to its final box so openFromRect
+   can measure it. It names both classes and the :not() because the
+   rule above does, and with less weight it lost to it: the frame
+   snapped here too. */
+.geo-map-frame.geo-map-frame--summary:not(.transition-all) {
+  transition:
+    bottom 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    left 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    right 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* The panel rises from the bottom edge rather than being there, while
@@ -83,7 +89,7 @@
    to the end. __tests__/geo/motion.test.js fails on a keyframe with no
    counterpart here. */
 @media (prefers-reduced-motion: reduce) {
-  .geo-map-frame--summary {
+  .geo-map-frame.geo-map-frame--summary:not(.transition-all) {
     transition: none;
   }
   .geo-reveal-panel,

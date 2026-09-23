@@ -643,11 +643,11 @@
   font-weight: 800;
 }
 .geo-surface .pe-hud-pill {
-  background: linear-gradient(135deg, #153d47eb, #082b38f2);
-  border-color: #e1eed835;
-  box-shadow:
-    0 7px 20px #00131d44,
-    inset 0 1px #d6e4ce18;
+  /* Dark glass over the photograph: the canvas colour, a little see-
+     through, with a hairline that reads on bright sky and dark street. */
+  background: rgb(var(--pe-canvas) / 0.78);
+  border-color: rgb(255 255 255 / 0.14);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.28);
   border-radius: 12px;
 }
 .geo-surface .pe-round-progress {
@@ -658,11 +658,11 @@
 .geo-surface .pe-round-progress span {
   height: 3px;
   flex: 1;
-  background: #9db8b34d;
+  background: rgb(var(--pe-fg) / 0.22);
   border-radius: 5px;
 }
 .geo-surface .pe-round-progress span[data-complete="true"] {
-  background: #c4dba5;
+  background: rgb(var(--pe-accent-fg));
 }
 .geo-surface .pe-rank-path {
   display: grid;
@@ -692,10 +692,9 @@
   .geo-surface .pe-rank-path { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px 12px; }
 }
 .geo-surface .geo-reveal-panel {
-  background: linear-gradient(120deg, #0c3c46f5, #082c3af7);
-  box-shadow:
-    0 -15px 70px #00151e4d,
-    inset 0 1px #cce1c530;
+  background: rgb(var(--pe-canvas) / 0.96);
+  border-top: 1px solid rgb(var(--pe-line));
+  box-shadow: 0 -12px 48px rgb(0 0 0 / 0.35);
 }
 .geo-surface .pe-enter {
   animation: pe-enter 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;

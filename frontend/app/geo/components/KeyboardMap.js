@@ -1,11 +1,30 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+
+/**
+ * Was this focus from the keyboard? A click or a tap on the map focuses
+ * this wrapper too (it is the nearest focusable thing under the
+ * pointer), and treating that as keyboard focus drew the crosshair, the
+ * "Arrow keys move" line and a thick frame over the map after every
+ * tap: on a phone, instructions for keys it does not have, over the top
+ * third of the map. :focus-visible is the browser's own answer; the
+ * pointer flag is for a browser without it.
+ */
+function keyboardFocus(node, pointer) {
+  if (pointer) return false;
+  try {
+    return node.matches(':focus-visible');
+  } catch {
+    return true;
+  }
+}
 
 /** One explicit keyboard target, separate from the provider's own map controls. */
 export default function KeyboardMap({ children, className = '', interactive, label, pan, zoom, place }) {
   const instructions = useId();
   const [focused, setFocused] = useState(false);
+  const pointer = useRef(false);
   const [announcement, setAnnouncement] = useState('');
   useEffect(() => { setAnnouncement(''); }, [interactive]);
   const onKeyDown = (event) => {
@@ -26,18 +45,23 @@ export default function KeyboardMap({ children, className = '', interactive, lab
   };
   return (
     <div
-      className={`relative h-full w-full outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-clay-400 ${className}`}
+      className={`relative h-full w-full outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-pe-accent-fg ${className}`}
       tabIndex={0} role="group" aria-label={label || (interactive ? 'Guess map' : 'Answer map')}
       aria-describedby={instructions} data-keyboard-map
       onKeyDown={onKeyDown}
-      onFocus={(event) => setFocused(event.target === event.currentTarget)}
-      onBlur={() => setFocused(false)} onPointerDown={() => setFocused(false)}
+      onFocus={(event) => {
+        const own = event.target === event.currentTarget;
+        setFocused(own && keyboardFocus(event.currentTarget, pointer.current));
+        pointer.current = false;
+      }}
+      onBlur={() => { pointer.current = false; setFocused(false); }}
+      onPointerDown={() => { pointer.current = true; setFocused(false); }}
     >
       {children}
-      {focused ? <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-[700] border-4 border-clay-400" /> : null}
+      {focused ? <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-[700] border-4 border-pe-accent-fg" /> : null}
       {focused && interactive ? <>
-        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-[700] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-ocean-950/90 p-1 text-white shadow-lg">＋</span>
-        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-3 z-[700] w-max max-w-[90%] -translate-x-1/2 rounded-lg bg-ocean-950/95 px-3 py-2 text-center text-xs text-white shadow-lg">Arrow keys move · + / − zoom · Enter places pin</span>
+        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-[700] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-pe-canvas/90 p-1 text-white shadow-lg">＋</span>
+        <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-3 z-[700] w-max max-w-[90%] -translate-x-1/2 rounded-lg bg-pe-canvas/95 px-3 py-2 text-center text-xs text-white shadow-lg">Arrow keys move · + / − zoom · Enter places pin</span>
       </> : null}
       <span id={instructions} className="sr-only">Arrow keys move the map. Plus and minus zoom.{interactive ? ' Enter or Space places a pin at the centre. Tab to Guess to submit.' : ''}</span>
       <span role="status" className="sr-only">{interactive ? announcement : ''}</span>

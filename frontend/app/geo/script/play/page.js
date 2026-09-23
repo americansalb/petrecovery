@@ -12,7 +12,7 @@ import ScriptPlayClient from '../../components/script/ScriptPlayClient';
 
 export default function ScriptPlayPage() {
   return (
-    <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ocean-950 text-white/70">Loading</div>}>
+    <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center bg-pe-canvas text-pe-muted">Loading</div>}>
       <ScriptPlayClient />
     </Suspense>
   );

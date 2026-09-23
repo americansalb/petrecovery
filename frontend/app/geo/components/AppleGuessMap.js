@@ -16,6 +16,9 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
   const mapRef = useRef(null);
   const pinRef = useRef(null);
   const drawnRef = useRef({ annotations: [], overlays: [] });
+  // Frames the camera on the drawn result again. Set while a result is
+  // on the map, null while guessing, when the view is the player's.
+  const fitRef = useRef(null);
   const onPinRef = useRef(onPin);
   const interactiveRef = useRef(interactive);
   onPinRef.current = onPin;
@@ -66,6 +69,34 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     map.addAnnotation(pinRef.current);
   }, [mapkit, pin, mode]);
 
+  /*
+   * The frame the map sits in changes size after the camera has been
+   * placed: at the end of a game it eases its bottom edge up by half
+   * the screen to make room for the summary (round.css). MapKit keeps
+   * its zoom through a resize, so the view framed for the tall box was
+   * cut down to its middle, and the answers of a five-round game were
+   * off the edge of the one map meant to show them all. Once the box
+   * settles, frame it again.
+   */
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!mapkit || !node || typeof ResizeObserver === 'undefined') return undefined;
+    let timer = 0;
+    let last = { w: node.clientWidth, h: node.clientHeight };
+    const observer = new ResizeObserver(() => {
+      const now = { w: node.clientWidth, h: node.clientHeight };
+      if (Math.abs(now.w - last.w) < 2 && Math.abs(now.h - last.h) < 2) return;
+      last = now;
+      clearTimeout(timer);
+      timer = setTimeout(() => fitRef.current?.(), 140);
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [mapkit]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!mapkit || !map) return undefined;
@@ -73,6 +104,7 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     if (drawn.annotations.length) map.removeAnnotations(drawn.annotations);
     if (drawn.overlays.length) map.removeOverlays(drawn.overlays);
     drawnRef.current = { annotations: [], overlays: [] };
+    fitRef.current = null;
     if (mode !== 'result' || !results.length) {
       map.region = worldRegion(mapkit);
       return undefined;
@@ -98,6 +130,13 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     const guesses = [];
     const answers = [];
     const lines = [];
+    // A whole game on one map (the summary) has an answer per round. Five
+    // pins all titled "Your guess" printed on top of each other, so there
+    // the pins carry the round's number instead of a title, and the
+    // colours say which is which. A single reveal keeps its titles, which
+    // are its legend; so does a room, where the title is a player's name.
+    const rounds = results.filter((r) => r.answer && (r.answerMarker ?? true)).length > 1;
+    const titles = rounds ? { titleVisibility: mapkit.FeatureVisibility.Hidden } : {};
     results.forEach((r, i) => {
       // Solo play draws every answer; a room's reveal draws the one place
       // once (answerMarker) and every player's guess in their colour.
@@ -107,6 +146,7 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
             color: '#22c55e',
             glyphText: r.answerLabel || r.label || String(i + 1),
             title: r.answerTitle || 'Where you were',
+            ...titles,
           })
         );
       }
@@ -114,8 +154,9 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
         guesses.push(
           new mapkit.MarkerAnnotation(coordinate(r.guess), {
             color: r.color || '#facc15',
-            glyphText: r.color && r.label ? r.label : undefined,
+            glyphText: r.color && r.label ? r.label : rounds ? String(i + 1) : undefined,
             title: r.title || 'Your guess',
+            ...titles,
             // It is the pin the player just put down. It does not drop
             // in a second time.
             animates: false,
@@ -135,26 +176,26 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     });
     const overlays = lines.map((line) => line.overlay);
 
-    // Frame the camera on the whole line before shortening it: showItems
-    // reads the overlays' extent when it is called, so the view is set
-    // for where the line is going, not where it starts.
+    // Frame the camera on every guess and answer before the line starts
+    // to grow, so the view is set for where the line is going, not where
+    // it starts, and the answer's pin lands inside it.
     map.addAnnotations(guesses);
     map.addOverlays(overlays);
-    try {
-      // minimumSpan or a guess 40 m from the answer fills the screen
-      // with one roof, which tells a player nothing about where they
-      // were. Roughly half a degree, so the reveal always shows enough
-      // ground to recognise.
-      map.showItems([...guesses, ...overlays, ...(overlays.length ? [] : answers)], {
-        animate: true,
-        padding: new mapkit.Padding(56, 56, 56, 56),
-        minimumSpan: new mapkit.CoordinateSpan(0.6, 0.6),
-      });
-    } catch {
-      /* single item; fall back to centring on it */
-      const first = guesses[0] || answers[0];
-      if (first) map.center = first.coordinate;
-    }
+    const everything = results.flatMap((r) => [r.guess, r.answer]).filter(Boolean);
+    const fit = (animate) => {
+      if (!everything.length) return;
+      const node = containerRef.current;
+      const r = regionAround(everything, { width: node?.clientWidth || 0, height: node?.clientHeight || 0 });
+      const center = new mapkit.Coordinate(r.lat, r.lng);
+      try {
+        map.setRegionAnimated(new mapkit.CoordinateRegion(center, new mapkit.CoordinateSpan(r.latSpan, r.lngSpan)), animate);
+      } catch {
+        map.center = center;
+      }
+    };
+    fit(true);
+    fitRef.current = () => fit(true);
+    const drawnOverlays = overlays;
 
     const setTip = (line, t) => {
       const tip = alongMercator(line.from, line.to, t);
@@ -165,7 +206,7 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
       }
     };
     lines.forEach((line) => setTip(line, 0));
-    drawnRef.current = { annotations: guesses, overlays };
+    drawnRef.current = { annotations: guesses, overlays: drawnOverlays };
 
     const land = () => {
       if (!mapRef.current) return;
@@ -173,7 +214,7 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
       // MarkerAnnotation drops in on its own when added (animates is on
       // by default), which is exactly the landing this wants.
       map.addAnnotations(answers);
-      drawnRef.current = { annotations: [...guesses, ...answers], overlays };
+      drawnRef.current = { annotations: [...guesses, ...answers], overlays: drawnOverlays };
     };
 
     // A round with no guess (time ran out) has no line to wait for.
@@ -191,8 +232,45 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
   }, [mapkit, results, mode]);
 
   return <KeyboardMap className={className} interactive={interactive && mode === 'guess' && Boolean(onPin)} label={mode === 'guess' ? 'Guess map' : 'Answer map'} {...appleKeyboard(mapRef, mapkit, onPin)}>
-    <div ref={containerRef} className="h-full w-full bg-ocean-900" />
+    <div ref={containerRef} className="h-full w-full bg-pe-surface" />
   </KeyboardMap>;
+}
+
+/**
+ * The region that shows every point, the short way round, with room
+ * for the pins at its edges.
+ *
+ * MapKit's showItems measured a line through the points west to east
+ * without wrapping: answers in Utah and Brisbane made a region 265
+ * degrees wide, which is more than a half-screen map can show at its
+ * widest, so it was clamped around Africa and both answers were cut
+ * off. The smallest arc of longitude that holds every point is found
+ * from the largest gap between neighbouring longitudes, and it can
+ * cross the Pacific. Padding is in pixels, like showItems' was.
+ */
+export function regionAround(points, { width = 0, height = 0, padding = 56, minimumSpan = 0.6 } = {}) {
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => ((((p.lng + 180) % 360) + 360) % 360) - 180).sort((a, b) => a - b);
+  let gap = lngs[0] + 360 - lngs[lngs.length - 1];
+  let west = lngs[0];
+  for (let i = 1; i < lngs.length; i += 1) {
+    if (lngs[i] - lngs[i - 1] > gap) {
+      gap = lngs[i] - lngs[i - 1];
+      west = lngs[i];
+    }
+  }
+  const lngSpan = 360 - gap;
+  let lng = west + lngSpan / 2;
+  if (lng > 180) lng -= 360;
+  const south = Math.min(...lats);
+  const north = Math.max(...lats);
+  const grow = (size) => (size > padding * 3 ? size / (size - padding * 2) : 1.25);
+  return {
+    lat: (south + north) / 2,
+    lng,
+    latSpan: Math.min(170, Math.max(minimumSpan, (north - south) * grow(height))),
+    lngSpan: Math.min(360, Math.max(minimumSpan, lngSpan * grow(width))),
+  };
 }
 
 function worldRegion(mapkit) {

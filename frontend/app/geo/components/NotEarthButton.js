@@ -31,22 +31,22 @@ export default function NotEarthButton({ onCall, disabled = false, roundKey }) {
 
   if (asking) {
     return (
-      <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-clay-500/60 bg-ocean-900/95 py-1.5 pl-3 pr-1.5 shadow-2xl backdrop-blur">
-        <span className="text-xs font-semibold text-white/80 sm:text-sm">Sure? A wrong call scores nothing.</span>
+      <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-pe-warm/50 bg-pe-canvas/95 py-1.5 pl-3 pr-1.5 shadow-2xl backdrop-blur">
+        <span className="text-xs font-semibold text-pe-fg/85 sm:text-sm">Sure? A wrong call scores nothing.</span>
         <button
           type="button"
           onClick={() => {
             setAsking(false);
             onCall();
           }}
-          className="rounded-full bg-clay-400 px-3 py-1.5 text-xs font-bold text-ocean-950 hover:bg-clay-300 sm:text-sm"
+          className="min-h-[36px] rounded-full bg-pe-accent px-3 py-1.5 text-xs font-bold text-white hover:bg-pe-accent-hover sm:text-sm"
         >
           Call it
         </button>
         <button
           type="button"
           onClick={() => setAsking(false)}
-          className="rounded-full px-2.5 py-1.5 text-xs font-semibold text-white/60 hover:text-white sm:text-sm"
+          className="min-h-[36px] rounded-full px-2.5 py-1.5 text-xs font-semibold text-pe-fg/70 hover:text-pe-fg sm:text-sm"
         >
           Back
         </button>
@@ -60,9 +60,9 @@ export default function NotEarthButton({ onCall, disabled = false, roundKey }) {
       onClick={() => setAsking(true)}
       disabled={disabled}
       title="This is not a photograph of Earth"
-      className="pointer-events-auto flex h-12 items-center gap-2 rounded-full border border-white/20 bg-ocean-900/80 px-4 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:border-clay-500/70 hover:bg-ocean-800 disabled:opacity-40"
+      className="pointer-events-auto flex h-12 items-center gap-2 rounded-full border border-white/15 bg-pe-canvas/75 px-4 text-sm font-semibold text-pe-fg shadow-lg backdrop-blur transition hover:border-white/30 hover:bg-pe-raised disabled:opacity-40"
     >
-      <Rocket className="h-4 w-4 text-clay-300" />
+      <Rocket className="h-4 w-4 text-pe-warm" />
       Not Earth
     </button>
   );

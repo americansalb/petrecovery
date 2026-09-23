@@ -23,27 +23,27 @@ function NotEarthReveal({ result, points }) {
   if (!place) return null;
   return (
     <div className="min-w-0">
-      <p className={`text-2xl font-bold sm:text-3xl ${result.correct ? 'text-green-400' : 'text-red-400'}`}>
+      <p className={`text-2xl font-bold sm:text-3xl ${result.correct ? 'text-pe-good' : 'text-pe-bad'}`}>
         {result.correct ? `Called it. That was ${place.bodyInSentence}.` : `That was ${place.bodyInSentence}.`}
       </p>
-      <p className="mt-1 flex items-center gap-2 text-white/85">
-        <Rocket className="h-4 w-4 shrink-0 text-clay-300" />
+      <p className="mt-1 flex items-center gap-2 text-pe-fg">
+        <Rocket className="h-4 w-4 shrink-0 text-pe-warm" />
         <span className="font-semibold">{place.title}</span>
       </p>
-      <p className="mt-1 max-w-xl text-sm text-white/70">{place.note}</p>
-      <p className="mt-1 text-xs text-white/45">
+      <p className="mt-1 max-w-xl text-sm text-pe-muted">{place.note}</p>
+      <p className="mt-1 text-xs text-pe-subtle">
         {place.mission}, {place.taken}. Picture:{' '}
-        <a href={place.nasaUrl} target="_blank" rel="noreferrer" className="underline hover:text-white/70">
+        <a href={place.nasaUrl} target="_blank" rel="noreferrer" className="underline hover:text-pe-fg">
           {place.credit}
         </a>
       </p>
       {result.correct ? (
-        <p className="mt-2 text-sm font-semibold text-clay-300">
+        <p className="mt-2 text-sm font-semibold text-pe-warm">
           {formatScore(result.score)} points
           {points?.badge ? `. New badge: ${points.badge.flag} ${points.badge.name}` : ''}
         </p>
       ) : (
-        <p className="mt-2 text-sm text-white/60">
+        <p className="mt-2 text-sm text-pe-muted">
           {result.timedOut ? 'Time ran out.' : 'The Not Earth button was the answer. No points this round.'}
         </p>
       )}
@@ -77,30 +77,30 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
   const wrongCall = !isNotEarth && Boolean(result.calledNotEarth);
 
   return (
-    <div className="geo-reveal-panel pe-solo-reveal absolute inset-x-0 bottom-0 z-40 rounded-t-3xl border-t border-white/10 bg-ocean-950/95 p-4 text-white shadow-2xl backdrop-blur sm:p-6">
+    <div className="geo-reveal-panel pe-solo-reveal absolute inset-x-0 bottom-0 z-40 border-t border-pe-line bg-pe-canvas/95 p-4 text-pe-fg shadow-2xl backdrop-blur sm:p-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {isNotEarth ? <NotEarthReveal result={result} points={points} /> : null}
         {isNotEarth ? null : (
         <div className="min-w-0">
           {isStreak ? (
             <>
-              <p className={`text-2xl font-bold ${result.correct ? 'text-green-400' : 'text-red-400'}`}>
+              <p className={`text-2xl font-bold ${result.correct ? 'text-pe-good' : 'text-pe-bad'}`}>
                 {result.correct ? `Right. Streak ${streak}.` : wrongCall ? 'That was Earth.' : `Not ${countryName || result.guessCountry || 'that'}.`}
               </p>
-              <p className="mt-1 flex items-center gap-2 text-white/80">
-                <Flag className="h-4 w-4 text-clay-300" />
+              <p className="mt-1 flex items-center gap-2 text-pe-muted">
+                <Flag className="h-4 w-4 text-pe-subtle" />
                 <span>
-                  This was {country?.flag} <span className="font-semibold text-white">{place || 'an unlisted place'}</span>
+                  This was {country?.flag} <span className="font-semibold text-pe-fg">{place || 'an unlisted place'}</span>
                 </span>
               </p>
             </>
           ) : (
             <>
-              <p className="text-3xl font-bold tabular-nums text-clay-300">
-                {formatScore(Math.round(shownScore))} <span className="text-base font-medium text-white/60">of {formatScore(MAX_ROUND_SCORE)}</span>
+              <p className="text-3xl font-bold tabular-nums text-pe-warm">
+                {formatScore(Math.round(shownScore))} <span className="text-base font-medium tracking-normal text-pe-muted">of {formatScore(MAX_ROUND_SCORE)}</span>
               </p>
               <div className="pe-score-meter" role="meter" aria-label="Round score" aria-valuemin={0} aria-valuemax={MAX_ROUND_SCORE} aria-valuenow={result.score}><span style={{width:`${Math.max(0,Math.min(100,result.score/MAX_ROUND_SCORE*100))}%`, animationDelay: `${REVEAL.lineDelayMs}ms`, animationDuration: `${REVEAL.lineMs}ms`}} /></div>
-              <p className="geo-reveal-land mt-1 text-white/80" style={{ animationDelay: landDelay }}>
+              <p className="geo-reveal-land mt-1 text-pe-fg" style={{ animationDelay: landDelay }}>
                 {wrongCall
                   ? 'That was Earth. No points this round.'
                   : result.timedOut
@@ -110,14 +110,14 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                       : ''}
               </p>
               {points && (points.earned > 0 || points.badge) ? (
-                <p className="geo-reveal-land mt-1 text-sm text-clay-300" style={{ animationDelay: landDelay }}>
+                <p className="geo-reveal-land mt-1 text-sm text-pe-warm" style={{ animationDelay: landDelay }}>
                   {points.earned > 0 ? `+${points.earned} points` : ''}
                   {/* What the total is made of, not more on top of it:
                       "+12 points +2 round, +10 first of the day" read
                       as 24. Each award lands after the one before it,
                       so the line reads as an itemisation. */}
                   {points.lines?.length > 1 ? (
-                    <span className="text-white/60">
+                    <span className="text-pe-muted">
                       {' ('}
                       {points.lines.map((line, i) => (
                         <span key={`${line.reason}:${i}`} className="geo-award" style={{ animationDelay: `${REVEAL.landMs + 160 + i * 90}ms` }}>
@@ -131,11 +131,11 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
                   {points.badge ? `${points.earned > 0 ? '. ' : ''}New badge: ${points.badge.flag} ${points.badge.name}` : ''}
                 </p>
               ) : null}
-              {points && points.allowed === false ? <p className="mt-1 text-xs text-white/60">Points paused for today: the first 50 rounds earn.</p> : null}
-              <p className="geo-reveal-land mt-1 flex items-center gap-2 text-sm text-white/70" style={{ animationDelay: landDelay }}>
-                <Flag className="h-4 w-4 text-clay-300" />
+              {points && points.allowed === false ? <p className="mt-1 text-xs text-pe-subtle">Points paused for today: the first 50 rounds earn.</p> : null}
+              <p className="geo-reveal-land mt-1 flex items-center gap-2 text-sm text-pe-muted" style={{ animationDelay: landDelay }}>
+                <Flag className="h-4 w-4 text-pe-subtle" />
                 <span>
-                  You were in {country?.flag} <span className="font-semibold text-white">{place || 'a place not on the country map'}</span>
+                  You were in {country?.flag} <span className="font-semibold text-pe-fg">{place || 'a place not on the country map'}</span>
                 </span>
               </p>
             </>
@@ -145,7 +145,7 @@ export default function RoundResult({ result, roundNumber, roundsTotal, isLast, 
         <button
           type="button"
           onClick={onNext}
-          className="ui-btn ui-btn--primary pe-button pe-button--primary shrink-0"
+          className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary shrink-0"
           autoFocus
         >
           {isLast ? 'See results' : isStreak ? 'Next country' : `Round ${roundNumber + 1} of ${roundsTotal}`}

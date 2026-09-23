@@ -26,7 +26,8 @@ const hud = fs.readFileSync(
 
 /** The one shared backing every floating control in the HUD uses. */
 test('the pill backing is what the HUD floats things on', () => {
-  expect(hud).toMatch(/const pill =\s*\n?\s*'pe-hud-pill[^']*bg-ocean-900\/80/);
+  // Dark glass: the canvas colour, mostly opaque (theme.css tokens).
+  expect(hud).toMatch(/const pill =\s*\n?\s*'pe-hud-pill[^']*bg-pe-canvas\/[6-9]\d/);
 });
 
 test('the look-around hint is backed, not bare text on a photograph', () => {

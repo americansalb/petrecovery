@@ -137,7 +137,7 @@ const NotEarthPane = forwardRef(function NotEarthPane({ place, roundKey, allowPa
   return (
     <div
       ref={frameRef}
-      className={`absolute inset-0 overflow-hidden bg-ocean-950 ${allowPan ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      className={`absolute inset-0 overflow-hidden bg-pe-canvas ${allowPan ? 'cursor-grab active:cursor-grabbing' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

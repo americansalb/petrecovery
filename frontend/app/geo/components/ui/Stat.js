@@ -9,7 +9,7 @@
  */
 
 export default function Stat({ label, value, sub = null, tone = 'plain', className = '' }) {
-  const colour = tone === 'bright' ? 'text-clay-300' : 'text-white';
+  const colour = tone === 'bright' ? 'text-pe-warm' : 'text-pe-fg';
   return (
     <div className={className}>
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
