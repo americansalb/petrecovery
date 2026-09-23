@@ -279,12 +279,11 @@ function StreetPlayGame({ params }) {
    * server already answers timedOut for a pin round, and stamping it here
    * marked a guess that was placed, sent and scored as "time ran out".
    */
-  const submitGuess = useCallback(async (override, { allowEmpty = false } = {}) => {
+  const submitGuess = useCallback(async ({ allowEmpty = false } = {}) => {
     const s = stateRef.current;
     if (s.status !== 'playing' || !s.current?.token) return;
     let guess;
-    if (override !== undefined) guess = override;
-    else if (s.config.mode === 'streak') guess = s.pin?.countryCode ? { countryCode: s.pin.countryCode } : null;
+    if (s.config.mode === 'streak') guess = s.pin?.countryCode ? { countryCode: s.pin.countryCode } : null;
     else guess = s.pin ? { lat: s.pin.lat, lng: s.pin.lng } : null;
     if (!guess && !allowEmpty) return;
     dispatch({ type: 'submit_start' });
@@ -316,7 +315,7 @@ function StreetPlayGame({ params }) {
       setSecondsLeft(Math.max(0, Math.ceil(left)));
       if (left <= 0 && timerFiredRef.current !== startedAt) {
         timerFiredRef.current = startedAt;
-        submitGuess(undefined, { allowEmpty: true });
+        submitGuess({ allowEmpty: true });
       }
     };
     tick();
@@ -691,7 +690,7 @@ function StreetPlayGame({ params }) {
       {state.status === 'playing' && state.error ? (
         <div role="alert" className="absolute left-1/2 top-24 z-40 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-xl border border-pe-bad/40 bg-pe-canvas/95 px-4 py-2 text-sm text-pe-fg shadow-lg">
           <span className="min-w-0">{state.error.message}</span>
-          <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm shrink-0" onClick={() => submitGuess(undefined, { allowEmpty: true })}>Try again</button>
+          <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm shrink-0" onClick={() => submitGuess({ allowEmpty: true })}>Try again</button>
         </div>
       ) : null}
     </div>

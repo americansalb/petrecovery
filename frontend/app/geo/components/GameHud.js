@@ -20,7 +20,7 @@
  */
 
 import Link from 'next/link';
-import { Minus, Plus, RotateCcw, X, Map as MapIcon } from 'lucide-react';
+import { RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
 import { REVEAL, useTween } from '../lib/motion';
 import { MODES } from '@/app/lib/geo/modes';
@@ -97,11 +97,9 @@ export default function GameHud({
   score,
   streak,
   secondsLeft,
-  canZoom,
   canReturn = true,
   canPan = true,
   onReturn,
-  onZoom,
   mobileMapOpen,
   onToggleMobileMap,
   notice,
@@ -241,28 +239,6 @@ export default function GameHud({
               >
                 <RotateCcw className="h-5 w-5" />
               </button>
-            ) : null}
-            {canZoom ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onZoom(1)}
-                  className={iconButton}
-                  aria-label="Zoom in"
-                  title="Zoom in"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onZoom(-1)}
-                  className={iconButton}
-                  aria-label="Zoom out"
-                  title="Zoom out"
-                >
-                  <Minus className="h-5 w-5" />
-                </button>
-              </>
             ) : null}
             {saveUrl ? <SaveGameButton returnTo={saveUrl} className={`${iconButton} sm:hidden`} /> : null}
           </div>
