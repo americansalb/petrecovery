@@ -448,7 +448,7 @@ export default function ProfileClient() {
         {profile && !profile.signedIn ? (
           <div className="mt-5 flex items-center justify-between gap-4 border-b border-white/15 pb-5">
             <p className="text-sm text-white/75">Keep your games on every device.</p>
-            <Link href="/geo/signin" className="pe-button pe-button--primary min-h-[44px] px-4 py-3">Save your player</Link>
+            <Link href="/geo/signin" className="ui-btn ui-btn--primary pe-button pe-button--primary">Save your player</Link>
           </div>
         ) : null}
 
@@ -469,7 +469,7 @@ export default function ProfileClient() {
             <button
               type="button"
               onClick={() => setTab('settings')}
-              className="pe-button pe-button--primary min-h-[44px] px-4 py-3"
+              className="ui-btn ui-btn--primary pe-button pe-button--primary"
             >
               Choose your name
             </button>
@@ -510,7 +510,7 @@ export default function ProfileClient() {
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link
                   href="/geo"
-                  className="pe-button pe-button--primary inline-flex min-h-[48px] items-center gap-2 px-5 py-3 font-bold"
+                  className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
                 >
                   <Play size={17} fill="currentColor" aria-hidden="true" />
                   Play a game

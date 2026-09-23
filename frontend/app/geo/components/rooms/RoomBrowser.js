@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Compass, Plus, Users } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import {
   CONTINENTS,
   CONTINENT_ORDER,
@@ -47,20 +47,17 @@ import { APPLE_COVERAGE } from "@/app/lib/geo/coverage";
 function Field({ label, hint, children }) {
   // The hint sits outside the label so the label reads as its name alone.
   return (
-    <div className="text-sm">
-      <label className="block">
-        <span className="mb-1 block font-semibold text-white/80">{label}</span>
+    <div className="ui-field">
+      <label className="grid gap-2">
+        <span className="ui-label">{label}</span>
         {children}
       </label>
-      {hint ? (
-        <span className="mt-1 block text-xs text-white/60">{hint}</span>
-      ) : null}
+      {hint ? <span className="ui-hint">{hint}</span> : null}
     </div>
   );
 }
 
-const select =
-  "w-full rounded-xl border border-white/15 bg-ocean-900/60 px-3 py-2 text-sm";
+const select = "ui-input";
 
 const ROOM_DRAFT_KEY = "geo:pending-room:v1";
 const ROOM_RECEIPT_KEY = "geo:created-room:v1";
@@ -280,8 +277,16 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
     else if (action === 'join') joinByCode();
   };
 
+  const game = form.game;
+  const roomSummary = [
+    `${form.rounds} rounds`,
+    `${timeLabel(form.time)} each`,
+    ...(game !== 'script' ? [FORMATS[form.format]?.label] : []),
+    form.visibility === 'public' ? 'Public' : 'Private',
+  ].filter(Boolean).join(' · ');
+
   return (
-    <main className="pe-rooms-page pe-page">
+    <main className="ui-page">
       {accountGate ? (
         <AccountDialog
           onClose={() => {
@@ -302,19 +307,18 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
           }}
         />
       ) : null}
-      <header className="pe-rooms-heading">
+
+      <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="pe-eyebrow">Play together · All modes free</p>
-          <h1>
-            Multiplayer
-          </h1>
-          <p>Find an opponent, or invite your friends.</p>
+          <h1 className="ui-h1">Multiplayer</h1>
+          <p className="ui-lead mt-2">Play live against other people.</p>
         </div>
-        <form method="post" onSubmit={joinByCode} className="pe-join-inline">
-          <label htmlFor="join-room-code">Already have a room code?</label>
-          <div>
+        <form method="post" onSubmit={joinByCode} className="ui-field sm:w-72">
+          <label className="ui-label" htmlFor="join-room-code">Have a room code?</label>
+          <div className="flex gap-2">
             <input
               id="join-room-code"
+              className="ui-input font-mono uppercase tracking-[0.2em]"
               disabled={searching}
               type="text"
               value={code}
@@ -325,125 +329,110 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
               autoComplete="off"
               spellCheck={false}
             />
-            <button type="submit" aria-label="Join room" disabled={searching}>
-              Join <ArrowRight size={17} />
+            <button type="submit" className="ui-btn ui-btn--secondary shrink-0" aria-label="Join room" disabled={searching}>
+              Join
             </button>
           </div>
         </form>
       </header>
-      <Matchmaker game={form.game} name={name} onNameChange={setName} onGameChange={(game) => update({ game })} onActiveChange={setSearching} />
-      {searching ? <p className="pe-directory-note">Cancel your search before opening a different room.</p> : null}
+
+      {/* One choice of game for the whole page. Quick match and a room
+          each had their own Street/Script switch, side by side. */}
+      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="ui-seg" role="group" aria-label="Game">
+          {['street', 'script'].map((choice) => (
+            <button key={choice} type="button" aria-pressed={game === choice} disabled={searching} onClick={() => update({ game: choice })}>
+              {choice === 'street' ? 'Street' : 'Script'}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-pe-muted">
+          {game === 'script'
+            ? 'Guess where a language is written. Does not change your Street rating.'
+            : 'Guess where a street photo was taken.'}
+        </p>
+      </div>
+
       {error ? (
-        <p role="alert" className="mt-4 text-sm text-red-200">
+        <p role="alert" className="ui-error mt-4">
           {error}
         </p>
       ) : null}
       {server && !configured ? (
-        <SetupNotice
-          provider="apple"
-          missing={server?.providers?.apple?.missing || []}
-          compact
-          tone="light"
-        />
+        <div className="mt-4">
+          <SetupNotice
+            provider="apple"
+            missing={server?.providers?.apple?.missing || []}
+            compact
+            tone="light"
+          />
+        </div>
       ) : null}
-      <div className="pe-rooms-layout">
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <Matchmaker game={form.game} name={name} onNameChange={setName} onGameChange={(choice) => update({ game: choice })} onActiveChange={setSearching} />
+
         <form
           method="post"
           onSubmit={create}
           data-ready={hydrated ? "1" : "0"}
-          className="pe-open-create"
+          className="ui-card flex flex-col p-5 sm:p-6"
         >
           <fieldset disabled={searching} className="contents">
-          <legend className="sr-only">Create a room</legend>
-          <h2>Create a room</h2>
-          <p className="text-sm text-white/70">Better guesses deal damage. Last player standing wins.</p>
-          <div className="pe-rule-choice" role="group" aria-label="Game">
-            {['street', 'script'].map((game) => <button key={game} type="button" aria-pressed={form.game === game} onClick={() => update({ game })}>{game === 'street' ? 'Street' : 'Script'}</button>)}
-          </div>
-          {form.game === 'script' ? <p className="text-sm text-white/70">Script matches do not change your Street rating.</p> : null}
-          <div className="pe-player-name">
-            <span className="pe-avatar">
-              <Compass size={25} />
-            </span>
-            <label htmlFor="host-name">
-              Your player name (optional)
-              <input
-                id="host-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={20}
-                placeholder="What should we call you?"
-                autoComplete="nickname"
-              />
-            </label>
-          </div>
-          <div className="pe-room-preset">
-            {form.rounds} rounds · {timeLabel(form.time)} per round
-            {form.game !== 'script' ? ` · ${FORMATS[form.format]?.label}` : ''}
-            <br />
-            {form.visibility === "public"
-              ? "Public room. Anyone can join."
-              : "Private room. Only people with your code can join."}
-          </div>
-
-          <Button
-            type="submit"
-            size="lg"
-            disabled={busy || !configured}
-          >
-            <Plus size={18} />
-            {busy
-              ? "Creating your room…"
-              : "Create room"}
-            <ArrowRight size={18} />
-          </Button>
-          <p className="pe-room-next">
-            Next: you’ll get a link to invite your friends.
-          </p>
-          <details className="pe-custom-rules">
-            <summary>Customize rules & privacy</summary>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <Field label="Room name">
-                <input
-                  type="text"
-                  value={form.roomName}
-                  onChange={(e) => update({ roomName: e.target.value })}
-                  maxLength={40}
-                  placeholder={name ? `${name}'s room` : "Friday night"}
-                  className={select}
-                />
-              </Field>
-              <Field label="Who can find it">
-                <select
-                  value={form.visibility}
-                  onChange={(e) => update({ visibility: e.target.value })}
-                  className={select}
-                >
-                  <option value="public">Anyone, listed here</option>
-                  <option value="private">Only people with the code</option>
-                </select>
-              </Field>
-              {/* There is one imagery, so there is no choice to offer.
-                  The line says where a room will actually take people. */}
-              {form.game !== 'script' ? <Field
-                label="Places"
-                hint={`City streets in ${APPLE_COVERAGE.size} countries.`}
-              >
-                <select
-                  value={form.mode}
-                  onChange={(e) => update({ mode: e.target.value })}
-                  className={select}
-                >
-                  {modesFor(form.provider).map((id) => (
-                    <option key={id} value={id}>
-                      {MODES[id].label}
-                    </option>
-                  ))}
-                </select>
-              </Field> : null}
-              {form.game !== 'script' && form.mode === "continent" ? (
-                <div className="sm:col-span-2">
+            <legend className="sr-only">Create a room</legend>
+            <h2 className="ui-h2">Play with friends</h2>
+            <p className="mt-1 text-sm text-pe-muted">
+              Open a room and send the link. Everyone gets the same places; better guesses deal damage, and the last player standing wins.
+            </p>
+            <div className="pt-6">
+              <Button type="submit" size="lg" block disabled={busy || !configured}>
+                <Plus size={18} />
+                {busy ? "Creating your room…" : "Create room"}
+              </Button>
+              <p className="mt-3 text-sm text-pe-muted">{roomSummary}</p>
+            </div>
+            {searching ? <p className="ui-small mt-2">Cancel your search before opening a room.</p> : null}
+            <details className="mt-4 border-t border-pe-line pt-3">
+              <summary className="cursor-pointer py-1 text-sm font-medium text-pe-accent-fg">Room settings</summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="Room name">
+                  <input
+                    type="text"
+                    value={form.roomName}
+                    onChange={(e) => update({ roomName: e.target.value })}
+                    maxLength={40}
+                    placeholder={name ? `${name}'s room` : "Friday night"}
+                    className={select}
+                  />
+                </Field>
+                <Field label="Who can join">
+                  <select
+                    value={form.visibility}
+                    onChange={(e) => update({ visibility: e.target.value })}
+                    className={select}
+                  >
+                    <option value="public">Anyone (listed below)</option>
+                    <option value="private">Only people with the link</option>
+                  </select>
+                </Field>
+                {/* There is one imagery, so there is no choice to offer.
+                    The line says where a room will actually take people. */}
+                {game !== 'script' ? (
+                  <Field label="Places" hint={`City streets in ${APPLE_COVERAGE.size} countries.`}>
+                    <select
+                      value={form.mode}
+                      onChange={(e) => update({ mode: e.target.value })}
+                      className={select}
+                    >
+                      {modesFor(form.provider).map((id) => (
+                        <option key={id} value={id}>
+                          {MODES[id].label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
+                {game !== 'script' && form.mode === "continent" ? (
                   <Field label="Continent">
                     <select
                       value={form.continent}
@@ -457,9 +446,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
                       ))}
                     </select>
                   </Field>
-                </div>
-              ) : form.game !== 'script' && form.mode === "country" ? (
-                <div className="sm:col-span-2">
+                ) : game !== 'script' && form.mode === "country" ? (
                   <Field label="Country">
                     <select
                       value={form.country}
@@ -477,9 +464,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
                       ) : null}
                     </select>
                   </Field>
-                </div>
-              ) : null}
-              <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
+                ) : null}
                 <Field label="Rounds">
                   <select
                     value={form.rounds}
@@ -506,102 +491,87 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
                     ))}
                   </select>
                 </Field>
-                {form.game !== 'script' ? <Field label="Format" hint={FORMATS[form.format]?.description}>
-                  <select
-                    value={form.format}
-                    onChange={(e) => update({ format: e.target.value })}
-                    className={select}
-                  >
-                    {FORMAT_ORDER.map((id) => (
-                      <option key={id} value={id}>
-                        {FORMATS[id].label}
-                      </option>
-                    ))}
-                  </select>
-                </Field> : null}
+                {game !== 'script' ? (
+                  <Field label="Moving" hint={FORMATS[form.format]?.description}>
+                    <select
+                      value={form.format}
+                      onChange={(e) => update({ format: e.target.value })}
+                      className={select}
+                    >
+                      {FORMAT_ORDER.map((id) => (
+                        <option key={id} value={id}>
+                          {FORMATS[id].label}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
               </div>
-            </div>
-          </details>
+            </details>
           </fieldset>
         </form>
-        <aside className="pe-room-directory">
-          <section>
-            <div className="pe-directory-heading">
-              <h2>Join a game</h2>
-              <Users size={19} />
-            </div>
-            {rooms === null ? (
-              <p className="pe-directory-note">Finding open rooms…</p>
-            ) : null}
-            {rooms && !rooms.length ? (
-              <div className="pe-empty-rooms pe-swap">
-                <span className="pe-empty-orbits" aria-hidden="true">
-                  <Compass size={35} />
-                  <Users size={25} />
-                </span>
-                <h3>No open rooms</h3>
-                <p>
-                  No public rooms are open right now. Create one and send the
-                  invite link to a friend.
-                </p>
-              </div>
-            ) : null}
-            {/* The list refreshes every four seconds. Rows are keyed on
-                the room code, so a room that is already listed stays
-                still and only a new one arrives. */}
-            {rooms?.length ? (
-              <ul className="pe-room-list pe-stagger">
-                {rooms.map((room, i) => (
-                  <li key={room.code} style={{ "--i": i }}>
-                    <div>
-                      <strong>{room.name}</strong>
-                      <span>
-                        {VARIANTS[room.variant]?.label || room.variant} ·{" "}
-                        {room.players}/{room.maxPlayers || MAX_PLAYERS} players
-                      </span>
-                      <small>{describeRoomStatus(room)}</small>
-                    </div>
-                    <Link
-                      href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ""}`}
-                      aria-disabled={searching || undefined}
-                      onClick={(event) => { if (searching) event.preventDefault(); }}
-                    >
-                      {room.status === "playing" && room.variant === "duel"
-                        ? "Watch"
-                        : "Join"}
-                      <ArrowRight size={16} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </section>
-          {recent.length ? (
-            <section className="pe-recent-rooms">
-              <h2>Recently played</h2>
-              <ul className="pe-room-list">
-                {recent.slice(0, 3).map((r) => (
-                  <li key={r.code}>
-                    <div>
-                      <strong>{r.roomName || r.code}</strong>
-                      <span>{ago(r.at)}</span>
-                    </div>
-                    <Link href={`/geo/room/${r.code}`} aria-disabled={searching || undefined} onClick={(event) => { if (searching) event.preventDefault(); }}>
-                      Return <ArrowRight size={15} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          <Link href="/geo" className="pe-solo-exit">
-            Playing on your own?{" "}
-            <strong>
-              Solo games <ArrowRight size={16} />
-            </strong>
-          </Link>
-        </aside>
       </div>
+
+      <section className="mt-10" aria-labelledby="open-rooms-title">
+        <h2 id="open-rooms-title" className="ui-h2">Open rooms</h2>
+        {rooms === null ? (
+          <p className="ui-small mt-3">Finding open rooms…</p>
+        ) : null}
+        {rooms && !rooms.length ? (
+          <p className="pe-swap mt-3 text-sm text-pe-muted">
+            No open rooms right now. Create one above and send the link to a friend.
+          </p>
+        ) : null}
+        {/* The list refreshes every four seconds. Rows are keyed on
+            the room code, so a room that is already listed stays
+            still and only a new one arrives. */}
+        {rooms?.length ? (
+          <ul className="pe-stagger ui-card mt-3 divide-y divide-pe-line overflow-hidden">
+            {rooms.map((room, i) => (
+              <li key={room.code} style={{ "--i": i }} className="flex items-center gap-4 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <strong className="block truncate font-semibold text-pe-fg">{room.name}</strong>
+                  <span className="block text-sm text-pe-muted">
+                    {VARIANTS[room.variant]?.label || room.variant} · {room.players}/{room.maxPlayers || MAX_PLAYERS} players · {describeRoomStatus(room)}
+                  </span>
+                </div>
+                <Link
+                  href={`/geo/room/${room.code}${name.trim() ? `?name=${encodeURIComponent(name.trim())}` : ""}`}
+                  aria-disabled={searching || undefined}
+                  onClick={(event) => { if (searching) event.preventDefault(); }}
+                  className="ui-btn ui-btn--secondary ui-btn--sm shrink-0"
+                >
+                  {room.status === "playing" && room.variant === "duel" ? "Watch" : "Join"}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      {recent.length ? (
+        <section className="mt-10" aria-labelledby="recent-rooms-title">
+          <h2 id="recent-rooms-title" className="ui-h2">Recently played</h2>
+          <ul className="ui-card mt-3 divide-y divide-pe-line overflow-hidden">
+            {recent.slice(0, 3).map((r) => (
+              <li key={r.code} className="flex items-center gap-4 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <strong className="block truncate font-semibold text-pe-fg">{r.roomName || r.code}</strong>
+                  <span className="block text-sm text-pe-muted">{ago(r.at)}</span>
+                </div>
+                <Link
+                  href={`/geo/room/${r.code}`}
+                  aria-disabled={searching || undefined}
+                  onClick={(event) => { if (searching) event.preventDefault(); }}
+                  className="ui-btn ui-btn--ghost ui-btn--sm shrink-0"
+                >
+                  Return <ArrowRight size={15} aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   );
 }

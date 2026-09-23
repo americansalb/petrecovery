@@ -227,7 +227,7 @@ export function LobbyPanel({
         <button
           type="button"
           onClick={() => copy("link", link)}
-          className="pe-button pe-button--primary inline-flex min-h-[48px] items-center gap-2 rounded-lg px-5 font-bold"
+          className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
         >
           {copied === "link" ? <Check size={18} /> : <Link2 size={18} />}
           {copied === "link" ? "Invite link copied" : "Copy invite link"}
@@ -273,7 +273,7 @@ export function LobbyPanel({
             type="button"
             disabled={busy || !ready}
             onClick={onStart}
-            className="pe-button pe-button--primary inline-flex min-h-[50px] items-center gap-2 rounded-lg px-6 font-bold"
+            className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
           >
             <Play size={18} />
             {busy ? "Starting…" : ready ? "Start game" : "Waiting for a player"}
@@ -407,7 +407,7 @@ export function RevealPanel({ state, secondsLeft, onNext, onReact, busy }) {
                 type="button"
                 onClick={onNext}
                 disabled={busy}
-                className="pe-button pe-button--primary"
+                className="ui-btn ui-btn--primary pe-button pe-button--primary"
               >
                 <SkipForward size={16} />
                 {last ? "See results" : "Next round"}
@@ -586,7 +586,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
             {room.config?.matchmaking ? (
               <Link
                 href={`/geo/rooms?game=${room.config.game === 'script' ? 'script' : 'street'}`}
-                className="pe-button pe-button--primary"
+                className="ui-btn ui-btn--primary pe-button pe-button--primary"
               >
                 <RefreshCw size={18} />
                 Find another opponent
@@ -594,7 +594,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
             ) : room.rematchCode ? (
               <Link
                 href={`/geo/room/${room.rematchCode}?name=${encodeURIComponent(me?.name || "")}`}
-                className="pe-button pe-button--primary"
+                className="ui-btn ui-btn--primary pe-button pe-button--primary"
               >
                 <RefreshCw size={18} />
                 Join the rematch
@@ -604,7 +604,7 @@ export function StandingsPanel({ state, onRematch, onLeave, busy, error }) {
                 type="button"
                 onClick={onRematch}
                 disabled={busy}
-                className="pe-button pe-button--primary"
+                className="ui-btn ui-btn--primary pe-button pe-button--primary"
               >
                 <RefreshCw size={18} />
                 {busy ? "Opening the next game…" : "Play again together"}

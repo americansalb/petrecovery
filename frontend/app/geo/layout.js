@@ -13,6 +13,9 @@ import './experience.css';
 import './home.css';
 import './match.css';
 import './accounts.css';
+// The interface's colours, type and controls (v2). After the per-screen
+// sheets above, which it replaces screen by screen.
+import './theme.css';
 // Last, so the game's one motion vocabulary sits over the per-screen
 // sheets above it (app/geo/motion.css).
 import './motion.css';
@@ -43,7 +46,7 @@ export const metadata = { ...buildShareMetadata({
 export default function GeoLayout({ children }) {
   return (
     <div
-      className={`geo-surface min-h-[100dvh] bg-ocean-950 text-sand-50 ${scriptShowcaseFonts}`}
+      className={`geo-surface min-h-[100dvh] bg-pe-canvas text-pe-fg ${scriptShowcaseFonts}`}
     >
       {/* The pet site's <main> carries `pb-16` for its mobile tab bar,
           which the game does not render. That padding is outside this
@@ -54,7 +57,7 @@ export default function GeoLayout({ children }) {
           everything, which also covers a short page and the overscroll
           at either end. */}
       <div
-        className="pointer-events-none fixed inset-0 -z-10 bg-ocean-950"
+        className="pointer-events-none fixed inset-0 -z-10 bg-pe-canvas"
         aria-hidden="true"
       />
       {/* Before anything is painted: does this browser have a player?

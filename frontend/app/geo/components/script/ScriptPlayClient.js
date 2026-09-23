@@ -462,7 +462,7 @@ function ScriptPlayGame({ params }) {
                 disabled={!pin || sending || !round}
                 onClick={() => submit(pin)}
                 data-geo-guess
-                className="pe-button pe-button--primary pointer-events-auto min-h-[52px] w-full rounded-xl bg-clay-600 px-4 py-3.5 text-base font-semibold text-sand-950 shadow-lg transition enabled:hover:bg-clay-500 enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500 disabled:shadow-sm"
+                className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary pointer-events-auto w-full"
               >
                 {sending
                   ? 'Finding out…'
@@ -534,7 +534,7 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
       <button
         type="button"
         onClick={onNext}
-        className="pe-button pe-button--primary mx-auto mt-4 flex min-h-[48px] w-full max-w-2xl shrink-0 items-center justify-center gap-2 rounded-xl bg-clay-600 px-4 py-3 font-semibold text-sand-950 shadow-lg transition hover:bg-clay-500 active:scale-[0.99]"
+        className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary mx-auto mt-4 w-full max-w-2xl shrink-0"
       >
         {last ? 'See the results' : 'Next round'}{' '}
         <ArrowRight className="h-4 w-4" />
@@ -623,7 +623,7 @@ function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href={replay}
-            className="pe-button pe-button--primary flex min-h-[48px] items-center gap-2 rounded-xl bg-clay-400 px-5 py-3 font-semibold text-ocean-950 hover:bg-clay-300"
+            className="ui-btn ui-btn--primary ui-btn--lg pe-button pe-button--primary"
           >
             <RotateCcw className="h-4 w-4" /> Play again
           </Link>

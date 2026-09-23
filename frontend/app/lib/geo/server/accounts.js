@@ -1,5 +1,12 @@
 /**
- * Signing in, which for this game is an email address and a link.
+ * Signing in, which for this game is an email address and a code.
+ *
+ * The email carries a six-digit code and a link, and either one signs
+ * you in. The code is the one that is asked for: it is typed into the
+ * tab that asked for it. A link opened from a mail app on a phone often
+ * lands in the mail app's own browser, which signed that browser in and
+ * left the game's tab signed out, so to the player the game had simply
+ * forgotten them.
  *
  * No password, so there is nothing to leak, nothing to reset and
  * nothing to reuse from another site's breach. The link is a random 32
@@ -18,12 +25,36 @@
  * Server only.
  */
 
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { getGeoServerConfig } from './config';
 import { sendSignInEmail } from './email';
 import { resolveProfile } from './profiles';
 
 /** Fifteen minutes. Long enough to switch to a mail app and back. */
 export const LINK_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * Wrong codes an email survives. A million codes and five guesses at
+ * each, behind the route's own rate limit, is nothing a script can
+ * search; a person who mistypes five times asks for a new one.
+ */
+export const CODE_ATTEMPTS = 5;
+
+/** Six digits, uniformly, with its leading zeros. */
+export function newLoginCode() {
+  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+}
+
+/**
+ * Keyed with the server secret, so a copy of the table cannot be
+ * searched offline for the one-in-a-million code that matches.
+ */
+export function hashLoginCode(email, code, secret = getGeoServerConfig().tokenSecret) {
+  // Production without a secret refuses rounds too (config.js); a code
+  // keyed with nothing would be searchable offline, so it refuses here.
+  if (!secret && process.env.NODE_ENV === 'production') throw new GeoAuthError('not_configured', 'Sign-in is not set up on this server yet.');
+  return createHmac('sha256', String(secret || '')).update(`geo-login-code:${normalizeEmail(email)}:${code}`).digest('hex');
+}
 
 export class GeoAuthError extends Error {
   constructor(code, message) {
@@ -57,13 +88,15 @@ export function looksLikeEmail(value) {
  * Always reports the same thing whether or not an account exists, so
  * this endpoint cannot be used to find out who has one.
  */
-export async function requestSignIn(store, { email: raw, baseUrl, profileId = null, returnTo = '', now = Date.now(), sendImpl, env } = {}) {
+export async function requestSignIn(store, { email: raw, baseUrl, profileId = null, returnTo = '', now = Date.now(), sendImpl, env, secret } = {}) {
   const email = normalizeEmail(raw);
   if (!looksLikeEmail(email)) throw new GeoAuthError('bad_email', 'That does not look like an email address');
 
   const token = randomBytes(32).toString('base64url');
+  const code = newLoginCode();
   await store.createLoginToken({
     tokenHash: hashLoginToken(token),
+    codeHash: hashLoginCode(email, code, secret),
     email,
     // Whose profile this browser is playing as, captured now. The link
     // arrives as a plain navigation from a mail client, with no
@@ -80,8 +113,8 @@ export async function requestSignIn(store, { email: raw, baseUrl, profileId = nu
   // profile page and making them find their way back.
   const next = returnTo ? `&next=${encodeURIComponent(returnTo)}` : '';
   const url = `${String(baseUrl || '').replace(/\/$/, '')}/api/geo/auth/verify?token=${encodeURIComponent(token)}${next}`;
-  const result = await sendSignInEmail({ to: email, url, sendImpl, env });
-  return { email, sent: result.sent, delivered: Boolean(result.delivered), reason: result.reason || '', url };
+  const result = await sendSignInEmail({ to: email, url, code, sendImpl, env });
+  return { email, sent: result.sent, delivered: Boolean(result.delivered), reason: result.reason || '', url, code };
 }
 
 /**
@@ -109,7 +142,58 @@ async function completeSignIn(store, { token, profileToken = '', now = Date.now(
   // not be able to run this twice.
   const burned = await store.useLoginToken(row.id, new Date(now));
   if (!burned) throw new GeoAuthError('used', 'That link has already been used');
+  return bindAccount(store, row, { profileToken, now });
+}
 
+/**
+ * Type the code.
+ *
+ * Only the newest email for the address counts, so asking for a second
+ * email retires the first one's code. Throws GeoAuthError with
+ * 'bad_code', 'expired', 'used' or 'too_many', and says nothing about
+ * whether an account exists.
+ */
+export async function verifySignInCode(store, options = {}) {
+  // A wrong code is returned out of the lock rather than thrown inside
+  // it. The lock is a database transaction, and a throw rolls it back -
+  // including the count of wrong guesses, which on PostgreSQL meant the
+  // count never moved and the five-guess limit was never reached
+  // (caught by __tests__/geo/postgres-release.test.js). Returned, the
+  // count commits, and the refusal is thrown after it has.
+  const outcome = store.withAccountLock
+    ? await store.withAccountLock((locked) => completeCodeSignIn(locked, options))
+    : await completeCodeSignIn(store, options);
+  if (outcome.refused) throw outcome.refused;
+  return outcome;
+}
+
+async function completeCodeSignIn(store, { email: raw, code: rawCode, profileToken = '', now = Date.now(), secret } = {}) {
+  const email = normalizeEmail(raw);
+  const code = String(rawCode || '').replace(/\D/g, '');
+  if (!looksLikeEmail(email) || code.length !== 6) throw new GeoAuthError('bad_code', 'Enter the six-digit code from the email.');
+
+  const row = await store.getLatestLoginTokenForEmail(email);
+  if (!row || !row.codeHash) throw new GeoAuthError('bad_code', 'That code is not right. Check the newest email, or send a new code.');
+  if (row.usedAt) throw new GeoAuthError('used', 'That code has already been used. Send a new one.');
+  if (new Date(row.expiresAt).getTime() <= now) throw new GeoAuthError('expired', 'That code has expired. Send a new one.');
+  if ((row.codeAttempts || 0) >= CODE_ATTEMPTS) throw new GeoAuthError('too_many', 'Too many wrong codes. Send a new one.');
+
+  if (!sameToken(row.codeHash, hashLoginCode(email, code, secret))) {
+    const attempts = await store.countLoginCodeAttempt(row.id);
+    if (attempts >= CODE_ATTEMPTS) {
+      await store.useLoginToken(row.id, new Date(now));
+      return { refused: new GeoAuthError('too_many', 'Too many wrong codes. Send a new one.') };
+    }
+    return { refused: new GeoAuthError('bad_code', 'That code is not right. Check the newest email, or send a new code.') };
+  }
+
+  const burned = await store.useLoginToken(row.id, new Date(now));
+  if (!burned) throw new GeoAuthError('used', 'That code has already been used. Send a new one.');
+  return bindAccount(store, row, { profileToken, now });
+}
+
+/** The account for a redeemed sign-in email, and the profile it plays as. */
+async function bindAccount(store, row, { profileToken = '', now = Date.now() } = {}) {
   let account = await store.getAccountByEmail(row.email);
   if (!account) {
     account = await store.createAccount({ email: row.email, createdAt: new Date(now), lastSeenAt: new Date(now) });

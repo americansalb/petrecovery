@@ -112,9 +112,13 @@ describe('the motion vocabulary', () => {
     expect(fade.slice(0, fade.indexOf('}') + 1)).not.toMatch(/translate|transform/);
   });
 
-  test('the press squash composes too, and leaves the primary key its own press', () => {
+  test('the press squash composes too, and every button gives under a finger, the primary included', () => {
+    // The primary used to be left out because it had a painted 3D edge
+    // that pressed down on its own. That button is gone (theme.css), so
+    // the primary squashes like everything else.
     expect(motion.css).toMatch(/:active \{\s*scale: 0\.97;/);
-    expect(motion.css).toMatch(/:not\(\.pe-button--primary\)/);
+    expect(motion.css).not.toMatch(/:not\(\.pe-button--primary\)/);
+    expect(motion.css).toContain('a.ui-btn');
   });
 
   test('asking for less motion really does switch the squash off', () => {
@@ -223,17 +227,18 @@ describe('things that open over the page', () => {
     // Same element type at the same place, so without a key React would
     // rewrite the step in place and the arrival would never replay.
     const card = read('components/SignInCard.js');
-    for (const key of ['checking', 'error', 'account', 'sent', 'form']) {
+    for (const key of ['checking', 'error', 'account', 'name', 'phone', 'code', 'email']) {
       expect({ key, keyed: card.includes(`key="${key}"`) }).toEqual({ key, keyed: true });
     }
-    expect(card).toMatch(/key="sent" className="pe-swap/);
-    expect(card).toMatch(/key="form" className=\{`pe-swap /);
+    for (const key of ['error', 'account', 'name', 'phone', 'code', 'email']) {
+      expect({ key, arrives: new RegExp(`key="${key}"[\\s\\S]{0,160}?className="pe-swap`).test(card) }).toEqual({ key, arrives: true });
+    }
   });
 
   test("the bar's session control fades in, and nothing else in the bar moves", () => {
     const header = read('components/GeoHeader.js');
-    expect(header).toMatch(/className="pe-header-cta pe-fade-in"/);
-    expect(header).toMatch(/className="pe-header-who pe-fade-in"/);
+    expect(header).toMatch(/href="\/geo\/signin" className="pe-fade-in /);
+    expect(header).toMatch(/href="\/geo\/me" className="pe-fade-in /);
     expect(header.match(/pe-fade-in|pe-swap|pe-stagger/g)).toHaveLength(2);
   });
 });

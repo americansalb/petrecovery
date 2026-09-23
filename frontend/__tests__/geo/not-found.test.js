@@ -26,7 +26,8 @@ test('it offers the way back into the game, at a touch size', () => {
   render(<GeoNotFound />);
   const play = screen.getByRole('link', { name: 'Play' });
   expect(play).toHaveAttribute('href', '/geo');
-  expect(play.className).toContain('min-h-[44px]');
+  // Touch size: a .ui-btn is at least 44px (theme.css, components.test.js).
+  expect(play.className).toMatch(/\bui-btn\b/);
   expect(screen.getByRole('link', { name: 'Multiplayer' })).toHaveAttribute('href', '/geo/rooms');
 });
 

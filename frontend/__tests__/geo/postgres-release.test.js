@@ -4,7 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { databaseStoreFor } = require('@/app/lib/geo/server/roomStore');
 const { matchmaking } = require('@/app/lib/geo/server/matchmaking');
 const { getRoomView, roomAction } = require('@/app/lib/geo/server/rooms');
-const { verifySignIn, hashLoginToken } = require('@/app/lib/geo/server/accounts');
+const { verifySignIn, verifySignInCode, hashLoginCode, hashLoginToken } = require('@/app/lib/geo/server/accounts');
 const { createRoomOnce, joinRoomOnce } = require('@/app/lib/geo/server/roomCreation');
 const { sameSavedCheckpoint } = require('@/app/lib/geo/server/savedCheckpoint');
 const { applyRoomRatings } = require('@/app/lib/geo/server/profiles');
@@ -94,6 +94,20 @@ if (url) {
     expect(attempts.map((attempt) => attempt.status)).toEqual(tokens.map(() => 'fulfilled'));
     expect(new Set(attempts.map((attempt) => attempt.value.account.id)).size).toBe(1);
     expect(new Set(attempts.map((attempt) => attempt.value.profile.id)).size).toBe(1);
+  });
+
+  test('a sign-in code counts wrong guesses on the database and signs in exactly once', async () => {
+    const email = `code-${randomUUID()}@example.test`;
+    loginEmails.push(email);
+    await stores[0].createLoginToken({ email, tokenHash: hashLoginToken(randomUUID()), codeHash: hashLoginCode(email, '123456'), expiresAt: new Date(now + 60000) });
+    await expect(verifySignInCode(stores[0], { email, code: '654321', now })).rejects.toMatchObject({ code: 'bad_code' });
+    expect((await stores[1].getLatestLoginTokenForEmail(email)).codeAttempts).toBe(1);
+    const attempts = await Promise.allSettled(stores.map((store) => verifySignInCode(store, { email, code: '123456', now })));
+    const won = attempts.filter((attempt) => attempt.status === 'fulfilled');
+    expect(won).toHaveLength(1);
+    accounts.push(won[0].value.account.id);
+    if (won[0].value.profile) profiles.push(won[0].value.profile.id);
+    expect(attempts.find((attempt) => attempt.status === 'rejected').reason).toMatchObject({ code: 'used' });
   });
 
   test('two accounts cannot both adopt the same guest progress', async () => {

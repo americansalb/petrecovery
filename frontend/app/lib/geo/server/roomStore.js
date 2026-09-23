@@ -169,6 +169,15 @@ export function databaseStoreFor(prisma) { return {
   getLoginTokenByHash(tokenHash) {
     return prisma.geoLoginToken.findUnique({ where: { tokenHash } });
   },
+  /** The newest sign-in email for an address: only its code counts. */
+  getLatestLoginTokenForEmail(email) {
+    return prisma.geoLoginToken.findFirst({ where: { email }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
+  },
+  /** One more wrong code against a sign-in email; returns the new count. */
+  async countLoginCodeAttempt(id) {
+    const row = await prisma.geoLoginToken.update({ where: { id }, data: { codeAttempts: { increment: 1 } }, select: { codeAttempts: true } });
+    return row.codeAttempts;
+  },
   /** Burn a link. The usedAt guard makes a double click a no-op, not a second sign-in. */
   async useLoginToken(id, at) {
     const done = await prisma.geoLoginToken.updateMany({ where: { id, usedAt: null }, data: { usedAt: at } });

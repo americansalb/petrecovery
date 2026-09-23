@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Users, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import SignInCard from './SignInCard';
-import Card from './ui/Card';
 import { prefersReducedMotion } from '../lib/motion';
 
 /** How long the sheet takes to leave: pe-dialog-out in motion.css. */
@@ -41,13 +40,14 @@ export default function AccountDialog({ onClose, returnTo, name, onNameChange, o
       className="pe-account-dialog pointer-events-auto"
       aria-labelledby="account-dialog-title"
     >
-      <Card className="pe-account-sheet">
-        <button type="button" onClick={leave} className="pe-account-close" aria-label="Close"><X size={22} /></button>
-        <span className="pe-account-symbol"><Users size={30} aria-hidden="true" /></span>
-        <h2 id="account-dialog-title">Sign in to play together</h2>
-        <p>Your email is all it takes. Played before? The same address brings your player back. Free, no card.</p>
-        <SignInCard requireName playerName={name} onPlayerNameChange={onNameChange} returnTo={returnTo} onAuthenticated={onAuthenticated} compact />
-      </Card>
+      <div className="pe-account-sheet ui-card">
+        <button type="button" onClick={leave} className="pe-account-close ui-btn ui-btn--ghost ui-btn--sm" aria-label="Close"><X size={20} /></button>
+        <h2 id="account-dialog-title" className="ui-h2 pr-10">Sign in to play together</h2>
+        <p className="mt-1 text-sm text-pe-muted">Other players see who they are playing, so multiplayer needs an account. It&apos;s free: your email and a code.</p>
+        <div className="mt-5">
+          <SignInCard requireName playerName={name} onPlayerNameChange={onNameChange} returnTo={returnTo} onAuthenticated={onAuthenticated} />
+        </div>
+      </div>
     </dialog>
   );
 }

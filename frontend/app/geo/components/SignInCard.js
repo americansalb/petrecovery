@@ -1,332 +1,492 @@
 'use client';
 
 /**
- * Signing in, which for this game is an email address and nothing else.
+ * Signing in: an email address, then the six-digit code from the email.
  *
- * Probably Earth accounts are its own (docs/GEO.md, "Signing in"). A
- * player here is not a ReunitePets user and does not become one: that
- * was the founder's answer on 2026-09-10 to what a standalone account
- * means. There is no password and nothing shared with the pet site,
- * neither of which is worth telling a player: nobody arrives worried
- * about a password (founder, 2026-09-17).
+ * Founder, 2026-09-23, looking at this screen: "Very unclear. Why not
+ * just have normal sign in process?" It was one form that tried to be
+ * sign-in and sign-up at once: a "Player name (new players)" field above
+ * the email field, two headings saying "Sign in" and "Sign in, or start
+ * an account", and a paragraph explaining the difference. Then it sent
+ * a link, and a link opened from a phone's mail app usually lands in
+ * the mail app's own browser - which signed THAT browser in and left
+ * the game's tab exactly as it was.
  *
- * The only thing an account buys is that your profile follows you to
- * another device and survives a cleared browser. Playing needs no
- * account at all, and the copy says so rather than implying a gate.
+ * So it is the normal process now, one question per screen:
+ *
+ *   1. Email, Continue.
+ *   2. The code from the email, typed here (the email's link still
+ *      works too, and this screen notices when it has been used).
+ *   3. Only for a player who has no name yet: what to call them, which
+ *      they can skip.
+ *
+ * Probably Earth accounts are the game's own (docs/GEO.md, "Signing
+ * in"), not ReunitePets accounts. There is no password. Playing needs
+ * no account at all; this is how a player keeps their progress.
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, LogOut, Mail, Trash2, UserRound } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Check, LogOut, Mail, Trash2 } from 'lucide-react';
+import { DEFAULT_PLAYER_NAME } from '@/app/lib/geo/rooms';
 import { ensureProfile, profileHeaders } from '../lib/profile';
+import { saveName } from '../lib/useRoom';
 import PhoneSignIn from './PhoneSignIn';
 
 const WHY = {
-  'that-link-is-not-valid': 'That link was not valid. Ask for a new one.',
-  'that-link-expired': 'That link expired. They last fifteen minutes; ask for a new one.',
-  'that-link-was-already-used': 'That link had already been used. Ask for a new one.',
-  unknown: 'That did not work. Ask for a new link.',
+  'that-link-is-not-valid': 'That link was not valid. Send yourself a new code.',
+  'that-link-expired': 'That link expired. Codes and links last fifteen minutes; send a new one.',
+  'that-link-was-already-used': 'That link had already been used. Send yourself a new code.',
+  unknown: 'That did not work. Send yourself a new code.',
 };
 
-export default function SignInCard({ returnTo = '/geo/me', requireName = false, playerName, onPlayerNameChange, onAuthenticated, compact = false }) {
+/** Seconds before "Send a new code" is offered again. */
+const RESEND_AFTER = 30;
+
+function announce() {
+  window.dispatchEvent(new Event('geo:authenticated'));
+  window.dispatchEvent(new Event('geo:session-changed'));
+}
+
+export default function SignInCard({
+  returnTo = '/geo/me',
+  // Ask a player with no name yet what to call them, once they are in.
+  requireName = false,
+  playerName,
+  onPlayerNameChange,
+  onAuthenticated,
+  // Where to go once signed in. Only the sign-in page sets it; a dialog
+  // or a card on another screen stays where it is.
+  continueTo = '',
+}) {
+  const router = useRouter();
+  const [step, setStep] = useState('checking');
   const [email, setEmail] = useState('');
-  const [localName, setLocalName] = useState('');
-  const [state, setState] = useState('idle');
-  const [message, setMessage] = useState('');
+  const [code, setCode] = useState('');
+  const [name, setName] = useState(playerName || '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [note, setNote] = useState('');
   const [account, setAccount] = useState(null);
-  const [checkingAccount, setCheckingAccount] = useState(true);
-  const [accountError, setAccountError] = useState('');
   const [checkAttempt, setCheckAttempt] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [phoneAvailable, setPhoneAvailable] = useState(false);
-  const [method, setMethod] = useState('email');
+  const [resendIn, setResendIn] = useState(0);
   const authenticatedRef = useRef(onAuthenticated);
   authenticatedRef.current = onAuthenticated;
-  const name = playerName === undefined ? localName : playerName;
-  const setName = (value) => {
-    if (onPlayerNameChange) onPlayerNameChange(value);
-    else setLocalName(value);
-  };
+  const finishedRef = useRef(false);
 
-  useEffect(() => {
-    if (state !== 'sent') return;
-    let alive = true;
-    let checking = false;
-    const check = async () => {
-      if (checking) return;
-      checking = true;
-      try {
-        const response = await fetch('/api/geo/auth/me', { cache: 'no-store' });
-        const data = response.ok ? await response.json() : null;
-        if (alive && data?.signedIn) {
-          setAccount(data);
-          setState('idle');
-          setMessage('Signed in.');
-          window.dispatchEvent(new Event('geo:authenticated'));
-          window.dispatchEvent(new Event('geo:session-changed'));
-          authenticatedRef.current?.();
-        }
-      } catch { /* Try again when the player returns from email. */ }
-      finally { checking = false; }
-    };
-    window.addEventListener('focus', check);
-    document.addEventListener('visibilitychange', check);
-    check();
-    const timer = setInterval(check, 4000);
-    return () => { alive = false; clearInterval(timer); window.removeEventListener('focus', check); document.removeEventListener('visibilitychange', check); };
-  }, [state]);
-
+  // Is this browser signed in already?
   useEffect(() => {
     let alive = true;
-    fetch('/api/geo/auth/options', { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).then((data) => { if (alive) setPhoneAvailable(Boolean(data?.phone)); }).catch(() => {});
-    // A redirect back from the emailed link carries what happened.
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('signed-in')) setMessage('Signed in.');
-    const failed = params.get('sign-in-failed');
-    if (failed) {
-      setState('error');
-      setMessage(WHY[failed] || WHY.unknown);
-    }
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    setCheckingAccount(true);
-    setAccountError('');
+    setStep('checking');
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => {
-        if (!response.ok) throw new Error('Could not check your account. Your game is still here.');
+        if (!response.ok) throw new Error('offline');
         return response.json();
       })
-      .then((data) => { if (alive) setAccount(data?.signedIn ? data : null); })
-      .catch(() => { if (alive) setAccountError('Could not check your account. Your game is still here.'); })
-      .finally(() => { if (alive) setCheckingAccount(false); });
+      .then((data) => {
+        if (!alive) return;
+        if (data?.signedIn) {
+          setAccount(data);
+          setStep('account');
+        } else setStep('email');
+      })
+      .catch(() => { if (alive) setStep('unreachable'); });
     return () => { alive = false; };
   }, [checkAttempt]);
 
-  const request = async (event) => {
-    event.preventDefault();
-    if (state === 'sending') return;
-    setState('sending');
-    setMessage('');
+  // Phone sign-in, where the server has it, and what a followed link
+  // came back to say.
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/geo/auth/options', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (alive) setPhoneAvailable(Boolean(data?.phone)); })
+      .catch(() => {});
+    const params = new URLSearchParams(window.location.search);
+    const failed = params.get('sign-in-failed');
+    if (failed) setError(WHY[failed] || WHY.unknown);
+    return () => { alive = false; };
+  }, []);
+
+  // Waiting for the code: the email's link may be opened in this very
+  // browser instead, and then there is nothing left to type.
+  useEffect(() => {
+    if (step !== 'code') return undefined;
+    let alive = true;
+    const check = async () => {
+      try {
+        const response = await fetch('/api/geo/auth/me', { cache: 'no-store' });
+        const data = response.ok ? await response.json() : null;
+        if (alive && data?.signedIn) signedIn(data);
+      } catch { /* try again on the next tick */ }
+    };
+    const timer = setInterval(check, 4000);
+    // Coming back from the mail app: a phone fires visibilitychange, not
+    // always focus, and waiting for the next tick would feel like nothing
+    // happened.
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const timer = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
+
+  const finish = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    authenticatedRef.current?.();
+    if (continueTo) router.push(continueTo);
+    else setStep('account');
+  };
+
+  // Signed in, by the code or by the link. A player who already has a
+  // name is done; one who does not is asked for it once, now.
+  const signedIn = async (data) => {
+    announce();
+    let profile = null;
     try {
-      // No longer a blocker. A player coming back was made to invent a
-      // name before the form would send them a link, and then the name
-      // was thrown away: following the link binds the account, and the
-      // account's own profile wins (accounts.js, completeSignIn), so the
-      // name they had just typed onto the browser's anonymous profile
-      // was discarded. Being asked to name yourself and then not being
-      // remembered is what "it signs me up as a new user" feels like
-      // (founder, 2026-09-22). An address is the whole of signing in;
-      // somebody who ends up without a name is asked for one on the
-      // profile page, where it is theirs to keep.
-      // Mint the browser profile before asking for mail. The request route
-      // records that profile, so following the link keeps this player\'s
-      // score, badges and room identity instead of making a blank one.
-      await ensureProfile(name.trim());
+      profile = await ensureProfile('');
+    } catch { /* the name can be set from the profile page */ }
+    setAccount({ signedIn: true, email: data?.email || email || null });
+    const current = profile?.name || '';
+    if (current && current !== DEFAULT_PLAYER_NAME) saveName(current);
+    if (requireName && (!current || current === DEFAULT_PLAYER_NAME)) {
+      setStep('name');
+      return;
+    }
+    finish();
+  };
+
+  const sendCode = async (event) => {
+    event?.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    setNote('');
+    try {
+      // The browser's profile exists before the email is asked for, so
+      // signing in carries this player's scores, badges and rating into
+      // the account rather than starting a blank one.
+      await ensureProfile('');
       const response = await fetch('/api/geo/auth/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...profileHeaders() },
         body: JSON.stringify({ email, returnTo }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data?.error || 'Could not send that link');
-      setState('sent');
-      setMessage(data.message || 'Check your email.');
-    } catch (error) {
-      setState('error');
-      setMessage(error.message);
+      if (!response.ok) throw new Error(data?.error || 'Could not send the code. Try again in a minute.');
+      if (data.code === 'logged_not_sent') setNote(data.message);
+      setCode('');
+      setResendIn(RESEND_AFTER);
+      setStep('code');
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const checkCode = async (value = code) => {
+    const digits = String(value).replace(/\D/g, '');
+    if (digits.length !== 6 || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch('/api/geo/auth/code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...profileHeaders() },
+        body: JSON.stringify({ email, code: digits }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'That code did not work.');
+      await signedIn(data);
+    } catch (failure) {
+      setError(failure.message);
+      setCode('');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const typeCode = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    setCode(digits);
+    // Six digits is the whole answer; nobody should have to find a button.
+    if (digits.length === 6) checkCode(digits);
+  };
+
+  const saveTheName = async (event) => {
+    event.preventDefault();
+    const clean = name.trim().slice(0, 20);
+    if (!clean) return finish();
+    setBusy(true);
+    setError('');
+    try {
+      await ensureProfile(clean);
+      saveName(clean);
+      onPlayerNameChange?.(clean);
+      // The header shows the player's name; tell it there is one.
+      window.dispatchEvent(new Event('geo:session-changed'));
+      finish();
+    } catch (failure) {
+      setError(failure.message || 'Could not save the name. You can set it from your profile.');
+    } finally {
+      setBusy(false);
     }
   };
 
   const signOut = async () => {
+    setError('');
     try {
       const response = await fetch('/api/geo/auth/signout', { method: 'POST' });
       if (!response.ok) throw new Error('Could not sign out. Please try again.');
       setAccount(null);
+      finishedRef.current = false;
       window.dispatchEvent(new Event('geo:session-changed'));
-      setMessage('Signed out. You are still playing in this browser.');
-    } catch (error) { setMessage(error.message); }
+      setNote('Signed out. You can keep playing in this browser.');
+      setStep('email');
+    } catch (failure) { setError(failure.message); }
   };
 
   const deleteAccount = async () => {
-    setState('deleting');
+    setBusy(true);
+    setError('');
     try {
       const response = await fetch('/api/geo/auth/delete', { method: 'POST' });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || 'Could not delete that account');
       setAccount(null);
-      window.dispatchEvent(new Event('geo:session-changed'));
       setConfirmDelete(false);
-      setState('idle');
-      setMessage('Account deleted. Your contact details, profile, rating, points, badges and board scores are gone.');
-    } catch (error) {
-      setState('error');
-      setMessage(error.message);
+      window.dispatchEvent(new Event('geo:session-changed'));
+      setNote('Account deleted. Your email, profile, rating, points, badges and board scores are gone.');
+      setStep('email');
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
     }
   };
 
-  // The card's shape while the session is checked. This used to be one
-  // line of text, and the form that replaced it is a card four hundred
-  // pixels tall, so the footer was shoved 367px down the page about
-  // three quarters of a second in (measured: layout shift 0.12, which
-  // is "poor"). The placeholders stand where the title, the two fields
-  // and the button will be; nothing here is a field, so nothing can be
-  // typed into before the page knows who is signed in.
-  // Every state below has its own key, so going from one to the next
-  // mounts a fresh element and it arrives (pe-swap) rather than
-  // rewriting the one already on screen.
-  if (checkingAccount) return (
-    <div key="checking" className={compact ? '' : 'rounded-xl border border-white/10 p-4'}>
-      <p role="status" className="text-sm font-semibold text-white/70">Checking your account…</p>
-      <div aria-hidden="true">
-        {!compact ? <>
-          <span className="pe-skeleton mt-2 block h-3.5 w-full" />
-          <span className="pe-skeleton mt-2 block h-3.5 w-3/4" />
-          <span className="pe-skeleton mt-2 block h-3.5 w-1/2" />
-        </> : null}
-        {requireName ? <>
-          <span className="pe-skeleton mt-5 block h-3.5 w-40" />
-          <span className="pe-skeleton mt-2 block h-12 w-full rounded-xl" />
-        </> : null}
-        <span className="pe-skeleton mt-4 block h-3.5 w-16" />
-        <span className="pe-skeleton mt-2 block h-12 w-full rounded-xl" />
-        <span className="pe-skeleton mt-3 block h-12 w-full rounded-xl" />
-        <span className="pe-skeleton mt-2 block h-3 w-2/3" />
-      </div>
-    </div>
-  );
-  if (accountError) return (
-    <div key="error" className="pe-swap py-4">
-      <p role="alert" className="text-sm text-white/80">{accountError}</p>
-      <button type="button" className="mt-2 min-h-[44px] px-3 underline" onClick={() => setCheckAttempt((n) => n + 1)}>Check again</button>
-    </div>
-  );
-
-  if (account) {
+  // Each step has its own key, so moving from one to the next mounts a
+  // fresh element and it arrives (pe-swap) rather than being rewritten
+  // in place.
+  if (step === 'checking') {
     return (
-      <div key="account" className="pe-swap rounded-xl border border-white/10 p-4">
-        <p className="flex items-center gap-2 font-semibold text-white">
-          <Check className="h-4 w-4 text-green-400" /> Signed in as {account.email || account.account?.phone}
-        </p>
-        <p className="mt-1 text-sm text-white/60">Your profile follows you to any device you sign in on. This device stays signed in for 90 days.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={signOut} className="flex min-h-[44px] items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/20">
-            <LogOut className="h-4 w-4" /> Sign out
-          </button>
-          {confirmDelete ? null : (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="flex min-h-[44px] items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold text-white/60 hover:bg-red-950/60 hover:text-red-300"
-            >
-              <Trash2 className="h-4 w-4" /> Delete account
-            </button>
-          )}
+      <div key="checking" aria-busy="true">
+        <p role="status" className="sr-only">Checking your account…</p>
+        {/* The email step's shape - label, field, button, the line under
+            it - so the card does not jump when the form replaces it. */}
+        <div aria-hidden="true" className="grid gap-4">
+          <span className="pe-skeleton block h-4 w-16" />
+          <span className="pe-skeleton block h-12 w-full rounded-xl" />
+          <span className="pe-skeleton block h-11 w-full rounded-xl" />
+          <span className="pe-skeleton block h-4 w-5/6" />
         </div>
-        {confirmDelete ? (
-          <div className="pe-swap mt-3 rounded-lg border border-red-400/40 bg-red-950/60 p-3">
-            <p className="text-sm font-semibold text-red-100">Delete this account?</p>
-            <p className="mt-1 text-sm text-red-200">
-              This removes your contact details, your profile, your rating, points, badges and results, and your scores on
-              the daily and cup boards. It cannot be undone.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={deleteAccount}
-                disabled={state === 'deleting'}
-                className="min-h-[44px] rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
-              >
-                {state === 'deleting' ? 'Deleting' : 'Yes, delete it'}
-              </button>
-              <button type="button" onClick={() => setConfirmDelete(false)} className="min-h-[44px] rounded-lg bg-ocean-900/60 px-3 py-1.5 text-sm font-semibold text-white/70 hover:bg-white/10">
-                Keep it
-              </button>
-            </div>
-          </div>
-        ) : null}
-        {message ? <p className="mt-2 text-sm text-white/60">{message}</p> : null}
       </div>
     );
   }
 
-  if (method === 'phone') return <PhoneSignIn requireName={requireName} name={name} setName={setName} onUseEmail={() => setMethod('email')} onAuthenticated={(data) => { setAccount(data); setMessage('Signed in.'); authenticatedRef.current?.(); }} />;
+  if (step === 'unreachable') {
+    return (
+      <div key="error" className="pe-swap grid gap-3">
+        <p role="alert" className="ui-error">Could not check your account. Your game in this browser is safe.</p>
+        <button type="button" className="ui-btn ui-btn--secondary" onClick={() => setCheckAttempt((n) => n + 1)}>
+          Check again
+        </button>
+      </div>
+    );
+  }
 
-  if (state === 'sent') return (
-    <div key="sent" className="pe-swap mt-6" role="status" aria-live="polite">
-      <Mail size={36} className="mb-4 text-clay-300" aria-hidden="true" />
-      <h3 className="text-xl font-semibold">Check your email</h3>
-      <p className="mt-2 break-words text-white/80">{email}</p>
-      <p className="mt-2 text-sm text-white/70">{message}</p>
-      <p className="mt-2 text-sm text-white/70">Open the link to continue. Your progress stays here.</p>
-      <button type="button" className="mt-4 min-h-[44px] text-sm underline" onClick={() => setState('idle')}>Change email or resend</button>
-    </div>
-  );
+  if (step === 'account' && account) {
+    return (
+      <div key="account" className="pe-swap grid gap-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-pe-good/15 text-pe-good">
+            <Check className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <p className="min-w-0 pt-1 text-pe-muted">
+            Signed in as <span className="break-all font-semibold text-pe-fg">{account.email || account.account?.phone || 'your account'}</span>
+          </p>
+        </div>
+        <p className="ui-small">Your profile follows you to any device you sign in on. This device stays signed in for 90 days.</p>
+        {confirmDelete ? (
+          <div className="pe-swap grid gap-3 rounded-xl border border-pe-bad/40 bg-pe-bad/10 p-4">
+            <p className="font-semibold text-pe-fg">Delete this account?</p>
+            <p className="text-sm text-pe-muted">
+              This removes your email, your profile, rating, points, badges and results, and your scores on the daily and
+              cup boards. It cannot be undone.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={deleteAccount} disabled={busy} className="ui-btn ui-btn--danger">
+                {busy ? 'Deleting…' : 'Yes, delete it'}
+              </button>
+              <button type="button" onClick={() => setConfirmDelete(false)} className="ui-btn ui-btn--ghost">
+                Keep it
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={signOut} className="ui-btn ui-btn--secondary">
+              <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out
+            </button>
+            <button type="button" onClick={() => setConfirmDelete(true)} className="ui-btn ui-btn--ghost">
+              <Trash2 className="h-4 w-4" aria-hidden="true" /> Delete account
+            </button>
+          </div>
+        )}
+        {error ? <p role="alert" className="ui-error">{error}</p> : null}
+      </div>
+    );
+  }
 
-  return (
-    <div key="form" className={`pe-swap ${compact ? '' : 'rounded-xl border border-white/10 p-4'}`}>
-      {!compact ? <>
-      {/* One door. The old copy told everyone they were making
-          something new, which is wrong half the time and is why coming
-          back felt like signing up again. The same sentence has to be
-          true for a first-timer and for somebody returning. */}
-      <p className="font-semibold text-white">{requireName ? 'Sign in, or start an account' : 'Keep this profile across devices'}</p>
-      <p className="mt-1 text-sm text-white/60">
-        {requireName
-          ? 'Your email is all it takes. Played before? The same address brings your player, rating and badges back.'
-          : 'Your rating, points and badges live in this browser. An email address moves them to your phone too, and brings them back if you clear it.'}
-      </p>
-      </> : null}
-      {/* method="post" so a submit before hydration does not put the address in the URL (__tests__/form-method.test.js). */}
-      <form method="post" onSubmit={request} className="pe-account-form">
-        {requireName ? (
-          <label className="w-full text-sm font-semibold text-white/80" htmlFor="geo-signin-name">
-            {/* Not required. It is only used when this address has no
-                player yet; a returning account already has a name and
-                this field never touches it. */}
-            <span className="flex items-center gap-2"><UserRound size={16} aria-hidden="true" /> Player name <span className="font-normal text-white/45">(new players)</span></span>
-            <input
-              id="geo-signin-name"
-              type="text"
-              maxLength={20}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="What should we call you?"
-              autoComplete="nickname"
-              className="mt-1 w-full rounded-lg border border-white/15 px-3 py-2 text-sm"
-            />
-          </label>
+  if (step === 'name') {
+    return (
+      <form key="name" method="post" onSubmit={saveTheName} className="pe-swap grid gap-4">
+        <div>
+          <p className="ui-h2">You&apos;re in</p>
+          <p className="mt-1 text-sm text-pe-muted">What should other players see you as? You can change it later.</p>
+        </div>
+        <div className="ui-field">
+          <label className="ui-label" htmlFor="geo-signin-name">Player name</label>
+          <input
+            id="geo-signin-name"
+            className="ui-input"
+            type="text"
+            maxLength={20}
+            autoComplete="nickname"
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Ada"
+          />
+        </div>
+        <button type="submit" disabled={busy} className="ui-btn ui-btn--primary ui-btn--block">
+          {busy ? 'Saving…' : name.trim() ? 'Save and continue' : 'Continue'}
+        </button>
+        {name.trim() ? (
+          <button type="button" onClick={finish} className="ui-btn ui-btn--ghost ui-btn--block">
+            Skip for now
+          </button>
         ) : null}
-        <label htmlFor="geo-signin-email">
-          <span className="flex items-center gap-2"><Mail size={16} aria-hidden="true" /> Email</span>
+        {error ? <p role="alert" className="ui-error">{error}</p> : null}
+      </form>
+    );
+  }
+
+  if (step === 'phone') {
+    return (
+      <div key="phone" className="pe-swap">
+        <PhoneSignIn onUseEmail={() => setStep('email')} onAuthenticated={(data) => signedIn(data)} />
+      </div>
+    );
+  }
+
+  if (step === 'code') {
+    return (
+      <form
+        key="code"
+        method="post"
+        onSubmit={(e) => { e.preventDefault(); checkCode(); }}
+        className="pe-swap grid gap-4"
+      >
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pe-accent/15 text-pe-accent-fg">
+            <Mail className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="ui-h2">Check your email</p>
+            <p className="mt-1 text-sm text-pe-muted">
+              We sent a 6-digit code to <span className="break-all font-medium text-pe-fg">{email}</span>.
+            </p>
+          </div>
+        </div>
+        <div className="ui-field">
+          <label className="ui-label" htmlFor="geo-signin-code">Code</label>
+          <input
+            id="geo-signin-code"
+            className="ui-input ui-input--code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="[0-9 ]*"
+            maxLength={7}
+            autoFocus
+            value={code}
+            onChange={(e) => typeCode(e.target.value)}
+            placeholder="······"
+            aria-invalid={error ? 'true' : undefined}
+            aria-describedby="geo-signin-code-help"
+          />
+          <p id="geo-signin-code-help" className="ui-hint">
+            The email also has a Sign in button. Either one works, for fifteen minutes.
+          </p>
+        </div>
+        {error ? <p role="alert" className="ui-error">{error}</p> : null}
+        {note ? <p className="ui-hint">{note}</p> : null}
+        <button type="submit" disabled={busy || code.length !== 6} className="ui-btn ui-btn--primary ui-btn--block">
+          {busy ? 'Checking…' : 'Sign in'}
+        </button>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <button
+            type="button"
+            className="ui-btn ui-btn--ghost ui-btn--sm -ml-3"
+            onClick={() => { setStep('email'); setError(''); setCode(''); }}
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Different email
+          </button>
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm -mr-3" disabled={busy || resendIn > 0} onClick={sendCode}>
+            {resendIn > 0 ? `Send a new code in ${resendIn}s` : 'Send a new code'}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  // The first step: an address, and nothing else to decide.
+  return (
+    <form key="email" method="post" onSubmit={sendCode} className="pe-swap grid gap-4">
+      <div className="ui-field">
+        <label className="ui-label" htmlFor="geo-signin-email">Email</label>
         <input
           id="geo-signin-email"
+          className="ui-input"
           type="email"
           autoComplete="email"
           autoCapitalize="none"
+          spellCheck={false}
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="min-w-0 flex-1 rounded-lg border border-white/15 px-3 py-2 text-sm"
+          aria-invalid={error ? 'true' : undefined}
         />
-        </label>
-        <button
-          type="submit"
-          disabled={state === 'sending'}
-          className="pe-button pe-button--primary flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-60"
-        >
-          {state === 'sending' ? 'Sending…' : 'Continue'} <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </button>
-      </form>
-      {phoneAvailable ? <button type="button" disabled={state === 'sending'} className="mt-3 min-h-[44px] text-sm underline" onClick={() => { setMethod('phone'); setMessage(''); }}>Use a phone number instead</button> : null}
-      <p className="mt-2 text-xs text-white/50">
-        {state === 'sent' && requireName ? 'Check your email. The link brings you straight back here.' : 'No password. This device stays signed in for 90 days.'}
+      </div>
+      {error ? <p role="alert" className="ui-error">{error}</p> : null}
+      {note ? <p className="ui-hint">{note}</p> : null}
+      <button type="submit" disabled={busy} className="ui-btn ui-btn--primary ui-btn--block">
+        {busy ? 'Sending…' : 'Continue'}
+      </button>
+      <p className="ui-small">
+        We&apos;ll email you a 6-digit code. No password. New here? This creates your free account.
       </p>
-      {message ? <p role="alert" className={`mt-2 text-sm ${state === 'error' ? 'text-red-300' : 'text-white/60'}`}>{message}</p> : null}
-    </div>
+      {phoneAvailable ? (
+        <button type="button" disabled={busy} className="ui-btn ui-btn--ghost ui-btn--block" onClick={() => { setError(''); setStep('phone'); }}>
+          Use a phone number instead
+        </button>
+      ) : null}
+    </form>
   );
 }

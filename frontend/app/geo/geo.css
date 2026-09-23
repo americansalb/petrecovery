@@ -31,29 +31,31 @@
 .geo-surface input[type='url']:not([data-paper]),
 .geo-surface textarea:not([data-paper]),
 .geo-surface select:not([data-paper]) {
-  background: rgb(19 41 55 / 0.6); /* ocean-950/60 */
-  border-color: rgb(255 255 255 / 0.15);
-  color: rgb(250 249 247); /* sand-50 */
+  background: rgb(var(--pe-canvas));
+  border-color: rgb(var(--pe-line-strong));
+  color: rgb(var(--pe-fg));
 }
 
 .geo-surface input:not([data-paper])::placeholder,
 .geo-surface textarea:not([data-paper])::placeholder {
-  color: rgb(255 255 255 / 0.35);
+  color: rgb(var(--pe-subtle));
 }
 
 /* The native dropdown list is painted by the OS, which does not inherit
    the control's colour. Without this it opens as white rows of white
    text. */
 .geo-surface select:not([data-paper]) option {
-  background-color: #132937; /* ocean-950 */
-  color: rgb(250 249 247);
+  background-color: rgb(var(--pe-surface));
+  color: rgb(var(--pe-fg));
 }
 
 /* The pet site's focus ring is the indigo it uses everywhere else. In
-   the game the accent is clay. */
+   the game it is the accent, the same blue as every primary action
+   (theme.css). It was clay, an orange ring on a blue page. */
 .geo-surface input:not([data-paper]):focus,
 .geo-surface textarea:not([data-paper]):focus,
 .geo-surface select:not([data-paper]):focus {
-  border-color: #c68e6b; /* clay-400 */
-  box-shadow: 0 0 0 3px rgb(198 142 107 / 0.25);
+  outline: none;
+  border-color: rgb(var(--pe-accent));
+  box-shadow: 0 0 0 3px rgb(var(--pe-accent) / 0.35);
 }

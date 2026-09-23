@@ -1,0 +1,465 @@
+/**
+ * Probably Earth, v2: the interface.
+ *
+ * Founder, 2026-09-23, on the sign-in page and the multiplayer page:
+ * "very unclear", "ugly color scheme", "extremely poorly designed,
+ * extremely confusing, extremely ugly. Full UI UX rework needed."
+ *
+ * Measured before this file: the game's stylesheets held 480 distinct
+ * colours for 527 uses. Nearly every element had been tinted by hand -
+ * a slightly different teal here, a slightly different lime there - so
+ * no two screens matched and none of them looked designed. Buttons were
+ * rust with a painted 3D edge, selections were highlighter lime, and
+ * cards were teal gradients on navy.
+ *
+ * This is the replacement: one small set of colours, one type scale,
+ * and one version of each control, used by every rebuilt screen.
+ *
+ *   canvas   #0B0F14   the page. Neutral near-black, a touch of blue.
+ *   surface  #141A22   a card on the page
+ *   raised   #1C232D   a control, a hover, a selected segment
+ *   line     #262E3A   every border
+ *   fg       #F0F3F6   text
+ *   muted    #A6B0BD   secondary text (8.7:1 on canvas)
+ *   subtle   #7C8694   hints and placeholders (4.7:1 on surface)
+ *   accent   #2563EB   ocean blue: every primary action, every
+ *                      selection, every focus ring (white on it 5.2:1)
+ *   good     #4AC484   forest: close, correct, gained
+ *   warm     #F2A962   clay: scores, points, streaks
+ *   bad      #F17474   errors
+ *
+ * The founder's palette (ocean, forest, clay: docs/PROBABLY_EARTH_UI.md)
+ * is kept, and given one job each instead of being sprayed across
+ * everything. Values are space-separated RGB so Tailwind's `pe-*`
+ * colours can take an alpha (tailwind.config.js).
+ */
+
+.geo-surface {
+  --pe-canvas: 11 15 20;
+  --pe-surface: 20 26 34;
+  --pe-raised: 28 35 45;
+  --pe-line: 38 46 58;
+  --pe-line-strong: 58 68 82;
+  --pe-fg: 240 243 246;
+  --pe-muted: 166 176 189;
+  --pe-subtle: 124 134 148;
+  --pe-accent: 37 99 235;
+  --pe-accent-hover: 29 78 216;
+  --pe-accent-fg: 125 170 255;
+  --pe-good: 74 196 132;
+  --pe-warm: 242 169 98;
+  --pe-bad: 241 116 116;
+  background: rgb(var(--pe-canvas));
+  color: rgb(var(--pe-fg));
+}
+
+/* One focus ring, everywhere. It was a lime ring four pixels out. */
+.geo-surface :is(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--pe-accent-fg));
+  outline-offset: 2px;
+}
+
+/* ---- Type ----------------------------------------------------------- */
+
+.geo-surface .ui-h1 {
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.geo-surface .ui-h2 {
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.geo-surface .ui-lead {
+  font-size: 16px;
+  line-height: 1.5;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .ui-small {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgb(var(--pe-subtle));
+}
+@media (min-width: 640px) {
+  .geo-surface .ui-h1 {
+    font-size: 36px;
+  }
+}
+
+/* ---- Buttons -------------------------------------------------------- */
+
+.geo-surface .ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background-color var(--pe-dur-fast, 180ms) ease,
+    border-color var(--pe-dur-fast, 180ms) ease,
+    color var(--pe-dur-fast, 180ms) ease;
+}
+.geo-surface .ui-btn--lg {
+  min-height: 52px;
+  padding: 0 24px;
+  border-radius: 14px;
+  font-size: 16px;
+}
+.geo-surface .ui-btn--sm {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.geo-surface .ui-btn--block {
+  width: 100%;
+}
+.geo-surface .ui-btn--primary {
+  background: rgb(var(--pe-accent));
+  color: #fff;
+}
+.geo-surface .ui-btn--primary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgb(var(--pe-accent-hover));
+}
+.geo-surface .ui-btn--secondary {
+  background: rgb(var(--pe-raised));
+  border-color: rgb(var(--pe-line-strong));
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-btn--secondary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgb(var(--pe-line));
+}
+.geo-surface .ui-btn--ghost {
+  background: transparent;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .ui-btn--ghost:hover:not(:disabled):not([aria-disabled='true']) {
+  background: rgb(var(--pe-raised));
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-btn--danger {
+  background: rgb(var(--pe-bad) / 0.12);
+  border-color: rgb(var(--pe-bad) / 0.4);
+  color: rgb(var(--pe-bad));
+}
+.geo-surface .ui-btn--danger:hover:not(:disabled) {
+  background: rgb(var(--pe-bad) / 0.2);
+}
+.geo-surface .ui-btn:disabled,
+.geo-surface .ui-btn[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* A thumb, not a cursor: every control is at least 44px on a touch
+   screen, whatever its size on a desktop. */
+@media (pointer: coarse) {
+  .geo-surface .ui-btn--sm,
+  .geo-surface .ui-seg > button,
+  .geo-surface .ui-nav a,
+  .geo-surface .ui-account {
+    min-height: 44px;
+  }
+}
+
+/* A link that reads as one. */
+.geo-surface .ui-link {
+  color: rgb(var(--pe-accent-fg));
+  font-weight: 500;
+  text-underline-offset: 3px;
+}
+.geo-surface .ui-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- Fields --------------------------------------------------------- */
+
+.geo-surface .ui-field {
+  display: grid;
+  gap: 8px;
+}
+.geo-surface .ui-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-hint {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgb(var(--pe-subtle));
+}
+.geo-surface .ui-error {
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgb(var(--pe-bad));
+}
+.geo-surface .ui-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgb(var(--pe-line-strong));
+  border-radius: 12px;
+  background: rgb(var(--pe-canvas));
+  color: rgb(var(--pe-fg));
+  /* 16px or iOS zooms the page when the field is tapped. */
+  font-size: 16px;
+  transition:
+    border-color var(--pe-dur-fast, 180ms) ease,
+    box-shadow var(--pe-dur-fast, 180ms) ease;
+}
+.geo-surface .ui-input::placeholder {
+  color: rgb(var(--pe-subtle));
+}
+.geo-surface .ui-input:hover:not(:focus) {
+  border-color: rgb(var(--pe-subtle));
+}
+.geo-surface .ui-input:focus,
+.geo-surface .ui-input:focus-visible {
+  outline: none;
+  border-color: rgb(var(--pe-accent));
+  box-shadow: 0 0 0 3px rgb(var(--pe-accent) / 0.35);
+}
+.geo-surface .ui-input[aria-invalid='true'] {
+  border-color: rgb(var(--pe-bad));
+}
+.geo-surface .ui-input:disabled {
+  opacity: 0.6;
+}
+/* The six digits from the email, typed where they can be checked. */
+.geo-surface .ui-input--code {
+  min-height: 60px;
+  padding: 0 12px;
+  text-align: center;
+  font:
+    600 28px/1 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.45em;
+  text-indent: 0.45em;
+}
+.geo-surface select.ui-input {
+  appearance: auto;
+  padding-right: 10px;
+}
+
+/* ---- A choice between two or three things --------------------------- */
+
+.geo-surface .ui-seg {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgb(var(--pe-line));
+  border-radius: 12px;
+  background: rgb(var(--pe-canvas));
+}
+.geo-surface .ui-seg > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--pe-muted));
+  transition:
+    background-color var(--pe-dur-fast, 180ms) ease,
+    color var(--pe-dur-fast, 180ms) ease;
+}
+.geo-surface .ui-seg > button:hover:not(:disabled) {
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-seg > button[aria-pressed='true'] {
+  background: rgb(var(--pe-raised));
+  color: rgb(var(--pe-fg));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--pe-line-strong)),
+    0 1px 2px rgb(0 0 0 / 0.35);
+}
+.geo-surface .ui-seg > button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.geo-surface .ui-seg--block {
+  display: flex;
+}
+.geo-surface .ui-seg--block > button {
+  flex: 1;
+}
+
+/* ---- Surfaces ------------------------------------------------------- */
+
+.geo-surface .ui-card {
+  border: 1px solid rgb(var(--pe-line));
+  border-radius: 16px;
+  background: rgb(var(--pe-surface));
+}
+.geo-surface .ui-divider {
+  height: 1px;
+  background: rgb(var(--pe-line));
+}
+
+/* A rebuilt page's frame. */
+.geo-surface .ui-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 16px 72px;
+}
+.geo-surface .ui-page--narrow {
+  max-width: 440px;
+}
+@media (min-width: 640px) {
+  .geo-surface .ui-page {
+    padding: 48px 24px 96px;
+  }
+}
+
+/* ---- The header ------------------------------------------------------ */
+
+.geo-surface .ui-header {
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  border-bottom: 1px solid rgb(var(--pe-line));
+  background: rgb(var(--pe-canvas) / 0.88);
+  backdrop-filter: saturate(1.3) blur(14px);
+  -webkit-backdrop-filter: saturate(1.3) blur(14px);
+}
+.geo-surface .ui-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 1200px;
+  height: 60px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.geo-surface .ui-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgb(var(--pe-accent));
+  color: #fff;
+}
+.geo-surface .ui-nav {
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+.geo-surface .ui-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--pe-muted));
+  transition:
+    background-color var(--pe-dur-fast, 180ms) ease,
+    color var(--pe-dur-fast, 180ms) ease;
+}
+.geo-surface .ui-nav a:hover {
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-nav a[aria-current='page'] {
+  background: rgb(var(--pe-raised));
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 180px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgb(var(--pe-line-strong));
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .ui-account span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .geo-surface .ui-account {
+    max-width: 38vw;
+  }
+}
+.geo-surface .ui-account:hover {
+  background: rgb(var(--pe-raised));
+}
+
+/* On a phone the four places are a tab bar at the bottom, where a thumb
+   is, and always there: the header keeps the name and the account. */
+.geo-surface .ui-tabbar {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 45;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid rgb(var(--pe-line));
+  background: rgb(var(--pe-canvas) / 0.94);
+  backdrop-filter: saturate(1.3) blur(14px);
+  -webkit-backdrop-filter: saturate(1.3) blur(14px);
+}
+.geo-surface .ui-tabbar a {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 8px 0 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--pe-subtle));
+}
+.geo-surface .ui-tabbar a[aria-current='page'] {
+  color: rgb(var(--pe-accent-fg));
+}
+/* Room for the tab bar under every page that has one. */
+.geo-surface .ui-tabbar-space {
+  height: calc(60px + env(safe-area-inset-bottom));
+}
+@media (min-width: 720px) {
+  .geo-surface .ui-nav {
+    display: flex;
+  }
+  .geo-surface .ui-tabbar,
+  .geo-surface .ui-tabbar-space {
+    display: none;
+  }
+  .geo-surface .ui-header-inner {
+    height: 64px;
+    padding: 0 24px;
+  }
+}

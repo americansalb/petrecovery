@@ -15,9 +15,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Compass, ShieldCheck, UserRound } from 'lucide-react';
+import { Compass, ShieldCheck, Trophy, UserRound, Users } from 'lucide-react';
 import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 import { isSignedIn } from '../lib/session';
+import { loadName } from '../lib/useRoom';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
@@ -49,6 +50,13 @@ export const GAME_LINKS = [
  * exactly the thing the redesign removed.
  */
 export const isGameTakeover = siteTakeover;
+
+const TAB_ICONS = {
+  '/geo': Compass,
+  '/geo/rooms': Users,
+  '/geo/leaderboard': Trophy,
+  '/geo/me': UserRound,
+};
 
 function isActive(link, pathname) {
   if (link.never) return false;
@@ -95,7 +103,9 @@ export default function GeoHeader() {
           if (!data) return;
           setAdmin(data.account?.role === 'admin');
           setSignedIn(Boolean(data.signedIn));
-          setWho(String(data.email || '').split('@')[0] || '');
+          // The player's own name where this browser knows it, which is
+          // shorter and friendlier than an address in a phone's header.
+          setWho(loadName() || String(data.email || '').split('@')[0] || '');
         })
         .catch(() => {});
     read();
@@ -111,72 +121,63 @@ export default function GeoHeader() {
   // A round or a room owns the whole screen, header included.
   if (isGameTakeover(pathname)) return null;
 
-  // Everywhere else in the game, on both hosts. This used to render the
-  // dark bar only on a NEXT_PUBLIC_SITE=geo build and a row of subtabs
-  // under the pet site's bar otherwise. The game has its own name and
-  // its own domain now, so it carries its own bar wherever it is served.
+  const links = [
+    ...GAME_LINKS,
+    ...(admin ? [{ href: '/geo/admin', label: 'Admin', admin: true }] : []),
+  ];
+
+  // Everywhere else in the game, on both hosts. The game has its own name
+  // and its own domain, so it carries its own bar wherever it is served.
   return (
-    <header className="pe-header">
-      <div className="pe-header-inner">
-        <Link href="/geo" className="pe-brand">
-          <span className="pe-brand-mark">
-            <Compass size={25} strokeWidth={1.5} />
-          </span>
-          {SITE_NAME}
-        </Link>
-        <nav className="pe-nav" aria-label="Game">
-          {[
-            ...GAME_LINKS,
-            ...(admin
-              ? [{ href: '/geo/admin', label: 'Admin', admin: true }]
-              : []),
-          ].map((link) => {
-            const active = isActive(link, pathname);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={active ? 'page' : undefined}
-              >
-                {link.admin ? (
-                  <ShieldCheck className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />
-                ) : null}
+    <>
+      <header className="ui-header">
+        <div className="ui-header-inner">
+          <Link href="/geo" className="ui-brand">
+            <span className="ui-brand-mark" aria-hidden="true">
+              <Compass size={19} strokeWidth={2} />
+            </span>
+            {SITE_NAME}
+          </Link>
+          <nav className="ui-nav" aria-label="Game">
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} aria-current={isActive(link, pathname) ? 'page' : undefined}>
+                {link.admin ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : null}
                 {link.label}
               </Link>
-            );
-          })}
-        </nav>
-        {/* The one session-dependent slot the chrome rule allows
-            (CLAUDE.md: "Sign in/Join vs the account menu"). It sat empty
-            for the game's whole life - a decorative FREE TO PLAY badge,
-            hidden entirely under 800px - so there was no way to make an
-            account from anywhere in the navigation, on any screen, and
-            the lobby told you not to bother. That is why players stayed
-            anonymous: not because they declined, but because they were
-            never asked. */}
-        <div className="pe-header-account">
-          <span className="pe-header-free">
-            <span /> FREE TO PLAY
-          </span>
-          {/* Not on the sign-in page itself: a button whose whole job is
-              to bring you to the screen you are reading is one more
-              control that does nothing, and there are enough of those.
-              Either control is only known once the page has read the
-              session, a moment after it paints, so it fades in rather
-              than popping into the bar. */}
+            ))}
+          </nav>
+          {/* The one session-dependent slot the chrome rule allows
+              (CLAUDE.md: "Sign in/Join vs the account menu"). Not on the
+              sign-in page itself: a button whose whole job is to bring
+              you to the screen you are reading does nothing. Either
+              control is only known once the page has read the session, a
+              moment after it paints, so it fades in rather than popping
+              into the bar. */}
           {signedIn === false && !pathname.startsWith('/geo/signin') ? (
-            <Link href="/geo/signin" className="pe-header-cta pe-fade-in">
+            <Link href="/geo/signin" className="pe-fade-in ui-btn ui-btn--primary ui-btn--sm">
               Sign in
             </Link>
           ) : null}
           {signedIn === true ? (
-            <Link href="/geo/me" className="pe-header-who pe-fade-in" title={who ? `Signed in as ${who}` : 'Your profile'}>
-              <UserRound size={15} strokeWidth={2} aria-hidden="true" />
+            <Link href="/geo/me" className="pe-fade-in ui-account" title={who ? `Signed in as ${who}` : 'Your profile'}>
+              <UserRound size={16} strokeWidth={2} aria-hidden="true" />
               <span>{who || 'Account'}</span>
             </Link>
           ) : null}
         </div>
-      </div>
-    </header>
+      </header>
+      {/* The same four places, at the bottom of a phone's screen. */}
+      <nav className="ui-tabbar" aria-label="Game sections">
+        {GAME_LINKS.map((link) => {
+          const Icon = TAB_ICONS[link.href] || Compass;
+          return (
+            <Link key={link.href} href={link.href} aria-current={isActive(link, pathname) ? 'page' : undefined}>
+              <Icon size={21} strokeWidth={isActive(link, pathname) ? 2.25 : 1.75} aria-hidden="true" />
+              {link.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }

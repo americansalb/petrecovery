@@ -26,6 +26,7 @@ import { DEFAULT_PLAYER_NAME } from '@/app/lib/geo/rooms';
 const router = { push: jest.fn() };
 jest.mock('next/navigation', () => ({ useRouter: () => router }));
 jest.mock('@/app/geo/lib/profile', () => ({ ensureProfile: jest.fn(async () => ({ name: '' })), profileHeaders: () => ({}) }));
+const { ensureProfile } = require('@/app/geo/lib/profile');
 // A browser that has never been given a name, which is every browser
 // the first time somebody opens the page.
 jest.mock('@/app/geo/lib/useRoom', () => ({ listRecentRooms: () => [], loadName: () => '', saveName: jest.fn(), saveIdentity: jest.fn() }));
@@ -72,10 +73,10 @@ test('a host who types nothing still gets a room, under the default name', async
   expect(router.push).toHaveBeenCalledWith('/geo/room/ABC123');
 });
 
-test('a name the host does type is the one that is used', async () => {
+test("a signed-in host plays under their account's name, with nothing to type", async () => {
   arrive({ signedIn: true });
+  ensureProfile.mockResolvedValueOnce({ name: 'Kevin' });
   await act(async () => render(<RoomBrowser />));
-  fireEvent.change(screen.getByLabelText(/Your player name/), { target: { value: 'Kevin' } });
   await click('Create room');
   expect(JSON.parse(creates()[0][1].body).hostName).toBe('Kevin');
 });
@@ -91,8 +92,11 @@ test('a guest meets the account gate, and only that', async () => {
   expect(JSON.parse(creates()[0][1].body).hostName).toBe(DEFAULT_PLAYER_NAME);
 });
 
-test('the field says it is optional, so a dead button never has to explain itself', async () => {
+test('there is no name field here at all: a name is asked once, when somebody signs in', async () => {
+  // It was an "(optional)" field beside Create room, on the page the
+  // founder called "extremely confusing" (2026-09-23). The name is the
+  // account's, asked for once in sign-in (returning-player.test.js).
   arrive({ signedIn: true });
   await act(async () => render(<RoomBrowser />));
-  expect(screen.getByLabelText(/Your player name \(optional\)/)).toBeInTheDocument();
+  expect(screen.queryByLabelText(/player name/i)).toBeNull();
 });

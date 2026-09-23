@@ -20,11 +20,22 @@ export default function KeepThis({ compact = false, returnTo = '/geo/me' }) {
   return (
     <Card pad="sm" className={compact ? '' : 'mt-4'} data-keep-this>
       <div className="flex items-center gap-3">
-        <Bookmark size={24} className="shrink-0 text-clay-300" aria-hidden="true" />
-        <div className="flex-1"><p className="font-semibold">Keep this game</p><p className="text-sm text-white/70">Save your progress with a free account.</p></div>
-        {!expanded ? <button className="pe-button pe-button--primary min-h-[48px] px-4" type="button" onClick={() => setExpanded(true)}>Save <ArrowRight size={16} aria-hidden="true" /></button> : null}
+        <Bookmark size={22} className="shrink-0 text-pe-accent-fg" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-pe-fg">Keep this game</p>
+          <p className="text-sm text-pe-muted">Sign in to save your scores and rating to your account.</p>
+        </div>
+        {!expanded ? (
+          <button className="ui-btn ui-btn--primary pe-button pe-button--primary shrink-0" type="button" onClick={() => setExpanded(true)}>
+            Sign in <ArrowRight size={16} aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
-      {expanded ? <SignInCard compact requireName returnTo={returnTo} onAuthenticated={() => setShow(false)} /> : null}
+      {expanded ? (
+        <div className="mt-4 border-t border-pe-line pt-4">
+          <SignInCard requireName returnTo={returnTo} onAuthenticated={() => setShow(false)} />
+        </div>
+      ) : null}
     </Card>
   );
 }

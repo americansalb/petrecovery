@@ -116,7 +116,7 @@
    -translate-x-1/2 keeps its translate and still gives under a finger,
    where `transform: scale()` would have thrown the translate away and
    jumped it sideways. */
-.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(:disabled):not([aria-disabled='true']) {
+.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, a.ui-btn, .pe-press):not(:disabled):not([aria-disabled='true']) {
   /* This outranks Tailwind's `transition` class, so it has to carry
      every property a control here already animated, or it would stop
      them: the Play button's press-down is a translateY, and the lobby's
@@ -125,14 +125,14 @@
   transition-duration: var(--pe-dur-fast);
   transition-timing-function: var(--pe-ease-out);
 }
-.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(:disabled):not([aria-disabled='true']):active {
+.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, a.ui-btn, .pe-press):not(:disabled):not([aria-disabled='true']):active {
   transition-duration: var(--pe-dur-press);
 }
 /* The primary button is a key: it rises on hover and goes down on press
    while its shadow collapses under it (experience.css). A squash on top
    of that would pull it off its own shadow, so it keeps its own model
    and everything else gets the squash. */
-.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(.pe-button--primary):not(:disabled):not([aria-disabled='true']):active {
+.geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, a.ui-btn, .pe-press):not(:disabled):not([aria-disabled='true']):active {
   scale: 0.97;
 }
 
@@ -331,7 +331,7 @@
   /* The same selector as the press above, so it wins on order rather
      than losing on specificity - a shorter one here was outranked by
      the press's :not() chain and the squash played anyway. */
-  .geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, .pe-press):not(.pe-button--primary):not(:disabled):not([aria-disabled='true']):active {
+  .geo-surface :is(button, [role='button'], [role='tab'], a.pe-button, a.ui-btn, .pe-press):not(:disabled):not([aria-disabled='true']):active {
     scale: none;
   }
 }
