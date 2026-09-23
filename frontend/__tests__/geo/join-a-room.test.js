@@ -44,34 +44,36 @@ test('Join is live the moment the invited player arrives', () => {
   expect(screen.getByRole('button', { name: 'Join' })).toBeEnabled();
 });
 
-test('a friend who types nothing still gets into the room', () => {
+test('joining asks for nothing: no name box, one button', () => {
   const onJoin = show();
+  expect(screen.queryByRole('textbox')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Join' }));
-  expect(onJoin).toHaveBeenCalledWith(DEFAULT_PLAYER_NAME);
+  expect(onJoin).toHaveBeenCalledTimes(1);
+  expect(onJoin).toHaveBeenCalledWith();
 });
 
-test('a name they do type is the name they join under', () => {
-  const onJoin = show();
-  fireEvent.change(screen.getByLabelText(/Your name/), { target: { value: 'Ada' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Join' }));
-  expect(onJoin).toHaveBeenCalledWith('Ada');
+/**
+ * The name box renamed the account. A profile takes whatever name it
+ * is sent, and the panel sent the box's contents (or "Player" when it
+ * was empty) before joining, so clearing it and pressing Join renamed a
+ * signed-in player's account "Player". The name is the account's now,
+ * and the panel only says what it is.
+ */
+test('a signed-in player is told the name they will play under', () => {
+  show({ defaultName: 'Kevin' });
+  expect(screen.getByText(/You will play as/)).toHaveTextContent('You will play as Kevin.');
 });
 
-test('whitespace is not a name', () => {
-  const onJoin = show();
-  fireEvent.change(screen.getByLabelText(/Your name/), { target: { value: '   ' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Join' }));
-  expect(onJoin).toHaveBeenCalledWith(DEFAULT_PLAYER_NAME);
+test('the placeholder is not announced as anybody\'s name', () => {
+  show({ defaultName: DEFAULT_PLAYER_NAME });
+  expect(screen.queryByText(/You will play as/)).toBeNull();
 });
 
-test('a signed-in player arrives with their account name already in', () => {
-  const onJoin = show({ defaultName: 'Kevin' });
-  expect(screen.getByLabelText(/Your name/)).toHaveValue('Kevin');
-  fireEvent.click(screen.getByRole('button', { name: 'Join' }));
-  expect(onJoin).toHaveBeenCalledWith('Kevin');
-});
-
-test('the field says it is optional, so a dead button never has to explain itself', () => {
-  show();
-  expect(screen.getByLabelText('Your name (optional)')).toBeInTheDocument();
+test('the room joins under the account name and never renames the profile', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.resolve(__dirname, '../../app/geo/components/RoomClient.js'), 'utf8');
+  const onJoin = src.slice(src.indexOf('onJoin={() =>'), src.indexOf('busy={busy}', src.indexOf('onJoin={() =>')));
+  expect(onJoin).toContain("ensureProfile('')");
+  expect(onJoin).not.toMatch(/ensureProfile\(name\)/);
 });

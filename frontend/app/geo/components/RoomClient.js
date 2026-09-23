@@ -15,7 +15,7 @@ import dynamic from 'next/dynamic';
 import ScriptSample from './script/ScriptSample';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, RotateCcw, X, Map as MapIcon } from 'lucide-react';
-import { initials } from '@/app/lib/geo/rooms';
+import { DEFAULT_PLAYER_NAME, initials } from '@/app/lib/geo/rooms';
 import { useRoom, useNow, loadName, saveIdentity } from '../lib/useRoom';
 import { ensureProfile } from '../lib/profile';
 import AppleLookAroundPane from './AppleLookAroundPane';
@@ -38,23 +38,37 @@ const DESKTOP_SIZE = {
   medium: 'sm:w-[30rem] sm:h-80',
   large: 'sm:w-[44rem] sm:h-[32rem]',
 };
-const pill = 'rounded-full border border-white/20 bg-ocean-900/80 shadow-lg backdrop-blur';
-const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-white transition hover:bg-ocean-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500 disabled:opacity-40`;
+const pill = 'rounded-full border border-white/15 bg-pe-canvas/75 shadow-lg backdrop-blur';
+// One empty result list for every render that has none, so the map is
+// never handed a "new" one (see mapResults).
+const NO_RESULTS = [];
+
+/**
+ * The same object for as long as `key` is the same. Each poll of the
+ * room is a new state object, and a map that is handed a new answer
+ * draws and frames it again.
+ */
+function useKeyed(value, key) {
+  const ref = useRef({ key: null, value });
+  if (ref.current.key !== key) ref.current = { key, value };
+  return ref.current.value;
+}
+const iconButton = `${pill} flex h-11 w-11 items-center justify-center text-pe-fg transition hover:bg-pe-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-pe-accent-fg disabled:opacity-40`;
 
 function MessagePanel({ title, message, children }) {
   return (
     <Panel>
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-clay-300" />
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-pe-warm" />
         <div>
-          <h2 className="text-lg font-bold">{title}</h2>
-          <p className="mt-1 text-sm text-white/80">{message}</p>
+          <h2 className="ui-h2">{title}</h2>
+          <p className="mt-1 text-sm text-pe-muted">{message}</p>
         </div>
       </div>
-      <div className="mt-4 flex gap-2">
+      <div className="mt-5 flex flex-wrap gap-2">
         {children}
-        <Link href="/geo/rooms" className="rounded-xl border border-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/10">
-          All rooms
+        <Link href="/geo/rooms" className="ui-btn ui-btn--secondary">
+          Back to Multiplayer
         </Link>
       </div>
     </Panel>
@@ -280,9 +294,24 @@ export default function RoomClient({ code }) {
   }, [submitGuess]);
 
   // Everyone's pins at the reveal.
+  // The map redraws whenever this is a new array: in guess mode it goes
+  // back to the whole world, and in the reveal the line plays again. The
+  // room is polled every few seconds and every poll is a new state
+  // object, so keyed on `state` this was a new array every poll: a
+  // player who had zoomed in to place a pin was thrown back out to the
+  // world every three seconds, and the reveal's line replayed. It is
+  // keyed on what it shows instead.
+  const revealKey = phase === 'reveal' && state?.reveal
+    ? JSON.stringify([
+        room?.roundIndex,
+        state.reveal.answer,
+        state.reveal.guesses,
+        (state.players || []).map((p) => [p.id, p.name, p.color, p.cosmetics?.pin || null]),
+      ])
+    : '';
   const mapResults = useMemo(() => {
     const reveal = state?.reveal;
-    if (!reveal || phase !== 'reveal') return [];
+    if (!reveal || phase !== 'reveal') return NO_RESULTS;
     const byId = Object.fromEntries((state.players || []).map((p) => [p.id, p]));
     const answer = { lat: reveal.answer.lat, lng: reveal.answer.lng };
     const items = reveal.guesses
@@ -293,7 +322,13 @@ export default function RoomClient({ code }) {
       });
     if (!items.length) items.push({ answer, answerMarker: true, answerLabel: '★', answerTitle: 'The place' });
     return items;
-  }, [state, phase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealKey]);
+
+  const rawAnswer = state?.reveal?.scriptAnswer;
+  const scriptAnswer = useKeyed(rawAnswer, rawAnswer ? `${room?.roundIndex}:${rawAnswer.name}:${rawAnswer.endonym}` : '');
+  const rawGuess = state?.reveal?.guesses?.find((g) => g.playerId === me?.id && Number.isFinite(g.lat) && Number.isFinite(g.lng)) || null;
+  const scriptGuess = useKeyed(rawGuess, rawGuess ? `${room?.roundIndex}:${rawGuess.lat},${rawGuess.lng}` : '');
 
   const mine = state?.players?.find((p) => p.you);
   const iGuessed = Boolean(mine?.guessed);
@@ -310,11 +345,11 @@ export default function RoomClient({ code }) {
   } else if (isScript && phase === 'guessing') {
     // The clue and geographic choice belong on one screen. Script has no
     // panorama to uncover, so it never needs Street's mobile map drawer.
-    mapClass = 'pe-room-script-map z-30 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900';
+    mapClass = 'pe-room-script-map z-30 flex flex-col overflow-hidden rounded-2xl border border-white/15 bg-pe-surface';
   } else if (inRound && !iGuessed) {
     mapClass = mobileMapOpen
-      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-white/10 bg-ocean-900'
-      : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-white/10 bg-ocean-900 shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
+      ? 'fixed inset-x-0 bottom-0 top-[26%] z-40 flex flex-col overflow-hidden rounded-t-2xl border-t border-pe-line bg-pe-surface'
+      : `invisible pointer-events-none absolute -left-[9999px] top-0 z-30 flex h-56 w-72 flex-col overflow-hidden rounded-2xl border border-white/15 bg-pe-surface shadow-2xl transition-all duration-200 sm:visible sm:pointer-events-auto sm:left-auto sm:top-auto sm:bottom-14 sm:right-4 ${DESKTOP_SIZE[effectiveSize]}`;
   } else {
     mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
   }
@@ -329,7 +364,7 @@ export default function RoomClient({ code }) {
   const showApple = !isScript && mapkit && joined && status === 'playing' && appleCandidates?.length > 0;
 
   return (
-    <div className={`fixed inset-0 z-[60] select-none overflow-hidden bg-ocean-950 text-white ${isScript && joined && phase === 'guessing' ? 'pe-room-script-round' : ''}`}>
+    <div className={`fixed inset-0 z-[60] select-none overflow-hidden bg-pe-canvas text-pe-fg ${isScript && joined && phase === 'guessing' ? 'pe-room-script-round' : ''}`}>
       {isScript && joined && phase === 'guessing' && shownRound?.text ? (
         <section className="pe-room-sentence" aria-label="Language clue">
           <p>Where is this language spoken?</p>
@@ -357,7 +392,7 @@ export default function RoomClient({ code }) {
         />
       ) : null}
 
-      {mapMode === 'result' ? <div className="absolute inset-0 z-20 bg-ocean-950/85" /> : null}
+      {mapMode === 'result' ? <div className="absolute inset-0 z-20 bg-pe-canvas/85" /> : null}
 
       {/* HUD during a round and the reveal */}
       {joined && (phase === 'guessing' || phase === 'reveal') ? (
@@ -393,9 +428,9 @@ export default function RoomClient({ code }) {
           ) : null}
 
           {inRound && iGuessed && !isScript ? (
-            <div className="pointer-events-none absolute bottom-28 right-4 z-30 pe-guess-locked rounded-2xl border border-white/15 bg-ocean-900/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
-              <p className="font-semibold text-green-400">Guess locked in.</p>
-              <p className="text-white/70">
+            <div className="pointer-events-none absolute bottom-28 right-4 z-30 pe-guess-locked rounded-2xl border border-white/15 bg-pe-canvas/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
+              <p className="font-semibold text-pe-good">Guess locked in.</p>
+              <p className="text-pe-fg/75">
                 {state.players.filter((p) => !p.guessed && !p.eliminated).length
                   ? `Waiting for ${state.players.filter((p) => !p.guessed && !p.eliminated).map((p) => p.name).join(', ')}`
                   : 'Everyone is in. Revealing.'}
@@ -403,26 +438,32 @@ export default function RoomClient({ code }) {
             </div>
           ) : null}
           {phase === 'guessing' && me?.eliminated ? (
-            <div className="pointer-events-none absolute bottom-28 right-4 z-30 rounded-2xl border border-red-400/30 bg-red-950/70 px-4 py-3 text-sm shadow-lg backdrop-blur">
-              <p className="font-semibold text-red-200">You are out of this duel.</p>
-              <p className="text-white/70">Watch the rest play out.</p>
+            <div className="pointer-events-none absolute bottom-28 right-4 z-30 rounded-2xl border border-pe-bad/40 bg-pe-canvas/85 px-4 py-3 text-sm shadow-lg backdrop-blur">
+              <p className="font-semibold text-pe-bad">You are out of this duel.</p>
+              <p className="text-pe-fg/75">Watch the rest play out.</p>
             </div>
           ) : null}
           {actionError ? (
-            <div className="absolute left-1/2 top-28 z-40 -translate-x-1/2 rounded-xl border border-red-400/40 bg-red-950/90 px-4 py-2 text-sm text-red-100 shadow-lg">{actionError}</div>
+            <div role="alert" className="absolute left-1/2 top-28 z-40 max-w-[92vw] -translate-x-1/2 rounded-xl border border-pe-bad/40 bg-pe-canvas/95 px-4 py-2 text-sm text-pe-fg shadow-lg">{actionError}</div>
           ) : null}
         </>
       ) : null}
 
-      {/* The one map, moved by class between guessing and the reveal. */}
-      {imageryReady && joined && (phase === 'guessing' || phase === 'reveal') ? (
+      {/* The one map, moved by class between guessing and the reveal.
+          It lives for the whole match, off screen between rounds, as the
+          solo game's does. Mounted only for guessing and the reveal, it
+          was built again every round after that round's Look Around, and
+          MapKit then painted the map's rectangle, flipped top to bottom,
+          as a black box over the panorama. Keeping it also saves building
+          a map every round. */}
+      {imageryReady && joined && (status === 'playing' || phase === 'guessing' || phase === 'reveal') ? (
         <div ref={mapFrameRef} className={`geo-map-frame ${mapClass}`}>
           {inRound && !iGuessed ? <div className="pe-map-toolbar"><span>Place your guess</span>{!isScript ? <div className="hidden sm:flex" role="group" aria-label="Map size">{MAP_SIZES.map(size => <button key={size} type="button" onClick={() => setMapSize(size)} aria-pressed={mapSize === size} aria-label={`${size} map`}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div> : null}{mobileMapOpen ? <button type="button" onClick={() => setMobileMapOpen(false)} aria-label="Close map"><X size={18} /></button> : null}</div> : null}
           <div className="min-h-0 flex-1">
             {isScript ? (
               <ScriptMap pin={inRound ? pin : null} onPin={inRound && !iGuessed ? setPin : undefined}
-                answer={state?.reveal?.scriptAnswer} mode={mapMode}
-                guess={state?.reveal?.guesses?.find((g) => g.playerId === me?.id && Number.isFinite(g.lat) && Number.isFinite(g.lng)) || null} />
+                answer={scriptAnswer} mode={mapMode}
+                guess={scriptGuess} />
             ) : (
               <AppleGuessMap mapkit={mapkit} pin={inRound ? pin : null} onPin={setPin} results={mapResults} mode={mapMode} interactive={inRound && !iGuessed} />
             )}
@@ -430,9 +471,19 @@ export default function RoomClient({ code }) {
           {/* The same footer as a solo round: what to do on the left,
               the one thing to press on the right. */}
           {inRound && !iGuessed ? (
-            <div className="flex shrink-0 items-center gap-3 border-t border-white/10 bg-ocean-900 px-4 py-3">
-              <p className="min-w-0 flex-1 text-xs leading-snug text-sand-300/80">
-                {pin ? 'Space or Enter guesses too.' : 'Tap the map to drop your pin.'}
+            <div className="flex shrink-0 items-center gap-3 border-t border-pe-line bg-pe-surface px-4 py-3">
+              <p className="min-w-0 flex-1 text-xs leading-snug text-pe-muted">
+                {pin ? (
+                  <>
+                    <span className="sm:hidden">Tap Lock in guess when you are sure.</span>
+                    <span className="hidden sm:inline">Space or Enter guesses too.</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="sm:hidden">Tap the map to drop your pin.</span>
+                    <span className="hidden sm:inline">Click the map to drop your pin.</span>
+                  </>
+                )}
               </p>
               <button
                 type="button"
@@ -445,25 +496,30 @@ export default function RoomClient({ code }) {
               </button>
             </div>
           ) : null}
-          {isScript && inRound && iGuessed ? <div role="status" className="shrink-0 border-t border-white/10 px-4 py-3 text-sm text-sand-100">Guess locked in. Waiting for the other player.</div> : null}
+          {isScript && inRound && iGuessed ? <div role="status" className="shrink-0 border-t border-pe-line px-4 py-3 text-sm text-pe-fg">Guess locked in. Waiting for the other player.</div> : null}
         </div>
       ) : null}
 
       {/* Screens */}
       {accountGate ? <AccountDialog name={defaultName} onNameChange={setDefaultName} returnTo={`/geo/room/${code}?name=${encodeURIComponent(defaultName)}`} onClose={() => { pendingJoinRef.current = ''; setAccountGate(false); }} onAuthenticated={() => { setSignedIn(true); setAccountGate(false); }} /> : null}
-      {!ready || (!state && !error) ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading the room</div> : null}
+      {!ready || (!state && !error) ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-pe-canvas text-pe-muted">Loading the room</div> : null}
       {notFound ? <MessagePanel title="No room with that code" message="Codes are six letters and numbers. Check it with whoever sent it, or open a new room." /> : null}
-      {error?.code === 'connection' && state ? <div role="status" className="absolute inset-x-3 top-16 z-[80] mx-auto max-w-lg rounded-xl border border-clay-400/50 bg-ocean-950/95 px-4 py-3 text-center text-sm text-white shadow-lg">{error.message}</div> : null}
+      {error?.code === 'connection' && state ? <div role="status" className="absolute inset-x-3 top-16 z-[80] mx-auto max-w-lg rounded-xl border border-pe-warm/50 bg-pe-canvas/95 px-4 py-3 text-center text-sm text-pe-fg shadow-lg">{error.message}</div> : null}
       {error && !notFound && !(error.code === 'connection' && state) ? <MessagePanel title={error.code === 'connection' ? 'Reconnecting' : 'The room could not be loaded'} message={error.message} /> : null}
       {state && !joined && !error ? (
         <JoinPanel
           state={state}
           defaultName={defaultName}
-          onJoin={(name) =>
+          onJoin={() =>
             run(async () => {
-              if (!signedIn) { pendingJoinRef.current = name; setDefaultName(name); setAccountGate(true); return; }
-              await ensureProfile(name).catch(() => null);
-              await join(name);
+              // The account's name, as the resumed join below uses. The
+              // panel used to send whatever was in a name box, and a
+              // profile takes any name it is sent: a player who cleared
+              // the box and pressed Join had their account renamed
+              // "Player".
+              if (!signedIn) { pendingJoinRef.current = defaultName || DEFAULT_PLAYER_NAME; setAccountGate(true); return; }
+              const profile = await ensureProfile('').catch(() => null);
+              await join(profile?.name || defaultName || DEFAULT_PLAYER_NAME);
             })
           }
           busy={busy}
@@ -486,7 +542,7 @@ export default function RoomClient({ code }) {
       ) : null}
       {sdkError && !isScript ? <MessagePanel title="Apple Look Around did not load" message={sdkError} /> : null}
       {joined && status === 'playing' && !imageryReady && !sdkError && imageryConfigured && (phase === 'guessing' || phase === 'reveal' || phase === 'locating') ? (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-ocean-950 text-white/70">Loading Look Around</div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-pe-canvas text-pe-muted">Loading Look Around</div>
       ) : null}
     </div>
   );

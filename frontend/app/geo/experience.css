@@ -623,25 +623,6 @@
   border-color: #d8e6ba;
   font-weight: 750;
 }
-.geo-surface .pe-room-stage {
-  background:
-    linear-gradient(110deg, #052e40ef, #042b3bac),
-    url("/geo/art/coastal-world.webp") center/cover;
-  padding-top: 70px;
-  align-items: safe center;
-}
-.geo-surface .pe-room-stage > div {
-  background: linear-gradient(130deg, #15414ff5, #10303eee);
-  border-color: #92bbb03f;
-  border-radius: 18px;
-  box-shadow:
-    0 30px 100px #00101888,
-    inset 0 1px #e5efd12b;
-}
-.geo-surface .pe-room-stage h1 {
-  letter-spacing: -0.045em;
-  font-weight: 800;
-}
 .geo-surface .pe-hud-pill {
   /* Dark glass over the photograph: the canvas colour, a little see-
      through, with a hairline that reads on bright sky and dark street. */
@@ -1199,154 +1180,11 @@
   box-shadow: none;
   padding: 5px 0 0 32px;
 }
-.geo-surface .pe-room-stage {
-  background:
-    linear-gradient(95deg, #062934fa, #092e40ee 60%, #072c3acb),
-    url("/geo/art/coastal-world.webp") center/cover;
-  padding: 40px 22px;
-}
-.geo-surface .pe-room-stage > div {
-  background: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  max-width: 870px;
-  padding: 20px 0;
-}
-.geo-surface .pe-party-heading h1 {
-  font-size: clamp(38px, 5vw, 61px);
-  font-weight: 800;
-  letter-spacing: -0.055em;
-  line-height: 1.1;
-  margin: 12px 0 18px;
-}
-.geo-surface .pe-party-heading > p:last-child {
-  color: #b3cdbf;
-  font-size: 14px;
-  line-height: 1.7;
-}
-.geo-surface .pe-party-invite {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 24px;
-  margin-top: 30px;
-  padding-bottom: 26px;
-  border-bottom: 1px solid #a3c69a3a;
-}
-.geo-surface .pe-party-invite > div > span {
-  display: block;
-  color: #aec4b7;
-  font-size: 10px;
-}
-.geo-surface .pe-party-invite > div > strong {
-  font-size: 29px;
-  color: #e4e8ce;
-  letter-spacing: 0.18em;
-  display: block;
-  margin-top: 5px;
-}
-.geo-surface .pe-copy-code {
-  font-size: 11px;
-  color: #b4d3bd;
-  min-height: 44px;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-.geo-surface .pe-party-roster {
-  margin-top: 26px;
-}
-.geo-surface .pe-party-roster h2 {
-  color: #c2d4c5;
-  font-size: 12px;
-}
-.geo-surface .pe-party-players {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 25px;
-  padding: 20px 0 12px;
-}
-.geo-surface .pe-party-players li {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.geo-surface .pe-party-players li > div > span:last-child {
-  display: block;
-  margin-top: 5px;
-  font-size: 10px;
-  color: #a4beb2;
-}
-.geo-surface .pe-party-players li > svg {
-  color: #d1dfa3;
-}
-.geo-surface .pe-party-wait {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-  color: #9db8b0;
-  padding: 12px 0 20px;
-}
-.geo-surface .pe-party-rules {
-  border-top: 1px solid #a3c69a2a;
-  padding-top: 24px;
-  margin-top: 14px;
-}
-.geo-surface .pe-party-rules > strong {
-  font-size: 19px;
-  font-weight: 700;
-}
-.geo-surface .pe-party-rules > p {
-  font-size: 12px;
-  color: #bacfbd;
-  margin-top: 7px;
-}
-.geo-surface .pe-party-rules > p:last-child {
-  color: #93ae9f;
-  font-size: 10px;
-}
-.geo-surface .pe-party-actions {
-  display: flex;
-  align-items: center;
-  gap: 26px;
-  margin-top: 27px;
-}
-.geo-surface .pe-leave-room {
-  min-height: 44px;
-  color: #aec7b5;
-  font-size: 12px;
-}
 @media (max-width: 800px) {
   .geo-surface .pe-ready-panel {
     border-left: 0;
     border-top: 1px solid #739c995c;
     padding: 25px 0 0;
-  }
-}
-@media (max-width: 560px) {
-  .geo-surface .pe-room-stage {
-    padding: 24px;
-  }
-  .geo-surface .pe-party-heading h1 {
-    font-size: 39px;
-  }
-  .geo-surface .pe-party-heading > p:last-child {
-    font-size: 12px;
-  }
-  .geo-surface .pe-party-invite {
-    gap: 15px;
-    margin-top: 24px;
-  }
-  .geo-surface .pe-party-invite > div {
-    width: 100%;
-  }
-  .geo-surface .pe-party-actions {
-    gap: 15px;
-  }
-  .geo-surface .pe-party-actions > .pe-button {
-    font-size: 12px;
-    padding-inline: 17px;
   }
 }
 .geo-surface .pe-script-summary li {

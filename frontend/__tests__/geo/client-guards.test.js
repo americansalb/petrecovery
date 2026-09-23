@@ -45,8 +45,21 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
     // `api` is only ever set by the Google branch of the SDK effect, so
     // gating the shared map block on it left Apple rooms with no map and
     // no Guess button: every round timed out at zero for everyone.
-    expect(src).toContain("{imageryReady && joined && (phase === 'guessing' || phase === 'reveal') ? (");
+    // It stays mounted for the whole match (off screen between rounds),
+    // so MapKit builds it once, before any Look Around.
+    expect(src).toContain("{imageryReady && joined && (status === 'playing' || phase === 'guessing' || phase === 'reveal') ? (");
     expect(src).not.toContain('{api && joined ? (');
+  });
+
+  test('a poll does not hand the map a new result list', () => {
+    // The room is polled every few seconds and each poll is a new state
+    // object. Memoised on it, the results were a new (empty) array every
+    // poll, and the map took each one as a reason to go back to the
+    // whole world: a player zoomed in to place a pin was thrown out
+    // again every three seconds. They are keyed on what they show.
+    expect(src).not.toContain('}, [state, phase]);');
+    expect(src).toContain('return NO_RESULTS;');
+    expect(src).toContain('}, [revealKey]);');
   });
 
   test('imageryReady is the handle the room actually draws with', () => {
@@ -63,7 +76,10 @@ describe('RoomClient: the guess map is gated on the SDK the room is on', () => {
     const map = block.slice(0, end);
     expect(map).toContain('<AppleGuessMap');
     expect(map).toContain('<ScriptMap');
-    expect(map).toContain('Number.isFinite(g.lat) && Number.isFinite(g.lng)');
+    // The player's own guess, only with real coordinates: worked out
+    // above the block (kept the same object between polls) and passed in.
+    expect(src).toContain('Number.isFinite(g.lat) && Number.isFinite(g.lng)');
+    expect(map).toContain('guess={scriptGuess}');
     expect(map).toContain('onClick={submitGuess}');
     // The harness clicks this rather than the label, which now changes
     // with the pin ("Guess" / "Sending") while the hook does not.

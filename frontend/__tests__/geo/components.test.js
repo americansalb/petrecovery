@@ -31,7 +31,6 @@ const UI = path.join(GEO, 'components/ui');
 const NOT_CARDS = {
   'components/PlayClient.js': 'the map frame, and the sheet a phone slides the map up in',
   'components/RoomClient.js': 'the same map frame, plus the two toasts over the imagery',
-  'components/rooms/RoomPanels.js': 'the modal a room shows over the game',
   'components/SetupNotice.js': 'a tinted notice, not a surface things sit on',
 };
 
