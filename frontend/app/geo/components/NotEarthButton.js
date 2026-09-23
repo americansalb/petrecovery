@@ -39,14 +39,14 @@ export default function NotEarthButton({ onCall, disabled = false, roundKey }) {
             setAsking(false);
             onCall();
           }}
-          className="min-h-[36px] rounded-full bg-pe-accent px-3 py-1.5 text-xs font-bold text-white hover:bg-pe-accent-hover sm:text-sm"
+          className="min-h-[36px] shrink-0 whitespace-nowrap rounded-full bg-pe-accent px-3 py-1.5 text-xs font-bold text-white hover:bg-pe-accent-hover sm:text-sm"
         >
           Call it
         </button>
         <button
           type="button"
           onClick={() => setAsking(false)}
-          className="min-h-[36px] rounded-full px-2.5 py-1.5 text-xs font-semibold text-pe-fg/70 hover:text-pe-fg sm:text-sm"
+          className="min-h-[36px] shrink-0 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-semibold text-pe-fg/70 hover:text-pe-fg sm:text-sm"
         >
           Back
         </button>

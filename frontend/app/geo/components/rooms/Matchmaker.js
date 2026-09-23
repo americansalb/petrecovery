@@ -39,6 +39,13 @@ export default function Matchmaker({ game, name, onNameChange, onGameChange, onA
         if (mounted.current) { setStatus('idle'); setGate(true); }
         return null;
       }
+      if (response.status === 429) {
+        // Too many searches from this address for now. The ticket is still
+        // in the queue; wait as long as the server asks, then carry on.
+        // This used to end the search, as if the player had cancelled.
+        const seconds = Number(data.retryAfter) || Number(response.headers?.get?.('Retry-After')) || 30;
+        throw Object.assign(new Error('Lots of searches from this network right now. Still looking…'), { retryable: true, retryAfterMs: Math.min(120, Math.max(4, seconds)) * 1000 });
+      }
       if (!response.ok) {
         const failure = new Error(data.error || 'Could not reach matchmaking. Try again.');
         failure.retryable = response.status >= 500;
@@ -82,8 +89,8 @@ export default function Matchmaker({ game, name, onNameChange, onGameChange, onA
       // rather than silently enqueueing again or leaving a stuck spinner.
       if (err.retryable && mounted.current) {
         remember(selectedGame); setStatus('waiting');
-        setError('Connection interrupted. Reconnecting to the queue…');
-        timer.current = setTimeout(() => runRef.current('poll', selectedGame), 4000);
+        setError(err.retryAfterMs ? err.message : 'Connection interrupted. Reconnecting to the queue…');
+        timer.current = setTimeout(() => runRef.current('poll', selectedGame), err.retryAfterMs || 4000);
         return;
       }
       searching.current = false; remember(null);

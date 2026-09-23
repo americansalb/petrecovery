@@ -621,9 +621,14 @@ function StreetPlayGame({ params }) {
         </div>
       ) : null}
 
-      {/* The Not Earth button, on every round */}
+      {/* The Not Earth button, on every round. On a phone it sits a row
+          above the return and Map buttons: beside them it touched Map at
+          320px, and its "Sure?" confirmation, about 320px wide, covered
+          both on every phone. Centred across the whole width rather than
+          from the middle, which gave the confirmation half the screen to
+          wrap into: five lines at 320px. */}
       {inRound ? (
-        <div className="pointer-events-none absolute bottom-16 left-1/2 z-30 flex -translate-x-1/2 justify-center">
+        <div className="pointer-events-none absolute inset-x-0 bottom-[8.25rem] z-30 flex justify-center px-3 sm:bottom-16">
           <NotEarthButton onCall={callNotEarth} disabled={state.status !== 'playing'} roundKey={state.roundIndex} />
         </div>
       ) : null}

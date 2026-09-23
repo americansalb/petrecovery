@@ -40,16 +40,18 @@ export default function ShareRounds({ rounds, isStreak, hideUntilPlayed = false,
       ) : null}
       <Card as="ol" pad="none" className={`${hideUntilPlayed && !revealed ? 'mt-3' : 'mt-6'} divide-y divide-pe-line`}>
         {rounds.map((round, i) => (
-          <li key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-            <span className="w-6 text-pe-subtle">{i + 1}</span>
-            <span className="w-7 text-lg leading-none">{revealed ? round.flag || '' : ''}</span>
-            <span className="flex-1 truncate">{revealed ? round.name || 'Somewhere' : 'Hidden'}</span>
+          <li key={i} className="flex items-center gap-2 px-4 py-2.5 text-sm sm:gap-3">
+            <span className="w-5 shrink-0 text-pe-subtle sm:w-6">{i + 1}</span>
+            <span className="w-7 shrink-0 text-lg leading-none">{revealed ? round.flag || '' : ''}</span>
+            {/* Wraps rather than truncating: on a phone the fixed columns
+                left "United States" as "United ..." with room to spare. */}
+            <span className="min-w-0 flex-1 break-words">{revealed ? round.name || 'Somewhere' : 'Hidden'}</span>
             {isStreak ? (
               <span className={round.correct ? 'font-semibold text-pe-good' : 'font-semibold text-pe-bad'}>{round.correct ? 'Right' : 'Miss'}</span>
             ) : (
               <>
-                <span className="w-24 text-right text-white/60">{round.distanceKm === null ? 'no guess' : formatDistance(round.distanceKm)}</span>
-                <span className="w-16 text-right font-semibold tabular-nums">{formatScore(round.score)}</span>
+                <span className="w-[4.75rem] shrink-0 text-right text-white/60 sm:w-24">{round.distanceKm === null ? 'no guess' : formatDistance(round.distanceKm)}</span>
+                <span className="w-12 shrink-0 text-right font-semibold tabular-nums sm:w-16">{formatScore(round.score)}</span>
               </>
             )}
           </li>

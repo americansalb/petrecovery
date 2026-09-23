@@ -2,13 +2,13 @@ const { createMemoryRoomStore } = require('@/app/lib/geo/server/memoryRoomStore'
 const store = createMemoryRoomStore();
 jest.mock('@/app/lib/geo/server/roomStore', () => ({ prismaRoomStore: store }));
 jest.mock('@/app/lib/geo/server/limiter', () => ({
-  withRateLimitAsync: jest.fn().mockResolvedValue({ success: true }),
+  checkRateLimitForKeyAsync: jest.fn().mockResolvedValue({ success: true }),
   rateLimitResponse: () => new Response('{}', { status: 429 }),
   getClientIP: () => '203.0.113.40',
 }));
 const { POST } = require('@/app/api/geo/matchmaking/route');
 const { sealSession } = require('@/app/lib/geo/server/identity');
-const { withRateLimitAsync } = require('@/app/lib/geo/server/limiter');
+const { checkRateLimitForKeyAsync } = require('@/app/lib/geo/server/limiter');
 let cookie;
 beforeAll(async () => {
   const account = await store.createAccount({ email: 'queue@example.test' });
@@ -32,6 +32,11 @@ test('rejects invalid bodies and rate limits polling', async () => {
   expect((await POST({ ...req(), text: async () => '{' })).status).toBe(400);
   expect((await POST({ ...req(), text: async () => 'x'.repeat(2001) })).status).toBe(413);
   expect((await POST(req({ game: 'bad' }))).status).toBe(400);
-  withRateLimitAsync.mockResolvedValueOnce({ success: false });
+  checkRateLimitForKeyAsync.mockResolvedValueOnce({ success: false });
   expect((await POST(req({ game: 'script' }))).status).toBe(429);
+  // Per account within the address, then the address as a whole
+  // (matchmaking-limit.test.js has the numbers).
+  const keys = checkRateLimitForKeyAsync.mock.calls.map(([key]) => key);
+  expect(keys.some((key) => /^geo-matchmaking:203\.0\.113\.40:.+/.test(key))).toBe(true);
+  expect(keys).toContain('geo-matchmaking:203.0.113.40');
 });
