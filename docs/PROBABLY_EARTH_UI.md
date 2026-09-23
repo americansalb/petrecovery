@@ -139,8 +139,7 @@ when all of it is done, and there is a test that says so.
   being played, and the map as a card whose footer carries the hint on
   the left and the one button on the right. The instruction used to be
   the button's label, so the only call to action on the screen changed
-  its words under the cursor. Harness scenarios: `appleSolo`, `pinGame`,
-  `notEarth`.
+  its words under the cursor. Harness scenarios: `appleSolo`, `pinGame`.
 - **4. The end of a game.** Done. Score, the rounds, then the account
   ask (`KeepThis`), then the share actions. The ask renders for guests
   only, says what an account is for rather than what it unlocks, and

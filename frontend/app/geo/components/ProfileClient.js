@@ -367,9 +367,8 @@ export default function ProfileClient() {
   // How many countries a player has a badge for, and nothing about how
   // many there are to get. The line read "12 of 23 countries", and 23
   // was the number of countries the game covers, which is kept secret
-  // (app/lib/geo/modes.js, RETIRED_MODES). Mars and the Moon are badge
-  // rows too, but they are not countries.
-  const countryBadges = (profile?.badges || []).filter((badge) => !badge.notEarth).length;
+  // (app/lib/geo/modes.js, RETIRED_MODES).
+  const countryBadges = profile?.badges?.length || 0;
   const view = shop?.view || profile?.equipped || null;
   const points = shop?.points ?? profile?.points ?? 0;
 
@@ -651,18 +650,16 @@ export default function ProfileClient() {
                   {profile.badges.map((b) => (
                     <li
                       key={b.countryCode}
-                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.notEarth ? 'border-pe-warm/40 bg-pe-warm/10' : 'border-pe-line bg-pe-surface'}`}
+                      className="flex items-center gap-2 rounded-xl border border-pe-line bg-pe-surface px-3 py-2 text-sm"
                     >
                       <span className="text-xl">{b.flag}</span>
                       <span className="min-w-0 flex-1 truncate font-semibold">
                         {b.name}
                       </span>
                       <span className="text-xs text-pe-muted">
-                        {b.notEarth
-                          ? 'called it'
-                          : b.bestKm < 1
-                            ? 'under 1 km'
-                            : `${Math.round(b.bestKm)} km`}
+                        {b.bestKm < 1
+                          ? 'under 1 km'
+                          : `${Math.round(b.bestKm)} km`}
                       </span>
                     </li>
                   ))}

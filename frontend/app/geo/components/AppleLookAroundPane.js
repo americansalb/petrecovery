@@ -137,9 +137,6 @@ const AppleLookAroundPane = forwardRef(function AppleLookAroundPane(
           restartingRef.current = false;
         }
       },
-      zoomBy() {
-        /* Look Around zooms by pinch and wheel only */
-      },
     }),
     [mapkit, allowMove, allowPan, allowZoom]
   );

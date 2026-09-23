@@ -8,7 +8,7 @@
 
 const { createCandidateSource, radiusForCountry } = require('@/app/lib/geo/server/sampler');
 const { createRound, evaluateGuess, GeoGameError, APPLE_CANDIDATES_PER_ROUND } = require('@/app/lib/geo/server/game');
-const { openToken } = require('@/app/lib/geo/server/tokens');
+const { openToken, sealToken } = require('@/app/lib/geo/server/tokens');
 const { normalizeConfig } = require('@/app/lib/geo/modes');
 const { countryAt } = require('@/app/lib/geo/server/countries');
 const { hasAppleCoverage } = require('@/app/lib/geo/coverage');
@@ -209,6 +209,36 @@ describe('createRound and evaluateGuess', () => {
 
   test('a tampered or expired token cannot be scored', async () => {
     const { c } = await first({ mode: 'balanced', seed: 't' });
-    expect(() => evaluateGuess({ token: c.token + 'x', guess: { lat: 0, lng: 0 }, env: ENV })).toThrow(/open/);
+    // A character changed in the middle, not one added at the end: when
+    // the body is a whole number of base64 blocks, the decoder drops a
+    // single extra character and the token still opens.
+    const at = Math.floor(c.token.length / 2);
+    const tampered = c.token.slice(0, at) + (c.token[at] === 'A' ? 'B' : 'A') + c.token.slice(at + 1);
+    expect(() => evaluateGuess({ token: tampered, guess: { lat: 0, lng: 0 }, env: ENV })).toThrow(/open/);
+  });
+
+  test('every round is a list of Look Around places, including on seeds that once drew Mars or the Moon', async () => {
+    // Until 2026-09-23 these two seeds opened on a NASA panorama.
+    for (const seed of ['ne757', 'ne719']) {
+      const { round, answer } = await first({ mode: 'balanced', seed });
+      expect(round.provider).toBe('apple');
+      expect(round.candidates).toHaveLength(APPLE_CANDIDATES_PER_ROUND);
+      expect(round.place).toBeUndefined();
+      expect(answer).not.toHaveProperty('ne');
+    }
+  });
+
+  test('a token sealed for a retired Mars or Moon round is refused as expired, not scored at 0,0', () => {
+    const token = sealToken(
+      { v: 1, ne: 'mars-jezero-delta', rid: 'r1', sub: '', p: 'photo', pano: '', lat: 0, lng: 0, cc: 'XM', cn: 'Mars', cf: '', city: '', date: '', size: 0, mode: 'balanced', seed: 'ne757', i: 0 },
+      { secret: ENV.NEXTAUTH_SECRET }
+    );
+    let error = null;
+    try {
+      evaluateGuess({ token, guess: { lat: 0, lng: 0 }, env: ENV });
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toMatchObject({ name: 'GeoTokenError', code: 'expired' });
   });
 });

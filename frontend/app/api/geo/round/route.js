@@ -2,10 +2,8 @@
  * POST /api/geo/round   { config, roundIndex }
  *
  * A round and its sealed answer token. The browser gets a short list of
- * coordinates to try Look Around at, in order, each sealed on its own;
- * about one casual round in two hundred is a Not Earth panorama and one
- * token instead (app/lib/geo/notEarth.js). The answer never leaves the
- * server in the clear.
+ * coordinates to try Look Around at, in order, each sealed on its own.
+ * The answer never leaves the server in the clear.
  *
  * The play meter runs first (docs/GEO.md, "The play meter"): the day's
  * ceiling, the speed limit and the site's day. A refusal is a 429 with a

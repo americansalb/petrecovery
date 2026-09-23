@@ -27,8 +27,6 @@ import { loadName } from '../lib/useRoom';
 import { configErrorMessage, loadGeoConfig } from '../lib/serverConfig';
 import AppleLookAroundPane from './AppleLookAroundPane';
 import AppleGuessMap from './AppleGuessMap';
-import NotEarthPane from './NotEarthPane';
-import NotEarthButton from './NotEarthButton';
 import GameHud from './GameHud';
 import CountryPicker from './CountryPicker';
 import LoadingSpot from './LoadingSpot';
@@ -145,10 +143,6 @@ function StreetPlayGame({ params }) {
   const timerFiredRef = useRef(null);
 
   const isStreak = config.mode === 'streak';
-  // A Not Earth round is a NASA panorama and no coordinates at all
-  // (app/lib/geo/notEarth.js). The guess map stays exactly where it
-  // always is: a round that hid its own map would announce itself.
-  const notEarth = state.current?.place || null;
   const configured = Boolean(server?.providers?.apple?.configured);
   const playthrough = params.get('replay');
   const resumeUrl = `/geo/play?${configToParams(config)}${playthrough ? `&replay=${encodeURIComponent(playthrough)}` : ''}&resume=1`;
@@ -285,12 +279,11 @@ function StreetPlayGame({ params }) {
    * server already answers timedOut for a pin round, and stamping it here
    * marked a guess that was placed, sent and scored as "time ran out".
    */
-  const submitGuess = useCallback(async (override, { allowEmpty = false } = {}) => {
+  const submitGuess = useCallback(async ({ allowEmpty = false } = {}) => {
     const s = stateRef.current;
     if (s.status !== 'playing' || !s.current?.token) return;
     let guess;
-    if (override !== undefined) guess = override;
-    else if (s.config.mode === 'streak') guess = s.pin?.countryCode ? { countryCode: s.pin.countryCode } : null;
+    if (s.config.mode === 'streak') guess = s.pin?.countryCode ? { countryCode: s.pin.countryCode } : null;
     else guess = s.pin ? { lat: s.pin.lat, lng: s.pin.lng } : null;
     if (!guess && !allowEmpty) return;
     dispatch({ type: 'submit_start' });
@@ -313,9 +306,6 @@ function StreetPlayGame({ params }) {
 
   const next = useCallback(() => dispatch({ type: 'next' }), []);
 
-  /** The Not Earth button, on every round. */
-  const callNotEarth = useCallback(() => submitGuess({ notEarth: true }), [submitGuess]);
-
   // The round timer.
   useEffect(() => {
     if (state.status !== 'playing' || !config.time || !state.roundStartedAt) return undefined;
@@ -325,7 +315,7 @@ function StreetPlayGame({ params }) {
       setSecondsLeft(Math.max(0, Math.ceil(left)));
       if (left <= 0 && timerFiredRef.current !== startedAt) {
         timerFiredRef.current = startedAt;
-        submitGuess(undefined, { allowEmpty: true });
+        submitGuess({ allowEmpty: true });
       }
     };
     tick();
@@ -403,7 +393,8 @@ function StreetPlayGame({ params }) {
   // round.css declared for it could never run.
   useOpenFrom(mapFrameRef, mapMode === 'result');
   const mapResults = useMemo(() => {
-    // A Not Earth round has no answer on this map, so it plots none.
+    // A saved game can still hold a Mars or Moon round from before
+    // 2026-09-23, which has no answer point, so it plots none.
     const answerOf = (r) => (Number.isFinite(r?.answer?.lat) && Number.isFinite(r?.answer?.lng) ? { lat: r.answer.lat, lng: r.answer.lng } : null);
     if (state.status === 'result' && lastResult) {
       return [{ guess: lastResult.guess, answer: answerOf(lastResult), label: '' }];
@@ -428,14 +419,8 @@ function StreetPlayGame({ params }) {
   // Hover expansion moved the Guess button before the player's click landed.
   // Keep the chosen size stable; S/M/L and the keyboard shortcut resize it.
   const effectiveSize = mapSize;
-  // A Not Earth round has no answer to plot, so its reveal keeps the
-  // picture on screen instead of a map with one pin and nothing to
-  // compare it to.
-  const notEarthResult = state.status === 'result' && lastResult?.kind === 'not-earth';
   let mapClass;
-  if (notEarthResult) {
-    mapClass = 'invisible pointer-events-none absolute -left-[9999px] top-0 flex h-64 w-64 flex-col';
-  } else if (mapMode === 'result') {
+  if (mapMode === 'result') {
     // flex-col so the map's flex-1 fills the frame; without it the map
     // collapses to zero height and the panorama shows through the border.
     // geo-map-frame: the desktop card already eased between its three
@@ -460,9 +445,6 @@ function StreetPlayGame({ params }) {
   }
 
   const sdkReady = Boolean(mapkit);
-  // Look Around zooms by pinch and wheel only, so there is nothing for
-  // a button to do there. A Not Earth panorama is ours, and it zooms.
-  const canZoom = config.zoom && Boolean(notEarth);
   // Nothing to go back to when the view cannot leave where it started.
   // The button was always drawn, so NMPZ shipped a "return to start"
   // above a line that says you get one view.
@@ -475,9 +457,6 @@ function StreetPlayGame({ params }) {
     <div className="fixed inset-0 z-[60] select-none overflow-hidden bg-pe-canvas text-pe-fg">
       {saveError ? <p role="status" className="absolute left-4 top-20 z-[70] max-w-sm rounded-xl border border-pe-line bg-pe-surface p-3 text-sm">{saveError}</p> : null}
       {/* Imagery */}
-      {notEarth ? (
-        <NotEarthPane ref={paneRef} place={notEarth} roundKey={state.roundIndex} allowPan={config.pan} allowZoom={config.zoom} />
-      ) : null}
       {sdkReady && state.current?.candidates ? (
         <AppleLookAroundPane
           ref={paneRef}
@@ -505,9 +484,8 @@ function StreetPlayGame({ params }) {
         />
       ) : null}
 
-      {/* Backdrop behind results. Lighter over a Not Earth reveal, which
-          has the place itself behind it rather than a map. */}
-      {mapMode === 'result' ? <div className={`pe-fade-in absolute inset-0 z-20 ${notEarthResult ? 'bg-pe-canvas/45' : 'bg-pe-canvas/85'}`} /> : null}
+      {/* Backdrop behind results */}
+      {mapMode === 'result' ? <div className="pe-fade-in absolute inset-0 z-20 bg-pe-canvas/85" /> : null}
 
       {/* HUD */}
       {(inRound || mapMode === 'result') && state.status !== 'summary' ? (
@@ -518,11 +496,9 @@ function StreetPlayGame({ params }) {
           score={totalScore(state)}
           streak={streakLength(state)}
           secondsLeft={inRound ? secondsLeft : NaN}
-          canZoom={canZoom && inRound}
           canReturn={canReturn}
           canPan={config.pan}
           onReturn={() => paneRef.current?.returnToStart?.()}
-          onZoom={(delta) => paneRef.current?.zoomBy?.(delta)}
           mobileMapOpen={mobileMapOpen}
           onToggleMobileMap={() => setMobileMapOpen((open) => !open)}
           notice={inRound ? notice : ''}
@@ -615,18 +591,6 @@ function StreetPlayGame({ params }) {
             </button>
           ) : null}
           <CountryPicker countries={server?.countries || []} value={state.pin?.countryCode || ''} onChange={(code) => dispatch({ type: 'pin', pin: { countryCode: code } })} onSubmit={() => submitGuess()} disabled={state.status !== 'playing'} />
-        </div>
-      ) : null}
-
-      {/* The Not Earth button, on every round. On a phone it sits a row
-          above the return and Map buttons: beside them it touched Map at
-          320px, and its "Sure?" confirmation, about 320px wide, covered
-          both on every phone. Centred across the whole width rather than
-          from the middle, which gave the confirmation half the screen to
-          wrap into: five lines at 320px. */}
-      {inRound ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[8.25rem] z-30 flex justify-center px-3 sm:bottom-16">
-          <NotEarthButton onCall={callNotEarth} disabled={state.status !== 'playing'} roundKey={state.roundIndex} />
         </div>
       ) : null}
 
@@ -726,7 +690,7 @@ function StreetPlayGame({ params }) {
       {state.status === 'playing' && state.error ? (
         <div role="alert" className="absolute left-1/2 top-24 z-40 flex max-w-[92vw] -translate-x-1/2 items-center gap-3 rounded-xl border border-pe-bad/40 bg-pe-canvas/95 px-4 py-2 text-sm text-pe-fg shadow-lg">
           <span className="min-w-0">{state.error.message}</span>
-          <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm shrink-0" onClick={() => submitGuess(undefined, { allowEmpty: true })}>Try again</button>
+          <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm shrink-0" onClick={() => submitGuess({ allowEmpty: true })}>Try again</button>
         </div>
       ) : null}
     </div>

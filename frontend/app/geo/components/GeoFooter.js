@@ -25,7 +25,7 @@ export default function GeoFooter() {
     <footer className="border-t border-pe-line text-xs text-pe-subtle">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-4 py-6 sm:flex-row sm:items-start sm:justify-between sm:gap-8 sm:px-6">
         <p className="max-w-2xl leading-relaxed">
-          Imagery from Apple Look Around, shown under Apple&apos;s terms. Not Earth panoramas from NASA, public domain.
+          Imagery from Apple Look Around, shown under Apple&apos;s terms.
           Country outlines from Natural Earth. Script sentences from{' '}
           <a href="https://tatoeba.org" className="underline decoration-pe-line-strong underline-offset-2 hover:text-pe-fg" rel="noreferrer noopener" target="_blank">
             Tatoeba

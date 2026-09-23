@@ -13,7 +13,7 @@ import GameHud from '@/app/geo/components/GameHud';
 jest.mock('next/link', () => function Link({ children, href, ...rest }) { return <a href={href} {...rest}>{children}</a>; });
 jest.mock('@/app/geo/components/SaveGameButton', () => () => null);
 
-const base = { score: 0, streak: 0, secondsLeft: NaN, canZoom: false, showMapControls: true, onReturn() {}, onZoom() {}, onToggleMobileMap() {} };
+const base = { score: 0, streak: 0, secondsLeft: NaN, showMapControls: true, onReturn() {}, onToggleMobileMap() {} };
 
 test('a phone sees which round it is on, beside what it is playing', () => {
   const { container } = render(<GameHud {...base} config={{ mode: 'balanced', time: 0 }} roundNumber={2} roundsTotal={5} />);

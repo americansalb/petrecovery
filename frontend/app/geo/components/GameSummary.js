@@ -118,14 +118,8 @@ function DailyBoard({ daily, cup = false }) {
   );
 }
 
-/**
- * The middle column of a round's row. A Not Earth round has no distance
- * to print, and neither has a round the player threw away by calling it
- * (app/lib/geo/notEarth.js).
- */
+/** The middle column of a round's row. */
 function roundNote(round) {
-  if (round.notEarth) return round.score > 0 ? 'called it' : 'missed it';
-  if (round.calledNotEarth) return 'wrong call';
   if (round.timedOut) return 'no guess';
   return formatDistance(round.distanceKm);
 }

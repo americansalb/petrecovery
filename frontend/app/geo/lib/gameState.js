@@ -115,10 +115,6 @@ export function buildSummary(state, { date = new Date() } = {}) {
       answer: Number.isFinite(r.answer?.lat) && Number.isFinite(r.answer?.lng) ? { lat: r.answer.lat, lng: r.answer.lng } : null,
       guessCountry: r.guessCountry || '',
       timedOut: Boolean(r.timedOut),
-      // Whether the round was off the planet, and whether the player
-      // said so (app/lib/geo/notEarth.js).
-      notEarth: r.kind === 'not-earth',
-      calledNotEarth: Boolean(r.calledNotEarth),
     })),
     total: totalScore(state),
     streak: streakLength(state),
