@@ -162,10 +162,11 @@ export default function GameHud({
           answer's pin does, instead of jumping a second early.
 
           Inset from the corner, because the corner is Apple's: Look
-          Around draws its compass there and cannot be told not to. The
-          way out sat on top of it. Moving the compass instead (Look
-          Around's padding) had MapKit's renderer throwing errors in
-          testing, so the game's controls stand clear of it. */}
+          Around draws its compass there and cannot be told not to, and
+          the way out sat on top of it. Look Around's padding can move the
+          compass down, but only by changing Apple's view mid-round every
+          time the controls here change height (three times a round in a
+          room), so the game's controls stand clear of it instead. */}
       <div className="pointer-events-none absolute right-14 top-3 z-30 flex items-center gap-2 sm:top-4">
         {!isStreak ? (
           <div

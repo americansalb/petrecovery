@@ -206,9 +206,9 @@ describe('the compass over Look Around', () => {
 
   test("the game's controls stand clear of Apple's compass", () => {
     // Look Around puts its compass in the top right corner and cannot be
-    // told not to; the way out of the game sat on top of it. Moving the
-    // compass with Look Around's padding had MapKit's renderer throwing
-    // errors, so the controls move instead, and the compass stays put.
+    // told not to; the way out of the game sat on top of it. The controls
+    // move instead, so nothing changes Apple's view mid-round to move the
+    // compass.
     expect(read('app/geo/components/GameHud.js')).toContain('absolute right-14 top-3 z-30 flex items-center gap-2 sm:top-4');
     expect(read('app/geo/match.css')).toMatch(/\.pe-match-clock \{[^}]*margin-right: 44px;/);
     expect(read('app/geo/components/AppleLookAroundPane.js')).not.toContain('padding');
