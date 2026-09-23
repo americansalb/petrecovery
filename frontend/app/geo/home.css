@@ -195,9 +195,6 @@
     radial-gradient(ellipse at 75% 45%, #467c6675, transparent 62%),
     linear-gradient(95deg, #082d49 35%, #295e48);
 }
-.geo-surface .pe-home--immersive .pe-section-heading h2 {
-  font-size: 36px;
-}
 @keyframes pe-home-arrive {
   from {
     transform: scale(1.035);
@@ -298,9 +295,6 @@
   .geo-surface .pe-home--immersive .pe-world--script .pe-world-shade {
     background: linear-gradient(95deg, #082d49 40%, #295e48);
   }
-  .geo-surface .pe-home--immersive .pe-section-heading h2 {
-    font-size: 29px;
-  }
 }
 @media (max-width: 370px) {
   .geo-surface .pe-home--immersive .pe-hero-copy h1 {
@@ -350,10 +344,6 @@
   flex: 1;
 }
 /* Secondary activities are a compact menu, not another landing page. */
-.geo-surface .pe-home--immersive .pe-section-heading h2 {
-  font-size: 22px;
-  letter-spacing: -0.025em;
-}
 @media (prefers-reduced-motion: reduce) {
   .geo-surface .pe-home--immersive .pe-play-dock {
     animation: none;

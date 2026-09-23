@@ -65,7 +65,7 @@ const MAPKIT_LOAD_MS = 12000;
 // so it is the one screen that is light: a map reads better as paper
 // than as a hole in the dark, and the sentence is there to be read.
 const PILL = 'rounded-full border border-sand-200 bg-white/95 shadow-sm';
-const ICON_BUTTON = `${PILL} flex h-11 w-11 items-center justify-center text-sand-700 transition hover:bg-white hover:text-sand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500`;
+const ICON_BUTTON = `${PILL} flex h-11 w-11 items-center justify-center text-sand-700 transition hover:bg-white hover:text-sand-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-pe-accent`;
 
 /**
  * A number that arrives rather than appears. Short enough that nobody
@@ -324,7 +324,7 @@ function ScriptPlayGame({ params }) {
   }
 
   return (
-    <div className="pe-script-round fixed inset-0 z-[60] flex flex-col bg-[#f4efe4] text-sand-900">
+    <div className="pe-script-round pe-paper fixed inset-0 z-[60] flex flex-col bg-[#f4efe4] text-sand-900">
       {/* The sentence gets the top of the screen and the map gets the
           rest of it. It used to float over the map, which put the thing
           you are reading on top of the thing you answer on. */}
@@ -390,10 +390,7 @@ function ScriptPlayGame({ params }) {
           ) : error ? (
             <div className="py-2 text-sm">
               <p className="text-red-600">{error}</p>
-              <Link
-                href="/geo/script"
-                className="mt-3 inline-block rounded-lg bg-ocean-900 px-3 py-1.5 font-semibold text-white hover:bg-ocean-800"
-              >
+              <Link href="/geo/script" className="ui-btn ui-btn--primary mt-3">
                 Back to Script
               </Link>
             </div>
@@ -488,6 +485,15 @@ function ScriptPlayGame({ params }) {
   );
 }
 
+/**
+ * A language's own name, when it is not the name above it. Tok Pisin is
+ * Tok Pisin either way, and printing it twice read as a glitch.
+ */
+function endonymOf(answer) {
+  const own = String(answer?.endonym || '').trim();
+  return own && own.toLowerCase() !== String(answer?.name || '').trim().toLowerCase() ? own : '';
+}
+
 /** The answer, and how close the pin was to it. */
 function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
   const { answer } = result;
@@ -497,11 +503,13 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
       <div className="mx-auto min-h-0 w-full max-w-2xl overflow-y-auto">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-xl font-bold">
-            {answer.name}{' '}
-            <span className="font-normal text-sand-500">{answer.endonym}</span>
+            {answer.name}
+            {endonymOf(answer) ? (
+              <span className="font-normal text-sand-500"> {endonymOf(answer)}</span>
+            ) : null}
           </h2>
           <p className="text-lg font-semibold tabular-nums text-sand-900">
-            {formatScore(score)} points
+            {formatScore(score)} {Math.round(result.score) === 1 ? 'point' : 'points'}
           </p>
         </div>
         <div className="wg-region-explorer">
@@ -603,7 +611,7 @@ function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
   // playthrough key, not the seed/rules, so replay starts at round one.
   const same = `/geo/script/play?${scriptConfigToQuery(config)}&replay=${randomSeedString()}`;
   return (
-    <div className="pe-script-summary fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
+    <div className="pe-script-summary pe-paper fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] text-sand-900">
       <div className="mx-auto max-w-2xl px-5 py-10">
         <p className="text-sm uppercase tracking-wide text-sand-500">
           Script &middot; {ladder.label}
@@ -627,25 +635,22 @@ function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
           >
             <RotateCcw className="h-4 w-4" /> Play again
           </Link>
-          <Link
-            href={same}
-            className="flex items-center gap-2 rounded-xl border border-sand-200 bg-white px-4 py-2.5 font-semibold shadow-sm hover:bg-sand-50"
-          >
-            <MapPin className="h-4 w-4" /> Replay this set
+          <Link href={same} className="ui-btn ui-btn--secondary ui-btn--lg">
+            <MapPin className="h-4 w-4" aria-hidden="true" /> Replay this set
           </Link>
-          <Link
-            href="/geo/script"
-            className="flex items-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sand-600 hover:text-sand-900"
-          >
-            Change the pool
+          <Link href="/geo/script" className="ui-btn ui-btn--ghost ui-btn--lg">
+            Choose other languages
           </Link>
         </div>
+
+        {/* The account ask, after the way on and before the recap. It sat
+            between "Your rounds" and the rounds, as a dark box on paper. */}
+        <KeepThis returnTo={resumeUrl} />
+        {saveError ? <p role="status" className="mt-3 text-sm text-pe-bad">{saveError}</p> : null}
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-sand-500">
           Your rounds
         </h2>
-        <div className="rounded-xl bg-ocean-950 text-white"><KeepThis returnTo={resumeUrl} /></div>
-        {saveError ? <p role="status" className="mt-3 text-sm text-clay-800">{saveError}</p> : null}
         <ol className="mt-3 space-y-3">
           {history.map((row, index) => (
             /* Three blocks, each with its own space. The name, the
@@ -659,14 +664,14 @@ function Summary({ config, ladder, history, total, resumeUrl, saveError }) {
             >
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <p className="font-semibold">
-                  {row.answer.name}{' '}
-                  <span className="font-normal text-sand-500">
-                    {row.answer.endonym}
-                  </span>
+                  {row.answer.name}
+                  {endonymOf(row.answer) ? (
+                    <span className="font-normal text-sand-500"> {endonymOf(row.answer)}</span>
+                  ) : null}
                 </p>
                 <p className="text-sm font-semibold tabular-nums">
                   {formatScore(row.score)}{' '}
-                  <span className="font-normal text-sand-400">pts</span>
+                  <span className="font-normal text-sand-400">{row.score === 1 ? 'point' : 'points'}</span>
                 </p>
               </div>
               <p className="mt-1 text-sm text-sand-500">

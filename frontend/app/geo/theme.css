@@ -89,6 +89,28 @@
   }
 }
 
+/* ---- Paper ---------------------------------------------------------- */
+
+/* Script is read on paper: its round and its results are light, the one
+   place the game is. The same tokens, set to paper, so anything built on
+   them (a card, a button, the sign-in prompt) comes out in the paper's
+   colours instead of as a dark slab dropped onto it. */
+.geo-surface .pe-paper {
+  --pe-canvas: 244 239 228;
+  --pe-surface: 255 253 248;
+  --pe-raised: 239 232 216;
+  --pe-line: 227 217 198;
+  --pe-line-strong: 201 188 163;
+  --pe-fg: 43 38 32;
+  --pe-muted: 110 99 84;
+  --pe-subtle: 140 128 110;
+  --pe-accent-fg: 29 78 216;
+  --pe-good: 21 128 61;
+  --pe-warm: 180 83 9;
+  --pe-bad: 185 28 28;
+  color: rgb(var(--pe-fg));
+}
+
 /* ---- Buttons -------------------------------------------------------- */
 
 .geo-surface .ui-btn {
