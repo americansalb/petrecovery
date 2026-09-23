@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { sendEmail } from '@/app/lib/email';
+import { getBaseUrl } from '@/app/lib/config';
 
 export async function POST(request) {
   try {
@@ -115,7 +116,7 @@ export async function POST(request) {
               <li>Accept donations</li>
               <li>Connect with lost pet owners</li>
             </ul>
-            <p><a href="${process.env.NEXTAUTH_URL}/shelter/dashboard">Go to your dashboard</a></p>
+            <p><a href="${getBaseUrl()}/shelter/dashboard">Go to your dashboard</a></p>
             <p>Thank you for helping reunite pets with their families!</p>
           `,
         }).catch(err => console.error('Failed to send approval email:', err));

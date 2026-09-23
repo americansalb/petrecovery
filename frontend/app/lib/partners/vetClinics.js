@@ -4,6 +4,8 @@
  * Connect with vet clinics for lost pet alerts and found pet notifications
  */
 
+import { getBaseUrl } from '@/app/lib/config';
+
 /**
  * Search for nearby vet clinics
  */
@@ -151,7 +153,7 @@ Phone: ${petData.ownerPhone}
 Email: ${petData.ownerEmail}
 
 Case Reference: ${petData.missionNumber}
-View case online: ${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.missionNumber}
+View case online: ${getBaseUrl()}/cases/${petData.missionNumber}
 
 Thank you for your help in reuniting pets with their families!
 
@@ -170,7 +172,7 @@ Color: ${petData.petColor}
 Found Location: ${petData.foundLocation}
 
 If anyone has reported a missing pet matching this description, please direct them to:
-${process.env.NEXT_PUBLIC_BASE_URL}/cases/${petData.missionNumber}
+${getBaseUrl()}/cases/${petData.missionNumber}
 
 Thank you!
 ReunitePets

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getBaseUrl } from '@/app/lib/config';
 
 // The canonical host. middleware.js 301s petrecovery.org here, so declaring the
 // old domain in a sitemap meant every URL Google fetched was a redirect.
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.reunitepets.org';
+const BASE_URL = getBaseUrl();
 
 export async function GET() {
   const robotsTxt = `# ReunitePets Robots.txt

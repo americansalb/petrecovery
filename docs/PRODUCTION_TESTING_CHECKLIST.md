@@ -13,7 +13,7 @@
 - [ ] All environment variables set:
   - [ ] `DATABASE_URL` - PostgreSQL connection string
   - [ ] `NEXTAUTH_SECRET` - Generate with `openssl rand -base64 32`
-  - [ ] `NEXTAUTH_URL` - Production URL (https://yourdomain.com)
+  - (No `NEXTAUTH_URL`: the site's address is built in, `frontend/app/lib/config.js`.)
   - [ ] `BUNNY_STORAGE_ZONE` - Bunny.net storage zone
   - [ ] `BUNNY_API_KEY` - Bunny.net API key
   - [ ] `BUNNY_CDN_URL` - Bunny.net CDN URL

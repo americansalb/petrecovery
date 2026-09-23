@@ -12,6 +12,7 @@
  */
 
 import { normalizePhotoUrl } from '@/app/lib/utils';
+import { getBaseUrl } from '@/app/lib/config';
 
 export const SITE_NAME = 'ReunitePets';
 
@@ -19,13 +20,14 @@ export const SITE_NAME = 'ReunitePets';
 export const FALLBACK_SHARE_IMAGE =
   'https://petrescue.b-cdn.net/ReunitePets%20Official%20Logo%20Final%202025%20(1).png';
 
-/** Absolute base for resolving relative images (messengers require absolute og:image). */
+/**
+ * Absolute base for canonical URLs and relative images (messengers require
+ * an absolute og:image). The built-in address from config.js: this used to
+ * read NEXT_PUBLIC_BASE_URL, which production never set, so every case
+ * page's canonical tag said http://localhost:3000.
+ */
 export function shareMetadataBase() {
-  try {
-    return new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
-  } catch {
-    return new URL('http://localhost:3000');
-  }
+  return new URL(getBaseUrl());
 }
 
 /** Entity photo → preview-safe URL (protocol fixed, logo fallback). */

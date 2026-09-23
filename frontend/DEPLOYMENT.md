@@ -39,8 +39,11 @@ docker-compose exec app npm run seed:metros
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
-| `NEXTAUTH_URL` | Public URL of your site | `https://petrecovery.org` |
 | `NEXTAUTH_SECRET` | Random 32+ character string | Generate with `openssl rand -base64 32` |
+
+The site's public address is not a setting: it is built in
+(`app/lib/config.js`), so `NEXTAUTH_URL` and `NEXT_PUBLIC_BASE_URL` are not
+needed and are ignored in production.
 
 ### Email Configuration
 

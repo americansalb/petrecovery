@@ -11,6 +11,7 @@ import { getServerSession } from 'next-auth';
 import QRCode from 'qrcode';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { getBaseUrl } from '@/app/lib/config';
 
 // =============================================================================
 // TYPES
@@ -112,14 +113,11 @@ export async function POST(
     }
 
     // Build case URL from the public case number (the real, shareable route
-    // is /cases/[caseNumber]; the old /case/[id] link 404'd). Prefer the
-    // request's own origin so scanned QR codes point at the same host the
-    // flyer was generated from.
-    const requestOrigin = (() => {
-      try { return new URL(request.url).origin; } catch { return ''; }
-    })();
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || requestOrigin || 'https://www.reunitepets.org';
-    const caseUrl = `${baseUrl}/cases/${(missionRecord as any).caseNumber || missionId}`;
+    // is /cases/[caseNumber]; the old /case/[id] link 404'd), on the site's
+    // built-in address. Not the request's origin: behind Render that is
+    // whatever host the app was reached on, and a printed QR code outlives
+    // any of them but the real one.
+    const caseUrl = `${getBaseUrl()}/cases/${(missionRecord as any).caseNumber || missionId}`;
 
     // Embed a real, scannable QR as a data URL (no external service - works
     // offline and survives the print CSP; the old placeholder never scanned).
