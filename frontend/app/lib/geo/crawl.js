@@ -15,10 +15,12 @@
 import { GEO_HOME_URL } from './meta';
 
 /**
- * A live game, an account page and the admin screen are not worth a
- * crawler's time. A room and a share page are allowed on purpose: they
- * are built to unfurl in chat, the bots that draw those cards honour this
- * file, and their own metadata already says noindex.
+ * An account page and the admin screen are not worth a crawler's time.
+ * Rooms, share pages and play links are allowed on purpose: they are
+ * built to unfurl in chat (probablyearth.com/daily, a challenge link),
+ * the bots that draw those cards honour this file, and the pages' own
+ * metadata already says noindex. Play links used to be disallowed here,
+ * so a pasted daily had no card at all on those bots.
  */
 export function gameRobotsTxt(origin = GEO_HOME_URL) {
   return `# Probably Earth
@@ -26,8 +28,6 @@ User-agent: *
 Allow: /geo
 Allow: /api/geo/og
 Disallow: /api/
-Disallow: /geo/play
-Disallow: /geo/script/play
 Disallow: /geo/me
 Disallow: /geo/admin
 

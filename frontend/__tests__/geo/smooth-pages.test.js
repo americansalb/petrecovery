@@ -83,6 +83,9 @@ describe('sign-in, while it checks who you are', () => {
   const SignInCard = require('@/app/geo/components/SignInCard').default;
 
   test('it holds the form\'s shape, with nothing in it that can be typed into', () => {
+    // A session to check (lib/session.js). With none, the form itself
+    // shows at once (account-card-ui.test.js).
+    document.cookie = 'geo_signed_in=1; path=/';
     global.fetch = jest.fn((url) => (String(url).endsWith('/options')
       ? Promise.resolve({ ok: true, json: async () => ({ phone: false }) })
       : new Promise(() => {})));
@@ -91,6 +94,7 @@ describe('sign-in, while it checks who you are', () => {
     // The email step's shape: its label, field, button and the line under it.
     expect(container.querySelectorAll('.pe-skeleton').length).toBeGreaterThanOrEqual(4);
     expect(container.querySelectorAll('input')).toHaveLength(0);
+    document.cookie = 'geo_signed_in=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
   });
 });
 

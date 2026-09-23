@@ -82,14 +82,16 @@ describe('the privacy page covers Probably Earth', () => {
     // __tests__/game-host-files.test.js).
     expect(read('app/lib/geo/crawl.js')).toContain('<loc>${origin}/geo</loc>');
     const robots = read('app/lib/geo/crawl.js');
-    expect(robots).toContain('Disallow: /geo/play');
     expect(robots).toContain('Disallow: /geo/me');
-    // A room and a share page are pasted into chat, and the bots that
-    // draw the card honour robots.txt; both carry noindex in their own
-    // metadata instead.
+    // A room, a share page and a play link (the daily, a challenge) are
+    // pasted into chat, and the bots that draw the card honour
+    // robots.txt; each carries noindex in its own metadata instead, which
+    // is what keeps a live game out of the index.
     expect(robots).not.toContain('Disallow: /geo/room');
     expect(robots).not.toContain('Disallow: /geo/share');
+    expect(robots).not.toContain('Disallow: /geo/play');
     expect(read('app/geo/room/[code]/page.js')).toMatch(/index:\s*false/);
     expect(read('app/geo/share/page.js')).toMatch(/index:\s*false/);
+    expect(read('app/lib/geo/playMeta.js')).toMatch(/index:\s*false/);
   });
 });
