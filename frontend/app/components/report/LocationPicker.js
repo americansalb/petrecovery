@@ -14,6 +14,7 @@
  * restored on mount and kept in sync (legacy `reportLocation` shape).
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, Navigation, MapPin } from 'lucide-react';
@@ -200,10 +201,7 @@ export default function LocationPicker({ value, onChange, variant = 'lost', stor
       const map = L.map(mapRef.current, { zoomControl: false }).setView(center, 17);
       mapInstanceRef.current = map;
       L.control.zoom({ position: 'topright' }).addTo(map);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO',
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
       const markerIcon = L.divIcon({
         className: 'custom-marker',

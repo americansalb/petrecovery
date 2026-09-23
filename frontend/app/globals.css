@@ -326,6 +326,14 @@ img {
   }
 }
 
+/* The dark map screens (Mission Control, territory, squad maps) draw the
+   standard OpenStreetMap tiles inverted rather than depend on a second
+   tile provider (app/lib/maps/tiles.js, tileLayerOptions({ dark: true })).
+   Only the tile layer is filtered; pins and popups keep their colours. */
+.map-tiles-dark {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
+
 /* Leaflet map mobile fixes */
 .leaflet-container {
   touch-action: pan-x pan-y;

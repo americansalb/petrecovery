@@ -13,6 +13,7 @@
  * - Display existing sightings on map
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
@@ -84,10 +85,7 @@ export default function SightingForm({
       }).setView(center, 14);
 
       // Add tile layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
       // Add last seen marker
       if (missionData?.lastSeenLatitude && missionData?.lastSeenLongitude) {

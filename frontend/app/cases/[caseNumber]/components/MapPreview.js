@@ -7,6 +7,7 @@
  * Shows: last seen marker, sighting markers, search radius circles.
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
@@ -42,11 +43,8 @@ function SimpleMap({ center, lastSeen, sightings = [], petSpecies = 'DOG', hours
         doubleClickZoom: true,
       });
 
-      // Same tile layer as SARMapView (CartoDB Voyager for light theme)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap © CARTO'
-      }).addTo(map);
+      // The shared basemap (app/lib/maps/tiles.js)
+      L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
       // Add search radius circle (simplified)
       const radiusMiles = hoursElapsed <= 6 ? 0.5 : hoursElapsed <= 24 ? 1 : hoursElapsed <= 72 ? 2 : 3;

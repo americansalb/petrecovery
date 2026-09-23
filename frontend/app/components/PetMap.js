@@ -1,5 +1,6 @@
 'use client';
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import { theme } from '../lib/theme';
@@ -21,10 +22,7 @@ export default function PetMap({ center = [41.8781, -87.6298], zoom = 13, marker
       const map = L.map(mapRef.current).setView(center, zoom);
 
       // Add tile layer with beautiful style
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
 
       // Custom marker icons
       const petOwnerIcon = L.divIcon({

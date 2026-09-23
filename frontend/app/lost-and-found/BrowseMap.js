@@ -7,6 +7,7 @@
  * ME". Pins carry a mini card popup that links into the case story.
  */
 
+import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -34,7 +35,7 @@ export default function BrowseMap({ cases = [] }) {
     if (!mapRef.current || mapInstance.current) return;
     const map = L.map(mapRef.current, { zoomControl: true, attributionControl: false })
       .setView([39.5, -96.0], 4);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    L.tileLayer(TILE_URL, tileLayerOptions()).addTo(map);
     mapInstance.current = map;
     return () => {
       map.remove();
