@@ -96,7 +96,6 @@ function StreetPlayGame({ params }) {
   const [serverError, setServerError] = useState('');
   const [mapkit, setMapkit] = useState(null);
   const [sdkError, setSdkError] = useState('');
-  const [heading, setHeading] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(config.time);
   const [mapSize, setMapSize] = useState('small');
   const [mobileMapOpen, setMobileMapOpen] = useState(false);
@@ -492,7 +491,6 @@ function StreetPlayGame({ params }) {
           score={totalScore(state)}
           streak={streakLength(state)}
           secondsLeft={inRound ? secondsLeft : NaN}
-          heading={heading}
           canZoom={canZoom && inRound}
           canReturn={canReturn}
           canPan={config.pan}
@@ -544,7 +542,7 @@ function StreetPlayGame({ params }) {
                 <button
                   type="button"
                   onClick={() => setMobileMapOpen(false)}
-                  className="ui-btn ui-btn--secondary shrink-0 sm:hidden"
+                  className="ui-btn ui-btn--secondary shrink-0"
                 >
                   Hide map
                 </button>
@@ -569,7 +567,7 @@ function StreetPlayGame({ params }) {
                 onClick={() => submitGuess()}
                 disabled={!state.pin || state.status !== 'playing'}
                 data-geo-guess
-                className={`ui-btn ui-btn--primary px-8 ${effectiveSize === 'small' ? 'sm:w-full' : ''} shrink-0`}
+                className={`ui-btn ui-btn--primary ${effectiveSize === 'small' ? 'sm:w-full' : ''} shrink-0`}
               >
                 {state.status === 'submitting' ? 'Scoring' : 'Guess'}
               </button>
@@ -585,7 +583,7 @@ function StreetPlayGame({ params }) {
             <button
               type="button"
               onClick={() => setMobileMapOpen(false)}
-              className="ui-btn ui-btn--ghost ui-btn--sm mb-2 self-start sm:hidden"
+              className="ui-btn ui-btn--ghost ui-btn--sm mb-2 self-start"
             >
               Hide the list
             </button>
@@ -632,6 +630,7 @@ function StreetPlayGame({ params }) {
           daily={config.mode === 'daily' || config.mode === 'cup' ? daily : null}
           rated={rated}
           points={gamePoints}
+          countryName={countryName}
           onPlayAgain={() => {}}
         />
       ) : null}

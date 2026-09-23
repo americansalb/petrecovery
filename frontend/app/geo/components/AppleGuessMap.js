@@ -10,10 +10,14 @@ import { useEffect, useRef } from 'react';
 import KeyboardMap from './KeyboardMap';
 import { appleKeyboard } from '../lib/mapKeyboard';
 import { REVEAL, alongMercator, easeInOut, playTimeline } from '../lib/motion';
+import { cameraFor } from '../lib/mapCamera';
 
 export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode = 'guess', interactive = true, className = '' }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  // Every programmatic move goes through here: MapKit drops a move made
+  // while another is still animating (lib/mapCamera.js).
+  const cameraRef = useRef(null);
   const pinRef = useRef(null);
   const drawnRef = useRef({ annotations: [], overlays: [] });
   // Frames the camera on the drawn result again. Set while a result is
@@ -47,7 +51,10 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
       if (coordinate) onPinRef.current?.({ lat: coordinate.latitude, lng: coordinate.longitude });
     });
     mapRef.current = map;
+    cameraRef.current = cameraFor(map);
     return () => {
+      cameraRef.current?.stop();
+      cameraRef.current = null;
       try {
         map.destroy();
       } catch {
@@ -106,7 +113,10 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
     drawnRef.current = { annotations: [], overlays: [] };
     fitRef.current = null;
     if (mode !== 'result' || !results.length) {
-      map.region = worldRegion(mapkit);
+      // Through the camera: straight after a reveal the answer's framing
+      // can still be moving, and a plain set would be dropped, leaving the
+      // next round's map on the last answer.
+      cameraRef.current?.move(worldRegion(mapkit), false);
       return undefined;
     }
 
@@ -187,11 +197,7 @@ export default function AppleGuessMap({ mapkit, pin, onPin, results = [], mode =
       const node = containerRef.current;
       const r = regionAround(everything, { width: node?.clientWidth || 0, height: node?.clientHeight || 0 });
       const center = new mapkit.Coordinate(r.lat, r.lng);
-      try {
-        map.setRegionAnimated(new mapkit.CoordinateRegion(center, new mapkit.CoordinateSpan(r.latSpan, r.lngSpan)), animate);
-      } catch {
-        map.center = center;
-      }
+      cameraRef.current?.move(new mapkit.CoordinateRegion(center, new mapkit.CoordinateSpan(r.latSpan, r.lngSpan)), animate);
     };
     fit(true);
     fitRef.current = () => fit(true);

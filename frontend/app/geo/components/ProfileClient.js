@@ -807,11 +807,12 @@ export default function ProfileClient() {
           {/* Signing in. A Probably Earth account, not a ReunitePets one. */}
           <Card>
             <h2 className="ui-h2">Account</h2>
-            <p className="mt-1 text-sm text-pe-muted">
-              {profile?.signedIn
-                ? 'Your profile follows you to every device you sign in on.'
-                : 'This profile is saved in this browser only.'}
-            </p>
+            {/* Signed in, the card below says what the account does. */}
+            {profile?.signedIn ? null : (
+              <p className="mt-1 text-sm text-pe-muted">
+                This profile is saved in this browser only.
+              </p>
+            )}
             <div className="mt-4">
               <SignInCard requireName playerName={name} onPlayerNameChange={setName} />
             </div>

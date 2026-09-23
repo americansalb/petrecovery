@@ -28,6 +28,7 @@ const PERSONAL_DATA = {
   'GeoAccount.phone': 'phone number',
   'GeoAccount.savedGame': 'saved-game checkpoint',
   'GeoLoginToken.email': 'link sent to that address',
+  'GeoLoginToken.codeHash': 'six-digit code',
   'GeoProfile.name': 'display name',
   'GeoUsage.subject': 'hash of your IP address',
   'GeoBadge.countryCode': 'badges',

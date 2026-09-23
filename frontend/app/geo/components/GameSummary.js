@@ -141,6 +141,7 @@ export default function GameSummary({
   points = null,
   onPlayAgain,
   resumeUrl,
+  countryName,
 }) {
   const [copied, copy] = useCopy();
   const shownTotal = useCountUp(summary.total, { key: code, durationMs: 900 });
@@ -246,7 +247,7 @@ export default function GameSummary({
                 {isStreak && !round.correct && round.guessCountry ? (
                   <span className="text-pe-muted">
                     {' '}
-                    (you said {round.guessCountry})
+                    (you said {countryName?.(round.guessCountry) || round.guessCountry})
                   </span>
                 ) : null}
               </span>

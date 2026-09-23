@@ -85,6 +85,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: 18px;
+  /* Clear of the top right corner, where Look Around draws its compass
+     (GameHud says why it is not moved instead). */
+  margin-right: 44px;
 }
 .geo-surface .pe-match-clock > button {
   pointer-events: auto;
