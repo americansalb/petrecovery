@@ -428,6 +428,19 @@
   background: rgb(var(--pe-raised));
   color: rgb(var(--pe-fg));
 }
+/* One width whatever it holds (GeoHeader): empty while the session is
+   read and on the sign-in page, a Sign in button, or a name. */
+.geo-surface .ui-account-slot {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  .geo-surface .ui-account-slot {
+    width: 148px;
+  }
+}
 .geo-surface .ui-account {
   display: inline-flex;
   align-items: center;
@@ -449,6 +462,11 @@
 @media (max-width: 420px) {
   .geo-surface .ui-account {
     max-width: 38vw;
+  }
+}
+@media (min-width: 720px) {
+  .geo-surface .ui-account {
+    max-width: 100%;
   }
 }
 .geo-surface .ui-account:hover {

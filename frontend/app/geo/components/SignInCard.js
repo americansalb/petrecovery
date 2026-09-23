@@ -110,7 +110,10 @@ export default function SignInCard({
       if (linkRef.current) {
         params.delete('link');
         const rest = params.toString();
-        window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+        // null, not history.state: with its own state Next takes this for
+        // one of its own calls and keeps the old address, token and all,
+        // as the one it writes back on its next update.
+        window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
       }
     }
     fetch('/api/geo/auth/me', { cache: 'no-store' })

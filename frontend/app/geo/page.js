@@ -17,7 +17,7 @@ import { buildShareMetadata, GEO_HOME_URL } from '@/app/lib/geo/meta';
 // and served a localhost og:image on the live site. It comes from
 // GEO_HOME_URL now, which is the same value every page resolves against.
 export const metadata = buildShareMetadata({
-  title: 'Probably Earth — Street and language guessing games',
+  title: 'Probably Earth: street and language guessing games',
   description: 'Guess the place from street views or written languages. Play free on your own, find an opponent, or invite friends.',
   canonical: `${GEO_HOME_URL}/geo`,
   index: true,

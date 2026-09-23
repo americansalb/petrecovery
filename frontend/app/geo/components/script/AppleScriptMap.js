@@ -37,7 +37,9 @@
 
 import { useEffect, useRef } from 'react';
 import { chooseLabels } from '../../lib/countryLabels';
+import { cameraFor } from '../../lib/mapCamera';
 import { appleKeyboard } from '../../lib/mapKeyboard';
+import { regionAround } from '../../lib/mapRegion';
 import KeyboardMap from '../KeyboardMap';
 
 /** The country names, fetched once per page and cached like any chunk. */
@@ -60,7 +62,10 @@ const STROKE_OPACITY = 0.95;
 
 /** The reveal panel is outside the map, leaving its full viewport visible. */
 const REVEAL_INSET = 0;
-/** The same, for the Guess button in the corner of a round in play. */
+/**
+ * The same, for the Guess button along the bottom of a round in play,
+ * when the screen does not say how tall that is (`guessInset`).
+ */
 const GUESS_INSET = 76;
 
 export default function AppleScriptMap({
@@ -73,10 +78,18 @@ export default function AppleScriptMap({
   selectedRegion = null,
   mode = 'guess',
   className = '',
+  guessInset = GUESS_INSET,
   onUnavailable,
 }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
+  // Every programmatic move goes through here: MapKit drops a move made
+  // while another is still animating (lib/mapCamera.js).
+  const cameraRef = useRef(null);
+  // Frames the answer again. Set while an answer is on the map.
+  const fitRef = useRef(null);
+  const insetRef = useRef(guessInset);
+  insetRef.current = guessInset;
   const pinRef = useRef(null);
   const drawnRef = useRef({ annotations: [], overlays: [] });
   const stopFadeRef = useRef(null);
@@ -120,13 +133,14 @@ export default function AppleScriptMap({
       /* not on this build */
     }
     map.region = worldRegion(mapkit);
-    setInset(mapkit, map, GUESS_INSET);
+    setInset(mapkit, map, insetRef.current);
     map.addEventListener('single-tap', (event) => {
       if (!interactiveRef.current) return;
       const coordinate = map.convertPointOnPageToCoordinate(event.pointOnPage);
       if (coordinate) onPinRef.current?.({ lat: coordinate.latitude, lng: coordinate.longitude });
     });
     mapRef.current = map;
+    cameraRef.current = cameraFor(map);
 
     // The names the map does carry. Loaded late and drawn when they
     // land, the way tiles stream in: a tap before then is still a tap
@@ -144,12 +158,52 @@ export default function AppleScriptMap({
     return () => {
       stopLabels?.();
       stopFadeRef.current?.();
+      cameraRef.current?.stop();
+      cameraRef.current = null;
       try {
         map.destroy();
       } catch {
         /* gone */
       }
       mapRef.current = null;
+    };
+  }, [mapkit]);
+
+  // Apple's logo, legal link and zoom buttons sit above whatever covers
+  // the bottom of the map while guessing: on a phone the hint and the
+  // Guess button are twice the height they are on a desktop, and they
+  // were drawn over all three.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapkit || !map || mode !== 'guess') return;
+    setInset(mapkit, map, guessInset);
+  }, [mapkit, guessInset, mode]);
+
+  /*
+   * The reveal changes the map's size after it is framed: the answer
+   * panel arrives under it and the sentence above it shrinks, so the map
+   * loses more than half its height. MapKit keeps its centre and zoom
+   * through a resize, and the answer framed for the tall map was cut
+   * down to its middle: on the live site the player's own pin and the
+   * nearest place the language is used were off the top of the map.
+   * Once the box settles, frame it again.
+   */
+  useEffect(() => {
+    const node = hostRef.current;
+    if (!mapkit || !node || typeof ResizeObserver === 'undefined') return undefined;
+    let timer = 0;
+    let last = { w: node.clientWidth, h: node.clientHeight };
+    const observer = new ResizeObserver(() => {
+      const now = { w: node.clientWidth, h: node.clientHeight };
+      if (Math.abs(now.w - last.w) < 2 && Math.abs(now.h - last.h) < 2) return;
+      last = now;
+      clearTimeout(timer);
+      timer = setTimeout(() => fitRef.current?.(), 140);
+    });
+    observer.observe(node);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
     };
   }, [mapkit]);
 
@@ -178,9 +232,12 @@ export default function AppleScriptMap({
     if (previous.annotations.length) map.removeAnnotations(previous.annotations);
     if (previous.overlays.length) map.removeOverlays(previous.overlays);
     drawnRef.current = { annotations: [], overlays: [] };
-    setInset(mapkit, map, mode === 'result' ? REVEAL_INSET : GUESS_INSET);
+    fitRef.current = null;
+    setInset(mapkit, map, mode === 'result' ? REVEAL_INSET : insetRef.current);
     if (mode !== 'result' || !answer) {
-      map.region = worldRegion(mapkit);
+      // Through the camera: straight after a reveal its framing can still
+      // be moving, and a plain set would be dropped.
+      cameraRef.current?.move(worldRegion(mapkit), false);
       return;
     }
 
@@ -188,10 +245,8 @@ export default function AppleScriptMap({
     // is one number to move rather than several hundred.
     const style = answerStyle(mapkit, FILL_OPACITY, STROKE_OPACITY);
     const overlays = [];
-    const focusedOverlays = [];
     const annotations = [];
     for (const region of answer.regions || []) {
-      const firstOverlay = overlays.length;
       // Each ring is its own piece of land and never a hole: the data
       // keeps outer rings only (app/lib/geo/server/regions.js), so an
       // island is a shape of its own rather than a bite out of a coast.
@@ -213,16 +268,15 @@ export default function AppleScriptMap({
           })
         );
       }
-      if (answer.regions.indexOf(region) === selectedRegion) focusedOverlays.push(...overlays.slice(firstOverlay));
     }
+    // To the nearest point on the region's edge when the server measured
+    // one, which is where the language actually starts; otherwise to the
+    // nearest region's middle.
+    const nearest = guess ? nearestPoint || nearestRegion(guess, answer.regions || []) : null;
     if (guess) {
       annotations.push(
         new mapkit.MarkerAnnotation(new mapkit.Coordinate(guess.lat, guess.lng), { color: GUESS, title: 'Your guess' })
       );
-      // To the nearest point on the region's edge when the server
-      // measured one, which is where the language actually starts;
-      // otherwise to the nearest region's middle.
-      const nearest = nearestPoint || nearestRegion(guess, answer.regions || []);
       if (nearest) {
         annotations.push(
           new mapkit.MarkerAnnotation(new mapkit.Coordinate(nearest.lat, nearest.lng), {
@@ -244,22 +298,31 @@ export default function AppleScriptMap({
     if (annotations.length) map.addAnnotations(annotations);
     drawnRef.current = { annotations, overlays };
 
-    try {
-      map.showItems(focusedOverlays.length ? focusedOverlays : [...annotations, ...overlays], {
-        animate: !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
-        // Short mobile maps need enough unpadded space to fit the answer.
-        padding: new mapkit.Padding(
-          Math.min(44, (hostRef.current?.clientHeight || 320) * 0.1),
-          Math.min(44, (hostRef.current?.clientWidth || 320) * 0.1),
-          Math.min(44, (hostRef.current?.clientHeight || 320) * 0.1),
-          Math.min(44, (hostRef.current?.clientWidth || 320) * 0.1),
-        ),
-        minimumSpan: new mapkit.CoordinateSpan(1.2, 1.2),
-      });
-    } catch {
-      /* one item, or a build without showItems: centre on it instead */
-      if (annotations[0]) map.center = annotations[0].coordinate;
-    }
+    // What the camera frames: one region when one is chosen, otherwise
+    // the pin, the nearest place the language is used, and every region.
+    // Not showItems: it measures west to east without wrapping, so a
+    // language spoken either side of the Pacific framed the whole world,
+    // and it cannot be queued behind a move that is still animating.
+    const focused = selectedRegion != null ? (answer.regions || [])[selectedRegion] : null;
+    const points = [
+      ...(focused ? [] : [guess && { ...guess, weight: 3 }, nearest && { lat: nearest.lat, lng: nearest.lng, weight: 3 }]),
+      ...(focused ? [focused] : answer.regions || []).flatMap(regionCorners),
+    ].filter(Boolean);
+    const animate = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const fit = (moving) => {
+      if (!points.length) return;
+      const node = hostRef.current;
+      const width = node?.clientWidth || 0;
+      const height = node?.clientHeight || 0;
+      const padding = Math.max(24, Math.min(56, Math.min(width, height) * 0.12));
+      const r = regionAround(points, { width, height, padding, minimumSpan: 1.2 });
+      cameraRef.current?.move(
+        new mapkit.CoordinateRegion(new mapkit.Coordinate(r.lat, r.lng), new mapkit.CoordinateSpan(r.latSpan, r.lngSpan)),
+        moving
+      );
+    };
+    fit(animate);
+    fitRef.current = () => fit(animate);
     stopFadeRef.current = fadeIn(mapkit, style, overlays);
 
     return () => stopFadeRef.current?.();
@@ -445,6 +508,36 @@ function setInset(mapkit, map, bottom) {
 
 function worldRegion(mapkit) {
   return new mapkit.CoordinateRegion(new mapkit.Coordinate(20, 0), new mapkit.CoordinateSpan(150, 300));
+}
+
+/**
+ * A region as the corners of the box around each of its pieces, which is
+ * all the framing needs: 2 points a ring rather than hundreds.
+ */
+function regionCorners(region) {
+  const rings = region?.rings || [];
+  if (rings.length) {
+    return rings.flatMap((ring) => {
+      let south = 90;
+      let north = -90;
+      let west = 180;
+      let east = -180;
+      for (const [lng, lat] of ring) {
+        if (lat < south) south = lat;
+        if (lat > north) north = lat;
+        if (lng < west) west = lng;
+        if (lng > east) east = lng;
+      }
+      return south <= north ? [{ lat: south, lng: west, weight: 1 }, { lat: north, lng: east, weight: 1 }] : [];
+    });
+  }
+  if (Number.isFinite(region?.lat) && Number.isFinite(region?.lng)) {
+    const km = Number.isFinite(region.radiusKm) ? region.radiusKm : 0;
+    const dLat = km / 111;
+    const dLng = km / (111 * Math.max(0.1, Math.cos((region.lat * Math.PI) / 180)));
+    return [{ lat: region.lat - dLat, lng: region.lng - dLng, weight: 1 }, { lat: region.lat + dLat, lng: region.lng + dLng, weight: 1 }];
+  }
+  return [];
 }
 
 /** Straight-line nearest by squared degrees: only used to draw a line. */

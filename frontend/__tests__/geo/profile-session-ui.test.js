@@ -72,14 +72,26 @@ test('a signed-in account with a chosen name is not nagged', async () => {
   expect(screen.queryByRole('button', { name: 'Choose your name' })).toBeNull();
 });
 
+// A guest who never chose a name is titled as what they are. The page
+// used to be titled "Player", the placeholder, which read as an account
+// somebody had made and named for them.
 test('a guest is offered an account rather than a rename', async () => {
   ensureProfile.mockResolvedValue({ ...profile('Player', 0), signedIn: false });
   global.fetch = jest.fn(async () => response(0));
   render(<ProfileClient />);
-  await screen.findByRole('heading', { name: /^Player/ });
+  await screen.findByRole('heading', { name: /^Guest/ });
+  expect(screen.queryByRole('heading', { name: /^Player/ })).toBeNull();
   expect(screen.queryByText(PROMPT)).toBeNull();
-  expect(screen.getByText(/Guest on this browser/)).toBeInTheDocument();
+  expect(screen.getByText(/Not signed in/)).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/geo/signin?next=%2Fgeo%2Fme');
+});
+
+test('a guest who chose a name is shown by it, and still told this is one browser', async () => {
+  ensureProfile.mockResolvedValue({ ...profile('Ada', 0), signedIn: false });
+  global.fetch = jest.fn(async () => response(0));
+  render(<ProfileClient />);
+  await screen.findByRole('heading', { name: /^Ada/ });
+  expect(screen.getByText(/Guest on this browser/)).toBeInTheDocument();
 });
 
 test('cosmetic purchase and equip use named touch-sized controls and update the balance', async () => {

@@ -133,7 +133,22 @@ export default function GameHud({
         <div
           className={`pointer-events-auto flex items-center gap-3 py-1.5 pl-4 pr-1.5 ${pill}`}
         >
-          <Stat label={isStreak ? 'Country streak' : modeLabel}>
+          <Stat
+            label={
+              isStreak || !roundsTotal ? (
+                isStreak ? 'Country streak' : modeLabel
+              ) : (
+                <>
+                  {modeLabel}
+                  {/* The round lives in the top centre, which a phone
+                      has no room for; here it costs four characters. */}
+                  <span className="sm:hidden" data-geo-round-short>
+                    {' '}· {roundNumber}/{roundsTotal}
+                  </span>
+                </>
+              )
+            }
+          >
             <span className="text-sm font-semibold text-white">
               {isStreak ? `Streak ${streak}` : playing}
             </span>
@@ -142,8 +157,8 @@ export default function GameHud({
       </div>
 
       {/* Top centre: which round this is. Hidden on a phone, where the
-          top row has no room for three things and the round number is
-          the least urgent of them. */}
+          top row has no room for three things; there the round is a
+          short "1/5" in the pill on the left. */}
       {!isStreak && roundsTotal ? (
         <div className="pointer-events-none absolute left-1/2 top-3 z-30 hidden -translate-x-1/2 sm:top-4 sm:block">
           <div className={`px-6 py-3 text-sm font-semibold text-white ${pill}`}>

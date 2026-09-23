@@ -44,6 +44,7 @@ import ScriptSample from './ScriptSample';
 import KeepThis from '../KeepThis';
 import SaveGameButton from '../SaveGameButton';
 import { useSavedGame } from '../../lib/savedGame';
+import { playerMessage } from '../../lib/networkError';
 // The screen's own stylesheet: the light palette the map is drawn in,
 // and the animations. Imported here rather than by the map, which is
 // loaded late, so the sentence and the panels animate before the map's
@@ -109,7 +110,10 @@ export default function ScriptPlayClient() {
     // and cannot match the saved checkpoint. Next observes native history.
     const canonical = new URLSearchParams(params.toString());
     canonical.set('seed', randomSeedString());
-    window.history.replaceState(window.history.state, '', `${window.location.pathname}?${canonical}${window.location.hash}`);
+    // null, not history.state: Next ignores a replaceState that carries
+    // its own state, so useSearchParams never saw the seed and a seedless
+    // link sat on "Opening game" for good. Next copies its state across.
+    window.history.replaceState(null, '', `${window.location.pathname}?${canonical}${window.location.hash}`);
   }, [params, seed]);
   if (!seed) return <div role="status" className="fixed inset-0 z-[60] flex items-center justify-center bg-[#f4efe4] text-sand-900">Opening game…</div>;
   return <ScriptPlayGame key={params.toString()} params={params} />;
@@ -131,11 +135,29 @@ function ScriptPlayGame({ params }) {
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [history, setHistory] = useState([]);
   const [sending, setSending] = useState(false);
+  // A guess that did not reach the server. The round and the pin stay,
+  // and pressing the button again sends it again.
+  const [guessError, setGuessError] = useState('');
+  // Bumped by Try again, to ask for the same round once more.
+  const [attempt, setAttempt] = useState(0);
   const submittingRef = useRef(false);
   const [secondsLeft, setSecondsLeft] = useState(config.timer || 0);
   const [mapTrouble, setMapTrouble] = useState(false);
   const [mapkit, setMapkit] = useState(null);
   const [provider, setProvider] = useState('pending');
+  // How much of the map's bottom edge the hint and the Guess button
+  // cover, so Apple's logo, legal link and zoom buttons sit above them.
+  const controlsRef = useRef(null);
+  const [controlsHeight, setControlsHeight] = useState(0);
+  useEffect(() => {
+    const node = controlsRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return undefined;
+    const measure = () => setControlsHeight(Math.round(node.getBoundingClientRect().height));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [result]);
   const playthrough = params.get('replay');
   const resumeUrl = `/geo/script/play?${scriptConfigToQuery(config)}${playthrough ? `&replay=${encodeURIComponent(playthrough)}` : ''}&resume=1`;
   const { ready: saveReady, saveError } = useSavedGame({
@@ -224,6 +246,7 @@ function ScriptPlayGame({ params }) {
     let live = true;
     setLoading(true);
     setError('');
+    setGuessError('');
     setRound(null);
     setPin(null);
     setResult(null);
@@ -242,18 +265,19 @@ function ScriptPlayGame({ params }) {
           setSecondsLeft(config.timer || 0);
         }
       })
-      .catch((roundError) => live && setError(roundError.message))
+      .catch((roundError) => live && setError(playerMessage(roundError, 'Could not start the round')))
       .finally(() => live && setLoading(false));
     return () => {
       live = false;
     };
-  }, [config, roundIndex, saveReady, history.length]);
+  }, [config, roundIndex, saveReady, history.length, attempt]);
 
   const submit = useCallback(
     async (guess) => {
       if (!round?.token || sending || submittingRef.current || result || roundIndex >= config.rounds || history.length > roundIndex) return;
       submittingRef.current = true;
       setSending(true);
+      setGuessError('');
       try {
         const response = await fetch('/api/geo/script/guess', {
           method: 'POST',
@@ -268,8 +292,8 @@ function ScriptPlayGame({ params }) {
           ...rows,
           { ...data.result, text: round.text, script: round.script },
         ]);
-      } catch (guessError) {
-        setError(guessError.message);
+      } catch (failure) {
+        setGuessError(playerMessage(failure, 'Could not score the guess'));
       } finally {
         submittingRef.current = false;
         setSending(false);
@@ -389,10 +413,15 @@ function ScriptPlayGame({ params }) {
             </p>
           ) : error ? (
             <div className="py-2 text-sm">
-              <p className="text-red-600">{error}</p>
-              <Link href="/geo/script" className="ui-btn ui-btn--primary mt-3">
-                Back to Script
-              </Link>
+              <p role="alert" className="text-red-700">{error}</p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <button type="button" className="ui-btn ui-btn--primary" onClick={() => setAttempt((n) => n + 1)}>
+                  Try again
+                </button>
+                <Link href="/geo/script" className="ui-btn ui-btn--secondary">
+                  Back to Script
+                </Link>
+              </div>
             </div>
           ) : round ? (
             <div key={roundIndex} className="wg-sentence-in">
@@ -413,6 +442,7 @@ function ScriptPlayGame({ params }) {
             guess={result?.guess || null}
             nearestPoint={result?.nearestPoint || null}
             selectedRegion={selectedRegion}
+            guessInset={controlsHeight || undefined}
             onUnavailable={() => setProvider('leaflet')}
           />
         ) : provider === 'leaflet' ? (
@@ -445,12 +475,17 @@ function ScriptPlayGame({ params }) {
         ) : null}
 
         {!result ? (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
+          <div ref={controlsRef} className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-3 sm:p-4">
             <div className="mx-auto max-w-md">
-              {!pin && !loading && round ? (
+              {guessError ? (
+                <p role="alert" className="mb-2 text-center text-sm font-medium text-red-700">
+                  <span className="inline-block rounded-2xl bg-[#fffdf8]/95 px-3 py-1 shadow-sm">{guessError}</span>
+                </p>
+              ) : !pin && !loading && round ? (
                 <p className="mb-2 text-center text-sm font-medium text-sand-700">
                   <span className="rounded-full bg-[#fffdf8]/90 px-3 py-1 shadow-sm">
-                    Tap the map where that language is used
+                    <span className="sm:hidden">Tap the map where that language is used</span>
+                    <span className="hidden sm:inline">Click the map where that language is used</span>
                   </span>
                 </p>
               ) : null}

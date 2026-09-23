@@ -195,6 +195,19 @@ test('a whole game on one map numbers its pins instead of titling each one', () 
 });
 
 /**
+ * A single reveal has one answer, so a number on its pin says nothing,
+ * and it said "1" on every round of the game.
+ */
+test('a single reveal does not number its answer pin', () => {
+  window.matchMedia = (q) => ({ matches: q.includes('reduce'), addEventListener() {}, removeEventListener() {} });
+  const { fake, results, getMap } = setup();
+  const { rerender } = render(<AppleGuessMap mapkit={fake.mapkit} mode="guess" results={[]} />);
+  act(() => { rerender(<AppleGuessMap mapkit={fake.mapkit} mode="result" results={results} />); });
+  const answer = getMap().annotations.find((a) => a.title === 'Where you were');
+  expect(answer.glyphText).toBeUndefined();
+});
+
+/**
  * At the end of a game the map's box eases its bottom edge up to make
  * room for the summary, after the camera was placed. MapKit keeps its
  * zoom through a resize, so the answers ended up off the edge. The map
@@ -275,6 +288,41 @@ describe('regionAround', () => {
     const r = regionAround([{ lat: -15.8, lng: -47.9, weight: 1 }, { lat: 35.7, lng: 139.7, weight: 2 }], { width: 374, height: 250 });
     expect(lngCovers(r, 139.7)).toBe(true);
     expect(lngCovers(r, -47.9)).toBe(false);
+  });
+
+  /*
+   * Where MapKit draws a latitude for a region, as measured in a browser:
+   * centred on the region's centre, the height of its span over the
+   * cosine of that centre, zoomed so both spans fit the box.
+   */
+  const RAD = Math.PI / 180;
+  const y = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2));
+  const pixelY = (r, lat, width, height) => {
+    const scale = Math.min(width / (r.lngSpan * RAD), height / ((r.latSpan * RAD) / Math.cos(r.lat * RAD)));
+    return height / 2 - (y(lat) - y(r.lat)) * scale;
+  };
+
+  // Measured on a reveal: an answer at 43 north sat 40px from the top of
+  // a 532px map, its pin cut off, and the guess at 12 north had 70px.
+  test('the northern pin gets its room too: padding is in the projection, not in degrees', () => {
+    const points = [{ lat: 43.04, lng: -75 }, { lat: 12.14, lng: -40 }];
+    const box = { width: 1422, height: 532 };
+    const r = regionAround(points, box);
+    expect(pixelY(r, 43.04, box.width, box.height)).toBeGreaterThanOrEqual(60);
+    expect(box.height - pixelY(r, 12.14, box.width, box.height)).toBeGreaterThanOrEqual(40);
+    // The same in the south, where the stretch is the other way round.
+    const south = regionAround([{ lat: -12, lng: 20 }, { lat: -55, lng: 60 }], box);
+    expect(pixelY(south, -12, box.width, box.height)).toBeGreaterThanOrEqual(60);
+    expect(box.height - pixelY(south, -55, box.width, box.height)).toBeGreaterThanOrEqual(40);
+  });
+
+  // A phone reveal of Christchurch after a guess in Europe was framed on
+  // Christchurch's roads: the answer alone, at the tightest zoom.
+  test('an answer framed without its guess still shows the country around it', () => {
+    const r = regionAround([{ lat: 48, lng: 2, weight: 1 }, { lat: -43.5, lng: 172.6, weight: 2 }], { width: 374, height: 440 });
+    expect(lngCovers(r, 172.6)).toBe(true);
+    expect(r.lngSpan).toBeGreaterThanOrEqual(45);
+    expect(r.latSpan).toBeGreaterThanOrEqual(20);
   });
 
   test('leaves room for the pins at the edges, and never zooms to a roof', () => {
