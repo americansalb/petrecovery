@@ -138,6 +138,16 @@ describe('GET /api/public/missions/[caseNumber] - PII contract', () => {
     expect(body.contact.name).toBe('The owner');
   });
 
+  it('sends no phone when the stored value is not a number (found reports stored "Not provided")', async () => {
+    prisma.case.findUnique.mockResolvedValue({ ...LOST_CASE, reportType: 'FOUND', ownerPhone: 'Not provided' });
+
+    const res = await getPublicCase(publicCaseRequest(), { params: { caseNumber: 'AUS-2026-0001' } });
+    const body = await res.json();
+
+    expect(body.contact.phone).toBeNull();
+    expect(body.contact.available).toBe(false);
+  });
+
   it('applies the same contract to FOUND reports', async () => {
     prisma.case.findUnique.mockResolvedValue({ ...LOST_CASE, reportType: 'FOUND' });
 

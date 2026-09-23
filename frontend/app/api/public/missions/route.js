@@ -9,6 +9,7 @@
  */
 
 import { parsePlace } from '@/app/lib/placeLabel';
+import { normalizeState, STATE_NAME } from '@/app/lib/usStates';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
@@ -98,16 +99,26 @@ export async function GET(request) {
       ];
     }
 
-    // Filter by city/state from address if provided
-    if (city) where.lastSeenAddress = { contains: city, mode: 'insensitive' };
+    // Town and state, from the city pages (/lost-pet/orlando-fl). Both must
+    // match, as separate conditions: this used to write the state into the
+    // same `contains` as the town, which dropped the town, so the Orlando
+    // page listed every address containing the letters "fl". Geocoded
+    // addresses spell the state out ("Florida"); typed ones abbreviate it
+    // (", FL 32801"), so either counts. The code is matched case-sensitively
+    // after a comma so "FL" cannot match inside a word.
+    const place = [];
+    if (city) place.push({ lastSeenAddress: { contains: city, mode: 'insensitive' } });
     if (state) {
-      // State might be in address - add OR condition
-      where.lastSeenAddress = {
-        ...(where.lastSeenAddress || {}),
-        contains: state,
-        mode: 'insensitive'
-      };
+      const code = normalizeState(state);
+      const name = STATE_NAME[code];
+      place.push({
+        OR: [
+          { lastSeenAddress: { contains: `, ${code}` } },
+          ...(name ? [{ lastSeenAddress: { contains: name, mode: 'insensitive' } }] : []),
+        ],
+      });
     }
+    if (place.length) where.AND = place;
     if (species) where.petSpecies = species;
 
     // Fetch cases from main Case model (NO sensitive fields exposed)

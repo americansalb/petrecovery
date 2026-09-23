@@ -9,6 +9,7 @@
 
 import { speciesLabel } from '@/app/lib/species';
 import { PIN_ONLY_LABEL } from '@/app/lib/maps/reverseLabel';
+import { isCaseOpen } from '@/app/lib/caseStatus';
 
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
@@ -23,9 +24,17 @@ function sentenceCase(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
 }
 
-/** Lost, found or home: the one status a reader needs. */
+// Outcomes that mean the pet is back with its family (enum CaseResolution).
+const HOME_RESOLUTIONS = new Set(['REUNITED', 'FOUND_BY_OWNER', 'FOUND_AT_SHELTER', 'CAME_HOME']);
+
+/**
+ * Lost, found, home or closed: the one status a reader needs. A search
+ * closed for any other reason (the owner stopped, or worse) reads as
+ * closed, never as still lost, and the reason stays private.
+ */
 export function caseStatus(c) {
-  if (c.status === 'REUNITED' || c.resolution === 'REUNITED') return { key: 'home', label: 'Home' };
+  if (c.status === 'REUNITED' || HOME_RESOLUTIONS.has(c.resolution)) return { key: 'home', label: 'Home' };
+  if (c.status && !isCaseOpen(c.status)) return { key: 'closed', label: 'Closed' };
   if (c.reportType === 'FOUND') return { key: 'found', label: 'Found' };
   return { key: 'lost', label: 'Lost' };
 }
@@ -77,6 +86,72 @@ export function caseTimeline(c, now = Date.now()) {
       ? `Home after ${span(end - start)}`
       : 'Back home';
   }
+  if (key === 'closed') return 'Search closed';
   if (!Number.isFinite(start)) return '';
   return key === 'found' ? `Found ${span(now - start)} ago` : `Missing ${span(now - start)}`;
+}
+
+/** "Medium", "Extra large": the size enum as a word, or '' when unknown. */
+export function caseSize(c) {
+  const v = known(c.petSize);
+  return v ? sentenceCase(v.replace(/_/g, ' ')) : '';
+}
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * The reporter's description, minus the line the report form writes on
+ * its own. That line is the colour and the species enum ("Golden, White
+ * DOG", "Found white, brown cat", "White DOG - Bichon"), which repeats the
+ * breed line above it. What the reporter typed around it stays, so
+ * "Indoor cat. white, tan, gray CAT" keeps "Indoor cat."
+ */
+export function caseDescription(c) {
+  let text = String(c.petDescription || '').trim();
+  const color = String(c.petColor || '').trim();
+  const species = String(c.petSpecies || '').trim();
+  if (text && color && species) {
+    const breed = known(c.petBreed);
+    const tail = breed ? `(?:\\s*-\\s*${escapeRegExp(breed)})?` : '';
+    const generated = new RegExp(`(?:found\\s+)?${escapeRegExp(color)}\\s+${escapeRegExp(species)}\\b${tail}`, 'i');
+    text = text.replace(generated, '');
+  }
+  text = text.replace(/^[\s.,;:-]+|[\s,;:-]+$/g, '').trim();
+  return /[a-z0-9]/i.test(text) ? text : '';
+}
+
+/**
+ * The contact number as something a phone can dial, or null. Found
+ * reports stored the words "Not provided" when the finder left it blank,
+ * which made a Call button that dialled nothing.
+ */
+export function casePhone(c) {
+  const display = String(c.contact?.phone || '').trim();
+  const digits = display.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) return null;
+  return { display, tel: `${display.startsWith('+') ? '+' : ''}${digits}` };
+}
+
+/** "Aug 18", or "Aug 18, 2025" when it was another year. */
+export function shortDate(date, now = Date.now()) {
+  const d = date == null || date === '' ? new Date(NaN) : new Date(date);
+  if (!Number.isFinite(d.getTime())) return '';
+  const sameYear = d.getFullYear() === new Date(now).getFullYear();
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+}
+
+/** "just now", "12 minutes ago", "3 hours ago", "4 days ago", then the date. */
+export function timeAgo(date, now = Date.now()) {
+  const t = date == null || date === '' ? NaN : new Date(date).getTime();
+  if (!Number.isFinite(t)) return '';
+  const minutes = Math.floor(Math.max(0, now - t) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+  return shortDate(t, now);
 }

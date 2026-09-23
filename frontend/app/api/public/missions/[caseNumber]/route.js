@@ -11,6 +11,7 @@
  */
 
 import { parsePlace } from '@/app/lib/placeLabel';
+import { casePhone } from '@/app/lib/caseLabels';
 import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
@@ -218,11 +219,16 @@ export async function GET(request, { params }) {
     // The phone is still per-case PII on an unauthenticated route, so the handler
     // is rate limited (see PUBLIC_CASE_DETAIL_LIMIT above) to keep a legitimate
     // one-off lookup working while making enumeration expensive.
+    //
+    // Only a number a phone can dial ships: found reports stored the words
+    // "Not provided" when the finder left the field blank, and the page
+    // turned that into a Call button.
     const contactFirstName = String(missionData.ownerName || '').trim().split(/\s+/)[0] || 'The owner';
+    const contactPhone = casePhone({ contact: { phone: missionData.ownerPhone } })?.display || null;
     response.contact = {
-      available: Boolean(missionData.ownerPhone),
+      available: Boolean(contactPhone),
       name: contactFirstName,
-      phone: missionData.ownerPhone || null,
+      phone: contactPhone,
       disclaimer: 'Contact information provided by reporter. Please exercise caution when communicating with strangers.'
     };
 
