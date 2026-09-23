@@ -160,14 +160,17 @@ export default function GeoHeader() {
           </span>
           {/* Not on the sign-in page itself: a button whose whole job is
               to bring you to the screen you are reading is one more
-              control that does nothing, and there are enough of those. */}
+              control that does nothing, and there are enough of those.
+              Either control is only known once the page has read the
+              session, a moment after it paints, so it fades in rather
+              than popping into the bar. */}
           {signedIn === false && !pathname.startsWith('/geo/signin') ? (
-            <Link href="/geo/signin" className="pe-header-cta">
+            <Link href="/geo/signin" className="pe-header-cta pe-fade-in">
               Sign in
             </Link>
           ) : null}
           {signedIn === true ? (
-            <Link href="/geo/me" className="pe-header-who" title={who ? `Signed in as ${who}` : 'Your profile'}>
+            <Link href="/geo/me" className="pe-header-who pe-fade-in" title={who ? `Signed in as ${who}` : 'Your profile'}>
               <UserRound size={15} strokeWidth={2} aria-hidden="true" />
               <span>{who || 'Account'}</span>
             </Link>

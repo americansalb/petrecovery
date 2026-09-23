@@ -38,8 +38,8 @@ export default function PhoneSignIn({ requireName, name, setName, onAuthenticate
   };
 
   return (
-    <div>
-      {challenge ? <div className="mt-4" role="status"><h3 className="text-xl font-semibold">Check your texts</h3><p className="mt-2 text-white/70">Enter the code sent to {phone}.</p></div> : null}
+    <div className="pe-swap">
+      {challenge ? <div className="pe-swap mt-4" role="status"><h3 className="text-xl font-semibold">Check your texts</h3><p className="mt-2 text-white/70">Enter the code sent to {phone}.</p></div> : null}
       <form method="post" onSubmit={submit} className="pe-account-form">
         {!challenge && requireName ? <label htmlFor="geo-phone-name"><span className="flex items-center gap-2"><UserRound size={16} aria-hidden="true" /> Player name</span><input id="geo-phone-name" required maxLength={20} autoComplete="nickname" value={name} onChange={(event) => setName(event.target.value)} /></label> : null}
         {challenge ? <label htmlFor="geo-phone-code"><span>Verification code</span><input id="geo-phone-code" autoFocus required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{4,10}" maxLength={10} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))} /></label> : <label htmlFor="geo-phone-number"><span className="flex items-center gap-2"><Phone size={16} aria-hidden="true" /> Phone number</span><input id="geo-phone-number" type="tel" required autoComplete="tel" maxLength={40} placeholder="+1 202 555 0123" aria-describedby="geo-phone-help" value={phone} onChange={(event) => setPhone(event.target.value)} /><span id="geo-phone-help" className="text-xs font-normal text-white/60">Include your country code. We’ll text you a sign-in code.</span></label>}

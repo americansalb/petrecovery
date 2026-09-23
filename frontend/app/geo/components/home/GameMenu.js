@@ -40,6 +40,7 @@ import { APPLE_COVERAGE_NAMES } from "@/app/lib/geo/coverage";
 import { profileHeaders } from "../../lib/profile";
 import { loadGeoConfig } from "../../lib/serverConfig";
 import { initializeMapKit } from "../../lib/appleMapKit";
+import { prefersReducedMotion } from "../../lib/motion";
 import ScriptArtwork from "./ScriptArtwork";
 import Button from "../ui/Button";
 import { latestSavedGame } from '../../lib/savedGame';
@@ -227,7 +228,21 @@ export default function GameMenu() {
             <i />
           </div>
         )}
-        <a className="pe-scene-next" href="#compete-title">
+        {/* Glides down to the challenges rather than jumping there. The
+            hash stays for a page that has not hydrated yet. */}
+        <a
+          className="pe-scene-next"
+          href="#compete-title"
+          onClick={(event) => {
+            const target = document.querySelector(".pe-competition");
+            if (!target) return;
+            event.preventDefault();
+            target.scrollIntoView({
+              behavior: prefersReducedMotion() ? "auto" : "smooth",
+              block: "start",
+            });
+          }}
+        >
           Daily challenges & rankings <ArrowRight size={15} />
         </a>
       </section>

@@ -175,8 +175,11 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   // is "poor"). The placeholders stand where the title, the two fields
   // and the button will be; nothing here is a field, so nothing can be
   // typed into before the page knows who is signed in.
+  // Every state below has its own key, so going from one to the next
+  // mounts a fresh element and it arrives (pe-swap) rather than
+  // rewriting the one already on screen.
   if (checkingAccount) return (
-    <div className={compact ? '' : 'rounded-xl border border-white/10 p-4'}>
+    <div key="checking" className={compact ? '' : 'rounded-xl border border-white/10 p-4'}>
       <p role="status" className="text-sm font-semibold text-white/70">Checking your account…</p>
       <div aria-hidden="true">
         {!compact ? <>
@@ -196,7 +199,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
     </div>
   );
   if (accountError) return (
-    <div className="py-4">
+    <div key="error" className="pe-swap py-4">
       <p role="alert" className="text-sm text-white/80">{accountError}</p>
       <button type="button" className="mt-2 min-h-[44px] px-3 underline" onClick={() => setCheckAttempt((n) => n + 1)}>Check again</button>
     </div>
@@ -204,7 +207,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
 
   if (account) {
     return (
-      <div className="rounded-xl border border-white/10 p-4">
+      <div key="account" className="pe-swap rounded-xl border border-white/10 p-4">
         <p className="flex items-center gap-2 font-semibold text-white">
           <Check className="h-4 w-4 text-green-400" /> Signed in as {account.email || account.account?.phone}
         </p>
@@ -224,7 +227,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
           )}
         </div>
         {confirmDelete ? (
-          <div className="mt-3 rounded-lg border border-red-400/40 bg-red-950/60 p-3">
+          <div className="pe-swap mt-3 rounded-lg border border-red-400/40 bg-red-950/60 p-3">
             <p className="text-sm font-semibold text-red-100">Delete this account?</p>
             <p className="mt-1 text-sm text-red-200">
               This removes your contact details, your profile, your rating, points, badges and results, and your scores on
@@ -253,7 +256,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   if (method === 'phone') return <PhoneSignIn requireName={requireName} name={name} setName={setName} onUseEmail={() => setMethod('email')} onAuthenticated={(data) => { setAccount(data); setMessage('Signed in.'); authenticatedRef.current?.(); }} />;
 
   if (state === 'sent') return (
-    <div className="mt-6" role="status" aria-live="polite">
+    <div key="sent" className="pe-swap mt-6" role="status" aria-live="polite">
       <Mail size={36} className="mb-4 text-clay-300" aria-hidden="true" />
       <h3 className="text-xl font-semibold">Check your email</h3>
       <p className="mt-2 break-words text-white/80">{email}</p>
@@ -264,7 +267,7 @@ export default function SignInCard({ returnTo = '/geo/me', requireName = false, 
   );
 
   return (
-    <div className={compact ? '' : 'rounded-xl border border-white/10 p-4'}>
+    <div key="form" className={`pe-swap ${compact ? '' : 'rounded-xl border border-white/10 p-4'}`}>
       {!compact ? <>
       {/* One door. The old copy told everyone they were making
           something new, which is wrong half the time and is why coming
