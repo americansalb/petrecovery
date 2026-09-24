@@ -41,7 +41,9 @@ export async function POST(request, { params }) {
       },
     });
 
-    if (!membership) {
+    // Leaving a force only deactivates the membership row, so the row alone
+    // let former and removed members keep commenting.
+    if (!membership?.isActive) {
       return NextResponse.json(
         { error: 'You must be a rescue force member to comment' },
         { status: 403 }

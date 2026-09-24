@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { normalizePhotoUrl } from '@/app/lib/utils';
 import { userCanReadForceChannels } from '@/app/lib/authz';
+import { caseStatus } from '@/app/lib/caseLabels';
 
 /**
  * Check if a point is inside a GeoJSON polygon using ray casting algorithm
@@ -272,10 +273,14 @@ export async function GET(request, { params }) {
       if (hoursSinceLastSeen < 24) urgency = 'HIGH';
       else if (hoursSinceLastSeen < 72) urgency = 'MEDIUM';
 
-      // Map case status to hub status
+      // Map case status to hub status, with the site's one rule for home
+      // and closed (caseStatus). This checked for 'RESOLVED' and 'CLOSED',
+      // which are not CaseStatus values, so a closed or reunited case with
+      // no resolution recorded stayed on the board as live.
+      const shown = caseStatus(c).key;
       let status = 'ACTIVE';
-      if (c.status === 'RESOLVED' || c.resolution === 'REUNITED') status = 'REUNITED';
-      else if (c.status === 'CLOSED' || c.resolution) status = 'CLOSED_OTHER';
+      if (shown === 'home') status = 'REUNITED';
+      else if (shown === 'closed') status = 'CLOSED_OTHER';
       else if (assignment.status === 'ACCEPTED') status = 'PENDING';
       else if (assignment.status === 'ACTIVE') status = 'IN_PROGRESS';
 

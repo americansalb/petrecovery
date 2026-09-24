@@ -24,9 +24,11 @@ export async function POST(request, { params }) {
     const body = await request.json();
     const { vote } = body;
 
-    if (vote !== 1 && vote !== -1) {
+    // 0 takes a vote back. The like button sends it to unlike, and this
+    // route used to answer 400, so a like could never be undone.
+    if (vote !== 1 && vote !== -1 && vote !== 0) {
       return NextResponse.json(
-        { error: 'Vote must be 1 (upvote) or -1 (downvote)' },
+        { error: 'Vote must be 1 (upvote), -1 (downvote) or 0 (remove)' },
         { status: 400 }
       );
     }
@@ -45,7 +47,9 @@ export async function POST(request, { params }) {
       },
     });
 
-    if (!membership) {
+    // Leaving a force only deactivates the membership row, so the row alone
+    // let former and removed members keep voting.
+    if (!membership?.isActive) {
       return NextResponse.json(
         { error: 'You must be a rescue force member to vote' },
         { status: 403 }
@@ -92,6 +96,24 @@ export async function POST(request, { params }) {
     });
 
     let updatedComment;
+
+    if (vote === 0) {
+      if (existingVote) {
+        await prisma.squadCommentVote.delete({
+          where: { commentId_userId: { commentId, userId: session.user.id } },
+        });
+        updatedComment = await prisma.squadPostComment.update({
+          where: { id: commentId },
+          data: existingVote.vote === 1 ? { upvotes: { decrement: 1 } } : { downvotes: { decrement: 1 } },
+        });
+      }
+      return NextResponse.json({
+        success: true,
+        vote: 0,
+        upvotes: (updatedComment || comment).upvotes,
+        downvotes: (updatedComment || comment).downvotes,
+      });
+    }
 
     if (existingVote) {
       if (existingVote.vote === vote) {

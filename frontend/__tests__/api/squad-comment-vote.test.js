@@ -47,7 +47,7 @@ describe('POST squad comment vote (COM-1)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getServerSession.mockResolvedValue({ user: { id: 'member-1' } });
-    prisma.rescueForceMember.findUnique.mockResolvedValue({ id: 'm-1' }); // is a member
+    prisma.rescueForceMember.findUnique.mockResolvedValue({ id: 'm-1', isActive: true }); // is a member (a former member's row has isActive: false)
     prisma.squadPostComment.findUnique.mockResolvedValue({
       id: 'c-1', post: { rescueSquadId: 'squad-1' }, upvotes: 2, downvotes: 0,
     });
