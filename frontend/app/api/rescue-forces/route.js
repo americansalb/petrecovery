@@ -218,7 +218,11 @@ export async function GET(request) {
       squads.forEach(squad => {
         const distance = calculateDistance(searchLat, searchLng, squad.centerLatitude, squad.centerLongitude);
 
-        if (distance <= radius && squad.city && squad.state) {
+        // Distance decides. Forces created automatically from a report were
+        // stored without a state (19 of the first 21), and requiring one hid
+        // them from every search, so "Portland" found nothing while Portland
+        // Pet Rescue existed.
+        if (distance <= radius && squad.city) {
         const key = `${squad.city}-${squad.state}`;
         if (!nearbyCities.has(key) || nearbyCities.get(key).distance > distance) {
           // Calculate division distances and membership
@@ -581,10 +585,27 @@ export async function POST(request) {
 
     const squadName = `${city} Rescue Force`;
 
-    // Check if squad already exists (active) - filter by country
-    const existingActive = await prisma.rescueForce.findFirst({
+    // Check if squad already exists (active) - filter by country. A force
+    // created automatically from a report has no state, so also count one
+    // with the same town name whose centre is within 25 miles; without this
+    // a second force was created for the same town (Carpentersville has two).
+    let existingActive = await prisma.rescueForce.findFirst({
       where: { city, state, country, isDeleted: false }
     });
+    if (!existingActive && latitude != null && longitude != null) {
+      const stateless = await prisma.rescueForce.findMany({
+        where: {
+          city: { equals: city, mode: 'insensitive' },
+          state: null,
+          isDeleted: false,
+          centerLatitude: { not: null },
+          centerLongitude: { not: null },
+        },
+        take: 10,
+      });
+      existingActive =
+        stateless.find((f) => calculateDistance(latitude, longitude, f.centerLatitude, f.centerLongitude) <= 25) || null;
+    }
 
     if (existingActive) {
       await logEvent({

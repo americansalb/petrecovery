@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { parsePlace } from '@/app/lib/placeLabel';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { sendEmail, sendVerificationEmail, renderBrandedEmail, escapeHtml } from '../../../lib/email';
@@ -498,11 +499,16 @@ export async function POST(request) {
       if (squadsToNotify.length === 0 && cityName) {
         console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
 
-        // Auto-create a rescue force for this city
+        // Auto-create a rescue force for this city. The state comes from the
+        // last-seen address: forces made here used to have none, which hid
+        // them from the Rescue Forces search and let a second force be
+        // created for the same town.
+        const autoPlace = parsePlace(lastSeenAddress);
         const newSquad = await prisma.rescueForce.create({
           data: {
             name: `${cityName} Pet Rescue`,
             city: cityName,
+            state: autoPlace?.country === 'US' && autoPlace.state ? autoPlace.state : null,
             country: 'US',
             centerLatitude: center[0],
             centerLongitude: center[1],
