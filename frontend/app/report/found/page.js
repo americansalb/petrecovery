@@ -27,6 +27,7 @@ import PhotoStep from '../../components/report/PhotoStep';
 import ContactFields, { contactIsValid } from '../../components/report/ContactFields';
 import ReviewPosterCard from '../../components/report/ReviewPosterCard';
 import SuccessScreen from '../../components/report/SuccessScreen';
+import { captchaHeaders } from '@/app/lib/captchaClient';
 import TagDetailsStep from '../../components/report/found/TagDetailsStep';
 import DraftPrompt from '../../components/report/DraftPrompt';
 import useWizardHistory from '../../components/report/useWizardHistory';
@@ -68,6 +69,7 @@ export default function ReportFoundPet() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [errorLink, setErrorLink] = useState(null);
   const [result, setResult] = useState(null);
   const [pendingDraft, setPendingDraft] = useState(null); // unfinished draft awaiting resume/fresh choice
 
@@ -205,13 +207,17 @@ export default function ReportFoundPet() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
+    setErrorLink(null);
     try {
       const orderedPhotos = photos.length
         ? [photos[displayIndex], ...photos.filter((_, i) => i !== displayIndex)]
         : [];
+      // The same bot check the lost-pet form sends: middleware requires it
+      // on /api/reports* whenever CAPTCHA is switched on, and without it
+      // every found report would be refused.
       const response = await fetch('/api/reports/found-pet', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await captchaHeaders('report_found')) },
         body: JSON.stringify({
           email: effectiveEmail,
           phone: contact.phone.trim(),
@@ -231,7 +237,10 @@ export default function ReportFoundPet() {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to create report');
+      if (!response.ok) {
+        if (data.signInUrl) setErrorLink({ href: data.signInUrl, label: 'Sign in to post it' });
+        throw new Error(data.error || 'Failed to create report');
+      }
       clearDraft(DRAFT_KEY);
       unwind(); // drop pushed history entries so back exits from the success screen
       setResult(data);
@@ -520,6 +529,7 @@ export default function ReportFoundPet() {
           question="Ready to post?"
           hint="Tap any detail to change it."
           error={error}
+          errorLink={errorLink}
           primary={{
             label: `Post ${theme.stamp} report`,
             tone: 'post',

@@ -24,6 +24,7 @@ export default function StepScreen({
   secondary, // { label, onClick }
   skip, // { label, onClick }
   error,
+  errorLink, // { href, label }: the one thing that resolves the error, e.g. sign in
   wide = false, // wider measure (review poster, option grids)
   fillBody = false, // body stretches (map screens)
 }) {
@@ -71,6 +72,11 @@ export default function StepScreen({
               <div className="text-sm">
                 <p className="font-semibold text-red-700">Something went wrong</p>
                 <p className="text-red-600 mt-0.5">{error}</p>
+                {errorLink && (
+                  <a href={errorLink.href} className="mt-2 inline-flex font-semibold text-red-700 underline underline-offset-2">
+                    {errorLink.label}
+                  </a>
+                )}
               </div>
             </div>
           )}
