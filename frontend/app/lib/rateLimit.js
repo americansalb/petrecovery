@@ -644,7 +644,19 @@ export async function describeRateLimitBackend() {
   }
 
   const prisma = await getPrismaClient();
-  if (prisma) return { backend: 'database', durable: true };
+  if (prisma) {
+    // The client loading is not the same as the durable path working. If the
+    // counter table does not answer, every database check throws and the
+    // limiter silently falls back to per-process memory - a cap that does not
+    // hold across instances or restarts. Probe it read-only so that failure is
+    // reported instead of masked as a healthy 'database' backend.
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM "RateLimitCounter" LIMIT 1`;
+      return { backend: 'database', durable: true };
+    } catch (err) {
+      return { backend: 'memory', durable: false, note: `database rate-limit table unavailable: ${err.message}` };
+    }
+  }
 
   return { backend: 'memory', durable: false, note: 'no Redis and no database client' };
 }
