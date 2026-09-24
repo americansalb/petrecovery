@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { userCanReadForceChannels } from '@/app/lib/authz';
 
 /**
  * GET /api/rescue-forces/[id]/announcements
- * Fetch announcements for a squad
+ * Fetch announcements for a squad, for its members (and platform admins)
  *
  * POST /api/rescue-forces/[id]/announcements
  * Create a new announcement (leads/admins only)
@@ -25,7 +26,18 @@ export async function GET(request, { params }) {
       );
     }
 
+    // Announcements are written for the force's members. This used to
+    // answer anyone, signed in or not.
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const squadId = params.id;
+    if (!(await userCanReadForceChannels(session.user.id, squadId))) {
+      return NextResponse.json({ error: 'Not a rescue force member' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const divisionId = searchParams.get('divisionId');
 

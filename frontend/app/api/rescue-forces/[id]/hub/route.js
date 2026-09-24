@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { normalizePhotoUrl } from '@/app/lib/utils';
+import { userCanReadForceChannels } from '@/app/lib/authz';
 
 /**
  * Check if a point is inside a GeoJSON polygon using ray casting algorithm
@@ -221,6 +222,13 @@ export async function GET(request, { params }) {
       console.log('[Hub Debug] No session.user.id - skipping membership check');
     }
 
+    // Chat, announcements and help requests are the force's own channels:
+    // members (and platform admins) only. They used to go to anyone who
+    // opened this URL, signed in or not.
+    const canReadChannels =
+      membership.isMember || (session?.user?.id ? await userCanReadForceChannels(session.user.id, squadId) : false);
+    const PRIVATE_ACTIVITY_TYPES = ['CHAT_MESSAGE', 'ANNOUNCEMENT'];
+
     // Get cases assigned to this squad
     const caseAssignments = await prisma.caseAssignment.findMany({
       where: {
@@ -356,9 +364,12 @@ export async function GET(request, { params }) {
         lastActiveAt: m.joinedAt?.toISOString(),
       }));
 
-    // Get recent activities
+    // Get recent activities (without chat and announcements for outsiders)
     const activities = await prisma.squadActivity.findMany({
-      where: { rescueSquadId: squadId },
+      where: {
+        rescueSquadId: squadId,
+        ...(canReadChannels ? {} : { type: { notIn: PRIVATE_ACTIVITY_TYPES } }),
+      },
       include: {
         actor: {
           select: { firstName: true, lastName: true },
@@ -393,7 +404,7 @@ export async function GET(request, { params }) {
     });
 
     // Get chat messages (stored as SquadActivity with type CHAT_MESSAGE)
-    const chatActivities = await prisma.squadActivity.findMany({
+    const chatActivities = !canReadChannels ? [] : await prisma.squadActivity.findMany({
       where: {
         rescueSquadId: squadId,
         type: 'CHAT_MESSAGE',
@@ -437,7 +448,7 @@ export async function GET(request, { params }) {
       .reverse(); // Oldest first
 
     // Get announcements (stored as SquadActivity with type ANNOUNCEMENT)
-    const announcementActivities = await prisma.squadActivity.findMany({
+    const announcementActivities = !canReadChannels ? [] : await prisma.squadActivity.findMany({
       where: {
         rescueSquadId: squadId,
         type: 'ANNOUNCEMENT',
@@ -451,8 +462,9 @@ export async function GET(request, { params }) {
       take: 10,
     });
 
-    // Auto-create welcome announcement if none exists
-    if (announcementActivities.length === 0) {
+    // Auto-create welcome announcement if none exists (on a member's visit,
+    // not on every anonymous request)
+    if (canReadChannels && announcementActivities.length === 0) {
       try {
         // Find or create Sarama system user
         let systemUser = await prisma.user.findFirst({
@@ -526,7 +538,7 @@ Every share, every search, every kind word makes a difference. Together, we brin
     });
 
     // Get help requests (SquadTask with type REQUEST)
-    const tasks = await prisma.squadTask.findMany({
+    const tasks = !canReadChannels ? [] : await prisma.squadTask.findMany({
       where: {
         rescueSquadId: squadId,
         type: 'REQUEST',
