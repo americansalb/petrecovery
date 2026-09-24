@@ -10,6 +10,7 @@
  */
 
 import prisma from '@/app/lib/prisma';
+import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
 
 /**
  * Fetch the user's current role straight from the DB. Returns null if missing.
@@ -31,7 +32,8 @@ export async function isAdmin(userId) {
  * True if the user may take privileged actions on a case (== mission):
  *   - platform ADMIN, OR
  *   - the case reporter/owner, OR
- *   - an active MODERATOR/ADMIN of a rescue force assigned to the case.
+ *   - an active founder, leader or coordinator (FORCE_COMMAND_ROLES) of a
+ *     rescue force assigned to the case.
  *
  * @param {string} userId
  * @param {string} caseId   The Case id (mission command routes use the caseId as missionId).
@@ -66,7 +68,7 @@ export async function userHasCaseAuthority(userId, caseId) {
       userId,
       rescueSquadId: { in: squadIds },
       isActive: true,
-      role: { in: ['MODERATOR', 'ADMIN'] },
+      role: { in: FORCE_COMMAND_ROLES },
     },
     select: { id: true },
   });
@@ -74,7 +76,8 @@ export async function userHasCaseAuthority(userId, caseId) {
 }
 
 /**
- * True if the user is an active leader (MODERATOR/ADMIN) of the given squad, or a platform admin.
+ * True if the user is an active founder, leader or coordinator
+ * (FORCE_COMMAND_ROLES) of the given squad, or a platform admin.
  */
 export async function userIsSquadLeader(userId, rescueSquadId) {
   if (!userId || !rescueSquadId) return false;
@@ -85,7 +88,7 @@ export async function userIsSquadLeader(userId, rescueSquadId) {
       userId,
       rescueSquadId,
       isActive: true,
-      role: { in: ['MODERATOR', 'ADMIN'] },
+      role: { in: FORCE_COMMAND_ROLES },
     },
     select: { id: true },
   });

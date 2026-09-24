@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { userCanReadForceChannels } from '@/app/lib/authz';
+import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
 
 /**
  * GET /api/rescue-forces/[id]/announcements
@@ -138,17 +139,19 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Not a rescue force member' }, { status: 403 });
     }
 
-    // Only leads and admins can post announcements
-    const canPost = ['DIVISION_LEAD', 'SQUAD_LEAD', 'ADMIN'].includes(membership.role);
+    // Founders, leaders and coordinators post announcements. This checked
+    // for 'DIVISION_LEAD', 'SQUAD_LEAD' and 'ADMIN', which are not force
+    // roles, so nobody could post one.
+    const canPost = FORCE_COMMAND_ROLES.includes(membership.role);
     if (!canPost) {
       return NextResponse.json(
-        { error: 'Only leads and admins can post announcements' },
+        { error: 'Only leaders and coordinators can post announcements' },
         { status: 403 }
       );
     }
 
-    // If division lead, they can only post to their own division
-    if (membership.role === 'DIVISION_LEAD' && divisionId && divisionId !== membership.divisionId) {
+    // A division leader (legacy role) posts only to their own division
+    if (membership.role === 'DIVISION_LEADER' && divisionId && divisionId !== membership.divisionId) {
       return NextResponse.json(
         { error: 'Division leads can only post to their own division' },
         { status: 403 }

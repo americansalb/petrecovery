@@ -77,10 +77,11 @@ export default async function RescueForcesPage() {
                 the report goes to that force, and its members can join the search.
               </p>
             </div>
-            {/* Beside the title from the small breakpoint up; under the search
-                on a phone, where finding a force comes first. The icon goes in
-                as rendered children: a server page cannot hand Button (a client
-                component) an icon component as a prop. */}
+            {/* Beside the title from the small breakpoint up. On a phone,
+                ForceSearch shows it under the search, where finding a force
+                comes first. The icon goes in as rendered children: a server
+                page cannot hand Button (a client component) an icon component
+                as a prop. */}
             <div className="hidden shrink-0 sm:block">
               <Button href="/rescue-forces/create" variant="outline">
                 <Plus className="h-4 w-4" aria-hidden="true" />
@@ -90,12 +91,6 @@ export default async function RescueForcesPage() {
           </div>
           <div className="mt-6">
             <ForceSearch />
-          </div>
-          <div className="mt-3 sm:hidden">
-            <Button href="/rescue-forces/create" variant="outline" fullWidth>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Start a Rescue Force
-            </Button>
           </div>
         </div>
       </header>
