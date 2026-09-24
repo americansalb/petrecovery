@@ -165,6 +165,17 @@ export default function ForceSearch() {
           <p className="mt-4 text-midnight-600">The search didn&apos;t go through. Check your connection and try again.</p>
         )}
       </div>
+
+      {/* The page's Start button, on a phone (from the small breakpoint up it
+          sits beside the title). Hidden while a result already offers "Start
+          one", which used to put two identical buttons one above the other. */}
+      {!(status === 'done' && result?.forces?.length === 0) && (
+        <div className="mt-3 sm:hidden">
+          <Button href="/rescue-forces/create" variant="outline" fullWidth leftIcon={Plus}>
+            Start a Rescue Force
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

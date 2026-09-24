@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react';
+import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
 import { useSquadHub } from './context/SquadHubContext';
 import {
   MessageCircle,
@@ -417,9 +418,9 @@ function MobileAnnouncementsView({
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
 
-  // Only leads and admins can post announcements
-  const canPost = membership.isMember &&
-    ['DIVISION_LEAD', 'SQUAD_LEAD', 'ADMIN'].includes(membership.role);
+  // Founders, leaders and coordinators post announcements (the same roles
+  // the announcements API accepts)
+  const canPost = membership.isMember && FORCE_COMMAND_ROLES.includes(membership.role);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
