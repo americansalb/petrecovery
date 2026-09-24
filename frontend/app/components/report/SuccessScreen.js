@@ -55,7 +55,7 @@ export default function SuccessScreen({
         ]
       : [
           'Strong matches alert the owner automatically',
-          'A vet or shelter can scan for a microchip - free',
+          'Vets and shelters can scan for a microchip, usually at no charge',
           'Keep them somewhere calm and safe if you can',
         ];
 
@@ -86,9 +86,11 @@ export default function SuccessScreen({
           {variant === 'lost' ? (
             squadsNotified > 0 ? (
               <>
-                <strong className="text-midnight-800">{squadsNotified}</strong> rescue{' '}
-                {squadsNotified === 1 ? 'team is' : 'teams are'} on alert for{' '}
-                <strong className="text-midnight-800">{petName}</strong>.
+                {/* Assigned, not "on alert": a force set up with this very report
+                    has no members yet. */}
+                Sent to <strong className="text-midnight-800">{squadsNotified}</strong> Rescue{' '}
+                {squadsNotified === 1 ? 'Force' : 'Forces'} covering the area where{' '}
+                <strong className="text-midnight-800">{petName}</strong> was last seen.
               </>
             ) : (
               <>

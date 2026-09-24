@@ -140,9 +140,6 @@ export default function WizardShell({
           )}
         </div>
 
-        <p className="text-white/25 text-xs">
-          Every minute counts - let&apos;s bring them home.
-        </p>
       </aside>
 
       {/* ── Main column ─────────────────────────────────────────────── */}

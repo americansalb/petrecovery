@@ -112,7 +112,7 @@ export default function TagDetailsStep({
           className={`w-full px-4 py-3.5 bg-white border-2 border-midnight-100 rounded-2xl outline-none transition-colors ${theme.focusRing}`}
         />
         <p className="text-xs text-midnight-400 mt-1.5">
-          Any vet or shelter can scan for free - a chip match reunites instantly.
+          Vets and shelters can scan for a chip, usually at no charge. A chip number leads to the owner.
         </p>
       </div>
     </div>
