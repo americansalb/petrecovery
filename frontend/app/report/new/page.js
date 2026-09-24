@@ -81,6 +81,7 @@ export default function ReportLostPet() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [errorLink, setErrorLink] = useState(null);
   const [result, setResult] = useState(null);
   const [pendingDraft, setPendingDraft] = useState(null); // unfinished draft awaiting resume/fresh choice
 
@@ -276,6 +277,7 @@ export default function ReportLostPet() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
+    setErrorLink(null);
     try {
       const orderedPhotos = photos.length
         ? [photos[displayIndex], ...photos.filter((_, i) => i !== displayIndex)]
@@ -307,7 +309,12 @@ export default function ReportLostPet() {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to create report');
+      if (!response.ok) {
+        // An email that already has an account: signing in files the report
+        // to it (the draft is kept). The nav is hidden here, so link it.
+        if (data.signInUrl) setErrorLink({ href: data.signInUrl, label: 'Sign in to post it' });
+        throw new Error(data.error || 'Failed to create report');
+      }
       try {
         localStorage.removeItem(LOCATION_STORAGE_KEY);
       } catch {
@@ -668,6 +675,7 @@ export default function ReportLostPet() {
           question="Ready to post?"
           hint="Tap any detail to change it."
           error={error}
+          errorLink={errorLink}
           primary={{
             label: `Post ${theme.stamp} report`,
             tone: 'post',

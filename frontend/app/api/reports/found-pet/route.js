@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import prisma from '@/app/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { sendEmail } from '../../../lib/email';
+import { sendEmail, renderBrandedEmail, escapeHtml } from '../../../lib/email';
+import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
+import { parsePlace } from '@/app/lib/placeLabel';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { findMatches } from '@/app/lib/matching';
@@ -10,6 +13,11 @@ import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 
 export async function POST(request) {
+  // Mints accounts and emails owners, so it is throttled like the lost-pet
+  // intake (it had no limit at all).
+  const rl = await withRateLimitAsync(request, RateLimitPresets.PUBLIC_WRITE, 'reports:found');
+  if (!rl.success) return rateLimitResponse(rl);
+
   try {
     const session = await getServerSession(authOptions);
     const body = await request.json();
@@ -45,6 +53,24 @@ export async function POST(request) {
       where: { email }
     });
 
+    // An anonymous caller must not post as somebody else. Typing a member's
+    // address used to file the report under THEIR account, copy their stored
+    // phone onto the public report, and switch on patrol alerts for them.
+    // Same rule as the lost-pet intake (docs/LAUNCH_AUDIT_2026-08.md, B7): a
+    // verified account belongs to whoever proved that inbox; an unverified
+    // row is a guest shell from an earlier report, so a repeat guest still
+    // gets through.
+    if (user?.emailVerified && !session?.user) {
+      return NextResponse.json(
+        {
+          error: 'That email already has a ReunitePets account. Sign in and your report will be filed to it, or use a different email.',
+          code: 'ACCOUNT_EXISTS',
+          signInUrl: '/login?callbackUrl=%2Freport%2Ffound',
+        },
+        { status: 409 }
+      );
+    }
+
     // If user exists and phone wasn't provided, try to get it from their record
     if (user && !phone) {
       phone = user.phone;
@@ -68,12 +94,12 @@ export async function POST(request) {
     }
 
     let accountCreated = false;
-    let tempPassword = null;
 
-    // 2. Create account if doesn't exist
+    // 2. Create account if doesn't exist. The password is random and never
+    // shown: the finder sets their own from the link in the email. It used
+    // to be Math.random() and was emailed in plain text.
     if (!user) {
-      tempPassword = Math.random().toString(36).slice(-12) + Math.random().toString(36).slice(-12);
-      const passwordHash = await bcrypt.hash(tempPassword, 10);
+      const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('base64url'), 10);
 
       user = await prisma.user.create({
         data: {
@@ -106,8 +132,8 @@ export async function POST(request) {
             latitude: center[0],
             longitude: center[1],
             address: foundAddress,
-            // Extract city/state/zip from address if possible (simple approach)
-            city: foundAddress.split(',')[0]?.trim() || '',
+            // The town, not the first comma part (that is the street).
+            city: parsePlace(foundAddress)?.city || '',
           }
         });
       }
@@ -128,13 +154,10 @@ export async function POST(request) {
     // Generate smart fallback name if pet name is unknown
     let displayName = petName;
     if (!displayName || displayName.trim() === '' || displayName.toLowerCase() === 'unknown') {
-      // Build name from breed/color/size
-      const parts = [];
-      if (color) parts.push(color);
-      if (size) parts.push(size);
-      if (breed) parts.push(breed);
-      if (petType) parts.push(petType.charAt(0).toUpperCase() + petType.slice(1).toLowerCase());
-
+      // "Black and white dog": colour and breed or kind. The size enum used
+      // to go in raw ("Black, White MEDIUM Dog").
+      const kind = breed || (petType ? petType.toLowerCase() : '');
+      const parts = [color, kind].filter(Boolean);
       displayName = parts.length > 0 ? parts.join(' ') : 'Unknown Pet';
     }
 
@@ -321,43 +344,34 @@ export async function POST(request) {
       }
     }));
 
-    // 6. Send email in background (don't wait for it)
-    if (accountCreated && tempPassword) {
-      // Send email asynchronously - don't block the response
+    // 6. Email a new finder a link to the report and a way to set a password
+    // (never the password itself), in the background.
+    if (accountCreated) {
+      const baseUrl = getEmailBaseUrl();
+      const caseUrl = `${baseUrl}/cases/${report.caseNumber}`;
+      const setPasswordUrl = `${baseUrl}/forgot-password?email=${encodeURIComponent(email)}`;
+      const kind = escapeHtml((petType || 'pet').toLowerCase());
       sendEmail({
         to: email,
-        subject: 'Thank You for Reporting a Found Pet - ReunitePets.org',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #10b981;">🎉 Thank You for Helping!</h2>
-            <p>Hi ${firstName},</p>
-            <p>Thank you for reporting a found ${petType}! Your kindness helps reunite pets with their families.</p>
-
-            <p>We've notified <strong>${notifiedCount} nearby owner${notifiedCount !== 1 ? 's' : ''}</strong> who reported a lost ${petType} matching this description.</p>
-
-            <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-              <h3 style="margin-top: 0;">Your Account</h3>
-              <p>We've created an account for you:</p>
-              <p><strong>Email:</strong> ${email}<br/>
-              <strong>Temporary Password:</strong> <code style="background: #d1fae5; padding: 2px 6px; border-radius: 3px;">${tempPassword}</code></p>
-            </div>
-
-            <div style="background: #dbeafe; border-left: 4px solid #0ea5e9; padding: 15px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #0c4a6e;">🦸 Welcome to the Patrol!</h3>
-              <p>You've been automatically added to our community patrol. You can now:</p>
-              <ul style="margin: 10px 0;">
-                <li>View all lost & found pets in your area</li>
-                <li>Access the searchable pet database</li>
-                <li>Receive alerts about missing pets nearby</li>
-                <li>Help reunite more pets with their families</li>
-              </ul>
-            </div>
-
-            <p><a href="${getEmailBaseUrl()}/login" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Login to Dashboard</a></p>
-
-            <p><small style="color: #6b7280;">Please keep the pet safe until the owner contacts you. If no one claims the pet, consider local animal shelters or rescue organizations.</small></p>
-          </div>
-        `
+        subject: `Your found ${(petType || 'pet').toLowerCase()} report is posted`,
+        html: renderBrandedEmail({
+          preheader: `Case ${report.caseNumber}: track matches and messages from owners.`,
+          heading: 'Your report is posted',
+          bodyHtml: `
+            <p>Hi ${escapeHtml(firstName)},</p>
+            <p>Thank you for reporting the ${kind} you found. ${
+              notifiedCount > 0
+                ? `We emailed ${notifiedCount} ${notifiedCount === 1 ? 'owner' : 'owners'} whose lost ${kind} looks like a close match.`
+                : 'Owners who reported a lost pet nearby can find it on the Lost &amp; Found board.'
+            }</p>
+            <p style="margin:20px 0 8px;"><strong>Your case:</strong> ${escapeHtml(report.caseNumber)}</p>
+            <p style="color:#64748b; font-size:14px;">We also set up an account for ${escapeHtml(email)} so you can update or close the report, and we will email you about pets reported lost near where you found this one.</p>
+            <p style="margin:16px 0 0; font-size:14px;"><a href="${setPasswordUrl}" style="color:#0f172a; font-weight:600;">Set your password</a></p>
+          `,
+          ctaLabel: 'Open your report',
+          ctaUrl: caseUrl,
+          footnote: "You're receiving this because you reported a found pet on ReunitePets.",
+        }),
       }).catch(err => console.error('Email send failed:', err));
     }
 
@@ -365,6 +379,9 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       reportId: report.id,
+      // The success screen links to the report with this; it was missing,
+      // so a finder had no link to what they had just posted.
+      caseNumber: report.caseNumber,
       accountCreated,
       matchesNotified: notifiedCount,
       potentialMatches: formattedMatches, // §4d no-PII shape
