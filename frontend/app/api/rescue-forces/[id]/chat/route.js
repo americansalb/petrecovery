@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { userCanReadForceChannels } from '@/app/lib/authz';
+import { memberName } from '@/app/lib/forceRoles';
 
 /**
  * GET /api/rescue-forces/[id]/chat
@@ -93,7 +94,7 @@ export async function GET(request, { params }) {
         return {
           id: a.id,
           authorId: a.actorId,
-          authorName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown',
+          authorName: a.actor ? memberName(a.actor) : 'Unknown',
           authorRole: membership?.role || 'MEMBER',
           content: a.message,
           createdAt: a.createdAt.toISOString(),
@@ -182,7 +183,7 @@ export async function POST(request, { params }) {
       message: {
         id: message.id,
         authorId: session.user.id,
-        authorName: user ? `${user.firstName} ${user.lastName?.[0] || ''}.` : 'You',
+        authorName: user ? memberName(user) : 'You',
         authorRole: membership.role,
         content: message.message,
         createdAt: message.createdAt.toISOString(),

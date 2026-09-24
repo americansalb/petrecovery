@@ -13,6 +13,16 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { zipCenter, divisionRadius } from '@/app/lib/zipCenter';
+
+/** The ZIP a division's area was set from (zipCodes is a JSON array). */
+function divisionZip(div) {
+  try {
+    return JSON.parse(div.zipCodes || '[]')[0] || null;
+  } catch {
+    return null;
+  }
+}
 
 export async function GET(request, { params }) {
   try {
@@ -59,6 +69,9 @@ export async function GET(request, { params }) {
       id: div.id,
       name: div.name,
       description: div.description,
+      zipCode: divisionZip(div),
+      radiusMiles: div.radiusMiles,
+      hasArea: div.centerLatitude != null && div.centerLongitude != null,
       memberCount: div._count.members,
       leaders: div.members.map(m => ({
         id: m.id,
@@ -89,7 +102,7 @@ export async function POST(request, { params }) {
     }
 
     const squadId = params.id;
-    const { name, description } = await request.json();
+    const { name, description, zipCode, radiusMiles } = await request.json();
 
     if (!name?.trim()) {
       return NextResponse.json(
@@ -132,7 +145,17 @@ export async function POST(request, { params }) {
       );
     }
 
-    const data = { name: name.trim(), description: description?.trim() || null };
+    const data = { name: name.trim(), description: description?.trim() || null, radiusMiles: divisionRadius(radiusMiles) };
+
+    // The division's area: the centre of a ZIP code and a radius. Without
+    // one it cannot be drawn on the map or matched to pets.
+    if (zipCode) {
+      const center = await zipCenter(String(zipCode).trim());
+      if (!center) {
+        return NextResponse.json({ error: `We could not find the ZIP code ${String(zipCode).trim()}.` }, { status: 400 });
+      }
+      Object.assign(data, { centerLatitude: center.lat, centerLongitude: center.lng, zipCodes: JSON.stringify([String(zipCode).trim()]) });
+    }
     const division = existing
       ? await prisma.division.update({
           where: { id: existing.id },
@@ -145,6 +168,9 @@ export async function POST(request, { params }) {
         id: division.id,
         name: division.name,
         description: division.description,
+        zipCode: divisionZip(division),
+        radiusMiles: division.radiusMiles,
+        hasArea: division.centerLatitude != null && division.centerLongitude != null,
         memberCount: 0,
         leaders: [],
         createdAt: division.createdAt,

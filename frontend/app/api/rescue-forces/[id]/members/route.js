@@ -67,7 +67,6 @@ export async function GET(request, { params }) {
             id: true,
             firstName: true,
             lastName: true,
-            email: true,
             profileImage: true
           }
         },

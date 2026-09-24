@@ -68,7 +68,9 @@ export async function POST(request, { params }) {
       action: 'update',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: 'LEADER',
+      // logEvent takes platform roles only; 'LEADER' made it throw after the
+      // promotion was saved, so claiming answered 500 while it worked.
+      actor_role: session.user.role === 'ADMIN' ? 'ADMIN' : 'USER',
       metadata: {
         squadId,
         previousRole: membership.role,

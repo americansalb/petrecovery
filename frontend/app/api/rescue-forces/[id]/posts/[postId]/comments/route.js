@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { memberName } from '@/app/lib/forceRoles';
 
 /**
  * POST /api/rescue-forces/[id]/posts/[postId]/comments
@@ -126,7 +127,7 @@ export async function POST(request, { params }) {
       comment: {
         id: comment.id,
         authorId: comment.authorId,
-        authorName: `${comment.author.firstName} ${comment.author.lastName || ''}`.trim(),
+        authorName: memberName(comment.author),
         authorRole: membership.role,
         content: comment.content,
         upvotes: 0,

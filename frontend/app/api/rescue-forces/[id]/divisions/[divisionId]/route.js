@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { zipCenter, divisionRadius } from '@/app/lib/zipCenter';
 
 export async function GET(request, { params }) {
   try {
@@ -97,7 +98,7 @@ export async function PATCH(request, { params }) {
 
     const squadId = params.id;
     const { divisionId } = params;
-    const { name, description } = await request.json();
+    const { name, description, zipCode, radiusMiles } = await request.json();
 
     // Check if user is a squad founder/leader
     const membership = await prisma.rescueForceMember.findFirst({
@@ -156,12 +157,29 @@ export async function PATCH(request, { params }) {
       }
     }
 
+    // The area: a ZIP code's centre and a radius. An empty ZIP clears it.
+    const area = {};
+    if (radiusMiles !== undefined) area.radiusMiles = divisionRadius(radiusMiles);
+    if (zipCode !== undefined) {
+      const zip = String(zipCode || '').trim();
+      if (!zip) {
+        Object.assign(area, { centerLatitude: null, centerLongitude: null, zipCodes: '[]' });
+      } else {
+        const center = await zipCenter(zip);
+        if (!center) {
+          return NextResponse.json({ error: `We could not find the ZIP code ${zip}.` }, { status: 400 });
+        }
+        Object.assign(area, { centerLatitude: center.lat, centerLongitude: center.lng, zipCodes: JSON.stringify([zip]) });
+      }
+    }
+
     // Update the division
     const division = await prisma.division.update({
       where: { id: divisionId },
       data: {
         name: name?.trim() || existing.name,
         description: description?.trim() ?? existing.description,
+        ...area,
         updatedAt: new Date(),
       },
       include: {

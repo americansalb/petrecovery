@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { isAdmin } from '@/app/lib/authz';
+import { memberName } from '@/app/lib/forceRoles';
 
 /**
  * GET /api/rescue-forces/[id]/posts
@@ -162,7 +163,7 @@ export async function GET(request, { params }) {
         return comments.map(comment => ({
           id: comment.id,
           authorId: comment.authorId,
-          authorName: `${comment.author.firstName} ${comment.author.lastName || ''}`.trim(),
+          authorName: memberName(comment.author),
           authorRole: roleMap.get(comment.authorId) || 'MEMBER',
           content: comment.content,
           upvotes: comment.upvotes,
@@ -176,7 +177,7 @@ export async function GET(request, { params }) {
       return {
         id: post.id,
         authorId: post.authorId,
-        authorName: `${post.author.firstName} ${post.author.lastName || ''}`.trim(),
+        authorName: memberName(post.author),
         authorRole: roleMap.get(post.authorId) || 'MEMBER',
         divisionId: post.divisionId,
         divisionName: post.division?.name,
@@ -304,7 +305,7 @@ export async function POST(request, { params }) {
       post: {
         id: post.id,
         authorId: post.authorId,
-        authorName: `${post.author.firstName} ${post.author.lastName || ''}`.trim(),
+        authorName: memberName(post.author),
         authorRole: membership.role,
         divisionId: post.divisionId,
         divisionName: post.division?.name,

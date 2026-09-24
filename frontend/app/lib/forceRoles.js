@@ -12,3 +12,25 @@
  * announcement.
  */
 export const FORCE_COMMAND_ROLES = ['FOUNDER', 'LEADER', 'COORDINATOR', 'ADMINISTRATOR', 'MODERATOR', 'DIVISION_LEADER'];
+
+/** How a role reads on the member pages. Legacy roles read as today's. */
+export const FORCE_ROLE_LABEL = {
+  FOUNDER: 'Founder',
+  LEADER: 'Leader',
+  ADMINISTRATOR: 'Leader',
+  DIVISION_LEADER: 'Leader',
+  COORDINATOR: 'Coordinator',
+  MODERATOR: 'Coordinator',
+  MEMBER: 'Member',
+};
+
+/**
+ * "Kim L.": a member's name as the other members see it, the rule
+ * /api/rescue-forces/[id]/members applies. Posts and comments used to show
+ * the full surname, and chat printed "Kim ." when there was none.
+ */
+export function memberName(user) {
+  const first = (user?.firstName || '').trim();
+  const initial = (user?.lastName || '').trim().charAt(0).toUpperCase();
+  return [first, initial && `${initial}.`].filter(Boolean).join(' ') || 'A member';
+}

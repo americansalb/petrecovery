@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { userCanReadForceChannels } from '@/app/lib/authz';
-import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
+import { FORCE_COMMAND_ROLES, memberName } from '@/app/lib/forceRoles';
 
 /**
  * GET /api/rescue-forces/[id]/announcements
@@ -70,12 +70,14 @@ export async function GET(request, { params }) {
       return {
         id: a.id,
         authorId: a.actorId,
-        authorName: a.actor ? `${a.actor.firstName} ${a.actor.lastName?.[0] || ''}.` : 'Unknown',
+        authorName: a.actor ? memberName(a.actor) : 'Unknown',
         title: details.title || 'Announcement',
         content: a.message,
         createdAt: a.createdAt.toISOString(),
         isPinned: details.isPinned || false,
         divisionId: details.divisionId || null,
+        // The canned welcome post the hub used to create for every force.
+        isSystemPost: Boolean(details.isSystemPost) || a.actor?.firstName === 'Sarama',
       };
     });
 
@@ -184,9 +186,7 @@ export async function POST(request, { params }) {
       announcement: {
         id: announcement.id,
         authorId: announcement.actorId,
-        authorName: announcement.actor
-          ? `${announcement.actor.firstName} ${announcement.actor.lastName?.[0] || ''}.`
-          : 'Unknown',
+        authorName: announcement.actor ? memberName(announcement.actor) : 'Unknown',
         title: details.title,
         content: announcement.message,
         createdAt: announcement.createdAt.toISOString(),

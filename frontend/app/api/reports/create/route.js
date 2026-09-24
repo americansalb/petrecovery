@@ -427,6 +427,7 @@ export async function POST(request) {
           centerLatitude: true,
           centerLongitude: true,
           radiusMiles: true,
+          isAcceptingCases: true,
         },
       });
 
@@ -493,10 +494,16 @@ export async function POST(request) {
         }
       }
 
+      // A force that has paused new reports (its Settings) still covers the
+      // area, so the town does not get a second force, but it is not
+      // assigned the pet. This setting used to be ignored here.
+      const coveringCount = squadsToNotify.length;
+      squadsToNotify = squadsToNotify.filter((squad) => squad.isAcceptingCases !== false);
+
       console.log('[Report Debug] Squads to notify:', squadsToNotify.length);
 
       // If no squads cover this location, auto-create one for this city AND find nearby squads
-      if (squadsToNotify.length === 0 && cityName) {
+      if (coveringCount === 0 && cityName) {
         console.log('[Report Debug] No local squads found - auto-creating squad for:', cityName);
 
         // Auto-create a rescue force for this city. The state comes from the
@@ -514,7 +521,7 @@ export async function POST(request) {
             centerLongitude: center[1],
             radiusMiles: 5, // Default 5 mile coverage
             isActive: true,
-            description: `🆕 Community rescue force for ${cityName}. Auto-created to help reunite pets with their families. Join to help coordinate local pet searches!`,
+            description: `Neighbors who search for lost pets in ${cityName}. Set up automatically when the first pet was reported here.`,
           },
         });
 
@@ -532,7 +539,7 @@ export async function POST(request) {
         // These are squads whose coverage doesn't reach the report, but are close enough to help
         const NEARBY_ASSIST_RADIUS = 10; // miles
         const nearbyAssistSquads = squadsWithDistance.filter(squad =>
-          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > squad.effectiveRadius
+          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > squad.effectiveRadius && squad.isAcceptingCases !== false
         );
 
         if (nearbyAssistSquads.length > 0) {
@@ -598,25 +605,34 @@ export async function POST(request) {
           // Create automatic mascot post about the new case
           try {
             const isNearbyAssist = squad.isNearbyAssist;
-            const distanceText = squad.distance ? `~${squad.distance.toFixed(1)} miles away` : '';
+            const miles = squad.distance ? Math.max(1, Math.round(squad.distance)) : 0;
+            const distanceText = miles ? `about ${miles} ${miles === 1 ? 'mile' : 'miles'} away` : '';
 
+            // Plain words: these show in the force's Updates tab, where the
+            // case number becomes a link to the pet's page. They used to be
+            // emoji banners with markdown asterisks nothing rendered.
+            // "a brown dog": petType is stored as the enum value ("DOG").
+            const petTypeDisplay = String(petType || 'pet').toLowerCase().replace(/_/g, ' ');
+            const described = `${petName}, a ${[String(color || '').toLowerCase(), petTypeDisplay].filter(Boolean).join(' ')}${breed ? ` (${breed})` : ''}`;
+            const lostRecently = timeElapsed === 'less_than_hour' ? ' Lost within the last hour.' : '';
+            let postTitle;
             let postContent;
-            const petTypeDisplay = petType || 'pet';
             if (squad.isAutoCreated) {
-              // Welcome post for newly auto-created squad
-              postContent = `🎉 **Welcome to ${squad.name}!** 🎉\n\nThis rescue force was just created to help find ${petName}!\n\n🚨 **First Case:** ${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${report.caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nJoin this rescue force to help reunite pets with their families in your community! 🐾`;
+              postTitle = `${petName} is missing`;
+              postContent = `${described}, was reported lost near ${lastSeenAddress}.${lostRecently} This force was set up for ${squad.city || 'this town'} with that report. Case #${report.caseNumber}.`;
             } else if (isNearbyAssist) {
-              // Nearby assist post
-              postContent = `🆘 **Nearby Assist Request!** 🆘\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, went missing ${distanceText} from your coverage area.\n\n📍 Location: ${lastSeenAddress}\n📋 Case #${report.caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nNo local rescue force in that area yet - your help could make the difference! 🙏`;
+              postTitle = `${petName} is missing nearby`;
+              postContent = `${described}, was reported lost ${distanceText ? `${distanceText}, ` : ''}just outside this force's area, near ${lastSeenAddress}.${lostRecently} Case #${report.caseNumber}.`;
             } else {
-              // Regular case alert
-              postContent = `🚨 **New Case Alert!** 🚨\n\n${petName}, a ${color} ${petTypeDisplay}${breed ? ` (${breed})` : ''}, was last seen near ${lastSeenAddress}.\n\n📍 Case #${report.caseNumber}\n⏰ ${timeElapsed === 'less_than_hour' ? 'URGENT - Lost within the last hour!' : 'Recently reported'}\n\nIf you're in the area, please keep an eye out and report any sightings. Every pair of eyes helps! 👀`;
+              postTitle = `${petName} is missing`;
+              postContent = `${described}, was reported lost near ${lastSeenAddress}.${lostRecently} If you are nearby, keep an eye out and report any sighting on the pet's page. Case #${report.caseNumber}.`;
             }
 
             await prisma.squadPost.create({
               data: {
                 rescueSquadId: squad.id,
                 authorId: user.id,
+                title: postTitle,
                 content: postContent,
                 // isSystemPost / isPinned are NOT columns on SquadPost -
                 // confirmed against both prisma/schema.prisma and the raw DDL in

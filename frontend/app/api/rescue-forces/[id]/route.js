@@ -230,9 +230,13 @@ export async function PATCH(request, { params }) {
       action: 'update',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: membership.role,
+      // The platform role: logEvent refuses force roles like FOUNDER, and
+      // passing membership.role here failed every save with a 500 after the
+      // change had already been written.
+      actor_role: actorRole(session),
       metadata: {
         squad_id: squadId,
+        force_role: membership.role,
         updated_fields: Object.keys(updateData),
       },
     });
