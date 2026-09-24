@@ -1,6 +1,9 @@
 /**
  * Single Division Member API
  * DELETE: Remove member from division
+ *
+ * This checked prisma.squadMembership, which does not exist (the members
+ * table is RescueForceMember), so it always answered 500.
  */
 
 import { NextResponse } from 'next/server';
@@ -22,7 +25,7 @@ export async function DELETE(request, { params }) {
     const { divisionId, memberId } = params;
 
     // Verify user has permission (founder or leader)
-    const userMembership = await prisma.squadMembership.findFirst({
+    const userMembership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: squadId,
         userId: session.user.id,
@@ -39,7 +42,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Verify the member exists and is in this division
-    const member = await prisma.squadMembership.findFirst({
+    const member = await prisma.rescueForceMember.findFirst({
       where: {
         id: memberId,
         rescueSquadId: squadId,
@@ -64,7 +67,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Remove from division (set divisionId to null)
-    await prisma.squadMembership.update({
+    await prisma.rescueForceMember.update({
       where: { id: memberId },
       data: { divisionId: null },
     });

@@ -31,7 +31,9 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user is admin, moderator, or founder of this squad
+    // Founders and leaders manage the force (the settings page's rule).
+    // This allowed 'ADMIN', 'MODERATOR' and 'FOUNDER': 'ADMIN' is not a force
+    // role, and leaders, who can edit everything else, could not change it.
     const membership = await prisma.rescueForceMember.findFirst({
       where: {
         userId: session.user.id,
@@ -40,10 +42,10 @@ export async function POST(request, { params }) {
       },
     });
 
-    const allowedRoles = ['ADMIN', 'MODERATOR', 'FOUNDER'];
+    const allowedRoles = ['FOUNDER', 'LEADER', 'ADMINISTRATOR'];
     if (!membership || !allowedRoles.includes(membership.role)) {
       return NextResponse.json(
-        { error: 'Only admins, moderators, and founders can update rescue force photo' },
+        { error: 'Only founders and leaders can change the rescue force photo' },
         { status: 403 }
       );
     }

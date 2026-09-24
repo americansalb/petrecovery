@@ -2,6 +2,10 @@
  * Division Members API
  * POST: Add member to division
  * GET: List division members
+ *
+ * GET returned members' email addresses to anyone; POST checked the caller
+ * against prisma.squadMembership, which does not exist, so it always
+ * answered 500.
  */
 
 import { NextResponse } from 'next/server';
@@ -23,13 +27,12 @@ export async function GET(request, { params }) {
       include: {
         members: {
           where: { isActive: true },
+          // First names only: this is public, like the force page's list.
           include: {
             user: {
               select: {
                 id: true,
                 firstName: true,
-                lastName: true,
-                email: true,
               }
             }
           },
@@ -80,7 +83,7 @@ export async function POST(request, { params }) {
     const { memberId } = await request.json();
 
     // Verify user has permission (founder, leader, or coordinator)
-    const userMembership = await prisma.squadMembership.findFirst({
+    const userMembership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: squadId,
         userId: session.user.id,
@@ -113,7 +116,7 @@ export async function POST(request, { params }) {
     }
 
     // Verify the member exists in the squad
-    const memberToAdd = await prisma.squadMembership.findFirst({
+    const memberToAdd = await prisma.rescueForceMember.findFirst({
       where: {
         id: memberId,
         rescueSquadId: squadId,
@@ -129,7 +132,7 @@ export async function POST(request, { params }) {
     }
 
     // Update the member's division
-    await prisma.squadMembership.update({
+    await prisma.rescueForceMember.update({
       where: { id: memberId },
       data: { divisionId },
     });

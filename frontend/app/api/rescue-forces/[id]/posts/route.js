@@ -252,11 +252,24 @@ export async function POST(request, { params }) {
       },
     });
 
-    if (!membership) {
+    // Leaving a force only deactivates the membership row, so the row alone
+    // let former and removed members keep posting.
+    if (!membership?.isActive) {
       return NextResponse.json(
         { error: 'You must be a rescue force member to post' },
         { status: 403 }
       );
+    }
+
+    // A division tag has to be one of this force's divisions.
+    if (divisionId) {
+      const division = await prisma.division.findFirst({
+        where: { id: divisionId, rescueSquadId: id, isActive: true },
+        select: { id: true },
+      });
+      if (!division) {
+        return NextResponse.json({ error: 'That division is not part of this rescue force' }, { status: 400 });
+      }
     }
 
     // Create post

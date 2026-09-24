@@ -3,6 +3,11 @@
  * GET: Get division details
  * PATCH: Update division
  * DELETE: Delete/deactivate division
+ *
+ * GET asked for a createdBy relation Division does not have (so it always
+ * failed) and would have listed members' email addresses to anyone. PATCH
+ * and DELETE checked the caller against prisma.squadMembership, which does
+ * not exist, so they always answered 500.
  */
 
 import { NextResponse } from 'next/server';
@@ -20,6 +25,7 @@ export async function GET(request, { params }) {
         id: divisionId,
         rescueSquadId: squadId,
         isActive: true,
+        isDeleted: false,
       },
       include: {
         _count: {
@@ -31,13 +37,12 @@ export async function GET(request, { params }) {
         },
         members: {
           where: { isActive: true },
+          // First names only: this is public, like the force page's list.
           include: {
             user: {
               select: {
                 id: true,
                 firstName: true,
-                lastName: true,
-                email: true,
               },
             },
           },
@@ -45,13 +50,6 @@ export async function GET(request, { params }) {
             { role: 'asc' },
             { joinedAt: 'asc' },
           ],
-        },
-        createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
         },
       },
     });
@@ -68,7 +66,6 @@ export async function GET(request, { params }) {
         id: division.id,
         name: division.name,
         description: division.description,
-        coverageArea: division.coverageArea,
         memberCount: division._count.members,
         members: division.members.map(m => ({
           id: m.id,
@@ -76,7 +73,6 @@ export async function GET(request, { params }) {
           joinedAt: m.joinedAt,
           user: m.user,
         })),
-        createdBy: division.createdBy,
         createdAt: division.createdAt,
       },
     });
@@ -101,10 +97,10 @@ export async function PATCH(request, { params }) {
 
     const squadId = params.id;
     const { divisionId } = params;
-    const { name, description, coverageArea } = await request.json();
+    const { name, description } = await request.json();
 
     // Check if user is a squad founder/leader
-    const membership = await prisma.squadMembership.findFirst({
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: squadId,
         userId: session.user.id,
@@ -136,20 +132,25 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    // Check for duplicate name if name is being changed
+    // Check for duplicate name if name is being changed. A deleted division
+    // keeps its name (names are unique within a force), so it counts too.
     if (name && name.trim() !== existing.name) {
       const duplicate = await prisma.division.findFirst({
         where: {
           rescueSquadId: squadId,
           name: { equals: name.trim(), mode: 'insensitive' },
-          isActive: true,
           id: { not: divisionId },
         },
       });
 
       if (duplicate) {
+        const deleted = !duplicate.isActive || duplicate.isDeleted;
         return NextResponse.json(
-          { error: 'A division with this name already exists' },
+          {
+            error: deleted
+              ? 'A deleted division had this name. Pick another name, or add that division again to bring it back.'
+              : 'A division with this name already exists',
+          },
           { status: 400 }
         );
       }
@@ -161,7 +162,6 @@ export async function PATCH(request, { params }) {
       data: {
         name: name?.trim() || existing.name,
         description: description?.trim() ?? existing.description,
-        coverageArea: coverageArea?.trim() ?? existing.coverageArea,
         updatedAt: new Date(),
       },
       include: {
@@ -180,7 +180,6 @@ export async function PATCH(request, { params }) {
         id: division.id,
         name: division.name,
         description: division.description,
-        coverageArea: division.coverageArea,
         memberCount: division._count.members,
       },
     });
@@ -207,7 +206,7 @@ export async function DELETE(request, { params }) {
     const { divisionId } = params;
 
     // Check if user is a squad founder/leader
-    const membership = await prisma.squadMembership.findFirst({
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: squadId,
         userId: session.user.id,
@@ -244,15 +243,16 @@ export async function DELETE(request, { params }) {
       where: { id: divisionId },
       data: {
         isActive: false,
+        isDeleted: true,
+        deletedAt: new Date(),
         updatedAt: new Date(),
       },
     });
 
     // Remove division assignment from all members
-    await prisma.squadMembership.updateMany({
+    await prisma.rescueForceMember.updateMany({
       where: {
         divisionId: divisionId,
-        isActive: true,
       },
       data: {
         divisionId: null,

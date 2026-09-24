@@ -2,6 +2,11 @@
  * Divisions API for Rescue Forces
  * GET: List all divisions in a squad
  * POST: Create a new division (founders/leaders only)
+ *
+ * Create, edit and delete used to answer 500 every time: they checked the
+ * caller against prisma.squadMembership, a model that does not exist (the
+ * members table is RescueForceMember), and wrote coverageArea and
+ * createdById, which are not Division columns.
  */
 
 import { NextResponse } from 'next/server';
@@ -17,6 +22,7 @@ export async function GET(request, { params }) {
       where: {
         rescueSquadId: squadId,
         isActive: true,
+        isDeleted: false,
       },
       include: {
         _count: {
@@ -31,12 +37,13 @@ export async function GET(request, { params }) {
             isActive: true,
             role: { in: ['LEADER', 'COORDINATOR'] },
           },
+          // First names only: this list is public, the same rule as the
+          // force page's member list.
           include: {
             user: {
               select: {
                 id: true,
                 firstName: true,
-                lastName: true,
               },
             },
           },
@@ -52,7 +59,6 @@ export async function GET(request, { params }) {
       id: div.id,
       name: div.name,
       description: div.description,
-      coverageArea: div.coverageArea,
       memberCount: div._count.members,
       leaders: div.members.map(m => ({
         id: m.id,
@@ -83,7 +89,7 @@ export async function POST(request, { params }) {
     }
 
     const squadId = params.id;
-    const { name, description, coverageArea } = await request.json();
+    const { name, description } = await request.json();
 
     if (!name?.trim()) {
       return NextResponse.json(
@@ -93,7 +99,7 @@ export async function POST(request, { params }) {
     }
 
     // Check if user is a squad founder/leader
-    const membership = await prisma.squadMembership.findFirst({
+    const membership = await prisma.rescueForceMember.findFirst({
       where: {
         rescueSquadId: squadId,
         userId: session.user.id,
@@ -109,39 +115,36 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check for duplicate name
+    // Check for duplicate name. A deleted division keeps its row (and the
+    // name, which is unique within the force), so the same name comes back
+    // by reactivating that row instead of failing on the unique constraint.
     const existing = await prisma.division.findFirst({
       where: {
         rescueSquadId: squadId,
         name: { equals: name.trim(), mode: 'insensitive' },
-        isActive: true,
       },
     });
 
-    if (existing) {
+    if (existing && existing.isActive && !existing.isDeleted) {
       return NextResponse.json(
         { error: 'A division with this name already exists' },
         { status: 400 }
       );
     }
 
-    // Create the division
-    const division = await prisma.division.create({
-      data: {
-        name: name.trim(),
-        description: description?.trim() || null,
-        coverageArea: coverageArea?.trim() || null,
-        rescueSquadId: squadId,
-        createdById: session.user.id,
-      },
-    });
+    const data = { name: name.trim(), description: description?.trim() || null };
+    const division = existing
+      ? await prisma.division.update({
+          where: { id: existing.id },
+          data: { ...data, isActive: true, isDeleted: false, deletedAt: null },
+        })
+      : await prisma.division.create({ data: { ...data, rescueSquadId: squadId } });
 
     return NextResponse.json({
       division: {
         id: division.id,
         name: division.name,
         description: division.description,
-        coverageArea: division.coverageArea,
         memberCount: 0,
         leaders: [],
         createdAt: division.createdAt,
