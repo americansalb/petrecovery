@@ -200,9 +200,12 @@ async function checkRateLimitRedis(redis, key, options) {
       blocked: false
     };
   } catch (err) {
-    // Fallback to allowing request on Redis error
-    console.error('Redis rate limit error:', err.message);
-    return { success: true, remaining: maxRequests, resetAt: now + windowMs, blocked: false };
+    // A Redis command failed mid-request. Returning success here would let the
+    // request past uncounted - a flaky Redis would silently disable every
+    // limit. Signal the caller (null) to fall through to the durable database
+    // limiter instead.
+    console.error('Redis rate limit error (falling through to database):', err.message);
+    return null;
   }
 }
 
@@ -425,7 +428,10 @@ export async function checkRateLimitForKeyAsync(key, options) {
   // Redis first when it is configured: same durability, lower latency.
   const redis = await getRedisClient();
   if (redis) {
-    return checkRateLimitRedis(redis, key, { windowMs, maxRequests, blockDurationMs });
+    const viaRedis = await checkRateLimitRedis(redis, key, { windowMs, maxRequests, blockDurationMs });
+    if (viaRedis) return viaRedis;
+    // Redis errored on this request; fall through to the durable database
+    // limiter rather than letting it past uncounted.
   }
 
   // Then the database, which is always there. This is the difference
