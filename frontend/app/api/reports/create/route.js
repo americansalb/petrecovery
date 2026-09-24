@@ -33,7 +33,7 @@ export async function POST(request) {
       correlation_id: correlationId,
       resource_type: 'case',
       action: 'create',
-      result: 'blocked',
+      result: 'failure',
       error_code: 'RATE_LIMITED',
     }).catch(() => {});
     return rateLimitResponse(rl);
