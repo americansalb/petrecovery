@@ -4,8 +4,10 @@
  * From the top: which force and where, how many members, and the one action
  * (join, or your member tools if you are in it); then the pets missing in
  * its area as the same cards the Lost & Found board uses; its area on a
- * map; its members; its reunions; and recent activity. Built in the same
- * plain style as the pet pages.
+ * map; its members; and its reunions. Built in the same plain style as the
+ * pet pages. There is no activity list: the force's activity rows include
+ * members' chat messages and announcements, and this page used to print
+ * the latest of them to anyone.
  *
  * Server-rendered for link previews and search engines. Members are shown
  * by first name, the rule /api/rescue-forces/[id]/members applies to the
@@ -70,15 +72,6 @@ export async function generateMetadata({ params }) {
 
 function plural(n, one, many) {
   return `${n} ${n === 1 ? one : many}`;
-}
-
-function timeAgo(date) {
-  const mins = Math.floor((Date.now() - new Date(date)) / 60000);
-  if (mins < 60) return `${Math.max(1, mins)} ${mins <= 1 ? 'minute' : 'minutes'} ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
-  const days = Math.floor(hours / 24);
-  return `${days} ${days === 1 ? 'day' : 'days'} ago`;
 }
 
 function Initial({ user }) {
@@ -297,22 +290,6 @@ export default async function ForcePage({ params, searchParams }) {
                 <PetCard key={c.id} c={c} />
               ))}
             </div>
-          </section>
-        )}
-
-        {force.activities.length > 0 && (
-          <section aria-labelledby="activity-heading">
-            <h2 id="activity-heading" className="text-xl font-semibold text-midnight-900">
-              Recent activity
-            </h2>
-            <ul className="mt-4 divide-y divide-midnight-100 overflow-hidden rounded-2xl bg-white ring-1 ring-midnight-200">
-              {force.activities.map((a) => (
-                <li key={a.id} className="flex items-start justify-between gap-4 px-4 py-3">
-                  <p className="min-w-0 break-words text-midnight-700">{a.message}</p>
-                  <span className="shrink-0 text-sm text-midnight-400">{timeAgo(a.createdAt)}</span>
-                </li>
-              ))}
-            </ul>
           </section>
         )}
 

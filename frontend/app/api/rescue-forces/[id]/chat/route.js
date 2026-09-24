@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { userCanReadForceChannels } from '@/app/lib/authz';
 
 /**
  * GET /api/rescue-forces/[id]/chat
- * Returns chat messages for the squad
+ * Returns chat messages for the squad, to its members (and platform admins)
  *
  * POST /api/rescue-forces/[id]/chat
  * Sends a new chat message
@@ -25,11 +26,22 @@ export async function GET(request, { params }) {
       );
     }
 
+    // A force's chat is for its members. It used to answer anyone, signed
+    // in or not, with every message and its author.
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized', messages: [] }, { status: 401 });
+    }
+
     const squadId = params.id;
+    if (!(await userCanReadForceChannels(session.user.id, squadId))) {
+      return NextResponse.json({ error: 'Not a rescue force member', messages: [] }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const divisionId = searchParams.get('divisionId');
     const missionId = searchParams.get('missionId');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit'), 10) || 50, 1), 100);
 
     // Get chat messages (stored as SquadActivity with type CHAT_MESSAGE)
     const whereClause = {
@@ -37,8 +49,10 @@ export async function GET(request, { params }) {
       type: 'CHAT_MESSAGE',
     };
 
+    // SquadActivity links a case through `caseId`; it has no `missionId`,
+    // and filtering on one was a validation error.
     if (missionId) {
-      whereClause.missionId = missionId;
+      whereClause.caseId = missionId;
     }
 
     const activities = await prisma.squadActivity.findMany({
@@ -84,7 +98,7 @@ export async function GET(request, { params }) {
           content: a.message,
           createdAt: a.createdAt.toISOString(),
           divisionId: details.divisionId || null,
-          missionId: a.missionId,
+          missionId: a.caseId,
         };
       })
       .filter(Boolean)
@@ -155,7 +169,9 @@ export async function POST(request, { params }) {
         type: 'CHAT_MESSAGE',
         message: content.trim(),
         actorId: session.user.id,
-        missionId: missionId || null,
+        // `caseId`, not `missionId`: SquadActivity has no missionId, and
+        // writing one failed every message with a validation error.
+        caseId: missionId || null,
         details: JSON.stringify({
           divisionId: divisionId || null,
         }),

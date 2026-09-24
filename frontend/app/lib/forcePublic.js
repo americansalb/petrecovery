@@ -2,8 +2,12 @@
  * Server-side data for the public Rescue Force page (Phase 1 of
  * docs/RESCUE_FORCES_REDESIGN.md). One shaped query set so the page can
  * be a server component: identity, territory geometry, crew, live
- * missions (with a best-effort division placement for map flares),
- * activity pulse, and the reunion shelf.
+ * missions (with a best-effort division placement for map flares), and
+ * the reunion shelf.
+ *
+ * No activity feed: the force's activity rows include its members' chat
+ * messages and announcements, and the public page used to print the latest
+ * eight of them for anyone (and for search engines).
  */
 
 import prisma from '@/app/lib/prisma';
@@ -69,11 +73,6 @@ export async function getPublicForce(id) {
           availabilityStatus: true,
           user: { select: { id: true, firstName: true, profileImage: true } },
         },
-      },
-      activities: {
-        orderBy: { createdAt: 'desc' },
-        take: 8,
-        select: { id: true, type: true, message: true, createdAt: true },
       },
       caseAssignments: {
         where: { status: { in: LIVE_ASSIGNMENT_STATUSES } },

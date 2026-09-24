@@ -10,9 +10,13 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request, { params }) {
   try {
-    let prisma;
+    let prisma, getServerSession, authOptions;
     try {
       prisma = (await import('@/app/lib/prisma')).default;
+      const nextAuth = await import('next-auth');
+      getServerSession = nextAuth.getServerSession;
+      const authModule = await import('@/app/lib/auth');
+      authOptions = authModule.authOptions;
     } catch (importError) {
       return NextResponse.json(
         { error: 'Database not available', messages: [] },
@@ -20,9 +24,16 @@ export async function GET(request, { params }) {
       );
     }
 
+    // Reading the chat takes an account, the same as writing in it. It used
+    // to answer anyone with the case id, signed in or not.
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Please sign in to view chat', messages: [] }, { status: 401 });
+    }
+
     const missionId = params.missionId;
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '100');
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit'), 10) || 100, 1), 200);
 
     // Get chat messages for this mission
     const activities = await prisma.squadActivity.findMany({

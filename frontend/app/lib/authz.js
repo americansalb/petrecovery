@@ -91,3 +91,18 @@ export async function userIsSquadLeader(userId, rescueSquadId) {
   });
   return Boolean(membership);
 }
+
+/**
+ * True if the user may read a Rescue Force's own channels (its chat and
+ * announcements): an active member of the force, or a platform admin.
+ * These used to answer anyone, signed in or not.
+ */
+export async function userCanReadForceChannels(userId, rescueSquadId) {
+  if (!userId || !rescueSquadId) return false;
+  const membership = await prisma.rescueForceMember.findFirst({
+    where: { userId, rescueSquadId, isActive: true },
+    select: { id: true },
+  });
+  if (membership) return true;
+  return (await getUserRole(userId)) === 'ADMIN';
+}
