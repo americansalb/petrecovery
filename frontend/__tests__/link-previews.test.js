@@ -77,10 +77,13 @@ const KNOWN_PRIVATE = [
   'admin/pets/[id]/page.js', // admin-only pet record
   'missions/[missionNumber]/coordinate/page.js', // auth redirect into mission control
   'rescue-forces/[id]/command-center/page.js', // member surfaces
+  'rescue-forces/[id]/chat/page.js',
   'rescue-forces/[id]/divisions/page.js',
   'rescue-forces/[id]/divisions/[divisionId]/page.js',
+  'rescue-forces/[id]/members/page.js',
   'rescue-forces/[id]/mission-control/page.js',
   'rescue-forces/[id]/settings/page.js',
+  'rescue-forces/[id]/updates/page.js',
   'communities/[id]/page.js', // legacy; next.config redirects /communities/*
   // Not a page: it exists so an unmatched /geo/* URL reaches the game's
   // own not-found instead of the pet site's 404. It only ever calls

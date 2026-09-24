@@ -102,7 +102,8 @@ describe('divisions', () => {
     expect(res.status).toBe(200);
     const { data } = prisma.division.create.mock.calls[0][0];
     expect(unknownKeys(data, 'Division')).toEqual([]);
-    expect(data).toEqual({ name: 'North', description: 'North of the river', rescueSquadId: FORCE });
+    // No ZIP code, so no centre; the radius is the default 3 miles.
+    expect(data).toEqual({ name: 'North', description: 'North of the river', radiusMiles: 3, rescueSquadId: FORCE });
   });
 
   test('a member cannot create one', async () => {

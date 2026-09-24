@@ -162,6 +162,8 @@ export async function getPublicForce(id) {
       );
       if (dist <= (z.radiusMiles || 3) && (!best || dist < best.dist)) best = { z, dist };
     }
+    // Kept on the mission so a division page can list its own pets.
+    mission.zoneId = best ? best.z.id : null;
     if (best) best.z.missionCount += 1;
   }
 

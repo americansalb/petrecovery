@@ -122,12 +122,13 @@ export async function PATCH(request, { params }) {
       where: { id: memberId },
       data: updateData,
       include: {
+        // No email: the force's pages show names only, and this answer goes
+        // to the leader's browser.
         user: {
           select: {
             id: true,
             firstName: true,
             lastName: true,
-            email: true,
             rescueLevel: true,
           },
         },

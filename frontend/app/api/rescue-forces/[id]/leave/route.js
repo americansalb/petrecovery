@@ -4,16 +4,29 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 
+// logEvent takes only its own roles; a platform MODERATOR or GUEST would throw.
+function logRole(session) {
+  if (!session?.user) return null;
+  return session.user.role === 'ADMIN' ? 'ADMIN' : 'USER';
+}
+
 // POST /api/rescue-forces/[id]/leave - Leave a rescue force
+//
+// Every leave used to answer 500 after the member had already been taken
+// out: each logEvent here passed action 'leave', which logEvent refuses (it
+// takes create, update, delete, read, transition or search), and the catch
+// block then threw again on a `session` it could not see. A founder with no
+// successor got that 500 instead of the message telling them what to do.
 export async function POST(request, { params }) {
+  let session = null;
   try {
-    const session = await getServerSession(authOptions);
+    session = await getServerSession(authOptions);
     if (!session) {
       await logEvent({
         event_type: 'squad.leave_failed',
         resource_type: 'rescue_squad',
         resource_id: params.id,
-        action: 'leave',
+        action: 'update',
         result: 'failure',
         error_code: 'UNAUTHORIZED',
         error_message: 'Attempted to leave squad without authentication',
@@ -39,12 +52,12 @@ export async function POST(request, { params }) {
         event_type: 'squad.leave_failed',
         resource_type: 'rescue_squad',
         resource_id: id,
-        action: 'leave',
+        action: 'update',
         result: 'failure',
         error_code: 'NOT_MEMBER',
         error_message: 'User is not an active member of this squad',
         actor_user_id: session.user.id,
-        actor_role: session.user.role,
+        actor_role: logRole(session),
         metadata: { squad_id: id }
       });
       return NextResponse.json(
@@ -69,12 +82,12 @@ export async function POST(request, { params }) {
           event_type: 'squad.leave_failed',
           resource_type: 'rescue_squad',
           resource_id: id,
-          action: 'leave',
+          action: 'update',
           result: 'failure',
           error_code: 'FOUNDER_NO_SUCCESSOR',
           error_message: 'Founder cannot leave without promoting another leader',
           actor_user_id: session.user.id,
-          actor_role: session.user.role,
+          actor_role: logRole(session),
           metadata: { squad_id: id, user_role: membership.role }
         });
         return NextResponse.json(
@@ -122,10 +135,10 @@ export async function POST(request, { params }) {
       event_type: 'squad.left',
       resource_type: 'rescue_squad',
       resource_id: id,
-      action: 'leave',
+      action: 'update',
       result: 'success',
       actor_user_id: session.user.id,
-      actor_role: session.user.role,
+      actor_role: logRole(session),
       metadata: {
         squad_id: id,
         previous_role: membership.role,
@@ -139,12 +152,12 @@ export async function POST(request, { params }) {
       event_type: 'squad.leave_failed',
       resource_type: 'rescue_squad',
       resource_id: params.id,
-      action: 'leave',
+      action: 'update',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
       actor_user_id: session?.user?.id || null,
-      actor_role: session?.user?.role || null,
+      actor_role: logRole(session),
       metadata: {
         squad_id: params.id,
         error_name: error.name,

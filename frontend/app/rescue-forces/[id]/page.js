@@ -2,7 +2,8 @@
  * A Rescue Force's public page.
  *
  * From the top: which force and where, how many members, and the one action
- * (join, or your member tools if you are in it); then the pets missing in
+ * (join, or links to updates and chat if you are in it; members also get the
+ * force's tabs from ./layout.js); then the pets missing in
  * its area as the same cards the Lost & Found board uses; its area on a
  * map; its members; and its reunions. Built in the same plain style as the
  * pet pages. There is no activity list: the force's activity rows include
@@ -18,7 +19,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { ChevronLeft, Shield, Heart, Star, CheckCircle2, Settings, Map as MapIcon } from 'lucide-react';
+import { ChevronLeft, Shield, Heart, Star, CheckCircle2, Megaphone, MessageCircle } from 'lucide-react';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getPublicForce } from '@/app/lib/forcePublic';
@@ -101,7 +102,6 @@ export default async function ForcePage({ params, searchParams }) {
 
   const session = await getServerSession(authOptions);
   const me = session?.user?.id ? force.members.find((m) => m.user.id === session.user.id) : null;
-  const isLeader = me && (me.role === 'FOUNDER' || me.role === 'LEADER');
   const justCreated = query.created === 'true' && me?.role === 'FOUNDER';
 
   const place = [force.city, force.state].filter(Boolean).join(', ');
@@ -172,24 +172,22 @@ export default async function ForcePage({ params, searchParams }) {
                     <CheckCircle2 size={18} aria-hidden="true" />
                     You&apos;re a member
                   </p>
-                  {isLeader && (
-                    <div className="mt-3 flex flex-col gap-2">
-                      <Link
-                        href={`/rescue-forces/${force.id}/settings`}
-                        className="inline-flex items-center gap-2 text-sm font-semibold text-midnight-800 hover:text-midnight-950"
-                      >
-                        <Settings size={16} aria-hidden="true" />
-                        Force settings and members
-                      </Link>
-                      <Link
-                        href={`/rescue-forces/${force.id}/divisions`}
-                        className="inline-flex items-center gap-2 text-sm font-semibold text-midnight-800 hover:text-midnight-950"
-                      >
-                        <MapIcon size={16} aria-hidden="true" />
-                        Divisions
-                      </Link>
-                    </div>
-                  )}
+                  <div className="mt-2 flex flex-col gap-1">
+                    <Link
+                      href={`/rescue-forces/${force.id}/updates`}
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-midnight-800 hover:text-midnight-950"
+                    >
+                      <Megaphone size={16} aria-hidden="true" />
+                      Updates from the force
+                    </Link>
+                    <Link
+                      href={`/rescue-forces/${force.id}/chat`}
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-midnight-800 hover:text-midnight-950"
+                    >
+                      <MessageCircle size={16} aria-hidden="true" />
+                      Force chat
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <JoinForceButton forceId={force.id} signedIn={Boolean(session?.user?.id)} />
