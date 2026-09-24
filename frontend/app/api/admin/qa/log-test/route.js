@@ -24,7 +24,7 @@ export async function POST(request) {
     await logEvent({
       event_type: event_type || 'qa.test_executed',
       resource_type: 'qa_test',
-      action: 'test',
+      action: 'create',
       result: result === 'passed' ? 'success' : 'failure',
       actor_user_id: session.user.id,
       actor_role: 'ADMIN',

@@ -20,9 +20,22 @@ const EVENT_RESULTS = ['success', 'failure', 'pending'];
 const EVENT_ACTIONS = ['create', 'update', 'delete', 'read', 'transition', 'search'];
 
 /**
- * Valid actor roles (null is also valid for anonymous users)
+ * Valid actor roles (null is also valid for anonymous users).
+ *
+ * logEvent runs *after* the action it records, and several call sites await it,
+ * so a rejected role turned a saved change into a 500. This list must therefore
+ * cover every UserRole a session can actually carry - GUEST, PATROL and
+ * MODERATOR were missing, which crashed the response for those accounts (e.g. a
+ * moderator opening a case, a volunteer accepting the waiver). It keeps the
+ * older domain roles (OWNER, VOLUNTEER, SHELTER_ADMIN, SYSTEM) that other
+ * callers pass.
  */
-const ACTOR_ROLES = ['OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'ADMIN', 'SYSTEM', 'USER'];
+const ACTOR_ROLES = [
+  // Prisma UserRole enum
+  'USER', 'GUEST', 'PATROL', 'MODERATOR', 'ADMIN',
+  // Domain / actor roles used by callers
+  'OWNER', 'VOLUNTEER', 'SHELTER_ADMIN', 'SYSTEM',
+];
 
 /**
  * Emit a structured event

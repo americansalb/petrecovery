@@ -160,7 +160,7 @@ export async function POST(request) {
     await logEvent({
       event_type: 'case.bulk_operation_failed',
       resource_type: 'mission',
-      action: 'bulk',
+      action: 'delete',
       result: 'failure',
       error_code: 'INTERNAL_ERROR',
       error_message: error.message,
