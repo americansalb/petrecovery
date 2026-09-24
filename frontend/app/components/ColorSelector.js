@@ -88,6 +88,7 @@ export default function ColorSelector({ value, onChange }) {
             <button
               key={item.name}
               type="button"
+              aria-pressed={isSelected}
               onClick={() => toggleColor(item.name)}
               className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
                 isSelected

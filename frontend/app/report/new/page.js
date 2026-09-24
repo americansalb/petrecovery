@@ -339,35 +339,35 @@ export default function ReportLostPet() {
         label: 'Your pet',
         sidebarIcon: Heart,
         sidebarTitle: 'Who went missing?',
-        sidebarCopy: 'A few quick taps - every answer sharpens what searchers look for.',
+        sidebarCopy: 'A few questions about your pet. Each answer goes on the report.',
       },
       {
         id: 'when',
         label: 'When',
         sidebarIcon: Clock,
-        sidebarTitle: 'Timing shapes the search',
-        sidebarCopy: 'Pets lost within the hour are usually still close. The clock sets the urgency of your alert.',
+        sidebarTitle: 'When it happened',
+        sidebarCopy: 'This goes on the report. A pet missing for less than an hour is marked urgent.',
       },
       {
         id: 'where',
         label: 'Where',
         sidebarIcon: MapPin,
         sidebarTitle: 'Pin the spot',
-        sidebarCopy: `Volunteers search outward from this point - drag the pin to exactly where ${name} was last seen.`,
+        sidebarCopy: `The report and flyers show this spot, and the Rescue Forces that cover it get the report. Drag the pin to where ${name} was last seen.`,
       },
       {
         id: 'photo',
         label: 'Photo',
         sidebarIcon: Camera,
-        sidebarTitle: 'Worth 1,000 flyers',
-        sidebarCopy: 'A clear photo is the single best thing you can add. No photo handy? Skip it and add one later.',
+        sidebarTitle: 'A photo',
+        sidebarCopy: 'People recognize a pet from a photo much more easily than from a description. No photo handy? You can skip this.',
       },
       {
         id: 'colors',
         label: 'Colors',
         sidebarIcon: Palette,
-        sidebarTitle: 'Colors people can match',
-        sidebarCopy: 'Sightings are matched by color first - accurate colors mean fewer false alarms.',
+        sidebarTitle: 'Colors',
+        sidebarCopy: 'Colors go on the report and are compared with found-pet reports nearby.',
       },
       ...(!isLoggedIn
         ? [{
@@ -375,15 +375,15 @@ export default function ReportLostPet() {
             label: 'Contact',
             sidebarIcon: Mail,
             sidebarTitle: 'Stay reachable',
-            sidebarCopy: `The moment someone spots ${name}, this is how we tell you. No password, no hoops.`,
+            sidebarCopy: `We send sightings of ${name} here. You don't need a password.`,
           }]
         : []),
       {
         id: 'post',
         label: 'Post it',
         sidebarIcon: Megaphone,
-        sidebarTitle: 'Blast the alert',
-        sidebarCopy: 'Your report reaches volunteers, rescue forces and the public board the second you post.',
+        sidebarTitle: 'Post the report',
+        sidebarCopy: 'It goes on the public Lost & Found board and to the Rescue Forces that cover the spot.',
       },
     ];
   }, [isLoggedIn, petName]);
@@ -574,7 +574,7 @@ export default function ReportLostPet() {
           stepKey="when"
           variant={VARIANT}
           question={`When did ${name} go missing?`}
-          hint="This sets the urgency and search radius of your alert."
+          hint="A pet missing for less than an hour is marked urgent."
           wide
         >
           <OptionCardGrid
@@ -613,7 +613,7 @@ export default function ReportLostPet() {
           stepKey="photo"
           variant={VARIANT}
           question={`Add a photo of ${name}`}
-          hint="Reports with photos get far more sightings."
+          hint={`A clear photo helps people recognize ${name}.`}
           primary={{ label: 'Continue', onClick: advance, disabled: photos.length === 0 }}
           skip={photos.length === 0 ? { label: "I don't have a photo right now", onClick: advance } : null}
         >
@@ -650,7 +650,7 @@ export default function ReportLostPet() {
           stepKey="contact"
           variant={VARIANT}
           question="How can finders reach you?"
-          hint={`The moment someone spots ${name}, this is how we tell you.`}
+          hint={`We send sightings of ${name} here.`}
           primary={{
             label: 'Continue',
             onClick: advance,
@@ -733,7 +733,7 @@ export default function ReportLostPet() {
           stepKey="details"
           variant={VARIANT}
           question={`Anything that helps someone recognize ${name}?`}
-          hint="All optional - every detail makes the poster stronger."
+          hint="All optional. These go on the report and the flyer."
           primary={{ label: 'Save details', onClick: advance }}
         >
           <DetailsStep

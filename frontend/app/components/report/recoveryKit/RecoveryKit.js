@@ -226,8 +226,8 @@ export default function RecoveryKit({ caseNumber, initialStatus = 'PENDING', fal
       </div>
       <p className="text-sm text-midnight-500 mb-4">
         {shareMode
-          ? 'Print a flyer, post an image, or share the link - every one is another pair of eyes.'
-          : 'The moment you posted, we went to work. Here’s everything we did to help bring them home.'}
+          ? 'Print a flyer, post an image, or share the link.'
+          : 'Here is what we made from your report: flyers, share images, and nearby shelters to call.'}
       </p>
 
       {/* THE OWNER'S NEXT MOVES - the three actions that find most pets. */}

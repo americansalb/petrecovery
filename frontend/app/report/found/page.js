@@ -258,59 +258,59 @@ export default function ReportFoundPet() {
         id: 'animal',
         label: 'The animal',
         sidebarIcon: PawPrint,
-        sidebarTitle: 'You might be the reunion',
-        sidebarCopy: 'Most found pets are missed by someone nearby. A quick report starts the match search.',
+        sidebarTitle: 'Found a pet?',
+        sidebarCopy: 'We compare your report with lost-pet reports nearby and email owners whose pet looks like a close match.',
       },
       {
         id: 'where',
         label: 'Where',
         sidebarIcon: MapPin,
-        sidebarTitle: 'Location is the #1 signal',
-        sidebarCopy: 'Lost pets are matched by distance first - pin the spot where you found them.',
+        sidebarTitle: 'Where you found them',
+        sidebarCopy: 'Matches are compared by distance from this spot. Pin where you found them.',
       },
       {
         id: 'when',
         label: 'When',
         sidebarIcon: Clock,
-        sidebarTitle: 'Fresh sightings match faster',
-        sidebarCopy: 'Owners search hardest in the first hours - timing helps us rank the matches.',
+        sidebarTitle: 'When you found them',
+        sidebarCopy: 'This goes on the report, so owners can tell whether it fits.',
       },
       {
         id: 'photo',
         label: 'Photo',
         sidebarIcon: Camera,
-        sidebarTitle: 'Photos triple match speed',
-        sidebarCopy: 'An owner will recognize their pet in a heartbeat. Even a quick phone snap helps.',
+        sidebarTitle: 'A photo',
+        sidebarCopy: 'An owner can recognize their pet from a photo. A quick phone picture is enough.',
       },
       {
         id: 'colors',
         label: 'Colors',
         sidebarIcon: Palette,
-        sidebarTitle: 'Colors drive the match',
-        sidebarCopy: 'Our match engine compares colors against every lost report nearby.',
+        sidebarTitle: 'Colors',
+        sidebarCopy: 'Colors are compared with lost-pet reports nearby.',
       },
       {
         id: 'details',
         label: 'Details',
         sidebarIcon: Tag,
         sidebarTitle: 'Check the collar',
-        sidebarCopy: 'A tag name or chip number can end the search instantly. All optional.',
+        sidebarCopy: 'A name on a tag or a microchip number can identify the owner. All optional.',
       },
       ...(!isLoggedIn
         ? [{
             id: 'contact',
             label: 'Contact',
             sidebarIcon: Mail,
-            sidebarTitle: 'Where matches go',
-            sidebarCopy: 'When an owner matches, we connect you by email. No password, no hoops.',
+            sidebarTitle: 'Where we reach you',
+            sidebarCopy: "We email you about this report here. You don't need a password.",
           }]
         : []),
       {
         id: 'post',
         label: 'Post it',
         sidebarIcon: Megaphone,
-        sidebarTitle: 'Start the match search',
-        sidebarCopy: 'We compare your report with every nearby lost pet the moment you post.',
+        sidebarTitle: 'Post the report',
+        sidebarCopy: 'It goes on the public Lost & Found board, and we compare it with lost-pet reports nearby.',
       },
     ],
     [isLoggedIn]
@@ -455,7 +455,7 @@ export default function ReportFoundPet() {
           stepKey="photo"
           variant={VARIANT}
           question="Snap a photo if you can"
-          hint="An owner will recognize their pet instantly - photos triple match speed."
+          hint="A photo is the easiest way for an owner to recognize their pet."
           primary={{ label: 'Continue', onClick: advance, disabled: photos.length === 0 }}
           skip={photos.length === 0 ? { label: "I can't take a photo right now", onClick: advance } : null}
         >
@@ -491,7 +491,7 @@ export default function ReportFoundPet() {
           stepKey="details"
           variant={VARIANT}
           question="Anything from a collar or tag?"
-          hint="All optional - a tag name or chip number can end the search instantly."
+          hint="All optional. A tag name or chip number can identify the owner."
           primary={{ label: 'Continue', onClick: advance }}
           skip={{ label: 'Nothing to add', onClick: advance }}
         >
@@ -504,7 +504,7 @@ export default function ReportFoundPet() {
           stepKey="contact"
           variant={VARIANT}
           question="Where should we send matches?"
-          hint="When an owner matches, this is how we connect you."
+          hint="We email you about this report here."
           primary={{
             label: 'Continue',
             onClick: advance,
