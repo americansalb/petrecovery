@@ -72,7 +72,8 @@ function MenuRow({ href, marker, title, detail, status = "" }) {
 
 export default function GameMenu() {
   const router = useRouter();
-  const [game, setGame] = useState("street");
+  // Script is the game the page opens on (founder, 2026-09-25).
+  const [game, setGame] = useState("script");
   const [starting, setStarting] = useState(false);
   const [savedGame, setSavedGame] = useState(null);
   const [imagery, setImagery] = useState(null);
@@ -165,19 +166,6 @@ export default function GameMenu() {
                     <button
                       type="button"
                       className="pe-mode-choice"
-                      aria-pressed={game === "street"}
-                      onClick={() => setGame("street")}
-                    >
-                      <span className="pe-mode-thumb" />
-                      <span>
-                        <strong>Street</strong>
-                        <small>Street views</small>
-                      </span>
-                      <span className="pe-choice-dot" />
-                    </button>
-                    <button
-                      type="button"
-                      className="pe-mode-choice"
                       aria-pressed={game === "script"}
                       onClick={() => setGame("script")}
                     >
@@ -187,6 +175,19 @@ export default function GameMenu() {
                       <span>
                         <strong>Script</strong>
                         <small>Written languages</small>
+                      </span>
+                      <span className="pe-choice-dot" />
+                    </button>
+                    <button
+                      type="button"
+                      className="pe-mode-choice"
+                      aria-pressed={game === "street"}
+                      onClick={() => setGame("street")}
+                    >
+                      <span className="pe-mode-thumb" />
+                      <span>
+                        <strong>Street</strong>
+                        <small>Street views</small>
                       </span>
                       <span className="pe-choice-dot" />
                     </button>
@@ -225,7 +226,7 @@ export default function GameMenu() {
                   <ArrowRight size={14} />
                 </Link>
               ) : null}
-              <Link href="/geo/rooms" data-menu-friends>
+              <Link href={`/geo/rooms?game=${game}`} data-menu-friends>
                 <Users size={15} /> Play with a friend <ArrowRight size={14} />
               </Link>
             </div>
