@@ -457,8 +457,15 @@ what is true anywhere.
 was under forty characters, and "Dit was baie mooi." is not enough to
 place Afrikaans from. A round takes that language's sentences in a seeded
 order until there are ninety characters (thirty in Han and Japanese), at
-most four, so a declaration sentence usually stands alone and a Tatoeba
+most six, so a declaration sentence usually stands alone and a Tatoeba
 line takes two or three (`passageFor` in `app/lib/geo/server/scriptGame.js`).
+The cap was four for the first few hours, which left languages made of
+short lines (Limburgish, Kashubian) under ninety characters. Fifteen
+languages, Thai, Amharic, Croatian and Tamil among them, had only two
+sentences, so every round of them was the same short text; each got six
+or seven more from the Declaration or Tatoeba, with markers written for
+them, and `script.test.js` now checks that every language fills a round
+whatever order its sentences come in.
 The same day added 727 longer sentences from the Universal Declaration to
 141 languages, chosen by script so that each one carries its language's
 existing markers and none of a rival's: the hints stay true without a
@@ -474,7 +481,7 @@ cost to meter, and the mode works on a server with nothing configured at
 all. Its map is a MapKit view like any other round's, and the keyless
 fallback above needs not even that.
 
-**The corpus is 2,117 sentences** across the 264 languages, and where
+**The corpus is 2,207 sentences** across the 264 languages, and where
 they come from matters. The first two or three in each language were
 written for the game, all saying the same few things so the content
 could not leak the answer, which also meant anybody who played twice had

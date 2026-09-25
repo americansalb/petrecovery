@@ -415,7 +415,7 @@ describe('a round', () => {
   test('is enough text to read a language from, never four words', () => {
     // "Dit was baie mooi." was a whole round (founder, 2026-09-25). A round
     // is that language's sentences now, until there are ninety characters,
-    // or thirty in Han and Japanese, and at most four sentences.
+    // or thirty in Han and Japanese, and at most six sentences.
     const dense = new Set(['hans', 'jpan']);
     let short = 0;
     for (let i = 0; i < 40; i++) {
@@ -430,11 +430,27 @@ describe('a round', () => {
         expect(rest.trim()).toBe('');
         const length = [...round.text].length;
         const floor = dense.has(language.script) ? 30 : 90;
-        // Short only when the pool ran out or four sentences were not enough.
-        if (length < floor && used.length < Math.min(4, pool.length)) short += 1;
+        // Short only when the pool ran out or six sentences were not enough.
+        if (length < floor && used.length < Math.min(6, pool.length)) short += 1;
       }
     }
     expect(short).toBe(0);
+  });
+
+  test('every language has enough text for a full round, whatever order it comes in', () => {
+    // The worst order is the shortest sentences first. Fifteen languages,
+    // Thai, Amharic and Croatian among them, had two sentences each: every
+    // round of them was the same short text. If the six shortest reach
+    // the floor, every round does.
+    const dense = new Set(['hans', 'jpan']);
+    const thin = [];
+    for (const language of LANGUAGES) {
+      const lengths = samplesFor(language.code).map((sentence) => [...sentence].length).sort((a, b) => a - b);
+      const worst = lengths.slice(0, 6).reduce((sum, length) => sum + length, 0);
+      const floor = dense.has(language.script) ? 30 : 90;
+      if (worst < floor) thin.push(`${language.code}: ${worst}`);
+    }
+    expect(thin).toEqual([]);
   });
 
   test('gives away nothing about the answer beyond what is on screen', () => {
