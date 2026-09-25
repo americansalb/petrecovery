@@ -67,7 +67,11 @@ export default function RootLayout({ children }) {
                   <ClientProviders>
                     <OfflineBanner />
                     <Navigation />
-                    <main className="pb-16 lg:pb-0">
+                    {/* No bottom padding for the phone tab bar here: SiteFooter
+                        clears it (pb-24), and routes without the footer hide
+                        the tab bar too. Padding main drew a pale band between
+                        a page's last section and the footer. */}
+                    <main>
                       {children}
                     </main>
                     <SiteFooter />

@@ -17,6 +17,57 @@ export const dynamic = 'force-dynamic';
 const BASE_URL = getEmailBaseUrl();
 
 /**
+ * Signing up from a Rescue Force's join form (POST /api/auth/register with
+ * joinForceId) leaves a pending membership: inactive, with no leftAt
+ * (leaving and removal always stamp leftAt). Confirming the email makes
+ * it real. Best effort: the email is already verified, so a failure here
+ * is logged and the person can still press Join after signing in.
+ */
+async function activatePendingMemberships(userId, correlationId) {
+  try {
+    const pending = await prisma.rescueForceMember.findMany({
+      where: { userId, isActive: false, leftAt: null },
+      select: {
+        id: true,
+        rescueSquadId: true,
+        rescueSquad: { select: { id: true, name: true, isDeleted: true } },
+      },
+    });
+    const forces = [];
+    for (const membership of pending) {
+      if (!membership.rescueSquad || membership.rescueSquad.isDeleted) continue;
+      await prisma.rescueForceMember.update({
+        where: { id: membership.id },
+        data: { isActive: true, joinedAt: new Date() },
+      });
+      // The same row POST /api/rescue-forces/[id]/join writes.
+      await prisma.squadActivity.create({
+        data: {
+          rescueSquadId: membership.rescueSquadId,
+          type: 'MEMBER_JOINED',
+          message: 'joined the rescue force',
+          actorId: userId,
+          details: JSON.stringify({}),
+        },
+      });
+      forces.push({ id: membership.rescueSquad.id, name: membership.rescueSquad.name });
+    }
+    return forces;
+  } catch (error) {
+    logEvent({
+      event_type: 'auth.pending_join_failed',
+      correlation_id: correlationId,
+      resource_type: 'user',
+      resource_id: userId,
+      action: 'update',
+      result: 'failure',
+      error_message: error.message,
+    }).catch(() => {});
+    return [];
+  }
+}
+
+/**
  * POST - Verify email with token
  */
 export async function POST(request) {
@@ -85,9 +136,17 @@ export async function POST(request) {
       result: 'success'
     });
 
+    const forces = await activatePendingMemberships(user.id, correlationId);
+
     return NextResponse.json({
       success: true,
-      message: 'Email verified successfully! You can now log in.'
+      message: 'Email verified successfully! You can now log in.',
+      // The Rescue Forces this person asked to join when they signed up,
+      // so the page can send them back to one after they sign in.
+      forces,
+      // To prefill sign-in. The link carrying the token went to this
+      // address, so it tells the holder nothing new.
+      email: user.email,
     });
 
   } catch (error) {
@@ -161,9 +220,20 @@ export async function GET(request) {
       }
     });
 
+    // Someone who signed up from a force's join form asks for the link again
+    // from the same form: the new email says which force it finishes joining.
+    const pendingJoin = await prisma.rescueForceMember
+      .findFirst({
+        where: { userId: user.id, isActive: false, leftAt: null, rescueSquad: { isDeleted: false } },
+        select: { rescueSquad: { select: { name: true } } },
+      })
+      .catch(() => null);
+
     // Send verification email with raw token in URL
     const verifyUrl = `${BASE_URL}/verify-email?token=${rawToken}`;
-    const emailResult = await sendVerificationEmail(user.email, user.firstName, verifyUrl);
+    const emailResult = await sendVerificationEmail(user.email, user.firstName, verifyUrl, {
+      joiningForce: pendingJoin?.rescueSquad?.name,
+    });
 
     if (!emailResult.success) {
       return NextResponse.json(

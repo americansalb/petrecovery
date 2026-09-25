@@ -27,6 +27,14 @@ export default function LoginPage() {
   const [callbackUrl, setCallbackUrl] = useState('/dashboard');
   const router = useRouter();
   const searchParams = useSearchParams();
+  // Arriving from the confirm-email page (app/verify-email/page.js).
+  const verified = searchParams.get('verified') === 'true';
+  // Someone sent here on the way to something (joining a force, reporting)
+  // who has no account yet must not lose the way back by signing up.
+  const signUpParams = new URLSearchParams();
+  if (searchParams.get('callbackUrl')) signUpParams.set('callbackUrl', searchParams.get('callbackUrl'));
+  if (email.trim()) signUpParams.set('email', email.trim());
+  const signUpHref = `/register${signUpParams.toString() ? `?${signUpParams}` : ''}`;
 
   useEffect(() => {
     const callback = searchParams.get('callbackUrl');
@@ -88,10 +96,10 @@ export default function LoginPage() {
         <Card className="shadow-xl">
           <div className="text-center mb-6">
             <h1 id="login-heading" className="text-2xl font-bold text-midnight-900 mb-2">
-              Welcome Back
+              {verified ? 'Sign in' : 'Welcome Back'}
             </h1>
             <p className="text-midnight-500">
-              Sign in to track your alerts
+              {verified ? 'Your email is confirmed. Sign in to continue.' : 'Sign in to track your alerts'}
             </p>
           </div>
 
@@ -171,7 +179,7 @@ export default function LoginPage() {
             <p className="text-midnight-500 mb-2">
               Don't have an account?
             </p>
-            <Link href="/register" className="text-midnight-900 font-semibold hover:text-flash-600 transition">
+            <Link href={signUpHref} className="text-midnight-900 font-semibold hover:text-flash-600 transition">
               Sign up
             </Link>
           </div>

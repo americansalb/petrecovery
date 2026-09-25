@@ -189,13 +189,23 @@ export default function SuccessScreen({
           </div>
         )}
 
-        {/* Squad joined (lost) */}
+        {/* Squad joined (lost). Only what happened: the report create route
+            adds the reporter to the nearest force and posts the pet in its
+            updates. It used to add "Your neighbors are ready to help search",
+            which a force set up by this very report (no members yet) is not. */}
         {variant === 'lost' && assignedSquad && (
           <div className="mt-4 p-4 rounded-2xl bg-[#F3EFE7] border border-[#E5E0D4] flex items-start gap-3 text-left">
             <Heart size={19} className="text-[#0B1133] shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-bold text-[#0A0D26]">You&apos;ve joined {assignedSquad.name}</p>
-              <p className="text-[#6B6459] mt-0.5">Your neighbors are ready to help search.</p>
+              <p className="text-[#6B6459] mt-0.5">
+                {petName}&apos;s report is posted in the force&apos;s updates for its members.{' '}
+                {assignedSquad.id && (
+                  <Link href={`/rescue-forces/${assignedSquad.id}`} className="font-semibold text-[#0A0D26] underline underline-offset-2">
+                    See the force
+                  </Link>
+                )}
+              </p>
             </div>
           </div>
         )}

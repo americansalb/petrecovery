@@ -214,7 +214,7 @@ export default function RegisterPage() {
                 <span className="text-xs font-bold uppercase tracking-wide text-midnight-400">
                   Step {step + 1} of {STEPS.length}
                 </span>
-                <Link href="/login" className="text-xs font-semibold text-midnight-400 hover:text-midnight-700 transition-colors">
+                <Link href={searchParams.get('callbackUrl') ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/login'} className="text-xs font-semibold text-midnight-400 hover:text-midnight-700 transition-colors">
                   Have an account? Sign in
                 </Link>
               </div>
@@ -257,7 +257,7 @@ export default function RegisterPage() {
                     aria-label="Email address"
                     className={inputClass}
                   />
-                  <p className="text-xs text-midnight-400 mt-2.5">We&apos;ll send a verification link here. No spam, ever.</p>
+                  <p className="text-xs text-midnight-400 mt-2.5">We&apos;ll send a link here to confirm it.</p>
                 </StepShell>
               )}
 
@@ -347,7 +347,7 @@ export default function RegisterPage() {
                       I agree to the{' '}
                       <Link href="/legal/terms" target="_blank" className="font-semibold text-midnight-900 underline underline-offset-2 hover:text-flash-600" onClick={(e) => e.stopPropagation()}>Terms of Service</Link>
                       {' '}and{' '}
-                      <Link href="/legal/consent" target="_blank" className="font-semibold text-midnight-900 underline underline-offset-2 hover:text-flash-600" onClick={(e) => e.stopPropagation()}>Liability Waiver</Link>.
+                      <Link href="/legal/waiver" target="_blank" className="font-semibold text-midnight-900 underline underline-offset-2 hover:text-flash-600" onClick={(e) => e.stopPropagation()}>Liability Waiver</Link>.
                       I understand that participation in rescue activities involves physical risks.
                     </span>
                   </button>

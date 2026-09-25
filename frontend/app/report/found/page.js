@@ -30,6 +30,7 @@ import SuccessScreen from '../../components/report/SuccessScreen';
 import { captchaHeaders } from '@/app/lib/captchaClient';
 import TagDetailsStep from '../../components/report/found/TagDetailsStep';
 import DraftPrompt from '../../components/report/DraftPrompt';
+import SwitchReportLink from '../../components/report/SwitchReportLink';
 import useWizardHistory from '../../components/report/useWizardHistory';
 import { loadDraft, saveDraft, clearDraft } from '../../components/report/wizardDraft';
 import ColorSelector from '../../components/ColorSelector';
@@ -409,6 +410,7 @@ export default function ReportFoundPet() {
               advance();
             }}
           />
+          <SwitchReportLink to="lost" />
         </StepScreen>
       )}
 

@@ -181,7 +181,7 @@ export async function POST(request) {
   }
 
   try {
-    const { email, password, firstName, phone, acceptedTerms, pet, shelterRequest } = await request.json();
+    const { email, password, firstName, phone, acceptedTerms, pet, shelterRequest, joinForceId } = await request.json();
 
     // Validate any pet draft BEFORE creating the user, so a bad draft
     // can't produce an account with a half-saved Health Book.
@@ -278,6 +278,24 @@ export async function POST(request) {
       );
     }
 
+    // The join form on a Rescue Force's page (app/rescue-forces/[id]/
+    // JoinForcePanel.js) signs people up and asks to join in one step. The
+    // membership is created with the account but stays pending until the
+    // email is confirmed; see POST /api/auth/verify-email.
+    let joinForce = null;
+    if (joinForceId !== undefined && joinForceId !== null) {
+      if (typeof joinForceId !== 'string' || !joinForceId.trim()) {
+        return NextResponse.json({ error: 'Invalid Rescue Force' }, { status: 400 });
+      }
+      joinForce = await prisma.rescueForce.findFirst({
+        where: { id: joinForceId.trim(), isDeleted: false },
+        select: { id: true, name: true },
+      });
+      if (!joinForce) {
+        return NextResponse.json({ error: 'That Rescue Force no longer exists.' }, { status: 400 });
+      }
+    }
+
     // Hash password with strong salt rounds
     const passwordHash = await bcrypt.hash(password, 12);
 
@@ -345,12 +363,29 @@ export async function POST(request) {
         await createShelterClaimInTx(tx, created.id, shelterDraft);
       }
 
+      if (joinForce) {
+        // Pending: inactive with no leftAt. Leaving and removal always stamp
+        // leftAt, so this pair can only mean "asked to join, email not
+        // confirmed yet". Pending rows are not members anywhere: every
+        // member list, count and check filters on isActive.
+        await tx.rescueForceMember.create({
+          data: {
+            rescueSquadId: joinForce.id,
+            userId: created.id,
+            role: 'MEMBER',
+            isActive: false,
+          },
+        });
+      }
+
       return created;
     });
 
     // Send verification email (non-blocking)
     const verifyUrl = `${BASE_URL}/verify-email?token=${rawVerifyToken}`;
-    sendVerificationEmail(normalizedEmail, sanitizedFirstName, verifyUrl).catch((err) => {
+    sendVerificationEmail(normalizedEmail, sanitizedFirstName, verifyUrl, {
+      joiningForce: joinForce?.name,
+    }).catch((err) => {
       console.error('Failed to send verification email:', err);
     });
 
