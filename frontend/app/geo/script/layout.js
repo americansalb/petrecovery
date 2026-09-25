@@ -15,7 +15,7 @@ export const metadata = buildShareMetadata({
   // (app/lib/geo/script.js), and a link preview is the most public
   // thing it says.
   description:
-    'Read a sentence and pin where its language is spoken. Scored by the distance to the places it is used, not by country.',
+    'Read a few lines and pin where the language is spoken. Scored by the distance to the places it is used, not by country.',
   index: false,
 });
 

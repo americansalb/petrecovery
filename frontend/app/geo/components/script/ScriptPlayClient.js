@@ -406,7 +406,7 @@ function ScriptPlayGame({ params }) {
         <div className="mx-auto max-w-4xl px-3 pb-4 pt-3 text-center sm:px-4">
           {loading ? (
             <p className="flex items-center justify-center gap-2 py-3 text-sand-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> {saveReady ? 'Finding a sentence' : 'Loading your progress'}
+              <Loader2 className="h-4 w-4 animate-spin" /> {saveReady ? 'Finding the text' : 'Loading your progress'}
             </p>
           ) : error ? (
             <div className="py-2 text-sm">

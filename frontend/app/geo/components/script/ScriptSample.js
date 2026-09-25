@@ -147,7 +147,12 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
   const rtl = RIGHT_TO_LEFT.has(script);
   // No `leading-` class here: the line height comes from the script, and
   // a utility would override it.
-  const textSize = size === 'sm' ? 'text-lg sm:text-xl' : 'text-2xl sm:text-4xl';
+  // A round is a passage of one to four sentences, so the type steps down
+  // as it gets longer and a long one still fits a phone without scrolling.
+  const chars = [...(text || '')].length;
+  const textSize = size === 'sm'
+    ? 'text-lg sm:text-xl'
+    : chars <= 60 ? 'text-2xl sm:text-4xl' : chars <= 150 ? 'text-xl sm:text-3xl' : 'text-lg sm:text-2xl';
 
   return (
     <div className="w-full">
@@ -164,7 +169,7 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
         <p className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            Your device has no font for this writing system, so the sentence above is showing as empty boxes. The round still
+            Your device has no font for this writing system, so the text above is showing as empty boxes. The round still
             works, but you are guessing blind. Installing a Noto font for this script fixes it.
           </span>
         </p>
