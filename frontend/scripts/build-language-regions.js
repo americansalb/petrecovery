@@ -45,6 +45,8 @@ const SUBDIVIDED = {
   CHN: 'CN', TUR: 'TR', IRQ: 'IQ', IRN: 'IR', SYR: 'SY', AFG: 'AF',
   ESP: 'ES', FRA: 'FR', GBR: 'GB', BEL: 'BE', CHE: 'CH', ROU: 'RO',
   NGA: 'NG', ETH: 'ET', ZAF: 'ZA', CAN: 'CA',
+  // Ostrobothnia, for Swedish (2026-09-25 area audit).
+  FIN: 'FI',
   // Added in the 2026-09-15 audit. Every one of these replaced a clip
   // box: a rectangle drawn over a country is not a place, and a region
   // the size of Tatarstan should have Tatarstan's border rather than a

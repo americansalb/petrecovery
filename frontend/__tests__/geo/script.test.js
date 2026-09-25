@@ -514,10 +514,11 @@ describe('scoring a round', () => {
     expect(result.answer).toMatchObject({ code: 'tam', name: 'Tamil', script: 'taml', family: 'Dravidian' });
     expect(result.answer.endonym).toBeTruthy();
     // Every region, so the map can draw them all: Tamil Nadu, the two
-    // Tamil pieces of Puducherry, and the Sri Lankan north and east. A
-    // border is not the edge of a language.
-    expect(result.answer.regions.length).toBe(3);
-    expect([...new Set(result.answer.regions.map((r) => r.cca2))].sort()).toEqual(['IN', 'LK']);
+    // Tamil pieces of Puducherry, the Sri Lankan north and east, and
+    // Singapore, where Tamil is an official language. A border is not the
+    // edge of a language.
+    expect(result.answer.regions.length).toBe(4);
+    expect([...new Set(result.answer.regions.map((r) => r.cca2))].sort()).toEqual(['IN', 'LK', 'SG']);
     expect(result.answer.regions.every((region) => region.rings?.length)).toBe(true);
   });
 

@@ -236,6 +236,8 @@ const LANGUAGE_ROWS = [
       // Telugu already has.
       { name: 'Puducherry and Karaikal', units: ['IN-PY'], clip: { minLng: 79.0, maxLng: 80.5, maxLat: 12.5 } },
       { name: 'northern and eastern Sri Lanka', units: ['LK-41', 'LK-42', 'LK-43', 'LK-44', 'LK-45', 'LK-51', 'LK-52', 'LK-53'] },
+      // 2026-09-25 area audit: one of Singapore's four official languages.
+      { name: 'Singapore', countries: ['SG'] },
     ],
   },
   {
@@ -275,6 +277,14 @@ const LANGUAGE_ROWS = [
       { name: 'the Levant', countries: ['SY', 'LB', 'JO', 'PS'] },
       { name: 'the Gulf', countries: ['SA', 'YE', 'OM', 'AE', 'QA', 'BH', 'KW'] },
       { name: 'Iraq', countries: ['IQ'] },
+      // 2026-09-25 area audit: an official language in each, or the
+      // language most people there use.
+      // Chadian Arabic is the language of N'Djamena and the north; the
+      // south speaks Sara languages and French.
+      { name: 'the Chadian north and centre', countries: ['TD'], clip: { minLat: 10.5 } },
+      { name: 'Djibouti, Somalia and the Comoros', countries: ['DJ', 'SO', 'KM'] },
+      { name: 'Western Sahara', countries: ['EH'] },
+      { name: 'Israel', countries: ['IL'] },
     ],
   },
   {
@@ -329,6 +339,8 @@ const LANGUAGE_ROWS = [
       { name: 'Russia', countries: ['RU'] },
       { name: 'Belarus', countries: ['BY'] },
       { name: 'northern Kazakhstan', countries: ['KZ'], clip: { minLat: 49.5 } },
+      // 2026-09-25 area audit: an official language of Kyrgyzstan.
+      { name: 'Kyrgyzstan', countries: ['KG'] },
     ],
   },
   {
@@ -458,6 +470,9 @@ const LANGUAGE_ROWS = [
       { name: 'the Spanish Caribbean', countries: ['CU', 'DO', 'PR'] },
       { name: 'the Andes', countries: ['CO', 'VE', 'EC', 'PE', 'BO'] },
       { name: 'the Southern Cone', countries: ['AR', 'CL', 'UY', 'PY'] },
+      // 2026-09-25 area audit: official, or spoken by most people.
+      { name: 'Equatorial Guinea', countries: ['GQ'] },
+      { name: 'Belize', countries: ['BZ'] },
     ],
   },
   {
@@ -492,6 +507,16 @@ const LANGUAGE_ROWS = [
       { name: 'Wallonia and Brussels', units: ['BE-WHT', 'BE-WNA', 'BE-WLX', 'BE-WLG', 'BE-WBR', 'BE-BRU'] },
       { name: 'Romandy', units: ['CH-GE', 'CH-VD', 'CH-NE', 'CH-JU', 'CH-FR', 'CH-VS'] },
       { name: 'francophone Africa', countries: ['SN', 'ML', 'BF', 'CI', 'GN', 'TG', 'BJ', 'NE', 'TD', 'CM', 'GA', 'CG', 'CD', 'CF', 'MG'] },
+      // Added in the 2026-09-25 area audit, which checked every language
+      // against Unicode CLDR's figures for where it is used: each of these
+      // has French as an official language or a majority that uses it.
+      { name: 'Luxembourg and Monaco', countries: ['LU', 'MC'] },
+      { name: 'New Brunswick', units: ['CA-NB'] },
+      { name: 'the Maghreb', countries: ['MA', 'DZ', 'TN'] },
+      { name: 'Burundi, Djibouti and the Comoros', countries: ['BI', 'DJ', 'KM'] },
+      { name: 'Mauritius and the Seychelles', countries: ['MU', 'SC'] },
+      { name: 'Haiti', countries: ['HT'] },
+      { name: 'the French Pacific and Vanuatu', countries: ['NC', 'PF', 'VU'] },
     ],
   },
   {
@@ -509,6 +534,10 @@ const LANGUAGE_ROWS = [
     family: 'Indo-European', branch: 'Germanic', speakers: 135,
     regions: [
       { name: 'Germany, Austria and Liechtenstein', countries: ['DE', 'AT', 'LI'] },
+      // 2026-09-25 area audit: official in both, the majority language of
+      // South Tyrol.
+      { name: 'Luxembourg', countries: ['LU'] },
+      { name: 'South Tyrol', units: ['IT-BZ'] },
       { name: 'German-speaking Switzerland', units: ['CH-ZH', 'CH-BE', 'CH-LU', 'CH-UR', 'CH-SZ', 'CH-OW', 'CH-NW', 'CH-GL', 'CH-ZG', 'CH-SO', 'CH-BS', 'CH-BL', 'CH-SH', 'CH-AR', 'CH-AI', 'CH-SG', 'CH-GR', 'CH-AG', 'CH-TG'] },
     ],
   },
@@ -519,6 +548,8 @@ const LANGUAGE_ROWS = [
       { name: 'the Netherlands', countries: ['NL'] },
       { name: 'Flanders', units: ['BE-VWV', 'BE-VOV', 'BE-VAN', 'BE-VLI', 'BE-VBR', 'BE-BRU'] },
       { name: 'Suriname', countries: ['SR'] },
+      // 2026-09-25 area audit: Dutch is official on all three islands.
+      { name: 'the Dutch Caribbean', countries: ['AW', 'CW', 'SX'] },
     ],
   },
   {
@@ -532,7 +563,13 @@ const LANGUAGE_ROWS = [
   {
     code: 'swe', name: 'Swedish', endonym: 'svenska', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 13,
-    regions: [{ name: 'Sweden', countries: ['SE'] }],
+    regions: [
+      { name: 'Sweden', countries: ['SE'] },
+      // 2026-09-25 area audit: Åland is Swedish-speaking, and so is most
+      // of Ostrobothnia, on the Finnish coast.
+      { name: 'the Åland islands', countries: ['AX'] },
+      { name: 'Ostrobothnia', units: ['FI-12'] },
+    ],
   },
   {
     code: 'dan', name: 'Danish', endonym: 'dansk', script: 'latn',
@@ -662,7 +699,12 @@ const LANGUAGE_ROWS = [
   {
     code: 'swh', name: 'Swahili', endonym: 'Kiswahili', script: 'latn',
     family: 'Niger-Congo', branch: 'Bantu', speakers: 87,
-    regions: [{ name: 'Tanzania, Kenya and Uganda', countries: ['TZ', 'KE', 'UG'] }],
+    regions: [
+      { name: 'Tanzania, Kenya and Uganda', countries: ['TZ', 'KE', 'UG'] },
+      // 2026-09-25 area audit: the language of the eastern Congo, from the
+      // Kivus down to Lubumbashi.
+      { name: 'the eastern Congo', units: ['CD-NK', 'CD-SK', 'CD-MA', 'CD-KA'] },
+    ],
   },
   {
     code: 'hau', name: 'Hausa', endonym: 'Hausa', script: 'latn',
@@ -1013,7 +1055,12 @@ const LANGUAGE_ROWS = [
   {
     code: 'nya', name: 'Chichewa', endonym: 'Chichewa', script: 'latn',
     family: 'Niger-Congo', branch: 'Bantu', speakers: 14,
-    regions: [{ name: 'Malawi', countries: ['MW'] }],
+    regions: [
+      { name: 'Malawi', countries: ['MW'] },
+      // 2026-09-25 area audit: the same language is Nyanja in Zambia, and
+      // the language of Lusaka.
+      { name: 'eastern Zambia and Lusaka', units: ['ZM-03', 'ZM-09'] },
+    ],
   },
   {
     code: 'sna', name: 'Shona', endonym: 'chiShona', script: 'latn',
@@ -1119,7 +1166,9 @@ const LANGUAGE_ROWS = [
   {
     code: 'smo', name: 'Samoan', endonym: 'gagana Samoa', script: 'latn',
     family: 'Austronesian', branch: 'Polynesian', speakers: 0.5,
-    regions: [{ name: 'the Samoan islands', countries: ['WS'] }],
+    // American Samoa added in the 2026-09-25 area audit: the same language,
+    // official on both sides of the line.
+    regions: [{ name: 'the Samoan islands', countries: ['WS', 'AS'] }],
   },
   {
     code: 'ton', name: 'Tongan', endonym: 'lea faka-Tonga', script: 'latn',
@@ -1180,7 +1229,7 @@ const LANGUAGE_ROWS = [
   {
     code: 'yue', name: 'Cantonese', endonym: '廣東話', script: 'hans',
     family: 'Sino-Tibetan', branch: 'Sinitic', speakers: 85,
-    regions: [{ name: 'Guangdong', units: ['CN-GD'] }, { name: 'Hong Kong', countries: ['HK'] }],
+    regions: [{ name: 'Guangdong', units: ['CN-GD'] }, { name: 'Hong Kong', countries: ['HK'] }, { name: 'Macau', countries: ['MO'] }],
 
   },
 
