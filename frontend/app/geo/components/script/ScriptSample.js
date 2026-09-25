@@ -147,7 +147,7 @@ export default function ScriptSample({ text, script, size = 'lg' }) {
   const rtl = RIGHT_TO_LEFT.has(script);
   // No `leading-` class here: the line height comes from the script, and
   // a utility would override it.
-  // A round is a passage of one to four sentences, so the type steps down
+  // A round is a passage of one to six sentences, so the type steps down
   // as it gets longer and a long one still fits a phone without scrolling.
   const chars = [...(text || '')].length;
   const textSize = size === 'sm'

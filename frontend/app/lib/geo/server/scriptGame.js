@@ -142,11 +142,16 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
  * the Universal Declaration usually is on its own; a Tatoeba line
  * usually takes two or three. Han and Japanese carry a word in one or
  * two characters, so they need fewer.
+ *
+ * The cap was four at first, and a language whose lines are all short
+ * came out under ninety characters: Limburgish every round, Kashubian
+ * and Karachay-Balkar one round in three. Six lets those reach it; a
+ * language with long sentences stops well before the cap either way.
  */
 const PASSAGE_MIN_CHARS = 90;
 const DENSE_PASSAGE_MIN_CHARS = 30;
 const DENSE_SCRIPTS = new Set(['hans', 'jpan']);
-const PASSAGE_MAX_SENTENCES = 4;
+const PASSAGE_MAX_SENTENCES = 6;
 
 /**
  * The text a round shows. Drawn from the seed, the round index and the
