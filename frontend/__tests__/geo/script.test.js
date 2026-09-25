@@ -465,9 +465,11 @@ describe('a round', () => {
 describe('scoring a round', () => {
   const roundFor = (code) => {
     // Walk the draw until the language we want comes up, so the test
-    // scores a real token rather than a hand-built one.
-    for (let i = 0; i < 400; i++) {
-      const config = { rounds: 3, seed: `hunt-${i}` };
+    // scores a real token rather than a hand-built one. Ten rounds a game
+    // and a long walk, because a small language is drawn about one round
+    // in a thousand now the pool is past two hundred and fifty.
+    for (let i = 0; i < 3000; i++) {
+      const config = { rounds: 10, seed: `hunt-${i}` };
       const drawn = drawLanguages(config, SECRET);
       const index = drawn.findIndex((language) => language.code === code);
       if (index >= 0) return createScriptRound({ config, roundIndex: index, env });

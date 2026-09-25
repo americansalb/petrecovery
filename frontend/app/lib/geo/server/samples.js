@@ -42,6 +42,16 @@
  * something there would be loose enough to let a place name through
  * somewhere else.
  *
+ * **A third source, from 2026-09-25: the Universal Declaration of Human
+ * Rights.** It is translated into more languages than any other text,
+ * and the Unicode UDHR project keeps the translations as plain text
+ * (NLTK distributes that corpus as public domain). The languages added
+ * that day take their sentences from it, copied exactly, and it has the
+ * property the first sentences were written to have: every language says
+ * the same things, so the content cannot give the answer away. A language
+ * with no translation of the declaration has Tatoeba sentences instead,
+ * picked one by one.
+ *
  * **The curation rule, which matters more than the size of the pool:**
  * strip proper nouns. A sentence containing a city name answers itself,
  * and so does a digit, a currency symbol or a flag. Nothing here names a

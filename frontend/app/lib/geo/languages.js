@@ -842,7 +842,9 @@ const LANGUAGE_ROWS = [
   {
     code: 'fuf', name: 'Pular', endonym: '𞤆𞤵𞤤𞤢𞤪', script: 'adlm',
     family: 'Niger-Congo', branch: 'Senegambian', speakers: 5,
-    regions: [{ name: 'the Fouta Djallon', units: ['GN-LA', 'GN-MM', 'GN-DL', 'GN-PI', 'GN-TO', 'GN-KB'] }],
+    // Labé and Mamou regions whole: Mali and Lélouma prefectures were
+    // missing until 2026-09-25, and Mali is where Glottolog puts Pular.
+    regions: [{ name: 'the Fouta Djallon', units: ['GN-LA', 'GN-MM', 'GN-DL', 'GN-PI', 'GN-TO', 'GN-KB', 'GN-ML', 'GN-LE'] }],
 
   },
   {
@@ -863,7 +865,11 @@ const LANGUAGE_ROWS = [
   {
     code: 'awa', name: 'Awadhi', endonym: 'अवधी', script: 'deva',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 4,
-    regions: [{ name: 'Awadh', units: ['IN-UP'], clip: { minLng: 79.5, maxLng: 82.2, maxLat: 27.6 } }],
+    // Awadh runs from Kheri on the Nepal border down to Pratapgarh, and
+    // from Hardoi east to Balrampur. The box stopped at 27.6N and 82.2E,
+    // which cut off Kheri, Bahraich and Balrampur, and had no southern
+    // edge, which gave Awadhi the Bundeli-speaking south (2026-09-25).
+    regions: [{ name: 'Awadh', units: ['IN-UP'], clip: { minLng: 79.5, maxLng: 82.6, minLat: 25.7, maxLat: 28.7 } }],
   },
   {
     code: 'new', name: 'Newar', endonym: 'नेपाल भाषा', script: 'deva',
@@ -1032,7 +1038,10 @@ const LANGUAGE_ROWS = [
   {
     code: 'lug', name: 'Luganda', endonym: 'Luganda', script: 'latn',
     family: 'Niger-Congo', branch: 'Bantu', speakers: 11,
-    regions: [{ name: 'Buganda', units: ['UG-102', 'UG-113', 'UG-106', 'UG-105', 'UG-107', 'UG-108'] }],
+    // Buganda is the whole Central Region, which Natural Earth draws as
+    // the UG-1xx districts. It was six of them until 2026-09-25, and a
+    // check against Glottolog's point for Luganda, in Mityana, found the gap.
+    regions: [{ name: 'Buganda', units: ['UG-101', 'UG-102', 'UG-103', 'UG-104', 'UG-105', 'UG-106', 'UG-107', 'UG-108', 'UG-109', 'UG-110', 'UG-111', 'UG-112', 'UG-113', 'UG-114', 'UG-115', 'UG-116', 'UG-117', 'UG-118', 'UG-119', 'UG-120', 'UG-121', 'UG-122', 'UG-123', 'UG-124'] }],
 
   },
   {

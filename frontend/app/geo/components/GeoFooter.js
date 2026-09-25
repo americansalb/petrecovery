@@ -30,7 +30,7 @@ export default function GeoFooter() {
           <a href="https://tatoeba.org" className="underline decoration-pe-line-strong underline-offset-2 hover:text-pe-fg" rel="noreferrer noopener" target="_blank">
             Tatoeba
           </a>
-          , CC-BY 2.0 FR.
+          , CC-BY 2.0 FR, and from translations of the Universal Declaration of Human Rights.
         </p>
         <div className="flex shrink-0 gap-4">
           <Link href="/geo/privacy" className="hover:text-pe-fg">Privacy</Link>
