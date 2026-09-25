@@ -52,6 +52,9 @@ const SUBDIVIDED = {
   RUS: 'RU', USA: 'US', ITA: 'IT', DEU: 'DE', NLD: 'NL',
   IDN: 'ID', PHL: 'PH', PER: 'PE', BOL: 'BO',
   GHA: 'GH', UGA: 'UG', MLI: 'ML', GIN: 'GN',
+  // Added with the 2026-09-25 languages, for the ones that cover part of
+  // a country: a province, a region or a state rather than the whole.
+  COD: 'CD', COG: 'CG', AGO: 'AO', ZMB: 'ZM', NAM: 'NA', TZA: 'TZ', MOZ: 'MZ', MWI: 'MW', ZWE: 'ZW', TGO: 'TG', BEN: 'BJ', CIV: 'CI', BFA: 'BF', MRT: 'MR', SEN: 'SN', SLE: 'SL', GMB: 'GM', MYS: 'MY', MMR: 'MM', MDA: 'MD', POL: 'PL', MEX: 'MX', GTM: 'GT', CHL: 'CL', HND: 'HN', BLZ: 'BZ', AZE: 'AZ',
 };
 // South Asia was drawn first and at two kilometres; everywhere else is
 // five, which is still finer than any isogloss is knowable.
@@ -276,10 +279,18 @@ async function read(source) {
     for (const ring of ringsOf(feature.geometry)) {
       rawPoints += ring.length;
       if (ringArea(ring) < MIN_RING_AREA_DEG2) continue;
-      const thinned = simplify(ring, FINE.has(cca2) ? TOLERANCE_DEG : COARSE_TOLERANCE_DEG).map(([lng, lat]) => [
-        Number(lng.toFixed(PLACES)),
-        Number(lat.toFixed(PLACES)),
-      ]);
+      // A capital's own district, Cotonou, Conakry or Dundee, is small
+      // enough to thin to nothing at the coarse tolerance, which dropped
+      // the city from its language. Such a ring is retried finer; every
+      // ring that survived before comes out exactly as it did.
+      let thinned = [];
+      for (const tolerance of [FINE.has(cca2) ? TOLERANCE_DEG : COARSE_TOLERANCE_DEG, TOLERANCE_DEG, TOLERANCE_DEG / 4]) {
+        thinned = simplify(ring, tolerance).map(([lng, lat]) => [
+          Number(lng.toFixed(PLACES)),
+          Number(lat.toFixed(PLACES)),
+        ]);
+        if (thinned.length >= 4) break;
+      }
       if (thinned.length < 4) continue;
       // Close it again: rounding can move the last point off the first.
       thinned[thinned.length - 1] = thinned[0];
@@ -293,6 +304,21 @@ async function read(source) {
     // Largest ring first, so the label and the centre land on the
     // mainland rather than on an island.
     rings.sort((a, b) => ringArea(b) - ringArea(a));
+    // Natural Earth gives some cities the code of the province around
+    // them: PH-PAM is Pampanga and Angeles, PH-LEY is Leyte, Tacloban and
+    // Ormoc, PH-CEB is Cebu and Cebu City. The unit is all of them, named
+    // for the biggest. A later feature used to replace an earlier one,
+    // which shrank Pampanga to Angeles and put San Fernando outside it.
+    const prior = units[id];
+    if (prior) {
+      const biggerNew = ringArea(rings[0]) > ringArea(prior.rings[0]);
+      units[id] = {
+        name: biggerNew ? name : prior.name,
+        cca2,
+        rings: [...prior.rings, ...rings].sort((a, b) => ringArea(b) - ringArea(a)),
+      };
+      continue;
+    }
     units[id] = { name, cca2, rings };
     kept += 1;
   }
