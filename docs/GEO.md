@@ -217,7 +217,7 @@ pinned in Tamil Nadu scores full marks. Tamil pinned in Punjab does not.
 Punjabi is spoken on both sides of a border, and pinning either is
 right.
 
-**The corpus is 159 languages across 34 writing systems**, and it grows
+**The corpus is 264 languages across 34 writing systems**, and it grows
 by adding the language next to one already in it rather than the next
 biggest in the world: Macedonian beside Bulgarian, Slovak beside Czech,
 Latvian beside Lithuanian, Galician between Spanish and Portuguese,
@@ -226,6 +226,21 @@ beside Persian in two other alphabets, Cantonese beside Mandarin in the
 same one. A round is worth playing when it is a decision between two
 things you can tell apart, and worth nothing when the answer is
 "somewhere in Europe".
+
+**105 of them arrived on 2026-09-25**, all in scripts the game already
+had: 23 from central, eastern and southern Africa, 22 from West Africa, 21
+from South-East Asia, north-east India and the Pacific, 24 regional
+languages of Europe and the Americas, 14 from Russia and the Caucasus, and
+Kirundi. Their sentences are copied from the UN's Universal Declaration of
+Human Rights (the Unicode UDHR corpus, which NLTK distributes as public
+domain) or, where a language has no declaration, picked from Tatoeba. Every
+hint compares the language with a neighbour a player would confuse it with,
+using the word that neighbour's own translation uses. Each language's area
+was checked against the point Glottolog gives for it. That check also found
+three live languages drawn too small or in the wrong place (Luganda, Pular,
+Awadhi) and a builder bug: Natural Earth gives some cities the code of the
+province around them, and the builder kept whichever shape it read last,
+so Pampanga had shrunk to the city of Angeles and Cebu to Cebu City.
 
 **Nine of the alphabets are written for a handful of languages each**,
 and every one of them settles a round on sight: Thaana for Dhivehi,
@@ -433,7 +448,7 @@ cost to meter, and the mode works on a server with nothing configured at
 all. Its map is a MapKit view like any other round's, and the keyless
 fallback above needs not even that.
 
-**The corpus is 876 sentences** across the 159 languages, and where
+**The corpus is 1,390 sentences** across the 264 languages, and where
 they come from matters. The first two or three in each language were
 written for the game, all saying the same few things so the content
 could not leak the answer, which also meant anybody who played twice had

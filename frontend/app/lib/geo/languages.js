@@ -842,7 +842,9 @@ const LANGUAGE_ROWS = [
   {
     code: 'fuf', name: 'Pular', endonym: '𞤆𞤵𞤤𞤢𞤪', script: 'adlm',
     family: 'Niger-Congo', branch: 'Senegambian', speakers: 5,
-    regions: [{ name: 'the Fouta Djallon', units: ['GN-LA', 'GN-MM', 'GN-DL', 'GN-PI', 'GN-TO', 'GN-KB'] }],
+    // Labé and Mamou regions whole: Mali and Lélouma prefectures were
+    // missing until 2026-09-25, and Mali is where Glottolog puts Pular.
+    regions: [{ name: 'the Fouta Djallon', units: ['GN-LA', 'GN-MM', 'GN-DL', 'GN-PI', 'GN-TO', 'GN-KB', 'GN-ML', 'GN-LE'] }],
 
   },
   {
@@ -863,7 +865,11 @@ const LANGUAGE_ROWS = [
   {
     code: 'awa', name: 'Awadhi', endonym: 'अवधी', script: 'deva',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 4,
-    regions: [{ name: 'Awadh', units: ['IN-UP'], clip: { minLng: 79.5, maxLng: 82.2, maxLat: 27.6 } }],
+    // Awadh runs from Kheri on the Nepal border down to Pratapgarh, and
+    // from Hardoi east to Balrampur. The box stopped at 27.6N and 82.2E,
+    // which cut off Kheri, Bahraich and Balrampur, and had no southern
+    // edge, which gave Awadhi the Bundeli-speaking south (2026-09-25).
+    regions: [{ name: 'Awadh', units: ['IN-UP'], clip: { minLng: 79.5, maxLng: 82.6, minLat: 25.7, maxLat: 28.7 } }],
   },
   {
     code: 'new', name: 'Newar', endonym: 'नेपाल भाषा', script: 'deva',
@@ -1032,7 +1038,10 @@ const LANGUAGE_ROWS = [
   {
     code: 'lug', name: 'Luganda', endonym: 'Luganda', script: 'latn',
     family: 'Niger-Congo', branch: 'Bantu', speakers: 11,
-    regions: [{ name: 'Buganda', units: ['UG-102', 'UG-113', 'UG-106', 'UG-105', 'UG-107', 'UG-108'] }],
+    // Buganda is the whole Central Region, which Natural Earth draws as
+    // the UG-1xx districts. It was six of them until 2026-09-25, and a
+    // check against Glottolog's point for Luganda, in Mityana, found the gap.
+    regions: [{ name: 'Buganda', units: ['UG-101', 'UG-102', 'UG-103', 'UG-104', 'UG-105', 'UG-106', 'UG-107', 'UG-108', 'UG-109', 'UG-110', 'UG-111', 'UG-112', 'UG-113', 'UG-114', 'UG-115', 'UG-116', 'UG-117', 'UG-118', 'UG-119', 'UG-120', 'UG-121', 'UG-122', 'UG-123', 'UG-124'] }],
 
   },
   {
@@ -1173,6 +1182,637 @@ const LANGUAGE_ROWS = [
     family: 'Sino-Tibetan', branch: 'Sinitic', speakers: 85,
     regions: [{ name: 'Guangdong', units: ['CN-GD'] }, { name: 'Hong Kong', countries: ['HK'] }],
 
+  },
+
+  // ---- Central and East Africa. Sentences from the Universal Declaration of Human
+  // Rights or Tatoeba (app/lib/geo/server/samples.js).
+  {
+    code: 'run', name: 'Kirundi', endonym: 'Ikirundi', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 11,
+    regions: [{ name: 'Burundi', countries: ['BI'] }],
+  },
+
+  // ---- Central, East and Southern Africa. Sentences from the Universal Declaration of Human
+  // Rights or Tatoeba (app/lib/geo/server/samples.js).
+  {
+    code: 'lua', name: 'Tshiluba', endonym: 'Cilubà', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 6,
+    regions: [{ name: 'Kasai', units: ['CD-KE', 'CD-KW'] }],
+  },
+  {
+    code: 'kng', name: 'Kongo', endonym: 'Kikongo', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 6,
+    regions: [
+      { name: 'the lower Congo', units: ['CD-BC', 'CG-12'] },
+      { name: 'northern Angola', units: ['AO-ZAI', 'AO-UIG'] },
+    ],
+  },
+  {
+    code: 'kmb', name: 'Kimbundu', endonym: 'Kimbundu', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 2,
+    regions: [{ name: 'north-central Angola', units: ['AO-LUA', 'AO-BGO', 'AO-MAL', 'AO-CNO'] }],
+  },
+  {
+    code: 'umb', name: 'Umbundu', endonym: 'Umbundu', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 6,
+    regions: [{ name: 'the central highlands of Angola', units: ['AO-HUA', 'AO-BIE', 'AO-BGU'] }],
+  },
+  {
+    code: 'cjk', name: 'Chokwe', endonym: 'Cokwe', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 1.3,
+    regions: [{ name: 'northeastern Angola', units: ['AO-LNO', 'AO-LSU'] }],
+  },
+  {
+    code: 'lue', name: 'Luvale', endonym: 'Chiluvale', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 0.6,
+    regions: [
+      { name: 'the upper Zambezi', units: ['ZM-06'], clip: { maxLat: -12.6, maxLng: 24.3 } },
+      { name: 'eastern Angola', units: ['AO-MOX'] },
+    ],
+  },
+  {
+    code: 'lun', name: 'Lunda', endonym: 'Chilunda', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 0.5,
+    regions: [
+      { name: 'the far north-west of Zambia', units: ['ZM-06'], clip: { minLat: -12.6, maxLng: 25 } },
+      { name: 'north-eastern Moxico', units: ['AO-MOX'], clip: { minLat: -12, minLng: 23 } },
+    ],
+  },
+  {
+    code: 'kqn', name: 'Kaonde', endonym: 'Kikaonde', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 0.3,
+    regions: [{ name: 'north-western Zambia', units: ['ZM-06'], clip: { minLng: 24.5 } }],
+  },
+  {
+    code: 'bem', name: 'Bemba', endonym: 'Ichibemba', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 4,
+    regions: [
+      { name: 'northern Zambia', units: ['ZM-05', 'ZM-04', 'ZM-10'] },
+      { name: 'the Copperbelt', units: ['ZM-08'] },
+    ],
+  },
+  {
+    code: 'toi', name: 'Tonga', endonym: 'Chitonga', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 1.5,
+    regions: [{ name: 'southern Zambia', units: ['ZM-07'] }],
+  },
+  {
+    code: 'loz', name: 'Lozi', endonym: 'Silozi', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 0.7,
+    regions: [
+      { name: 'western Zambia', units: ['ZM-01'] },
+      { name: 'the Zambezi region', units: ['NA-CA'] },
+    ],
+  },
+  {
+    code: 'ndo', name: 'Ndonga', endonym: 'Oshindonga', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 0.8,
+    regions: [{ name: 'north-central Namibia', units: ['NA-OT', 'NA-ON', 'NA-OS'] }],
+  },
+  {
+    code: 'sag', name: 'Sango', endonym: 'Sängö', script: 'latn',
+    family: 'Creole', branch: 'Ngbandi-based', speakers: 0.5,
+    regions: [{ name: 'the Central African Republic', countries: ['CF'] }],
+  },
+  {
+    code: 'suk', name: 'Sukuma', endonym: 'Kisukuma', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 8,
+    regions: [{ name: 'Sukumaland', units: ['TZ-18', 'TZ-22', 'TZ-30'] }],
+  },
+  {
+    code: 'nym', name: 'Nyamwezi', endonym: 'Kinyamwezi', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 1.5,
+    regions: [{ name: 'Unyamwezi', units: ['TZ-24'] }],
+  },
+  {
+    code: 'nyn', name: 'Runyankore', endonym: 'Orunyankore', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 3.4,
+    regions: [{ name: 'Ankole', units: ['UG-410', 'UG-402', 'UG-411', 'UG-417', 'UG-416', 'UG-425', 'UG-325', 'UG-424', 'UG-422'] }],
+  },
+  {
+    code: 'vmw', name: 'Makhuwa', endonym: 'Emakhuwa', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 7,
+    regions: [{ name: 'Nampula', units: ['MZ-N'] }],
+  },
+  {
+    code: 'kde', name: 'Makonde', endonym: 'Chimakonde', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 1.7,
+    regions: [
+      { name: 'the Makonde plateau', units: ['TZ-17'] },
+      { name: 'the Mueda plateau', units: ['MZ-P'], clip: { minLat: -12.3 } },
+    ],
+  },
+  {
+    code: 'yao', name: 'Yao', endonym: 'Chiyao', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 3,
+    regions: [
+      { name: 'south-eastern Malawi', units: ['MW-MG', 'MW-MH', 'MW-BA', 'MW-ZO'] },
+      { name: 'Niassa', units: ['MZ-A'] },
+    ],
+  },
+  {
+    code: 'nso', name: 'Sepedi', endonym: 'Sepedi', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 5,
+    regions: [{ name: 'Limpopo', units: ['ZA-LP'] }],
+  },
+  {
+    code: 'tso', name: 'Tsonga', endonym: 'Xitsonga', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 4,
+    regions: [
+      { name: 'southern Mozambique', units: ['MZ-G', 'MZ-L'] },
+      { name: 'the eastern lowveld', units: ['ZA-LP', 'ZA-MP'], clip: { minLng: 30.5, minLat: -25 } },
+    ],
+  },
+  {
+    code: 'ssw', name: 'Swati', endonym: 'siSwati', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 2.3,
+    regions: [
+      { name: 'Eswatini', countries: ['SZ'] },
+      { name: 'eastern Mpumalanga', units: ['ZA-MP'], clip: { minLng: 30.2, maxLat: -25 } },
+    ],
+  },
+  {
+    code: 'ven', name: 'Venda', endonym: 'Tshivenḓa', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantu', speakers: 1.3,
+    regions: [
+      { name: 'the far north of Limpopo', units: ['ZA-LP'], clip: { minLat: -23.35, minLng: 29.5 } },
+      { name: 'the Beitbridge area', units: ['ZW-MS'], clip: { maxLat: -21.8, minLng: 29.5 } },
+    ],
+  },
+
+  // ---- West Africa. Sentences from the Universal Declaration of Human
+  // Rights or Tatoeba (app/lib/geo/server/samples.js).
+  {
+    code: 'pcm', name: 'Nigerian Pidgin', endonym: 'Naijá', script: 'latn',
+    family: 'Creole', branch: 'English-based', speakers: 5,
+    regions: [{ name: 'southern Nigeria', units: ['NG-LA', 'NG-OG', 'NG-OY', 'NG-OS', 'NG-ON', 'NG-EK', 'NG-ED', 'NG-DE', 'NG-BY', 'NG-RI', 'NG-AK', 'NG-CR', 'NG-AB', 'NG-IM', 'NG-AN', 'NG-EN', 'NG-EB'] }],
+  },
+  {
+    code: 'kri', name: 'Krio', endonym: 'Krio', script: 'latn',
+    family: 'Creole', branch: 'English-based', speakers: 0.9,
+    regions: [{ name: 'Sierra Leone', countries: ['SL'] }],
+  },
+  {
+    code: 'kea', name: 'Cape Verdean Creole', endonym: 'Kabuverdianu', script: 'latn',
+    family: 'Creole', branch: 'Portuguese-based', speakers: 1,
+    regions: [{ name: 'Cape Verde', countries: ['CV'] }],
+  },
+  {
+    code: 'ewe', name: 'Ewe', endonym: 'Eʋegbe', script: 'latn',
+    family: 'Niger-Congo', branch: 'Kwa', speakers: 5,
+    regions: [
+      { name: 'southeastern Ghana', units: ['GH-TV'], clip: { maxLat: 7.5 } },
+      { name: 'southern Togo', units: ['TG-M', 'TG-P'] },
+    ],
+  },
+  {
+    code: 'fon', name: 'Fon', endonym: 'Fɔngbè', script: 'latn',
+    family: 'Niger-Congo', branch: 'Kwa', speakers: 2,
+    regions: [{ name: 'southern Benin', units: ['BJ-ZO', 'BJ-AQ', 'BJ-LI'] }],
+  },
+  {
+    code: 'gaa', name: 'Gã', endonym: 'Gã', script: 'latn',
+    family: 'Niger-Congo', branch: 'Kwa', speakers: 0.8,
+    regions: [{ name: 'the Accra coast', units: ['GH-AA'], clip: { maxLng: 0.08 } }],
+  },
+  {
+    code: 'ada', name: 'Dangme', endonym: 'Dangme', script: 'latn',
+    family: 'Niger-Congo', branch: 'Kwa', speakers: 1,
+    regions: [
+      { name: 'the eastern Accra plains', units: ['GH-AA'], clip: { minLng: -0.15 } },
+      { name: 'the Krobo hills', units: ['GH-EP'], clip: { minLat: 5.9, maxLat: 6.5, minLng: -0.35, maxLng: 0.2 } },
+    ],
+  },
+  {
+    code: 'bci', name: 'Baoulé', endonym: 'Baule', script: 'latn',
+    family: 'Niger-Congo', branch: 'Kwa', speakers: 3,
+    regions: [{ name: 'central Côte d\'Ivoire', units: ['CI-04', 'CI-07', 'CI-11'], clip: { maxLat: 8.2 } }],
+  },
+  {
+    code: 'nzi', name: 'Nzema', endonym: 'Nzema', script: 'latn',
+    family: 'Niger-Congo', branch: 'Kwa', speakers: 0.4,
+    regions: [
+      { name: 'southwestern Ghana', units: ['GH-WP'], clip: { maxLng: -1.9, maxLat: 5.6 } },
+      { name: 'southeastern Côte d\'Ivoire', units: ['CI-13'], clip: { minLng: -3.2 } },
+    ],
+  },
+  {
+    code: 'mos', name: 'Mooré', endonym: 'Mòoré', script: 'latn',
+    family: 'Niger-Congo', branch: 'Gur', speakers: 8,
+    regions: [{ name: 'central Burkina Faso', units: ['BF-KAD', 'BF-OUB', 'BF-KOW', 'BF-BAZ', 'BF-BLK', 'BF-SMT', 'BF-BAM', 'BF-NAM', 'BF-KOT', 'BF-GAN', 'BF-ZOU', 'BF-PAS', 'BF-YAT', 'BF-ZON', 'BF-LOR', 'BF-BLG', 'BF-KOP'] }],
+  },
+  {
+    code: 'dag', name: 'Dagbani', endonym: 'Dagbanli', script: 'latn',
+    family: 'Niger-Congo', branch: 'Gur', speakers: 1.2,
+    regions: [{ name: 'northern Ghana', units: ['GH-NP'], clip: { minLat: 9, maxLat: 10.5, minLng: -1.3, maxLng: 0.4 } }],
+  },
+  {
+    code: 'tiv', name: 'Tiv', endonym: 'Tiv', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bantoid', speakers: 4,
+    regions: [{ name: 'the Benue valley', units: ['NG-BE'] }],
+  },
+  {
+    code: 'ibb', name: 'Ibibio', endonym: 'Ibibio', script: 'latn',
+    family: 'Niger-Congo', branch: 'Cross River', speakers: 2,
+    regions: [{ name: 'Ibibioland', units: ['NG-AK'] }],
+  },
+  {
+    code: 'bin', name: 'Edo', endonym: 'Ẹdo', script: 'latn',
+    family: 'Niger-Congo', branch: 'Volta-Niger', speakers: 1.6,
+    regions: [{ name: 'the Benin City area', units: ['NG-ED'], clip: { maxLat: 6.9 } }],
+  },
+  {
+    code: 'sus', name: 'Susu', endonym: 'Sosoxui', script: 'latn',
+    family: 'Niger-Congo', branch: 'Mande', speakers: 2,
+    regions: [{ name: 'coastal Guinea', units: ['GN-C', 'GN-CO', 'GN-DU', 'GN-FO', 'GN-KD', 'GN-BF', 'GN-FR'] }],
+  },
+  {
+    code: 'emk', name: 'Maninka', endonym: 'Maninkakan', script: 'latn',
+    family: 'Niger-Congo', branch: 'Mande', speakers: 3,
+    regions: [{ name: 'Upper Guinea', units: ['GN-K', 'GN-KE', 'GN-KO', 'GN-MD', 'GN-SI', 'GN-FA', 'GN-DB', 'GN-DI'] }],
+  },
+  {
+    code: 'snk', name: 'Soninke', endonym: 'Sooninkanxanne', script: 'latn',
+    family: 'Niger-Congo', branch: 'Mande', speakers: 2,
+    regions: [{ name: 'the upper Senegal valley', units: ['ML-1', 'MR-10', 'SN-TC'], clip: { minLat: 14.2 } }],
+  },
+  {
+    code: 'men', name: 'Mende', endonym: 'Mɛnde yia', script: 'latn',
+    family: 'Niger-Congo', branch: 'Mande', speakers: 2,
+    regions: [{ name: 'southern and eastern Sierra Leone', units: ['SL-S', 'SL-E'] }],
+  },
+  {
+    code: 'tem', name: 'Temne', endonym: 'KaThemnɛ', script: 'latn',
+    family: 'Niger-Congo', branch: 'Mel', speakers: 2,
+    regions: [{ name: 'northwestern Sierra Leone', units: ['SL-N'], clip: { maxLng: -11.6 } }],
+  },
+  {
+    code: 'srr', name: 'Serer', endonym: 'Seereer', script: 'latn',
+    family: 'Niger-Congo', branch: 'Senegambian', speakers: 1.5,
+    regions: [
+      { name: 'Sine-Saloum', units: ['SN-FK'] },
+      { name: 'the Joal coast', units: ['SN-TH'], clip: { maxLat: 14.45 } },
+    ],
+  },
+  {
+    code: 'dyo', name: 'Jola-Fonyi', endonym: 'Joola Fooñi', script: 'latn',
+    family: 'Niger-Congo', branch: 'Bak', speakers: 0.5,
+    regions: [
+      { name: 'lower Casamance', units: ['SN-ZG'] },
+      { name: 'western Gambia', units: ['GM-W'] },
+    ],
+  },
+  {
+    code: 'fuc', name: 'Pulaar', endonym: 'Pulaar', script: 'latn',
+    family: 'Niger-Congo', branch: 'Senegambian', speakers: 4,
+    regions: [
+      { name: 'the Senegal river valley', units: ['SN-SL', 'SN-MT', 'MR-06', 'MR-05', 'MR-04'], clip: { maxLat: 17.3 } },
+      { name: 'southeastern Senegal', units: ['SN-KD', 'SN-TC'] },
+    ],
+  },
+
+  // ---- South-East Asia, north-east India and the Pacific. Sentences from the Universal Declaration of Human
+  // Rights or Tatoeba (app/lib/geo/server/samples.js).
+  {
+    code: 'mad', name: 'Madurese', endonym: 'Basa Madhura', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 7.7,
+    regions: [
+      { name: 'Madura', units: ['ID-JI'], clip: { minLat: -7.19, minLng: 112.69 } },
+      { name: 'the eastern end of Java', units: ['ID-JI'], clip: { minLng: 113.2, maxLng: 114.2, minLat: -8.1, maxLat: -7.55 } },
+    ],
+  },
+  {
+    code: 'min', name: 'Minangkabau', endonym: 'Baso Minang', script: 'latn',
+    family: 'Austronesian', branch: 'Malayic', speakers: 5.5,
+    regions: [{ name: 'western Sumatra', units: ['ID-SB'] }],
+  },
+  {
+    code: 'ban', name: 'Balinese', endonym: 'Basa Bali', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 3.3,
+    regions: [{ name: 'Bali', units: ['ID-BA'] }],
+  },
+  {
+    code: 'bug', name: 'Buginese', endonym: 'Basa Ugi', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 4,
+    regions: [{ name: 'southern Sulawesi', units: ['ID-SN'], clip: { minLat: -5.2, maxLat: -3.6, maxLng: 120.6 } }],
+  },
+  {
+    code: 'ace', name: 'Acehnese', endonym: 'Bahsa Acèh', script: 'latn',
+    family: 'Austronesian', branch: 'Chamic', speakers: 3.5,
+    regions: [{ name: 'Aceh', units: ['ID-AC'] }],
+  },
+  {
+    code: 'iba', name: 'Iban', endonym: 'Jaku Iban', script: 'latn',
+    family: 'Austronesian', branch: 'Malayic', speakers: 0.8,
+    regions: [{ name: 'Sarawak', units: ['MY-13'] }],
+  },
+  {
+    code: 'hil', name: 'Hiligaynon', endonym: 'Ilonggo', script: 'latn',
+    family: 'Austronesian', branch: 'Philippine', speakers: 9,
+    regions: [{ name: 'the western Visayas', units: ['PH-ILI', 'PH-GUI', 'PH-CAP', 'PH-NEC', 'PH-BCD'] }],
+  },
+  {
+    code: 'war', name: 'Waray', endonym: 'Winaray', script: 'latn',
+    family: 'Austronesian', branch: 'Philippine', speakers: 3.4,
+    regions: [
+      { name: 'Samar', units: ['PH-WSA', 'PH-EAS', 'PH-NSA'] },
+      { name: 'northern and eastern Leyte', units: ['PH-LEY'], clip: { minLng: 124.65, minLat: 10.7 } },
+    ],
+  },
+  {
+    code: 'pam', name: 'Kapampangan', endonym: 'Kapampangan', script: 'latn',
+    family: 'Austronesian', branch: 'Philippine', speakers: 2.8,
+    regions: [{ name: 'Pampanga', units: ['PH-PAM'] }],
+  },
+  {
+    code: 'bcl', name: 'Central Bikol', endonym: 'Bikol', script: 'latn',
+    family: 'Austronesian', branch: 'Philippine', speakers: 2.5,
+    regions: [{ name: 'Camarines and Albay', units: ['PH-CAS', 'PH-CAN', 'PH-ALB'] }],
+  },
+  {
+    code: 'pag', name: 'Pangasinan', endonym: 'Pangasinan', script: 'latn',
+    family: 'Austronesian', branch: 'Philippine', speakers: 1.7,
+    regions: [{ name: 'Pangasinan', units: ['PH-PAN'] }],
+  },
+  {
+    code: 'kha', name: 'Khasi', endonym: 'Khasi', script: 'latn',
+    family: 'Austroasiatic', branch: 'Khasian', speakers: 1.4,
+    regions: [{ name: 'the Khasi and Jaintia hills', units: ['IN-ML'], clip: { minLng: 90.95 } }],
+  },
+  {
+    code: 'lus', name: 'Mizo', endonym: 'Mizo ṭawng', script: 'latn',
+    family: 'Sino-Tibetan', branch: 'Kuki-Chin', speakers: 0.8,
+    regions: [{ name: 'Mizoram', units: ['IN-MZ'] }],
+  },
+  {
+    code: 'cnh', name: 'Hakha Chin', endonym: 'Laiholh', script: 'latn',
+    family: 'Sino-Tibetan', branch: 'Kuki-Chin', speakers: 0.13,
+    regions: [{ name: 'the central Chin hills', units: ['MM-14'], clip: { minLat: 21.9, maxLat: 23.1 } }],
+  },
+  {
+    code: 'tah', name: 'Tahitian', endonym: 'Reo Tahiti', script: 'latn',
+    family: 'Austronesian', branch: 'Polynesian', speakers: 0.09,
+    regions: [{ name: 'the islands around Tahiti', countries: ['PF'] }],
+  },
+  {
+    code: 'rar', name: 'Cook Islands Maori', endonym: 'Māori Kūki ʻĀirani', script: 'latn',
+    family: 'Austronesian', branch: 'Polynesian', speakers: 0.02,
+    regions: [{ name: 'the Cook islands', countries: ['CK'] }],
+  },
+  {
+    code: 'niu', name: 'Niuean', endonym: 'Vagahau Niuē', script: 'latn',
+    family: 'Austronesian', branch: 'Polynesian', speakers: 0.008,
+    regions: [{ name: 'Niue', countries: ['NU'] }],
+  },
+  {
+    code: 'cha', name: 'Chamorro', endonym: 'Chamoru', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 0.05,
+    regions: [{ name: 'Guam and the Marianas', countries: ['GU', 'MP'] }],
+  },
+  {
+    code: 'mah', name: 'Marshallese', endonym: 'Kajin M̧ajeļ', script: 'latn',
+    family: 'Austronesian', branch: 'Oceanic', speakers: 0.06,
+    regions: [{ name: 'the Marshall islands', countries: ['MH'] }],
+  },
+  {
+    code: 'pau', name: 'Palauan', endonym: 'tekoi er a Belau', script: 'latn',
+    family: 'Austronesian', branch: 'Malayo-Polynesian', speakers: 0.02,
+    regions: [{ name: 'Palau', countries: ['PW'] }],
+  },
+  {
+    code: 'bis', name: 'Bislama', endonym: 'Bislama', script: 'latn',
+    family: 'Creole', branch: 'English-based', speakers: 0.3,
+    regions: [{ name: 'Vanuatu', countries: ['VU'] }],
+  },
+
+  // ---- Regional Europe and the Americas. Sentences from the Universal Declaration of Human
+  // Rights or Tatoeba (app/lib/geo/server/samples.js).
+  {
+    code: 'nds', name: 'Low German', endonym: 'Plattdüütsch', script: 'latn',
+    family: 'Indo-European', branch: 'Germanic', speakers: 2,
+    regions: [
+      { name: 'northern Germany', units: ['DE-SH', 'DE-HH', 'DE-HB', 'DE-NI', 'DE-MV'] },
+      { name: 'northern Brandenburg', units: ['DE-BB'], clip: { minLat: 52.9 } },
+    ],
+  },
+  {
+    code: 'sco', name: 'Scots', endonym: 'Scots', script: 'latn',
+    family: 'Indo-European', branch: 'Germanic', speakers: 1.5,
+    regions: [
+      { name: 'the Lowlands', units: ['GB-EDH', 'GB-GLG', 'GB-ELN', 'GB-MLN', 'GB-WLN', 'GB-FAL', 'GB-CLK', 'GB-STG', 'GB-FIF', 'GB-DND', 'GB-ANS', 'GB-PKN', 'GB-SCB', 'GB-DGY', 'GB-SAY', 'GB-EAY', 'GB-NAY', 'GB-IVC', 'GB-RFW', 'GB-ERW', 'GB-EDU', 'GB-WDU', 'GB-NLK', 'GB-SLK'] },
+      { name: 'the northeast', units: ['GB-ABE', 'GB-ABD', 'GB-MRY'] },
+    ],
+  },
+  {
+    code: 'vec', name: 'Venetian', endonym: 'vèneto', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 2,
+    regions: [{ name: 'the Veneto', units: ['IT-VE', 'IT-PD', 'IT-VR', 'IT-VI', 'IT-TV', 'IT-RO', 'IT-BL'] }],
+  },
+  {
+    code: 'wln', name: 'Walloon', endonym: 'walon', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.6,
+    regions: [
+      { name: 'Wallonia', units: ['BE-WLG', 'BE-WNA', 'BE-WLX', 'BE-WBR'] },
+      { name: 'eastern Hainaut', units: ['BE-WHT'], clip: { minLng: 4.2 } },
+    ],
+  },
+  {
+    code: 'cos', name: 'Corsican', endonym: 'corsu', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.15,
+    regions: [{ name: 'Corsica', units: ['FR-2A', 'FR-2B'] }],
+  },
+  {
+    code: 'gag', name: 'Gagauz', endonym: 'Gagauz dili', script: 'latn',
+    family: 'Turkic', branch: 'Oghuz', speakers: 0.15,
+    regions: [{ name: 'Gagauzia', units: ['MD-GA'] }],
+  },
+  {
+    code: 'lim', name: 'Limburgish', endonym: 'Limburgs', script: 'latn',
+    family: 'Indo-European', branch: 'Germanic', speakers: 1.3,
+    regions: [
+      { name: 'Limburg', units: ['NL-LI', 'BE-VLI'] },
+      { name: 'the Selfkant', units: ['DE-NW'], clip: { maxLng: 6.1, minLat: 50.95, maxLat: 51.1 } },
+    ],
+  },
+  {
+    code: 'scn', name: 'Sicilian', endonym: 'sicilianu', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 4.7,
+    regions: [{ name: 'Sicily', units: ['IT-PA', 'IT-CT', 'IT-ME', 'IT-AG', 'IT-CL', 'IT-EN', 'IT-RG', 'IT-SR', 'IT-TP'] }],
+  },
+  {
+    code: 'nap', name: 'Neapolitan', endonym: 'napulitano', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 5.7,
+    regions: [{ name: 'Campania', units: ['IT-NA', 'IT-SA', 'IT-CE', 'IT-BN', 'IT-AV'] }],
+  },
+  {
+    code: 'lij', name: 'Ligurian', endonym: 'lìgure', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.5,
+    regions: [{ name: 'Liguria', units: ['IT-GE', 'IT-SV', 'IT-IM', 'IT-SP'] }],
+  },
+  {
+    code: 'pms', name: 'Piedmontese', endonym: 'piemontèis', script: 'latn',
+    family: 'Indo-European', branch: 'Romance', speakers: 0.7,
+    regions: [{ name: 'Piedmont', units: ['IT-TO', 'IT-CN', 'IT-AT', 'IT-AL', 'IT-BI', 'IT-VC'] }],
+  },
+  {
+    code: 'frr', name: 'North Frisian', endonym: 'Nordfriisk', script: 'latn',
+    family: 'Indo-European', branch: 'Germanic', speakers: 0.01,
+    regions: [{ name: 'the Frisian coast and islands', units: ['DE-SH'], clip: { minLat: 54.3, maxLng: 9.3 } }],
+  },
+  {
+    code: 'dsb', name: 'Lower Sorbian', endonym: 'dolnoserbšćina', script: 'latn',
+    family: 'Indo-European', branch: 'Slavic', speakers: 0.007,
+    regions: [{ name: 'Lower Lusatia', units: ['DE-BB'], clip: { minLat: 51.4, maxLat: 52.1, minLng: 13.6 } }],
+  },
+  {
+    code: 'csb', name: 'Kashubian', endonym: 'kaszëbsczi', script: 'latn',
+    family: 'Indo-European', branch: 'Slavic', speakers: 0.1,
+    regions: [{ name: 'Kashubia', units: ['PL-PM'], clip: { minLng: 17, maxLng: 18.7, minLat: 53.7 } }],
+  },
+  {
+    code: 'szl', name: 'Silesian', endonym: 'ślōnskŏ gŏdka', script: 'latn',
+    family: 'Indo-European', branch: 'Slavic', speakers: 0.5,
+    regions: [{ name: 'Upper Silesia', units: ['PL-SL', 'PL-OP'] }],
+  },
+  {
+    code: 'yua', name: 'Yucatec Maya', endonym: 'maaya tʼaan', script: 'latn',
+    family: 'Mayan', branch: 'Yucatecan', speakers: 0.8,
+    regions: [{ name: 'the Yucatán peninsula', units: ['MX-YUC', 'MX-CAM', 'MX-ROO'] }],
+  },
+  {
+    code: 'quc', name: 'K\'iche\'', endonym: 'K\'iche\'', script: 'latn',
+    family: 'Mayan', branch: 'Quichean', speakers: 1,
+    regions: [
+      { name: 'El Quiché and Totonicapán', units: ['GT-QC', 'GT-TO'] },
+      { name: 'Quetzaltenango', units: ['GT-QZ'] },
+      { name: 'the Suchitepéquez uplands', units: ['GT-SU'], clip: { minLat: 14.4 } },
+    ],
+  },
+  {
+    code: 'cak', name: 'Kaqchikel', endonym: 'Kaqchikel', script: 'latn',
+    family: 'Mayan', branch: 'Quichean', speakers: 0.4,
+    regions: [
+      { name: 'Chimaltenango and Sacatepéquez', units: ['GT-CM', 'GT-SA'] },
+      { name: 'Sololá', units: ['GT-SO'] },
+    ],
+  },
+  {
+    code: 'kek', name: 'Q\'eqchi\'', endonym: 'Q\'eqchi\'', script: 'latn',
+    family: 'Mayan', branch: 'Quichean', speakers: 0.8,
+    regions: [
+      { name: 'the Verapaz highlands', units: ['GT-AV'] },
+      { name: 'Izabal', units: ['GT-IZ'] },
+    ],
+  },
+  {
+    code: 'mam', name: 'Mam', endonym: 'Mam', script: 'latn',
+    family: 'Mayan', branch: 'Mamean', speakers: 0.6,
+    regions: [
+      { name: 'Huehuetenango and San Marcos', units: ['GT-HU', 'GT-SM'] },
+      { name: 'western Quetzaltenango', units: ['GT-QZ'], clip: { maxLng: -91.55 } },
+    ],
+  },
+  {
+    code: 'tzh', name: 'Tzeltal', endonym: 'bats\'il k\'op', script: 'latn',
+    family: 'Mayan', branch: 'Tzeltalan', speakers: 0.6,
+    regions: [{ name: 'the Chiapas highlands', units: ['MX-CHP'], clip: { minLat: 16.4, maxLat: 17.6, minLng: -92.9, maxLng: -91.3 } }],
+  },
+  {
+    code: 'nav', name: 'Navajo', endonym: 'Diné bizaad', script: 'latn',
+    family: 'Na-Dene', branch: 'Athabaskan', speakers: 0.17,
+    regions: [{ name: 'the Navajo Nation', units: ['US-AZ', 'US-NM', 'US-UT'], clip: { minLat: 35, maxLat: 37.1, minLng: -111.8, maxLng: -107.6 } }],
+  },
+  {
+    code: 'arn', name: 'Mapudungun', endonym: 'Mapudungun', script: 'latn',
+    family: 'Araucanian', branch: 'Araucanian', speakers: 0.25,
+    regions: [{ name: 'Araucanía and Los Ríos', units: ['CL-AR', 'CL-LR'] }],
+  },
+  {
+    code: 'cab', name: 'Garifuna', endonym: 'Garifuna', script: 'latn',
+    family: 'Arawakan', branch: 'Caribbean Arawakan', speakers: 0.1,
+    regions: [
+      { name: 'the Caribbean coast of Honduras', units: ['HN-CR', 'HN-AT', 'HN-CL', 'HN-GD', 'HN-IB'] },
+      { name: 'southern Belize', units: ['BZ-SC', 'BZ-TOL'] },
+    ],
+  },
+
+  // ---- Russia and the Caucasus. Sentences from the Universal Declaration of Human
+  // Rights or Tatoeba (app/lib/geo/server/samples.js).
+  {
+    code: 'tyv', name: 'Tuvan', endonym: 'тыва дыл', script: 'cyrl',
+    family: 'Turkic', branch: 'Siberian', speakers: 0.28,
+    regions: [{ name: 'Tuva', units: ['RU-TY'] }],
+  },
+  {
+    code: 'alt', name: 'Altai', endonym: 'алтай тил', script: 'cyrl',
+    family: 'Turkic', branch: 'Kipchak', speakers: 0.056,
+    regions: [{ name: 'Gorny Altai', units: ['RU-AL'] }],
+  },
+  {
+    code: 'kjh', name: 'Khakas', endonym: 'хакас тілі', script: 'cyrl',
+    family: 'Turkic', branch: 'Siberian', speakers: 0.043,
+    regions: [{ name: 'Khakassia', units: ['RU-KK'] }],
+  },
+  {
+    code: 'mhr', name: 'Meadow Mari', endonym: 'олык марий', script: 'cyrl',
+    family: 'Uralic', branch: 'Mari', speakers: 0.3,
+    regions: [{ name: 'Mariy El', units: ['RU-ME'] }],
+  },
+  {
+    code: 'udm', name: 'Udmurt', endonym: 'удмурт кыл', script: 'cyrl',
+    family: 'Uralic', branch: 'Permic', speakers: 0.3,
+    regions: [{ name: 'Udmurtia', units: ['RU-UD'] }],
+  },
+  {
+    code: 'kpv', name: 'Komi', endonym: 'коми кыв', script: 'cyrl',
+    family: 'Uralic', branch: 'Permic', speakers: 0.16,
+    regions: [{ name: 'Komi', units: ['RU-KO'], clip: { maxLat: 66 } }],
+  },
+  {
+    code: 'myv', name: 'Erzya', endonym: 'эрзянь кель', script: 'cyrl',
+    family: 'Uralic', branch: 'Mordvinic', speakers: 0.3,
+    regions: [{ name: 'Mordovia', units: ['RU-MO'] }],
+  },
+  {
+    code: 'xal', name: 'Kalmyk', endonym: 'хальмг келн', script: 'cyrl',
+    family: 'Mongolic', branch: 'Oirat', speakers: 0.08,
+    regions: [{ name: 'Kalmykia', units: ['RU-KL'] }],
+  },
+  {
+    code: 'kbd', name: 'Kabardian', endonym: 'адыгэбзэ', script: 'cyrl',
+    family: 'Northwest Caucasian', branch: 'Circassian', speakers: 1.1,
+    regions: [{ name: 'Kabardino-Balkaria and Karachay-Cherkessia', units: ['RU-KB', 'RU-KC'] }],
+  },
+  {
+    code: 'ady', name: 'Adyghe', endonym: 'адыгабзэ', script: 'cyrl',
+    family: 'Northwest Caucasian', branch: 'Circassian', speakers: 0.55,
+    regions: [{ name: 'Adygea', units: ['RU-AD'] }],
+  },
+  {
+    code: 'ava', name: 'Avar', endonym: 'магӏарул мацӏ', script: 'cyrl',
+    family: 'Northeast Caucasian', branch: 'Avar-Andic', speakers: 0.7,
+    regions: [
+      { name: 'Dagestan', units: ['RU-DA'] },
+      { name: 'Zaqatala and Balakan', units: ['AZ-ZAQ', 'AZ-BAL'] },
+    ],
+  },
+  {
+    code: 'lez', name: 'Lezgian', endonym: 'лезги чӏал', script: 'cyrl',
+    family: 'Northeast Caucasian', branch: 'Lezgic', speakers: 0.4,
+    regions: [
+      { name: 'southern Dagestan', units: ['RU-DA'], clip: { maxLat: 42, minLng: 47.5 } },
+      { name: 'Qusar', units: ['AZ-QUS'] },
+    ],
+  },
+  {
+    code: 'krc', name: 'Karachay-Balkar', endonym: 'къарачай-малкъар тил', script: 'cyrl',
+    family: 'Turkic', branch: 'Kipchak', speakers: 0.3,
+    regions: [{ name: 'Karachay-Cherkessia and Kabardino-Balkaria', units: ['RU-KC', 'RU-KB'] }],
+  },
+  {
+    code: 'kum', name: 'Kumyk', endonym: 'къумукъ тил', script: 'cyrl',
+    family: 'Turkic', branch: 'Kipchak', speakers: 0.43,
+    regions: [{ name: 'the Kumyk plain', units: ['RU-DA'], clip: { minLat: 42.2, maxLat: 43.9, minLng: 46.3 } }],
   },
 ];
 

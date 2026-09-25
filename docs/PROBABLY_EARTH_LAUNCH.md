@@ -693,7 +693,7 @@ is not a current diagnosis. Use the current launch gate above.
 |---|---|
 | The game itself: five modes (One continent and One country retired 2026-09-23, to keep coverage secret), rooms, ratings, seasons, the weekly cup, points, cosmetics, the daily challenge, ranked solo | code, live on `pet_main` |
 | Not Earth, the rare Mars or Moon panorama round | retired 2026-09-23 |
-| Script mode: 159 languages, 34 writing systems, region scoring | code, live on `pet_main` |
+| Script mode: 264 languages, 34 writing systems, region scoring | code, live on `pet_main` |
 | Its own accounts, its own session, its own mailer | code, live on `pet_main` |
 | No import in either direction between the game and the pet site | code, enforced by `__tests__/geo/isolation.test.js` |
 | Abuse control: the play meter's per-day and per-address ceilings, a speed limit, and a site budget under Apple's account quota | code |
