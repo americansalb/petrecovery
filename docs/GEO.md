@@ -269,6 +269,21 @@ admin-0 and admin-1 sets (public domain), built into
 names: 160 countries and 271 subdivisions, not Natural Earth's four
 thousand.
 
+**Audited on 2026-09-25** against two independent sources: the point
+Glottolog and WALS each give for a language, and Unicode CLDR's figures for
+which countries use it and whether it is official there. It found places a
+language is official or spoken by most people but was missing from: French
+in Luxembourg, Monaco, Haiti, the Maghreb and the French Pacific; German in
+Luxembourg and South Tyrol; Dutch in Aruba, Curacao and Sint Maarten;
+Swedish in Aland and Ostrobothnia; Russian in Kyrgyzstan; Arabic in
+Djibouti, Somalia, the Comoros, northern Chad, Western Sahara and Israel;
+Tamil in Singapore; Cantonese in Macau; Samoan in American Samoa; Swahili
+in the eastern Congo; Chichewa (Nyanja) in eastern Zambia and Lusaka. Those
+were added. What the audit cannot fix is the boxes: 59 languages still draw
+at least one region as a province clipped to a rectangle, 32 of them
+entirely, which is right to within the box and no better. District
+boundaries would do better than boxes.
+
 They were discs until 2026-09-12, and the discs were wrong in ways the
 map showed: the Maithili circle covered the hills of eastern Nepal, the
 Marathi one reached into Karnataka, and every coastal language had half
