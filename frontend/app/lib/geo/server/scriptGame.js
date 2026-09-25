@@ -184,6 +184,19 @@ function passageFor(language, seed, index, tokenSecret) {
 }
 
 /**
+ * The round a token was sealed for: its language and the text it
+ * showed. For a report about a round (server/reports.js), which has to
+ * name what the server dealt rather than what the browser says.
+ */
+export function scriptRoundFromToken({ token, now = Date.now(), env } = {}) {
+  const { tokenSecret } = getGeoServerConfig(env);
+  const payload = openToken(token, { secret: tokenSecret, now });
+  const language = languageByCode(payload.c);
+  if (!language) throw new ScriptGameError('unknown_language', 'That round names a language the corpus no longer has');
+  return { language, roundIndex: payload.i, text: passageFor(language, payload.seed, payload.i, tokenSecret) };
+}
+
+/**
  * Score a guess and reveal.
  *
  * The reveal carries the language's whole region list, not just the one

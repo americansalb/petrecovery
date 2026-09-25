@@ -195,6 +195,10 @@ export function databaseStoreFor(prisma) { return {
   deleteUsageBefore(day) {
     return prisma.geoUsage.deleteMany({ where: { day: { lt: day } } });
   },
+  /** A Script report keeps its hashed address only long enough to count repeats once. */
+  forgetReportAddressesBefore(before) {
+    return prisma.geoScriptReport.updateMany({ where: { createdAt: { lt: before }, NOT: { ipHash: null } }, data: { ipHash: null } });
+  },
   /**
    * Rooms nobody will open again: finished a while ago, or abandoned
    * part way. Players, rounds and guesses cascade with them;

@@ -13,6 +13,11 @@ const SECRET = 'a-long-enough-test-secret-for-script';
 const savedSecret = process.env.GEO_TOKEN_SECRET;
 process.env.GEO_TOKEN_SECRET = SECRET;
 
+// Housekeeping runs from the round route now (Script is the game most
+// people play); here it is only checked for, not run against a database.
+const mockSweep = jest.fn();
+jest.mock('@/app/lib/geo/server/sweep', () => ({ maybeSweep: (...args) => mockSweep(...args) }));
+
 const { POST: postRound } = require('@/app/api/geo/script/round/route');
 const { POST: postGuess } = require('@/app/api/geo/script/guess/route');
 const { openToken } = require('@/app/lib/geo/server/tokens');
@@ -28,6 +33,12 @@ const request = (body) => ({ json: async () => body, headers: new Map(), url: 'h
 const find = (code) => LANGUAGES.find((l) => l.code === code);
 
 describe('POST /api/geo/script/round', () => {
+  test('keeps the housekeeping going, since most rounds played are Script rounds', async () => {
+    mockSweep.mockClear();
+    await postRound(request({ config: { rounds: 5, seed: 'route-sweep' }, roundIndex: 0 }));
+    expect(mockSweep).toHaveBeenCalledTimes(1);
+  });
+
   test('returns a sentence and a sealed token, and never the answer', async () => {
     const res = await postRound(request({ config: { rounds: 5, seed: 'route-1' }, roundIndex: 2 }));
     expect(res.status).toBe(200);

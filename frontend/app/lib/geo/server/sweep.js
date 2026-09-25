@@ -10,8 +10,9 @@
  * shares a database with a lost-pet service, so that growth is not the
  * game's problem alone.
  *
- * Everything here is a delete of rows whose usefulness has expired, and
- * every window is generous. What is deliberately kept: profiles,
+ * Everything here is a delete of rows whose usefulness has expired, or,
+ * for Script reports, of the one column that has (the hashed address),
+ * and every window is generous. What is deliberately kept: profiles,
  * accounts, ratings, the points ledger, badges, challenge boards and
  * GeoMatchResult, which is a player's own record of games played and
  * carries no foreign key to the rooms it names, so a swept room does
@@ -27,6 +28,12 @@ export const RETENTION = Object.freeze({
   finishedRoomDays: 14,
   /** Rooms abandoned in a lobby or mid-game, in days. */
   staleRoomDays: 3,
+  /**
+   * How long a Script report keeps the hashed address it came from, in
+   * days. It is only there so one person's repeats count once in a day
+   * (server/reports.js); the report itself stays.
+   */
+  reportAddressDays: 2,
 });
 
 const DAY_MS = 86400000;
@@ -37,7 +44,7 @@ const dayKeyOf = (ms) => new Date(ms).toISOString().slice(0, 10);
  * a failed sweep is a log line, not a failed request.
  */
 export async function sweepGeo(store, { now = Date.now(), retention = RETENTION } = {}) {
-  const swept = { roundCache: 0, loginTokens: 0, usage: 0, rooms: 0 };
+  const swept = { roundCache: 0, loginTokens: 0, usage: 0, rooms: 0, reportAddresses: 0 };
   const run = async (name, fn) => {
     try {
       const result = await fn();
@@ -56,6 +63,7 @@ export async function sweepGeo(store, { now = Date.now(), retention = RETENTION 
       staleBefore: new Date(now - retention.staleRoomDays * DAY_MS),
     })
   );
+  await run('reportAddresses', () => store.forgetReportAddressesBefore?.(new Date(now - retention.reportAddressDays * DAY_MS)));
   return swept;
 }
 

@@ -13,6 +13,8 @@
 import { NextResponse } from 'next/server';
 import { normalizeScriptConfig } from '@/app/lib/geo/script';
 import { createScriptRound, ScriptGameError } from '@/app/lib/geo/server/scriptGame';
+import { maybeSweep } from '@/app/lib/geo/server/sweep';
+import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,12 @@ export async function POST(request) {
   }
   const config = normalizeScriptConfig(body?.config || body || {});
   const roundIndex = Math.max(0, Math.min(999, Math.floor(Number(body?.roundIndex) || 0)));
+
+  // Housekeeping, the way /api/geo/round does it: at most once an hour
+  // per process, never awaited, never able to fail the round. Script is
+  // the game most people play now, and a site where nobody opened Street
+  // would otherwise never sweep at all (app/lib/geo/server/sweep.js).
+  maybeSweep(prismaRoomStore);
 
   try {
     const round = createScriptRound({ config, roundIndex });

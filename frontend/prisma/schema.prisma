@@ -6172,3 +6172,25 @@ model GeoMatchResult {
   @@unique([roomId, profileId])
   @@index([profileId, createdAt])
 }
+
+// "Something wrong?" on the Script answer screen (docs/GEO.md, "Player
+// reports"). The language and the text come from the round's sealed
+// token, never from the browser, so a report is always about a round
+// the server really dealt. The address is kept the way the play meter
+// keeps it, hashed, and only long enough to count one person's repeats
+// once; housekeeping clears it after two days (server/sweep.js).
+model GeoScriptReport {
+  id        String   @id @default(cuid())
+  language  String
+  kind      String
+  note      String?
+  text      String?
+  guessLat  Float?
+  guessLng  Float?
+  ipHash    String?
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+
+  @@index([status, language, kind])
+  @@index([ipHash, language, kind, createdAt])
+}

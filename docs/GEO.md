@@ -528,7 +528,7 @@ difference between a quiz you pass or fail and a game you get better at:
 being told the name teaches nothing, being shown the letter teaches the
 next round.
 
-The table is `app/lib/geo/server/markers.js`, 236 features across the
+The table is `app/lib/geo/server/markers.js`, 1,247 features across the
 corpus, and it is **server only for the same reason the sentences are**:
 a marker is a string chosen because it identifies one language, so
 shipping the table to the browser would hand over every round before the
@@ -553,6 +553,20 @@ markers I had been confident about: Uyghur ھ is also Urdu's, Russian э
 is also Mongolian's, Portuguese ã is also Vietnamese's, Polish ą is also
 Lithuanian's, and Azerbaijani *idi* is inside Turkish *gidiyor* and
 Swahili *baridi*.
+
+**Players can say an answer is wrong** (2026-09-25). Under the hints,
+"Something wrong?" opens four choices (where it is spoken, a hint, it is
+not this language, something else) and a line to write in. The report
+goes to `POST /api/geo/script/report` with the round's sealed token, so
+the language and the text stored in `GeoScriptReport` are the ones the
+server dealt, never ones a browser named. The same person reporting the
+same thing about the same language twice in a day is stored once; that
+is all the hashed address is for, and the sweep clears it after two
+days. `/geo/admin` shows the open reports as piles, by language and by
+kind, the biggest first, with the latest notes, and Done closes a pile
+once the fix ships. The founder asked for it after questioning French on
+Haiti's map: one person disagreeing is an opinion, the same complaint
+from many people is a bug (`app/lib/geo/server/reports.js`).
 
 **One curation rule matters more than the size of the pool: strip proper
 nouns.** A sentence containing a city name answers itself, and so does a
@@ -831,7 +845,10 @@ up, both now handled:
 - **Rows are swept.** `app/lib/geo/server/sweep.js` deletes expired
   round-cache rows and sign-in links, play-meter rows older than 120
   days, finished rooms after 14 days and rooms abandoned part way after
-  3. `/api/geo/round` runs it at most once an hour per process, and
+  3, and clears the hashed address on Script reports after 2 days.
+  `/api/geo/round` and `/api/geo/script/round` run it at most once an
+  hour per process (Script rounds too, since Script became the default
+  game), and
   `npm run geo:sweep` runs it on demand. Profiles, accounts, ratings,
   the points ledger, badges, challenge boards and `GeoMatchResult` are
   kept: a swept room does not take a player's record of it, because

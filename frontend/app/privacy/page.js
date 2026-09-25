@@ -57,7 +57,8 @@ const SECTIONS = [
       'The play meter counts rounds per day so the imagery bills stay bounded. It counts them against your play profile and against a one-way hash of your IP address. The address itself is never stored.',
       'Daily challenge and weekly cup boards show the display name of everyone who finished, with their score.',
       'Automatic matchmaking keeps a queue entry linked to your play profile, including your selected game, display name, a one-way IP hash, queue activity times and the assigned room. A search expires after twenty seconds without a heartbeat. Queue entries are replaced by subsequent searches and removed when you delete your profile; assigned room credentials are stored encrypted.',
-      'Housekeeping deletes play-meter rows after 120 days, finished game rooms after 14 days, and rooms abandoned part way after 3. You can delete a game account and its profile from the account page at reunitepets.org/geo/me, which removes the email address or phone number, saved-game checkpoint, profile, ratings, points, badges and results, and scores on the daily and cup boards.',
+      "If you report a mistake on a Script answer, the game stores what you picked and wrote, the round's text, your pin and a one-way hash of your IP address. The hash is there so repeated reports from one person count once.",
+      'Housekeeping deletes play-meter rows after 120 days, finished game rooms after 14 days, and rooms abandoned part way after 3, and clears the IP hash on a Script report after 2 days. You can delete a game account and its profile from the account page at reunitepets.org/geo/me, which removes the email address or phone number, saved-game checkpoint, profile, ratings, points, badges and results, and scores on the daily and cup boards.',
     ],
   },
   {

@@ -3,7 +3,8 @@
 /**
  * /geo/admin: the backend.
  *
- * Numbers at the top, accounts in the middle, rooms at the bottom. It
+ * Numbers at the top, then what players reported as wrong, then
+ * accounts, then rooms. It
  * is a working screen rather than a dashboard: everything on it is
  * either a figure somebody acts on or a control that changes something.
  *
@@ -15,7 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Card from './ui/Card';
-import { Ban, Check, Loader2, RefreshCw, Search, ShieldAlert, Users } from 'lucide-react';
+import { Ban, Check, Flag, Loader2, RefreshCw, Search, ShieldAlert, Users } from 'lucide-react';
 import { ROLES, TIERS } from '@/app/lib/geo/server/roles';
 
 const DENIALS = {
@@ -23,6 +24,14 @@ const DENIALS = {
   no_account: 'That session does not match an account.',
   suspended: 'This account is suspended.',
   not_admin: 'This account is not an admin.',
+};
+
+/** What a Script report said was wrong (server/reports.js). */
+const REPORT_KINDS = {
+  area: 'Where it is spoken',
+  hint: 'A hint',
+  language: 'Not this language',
+  other: 'Something else',
 };
 
 function Figure({ label, value, hint }) {
@@ -40,6 +49,7 @@ export default function AdminClient() {
   const [overview, setOverview] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [reports, setReports] = useState([]);
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState('');
   const [note, setNote] = useState('');
@@ -54,12 +64,14 @@ export default function AdminClient() {
     }
     setDenied('');
     setOverview((await head.json()).overview);
-    const [a, r] = await Promise.all([
+    const [a, r, p] = await Promise.all([
       fetch(`/api/geo/admin/accounts?q=${encodeURIComponent(query)}`, { cache: 'no-store' }).then((res) => res.json()).catch(() => ({})),
       fetch('/api/geo/admin/rooms', { cache: 'no-store' }).then((res) => res.json()).catch(() => ({})),
+      fetch('/api/geo/admin/reports', { cache: 'no-store' }).then((res) => res.json()).catch(() => ({})),
     ]);
     setAccounts(a.accounts || []);
     setRooms(r.rooms || []);
+    setReports(p.groups || []);
   }, [query]);
 
   useEffect(() => {
@@ -81,6 +93,24 @@ export default function AdminClient() {
       return;
     }
     setAccounts((rows) => rows.map((row) => (row.id === accountId ? { ...row, ...body.account } : row)));
+  };
+
+  const closePile = async (language, kind) => {
+    const key = `${language}:${kind}`;
+    setBusy(key);
+    setNote('');
+    const response = await fetch('/api/geo/admin/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language, kind }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setBusy('');
+    if (!response.ok) {
+      setNote(`Refused: ${body.error || response.status}`);
+      return;
+    }
+    setReports((rows) => rows.filter((row) => `${row.language}:${row.kind}` !== key));
   };
 
   if (denied) {
@@ -118,6 +148,78 @@ export default function AdminClient() {
           <Figure label="Rounds today" value={overview.roundsToday} hint={`${overview.challengeEntriesThisWeek} challenge entries this week`} />
         </section>
       ) : null}
+
+      <section className="mt-10" aria-label="Reports">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-white">
+          <Flag className="h-5 w-5 text-clay-300" />
+          Reports
+        </h2>
+        <p className="mt-1 text-sm text-white/60">
+          What players said was wrong on Script answers, biggest pile first. One person counts once a day. Mark a pile done once it is fixed.
+        </p>
+        <Card pad="none" className="mt-3 overflow-x-auto">
+          <table className="w-full min-w-[48rem] text-sm">
+            <thead className="bg-white/5 text-left text-xs font-semibold uppercase tracking-wide text-white/60">
+              <tr>
+                <th className="px-4 py-2">Language</th>
+                <th className="px-4 py-2">Said wrong</th>
+                <th className="px-4 py-2 text-right">Reports</th>
+                <th className="px-4 py-2">Latest notes</th>
+                <th className="px-4 py-2 text-right">Last</th>
+                <th className="px-4 py-2 text-right" aria-label="Done" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {reports.map((pile) => {
+                const key = `${pile.language}:${pile.kind}`;
+                return (
+                  <tr key={key} className="align-top">
+                    <td className="px-4 py-2">
+                      <span className="font-medium text-white">{pile.name}</span>
+                      <span className="ml-2 font-mono text-xs text-white/50">{pile.language}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-white/80">{REPORT_KINDS[pile.kind] || pile.kind}</td>
+                    <td className="px-4 py-2 text-right text-base font-bold tabular-nums text-white">{pile.count}</td>
+                    <td className="max-w-[28rem] px-4 py-2 text-white/70">
+                      {pile.notes.length ? (
+                        <ul className="max-w-[28rem] space-y-1.5">
+                          {pile.notes.map((item, index) => (
+                            <li key={index}>
+                              <span className="text-white/90">{item.note}</span>
+                              {item.text ? <span className="block truncate text-xs text-white/40" title={item.text}>{item.text}</span> : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums text-white/60">{String(pile.last || '').slice(0, 10)}</td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        type="button"
+                        disabled={busy === key}
+                        onClick={() => closePile(pile.language, pile.kind)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-bold text-white/70 transition hover:bg-white/5 disabled:opacity-50"
+                      >
+                        {busy === key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                        Done
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!reports.length ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-white/60">
+                    No open reports.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </Card>
+      </section>
 
       <section className="mt-10" aria-label="Accounts">
         <div className="flex flex-wrap items-center justify-between gap-3">
