@@ -34,6 +34,8 @@ const PERSONAL_DATA = {
   'GeoBadge.countryCode': 'badges',
   'GeoLedger.amount': 'points',
   'GeoRating.rating': 'ratings',
+  'GeoScriptReport.note': 'report a mistake',
+  'GeoScriptReport.ipHash': 'IP hash on a Script report',
 };
 
 describe('the privacy page covers Probably Earth', () => {

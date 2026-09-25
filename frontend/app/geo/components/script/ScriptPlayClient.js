@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { ArrowRight, Clock, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
+import { ArrowRight, Clock, Flag, Loader2, MapPin, RotateCcw, X } from 'lucide-react';
 import { formatDistance, formatScore } from '@/app/lib/geo/distance';
 import { randomSeedString } from '@/app/lib/geo/random';
 import {
@@ -570,6 +570,7 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
           <p className="mt-2 text-sm text-sand-600">{answer.scriptName} script · {answer.branch} · {answer.family}. About {answer.speakers} million speakers.</p>
           <Tells answer={answer} text={round?.text} script={round?.script} />
         </details>
+        <ReportMistake key={round?.token || 'restored'} token={round?.token} answer={answer} guess={result.guess} />
       </div>
       <button
         type="button"
@@ -579,6 +580,117 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
         {last ? 'See the results' : 'Next round'}{' '}
         <ArrowRight className="h-4 w-4" />
       </button>
+    </div>
+  );
+}
+
+/**
+ * "Something wrong?"
+ *
+ * A player who thinks the map, a hint or the language is wrong says so
+ * here, and the admin screen piles the reports up by language so the
+ * same complaint from many people stands out (server/reports.js). It
+ * stays folded away until asked for, because most rounds nobody
+ * disagrees with anything, and it needs the round token: a round
+ * restored after a reload has none, so it has no button either.
+ */
+function ReportMistake({ token, answer, guess }) {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState('');
+  const [note, setNote] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+  // The answer panel scrolls, and the form opens below the fold of it on
+  // a phone; bring it up rather than leave the choices half off screen.
+  const formRef = useRef(null);
+  useEffect(() => {
+    if (open) formRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [open]);
+  if (!token) return null;
+  if (sent) {
+    return (
+      <p className="mt-3 text-sm text-sand-600" role="status">
+        Thanks, sent.
+      </p>
+    );
+  }
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-sand-500 underline decoration-sand-300 underline-offset-4 hover:text-sand-800"
+      >
+        <Flag className="h-4 w-4" aria-hidden="true" />
+        Something wrong?
+      </button>
+    );
+  }
+  const choices = [
+    ['area', 'Where it is spoken'],
+    ['hint', 'A hint'],
+    ['language', `It is not ${answer.name}`],
+    ['other', 'Something else'],
+  ];
+  const send = async () => {
+    if (!kind || sending) return;
+    setSending(true);
+    setError('');
+    try {
+      const response = await fetch('/api/geo/script/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, kind, note, guess }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Could not send the report');
+      setSent(true);
+    } catch (failure) {
+      setError(playerMessage(failure, 'Could not send the report'));
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <div ref={formRef} className="mt-3 rounded-xl border border-sand-200 bg-white/70 p-3">
+      <p className="text-sm font-semibold">What is wrong?</p>
+      <div className="wg-region-choices" role="group" aria-label="What is wrong">
+        {choices.map(([value, label]) => (
+          <button key={value} type="button" aria-pressed={kind === value} onClick={() => setKind(value)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        maxLength={500}
+        rows={2}
+        placeholder="Add a detail (optional)"
+        aria-label="Add a detail (optional)"
+        className="w-full rounded-lg border border-sand-200 bg-white p-2 text-sm"
+      />
+      {error ? (
+        <p className="mt-2 text-sm text-clay-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button type="button" disabled={!kind || sending} onClick={send} className="ui-btn ui-btn--secondary ui-btn--sm">
+          {sending ? 'Sending…' : 'Send'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError('');
+          }}
+          className="ui-btn ui-btn--ghost ui-btn--sm"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
