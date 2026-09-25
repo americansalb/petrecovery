@@ -83,6 +83,9 @@ function forgetDraft() {
   }
 }
 
+/** Script unless Street was asked for: Script is the game a page opens on (founder, 2026-09-25). */
+const gameOf = (value) => (value === 'street' ? 'street' : 'script');
+
 export default function RoomBrowser({ initialGame, resumeRequest }) {
   const router = useRouter();
   const [server, setServer] = useState(null);
@@ -92,7 +95,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
   const [form, setForm] = useState({
     roomName: "",
     variant: "duel",
-    game: initialGame === 'script' ? 'script' : 'street',
+    game: gameOf(initialGame),
     provider: PRIMARY_PROVIDER,
     rounds: 5,
     time: 60,
@@ -130,7 +133,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
       } catch { /* The retained draft can still continue without a receipt. */ }
     }
     if (draft?.name) setName(draft.name);
-    if (draft?.form) setForm((current) => ({ ...current, ...draft.form, game: initialGame || draft.form.game || 'street', variant: "duel" }));
+    if (draft?.form) setForm((current) => ({ ...current, ...draft.form, game: gameOf(initialGame || draft.form.game), variant: "duel" }));
     if (draft?.code) setCode(draft.code);
     fetch('/api/geo/auth/me', { cache: 'no-store' })
       .then((response) => (response.ok ? response.json() : null))
@@ -327,7 +330,7 @@ export default function RoomBrowser({ initialGame, resumeRequest }) {
           each had their own Street/Script switch, side by side. */}
       <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="ui-seg" role="group" aria-label="Game">
-          {['street', 'script'].map((choice) => (
+          {['script', 'street'].map((choice) => (
             <button key={choice} type="button" aria-pressed={game === choice} disabled={searching} onClick={() => update({ game: choice })}>
               {choice === 'street' ? 'Street' : 'Script'}
             </button>

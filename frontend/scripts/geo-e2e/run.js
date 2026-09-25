@@ -610,10 +610,11 @@ async function coldOpen(browser) {
   if (asksFirst !== 0) throw new Error(`the quick start should ask for nothing first, found ${asksFirst} fields above Play`);
 
   await shot(page, 'cold-open');
+  // Script is the game the menu opens on (founder, 2026-09-25).
   await page.click('[data-cold-open-play]');
-  await page.waitForSelector('text=Round 1 of 5', { timeout: 45000 });
-  await waitPlayable(page);
-  log('the front door button lands in a round');
+  await page.waitForURL(/\/geo\/script\/play\?/, { timeout: 45000 });
+  await page.waitForSelector('.wg-round-track', { timeout: 45000 });
+  log('the front door button lands in a Script round');
   if (page.errors.length) throw new Error('page errors: ' + page.errors.join(' | '));
   await page.close();
 }

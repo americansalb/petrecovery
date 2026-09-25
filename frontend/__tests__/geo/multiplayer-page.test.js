@@ -39,10 +39,12 @@ async function arrive(rooms = []) {
 test('one Street/Script switch for the whole page, and it chooses for both ways to play', async () => {
   await arrive();
   expect(screen.getAllByRole('button', { name: 'Street', exact: true })).toHaveLength(1);
-  expect(screen.getByTestId('quick-match')).toHaveAttribute('data-game', 'street');
-  fireEvent.click(screen.getByRole('button', { name: 'Script', exact: true }));
+  // Script is the game the page opens on (founder, 2026-09-25).
   expect(screen.getByRole('button', { name: 'Script', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getByTestId('quick-match')).toHaveAttribute('data-game', 'script');
+  fireEvent.click(screen.getByRole('button', { name: 'Street', exact: true }));
+  expect(screen.getByRole('button', { name: 'Street', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByTestId('quick-match')).toHaveAttribute('data-game', 'street');
 });
 
 test('the switch is locked while a quick-match search is running', async () => {

@@ -30,7 +30,7 @@
  * listing what exists instead of doing what it is for.
  */
 import '@testing-library/jest-dom';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import GameMenu from '@/app/geo/components/home/GameMenu';
 import ProfileClient from '@/app/geo/components/ProfileClient';
 
@@ -70,16 +70,22 @@ describe('the front door', () => {
 
   test('the one decision on it is which game, and Play starts it', async () => {
     await act(async () => { render(<GameMenu />); });
-    const choices = screen.getByRole('group', { name: 'Game' });
-    expect(choices).toBeInTheDocument();
-    // Street and Script, and Play names the one that is chosen.
+    const choices = within(screen.getByRole('group', { name: 'Game' })).getAllByRole('button');
+    // Script first and chosen when the page opens (founder, 2026-09-25),
+    // and Play names the one that is chosen.
+    expect(choices.map((b) => b.textContent)).toEqual([expect.stringMatching(/Script/), expect.stringMatching(/Street/)]);
+    expect(choices[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Play Script/ })).toBeInTheDocument();
+    fireEvent.click(choices[1]);
     expect(screen.getByRole('button', { name: /Play Street/ })).toBeInTheDocument();
   });
 
-  test('the way to play with somebody is named for what it does', async () => {
+  test('the way to play with somebody is named for what it does, and keeps the game', async () => {
     await act(async () => { render(<GameMenu />); });
     const link = screen.getByRole('link', { name: /Play with a friend/ });
-    expect(link).toHaveAttribute('href', '/geo/rooms');
+    expect(link).toHaveAttribute('href', '/geo/rooms?game=script');
+    fireEvent.click(screen.getByRole('button', { name: /Street Street views/ }));
+    expect(link).toHaveAttribute('href', '/geo/rooms?game=street');
   });
 });
 
