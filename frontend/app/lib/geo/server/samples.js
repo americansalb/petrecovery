@@ -50,7 +50,10 @@
  * property the first sentences were written to have: every language says
  * the same things, so the content cannot give the answer away. A language
  * with no translation of the declaration has Tatoeba sentences instead,
- * picked one by one.
+ * picked one by one. Fifteen languages that still had two sentences each
+ * (Thai, Amharic, Croatian, Tamil and others) got six or seven more the
+ * same way, appended at the end of their lists, with markers written
+ * for them.
  *
  * **The curation rule, which matters more than the size of the pool:**
  * strip proper nouns. A sentence containing a city name answers itself,
@@ -105,10 +108,24 @@ export const SAMPLES = {
   bho: [
     'आज भोरे बहुते जाड़ा रहे, ओहसे हम गरम चाह पिअनी।',
     'ऊ रोज पैदले दफ्तर जाला।',
+    'सबहि के जीवन जीए के आजादी आओर अपन सुरक्षा के अधिकार हवे।',
+    'काहु के न तो सतावल जा सकेला आओर न सजा देल जा सकेला।',
+    'कानून के सामने सबहि के सभे जगह एके आदिमी के रूप में पहिचाने जाए के अधिकार ह।',
+    'कानून के सामने सभे बराबर हवे आओर कानून से बिना कौनो भेदभाव के समान संरक्षण प्राप्त करे के अधिकार मिलल हवे।',
+    'इ सुनवाई के दरम्यान आपन बचाव के लेल ओकरा पूरा-पूरा हक भी मिलल बा।',
+    'सब लोगनि के सोचे के आओर कौनो धर्म अपनावे के अधिकार हवे तथा ओ आपन धर्म और मान्यता में भी बदलाव ला सकेला।',
+    'सबहिं बच्चन के चाहे ओकर जन्म कानूनी बियाह के अन्तर्गत भईल हो चाहे बिना बियाह के, समाजिक सुरक्षा मिले के चाही।',
   ],
   mai: [
     'आइ भोरमे बड़ ठंढ छल, तेँ हम गरम चाह पिलहुँ।',
     'ओ रोज पएरे कार्यालय जाइत छथि।',
+    'केओ व्यक्ति दासता वा बेगारीमे नहि रहत आओर सभ प्रकारक दासप्रथा आ\' दासक खरीद–बिकरी वर्जित होएत।',
+    'ककरहु क्रूर, अमानुषिक वा अपमानजनक दण्ड नहि देल जाएत आ\' ककरोसँ एहन व्यवहार नहि कएल जाएत।',
+    'सभ केओ कानूनक समक्ष समान अछि आ\' बिना कोनो भेदभावक कानूनक संरक्षणक हकदार अछि।',
+    'प्रत्येक व्यक्तिकेँ एहन हस्तक्षेप वा प्रहारसँ कानूनी रक्षा पएबाक अधिकार छैक।',
+    'परिवार समाजक एक सहज आ\' मौलिक एकक थिक आओर एकरा समाजक आ\' राज्यक संरक्षण पएबाक अधिकार छैक।',
+    'कोनहु व्यक्तिकेँ संगठन विशेषसँ सम्बद्ध होएबाक लेल विवश नहि कएल जाए सकैछ।',
+    'प्रत्येक बच्चाकेँ, चाहे ओ विवाहावधिमे जनमल हो वा ताहिसँ बाहर, समान सामाजिक संरक्षणक अधिकार छैक।',
   ],
   ben: [
     'আজ সকালে খুব ঠান্ডা ছিল, তাই আমি গরম চা খেয়েছি।',
@@ -162,6 +179,12 @@ export const SAMPLES = {
   ory: [
     'ଆଜି ସକାଳେ ବହୁତ ଥଣ୍ଡା ଥିଲା, ତେଣୁ ମୁଁ ଗରମ ଚା ପିଇଲି।',
     'ସେ ପ୍ରତିଦିନ ଚାଲି ଚାଲି ଅଫିସ ଯାଆନ୍ତି।',
+    'ମୋର ଗୃହଟି ଷ୍ଟେସନ ଠାରୁ ପାଞ୍ଚ ମିନିଟ୍ ର ଚଲା ବାଟ ଦୂରରେ ଅବସ୍ଥିତ।',
+    'ଆପଣ ଚାହିଁବେ ଯଦି ଅନ୍ୟ ପରାମର୍ଶଦାତା ସହିତ କଥା ହୋଈପାରିବେ।',
+    'ଲାଲ୍ ରଙ୍ଗର ବାଳ ଥିବା ପିଲାମାନେ କୁଆଡେ ଯାଇଛନ୍ତି?',
+    'ତୁମେ କୌଣସି ସନ୍ଦେହଜନକ ବ୍ୟକ୍ତିଙ୍କୁ ଦେଖିଲ କି?',
+    'ଏ ବିଷୟ ମୋ ଉପରେ ଛାଡି଼ଦିଅନ୍ତୁ। ମୁଁ ବୁଝିଦେବି।',
+    'ଆପଣ ଏଠାରେ ପିଇ ପାରିବେ ନାହିଁ।',
   ],
   urd: [
     'آج صبح بہت سردی تھی، اس لیے میں نے گرم چائے پی۔',
@@ -177,14 +200,30 @@ export const SAMPLES = {
   snd: [
     'اڄ صبح جو تمام سردي هئي، ان ڪري مون گرم چانهه پيتي.',
     'هو هر روز پيدل ئي آفيس ويندو آهي.',
+    'عورتن جو عالمي ڏينهن مبارڪ!',
+    'تون ڪٿي پڙهندو آهين؟',
+    'تنهنجو نالو ڇا آهي؟',
+    'تون ڪٿي رهندي آهين؟',
   ],
   tam: [
     'இன்று காலை மிகவும் குளிராக இருந்தது, அதனால் நான் சூடான தேநீர் குடித்தேன்.',
     'அவர் தினமும் நடந்தே அலுவலகத்திற்குச் செல்கிறார்.',
+    'உங்களுடைய வேலையாட்கள் மகிழ்ச்சியாக இருக்க வேண்டுமென்றால் நீங்கள் கணிசமான சம்பளம் தர வேண்டும்',
+    'இந்த சூழ்நிலையில் நான் என்ன செய்ய வேண்டும் என்று நீங்கள் நினைக்கிறீர்கள் என்று சொல்லுங்கள்.',
+    '"நீ ஏன் தூங்கவில்லை?" "எனக்குத் தூக்கம் வராததால் நான் தூங்கவில்லை."',
+    'எனக்கு ஒரு அக்கா இல்லை, எனக்கு இரண்டு அக்காக்கள் இருக்கிறார்கள்.',
+    'அவருடைய வேலை நிரந்தரமில்லாததால் அவர் அடிக்கடி இடம் மாறுகிறார்.',
+    'கடல் மட்டம் உயர்வதற்கு தட்பவெப்ப மாற்றம் காரணமாக இருக்கிறது.',
   ],
   tel: [
     'ఈ రోజు ఉదయం చాలా చలిగా ఉంది, అందుకే నేను వేడి టీ తాగాను.',
     'అతను ప్రతిరోజూ నడిచే ఆఫీసుకు వెళ్తాడు.',
+    'నేను లావెక్కినట్టువున్నాను, జిన్స్ గుండీను వేసుకోలేకపోతున్నాను.',
+    'నువ్వు ఈత కొట్టడానికో లేక చేపలు పట్టడానికో వెళ్ళొచ్చు',
+    'దయచేసి కుక్కను వదిలిపెట్టకుండ జాగ్రత్త వహించండి.',
+    'మీరు దేని గురించి ఆలోచిస్తున్నారో చెప్పగలరా?',
+    'ఒక పిల్లి డెస్క్ కింద నుండి బయటకు వచ్చింది.',
+    'అతడు నాకన్నా మూడు రెట్లు ఎక్కువ సంపాదిస్తాడు',
   ],
   kan: [
     'ಇಂದು ಬೆಳಿಗ್ಗೆ ತುಂಬಾ ಚಳಿ ಇತ್ತು, ಆದ್ದರಿಂದ ನಾನು ಬಿಸಿ ಚಹಾ ಕುಡಿದೆ.',
@@ -207,6 +246,12 @@ export const SAMPLES = {
   sin: [
     'අද උදේ හරිම සීතලයි, ඒ නිසා මම උණුසුම් තේ එකක් බිව්වා.',
     'ඔහු හැම දාම පයින්ම කාර්යාලයට යනවා.',
+    'මම හිතනවා මට තව අයිස්ක්‍රීම් කෝන් එකක් ඕන කියල.',
+    'ඔබ අවදිවන විට මා මෙහි තවත් නො සිටිනු ඇති.',
+    'ඔයා මොකක් හරි පිටරට භාෂාවක් ඉගෙනගන්නවා ද?',
+    'මට උණුවතුර නාන්න අවශ්‍ය නෑ.',
+    'ඔබ මා සමඟ නටන්න කැමතිද?',
+    'හැම දෙයක්ම හරිම අමාරුයි',
   ],
   arb: [
     'كان الجو باردا جدا هذا الصباح، لذلك شربت شايا ساخنا.',
@@ -234,6 +279,12 @@ export const SAMPLES = {
   pbu: [
     'نن سهار ډېره یخني وه، نو ما ګرمه چای وڅښله.',
     'هغه هره ورځ پلی دفتر ته ځي.',
+    'د بشر ټول افراد آزاد نړۍ ته راځی او د حيثيت او حقوقو له پلوه سره برابر دی.',
+    'ټول د عقل او وجدان خاوندان دی او يو له بل سره د ورورۍ په روحيې سره بايد چلند کړی.',
+    'ما په تیره هفته کی د ګلان منظمول زده کړه شروع کړه نو تر اوسه زه نوی یم.',
+    'زه غواړم چې په راتلونکي کې يو غوره د فوټبال لوبغاړي شم.',
+    'لنده دا چه مسافر او مېلمه فرق سره لری.',
+    'ښایی چه د یو بل مخ یې هیڅ نه وی لیدلی.',
   ],
   ckb: [
     'ئەمڕۆ بەیانی زۆر سارد بوو، بۆیە چایەکی گەرمم خواردەوە.',
@@ -411,6 +462,12 @@ export const SAMPLES = {
   amh: [
     'ዛሬ ጠዋት በጣም ቀዝቃዛ ነበር፣ ስለዚህ ትኩስ ሻይ ጠጣሁ።',
     'እሱ በየቀኑ በእግሩ ወደ ቢሮ ይሄዳል።',
+    'የሰው፡ልጅ፡ሁሉ፡ሲወለድ፡ነጻና፡በክብርና፡በመብትም፡እኩልነት፡ያለው፡ነው።፡የተፈጥሮ፡ማስተዋልና፡ሕሊና፡ስላለው፡አንዱ፡ሌላውን፡በወንድማማችነት፡መንፈስ፡መመልከት፡ይገባዋል።',
+    'ማንም፡ሰው፡ቢሆን፡በባርነት፡አይገዛም።፡ባርነትና፡የባሪያ፡ንግድም፡በማንኛውም፡ዓይነት፡ክልክል፡ነው።',
+    'እያንዳንዱ፡ሰው፡በሕገ፡መንግስቱ፡ወይም፡በሕግ፡የተሰጡትን፡መሠረታዊ፡መብቶች፡ከሚጥሱ፡ድርጊቶች፡ከፍተኛ፡በሆኑ፡ብሔራዊ፡የፍርድ፡ባለስልጣኖች፡ፍጹም፡በሆነ፡መንገድ፡እንዲወገድለት፡መብት፡አለው።',
+    'እያንዳንዱ፡ሰው፡ከማንኛውም፡አገር፡ሆነ፡ከራሱ፡አገር፡ወጥቶ፡እንደገና፡ወደ፡አገሩ፡የመመለስ፡መብት፡አለው።',
+    'ጋብቻ፡የሚፈጸመው፡ጋብቻ፡ለመፈጸም፡በሚፈልጉ፡ሁለቱም፡ወገኖች፡በሚያደርጉት፡ነጻና፡ሙሉ፡ስምምነት፡መሠረት፡ብቻ፡ነው።',
+    'እያንዳንዱ፡ሰው፡ያላንዳች፡ልዩነት፡ማድረግ፡ለአንድ፡ዓይነት፡ሥራ፡እኩል፡የሆነ፡ደመወዝ፡የማግኘት፡መብት፡አለው።',
   ],
   tir: [
     'ሎሚ ንግሆ ኣዝዩ ቁሪ ነይሩ፣ ስለዚ ውዑይ ሻሂ ሰቲየ።',
@@ -426,6 +483,12 @@ export const SAMPLES = {
   tha: [
     'เช้านี้อากาศหนาวมาก ฉันเลยดื่มชาร้อน',
     'เขาเดินไปทำงานทุกวัน',
+    'คนทุกคนมีสิทธิในการดำรงชีวิต เสรีภาพ และความมั่นคงแห่งตัวตน',
+    'บุคคลใดจะถูกจับกุม กักขัง หรือเนรเทศไปต่างถิ่นโดยพลการไม่ได้',
+    'ทุกคนมีสิทธิที่จะออกจากประเทศใด ๆ ไป รวมทั้งประเทศของตนเองด้วย และที่จะกลับยังประเทศตน',
+    'บุคคลใด ๆ จะถูกตัดสัญชาติของตนโดยพลการ หรือถูกปฏิเสธสิทธิที่จะเปลี่ยนสัญชาติไม่ได้',
+    'ครอบครัวเป็นหน่วยธรรมชาติ และหลักมูลของสังคมและมีสิทธิที่จะได้รับความคุ้มครองจากสังคมและรัฐ',
+    'ทุกคนมีสิทธิในการพักผ่อนและเวลาว่าง รวมทั้งการจำกัดเวลาทำงานตามสมควร และวันหยุดงานเป็นครั้งคราวโดยได้รับสินจ้าง',
   ],
   lao: [
     'ເຊົ້ານີ້ອາກາດໜາວຫຼາຍ ຂ້ອຍຈຶ່ງດື່ມຊາຮ້ອນ',
@@ -721,6 +784,12 @@ export const SAMPLES = {
   hrv: [
     'Jutros je bilo vrlo hladno, pa sam popio topli čaj.',
     'Svaki dan ide na posao pješice.',
+    'Svatko ima pravo da se svagdje pred zakonom priznaje kao osoba.',
+    'Nitko ne smije biti podvrgnut samovoljnom uhićenju, zatvoru ili izgonu.',
+    'Svatko ima pravo sudjelovati u upravi svoje zemlje, neposredno ili preko slobodno izabranih predstavnika.',
+    'Majka i dijete imaju pravo na posebnu skrb i pomoć.',
+    'Svatko od nas je poput mjeseca: svi imamo mračnu stranu, koju nikada ne pokazujemo.',
+    'Znam da je vrlo nevjerojatno da ćeš ikad izaći sa mnom, ali moram te pitati barem još jednom.',
   ],
   lit: [
     'Šįryt buvo labai šalta, todėl išgėriau karštos arbatos.',
@@ -786,10 +855,22 @@ export const SAMPLES = {
   azj: [
     'Bu səhər hava çox soyuq idi, ona görə isti çay içdim.',
     'O, hər gün işə piyada gedir.',
+    'Bütün insanlar qanun qarşısında bərabərdirlər və qanun tərəfindən bərabər müdafiə hüququna malikdirlər.',
+    'Hər bir şəxsin yaşamaq, azadlıq və şəxsi toxunulmazlıq hüququ var.',
+    'Heç kim özbaşına həbsə, tutulmaya və ya sürgünə məruz qala bilməz.',
+    'Hər bir şəxs öz ölkəsi də daxil olmaqla istənilən ölkəni tərk etmək və öz ölkəsinə qayıtmaq hüququna malikdir.',
+    'Hər bir şəxs heç bir ayrı-seçkilik olmadan eyni iş üçün eyni əmək haqqı almaq hüququna malikdir.',
+    'Təhsil insan kimi davranan maşınlar istehsal edir və maşın kimi davranan insanlar yetişdirir.',
   ],
   uzn: [
     'Bugun ertalab juda sovuq edi, shuning uchun issiq choy ichdim.',
     'U har kuni ishga piyoda boradi.',
+    'Har bir inson yashash, erkinlik va shaxsiy daxlsizlik huquqiga egadir.',
+    'Hech kim oʻzboshimchalik bilan qamalishi, ushlanishi yoki quvgʻin qilinishi mumkin emas.',
+    'Har bir inson har bir davlat hududida erkin yurish va oʻziga istiqomat joyi tanlash huquqiga egadir.',
+    'Oila jamiyatning tabiiy va asosiy hujayrasidir va u jamiyat, davlat tomonidan muhofaza etilishi huquqiga egadir.',
+    'Onalik va bolalik alohida vasiylik va yordam huquqini beradi.',
+    'Men mushuklarni yaxshi ko‘raman, mushuklar ham meni yaxshi ko‘radilar.',
   ],
   vie: [
     'Sáng nay trời rất lạnh, nên tôi đã uống một tách trà nóng.',
@@ -867,6 +948,12 @@ export const SAMPLES = {
   yor: [
     'Òwúrọ̀ òní tutù gan-an, nítorí náà mo mu tíì gbígbóná.',
     'Ó máa ń rìn lọ sí ibi iṣẹ́ lójoojúmọ́.',
+    'Gbogbo ènìyàn ni a bí ní òmìnira; iyì àti è̩tó̩ kò̩ò̩kan sì dó̩gba.',
+    'E̩nì kò̩ò̩kan ló ní è̩tó̩ láti wà láàyè, è̩tó̩ sí òmìnira àti è̩tó̩ sí ààbò ara rè̩.',
+    'A kò gbo̩dò̩ s̩àdédé fi òfin mú ènìyàn tàbí kí a kàn gbé ènìyàn tì mó̩lé, tàbí kí a lé ènìyàn jáde ní ìlú láìnídìí.',
+    'E̩nì kò̩ò̩kan ló ní è̩tó̩ láti gba iye owó tí ó dó̩gba fún irú is̩é̩ kan náà, láìsí ìyàsó̩tò̩ kankan.',
+    'A ní láti pèsè ìtó̩jú àti ìrànló̩wó̩ pàtàkì fún àwo̩n abiyamo̩ àti àwo̩n o̩mo̩dé.',
+    'Ẹ̀gbẹ́ táa máa fi sùn lálẹ́, kò yẹ ká fi gbọgbẹ́ lọ́ọ̀sán.',
   ],
   som: [
     'Subaxdan aad bay u qabow ahayd, sidaas darteed waxaan cabbay shaah kulul.',
@@ -876,6 +963,12 @@ export const SAMPLES = {
   zul: [
     'Namhlanje ekuseni bekubanda kakhulu, ngakho ngiphuze itiye elishisayo.',
     'Uhamba ngezinyawo eya emsebenzini nsuku zonke.',
+    'Bonke abantu bazalwa bekhululekile belingana ngesithunzi nangamalungelo.',
+    'Bonke abantwana noma bezalwe ngaphandle komshado bayothola ukuvikelwa okufanayo emphakathini.',
+    'Wonke umuntu unelungelo lempilo, lenkululeko nelokuphepha.',
+    'Akekho oyohlukunyezwa noma aphathwe ngobulwane ajeziswe ngokwehliswa isithunzi.',
+    'Wonke umuntu unelungelo lokushiya izwe lakhe, futhi abuye abuyele kulo.',
+    'Umndeni uyimvelo nesizinda somphakathi okufanele uvikelwe umphakathi noMbuso.',
   ],
   mkd: [
     'Утрово беше многу студено, затоа испив топол чај.',

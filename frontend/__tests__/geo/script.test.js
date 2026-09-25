@@ -437,6 +437,22 @@ describe('a round', () => {
     expect(short).toBe(0);
   });
 
+  test('every language has enough text for a full round, whatever order it comes in', () => {
+    // The worst order is the shortest sentences first. Fifteen languages,
+    // Thai, Amharic and Croatian among them, had two sentences each: every
+    // round of them was the same short text. If the six shortest reach
+    // the floor, every round does.
+    const dense = new Set(['hans', 'jpan']);
+    const thin = [];
+    for (const language of LANGUAGES) {
+      const lengths = samplesFor(language.code).map((sentence) => [...sentence].length).sort((a, b) => a - b);
+      const worst = lengths.slice(0, 6).reduce((sum, length) => sum + length, 0);
+      const floor = dense.has(language.script) ? 30 : 90;
+      if (worst < floor) thin.push(`${language.code}: ${worst}`);
+    }
+    expect(thin).toEqual([]);
+  });
+
   test('gives away nothing about the answer beyond what is on screen', () => {
     // Found in the deep audit. The round used to carry scriptName, the
     // script's human name, and for a script only one language uses -
