@@ -2,11 +2,12 @@
  * A Rescue Force's public page.
  *
  * From the top: which force and where, how many members, and the one action
- * (join, or links to updates and chat if you are in it; members also get the
- * force's tabs from ./layout.js); then the pets missing in
- * its area as the same cards the Lost & Found board uses; its area on a
- * map; its members; and its reunions. Built in the same plain style as the
- * pet pages. There is no activity list: the force's activity rows include
+ * (join, in place and signed out too, see ./JoinForcePanel.js; or links to
+ * updates and chat if you are in it; members also get the force's tabs from
+ * ./layout.js); then the pets missing in its area as the same cards the
+ * Lost & Found board uses, each with a button into its search for members;
+ * its area on a map; its members; and its reunions. Built in the same plain
+ * style as the pet pages. There is no activity list: the force's activity rows include
  * members' chat messages and announcements, and this page used to print
  * the latest of them to anyone.
  *
@@ -19,14 +20,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { ChevronLeft, Shield, Heart, Star, CheckCircle2, Megaphone, MessageCircle } from 'lucide-react';
+import { ChevronLeft, Shield, Heart, Star, CheckCircle2, Megaphone, MessageCircle, Radar, ArrowRight } from 'lucide-react';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { getPublicForce } from '@/app/lib/forcePublic';
 import { SITE_NAME, shareImage, buildShareMetadata, genericShareMetadata } from '@/app/lib/shareMetadata';
 import PetCard from '@/app/lost-and-found/PetCard';
 import TerritoryMapCard from './TerritoryMapCard';
-import JoinForceButton from './JoinForceButton';
+import JoinForcePanel from './JoinForcePanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +93,13 @@ const CAPABILITIES = [
   ['hasDrones', 'Drone pilots'],
   ['availableNight', 'Searches at night'],
 ];
+
+/** What a member's button under a missing pet says: the pet by name when the report has one. */
+function helpLabel(c) {
+  if (c.reportType === 'FOUND') return 'Help find the owner';
+  const name = (c.petName || '').trim();
+  return name && !/^unknown/i.test(name) ? `Help find ${name}` : 'Help search';
+}
 
 export default async function ForcePage({ params, searchParams }) {
   const { id } = await params;
@@ -190,7 +198,7 @@ export default async function ForcePage({ params, searchParams }) {
                   </div>
                 </div>
               ) : (
-                <JoinForceButton forceId={force.id} signedIn={Boolean(session?.user?.id)} />
+                <JoinForcePanel forceId={force.id} forceName={force.name} signedIn={Boolean(session?.user?.id)} />
               )}
             </div>
           </div>
@@ -205,9 +213,20 @@ export default async function ForcePage({ params, searchParams }) {
         )}
 
         <section aria-labelledby="missing-heading">
-          <h2 id="missing-heading" className="text-xl font-semibold text-midnight-900">
-            Missing in this area
-          </h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 id="missing-heading" className="text-xl font-semibold text-midnight-900">
+              Missing in this area
+            </h2>
+            {/* An owner can land here first (a search, a flyer, a neighbor's
+                link). A report inside the force's area is assigned to it. */}
+            <Link
+              href="/report/new"
+              className="inline-flex items-center gap-1 text-sm font-semibold text-midnight-700 hover:text-midnight-950"
+            >
+              {force.city ? `Pet missing near ${force.city}? Report it` : 'Pet missing? Report it'}
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
           {liveMissions.length === 0 ? (
             <p className="mt-3 rounded-2xl bg-white px-5 py-6 text-midnight-500 ring-1 ring-midnight-200">
               No pets are reported missing in this force&apos;s area right now.
@@ -215,7 +234,21 @@ export default async function ForcePage({ params, searchParams }) {
           ) : (
             <div className="mt-4 grid gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
               {liveMissions.map((c) => (
-                <PetCard key={c.id} c={c} />
+                <div key={c.id} className="flex flex-col gap-2">
+                  <PetCard c={c} />
+                  {/* Members work these searches, so each pet gets a direct
+                      way into its search map (Mission Control), not only a
+                      link to its public page. */}
+                  {me && (
+                    <Link
+                      href={`/mission-control?mission=${encodeURIComponent(c.caseNumber)}`}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-midnight-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-midnight-800"
+                    >
+                      <Radar size={16} aria-hidden="true" />
+                      {helpLabel(c)}
+                    </Link>
+                  )}
+                </div>
               ))}
             </div>
           )}

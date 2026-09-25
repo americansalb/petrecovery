@@ -18,8 +18,8 @@ import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { ShieldIcon } from '@/app/components/icons/HealthIcons';
 import dynamic from 'next/dynamic';
 import {
-  Bell, Heart, MapPin, Search, Shield, Users, Target, ArrowRight,
-  CheckCircle2, Pill, MessagesSquare, PawPrint, Megaphone, Clock, Building2,
+  Bell, Heart, MapPin, Search, Shield, Users, ArrowRight,
+  CheckCircle2, PawPrint, Clock, Building2,
 } from 'lucide-react';
 import { cn } from '@/components/ui';
 import { casePlace } from '@/app/lib/caseLabels';
@@ -356,54 +356,44 @@ function FindYourForce() {
 
 /* ------------------------------ How it works ------------------------------ */
 
+// Three plain steps, each one what actually happens. This was three
+// icon-badge cards plus a footnote pointing back at the screenshot, and step
+// 2 said the force "sees the case the moment it lands": members are not
+// alerted, the report is posted in the force's updates.
 const STEPS = [
   {
-    icon: Bell,
-    title: 'Report in about a minute',
-    body: 'Where they were last seen, a photo, a few taps. Your report instantly joins the public lost pet database.',
-    color: 'bg-rose-100 text-rose-600',
+    title: 'You report the pet',
+    body: 'Where and when they were last seen, and a photo. The report goes on the Lost & Found board.',
   },
   {
-    icon: Shield,
-    title: 'Your Rescue Force gets it',
-    body: 'The volunteer team covering your neighborhood sees the case the moment it lands.',
-    color: 'bg-flash-100 text-flash-700',
+    title: 'The Rescue Force for that area gets it',
+    body: "It is posted in the force's updates, where its members see it.",
   },
   {
-    icon: Target,
-    title: 'It becomes a Mission',
-    body: 'Search sectors on a live map, sighting reports, team chat, shelter checks, flyers. Until reunion.',
-    color: 'bg-emerald-100 text-emerald-700',
+    title: 'Members search from Mission Control',
+    body: 'The search map, sightings, flyers and shelter calls, until the pet is home.',
   },
 ];
 
 function HowItWorks() {
   return (
     <section className="max-w-5xl mx-auto px-4 mb-16 md:mb-24">
-      <p className="text-center text-xs font-bold uppercase tracking-widest text-flash-600 mb-2">From report to reunion</p>
-      <h2 className="text-center text-3xl md:text-4xl font-extrabold text-midnight-900 mb-10 md:mb-12">
-        How a neighborhood brings a pet home
+      <h2 className="text-center text-3xl md:text-4xl font-extrabold text-midnight-900 mb-8 md:mb-10">
+        How it works
       </h2>
-      <div className="grid md:grid-cols-3 gap-5">
-        {STEPS.map(({ icon: Icon, title, body, color }, i) => (
-          <div key={title} className="relative bg-white rounded-3xl border border-midnight-100 shadow-card p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <span className={cn('w-11 h-11 rounded-2xl flex items-center justify-center', color)}>
-                <Icon className="w-5 h-5" />
-              </span>
-              <span className="text-4xl font-extrabold text-midnight-200">{i + 1}</span>
+      <ol className="grid gap-6 md:grid-cols-3 md:gap-8">
+        {STEPS.map(({ title, body }, i) => (
+          <li key={title} className="flex gap-4">
+            <span className="text-3xl font-extrabold leading-none text-flash-500 tabular-nums" aria-hidden="true">
+              {i + 1}
+            </span>
+            <div>
+              <h3 className="font-bold text-lg text-midnight-900">{title}</h3>
+              <p className="text-midnight-500 text-sm leading-relaxed mt-1">{body}</p>
             </div>
-            <h3 className="font-bold text-lg text-midnight-900 mb-1.5">{title}</h3>
-            <p className="text-midnight-500 text-sm leading-relaxed">{body}</p>
-          </div>
+          </li>
         ))}
-      </div>
-
-      <p className="text-center text-midnight-500 text-sm mt-8 max-w-2xl mx-auto">
-        Step 3 is the Mission Control you saw up top: the search zone on a live
-        map, sighting reports, one-tap flyers, and the team&apos;s log, until the
-        reunion.
-      </p>
+      </ol>
     </section>
   );
 }
@@ -443,7 +433,7 @@ function ActiveMissions({ missions, loading }) {
           <div className="bg-midnight-800 border border-midnight-700 rounded-3xl p-10 text-center">
             <PawPrint className="w-10 h-10 text-midnight-500 mx-auto mb-3" />
             <p className="text-white font-bold text-lg mb-1">No active missions right now</p>
-            <p className="text-midnight-300 text-sm mb-5">That&apos;s a good day. Join your local force so you&apos;re ready when a neighbor needs you.</p>
+            <p className="text-midnight-300 text-sm mb-5">Join your town&apos;s Rescue Force to help search when a pet goes missing near you.</p>
             <Link href="/rescue-forces" className="inline-flex items-center gap-2 bg-flash-400 hover:bg-flash-300 text-midnight-900 font-bold px-6 py-3 rounded-xl transition-colors">
               <Shield className="w-4 h-4" /> Find your Rescue Force
             </Link>
@@ -500,9 +490,9 @@ function ActiveMissions({ missions, loading }) {
                 className="group border-2 border-dashed border-midnight-700 hover:border-flash-400/60 rounded-2xl flex flex-col items-center justify-center text-center p-6 min-h-[176px] transition-colors"
               >
                 <Shield className="w-8 h-8 text-midnight-500 group-hover:text-flash-400 transition-colors mb-3" />
-                <p className="text-white font-bold mb-1">More eyes bring them home</p>
+                <p className="text-white font-bold mb-1">Join your Rescue Force</p>
                 <p className="text-midnight-400 text-sm">
-                  Join your Rescue Force and be ready when a neighbor needs you.
+                  Members help search for pets missing in their area.
                 </p>
               </Link>
             )}
@@ -610,60 +600,6 @@ function ShelterLane() {
   );
 }
 
-/* ------------------------------ The gift band ----------------------------- */
-
-const PILLARS = [
-  {
-    icon: Megaphone,
-    title: 'Recovery is free. Period.',
-    body: 'Reports, alerts, the database, force coordination, flyers. Money never decides whether a pet comes home.',
-    href: '/report/new',
-    label: 'Report a lost pet',
-  },
-  {
-    icon: Pill,
-    title: 'The Health Book, free for every pet',
-    body: 'Med schedules with one-tap logging, vaccine records, weight tracking, shared care teams. What other apps paywall, we give away.',
-    href: '/care',
-    label: 'See the Health Book',
-  },
-  {
-    icon: MessagesSquare,
-    title: 'A community, not just an app',
-    body: 'Your Rescue Force has its own feed, chat, and honors. The Rescue Hub connects every force for advice, transport, and fostering.',
-    href: '/hub',
-    label: 'Visit the Rescue Hub',
-  },
-];
-
-function GiftBand() {
-  return (
-    <section className="max-w-5xl mx-auto px-4 mb-16 md:mb-24">
-      <h2 className="text-center text-3xl md:text-4xl font-extrabold text-midnight-900 mb-3">
-        Built as a gift, run like one
-      </h2>
-      <p className="text-center text-midnight-500 max-w-2xl mx-auto mb-10">
-        Report a lost pet, join a search, keep your pet&rsquo;s records: all of it is
-        free to use, and a nonprofit keeps it running.
-      </p>
-      <div className="grid md:grid-cols-3 gap-5">
-        {PILLARS.map(({ icon: Icon, title, body, href, label }) => (
-          <div key={title} className="bg-white rounded-3xl border border-midnight-100 shadow-card p-6 flex flex-col">
-            <span className="w-11 h-11 rounded-2xl bg-midnight-900 text-flash-400 flex items-center justify-center mb-4">
-              <Icon className="w-5 h-5" />
-            </span>
-            <h3 className="font-bold text-lg text-midnight-900 mb-1.5">{title}</h3>
-            <p className="text-midnight-500 text-sm leading-relaxed mb-4 flex-1">{body}</p>
-            <Link href={href} className="inline-flex items-center gap-1.5 text-sm font-bold text-midnight-900 hover:text-flash-600 transition-colors">
-              {label} <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /* --------------------------------- Footer --------------------------------- */
 
 function FooterCta() {
@@ -672,11 +608,14 @@ function FooterCta() {
       <div className="max-w-5xl mx-auto px-4">
         <div className="text-center mb-14">
           <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-3">
-            Be the neighbor you&apos;d want on the worst day
+            Help find lost pets in your town
           </h2>
+          {/* It used to say "be reachable when a pet near you needs more
+              eyes". Members are not alerted; they see each report in the
+              force's updates and on their dashboard. */}
           <p className="text-midnight-300 max-w-xl mx-auto mb-7">
-            Join your city&apos;s Rescue Force. No commitment, no cost. Just be
-            reachable when a pet near you needs more eyes.
+            Join your town&apos;s Rescue Force. Members see each pet reported lost in
+            their area and help search for it. Joining costs nothing.
           </p>
           <Link
             href="/rescue-forces"
@@ -724,7 +663,10 @@ export default function HomePage() {
       <ActiveMissions missions={missions} loading={missionsLoading} />
       <HealthBookLane />
       <ShelterLane />
-      <GiftBand />
+      {/* The "Built as a gift" card band that sat here promised things the
+          founder never decided ("Recovery is free. Period.", "Money never
+          decides whether a pet comes home"). Its links repeat the hero and
+          the lanes above. */}
       <FooterCta />
     </main>
   );

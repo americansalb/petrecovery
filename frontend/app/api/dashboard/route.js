@@ -397,6 +397,76 @@ export async function GET(request) {
       console.log('📊 Dashboard: First membership:', JSON.stringify(user.rescueSquadMemberships[0], null, 2));
     }
 
+    /**
+     * Pets missing in the areas of the forces this person belongs to. A
+     * member used to see only the searches they had personally joined, so
+     * someone who had just joined a force opened their home to nothing
+     * about the pets the force was looking for. Same live filters as the
+     * force page (app/lib/forcePublic.js).
+     */
+    const myForceIds = user.rescueSquadMemberships
+      .filter(membership => membership.rescueSquad?.isActive)
+      .map(membership => membership.rescueSquad.id);
+    const liveForceCases = {
+      rescueSquadId: { in: myForceIds },
+      status: { in: ['ACCEPTED', 'ACTIVE', 'STANDBY'] },
+      case: { reportType: 'LOST', status: { in: ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'] } },
+    };
+    let forcePets = [];
+    const missingByForce = {};
+    if (myForceIds.length > 0) {
+      try {
+        const [rows, counts] = await Promise.all([
+          prisma.caseAssignment.findMany({
+            where: liveForceCases,
+            orderBy: { case: { lastSeenAt: 'desc' } },
+            take: 30,
+            select: {
+              rescueSquad: { select: { id: true, name: true } },
+              case: {
+                select: {
+                  id: true,
+                  caseNumber: true,
+                  petName: true,
+                  petSpecies: true,
+                  petPhotoUrl: true,
+                  lastSeenAt: true,
+                  _count: { select: { sightings: true } },
+                },
+              },
+            },
+          }),
+          prisma.caseAssignment.groupBy({
+            by: ['rescueSquadId'],
+            where: liveForceCases,
+            _count: { _all: true },
+          }),
+        ]);
+        for (const c of counts) missingByForce[c.rescueSquadId] = c._count._all;
+        const seen = new Set([...ownedCaseIds, ...participatingCaseIds]);
+        for (const row of rows) {
+          if (!row.case || !row.rescueSquad || seen.has(row.case.id)) continue;
+          seen.add(row.case.id);
+          forcePets.push({
+            id: row.case.id,
+            caseNumber: row.case.caseNumber,
+            petName: row.case.petName,
+            petSpecies: row.case.petSpecies,
+            petPhotoUrl: row.case.petPhotoUrl || null,
+            hoursMissing: row.case.lastSeenAt
+              ? Math.floor((Date.now() - new Date(row.case.lastSeenAt).getTime()) / 3600000)
+              : 0,
+            sightings: row.case._count?.sightings || 0,
+            force: { id: row.rescueSquad.id, name: row.rescueSquad.name },
+          });
+        }
+        forcePets = forcePets.slice(0, 6);
+      } catch (err) {
+        console.error('Dashboard: force pets query failed:', err.message);
+        forcePets = [];
+      }
+    }
+
     const squads = user.rescueSquadMemberships
       .filter(membership => membership.rescueSquad && membership.rescueSquad.isActive)
       .map(membership => ({
@@ -408,6 +478,9 @@ export async function GET(request) {
         photoUrl: membership.rescueSquad.photoUrl,
         level: membership.rescueSquad.rescueSquadLevel,
         memberCount: membership.rescueSquad._count.members,
+        // Pets missing in the force's area now. The dashboard's force rail
+        // read this field before the API sent it.
+        activeMissions: missingByForce[membership.rescueSquad.id] || 0,
         totalCasesCompleted: membership.rescueSquad.totalCasesCompleted,
         successfulReunions: membership.rescueSquad.successfulReunions,
         myRole: membership.role,
@@ -576,6 +649,7 @@ export async function GET(request) {
       nearbyAlerts, // Nearby LOST pets from others - Will be [] if none
       foundByMe, // FOUND pets I reported - Will be [] if none
       squads, // Squads user belongs to
+      forcePets, // Pets missing in those forces' areas that this person isn't already on
       activeMissions, // Cases user is actively helping with
       missions, // Unified list: all cases user is involved with (owner or volunteer)
       activeSearches, // Active GPS search sessions

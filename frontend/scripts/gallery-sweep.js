@@ -75,6 +75,7 @@ const PUB = [
   ['pub-35-care-start', '/care/start'],
   ['pub-36-rasuwa', '/rasuwa'],
   ['pub-37-rasuwa-form', '/rasuwa/form'],
+  ['pub-38-legal-waiver', '/legal/waiver'],
 ];
 
 const AUTH = [

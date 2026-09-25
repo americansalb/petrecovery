@@ -92,7 +92,7 @@ How the renames were physically executed (see §6 Data Model): the LostReport→
 | `/register` | Account signup (5-step wizard) | client | none | — |
 | `/forgot-password` | Request password-reset email | client | none | — |
 | `/reset-password` | Set new password from emailed link | client | none | requires `?token=`; errors without it |
-| `/verify-email` | Verify email from emailed link | client | none | requires `?token=`; error state without it |
+| `/verify-email` | Verify email from emailed link. When the sign-up came from a force's join form, confirming makes the pending membership real, and the page sends the person to `/login?verified=true&callbackUrl=/rescue-forces/<id>&email=` (email prefilled, back to the force) | client | none | requires `?token=`; error state without it |
 | `/legal/consent` | Accept ToS + Liability Waiver (`LegalDocument` slugs) | client | logged-in (redirect w/ `returnUrl`) | optional `?returnUrl=` |
 
 ### Pets (daily care product)
@@ -145,7 +145,7 @@ All `/pets/[id]/*` share the client shell `app/pets/[id]/layout.js` (breadcrumb 
 |---|---|---|---|---|
 | `/rescue-forces` | What a Rescue Force is, search by town or ZIP (25 mi, `TownPicker` suggestions), and every active force | server + client search | none | optional `?q=` (homepage deep-link; old `/rescue-forces/search?q=` 308s here) runs the search on arrival |
 | `/rescue-forces/create` | Start a Rescue Force: pick the town (`TownPicker`); the API names it "{Town} Rescue Force". Handles the waiver (link to `/legal/consent`) and an existing force (link to it) | client | logged-in (middleware + client check) | — |
-| `/rescue-forces/[id]` | Public force page (the "Overview" tab): identity + join (or links to updates and chat for members), pets missing in its area (board `PetCard`s), area map (`TerritoryMapCard`, light), members by first name, reunions. No activity list (it printed members' chat) | server (`app/lib/forcePublic.js`) + client map/join | none | `RescueForce.id` (cuid, `isDeleted: false`); `?created=true` shows the founder a set-up banner |
+| `/rescue-forces/[id]` | Public force page (the "Overview" tab): identity + join (or links to updates and chat for members), pets missing in its area (board `PetCard`s; members get a "Help find {pet}" button under each, into Mission Control), a "Pet missing near {town}? Report it" link, area map (`TerritoryMapCard`, light), members by first name, reunions. No activity list (it printed members' chat). Join happens in place, signed out too (`JoinForcePanel.js`): one form signs up and asks to join (`POST /api/auth/register` with `joinForceId`, membership pending until the email is confirmed) or signs in and joins | server (`app/lib/forcePublic.js`) + client map/join | none | `RescueForce.id` (cuid, `isDeleted: false`); `?created=true` shows the founder a set-up banner |
 | `/rescue-forces/[id]/*` layout | `layout.js` adds the member tabs (`ForceTabs`: Overview, Updates, Chat, Members, Divisions, Settings for leaders; `sticky top-16`) for members and platform admins only | server | none | membership via `app/lib/forceViewer.js` |
 | `/rescue-forces/[id]/updates` | Leaders' announcements (pinned first) and members' posts with photos, likes, comments and replies; case numbers link to the pet | server guard + client `UpdatesClient` | member (`requireForceMember`) | `RescueForce.id` |
 | `/rescue-forces/[id]/chat` | Force chat, polled every 8s | server guard + client `ChatClient` | member | `RescueForce.id` |
@@ -189,7 +189,7 @@ Static segment card in `app/hub/layout.js`.
 
 | route | purpose | client/server | auth | dynamic params & source |
 |---|---|---|---|---|
-| `/dashboard` | User dashboard: my missions, my forces, help nearby | client | logged-in (middleware + client) | — |
+| `/dashboard` | User dashboard: my missions, my forces (with pets missing in each area), pets missing in my forces' areas ("Help find" into Mission Control), help nearby | client | logged-in (middleware + client) | — |
 | `/profile` | User profile view/edit + sign out | client | logged-in (redirect) | — |
 | `/settings` | Settings hub with tabs (`force-dynamic`) | client | logged-in (middleware + client) | optional tab query |
 | `/settings/accounts` | Linked social accounts (Google/Facebook/Apple) | client | logged-in | — |
@@ -267,6 +267,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 | route | purpose | client/server | auth |
 |---|---|---|---|
 | `/legal/terms` | Terms of Service (canonical; `/terms` 301s here) | server (static) | none |
+| `/legal/waiver` | The Liability Waiver, readable signed out (rendered from `prisma/legal/liability-waiver.js`, the file boot syncs into the DB). The sign-up checkboxes link here; they linked to `/legal/consent`, which bounces guests to sign-in | server (static) | none |
 | `/privacy` | Privacy policy | server (static) | none |
 
 ### Legacy communities (all **unreachable**: `next.config.js` 301s `/communities` and `/communities/:path*` → `/rescue-forces`)
@@ -299,10 +300,10 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 | Route | Methods | Purpose | Auth | Models |
 |---|---|---|---|---|
 | `auth/[...nextauth]/route.js` | GET, POST | NextAuth handler (`authOptions` from `app/lib/auth.js`; SEC-18 seeded-admin block lives there) | public | user (via authorize) |
-| `auth/register/route.js` | POST | Account creation + verification email | public; middleware 5/min + lib rate limit + CAPTCHA route (both dead in middleware — see §7) | user |
+| `auth/register/route.js` | POST | Account creation + verification email. Ride-alongs created in the same transaction: `pet` (`/care/start`), `shelterRequest` (`/shelter/start`), `joinForceId` (a force's join form: a PENDING `RescueForceMember`, see §6.5; the email then says which force it finishes joining) | public; middleware 5/min + lib rate limit + CAPTCHA route (both dead in middleware — see §7) | user, rescueForce, rescueForceMember |
 | `auth/forgot-password/route.js` | POST | Issue password-reset token/email | public, rate-limited | user |
 | `auth/reset-password/route.js` | POST | Reset password by token | public, rate-limited | user |
-| `auth/verify-email/route.js` | GET, POST | Verify email token / resend | public, rate-limited | user |
+| `auth/verify-email/route.js` | GET, POST | Verify email token / resend. POST also activates pending force memberships and returns `{ forces: [{id, name}], email }` so the page can send the person back to the force; GET (resend) names the pending force in the email | public, rate-limited | user, rescueForceMember, squadActivity |
 | `mobile/auth/login/route.js` | POST | **Capacitor mobile login bridge**: validates credentials like the credentials provider, then mints a real NextAuth JWT with `next-auth/jwt.encode` so the native app sends it as the session cookie. Mirrors SEC-18 block ("keep in lockstep" comment) | public; middleware 10/min | user |
 | `profile/route.js` | GET, PATCH | Own profile read/update | session | user, rescueForceMember |
 | `user/linked-accounts/route.js` | GET, DELETE | OAuth linked accounts | session | account, user |
@@ -406,7 +407,7 @@ All: middleware requires JWT + `role === 'ADMIN'` (non-admin gets raw 403 JSON);
 | `follow/route.js` | GET, POST, DELETE | Follow/unfollow a case | session | case, caseFollow |
 | `success-stories/route.js` | GET, POST | Reunion stories | GET public-ish, POST session | case, successStory |
 | `database/route.js` | GET | Public searchable lost/found database | session-optional | case |
-| `dashboard/route.js` | GET | User dashboard aggregate | session | case, caseAssignment, caseSighting, missionControl, searchSession, user |
+| `dashboard/route.js` | GET | User dashboard aggregate; `forcePets` = live LOST cases assigned to the person's active forces (minus their own and searches they are on), `squads[].activeMissions` = live count per force | session | case, caseAssignment, caseSighting, missionControl, searchSession, user |
 | `activity/feed/route.js` | GET | Personalized activity feed | session | case, caseFollow, caseSighting, caseUpdate, rescueForceMember, squadActivity, userProfile |
 
 ### Sightings & anonymous match relay
@@ -728,7 +729,7 @@ Single Prisma schema `frontend/prisma/schema.prisma` (~5,266 lines, 130+ models,
 | Model | Purpose |
 |---|---|
 | `RescueForce` (`@@map("RescueSquad")`) | Persistent squad: unique name, city/state/country + zip JSON, coverage (`CoverageType`, center+radius or GeoJSON `customBoundary`), specializations, lifetime stats, gamification (`RescueForceLevel`, `squadPoints`, badges JSON), soft delete |
-| `RescueForceMember` (`@@map("RescueSquadMember")`) | Membership: `RescueForceMemberRole` FOUNDER/LEADER/COORDINATOR/MEMBER **plus deprecated legacy values** ADMINISTRATOR(≈LEADER), MODERATOR(≈COORDINATOR), DIVISION_LEADER(≈LEADER) — migrated by `migrations/migrate-roles.sql`; `AvailabilityStatus`; per-squad stats; optional `divisionId`; `@@unique([rescueSquadId, userId])` |
+| `RescueForceMember` (`@@map("RescueSquadMember")`) | Membership: `RescueForceMemberRole` FOUNDER/LEADER/COORDINATOR/MEMBER **plus deprecated legacy values** ADMINISTRATOR(≈LEADER), MODERATOR(≈COORDINATOR), DIVISION_LEADER(≈LEADER) — migrated by `migrations/migrate-roles.sql`; `AvailabilityStatus`; per-squad stats; optional `divisionId`; `@@unique([rescueSquadId, userId])`. **Pending** = `isActive: false` with `leftAt: null` (leaving and removal always stamp `leftAt`): a sign-up from a force's join form waiting for its email to be confirmed; every member list, count and check filters on `isActive` |
 | `Division` | Neighborhood subdivision ("North Side"): center+radius (default 3 mi), zip JSON, GeoJSON boundary, `@@unique([rescueSquadId, name])`, soft delete |
 | `DivisionRequest` | User proposal for a new division; `RequestStatus` flow; `approvedDivisionId @unique` |
 | `SquadJoinRequest` | Join-request flow (string status), `@@unique([userId, rescueSquadId])` |
@@ -878,7 +879,7 @@ Admin pages gate access in **three layers**: middleware (307/403), client `useSe
 
 `frontend/app/layout.js` is the single global shell: `globals.css`, **Inter** via `next/font/google` (`--font-inter`), **Leaflet 1.9.4 CSS from unpkg loaded globally in `<head>`** (SRI-pinned; every page pays for it; maps break stylistically if unpkg is unreachable), site-wide `metadata` (OG/Twitter cards pointing at the CDN logo on `petrescue.b-cdn.net`), viewport `maximumScale: 1, userScalable: false`. Provider nesting on `<body className="… bg-midnight-50 text-midnight-900">`:
 
-`SessionProvider` → `ModeProvider` (`app/contexts/ModeContext.js`, 'pet-owner' vs 'patrol', localStorage) → `PushNotificationProvider` → `GPSProvider` (`app/lib/gpsService`) → `ErrorBoundary` → `ClientProviders` (= `ToastProvider` + `CapacitorBootstrap` + `StandaloneHome`) → `OfflineBanner` → `Navigation` → `<main className="pb-16 lg:pb-0">` → `GlobalBottomNav`.
+`SessionProvider` → `ModeProvider` (`app/contexts/ModeContext.js`, 'pet-owner' vs 'patrol', localStorage) → `PushNotificationProvider` → `GPSProvider` (`app/lib/gpsService`) → `ErrorBoundary` → `ClientProviders` (= `ToastProvider` + `CapacitorBootstrap` + `StandaloneHome`) → `OfflineBanner` → `Navigation` → `<main>` → `SiteFooter` → `GlobalBottomNav`. `<main>` has no bottom padding: `SiteFooter` clears the phone tab bar (`pb-24`), and routes without the footer (immersive) hide the tab bar too; padding `<main>` drew a pale band above the footer.
 
 **16 nested layouts**: metadata-only passthroughs built on `buildShareMetadata` for `about, advice, care, contact, hub, login, lost-and-found, register, rescue-forces, shelters`; `app/report/layout.js` (full-screen wizard overlay, `fixed inset-0 z-50`, covers the nav); `app/pets/[id]/layout.js` (client "pet shell": breadcrumb + identity row + 4 tabs). Global conventions: `app/loading.js` (Sarama mascot + spinner), `app/error.js`, `app/not-found.js` — **no per-route `loading.js`/`error.js` anywhere else**.
 
@@ -941,7 +942,7 @@ Loading: `app/loading.js` (Sarama pulse); per-map dynamic-import placeholders; s
 - `public/sw.js` (cache `petrecovery-v2`): **navigations are network-only** with `offline.html` as sole fallback (comment documents a stale-HTML outage that forced this); cache-first for `/_next/static/`; network-first for other GETs; skips `/api/`; full push pipeline (`notificationclick` deep-links to `/cases/:id` and `/messages/:id`, `pushsubscriptionchange` re-subscribe, VAPID via postMessage). A second push-only SW `public/sw-push.js` is registered by `app/lib/missionControl/usePushNotifications.js`; the main SW is registered in `app/components/PushNotifications.js`.
 - `app/components/StandaloneHome.js`: in standalone display-mode, redirects `/` → `/dashboard`.
 - `frontend/capacitor.config.ts`: appId `com.reunitepets.app`, a **remote-URL shell** loading the live site (`CAPACITOR_SERVER_URL` or `https://www.reunitepets.org`; `CAPACITOR_DEV=true` + LAN URL for live reload); `webDir: capacitor-www` (single fallback `index.html`); Capacitor v6 plugins: app, splash-screen, status-bar. `CapacitorBootstrap.js` runs only when `isNative()`: hides splash, sets status bar, routes deep links, wires Android back button.
-- Responsive: desktop nav at `lg:`, drawer + bottom tab bar below; `main pb-16 lg:pb-0`; safe-area utilities; 44px targets; 16px inputs; BottomSheet UIs; Mission Control targets three device postures (command = desktop, field = native app w/ GPS, bridge = mobile web) per `app/mission-control/MissionShell.js`.
+- Responsive: desktop nav at `lg:`, drawer + bottom tab bar below (the footer, not `<main>`, clears it); safe-area utilities; 44px targets; 16px inputs; BottomSheet UIs; Mission Control targets three device postures (command = desktop, field = native app w/ GPS, bridge = mobile web) per `app/mission-control/MissionShell.js`.
 
 ### 8.9 Screenshot advisories
 

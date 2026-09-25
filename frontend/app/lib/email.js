@@ -271,24 +271,35 @@ export function renderBrandedEmail({ preheader = '', heading, bodyHtml, ctaLabel
 }
 
 /**
- * Send verification email helper
+ * Send verification email helper.
+ *
+ * `joiningForce` is the name of the Rescue Force the person signed up to
+ * join from its page: confirming the email is what makes them a member,
+ * so the email says so.
  */
-export async function sendVerificationEmail(email, firstName, verifyUrl) {
+export async function sendVerificationEmail(email, firstName, verifyUrl, { joiningForce: forceName } = {}) {
+  // One line: it also goes in the subject header.
+  const joiningForce = forceName ? String(forceName).replace(/\s+/g, ' ').trim() : '';
+  const joining = joiningForce
+    ? `<p style="margin:0 0 12px;">Confirm your email to finish joining <strong>${escapeHtml(joiningForce)}</strong>.</p>`
+    : `<p style="margin:0 0 12px;">You're one click away from activating your ReunitePets account.</p>`;
   const html = renderBrandedEmail({
-    preheader: 'One click and your ReunitePets account is live.',
+    preheader: joiningForce
+      ? `Confirm your email to finish joining ${joiningForce}.`
+      : 'One click and your ReunitePets account is live.',
     heading: `Welcome, ${firstName || 'friend'}!`,
     bodyHtml: `
-      <p style="margin:0 0 12px;">You're one click away from activating your ReunitePets account.</p>
+      ${joining}
       <p style="margin:0 0 4px;">This link expires in <strong>24 hours</strong>.</p>
     `,
-    ctaLabel: 'Verify my email',
+    ctaLabel: joiningForce ? 'Confirm and join' : 'Verify my email',
     ctaUrl: verifyUrl,
     footnote: "If you didn't create an account, you can safely ignore this email.",
   });
 
   return sendEmail({
     to: email,
-    subject: 'Verify your ReunitePets email',
+    subject: joiningForce ? `Confirm your email to join ${joiningForce}` : 'Verify your ReunitePets email',
     html,
   });
 }

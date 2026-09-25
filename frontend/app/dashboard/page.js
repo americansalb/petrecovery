@@ -109,7 +109,7 @@ export default function DashboardPage() {
   if (!session || !data) return null;
 
   const {
-    user, pets = [], squads = [], missions = [], nearbyAlerts = [], activeSearches = [],
+    user, pets = [], squads = [], missions = [], nearbyAlerts = [], activeSearches = [], forcePets = [],
   } = data;
   const firstName = user?.firstName || session.user?.name?.split(' ')[0] || 'there';
 
@@ -355,6 +355,49 @@ export default function DashboardPage() {
                   </div>
                 </section>
               )}
+
+              {/* The pets the person's force is looking for: joining a force
+                  is joining these searches, so they belong on the person's
+                  home page, each one tap from its search. */}
+              {forcePets.length > 0 && (
+                <section>
+                  <Label>
+                    {squads.length === 1 ? `Missing in ${squads[0].name}'s area` : 'Missing near your Rescue Forces'}
+                  </Label>
+                  <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
+                    {forcePets.slice(0, 4).map((p) => (
+                      <Link key={p.id} href={`/mission-control?mission=${encodeURIComponent(p.caseNumber)}`} className="flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition">
+                        {p.petPhotoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.petPhotoUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                        ) : (
+                          <span className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+                            <PawPrint className="w-[18px] h-[18px] text-midnight-300" />
+                          </span>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-midnight-900 text-[15px] leading-tight truncate">{p.petName}</p>
+                          <p className="text-[13px] text-midnight-400 truncate">
+                            {[
+                              `missing ${elapsed(p.hoursMissing)}`,
+                              p.sightings > 0 ? `${p.sightings} sighting${p.sightings === 1 ? '' : 's'}` : null,
+                              squads.length > 1 ? p.force.name : null,
+                            ].filter(Boolean).join(' · ')}
+                          </p>
+                        </div>
+                        <span className="text-[13px] font-bold text-midnight-900 shrink-0 inline-flex items-center gap-1">
+                          Help find <ArrowRight className="w-3.5 h-3.5" />
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                  {forcePets.length > 4 && squads.length === 1 && (
+                    <Link href={`/rescue-forces/${squads[0].id}`} className="mt-2 inline-flex items-center gap-1 text-[13px] font-semibold text-midnight-500 hover:text-midnight-900 transition">
+                      See all on the force page <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
+                </section>
+              )}
             </div>
 
             <aside className="space-y-6">
@@ -387,7 +430,7 @@ export default function DashboardPage() {
                         <Link key={s.id} href={`/rescue-forces/${s.id}`} className="block group">
                           <p className="text-sm font-bold text-midnight-900 group-hover:text-flash-600 transition truncate">{s.name}</p>
                           <p className="text-[13px] text-midnight-400 mb-2">
-                            {s.memberCount} members{s.activeMissions > 0 ? ` · ${s.activeMissions} searching` : ''}
+                            {s.memberCount} {s.memberCount === 1 ? 'member' : 'members'}{s.activeMissions > 0 ? ` · ${s.activeMissions} ${s.activeMissions === 1 ? 'pet' : 'pets'} missing` : ''}
                           </p>
                         </Link>
                       ))}

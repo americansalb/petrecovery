@@ -6,6 +6,13 @@ import Link from 'next/link';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
 import { Card, Button } from '@/components/ui';
 
+function signInHref(force, email) {
+  const params = new URLSearchParams({ verified: 'true' });
+  if (force) params.set('callbackUrl', `/rescue-forces/${force.id}`);
+  if (email) params.set('email', email);
+  return `/login?${params}`;
+}
+
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -13,6 +20,10 @@ function VerifyEmailContent() {
 
   const [status, setStatus] = useState('verifying'); // verifying, success, error
   const [error, setError] = useState('');
+  // Set when the person signed up from a Rescue Force's join form:
+  // confirming made them a member, and signing in takes them back to it.
+  const [force, setForce] = useState(null);
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     if (!token) {
@@ -31,10 +42,14 @@ function VerifyEmailContent() {
 
         const data = await res.json();
         if (res.ok) {
+          const joined = Array.isArray(data.forces) && data.forces[0]?.id ? data.forces[0] : null;
+          const address = typeof data.email === 'string' ? data.email : '';
+          setForce(joined);
+          setEmail(address);
           setStatus('success');
           // Redirect to login after 3 seconds
           setTimeout(() => {
-            router.push('/login?verified=true');
+            router.push(signInHref(joined, address));
           }, 3000);
         } else {
           setStatus('error');
@@ -83,20 +98,22 @@ function VerifyEmailContent() {
                 </div>
               </div>
               <h2 className="text-2xl font-bold text-green-600 mb-2">
-                Email Verified!
+                Email confirmed
               </h2>
               <p className="text-midnight-600 mb-4">
-                Your email has been verified successfully. You can now log in to your account.
+                {force
+                  ? `You're a member of ${force.name}. Sign in to see its updates and chat.`
+                  : 'You can sign in to your account now.'}
               </p>
               <p className="text-sm text-midnight-500 mb-6">
-                Redirecting to login in 3 seconds...
+                Taking you to sign in...
               </p>
               <Button
                 variant="success"
-                href="/login"
+                href={signInHref(force, email)}
                 className="w-full"
               >
-                Go to Login
+                Sign in
               </Button>
             </>
           )}

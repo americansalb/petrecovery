@@ -29,6 +29,7 @@ import SuccessScreen from '../../components/report/SuccessScreen';
 import MyPetsStep from '../../components/report/lost/MyPetsStep';
 import DetailsStep from '../../components/report/lost/DetailsStep';
 import DraftPrompt from '../../components/report/DraftPrompt';
+import SwitchReportLink from '../../components/report/SwitchReportLink';
 import useWizardHistory from '../../components/report/useWizardHistory';
 import { loadDraft, saveDraft, clearDraft } from '../../components/report/wizardDraft';
 import ColorSelector from '../../components/ColorSelector';
@@ -486,6 +487,7 @@ export default function ReportLostPet() {
           wide
         >
           <MyPetsStep pets={myPets || []} onSelectPet={handleSelectPet} onNewPet={handleNewPet} />
+          <SwitchReportLink to="found" />
         </StepScreen>
       )}
 
@@ -509,6 +511,7 @@ export default function ReportLostPet() {
               advance();
             }}
           />
+          <SwitchReportLink to="found" />
         </StepScreen>
       )}
 
