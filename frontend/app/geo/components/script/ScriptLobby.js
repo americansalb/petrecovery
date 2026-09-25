@@ -37,7 +37,7 @@ export default function ScriptLobby() {
         <div className="min-w-0 flex-1">
           <h1 className="ui-h1">Script</h1>
           <p className="ui-lead mt-2 max-w-md">
-            Read a sentence and pin where the language is spoken.
+            Read a few lines and pin where the language is spoken.
           </p>
           <Card className="mt-6 max-w-md">
             <h2 className="ui-h2">Solo game</h2>
@@ -46,7 +46,7 @@ export default function ScriptLobby() {
               {timer ? `${timer} seconds per round` : 'No timer'}
             </p>
             <ol className="mt-4 grid gap-2.5 text-sm text-pe-fg">
-              {['Read the sentence.', 'Pin the language on the map.', 'See the answer.'].map((line, i) => (
+              {['Read the text.', 'Pin the language on the map.', 'See the answer.'].map((line, i) => (
                 <li key={line} className="flex items-center gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pe-raised text-xs font-semibold tabular-nums text-pe-muted">
                     {i + 1}

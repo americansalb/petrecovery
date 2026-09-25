@@ -390,7 +390,7 @@ describe('the draw', () => {
 });
 
 describe('a round', () => {
-  test('is a sentence from the corpus with the answer sealed', () => {
+  test('is text from the corpus with the answer sealed', () => {
     const config = { rounds: 5, seed: 'r-1' };
     const round = createScriptRound({ config, roundIndex: 2, env });
     expect(round.roundIndex).toBe(2);
@@ -401,12 +401,40 @@ describe('a round', () => {
     const answer = openToken(round.token, { secret: SECRET });
     const language = find(answer.c);
     expect(language).toBeTruthy();
-    // The round is drawn from the game the seed describes, the sentence
-    // is one of that language's, and the script the client renders in is
-    // the one the language actually uses.
+    // The round is drawn from the game the seed describes, the text is
+    // made of that language's sentences and nothing else, and the script
+    // the client renders in is the one the language actually uses.
     expect(language.code).toBe(drawLanguages(config, SECRET)[2].code);
-    expect(samplesFor(language.code)).toContain(round.text);
+    // Longest first: a sentence can contain a shorter one.
+    let rest = round.text;
+    for (const sentence of [...samplesFor(language.code)].sort((a, b) => b.length - a.length)) rest = rest.replace(sentence, '');
+    expect(rest.trim()).toBe('');
     expect(round.script).toBe(language.script);
+  });
+
+  test('is enough text to read a language from, never four words', () => {
+    // "Dit was baie mooi." was a whole round (founder, 2026-09-25). A round
+    // is that language's sentences now, until there are ninety characters,
+    // or thirty in Han and Japanese, and at most four sentences.
+    const dense = new Set(['hans', 'jpan']);
+    let short = 0;
+    for (let i = 0; i < 40; i++) {
+      const config = { rounds: 10, seed: `passage-${i}` };
+      for (let r = 0; r < 10; r++) {
+        const round = createScriptRound({ config, roundIndex: r, env });
+        const language = find(openToken(round.token, { secret: SECRET }).c);
+        const pool = samplesFor(language.code);
+        const used = pool.filter((sentence) => round.text.includes(sentence)).sort((a, b) => b.length - a.length);
+        let rest = round.text;
+        for (const sentence of used) rest = rest.replace(sentence, '');
+        expect(rest.trim()).toBe('');
+        const length = [...round.text].length;
+        const floor = dense.has(language.script) ? 30 : 90;
+        // Short only when the pool ran out or four sentences were not enough.
+        if (length < floor && used.length < Math.min(4, pool.length)) short += 1;
+      }
+    }
+    expect(short).toBe(0);
   });
 
   test('gives away nothing about the answer beyond what is on screen', () => {

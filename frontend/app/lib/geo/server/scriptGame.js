@@ -108,7 +108,7 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
   const language = drawLanguages(config, tokenSecret)[index];
   if (!language) throw new ScriptGameError('empty_pool', 'No languages in that pool');
 
-  const text = sentenceFor(language, config.seed, index, tokenSecret);
+  const text = passageFor(language, config.seed, index, tokenSecret);
   if (!text) throw new ScriptGameError('no_samples', `No sample text for ${language.name}`);
 
   return {
@@ -132,17 +132,50 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
 }
 
 /**
- * Which sentence a round shows. Drawn from the seed, the round index
- * and the server's secret, so it is the same sentence every time that
- * round is built: the guess endpoint recomputes it rather than carrying
- * it in the token, which keeps the token small and keeps the sentence
- * out of anything the browser could tamper with.
+ * How much a round shows before it is enough to read a language from.
+ *
+ * A round used to be one sentence, and half the corpus is under forty
+ * characters: "Dit was baie mooi." is four words, and nobody can be
+ * expected to place Afrikaans from four words (founder, 2026-09-25). So
+ * a round is a short passage now: sentences of the same language, taken
+ * in a seeded order, until the passage is long enough. A sentence from
+ * the Universal Declaration usually is on its own; a Tatoeba line
+ * usually takes two or three. Han and Japanese carry a word in one or
+ * two characters, so they need fewer.
  */
-function sentenceFor(language, seed, index, tokenSecret) {
+const PASSAGE_MIN_CHARS = 90;
+const DENSE_PASSAGE_MIN_CHARS = 30;
+const DENSE_SCRIPTS = new Set(['hans', 'jpan']);
+const PASSAGE_MAX_SENTENCES = 4;
+
+/**
+ * The text a round shows. Drawn from the seed, the round index and the
+ * server's secret, so it is the same text every time that round is
+ * built: the guess endpoint recomputes it rather than carrying it in the
+ * token, which keeps the token small and keeps the text out of anything
+ * the browser could tamper with.
+ */
+function passageFor(language, seed, index, tokenSecret) {
   const samples = samplesFor(language.code);
   if (!samples.length) return '';
   const rng = createRng(saltedSeed(roundSeed(seed || 'script', index), 'text', tokenSecret));
-  return samples[Math.floor(rng() * samples.length)];
+  const order = [...samples];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  const dense = DENSE_SCRIPTS.has(language.script);
+  const enough = dense ? DENSE_PASSAGE_MIN_CHARS : PASSAGE_MIN_CHARS;
+  const picked = [];
+  let length = 0;
+  for (const sentence of order) {
+    picked.push(sentence);
+    length += [...sentence].length;
+    if (length >= enough || picked.length >= PASSAGE_MAX_SENTENCES) break;
+  }
+  // Han and Japanese sentences end in their own full stop and run on
+  // without a space; everything else is separated by one.
+  return picked.join(dense ? '' : ' ');
 }
 
 /**
@@ -172,7 +205,7 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
   const scored = pin ? scoreScriptGuess({ guess: pin, language, sizeKm }) : null;
   // The sentence that was on screen, so the reveal can point at the
   // things in it that gave the language away.
-  const text = sentenceFor(language, payload.seed, payload.i, tokenSecret);
+  const text = passageFor(language, payload.seed, payload.i, tokenSecret);
 
   return {
     kind: 'script',
