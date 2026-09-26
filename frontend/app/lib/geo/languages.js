@@ -194,8 +194,10 @@ const LANGUAGE_ROWS = [
     code: 'pan', name: 'Punjabi', endonym: 'ਪੰਜਾਬੀ', script: 'guru',
     family: 'Indo-European', branch: 'Indo-Aryan', speakers: 113,
     regions: [
+      // 2026-09-26 review: Pakistani Punjab writes Punjabi in Shahmukhi, which is
+      // Western Punjabi's row; a Gurmukhi sentence is not found in Lahore
+      // (founder decision).
       { name: 'Indian Punjab', units: ['IN-PB', 'IN-CH'] },
-      { name: 'Pakistani Punjab', units: ['PK-PB', 'PK-IS'] },
     ],
   },
   {
@@ -370,8 +372,9 @@ const LANGUAGE_ROWS = [
     code: 'mon', name: 'Mongolian', endonym: 'монгол', script: 'cyrl',
     family: 'Mongolic', branch: 'Central Mongolic', speakers: 6,
     regions: [
+      // 2026-09-26 review: Inner Mongolia writes Mongolian in the traditional
+      // vertical script, not Cyrillic (founder decision).
       { name: 'Mongolia', countries: ['MN'] },
-      { name: 'Inner Mongolia', units: ['CN-NM'] },
     ],
   },
 
@@ -445,7 +448,10 @@ const LANGUAGE_ROWS = [
       // Kashgar is Uyghur, and all four read this. Those last three are
       // their own rows here and the regions overlap, which is the
       // honest answer rather than a border drawn between them.
+      // 2026-09-26 review: Singapore: Mandarin is an official language, written
+      // in simplified characters like the rounds.
       { name: 'China', countries: ['CN'] },
+      { name: 'Singapore', countries: ['SG'] },
     ],
   },
   {
@@ -510,13 +516,16 @@ const LANGUAGE_ROWS = [
       // Added in the 2026-09-25 area audit, which checked every language
       // against Unicode CLDR's figures for where it is used: each of these
       // has French as an official language or a majority that uses it.
+      // Wallis and Futuna, Saint-Barthelemy, Saint-Martin and
+      // Saint-Pierre-et-Miquelon followed in the 2026-09-26 review.
       { name: 'Luxembourg and Monaco', countries: ['LU', 'MC'] },
       { name: 'New Brunswick', units: ['CA-NB'] },
       { name: 'the Maghreb', countries: ['MA', 'DZ', 'TN'] },
       { name: 'Burundi, Djibouti and the Comoros', countries: ['BI', 'DJ', 'KM'] },
       { name: 'Mauritius and the Seychelles', countries: ['MU', 'SC'] },
       { name: 'Haiti', countries: ['HT'] },
-      { name: 'the French Pacific and Vanuatu', countries: ['NC', 'PF', 'VU'] },
+      { name: 'the French Pacific and Vanuatu', countries: ['NC', 'PF', 'VU', 'WF'] },
+      { name: 'the French Antilles and Miquelon', countries: ['BL', 'MF', 'PM'] },
     ],
   },
   {
@@ -533,12 +542,15 @@ const LANGUAGE_ROWS = [
     code: 'deu', name: 'German', endonym: 'Deutsch', script: 'latn',
     family: 'Indo-European', branch: 'Germanic', speakers: 135,
     regions: [
-      { name: 'Germany, Austria and Liechtenstein', countries: ['DE', 'AT', 'LI'] },
       // 2026-09-25 area audit: official in both, the majority language of
       // South Tyrol.
+      // 2026-09-26 review: German is official in the East Cantons of Belgium, the
+      // eastern edge of Liege province.
+      { name: 'Germany, Austria and Liechtenstein', countries: ['DE', 'AT', 'LI'] },
       { name: 'Luxembourg', countries: ['LU'] },
       { name: 'South Tyrol', units: ['IT-BZ'] },
       { name: 'German-speaking Switzerland', units: ['CH-ZH', 'CH-BE', 'CH-LU', 'CH-UR', 'CH-SZ', 'CH-OW', 'CH-NW', 'CH-GL', 'CH-ZG', 'CH-SO', 'CH-BS', 'CH-BL', 'CH-SH', 'CH-AR', 'CH-AI', 'CH-SG', 'CH-GR', 'CH-AG', 'CH-TG'] },
+      { name: 'Eupen and Sankt Vith', units: ['BE-WLG'], clip: { minLng: 5.97 } },
     ],
   },
   {
@@ -663,8 +675,10 @@ const LANGUAGE_ROWS = [
     code: 'azj', name: 'Azerbaijani', endonym: 'azərbaycan', script: 'latn',
     family: 'Turkic', branch: 'Oghuz', speakers: 24,
     regions: [
+      // 2026-09-26 review: Iranian Azerbaijani is written in Arabic script; a
+      // Latin Azerbaijani sentence belongs to the Republic of Azerbaijan
+      // (founder decision).
       { name: 'Azerbaijan', countries: ['AZ'] },
-      { name: 'Iranian Azerbaijan', units: ['IR-01', 'IR-02', 'IR-03', 'IR-11'] },
     ],
   },
   {
@@ -1219,7 +1233,11 @@ const LANGUAGE_ROWS = [
   {
     code: 'pap', name: 'Papiamento', endonym: 'Papiamentu', script: 'latn',
     family: 'Creole', branch: 'Iberian-based', speakers: 0.3,
-    regions: [{ name: 'the leeward islands', countries: ['AW', 'CW'] }],
+    regions: [
+      // 2026-09-26 review: Papiamento is the main language of Bonaire as well as
+      // Aruba and Curacao.
+      { name: 'the leeward islands', countries: ['AW', 'CW'], units: ['NL-BQ1'] },
+    ],
   },
   {
     code: 'kal', name: 'Greenlandic', endonym: 'kalaallisut', script: 'latn',
