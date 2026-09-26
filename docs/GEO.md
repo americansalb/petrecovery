@@ -279,7 +279,16 @@ Swedish in Aland and Ostrobothnia; Russian in Kyrgyzstan; Arabic in
 Djibouti, Somalia, the Comoros, northern Chad, Western Sahara and Israel;
 Tamil in Singapore; Cantonese in Macau; Samoan in American Samoa; Swahili
 in the eastern Congo; Chichewa (Nyanja) in eastern Zambia and Lusaka. Those
-were added. What the audit cannot fix is the boxes: 59 languages still draw
+were added. A second pass on 2026-09-26 applied the script rule to the
+map: a region is where you would find the sentence, and the sentence is in
+one alphabet, so Gurmukhi Punjabi lost Pakistani Punjab (Shahmukhi, Western
+Punjabi's row), Latin Azerbaijani lost Iranian Azerbaijan (Arabic script)
+and Cyrillic Mongolian lost Inner Mongolia (the traditional script). It also
+added Mandarin in Singapore, French in Wallis and Futuna, Saint-Barthelemy,
+Saint-Martin and Saint-Pierre-et-Miquelon, German in Belgium's East Cantons
+and Papiamento on Bonaire. Taiwan stays out of Mandarin for the same reason:
+it writes traditional characters and the rounds are simplified. What the
+audit cannot fix is the boxes: 59 languages still draw
 at least one region as a province clipped to a rectangle, 32 of them
 entirely, which is right to within the box and no better. District
 boundaries would do better than boxes.

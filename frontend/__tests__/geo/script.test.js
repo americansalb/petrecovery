@@ -187,14 +187,16 @@ describe('scoring a pin', () => {
   });
 
   test('a language with two heartlands is scored against the nearer one', () => {
-    // Punjabi is spoken on both sides of a border, and a pin on either
-    // side is right. A country dropdown cannot express that.
-    const punjabi = find('pan');
-    const indian = scoreScriptGuess({ guess: { lat: 30.9, lng: 75.6 }, language: punjabi });
-    const pakistani = scoreScriptGuess({ guess: { lat: 31.4, lng: 73.1 }, language: punjabi });
+    // Bengali is written on both sides of a border, and a pin on either
+    // side is right. A country dropdown cannot express that. (Punjabi was
+    // the example until 2026-09-26, when Pakistani Punjab went to Western
+    // Punjabi: Lahore writes Punjabi in Shahmukhi, not Gurmukhi.)
+    const bengali = find('ben');
+    const indian = scoreScriptGuess({ guess: { lat: 22.57, lng: 88.36 }, language: bengali });
+    const bangladeshi = scoreScriptGuess({ guess: { lat: 23.81, lng: 90.41 }, language: bengali });
     expect(indian.points).toBe(5000);
-    expect(pakistani.points).toBe(5000);
-    expect(indian.region.name).not.toBe(pakistani.region.name);
+    expect(bangladeshi.points).toBe(5000);
+    expect(indian.region.name).not.toBe(bangladeshi.region.name);
   });
 
   test('distance is measured to the edge of a region, not its centre', () => {
@@ -230,7 +232,7 @@ describe('scoring a pin', () => {
       Bhubaneswar: [20.27, 85.84, ['ory']],
       Guwahati: [26.14, 91.74, ['asm']],
       Amritsar: [31.63, 74.87, ['pan']],
-      Lahore: [31.55, 74.34, ['pan']],
+      Lahore: [31.55, 74.34, ['pnb']],
       Dhaka: [23.81, 90.41, ['ben']],
       Kolkata: [22.57, 88.36, ['ben']],
       Kathmandu: [27.7, 85.32, ['npi']],
@@ -294,7 +296,6 @@ describe('scoring a pin', () => {
     expect(at(41.39, 2.17)).toEqual(['cat', 'spa']); // Barcelona
     expect(at(43.26, -2.93)).toEqual(['eus', 'spa']); // Bilbao
     expect(at(36.19, 44.01)).toEqual(['arb', 'ckb']); // Erbil
-    expect(at(38.08, 46.29)).toEqual(['azj', 'pes']); // Tabriz
     // Kabul is Pashto and Dari, not Pashto and Persian: Dari is the
     // Afghan standard of the same language and has its own row, so the
     // ground is not given to Iran.
