@@ -1,16 +1,17 @@
 'use client';
 
 /**
- * Sightings and updates on the pet's page, newest first, closing with the
- * day the pet was reported.
+ * "What happened" on the pet's page: sightings, the owner's updates, needs
+ * members finished, and the day the pet went missing (or was found, or came
+ * home), newest first. Three at first, then "Show all".
  */
 
 import { useState } from 'react';
-import { Eye, MessageSquare, Camera } from 'lucide-react';
+import { Eye, MessageSquare, Camera, Check, Megaphone, MapPin } from 'lucide-react';
 import { timeAgo, shortDate } from '@/app/lib/caseLabels';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 
-const SHOWN_AT_FIRST = 4;
+const SHOWN_AT_FIRST = 3;
 
 // Sighting.certaintyLevel, 1 to 5, as the reporter chose it.
 const CERTAINTY = { 5: 'Very sure', 4: 'Likely', 3: 'Possible', 2: 'Not sure', 1: 'Unlikely' };
@@ -73,19 +74,53 @@ function Update({ u }) {
   );
 }
 
-export default function Activity({ sightings = [], updates = [], reportedAt, emptyText }) {
+/** A line with an icon: a need done, or where the story starts or ends. */
+function Event({ icon: Icon, tint, text, at }) {
+  return (
+    <div className="flex gap-3">
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${tint}`}>
+        <Icon size={16} aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="font-medium text-midnight-900">{text}</p>
+        <p className="text-sm text-midnight-500">{timeAgo(at) || shortDate(at)}</p>
+      </div>
+    </div>
+  );
+}
+
+// The pet colors of app/lib/petColors.js; green comes with a check mark.
+const MARK = {
+  lost: { icon: Megaphone, tint: 'bg-red-100 text-red-700' },
+  found: { icon: MapPin, tint: 'bg-sky-100 text-sky-700' },
+  home: { icon: Check, tint: 'bg-emerald-100 text-emerald-700' },
+};
+
+/**
+ * `done` is the force's finished needs for this pet ({ id, text, at });
+ * `marks` the story's ends ({ kind: 'lost' | 'found' | 'home', text, at }).
+ */
+export default function Activity({ sightings = [], updates = [], done = [], marks = [], emptyText }) {
   const [showAll, setShowAll] = useState(false);
 
   const items = [
     ...sightings.map((s) => ({ key: `s-${s.id}`, at: s.sightedAt, node: <Sighting s={s} /> })),
     ...updates.map((u) => ({ key: `u-${u.id}`, at: u.createdAt, node: <Update u={u} /> })),
+    ...done.map((d) => ({
+      key: `d-${d.id}`,
+      at: d.at,
+      node: <Event icon={Check} tint="bg-midnight-100 text-midnight-700" text={d.text} at={d.at} />,
+    })),
+    ...marks
+      .filter((m) => m.at)
+      .map((m) => ({ key: `m-${m.kind}`, at: m.at, node: <Event {...MARK[m.kind]} text={m.text} at={m.at} /> })),
   ].sort((a, b) => new Date(b.at) - new Date(a.at));
   const shown = showAll ? items : items.slice(0, SHOWN_AT_FIRST);
 
   return (
     <section aria-labelledby="activity-heading" className="rounded-2xl bg-white p-5 ring-1 ring-midnight-200 sm:p-6">
       <h2 id="activity-heading" className="text-lg font-semibold text-midnight-900">
-        Sightings and updates
+        What happened
       </h2>
 
       {items.length === 0 ? (
@@ -106,12 +141,6 @@ export default function Activity({ sightings = [], updates = [], reportedAt, emp
         >
           {showAll ? 'Show fewer' : `Show all ${items.length}`}
         </button>
-      )}
-
-      {reportedAt && (
-        <p className="mt-5 border-t border-midnight-100 pt-4 text-sm text-midnight-500">
-          Reported on {shortDate(reportedAt)}.
-        </p>
       )}
     </section>
   );

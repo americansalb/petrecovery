@@ -71,7 +71,9 @@ export default function WaiverModal({ isOpen, onClose, onAccepted }) {
         {/* Close button */}
         {!accepting && onClose && (
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close"
             className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition rounded-lg hover:bg-white/10"
           >
             <X size={24} />
@@ -80,7 +82,8 @@ export default function WaiverModal({ isOpen, onClose, onAccepted }) {
 
         {/* Header */}
         <div className="p-6 border-b border-slate-700/50">
-          <div className="flex items-center gap-3 mb-2">
+          {/* pr-10 keeps the title clear of the close button */}
+          <div className="flex items-center gap-3 mb-2 pr-10">
             <div className="p-3 bg-red-500/20 rounded-full border-2 border-red-500/50">
               <AlertTriangle className="text-red-400" size={28} />
             </div>

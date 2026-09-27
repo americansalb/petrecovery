@@ -1,7 +1,7 @@
 /**
  * Mission permalink - Server Component with share metadata
  *
- * The client component redirects humans to Mission Control, but link
+ * The client component sends people on to the pet's page, but link
  * preview bots never run that JS - they read the OG tags served here,
  * so a texted mission link unfurls with the actual pet.
  */

@@ -177,7 +177,7 @@ export default function MyPetsPage() {
                 <button
                   key={pet.id}
                   type="button"
-                  onClick={() => router.push(`/mission-control?mission=${activeCase.caseNumber}`)}
+                  onClick={() => router.push(`/cases/${encodeURIComponent(activeCase.caseNumber)}`)}
                   className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3.5 py-1.5 rounded-full transition-colors"
                 >
                   Open {pet.name}&rsquo;s search →
@@ -264,7 +264,7 @@ export default function MyPetsPage() {
                 href={`/pets/${pet.id}/today`}
                 basics={basicsFor(pet)}
                 activeCase={activeCaseOf(pet)}
-                onOpenCase={(c) => router.push(`/mission-control?mission=${c.caseNumber}`)}
+                onOpenCase={(c) => router.push(`/cases/${encodeURIComponent(c.caseNumber)}`)}
               />
             ))}
           </div>
@@ -280,7 +280,7 @@ export default function MyPetsPage() {
                   pet={pet}
                   href={`/pets/${pet.id}/today`}
                   activeCase={activeCaseOf(pet)}
-                  onOpenCase={(c) => router.push(`/mission-control?mission=${c.caseNumber}`)}
+                  onOpenCase={(c) => router.push(`/cases/${encodeURIComponent(c.caseNumber)}`)}
                   note={`${ownerName}'s pet, you help as ${role === 'CAREGIVER' ? 'a caregiver' : 'a viewer'}`}
                 />
               ))}

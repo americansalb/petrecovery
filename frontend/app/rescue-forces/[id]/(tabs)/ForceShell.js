@@ -20,11 +20,10 @@ import Link from 'next/link';
 import nextDynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { Check, ChevronLeft, Loader2, Lock, Share2, Shield, UserPlus } from 'lucide-react';
-import { Modal } from '@/components/ui';
 import { getBaseUrl } from '@/app/lib/config';
 import ShareSheet from '@/app/cases/[caseNumber]/components/ShareSheet';
-import JoinForcePanel from '../JoinForcePanel';
-import MembersSheet, { Avatar, FORCE_RULES } from './MembersSheet';
+import JoinForceSheet from '@/app/components/help/JoinForceSheet';
+import MembersSheet, { Avatar } from './MembersSheet';
 import MemberMenu from './MemberMenu';
 
 const ForceMap = nextDynamic(() => import('./ForceMap'), {
@@ -305,17 +304,7 @@ export default function ForceShell({ data, children }) {
       {viewer.isMember && (
         <MemberMenu open={sheet === 'member'} onClose={() => setSheet(null)} force={force} viewer={viewer} />
       )}
-      <Modal open={sheet === 'join'} onClose={() => setSheet(null)} title={`Join ${force.name}`}>
-        <div className="mb-4 rounded-xl bg-midnight-50 px-4 py-3 text-sm text-midnight-700">
-          <p className="font-bold text-midnight-900">Group rules</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5">
-            {FORCE_RULES.map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-        </div>
-        <JoinForcePanel forceId={force.id} forceName={force.name} signedIn={viewer.signedIn} startOpen inSheet />
-      </Modal>
+      <JoinForceSheet open={sheet === 'join'} onClose={() => setSheet(null)} force={force} signedIn={viewer.signedIn} />
       <ShareSheet
         open={sheet === 'share'}
         onClose={() => setSheet(null)}

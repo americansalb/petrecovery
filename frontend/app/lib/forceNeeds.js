@@ -27,11 +27,12 @@ function counts(participants) {
 
 /**
  * Open needs, most urgent first. `member` adds each need's notes; `userId`
- * adds where that person stands on it (`mine`: 'on', 'done' or null).
+ * adds where that person stands on it (`mine`: 'on', 'done' or null);
+ * `caseId` keeps one pet's needs (its page lists them).
  */
-export async function listNeeds(forceId, { userId = null, member = false } = {}) {
+export async function listNeeds(forceId, { userId = null, member = false, caseId = null } = {}) {
   const rows = await prisma.squadTask.findMany({
-    where: { rescueSquadId: forceId, status: { in: OPEN_NEED_STATUSES }, role: { not: 'OWNER' } },
+    where: { rescueSquadId: forceId, status: { in: OPEN_NEED_STATUSES }, role: { not: 'OWNER' }, ...(caseId && { caseId }) },
     orderBy: [{ priorityScore: 'desc' }, { createdAt: 'desc' }],
     select: {
       id: true,
@@ -93,10 +94,10 @@ export async function listNeeds(forceId, { userId = null, member = false } = {})
     });
 }
 
-/** The latest finished needs, newest first; the viewer's own read "You". */
-export async function recentNeedActivity(forceId, { userId = null, take = 10 } = {}) {
+/** The latest finished needs, newest first; the viewer's own read "You". `caseId`: one pet's. */
+export async function recentNeedActivity(forceId, { userId = null, take = 10, caseId = null } = {}) {
   const rows = await prisma.squadActivity.findMany({
-    where: { rescueSquadId: forceId, type: 'NEED_DONE' },
+    where: { rescueSquadId: forceId, type: 'NEED_DONE', ...(caseId && { caseId }) },
     orderBy: { createdAt: 'desc' },
     take,
     select: { id: true, details: true, actorId: true, createdAt: true, actor: { select: { firstName: true } } },

@@ -1,10 +1,9 @@
 'use client';
 
 /**
- * Redirect from old case URL to Mission Control
- *
- * This page provides backward compatibility by redirecting
- * /cases/[missionNumber] → /mission-control?mission=[missionNumber]
+ * An old mission link (/missions/[missionNumber], still in push alerts)
+ * opens the pet's page, where everyone helping with the pet meets. The
+ * search map is one tap from there ("Search on the map").
  */
 
 import { useEffect } from 'react';
@@ -17,11 +16,8 @@ export default function CaseRedirect() {
   const missionNumber = params.missionNumber;
 
   useEffect(() => {
-    if (missionNumber) {
-      // Redirect to Mission Control with the case number
-      router.replace(`/mission-control?mission=${missionNumber}`);
-    }
+    if (missionNumber) router.replace(`/cases/${encodeURIComponent(missionNumber)}`);
   }, [missionNumber, router]);
 
-  return <PageLoading message="Opening mission..." />;
+  return <PageLoading message="Opening..." />;
 }

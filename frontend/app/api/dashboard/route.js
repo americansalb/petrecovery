@@ -384,6 +384,7 @@ export async function GET(request) {
         .slice(0, 10)
         .map(caseItem => ({
           id: caseItem.id,
+          caseNumber: caseItem.caseNumber,
           petName: caseItem.petName,
           species: caseItem.petSpecies.toLowerCase(),
           lastSeen: formatTime(caseItem.lastSeenAt),

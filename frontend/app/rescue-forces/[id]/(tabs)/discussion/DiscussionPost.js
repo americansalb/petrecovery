@@ -7,16 +7,19 @@
  *
  * APIs: POST .../posts/[postId]/vote (1 marks it helpful, 0 takes that
  * back), .../posts/[postId]/comments ({ content, parentCommentId }),
- * .../comments/[commentId]/vote, .../posts/[postId]/going ({ going }).
+ * .../comments/[commentId]/vote. The search party block, with "I am
+ * going", is app/components/help/SearchPartyCard.js, shared with the pet's
+ * page.
  */
 
 import { Fragment, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Check, Loader2, MessageCircle, ThumbsUp } from 'lucide-react';
+import { MessageCircle, ThumbsUp } from 'lucide-react';
 import { Button } from '@/components/ui';
 import { timeAgo } from '@/app/lib/caseLabels';
 import { FORCE_ROLE_LABEL } from '@/app/lib/forceRoles';
 import PetStatusDot from '@/app/components/PetStatusDot';
+import SearchPartyCard from '@/app/components/help/SearchPartyCard';
 
 export const TOPIC_LABEL = {
   SIGHTING: 'Sighting',
@@ -76,14 +79,6 @@ function roleLabel(role) {
 }
 
 /** "Saturday, 9 am", "Tuesday, 6:30 pm", in the reader's own time zone. */
-export function partyWhen(iso) {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString('en-US', { weekday: 'long' });
-  const h = d.getHours();
-  const m = d.getMinutes();
-  return `${day}, ${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h < 12 ? 'am' : 'pm'}`;
-}
-
 /** Helpful state that updates at once and goes back if the server says no. */
 function useHelpful(initial, initialCount, url) {
   const [on, setOn] = useState(initial);
@@ -168,86 +163,6 @@ function countComments(comments = []) {
   return comments.reduce((n, c) => n + 1 + countComments(c.replies), 0);
 }
 
-/** A search party's time and place, who is going, and "I am going". */
-export function PartyBlock({ post, forceId, canPost, onChanged }) {
-  const [going, setGoing] = useState(post.iAmGoing);
-  const [count, setCount] = useState(post.goingCount || 0);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const at = new Date(post.eventAt);
-  const over = at.getTime() < Date.now() - 3 * 3600e3;
-
-  async function set(next) {
-    setBusy(true);
-    setError('');
-    try {
-      const data = await send(`/api/rescue-forces/${forceId}/posts/${post.id}/going`, { going: next });
-      setGoing(data.going);
-      setCount(data.goingCount);
-      onChanged?.();
-    } catch (e) {
-      setError(e.message);
-    }
-    setBusy(false);
-  }
-
-  const names = post.goingNames || [];
-  const who = count === 0 ? 'Nobody has said yet' : `${count} going${names.length ? `: ${names.slice(0, 3).join(', ')}${count > 3 ? ' and more' : ''}` : ''}`;
-
-  return (
-    <div className="mt-3 flex gap-3 rounded-2xl bg-midnight-50 p-3 ring-1 ring-midnight-200">
-      <span className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-white ring-1 ring-midnight-200" aria-hidden="true">
-        <span className="text-[11px] font-extrabold uppercase tracking-wide text-red-700">
-          {at.toLocaleDateString('en-US', { weekday: 'short' })}
-        </span>
-        <span className="text-xl font-extrabold leading-none text-midnight-900">{at.getDate()}</span>
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-extrabold uppercase tracking-wide text-midnight-500">Search party</p>
-        <p className="font-bold text-midnight-900">{partyWhen(post.eventAt)}</p>
-        {post.eventPlace && <p className="text-[15px] text-midnight-700">{post.eventPlace}</p>}
-        <p className="mt-1 text-sm text-midnight-600">{who}</p>
-        {canPost && !over && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-            {going ? (
-              <>
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-midnight-900">
-                  <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
-                  You are going
-                </span>
-                <button
-                  type="button"
-                  onClick={() => set(false)}
-                  disabled={busy}
-                  className="text-sm font-semibold text-midnight-600 underline underline-offset-4 hover:text-midnight-900 disabled:opacity-60"
-                >
-                  I can&apos;t go after all
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => set(true)}
-                disabled={busy}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-flash-400 px-4 text-sm font-bold text-midnight-900 disabled:opacity-60"
-              >
-                {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                I am going
-              </button>
-            )}
-          </div>
-        )}
-        {over && <p className="mt-1 text-sm font-semibold text-midnight-500">This search party is over.</p>}
-        {error && (
-          <p role="alert" className="mt-1 text-sm text-red-700">
-            {error}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function DiscussionPost({ post, forceId, canPost, onChanged, onFilterPet }) {
   const helpful = useHelpful(post.userVote === 1, post.upvotes || 0, `/api/rescue-forces/${forceId}/posts/${post.id}/vote`);
   const [open, setOpen] = useState(false);
@@ -315,7 +230,13 @@ export default function DiscussionPost({ post, forceId, canPost, onChanged, onFi
       )}
 
       {post.topic === 'SEARCH_PARTY' && post.eventAt && (
-        <PartyBlock post={post} forceId={forceId} canPost={canPost} onChanged={onChanged} />
+        <SearchPartyCard
+          className="mt-3"
+          party={{ id: post.id, at: post.eventAt, place: post.eventPlace, goingCount: post.goingCount, goingNames: post.goingNames, iAmGoing: post.iAmGoing }}
+          forceId={forceId}
+          canGo={canPost}
+          onChanged={onChanged}
+        />
       )}
 
       {post.title && <h3 className="mt-3 text-base font-bold text-midnight-900">{post.title}</h3>}

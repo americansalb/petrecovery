@@ -11,20 +11,11 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, Loader2, Shield } from 'lucide-react';
+import { Check, Shield } from 'lucide-react';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { PET_COLOR } from '@/app/lib/petColors';
+import NeedCard from '@/app/components/help/NeedCard';
 import { useForce } from '../ForceShell';
-
-/** Who is on it, in words: "Nobody yet, 3 needed", "2 of 4 people". */
-export function peopleLine(n) {
-  if (n.peopleNeeded === 1) {
-    if (n.mine) return '';
-    return n.taken === 0 ? 'Nobody on it yet' : 'Someone is on it';
-  }
-  if (n.taken === 0) return `Nobody yet, ${n.peopleNeeded} needed`;
-  return `${n.taken} of ${n.peopleNeeded} people`;
-}
 
 function PetFace({ pet }) {
   const [failed, setFailed] = useState(false);
@@ -91,8 +82,6 @@ export default function NeedsTab({ needs, recent }) {
     }
   }
 
-  const spinning = (need, action) => active === `${need.id}:${action}`;
-
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-5 lg:pb-10">
       <h2 className="text-xl font-extrabold tracking-tight text-midnight-900">Help needed right now</h2>
@@ -108,87 +97,19 @@ export default function NeedsTab({ needs, recent }) {
         </p>
       ) : (
         <ul className="mt-5 space-y-3">
-          {needs.map((n) => {
-            const full = n.taken >= n.peopleNeeded && !n.mine;
-            const people = peopleLine(n);
-            return (
-              <li
-                key={n.id}
-                className={`rounded-2xl border-2 bg-white p-3.5 ${
-                  n.mine === 'on' ? 'border-midnight-900' : n.byOwner ? 'border-flash-400' : 'border-flash-200'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <PetFace pet={n.pet} />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold leading-snug text-midnight-900">{n.title}</p>
-                    <p className="mt-0.5 text-sm text-midnight-600">
-                      {[n.pet ? n.pet.name : 'The whole force', n.asked, people].filter(Boolean).join(' · ')}
-                    </p>
-                    {n.byOwner && (
-                      <span className="mt-1 inline-block rounded-full bg-flash-100 px-2 py-0.5 text-xs font-bold text-flash-900">
-                        Asked by the owner
-                      </span>
-                    )}
-                    {n.details && <p className="mt-1.5 whitespace-pre-line text-sm text-midnight-700">{n.details}</p>}
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  {n.mine === 'on' ? (
-                    <div>
-                      <p className="text-sm font-semibold text-midnight-800">You are on it. Tap Done when you finish.</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-                        <button
-                          type="button"
-                          onClick={() => act(n, 'done')}
-                          disabled={working}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-midnight-900 px-5 font-bold text-white disabled:opacity-60"
-                        >
-                          {spinning(n, 'done') ? (
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                          ) : (
-                            <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
-                          )}
-                          Done
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => act(n, 'drop')}
-                          disabled={working}
-                          className="text-sm font-semibold text-midnight-600 underline underline-offset-4 hover:text-midnight-900 disabled:opacity-60"
-                        >
-                          I can&apos;t after all
-                        </button>
-                      </div>
-                    </div>
-                  ) : n.mine === 'done' ? (
-                    <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-700">
-                      <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
-                      You did your part. It needs {n.peopleNeeded - n.done} more.
-                    </p>
-                  ) : full ? (
-                    <p className="text-sm font-semibold text-midnight-500">Enough people are on it.</p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => act(n, 'take')}
-                      disabled={working || (!member && joining)}
-                      className="inline-flex h-11 items-center gap-2 rounded-xl bg-flash-400 px-5 font-bold text-midnight-900 shadow-[0_2px_6px_rgba(202,138,4,0.28)] disabled:opacity-60"
-                    >
-                      {spinning(n, 'take') && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                      I will do it
-                    </button>
-                  )}
-                  {errors[n.id] && (
-                    <p role="alert" className="mt-2 text-sm text-red-700">
-                      {errors[n.id]}
-                    </p>
-                  )}
-                </div>
-              </li>
-            );
-          })}
+          {needs.map((n) => (
+            <NeedCard
+              key={n.id}
+              need={n}
+              face={<PetFace pet={n.pet} />}
+              meta={[n.pet ? n.pet.name : 'The whole force', n.asked]}
+              working={working}
+              spinning={active?.startsWith(`${n.id}:`) ? active.slice(n.id.length + 1) : null}
+              error={errors[n.id]}
+              onAct={(action) => act(n, action)}
+              takeDisabled={!member && joining}
+            />
+          ))}
         </ul>
       )}
 

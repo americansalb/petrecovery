@@ -44,9 +44,11 @@ function WhatMembersGet() {
 }
 
 // `startOpen` shows the sign-up form straight away, and `inSheet` drops the
-// form's own box and title, for the join sheet the force page opens from
-// its "Join to help" button.
-export default function JoinForcePanel({ forceId, forceName, signedIn, startOpen = false, inSheet = false }) {
+// form's own box and title, for the join sheet (app/components/help/
+// JoinForceSheet.js). `onJoined` runs once the membership has started, for
+// a page that holds its own data (a pet's page) rather than re-rendering on
+// the server.
+export default function JoinForcePanel({ forceId, forceName, signedIn, startOpen = false, inSheet = false, onJoined }) {
   const router = useRouter();
   const [mode, setMode] = useState(startOpen ? 'signup' : 'closed'); // closed | signup | signin | sent
   const [busy, setBusy] = useState(false);
@@ -77,6 +79,7 @@ export default function JoinForcePanel({ forceId, forceName, signedIn, startOpen
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Could not join right now. Try again in a moment.');
     }
+    onJoined?.();
     router.refresh();
   };
 

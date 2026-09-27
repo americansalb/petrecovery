@@ -7,12 +7,7 @@
  */
 
 import { Modal } from '@/components/ui';
-
-export const FORCE_RULES = [
-  'Be kind. Everyone here is trying to help.',
-  "Do not post anyone's home address.",
-  'Search in pairs, and never chase a scared pet.',
-];
+import { FORCE_RULES } from '@/app/lib/forceRules';
 
 const LEADER_LABEL = { FOUNDER: 'Started this force', LEADER: 'Leader', ADMINISTRATOR: 'Leader' };
 const SHOWN = 24;
