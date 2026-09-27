@@ -626,6 +626,52 @@ CSP has a `media-src` (`GAME_CSP_HOSTS.media` in `app/lib/geo/site.js`)
 (`app/lib/geo/server/voice.js`, `app/geo/components/voices/`,
 `app/geo/components/script/VoicePrompt.js`).
 
+**Recordings from the public** (2026-09-27). `/geo/record` (and
+`/record` on the game's own domain) lets speakers read the Script
+sentences aloud, so a Voices round can play a person instead of
+ElevenLabs. The founder asked for it modelled on the AALB Academy's
+Recording Studio, with email-confirmed accounts and an admin who
+approves every take.
+
+- *Who can record.* Anyone with a game account (an email address and the
+  code sent to it) who agrees to the recording terms
+  (`GeoVoiceContributor`, with the consent version and time) and says
+  where they learned the language (`GeoVoiceSet.region`). Only languages
+  an admin opens (`GeoVoiceLanguage.recording`) are named on the page, so
+  it does not give away what the game covers.
+- *The studio.* One sentence at a time on a paper card in its own script,
+  read into one big microphone that turns red, pulses and shows a live
+  level meter while recording; a take is heard back, then kept or read
+  again. Space, Enter, R and the arrows do the same. A speaker can flag a
+  sentence as wrong instead of reading it. Takes are kept as the browser
+  records them (Opus or AAC), up to 30 seconds and 1.5 MB, 400 a day per
+  person (`GeoVoiceRecording`); a new take of a sentence replaces the
+  last and waits for review again.
+- *Review.* `/geo/admin/recordings`: a queue that plays each take as it
+  opens (A approves, R and a number sends it back with a reason the
+  speaker sees, S skips, Z undoes); each speaker's language with its
+  progress; and the languages, opened and closed, each with the link to
+  send its speakers. A flagged sentence is either fixed in the corpus or
+  marked "It is fine", which puts it back on the speaker's list.
+- *Into the game.* When every sentence of a language is approved for one
+  person, one button adds them as a `GeoVoice` of kind `recorded`, next to
+  the ElevenLabs voices on `/geo/admin/voices`, with the same on/off and
+  weight. A recorded voice is only dealt while every current sentence has
+  an approved take (`enabledVoices`), so a corpus change sends it back to
+  the speaker's list rather than into a round with a gap.
+- *Deleting.* A speaker deletes their recordings of a language (or all of
+  them) on the page, which takes their voice out of the game; deleting the
+  game account deletes everything (`deleteVoiceContributions`). Both
+  privacy pages and the terms describe it.
+- *Headers.* Recording needs the microphone: the Permissions-Policy header
+  was `microphone=()`, which refused it to every page before the browser
+  could ask (and had quietly broken Mission Control's voice notes); it is
+  `microphone=(self)` now, and `media-src` allows `blob:` so a take plays
+  back before it is kept.
+
+(`app/lib/geo/server/recordings.js`, `app/geo/components/record/`,
+`app/geo/components/recordings/RecordingsAdmin.js`.)
+
 **One curation rule matters more than the size of the pool: strip proper
 nouns.** A sentence containing a city name answers itself, and so does a
 digit or a sentence that names its own language. This is checked rather

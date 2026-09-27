@@ -64,6 +64,7 @@ const SECTIONS = [
       'Scores, ratings, points and the items points buy exist inside the game. They have no cash value, cannot be exchanged or transferred, and may be adjusted or reset when a scoreboard has been manipulated.',
       'The imagery comes from Google Street View and Apple Look Around and is theirs, subject to their terms. Playing the game does not give you any right to it.',
       'Play is limited per day so the imagery bills stay bounded. The limits are shown in the game and described at reunitepets.org/geo.',
+      'If you record sentences on the game\'s recording page (reunitepets.org/geo/record), you confirm the voice is yours and you let Probably Earth keep the recordings and play them to players in the game, credited with the name you give. Recordings are reviewed before they are used, and some are not used. You can delete your recordings on the recording page, which also takes them out of the game.',
     ],
   },
   {

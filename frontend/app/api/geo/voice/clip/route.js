@@ -14,12 +14,12 @@ import { GeoTokenError, openToken } from '@/app/lib/geo/server/tokens';
 import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 import { languageByCode } from '@/app/lib/geo/languages';
 import { passageSentences } from '@/app/lib/geo/server/scriptGame';
-import { clipAudio, VoiceError } from '@/app/lib/geo/server/voice';
+import { voiceClip, VoiceError } from '@/app/lib/geo/server/voice';
 import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS_FOR = { no_key: 503, daily_cap: 429, upstream: 502 };
+const STATUS_FOR = { no_key: 503, daily_cap: 429, upstream: 502, no_clip: 404 };
 
 export async function GET(request) {
   const url = new URL(request.url);
@@ -44,9 +44,10 @@ export async function GET(request) {
     if (!voice || voice.language !== language.code || !voice.enabled) {
       return NextResponse.json({ error: 'This round has no voice', code: 'no_voice' }, { status: 404 });
     }
-    const audio = await clipAudio({ language: language.code, voiceId: voice.voiceId, delivery: voice.delivery, text: sentences[n] });
+    // An ElevenLabs voice's clip, or a person's approved take (server/recordings.js).
+    const { audio, mime } = await voiceClip({ kind: voice.kind, language: language.code, voiceId: voice.voiceId, delivery: voice.delivery, text: sentences[n] });
     return new NextResponse(audio, {
-      headers: { 'Content-Type': 'audio/mpeg', 'Content-Length': String(audio.length), 'Cache-Control': 'private, max-age=86400' },
+      headers: { 'Content-Type': mime, 'Content-Length': String(audio.length), 'Cache-Control': 'private, max-age=86400' },
     });
   } catch (error) {
     // What ElevenLabs said stays in the log: a player only needs to know

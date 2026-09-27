@@ -35,6 +35,36 @@ const REPORT_KINDS = {
   other: 'Something else',
 };
 
+/** The way into /geo/admin/recordings, with how many takes are waiting. */
+function RecordingsLink() {
+  const [waiting, setWaiting] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/geo/admin/recordings?view=queue', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => live && body && setWaiting(body.waiting))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <Card href="/geo/admin/recordings" className="mt-3 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p className="flex items-center gap-2 text-lg font-bold text-white">
+          <Mic className="h-5 w-5 text-clay-300" />
+          Recordings
+          {waiting ? <span className="rounded-full bg-clay-300/20 px-2 py-0.5 text-sm text-clay-200">{waiting} waiting</span> : null}
+        </p>
+        <p className="mt-1 text-sm text-white/60">Sentences the public read aloud on /geo/record. Review them, open languages, add speakers to the game.</p>
+      </div>
+      <span className="inline-flex items-center gap-1 text-sm font-semibold text-clay-300">
+        Review <ArrowRight className="h-4 w-4" />
+      </span>
+    </Card>
+  );
+}
+
 /** The way into /geo/admin/voices, with where the beta stands. */
 function VoicesLink() {
   const [overview, setOverview] = useState(null);
@@ -258,6 +288,7 @@ export default function AdminClient() {
       </section>
 
       <VoicesLink />
+      <RecordingsLink />
 
       <section className="mt-10" aria-label="Accounts">
         <div className="flex flex-wrap items-center justify-between gap-3">

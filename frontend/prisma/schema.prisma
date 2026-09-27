@@ -6235,6 +6235,10 @@ model GeoScriptReport {
 model GeoVoiceLanguage {
   language  String   @id
   enabled   Boolean  @default(false)
+  // Open on /geo/record for anyone signed in to record it. Only the
+  // languages an admin opens are ever named there, so the page does not
+  // give away what the game covers.
+  recording Boolean  @default(false)
   updatedAt DateTime @updatedAt
 }
 
@@ -6247,6 +6251,9 @@ model GeoVoiceLanguage {
 model GeoVoice {
   id         String   @id @default(cuid())
   language   String
+  // "elevenlabs", or "recorded": a person who read every sentence on
+  // /geo/record, whose game account id is then the voiceId.
+  kind       String   @default("elevenlabs")
   voiceId    String
   name       String
   about      String?
@@ -6259,6 +6266,55 @@ model GeoVoice {
 
   @@unique([language, voiceId])
   @@index([language])
+}
+
+// Voices (beta): a person who records sentences on /geo/record, made
+// when they agree to the recording terms. Keyed by their game account;
+// deleting the account deletes this, their sets and their recordings.
+model GeoVoiceContributor {
+  accountId      String   @id
+  name           String
+  consentAt      DateTime
+  consentVersion String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// One contributor's recordings of one language, and where they learned
+// it, in their own words.
+model GeoVoiceSet {
+  id        String   @id @default(cuid())
+  accountId String
+  language  String
+  region    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, language])
+  @@index([language])
+}
+
+// One sentence read aloud on /geo/record, or flagged as wrong instead
+// (no audio, the contributor's note in `reason`). A new take replaces
+// the old one and goes back to pending.
+model GeoVoiceRecording {
+  id         String    @id @default(cuid())
+  setId      String
+  accountId  String
+  language   String
+  text       String
+  audio      Bytes?
+  mime       String?
+  durationMs Int?
+  status     String    @default("pending")
+  reason     String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([setId, text])
+  @@index([status, language])
+  @@index([accountId])
 }
 
 // Every clip ElevenLabs has made, kept so each sentence is paid for once.

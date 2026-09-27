@@ -255,6 +255,8 @@ export async function deleteAccount(store, { accountId } = {}) {
   const account = await store.getAccountById?.(accountId);
   const profile = await store.getProfileByAccountId(accountId);
   if (profile) await store.deleteProfile(profile.id);
+  // Voice recordings go with the account (/geo/record).
+  await store.deleteVoiceContributions?.(accountId);
   await store.deleteAccount(accountId);
   if (account?.email) await store.deleteLoginTokensForEmail?.(account.email);
   return { deletedProfile: Boolean(profile) };

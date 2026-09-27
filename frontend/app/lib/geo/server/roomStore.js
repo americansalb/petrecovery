@@ -163,6 +163,14 @@ export function databaseStoreFor(prisma) { return {
   deleteLoginTokensForEmail(email) {
     return prisma.geoLoginToken.deleteMany({ where: { email } });
   },
+  // Voices (beta): a contributor's recordings, sets and terms, and any
+  // voice made from them (server/recordings.js).
+  async deleteVoiceContributions(accountId) {
+    await prisma.geoVoiceRecording.deleteMany({ where: { accountId } });
+    await prisma.geoVoiceSet.deleteMany({ where: { accountId } });
+    await prisma.geoVoice.deleteMany({ where: { kind: 'recorded', voiceId: accountId } });
+    await prisma.geoVoiceContributor.deleteMany({ where: { accountId } });
+  },
   createLoginToken(data) {
     return prisma.geoLoginToken.create({ data });
   },

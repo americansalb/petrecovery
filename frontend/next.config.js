@@ -124,7 +124,8 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(self)',
+            // microphone=(self): Voices recordings and voice notes ask for it (middleware.js).
+            value: 'camera=(), microphone=(self), geolocation=(self)',
           },
           {
             // Allow Apple Maps to render PlaceDetail, and the Google

@@ -12,7 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import { AdminDenied, requireAdmin } from '@/app/lib/geo/server/admin';
-import { adminClip, clipAudio, remakeClip, VoiceError } from '@/app/lib/geo/server/voice';
+import { adminClip, remakeClip, voiceClip, VoiceError } from '@/app/lib/geo/server/voice';
 import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 
 export const dynamic = 'force-dynamic';
@@ -34,8 +34,8 @@ export async function GET(request) {
   try {
     await requireAdmin(request);
     const url = new URL(request.url);
-    const audio = await clipAudio(await adminClip({ voice: url.searchParams.get('voice'), n: url.searchParams.get('n') }));
-    return new NextResponse(audio, { headers: { 'Content-Type': 'audio/mpeg', 'Content-Length': String(audio.length), ...NO_STORE } });
+    const { audio, mime } = await voiceClip(await adminClip({ voice: url.searchParams.get('voice'), n: url.searchParams.get('n') }));
+    return new NextResponse(audio, { headers: { 'Content-Type': mime, 'Content-Length': String(audio.length), ...NO_STORE } });
   } catch (error) {
     return failure(error);
   }
@@ -46,7 +46,9 @@ export async function POST(request) {
     await requireAdmin(request);
     const body = await request.json().catch(() => ({}));
     const clip = await adminClip({ voice: body?.voice, n: body?.n });
-    await (body?.remake ? remakeClip(clip) : clipAudio(clip));
+    // A person's take is re-recorded by the person, on /geo/record.
+    if (clip.kind === 'recorded' && body?.remake) throw new VoiceError('recorded', 'A recorded sentence is re-read by its speaker, not remade here');
+    await (body?.remake ? remakeClip(clip) : voiceClip(clip));
     return NextResponse.json({ ok: true }, { headers: NO_STORE });
   } catch (error) {
     return failure(error);
