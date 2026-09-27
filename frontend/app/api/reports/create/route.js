@@ -15,8 +15,7 @@ import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
-import { forceAreas } from '@/app/lib/forceDirectory';
-import { areaCovers } from '@/app/lib/maps/forceArea';
+import { forcesCovering, alertForceMembers } from '@/app/lib/forceCoverage';
 import { fillForceOutlineSoon } from '@/app/lib/forceOutlines';
 
 // Allow large body for base64 image uploads and longer timeout
@@ -421,54 +420,12 @@ export async function POST(request) {
     let assignedSquad = null;
     let assignedSquads = [];
     const COVERAGE_BUFFER = 1; // miles past the town line (or the circle)
-    // No town outline reaches farther than this from its force's center
-    // (app/lib/maps/townOutline.js), so farther forces are not read.
-    const OUTLINE_REACH_MILES = 60;
 
     try {
-      const squads = await prisma.rescueForce.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          city: true,
-          centerLatitude: true,
-          centerLongitude: true,
-          radiusMiles: true,
-          isAcceptingCases: true,
-          updatedAt: true,
-        },
-      });
-
-      console.log('[Report Debug] Found', squads.length, 'active squads');
-      console.log('[Report Debug] Case center:', center);
+      // Every active force with its distance and whether it covers the
+      // report (app/lib/forceCoverage.js), the rule found pets follow too.
+      const squadsWithDistance = await forcesCovering({ lat: center[0], lng: center[1] });
       console.log('[Report Debug] Location type:', locationType, 'City name:', cityName);
-
-      // Calculate distance for all squads
-      const squadsWithDistance = squads
-        .filter(squad => squad.centerLatitude && squad.centerLongitude)
-        .map(squad => ({
-          ...squad,
-          distance: calculateDistance(
-            center[0], center[1],
-            squad.centerLatitude, squad.centerLongitude
-          ),
-          effectiveRadius: squad.radiusMiles + COVERAGE_BUFFER, // Squad coverage + buffer
-        }));
-
-      // Which forces cover the report: their town outline plus a mile, or
-      // their circle plus a mile until the outline is looked up.
-      const reportPoint = { lat: center[0], lng: center[1] };
-      const reachable = squadsWithDistance.filter((squad) => squad.distance <= OUTLINE_REACH_MILES);
-      const outlineOf = await forceAreas(reachable, { maxPoints: 600 });
-      for (const squad of squadsWithDistance) {
-        const area = squad.distance <= OUTLINE_REACH_MILES ? outlineOf(squad.id) : null;
-        squad.covers = areaCovers(
-          { area, lat: squad.centerLatitude, lng: squad.centerLongitude, radiusMiles: squad.radiusMiles },
-          reportPoint,
-          COVERAGE_BUFFER
-        );
-      }
 
       console.log('[Report Debug] Squads with valid coordinates:', squadsWithDistance.length);
       // Log a few closest squads with their coverage
@@ -677,6 +634,14 @@ export async function POST(request) {
             city: squad.city,
             distance: squad.distance,
           });
+        }
+
+        // Members of each force hear about the pet in their notification
+        // bell (app/lib/forceCoverage.js). Non-fatal, like the posts above.
+        try {
+          await alertForceMembers({ forces: squadsToNotify, pet: report, exceptUserId: user.id });
+        } catch (alertError) {
+          console.error('[Report Debug] Member alerts failed:', alertError);
         }
 
         // Set the closest squad as the primary assigned squad

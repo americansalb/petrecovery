@@ -9,7 +9,7 @@
  *   (fillForceOutline, from app/api/reports/create);
  * - forces still without one are filled in the background, a batch at a
  *   time, when the directory or a force's page is opened
- *   (fillMissingOutlinesSoon);
+ *   (fillMissingOutlines, run by app/lib/forceUpkeep.js);
  * - a force whose town has no outline in OpenStreetMap keeps its circle,
  *   and is looked up again after 30 days (`outlineCheckedAt`).
  */
@@ -19,7 +19,6 @@ import { lookupTownOutline } from '@/app/lib/maps/townOutline';
 
 const RETRY_AFTER_MS = 30 * 24 * 3600e3;
 const BATCH = 40;
-const EVERY_MS = 10 * 60e3;
 
 const FORCE_FIELDS = { id: true, name: true, city: true, country: true, centerLatitude: true, centerLongitude: true };
 
@@ -71,28 +70,6 @@ export async function fillMissingOutlines({ limit = BATCH, lookup = lookupTownOu
     if (result === 'saved') saved += 1;
   }
   return { checked, saved };
-}
-
-let running = false;
-let startedAt = 0;
-
-/**
- * Start a batch in the background, unless one is running or one started in
- * the last ten minutes. Never waits and never throws: the page that calls
- * it draws what is saved now, and the outlines appear on a later visit.
- */
-export function fillMissingOutlinesSoon() {
-  if (process.env.NODE_ENV === 'test' || running || Date.now() - startedAt < EVERY_MS) return;
-  running = true;
-  startedAt = Date.now();
-  fillMissingOutlines()
-    .then(({ checked, saved }) => {
-      if (checked) console.log(`[outlines] looked up ${checked} towns, saved ${saved} outlines`);
-    })
-    .catch((error) => console.warn('[outlines] batch failed:', error.message))
-    .finally(() => {
-      running = false;
-    });
 }
 
 /** Look up a new force's outline in the background, right after it is made. */
