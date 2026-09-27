@@ -140,7 +140,7 @@ export async function routeFoundReport(report, { forces = null, reporterId = nul
           rescueSquadId: force.id,
           authorId: reporterId || report.reporterId,
           title: `A ${kind} was found${place ? ` near ${place}` : ''}`,
-          content: `Someone found a ${kind}${place ? ` near ${place}` : ''} and reported it. If it is one of the pets this force is looking for, tell the finder from the pet's page. Case #${report.caseNumber}.`,
+          content: `Someone found a ${kind}${place ? ` near ${place}` : ''} and reported it. Is it one of the pets this force is looking for? See the report: Case #${report.caseNumber}.`,
           caseId: report.id,
         },
       });
@@ -154,7 +154,7 @@ export async function routeFoundReport(report, { forces = null, reporterId = nul
 /**
  * Found-pet reports from the last 30 days, still open and given to no
  * force: route them now (no posts, no alerts; they are not news any more).
- * Run in the background from app/lib/forceOutlines.js.
+ * Run in the background by app/lib/forceUpkeep.js.
  */
 export async function routeFoundReports({ limit = 50, now = new Date() } = {}) {
   const reports = await prisma.case.findMany({
