@@ -10,7 +10,7 @@
  * Photos upload to the CDN via /api/upload (no more base64), and the merged
  * Where step replaces the old text-geocode + separate-pinpoint screens.
  * Shares every primitive (and the exact look) of the lost wizard - only the
- * emerald FOUND semantics and copy differ.
+ * blue FOUND semantics and copy differ.
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';

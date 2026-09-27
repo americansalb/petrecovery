@@ -68,7 +68,7 @@ export default function GlobalBottomNav() {
           aria-label="Report a pet"
           className="flex flex-col items-center justify-center flex-1 h-full -mt-6"
         >
-          <span className="w-14 h-14 rounded-full bg-flash-400 border-4 border-white shadow-lg shadow-flash-400/40 flex items-center justify-center text-midnight-900 active:scale-95 transition-transform">
+          <span className="w-14 h-14 rounded-full bg-flash-400 bg-gradient-to-b from-flash-300 to-flash-400 border-4 border-white shadow-lg shadow-flash-400/40 flex items-center justify-center text-midnight-900 active:scale-95 transition-transform">
             <Plus className="w-7 h-7 stroke-[2.5]" />
           </span>
           <span className="text-[11px] mt-0.5 font-semibold text-midnight-900">Report</span>

@@ -24,7 +24,7 @@ export const WIZARD_THEMES = {
       'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-200 hover:shadow-xl',
     progressFill: 'bg-red-500',
     posterGrad: 'bg-gradient-to-br from-red-400 via-orange-400 to-amber-300',
-    mapHex: '#ef4444',
+    mapHex: '#dc2626', // the lost-pet red of app/lib/petColors.js
     // Focus is the flash brand accent on BOTH variants - a red focus border
     // on the lost flow reads as a validation error.
     focusRing: 'focus:border-flash-400 focus:ring-2 focus:ring-flash-100',
@@ -44,20 +44,22 @@ export const WIZARD_THEMES = {
     mapHex: '#1e40af',
     focusRing: 'focus:border-blue-600 focus:ring-2 focus:ring-blue-100',
   },
+  // Blue, the found-pet color everywhere (app/lib/petColors.js). It was
+  // green, the color that means a pet is home.
   found: {
     stamp: 'FOUND',
-    stampChip: 'bg-emerald-500 text-white',
-    stampOutline: 'border-emerald-500 text-emerald-600',
-    accentText: 'text-emerald-600',
-    accentBg: 'bg-emerald-500',
-    softBg: 'bg-emerald-50',
-    softBorder: 'border-emerald-200',
-    selectedCard: 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-400',
+    stampChip: 'bg-sky-600 text-white',
+    stampOutline: 'border-sky-600 text-sky-700',
+    accentText: 'text-sky-700',
+    accentBg: 'bg-sky-600',
+    softBg: 'bg-sky-50',
+    softBorder: 'border-sky-200',
+    selectedCard: 'border-sky-500 bg-sky-50 ring-1 ring-sky-500',
     postCta:
-      'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-200 hover:shadow-xl',
-    progressFill: 'bg-emerald-500',
-    posterGrad: 'bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-300',
-    mapHex: '#10b981',
+      'bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-lg shadow-sky-200 hover:shadow-xl',
+    progressFill: 'bg-sky-600',
+    posterGrad: 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-400',
+    mapHex: '#0284c7',
     focusRing: 'focus:border-flash-400 focus:ring-2 focus:ring-flash-100',
   },
 };

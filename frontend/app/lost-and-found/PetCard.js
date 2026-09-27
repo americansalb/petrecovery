@@ -15,13 +15,8 @@ import Link from 'next/link';
 import { MapPin, Clock, Eye } from 'lucide-react';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import { caseStatus, caseTitle, caseDescriptor, casePlace, caseTimeline } from '@/app/lib/caseLabels';
-
-export const STATUS_DOT = {
-  lost: 'bg-red-500',
-  found: 'bg-sky-500',
-  home: 'bg-emerald-500',
-  closed: 'bg-midnight-400',
-};
+import PetStatusDot from '@/app/components/PetStatusDot';
+import { PET_TEXT } from '@/app/lib/petColors';
 
 export default function PetCard({ c }) {
   const status = caseStatus(c);
@@ -51,7 +46,7 @@ export default function PetCard({ c }) {
           </div>
         )}
         <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-midnight-900 shadow-sm">
-          <span className={`h-2 w-2 rounded-full ${STATUS_DOT[status.key]}`} aria-hidden="true" />
+          <PetStatusDot status={status.key} />
           {status.label}
         </span>
       </div>
@@ -69,7 +64,7 @@ export default function PetCard({ c }) {
             {caseTimeline(c)}
           </li>
           {sightings > 0 && status.key !== 'home' && (
-            <li className="flex items-center gap-1.5 font-medium text-flash-700">
+            <li className={`flex items-center gap-1.5 font-medium ${PET_TEXT.seen}`}>
               <Eye size={14} className="shrink-0" aria-hidden="true" />
               {sightings} {sightings === 1 ? 'sighting' : 'sightings'}
             </li>

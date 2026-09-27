@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, Loader2, LocateFixed, PawPrint, Plus, Shield, X } from 'lucide-react';
 import { normalizeState } from '@/app/lib/usStates';
 import { areaContains, milesBetween } from '@/app/lib/maps/forceArea';
+import { PET_TEXT } from '@/app/lib/petColors';
 import TownPicker, { townLabel } from './TownPicker';
 
 const ForceDirectoryMap = nextDynamic(() => import('./ForceDirectoryMap'), {
@@ -62,8 +63,8 @@ function forcesNear(forces, origin) {
     .sort((a, b) => Number(b.inside) - Number(a.inside) || a.miles - b.miles);
 }
 
-const GRADIENT_BUTTON =
-  'bg-gradient-to-b from-flash-300 to-flash-400 text-midnight-900 shadow-[0_2px_6px_rgba(202,138,4,0.28)] hover:from-flash-200 hover:to-flash-300';
+// Yellow buttons get their soft shading from app/globals.css.
+const YELLOW_BUTTON = 'bg-flash-400 text-midnight-900 shadow-[0_2px_6px_rgba(202,138,4,0.28)]';
 
 export default function ForceDirectory({ forces }) {
   const router = useRouter();
@@ -225,7 +226,7 @@ export default function ForceDirectory({ forces }) {
                 type="button"
                 onClick={locateMe}
                 disabled={status === 'locating'}
-                className={`inline-flex h-[52px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[14px] px-3.5 text-base font-bold transition disabled:opacity-60 lg:px-[18px] ${GRADIENT_BUTTON}`}
+                className={`inline-flex h-[52px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[14px] px-3.5 text-base font-bold transition disabled:opacity-60 lg:px-[18px] ${YELLOW_BUTTON}`}
               >
                 {status === 'locating' ? (
                   <Loader2 className="h-[18px] w-[18px] animate-spin" aria-hidden="true" />
@@ -370,7 +371,7 @@ function ForceCard({ force: f, origin, lit, onHover }) {
                     <PetFace key={i} photo={p.photo} />
                   ))}
                 </span>
-                <span className="text-sm font-bold text-red-700">{missingText(f.missing)}</span>
+                <span className={`text-sm font-bold ${PET_TEXT.lost}`}>{missingText(f.missing)}</span>
               </>
             ) : (
               <span className="text-sm text-midnight-500">No pets missing right now</span>
@@ -410,7 +411,7 @@ function NoForce({ title, onShowAll }) {
       </p>
       <Link
         href="/rescue-forces/create"
-        className={`mt-3 flex h-[52px] items-center justify-center rounded-[14px] text-base font-extrabold transition ${GRADIENT_BUTTON}`}
+        className={`mt-3 flex h-[52px] items-center justify-center rounded-[14px] text-base font-extrabold transition ${YELLOW_BUTTON}`}
       >
         Start a Rescue Force
       </Link>

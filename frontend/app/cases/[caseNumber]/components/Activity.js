@@ -39,7 +39,8 @@ function Sighting({ s }) {
     .join(' · ');
   return (
     <div className="flex gap-3">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-flash-100 text-flash-700">
+      {/* Orange, the sighting color of app/lib/petColors.js, as on the map above. */}
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-700">
         <Eye size={16} aria-hidden="true" />
       </span>
       <div className="min-w-0">
