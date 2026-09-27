@@ -11,50 +11,23 @@
  */
 
 import prisma from '@/app/lib/prisma';
-import { simplifyArea, areaCenter } from '@/app/lib/maps/forceArea';
-import { fillMissingOutlinesSoon } from '@/app/lib/forceOutlines';
+import { areaCenter } from '@/app/lib/maps/forceArea';
+import { forceAreas } from '@/app/lib/forceAreas';
+import { forceUpkeepSoon } from '@/app/lib/forceUpkeep';
+
+// The outline cache moved to app/lib/forceAreas.js; kept here for callers and tests.
+export { forceAreas, clearForceAreaCache } from '@/app/lib/forceAreas';
 
 const OPEN_CASE_STATUSES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'];
 const LIVE_ASSIGNMENT_STATUSES = ['ACCEPTED', 'ACTIVE', 'STANDBY'];
 const PHOTOS_PER_FORCE = 3;
 
-// Thinned outlines by force id and size, kept between requests. A stored
-// outline can be hundreds of kilobytes and changes only when its force row
-// does, so the raw text is read again only for a force whose row changed.
-const areaCache = new Map(); // `${id}:${maxPoints}` -> { stamp, area }
-
-/**
- * The thinned outlines of these forces (each `{ id, updatedAt }`), as a
- * lookup by id. The directory draws dozens at town scale (160 points each);
- * a force's own page draws one, larger (app/lib/forcePage.js).
- */
-export async function forceAreas(rows, { maxPoints = 160 } = {}) {
-  const stamp = (f) => new Date(f.updatedAt).getTime();
-  const key = (id) => `${id}:${maxPoints}`;
-  const stale = rows.filter((f) => areaCache.get(key(f.id))?.stamp !== stamp(f));
-  if (stale.length > 0) {
-    const raw = await prisma.rescueForce.findMany({
-      where: { id: { in: stale.map((f) => f.id) }, customBoundary: { not: null } },
-      select: { id: true, customBoundary: true },
-    });
-    const byId = new Map(raw.map((r) => [r.id, r.customBoundary]));
-    for (const f of stale) {
-      areaCache.set(key(f.id), { stamp: stamp(f), area: simplifyArea(byId.get(f.id) || null, { maxPoints }) });
-    }
-  }
-  return (id) => areaCache.get(key(id))?.area || null;
-}
-
-/** Test hook: forget the cached outlines. */
-export function clearForceAreaCache() {
-  areaCache.clear();
-}
-
 /** The directory's forces, busiest first; null when the database read fails. */
 export async function getForceDirectory() {
   // Forces still drawn as a circle get their town's outline in the
-  // background; they show it on a later visit (app/lib/forceOutlines.js).
-  fillMissingOutlinesSoon();
+  // background, and recent found pets reach the forces around them; both
+  // show on a later visit (app/lib/forceUpkeep.js).
+  forceUpkeepSoon();
   try {
     const rows = await prisma.rescueForce.findMany({
       where: { isActive: true, isDeleted: false },

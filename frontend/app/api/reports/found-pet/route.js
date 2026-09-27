@@ -11,6 +11,7 @@ import { findMatches } from '@/app/lib/matching';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
+import { routeFoundReport, alertForceMembers } from '@/app/lib/forceCoverage';
 
 export async function POST(request) {
   // Mints accounts and emails owners, so it is throttled like the lost-pet
@@ -208,6 +209,17 @@ export async function POST(request) {
         priority: timeElapsed === 'less_than_hour' ? 'URGENT' : 'HIGH',
       }
     }), { kind: 'FOUND' });
+
+    // 4b. The Rescue Forces covering where it was found get the report (their
+    // map and Pets tab show it) with a post in their Discussion, and their
+    // members hear about it in the bell: it may be a pet they are looking
+    // for (app/lib/forceCoverage.js). Never fails the report.
+    try {
+      const forces = await routeFoundReport(report, { reporterId: user.id });
+      await alertForceMembers({ forces, pet: report, exceptUserId: user.id });
+    } catch (routeError) {
+      console.error('[found] routing to forces failed:', routeError);
+    }
 
     // 5. Find potential matches - look for LOST pets that match this FOUND pet
     const lostPetCases = await prisma.case.findMany({

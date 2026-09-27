@@ -18,13 +18,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { getUserRole } from '@/app/lib/authz';
 import prisma from '@/app/lib/prisma';
-import { forceAreas } from '@/app/lib/forceDirectory';
+import { forceAreas } from '@/app/lib/forceAreas';
 import { areaCenter } from '@/app/lib/maps/forceArea';
 import { caseStatus, caseTitle, timeAgo } from '@/app/lib/caseLabels';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { parsePlace } from '@/app/lib/placeLabel';
 import { OPEN_NEED_STATUSES } from '@/app/lib/forceNeeds';
-import { fillMissingOutlinesSoon } from '@/app/lib/forceOutlines';
+import { forceUpkeepSoon } from '@/app/lib/forceUpkeep';
 
 const OPEN_CASE_STATUSES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'];
 const LIVE_ASSIGNMENT_STATUSES = ['ACCEPTED', 'ACTIVE', 'STANDBY'];
@@ -107,7 +107,7 @@ async function readForcePage(id) {
     },
   });
   if (!force) return null;
-  fillMissingOutlinesSoon();
+  forceUpkeepSoon();
 
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id || null;
