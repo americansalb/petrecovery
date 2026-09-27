@@ -302,6 +302,12 @@ const nextConfig = {
         destination: '/rescue-forces',
         permanent: true,
       },
+      // A force's Updates page became the Discussion tab of its page.
+      {
+        source: '/rescue-forces/:id/updates',
+        destination: '/rescue-forces/:id/discussion',
+        permanent: true,
+      },
       // "Rescue Squad" is PawBoost's trademark; the brand here is Rescue
       // Forces. Every old link keeps working.
       {

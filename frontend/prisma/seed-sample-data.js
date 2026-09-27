@@ -410,12 +410,16 @@ async function main() {
     });
   }
 
-  // Luna is missing in Austin too, so the directory shows two faces there.
-  await prisma.caseAssignment.upsert({
-    where: { missionId_rescueSquadId: { missionId: cases['AUS-2026-0002'].id, rescueSquadId: force.id } },
-    update: {},
-    create: { missionId: cases['AUS-2026-0002'].id, rescueSquadId: force.id, status: 'ACTIVE', acceptedById: admin.id },
-  });
+  // Luna is missing in Austin too, so the directory shows two faces there;
+  // the found dog and Biscuit (home) give the force page's Found and
+  // Reunited filters something to show.
+  for (const [caseNumber, status] of [['AUS-2026-0002', 'ACTIVE'], ['AUS-2026-0003', 'ACTIVE'], ['AUS-2025-0099', 'COMPLETED']]) {
+    await prisma.caseAssignment.upsert({
+      where: { missionId_rescueSquadId: { missionId: cases[caseNumber].id, rescueSquadId: force.id } },
+      update: {},
+      create: { missionId: cases[caseNumber].id, rescueSquadId: force.id, status, acceptedById: admin.id },
+    });
+  }
 
   // Neighboring forces, so the directory map has areas to draw: two with
   // a town outline (rough hand-drawn shapes, [lng, lat] like the outlines

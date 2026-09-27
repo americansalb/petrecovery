@@ -79,7 +79,7 @@ Notes:
 | pub-29-mission-detail.png | `/missions/AUS-2026-0001` | `/mission-control?mission=AUS-2026-0001` | redirects |
 | pub-30-rescue-forces.png | `/rescue-forces` | `/rescue-forces` | recaptured 2026-09-27 (map and list) |
 | pub-31-rescue-forces-search.png | `/rescue-forces/search` | `/rescue-forces/search` |  |
-| pub-32-rescue-force-detail.png | `/rescue-forces/cmr4cj06y000urdvlagzaski8` | `/rescue-forces/cmr4cj06y000urdvlagzaski8` | 2 console errors |
+| pub-32-rescue-force-detail.png | `/rescue-forces/cmr4cj06y000urdvlagzaski8` | `/rescue-forces/cmr4cj06y000urdvlagzaski8` | recaptured 2026-09-27 (Pets, Needs and Discussion tabs) |
 | pub-33-communities-legacy.png | `/communities/cmr4cj06y000urdvlagzaski8` | `/rescue-forces/search` | redirects |
 | pub-34-care.png | `/care` | `/care` |  |
 | pub-35-care-start.png | `/care/start` | `/care/start` | the one add-a-pet wizard (guest-first) |

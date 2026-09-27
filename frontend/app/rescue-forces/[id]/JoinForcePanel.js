@@ -38,14 +38,17 @@ const TEXT_BUTTON = 'inline min-h-0 min-w-0 p-0 font-semibold text-midnight-800 
 function WhatMembersGet() {
   return (
     <p className="mt-2 text-sm text-midnight-500">
-      Members see each pet reported lost in this area in the force&apos;s updates, and talk in its chat.
+      Members see each pet reported lost in this area in the force&apos;s discussion, and talk in its chat.
     </p>
   );
 }
 
-export default function JoinForcePanel({ forceId, forceName, signedIn }) {
+// `startOpen` shows the sign-up form straight away, and `inSheet` drops the
+// form's own box and title, for the join sheet the force page opens from
+// its "Join to help" button.
+export default function JoinForcePanel({ forceId, forceName, signedIn, startOpen = false, inSheet = false }) {
   const router = useRouter();
-  const [mode, setMode] = useState('closed'); // closed | signup | signin | sent
+  const [mode, setMode] = useState(startOpen ? 'signup' : 'closed'); // closed | signup | signin | sent
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -196,8 +199,8 @@ export default function JoinForcePanel({ forceId, forceName, signedIn }) {
       }
     };
     return (
-      <form method="post" onSubmit={submit} className="rounded-2xl bg-white p-4 ring-1 ring-midnight-200" noValidate>
-        <p className="font-semibold text-midnight-900">Sign in to join</p>
+      <form method="post" onSubmit={submit} className={inSheet ? '' : 'rounded-2xl bg-white p-4 ring-1 ring-midnight-200'} noValidate>
+        {!inSheet && <p className="font-semibold text-midnight-900">Sign in to join</p>}
         <div className="mt-3 space-y-3">
           <div>
             <label htmlFor="join-signin-email" className={LABEL}>
@@ -305,8 +308,8 @@ export default function JoinForcePanel({ forceId, forceName, signedIn }) {
   };
 
   return (
-    <form method="post" onSubmit={submit} className="rounded-2xl bg-white p-4 ring-1 ring-midnight-200" noValidate>
-      <p className="font-semibold text-midnight-900">Join {forceName}</p>
+    <form method="post" onSubmit={submit} className={inSheet ? '' : 'rounded-2xl bg-white p-4 ring-1 ring-midnight-200'} noValidate>
+      {!inSheet && <p className="font-semibold text-midnight-900">Join {forceName}</p>}
       <div className="mt-3 space-y-3">
         <div>
           <label htmlFor="join-first-name" className={LABEL}>
