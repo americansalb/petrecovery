@@ -16,17 +16,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Check, ChevronRight, Map as MapIcon } from 'lucide-react';
+import { Check, ChevronRight, Map as MapIcon, Plus } from 'lucide-react';
 import NeedCard from '@/app/components/help/NeedCard';
 import SearchPartyCard from '@/app/components/help/SearchPartyCard';
+import AddNeedSheet from '@/app/components/help/AddNeedSheet';
 import { timeAgo } from '@/app/lib/caseLabels';
 import WaysToHelp from './WaysToHelp';
 
 const DONE_SHOWN = 5;
 
-export default function HowToHelp({ name, lost, room, searchHref, ways, onJoin, onChanged }) {
+export default function HowToHelp({ name, caseId, lost, room, searchHref, ways, onJoin, onChanged }) {
   const [active, setActive] = useState(null); // `${needId}:${action}` while it goes through
   const [errors, setErrors] = useState({});
+  const [adding, setAdding] = useState(false);
   const force = room?.force || null;
   const member = Boolean(room?.member);
   const needs = room?.needs || [];
@@ -63,6 +65,9 @@ export default function HowToHelp({ name, lost, room, searchHref, ways, onJoin, 
     }).catch(() => {});
     await onChanged();
   }
+
+  // Members add needs for a pet still missing (the sheet: app/components/help/AddNeedSheet.js).
+  const canAdd = Boolean(lost && force && member && caseId);
 
   if (!lost && !party && !needs.length && !ways.length) return null;
 
@@ -131,6 +136,17 @@ export default function HowToHelp({ name, lost, room, searchHref, ways, onJoin, 
               ))}
             </ul>
           )}
+
+          {canAdd && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-midnight-300 px-4 py-3 font-bold text-midnight-800 transition hover:border-midnight-400 hover:bg-midnight-50"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add a need
+            </button>
+          )}
         </div>
       )}
 
@@ -155,6 +171,24 @@ export default function HowToHelp({ name, lost, room, searchHref, ways, onJoin, 
             ))}
           </ul>
         </div>
+      )}
+      {canAdd && (
+        <AddNeedSheet
+          open={adding}
+          onClose={() => setAdding(false)}
+          forceId={force.id}
+          caseId={caseId}
+          petName={name}
+          onAdded={async () => {
+            setAdding(false);
+            await onChanged();
+          }}
+          onTakeExisting={(needId) => {
+            setAdding(false);
+            const need = needs.find((n) => n.id === needId);
+            if (need) doAct(need, 'take');
+          }}
+        />
       )}
     </section>
   );

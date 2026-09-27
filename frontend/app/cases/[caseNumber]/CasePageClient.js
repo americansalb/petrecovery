@@ -605,6 +605,7 @@ export default function CasePageClient() {
             {open && (
               <HowToHelp
                 name={name}
+                caseId={c.id}
                 lost={status.key === 'lost'}
                 room={room}
                 searchHref={missionHref}
