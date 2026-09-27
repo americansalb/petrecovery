@@ -132,6 +132,10 @@ export const GAME_RATE_LIMITS = {
   // them again (the browser usually has them). Every clip is reached
   // through a sealed round, so this slows a scraper, not a bill.
   '/api/geo/voice/clip': { windowMs: 60000, maxRequests: 240 },
+  // Voices (beta): /geo/record. A reader keeps a take every few seconds
+  // at the fastest, and plays some back; the daily cap in
+  // server/recordings.js is what bounds a script.
+  '/api/geo/record': { windowMs: 60000, maxRequests: 120 },
   // A round is a burst of free metadata probes on the server; one
   // person plays a handful a minute, and a retry after "no imagery"
   // must not lock them out.
@@ -181,6 +185,8 @@ export const GAME_SHORT_PATHS = {
   '/rooms': '/geo/rooms',
   '/share': '/geo/share',
   '/leaderboard': '/geo/leaderboard',
+  // Voices (beta): the link sent to speakers of a language.
+  '/record': '/geo/record',
   '/daily': '/geo/play?mode=daily',
 };
 

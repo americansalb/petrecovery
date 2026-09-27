@@ -66,7 +66,7 @@ function Sentences({ voice, sentences, onChanged }) {
             </div>
             <div className="flex shrink-0 gap-2">
               <PlayButton playKey={key} source={madeClip(voice.id, n)} label="Play" onPlayed={voice.made[n] ? undefined : onChanged} />
-              {voice.made[n] ? (
+              {voice.made[n] && voice.kind !== 'recorded' ? (
                 <button
                   type="button"
                   className="ui-btn ui-btn--ghost ui-btn--sm"
@@ -136,8 +136,10 @@ function VoiceCard({ voice, language, onChanged }) {
   };
 
   const remove = async () => {
-    const stored = made ? ` and its ${made} stored ${made === 1 ? 'sentence' : 'sentences'}` : '';
-    if (!window.confirm(`Remove ${voice.name} from ${language.name}${stored}?`)) return;
+    const stored = voice.kind === 'recorded'
+      ? '? Their recordings stay on the Recordings screen, where they can be added again'
+      : made ? ` and its ${made} stored ${made === 1 ? 'sentence' : 'sentences'}?` : '?';
+    if (!window.confirm(`Remove ${voice.name} from ${language.name}${stored}`)) return;
     setBusy('remove');
     setError('');
     try {
@@ -155,6 +157,7 @@ function VoiceCard({ voice, language, onChanged }) {
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 font-semibold text-pe-fg">
             {voice.name}
+            {voice.kind === 'recorded' ? <span className="rounded-full bg-pe-good/15 px-2 py-0.5 text-xs font-semibold text-pe-good">Recorded by a speaker</span> : null}
             {!voice.enabled ? <span className="rounded-full bg-pe-canvas px-2 py-0.5 text-xs font-semibold text-pe-subtle">Off</span> : null}
           </p>
           <p className="text-sm text-pe-muted">{voice.about || <span className="font-mono text-xs">{voice.voiceId}</span>}</p>
@@ -178,7 +181,7 @@ function VoiceCard({ voice, language, onChanged }) {
       <PlayError playKey={`preview:${voice.id}`} />
       <PlayError playKey={`clip:${voice.id}:0`} />
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className={`mt-4 grid gap-4 ${voice.kind === 'recorded' ? '' : 'sm:grid-cols-2'}`}>
         <Setting label="How often it reads">
           <div className="ui-seg" role="group" aria-label="How often it reads">
             {WEIGHTS.map(([value, label]) => (
@@ -188,6 +191,7 @@ function VoiceCard({ voice, language, onChanged }) {
             ))}
           </div>
         </Setting>
+        {voice.kind === 'recorded' ? null : (
         <Setting label="Delivery" hint={DELIVERIES.find(([value]) => value === voice.delivery)?.[2]}>
           <div className="ui-seg" role="group" aria-label="Delivery">
             {DELIVERIES.map(([value, label, hint]) => (
@@ -208,17 +212,18 @@ function VoiceCard({ voice, language, onChanged }) {
             ))}
           </div>
         </Setting>
+        )}
       </div>
 
       <div className="mt-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <span className="text-pe-muted">
-            {making ? `Making ${making.done + 1} of ${making.of}` : `${made} of ${total} sentences made`}
+            {making ? `Making ${making.done + 1} of ${making.of}` : voice.kind === 'recorded' ? `${made} of ${total} sentences approved` : `${made} of ${total} sentences made`}
           </span>
           <div className="flex flex-wrap gap-2">
             {making ? (
               <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => { stopRef.current = true; }}>Stop</button>
-            ) : made < total ? (
+            ) : made < total && voice.kind !== 'recorded' ? (
               <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm" disabled={Boolean(busy)} onClick={makeTheRest}>
                 Make the rest
               </button>

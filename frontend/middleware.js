@@ -225,7 +225,8 @@ function addSecurityHeaders(response) {
       // and Apps Script web apps; script iframes serve from
       // googleusercontent)
       `frame-src 'self' https://www.google.com ${GAME_CSP_HOSTS.frame.join(' ')} https://docs.google.com https://script.google.com https://*.googleusercontent.com`,
-      `media-src 'self' ${GAME_CSP_HOSTS.media.join(' ')}`,
+      // blob: is a take just recorded on /geo/record, played back before it is kept.
+      `media-src 'self' blob: ${GAME_CSP_HOSTS.media.join(' ')}`,
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -238,7 +239,10 @@ function addSecurityHeaders(response) {
   response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'geolocation=(self), camera=(), microphone=()');
+  // The microphone is this site's own to ask for (Voices recordings on
+  // /geo/record, Mission Control's voice notes); `microphone=()` refused
+  // it to every page before the browser could even ask the person.
+  response.headers.set('Permissions-Policy', 'geolocation=(self), camera=(), microphone=(self)');
 
   return response;
 }

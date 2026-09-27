@@ -25,6 +25,7 @@ import { createHash } from 'crypto';
 import prisma from '@/app/lib/geo/server/db';
 import { LANGUAGES, languageByCode } from '@/app/lib/geo/languages';
 import { samplesFor } from '@/app/lib/geo/server/samples';
+import { completeRecordedVoices, recordedClip } from '@/app/lib/geo/server/recordings';
 
 export const VOICE_MODEL = 'eleven_v3';
 const API = 'https://api.elevenlabs.io';
@@ -109,19 +110,27 @@ export async function charactersToday({ store = prisma, now = Date.now() } = {})
  * The voices a Voices round can use, as { code: [voice] }, for languages
  * that are on and only their voices that are on. Oldest first, so the
  * weighted pick for a seed does not move when an unrelated row changes.
+ * A recorded voice (a person, server/recordings.js) counts only while
+ * every current sentence of its language has an approved take, so a
+ * round it is dealt never asks for one it lacks.
  */
 export async function enabledVoices({ store = prisma } = {}) {
   const [languages, voices] = await Promise.all([
     store.geoVoiceLanguage.findMany({ where: { enabled: true }, select: { language: true } }),
     store.geoVoice.findMany({
       where: { enabled: true },
-      select: { id: true, language: true, voiceId: true, weight: true, delivery: true },
+      select: { id: true, language: true, kind: true, voiceId: true, weight: true, delivery: true },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     }),
   ]);
   const on = new Set(languages.map((row) => row.language));
+  const live = voices.filter((voice) => on.has(voice.language));
+  const complete = await completeRecordedVoices(live, { store });
   const out = {};
-  for (const voice of voices) if (on.has(voice.language)) (out[voice.language] ||= []).push(voice);
+  for (const voice of live) {
+    if (voice.kind === 'recorded' && !complete.has(voice.id)) continue;
+    (out[voice.language] ||= []).push(voice);
+  }
   return out;
 }
 
@@ -174,9 +183,16 @@ export async function languageVoices(code, { store = prisma } = {}) {
     store.geoScriptReport.groupBy({ by: ['voice'], where: { language: language.code, kind: 'voice', status: 'open' }, _count: { _all: true } }),
   ]);
   const keys = voices.map((voice) => sentences.map((text) => clipKey({ language: language.code, voiceId: voice.voiceId, delivery: voice.delivery, text })));
-  const all = keys.flat();
-  const stored = all.length ? await store.geoVoiceClip.findMany({ where: { key: { in: all } }, select: { key: true } }) : [];
+  const all = keys.filter((_, index) => voices[index].kind !== 'recorded').flat();
+  const recorded = voices.filter((voice) => voice.kind === 'recorded');
+  const [stored, takes] = await Promise.all([
+    all.length ? store.geoVoiceClip.findMany({ where: { key: { in: all } }, select: { key: true } }) : [],
+    recorded.length
+      ? store.geoVoiceRecording.findMany({ where: { language: language.code, status: 'approved', accountId: { in: recorded.map((voice) => voice.voiceId) } }, select: { accountId: true, text: true } })
+      : [],
+  ]);
   const have = new Set(stored.map((clip) => clip.key));
+  const approved = new Set(takes.map((take) => `${take.accountId}|${take.text}`));
   const reported = Object.fromEntries(reports.map((group) => [group.voice, group._count._all]));
   return {
     code: language.code,
@@ -188,6 +204,7 @@ export async function languageVoices(code, { store = prisma } = {}) {
     sentences,
     voices: voices.map((voice, index) => ({
       id: voice.id,
+      kind: voice.kind || 'elevenlabs',
       voiceId: voice.voiceId,
       name: voice.name,
       about: voice.about || '',
@@ -195,7 +212,7 @@ export async function languageVoices(code, { store = prisma } = {}) {
       enabled: voice.enabled,
       weight: voice.weight,
       delivery: voice.delivery,
-      made: keys[index].map((key) => have.has(key)),
+      made: voice.kind === 'recorded' ? sentences.map((text) => approved.has(`${voice.voiceId}|${text}`)) : keys[index].map((key) => have.has(key)),
       reports: reported[voice.id] || 0,
     })),
   };
@@ -446,6 +463,19 @@ async function makeClip({ key, language, voiceId, delivery, text }, { store = pr
   return audio;
 }
 
+/**
+ * One sentence in any voice, as { audio, mime }: an ElevenLabs voice's
+ * clip (made now if it has not been), or a person's approved take.
+ */
+export async function voiceClip({ kind = 'elevenlabs', language, voiceId, delivery, text }, options = {}) {
+  if (kind === 'recorded') {
+    const take = await recordedClip({ language, accountId: voiceId, text }, { store: options.store || prisma });
+    if (!take) throw new VoiceError('no_clip', 'This sentence has no approved recording yet');
+    return take;
+  }
+  return { audio: await clipAudio({ language, voiceId, delivery, text }, options), mime: 'audio/mpeg' };
+}
+
 /** Throw away a stored clip and make it again: v3 reads a sentence differently each time. */
 export async function remakeClip(clip, options = {}) {
   const store = options.store || prisma;
@@ -460,5 +490,5 @@ export async function adminClip({ voice: id, n }, { store = prisma } = {}) {
   const sentences = samplesFor(voice.language);
   const index = Math.floor(Number(n));
   if (!Number.isInteger(index) || index < 0 || index >= sentences.length) throw new VoiceError('no_clip', 'No such sentence');
-  return { language: voice.language, voiceId: voice.voiceId, delivery: voice.delivery, text: sentences[index] };
+  return { language: voice.language, kind: voice.kind || 'elevenlabs', voiceId: voice.voiceId, delivery: voice.delivery, text: sentences[index] };
 }

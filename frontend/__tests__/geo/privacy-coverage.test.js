@@ -36,6 +36,10 @@ const PERSONAL_DATA = {
   'GeoRating.rating': 'ratings',
   'GeoScriptReport.note': 'report a mistake',
   'GeoScriptReport.ipHash': 'IP hash on a Script report',
+  'GeoVoiceRecording.audio': 'voice recordings',
+  'GeoVoiceContributor.name': 'the name you are credited by',
+  'GeoVoiceContributor.consentAt': 'agreed to the recording terms',
+  'GeoVoiceSet.region': 'where you told us you learned the language',
 };
 
 describe('the privacy page covers Probably Earth', () => {
