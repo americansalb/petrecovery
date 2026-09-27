@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { waiverRefusal } from '@/app/lib/waiver';
 import { broadcast } from '@/app/lib/sse/missionStream';
 import { cellLabel, CLAIM_TTL_MS } from '@/app/lib/searchGrid';
 import { logEvent } from '@/lib/logging';
@@ -87,6 +88,13 @@ export async function PATCH(request, { params }) {
     const userId = session.user.id;
     const label = cellLabel(cell.row, cell.col);
     const staleBefore = new Date(Date.now() - CLAIM_TTL_MS);
+
+    // Claiming a block or marking it searched is going out to search, which
+    // takes the safety waiver (app/lib/waiver.js). Giving one back does not.
+    if (action !== 'release') {
+      const refusal = await waiverRefusal(userId, missionId);
+      if (refusal) return refusal;
+    }
 
     if (action === 'claim') {
       // One block per person: walking two blocks at once is walking

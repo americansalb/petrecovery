@@ -213,6 +213,10 @@ function MissionShellContent() {
   const [reunitedError, setReunitedError] = useState(null);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [showFlyerPicker, setShowFlyerPicker] = useState(false);
+  // The safety waiver is asked for at the first search action, not when the
+  // map opens: the action waits here while the person reads and signs.
+  const [waitingOnWaiver, setWaitingOnWaiver] = useState(null);
+  const [waiverSigned, setWaiverSigned] = useState(false);
 
   const isCommand = instrument === INSTRUMENTS.COMMAND;
 
@@ -425,6 +429,20 @@ function MissionShellContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMission]);
 
+  // ----- The safety waiver, at the first search action -----
+  // Starting a walk, claiming a block, marking one searched and joining the
+  // search take it (the routes refuse without it, app/lib/waiver.js). The
+  // pet's owner never needs it. `viewer` comes from /api/missions/[id].
+  const mustSign = Boolean(activeMission?.viewer) && !activeMission.viewer.waiverAccepted && !waiverSigned && !ms.isOwner;
+  const afterWaiver = (fn) => (...args) => {
+    if (mustSign) {
+      setWaitingOnWaiver(() => () => fn(...args));
+      return undefined;
+    }
+    return fn(...args);
+  };
+  const startLeg = afterWaiver(handleStartLeg);
+
   // ----- Assemble per-instrument props -----
   const activityItems = useMemo(
     () => buildActivityItems({ sightings, completedLegs: coverage.coverage?.completed || [] }),
@@ -460,11 +478,11 @@ function MissionShellContent() {
     hotWhen: ms.hotSighting ? timeAgoShort(ms.hotSighting.sightedAt || ms.hotSighting.createdAt, ms.now) : null,
     isStarting: leg.isStarting,
     isJoining,
-    onStartLeg: handleStartLeg,
+    onStartLeg: startLeg,
     onReportSighting: () => setShowSightingForm(true),
     onShare: () => handleShare(isArchived),
-    onHeadingThere: handleHeadingThere,
-    onJoin: handleJoinMission,
+    onHeadingThere: afterWaiver(handleHeadingThere),
+    onJoin: afterWaiver(handleJoinMission),
     onSeeCelebration: () => setCelebrationOpen(true),
   };
 
@@ -700,9 +718,9 @@ function MissionShellContent() {
           <CellActionSheet
             cell={selectedCell}
             myCell={gridBoard.myCell}
-            onClaim={handleClaimCell}
+            onClaim={afterWaiver(handleClaimCell)}
             onRelease={handleReleaseCell}
-            onMarkSearched={handleMarkCellSearched}
+            onMarkSearched={afterWaiver(handleMarkCellSearched)}
             onClose={() => { setSelectedCellId(null); gridBoard.clearActionError(); }}
             acting={gridBoard.acting}
             actionError={gridBoard.actionError}
@@ -756,7 +774,7 @@ function MissionShellContent() {
                 poisLoading={poisLoading}
                 missionId={activeMission.id}
                 showGpsHint={instrument === INSTRUMENTS.BRIDGE && !leg.isSearching && !isArchived}
-                onTrackAnyway={handleStartLeg}
+                onTrackAnyway={startLeg}
               />
             </div>
           </BottomSheet>
@@ -780,6 +798,23 @@ function MissionShellContent() {
       )}
 
       {/* Modals and overlays */}
+      {waitingOnWaiver && (
+        // Above the other overlays (z-700 to 800): it is what the person
+        // tapped waiting to happen.
+        <div className="relative z-[850]">
+          <WaiverModal
+            isOpen={true}
+            onClose={() => setWaitingOnWaiver(null)}
+            onAccepted={() => {
+              const run = waitingOnWaiver;
+              setWaiverSigned(true);
+              setWaitingOnWaiver(null);
+              run();
+            }}
+          />
+        </div>
+      )}
+
       {showSightingForm && (
         <SightingFormModal
           missionId={activeMission.id}
