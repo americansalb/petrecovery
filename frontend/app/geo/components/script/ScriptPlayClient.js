@@ -40,6 +40,7 @@ import {
 } from '../../lib/appleMapKit';
 import AppleScriptMap from './AppleScriptMap';
 import ScriptSample from './ScriptSample';
+import VoicePrompt from './VoicePrompt';
 import KeepThis from '../KeepThis';
 import SaveGameButton from '../SaveGameButton';
 import { useSavedGame } from '../../lib/savedGame';
@@ -288,7 +289,8 @@ function ScriptPlayGame({ params }) {
         setResult(data.result);
         setHistory((rows) => [
           ...rows,
-          { ...data.result, text: round.text, script: round.script },
+          // A Voices round never had its text: the guess brings it back.
+          { ...data.result, text: round.text ?? data.result.text, script: round.script ?? data.result.answer?.script },
         ]);
       } catch (failure) {
         setGuessError(playerMessage(failure, 'Could not score the guess'));
@@ -406,7 +408,7 @@ function ScriptPlayGame({ params }) {
         <div className="mx-auto max-w-4xl px-3 pb-4 pt-3 text-center sm:px-4">
           {loading ? (
             <p className="flex items-center justify-center gap-2 py-3 text-sand-500">
-              <Loader2 className="h-4 w-4 animate-spin" /> {saveReady ? 'Finding the text' : 'Loading your progress'}
+              <Loader2 className="h-4 w-4 animate-spin" /> {!saveReady ? 'Loading your progress' : config.voice ? 'Loading the round' : 'Finding the text'}
             </p>
           ) : error ? (
             <div className="py-2 text-sm">
@@ -422,7 +424,15 @@ function ScriptPlayGame({ params }) {
             </div>
           ) : round ? (
             <div key={roundIndex} className="wg-sentence-in">
-              <ScriptSample text={round.text} script={round.script} size={result ? 'sm' : 'lg'} />
+              {config.voice ? (
+                // Voices (beta): heard first, and the text shown with the answer.
+                <>
+                  <VoicePrompt token={round.token} clips={round.clips} compact={Boolean(result)} />
+                  {result?.text ? <ScriptSample text={result.text} script={result.answer?.script} size="sm" /> : null}
+                </>
+              ) : (
+                <ScriptSample text={round.text} script={round.script} size={result ? 'sm' : 'lg'} />
+              )}
             </div>
           ) : null}
         </div>
@@ -568,7 +578,7 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
         <details className="wg-clue-details">
           <summary>Recognize it next time</summary>
           <p className="mt-2 text-sm text-sand-600">{answer.scriptName} script · {answer.branch} · {answer.family}. About {answer.speakers} million speakers.</p>
-          <Tells answer={answer} text={round?.text} script={round?.script} />
+          <Tells answer={answer} text={round?.text ?? result.text} script={round?.script ?? answer.script} />
         </details>
         <ReportMistake key={round?.token || 'restored'} token={round?.token} answer={answer} guess={result.guess} />
       </div>

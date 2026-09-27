@@ -6194,3 +6194,32 @@ model GeoScriptReport {
   @@index([status, language, kind])
   @@index([ipHash, language, kind, createdAt])
 }
+
+// Voices (beta, docs/GEO.md "Voices"): which ElevenLabs voice speaks a
+// language, and whether that language is in the beta. Set on /geo/admin;
+// a language is only drawn for a Voices round once an admin has heard
+// its voice and switched it on.
+model GeoVoiceLanguage {
+  language  String   @id
+  voiceId   String
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+// Every clip ElevenLabs has made, kept so each sentence is paid for once.
+// `key` hashes the model, the voice and the text, so changing a
+// language's voice makes new clips rather than reusing the old one.
+model GeoVoiceClip {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  language  String
+  voiceId   String
+  model     String
+  text      String
+  chars     Int
+  audio     Bytes
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([language])
+}

@@ -3,8 +3,8 @@
 /**
  * /geo/admin: the backend.
  *
- * Numbers at the top, then what players reported as wrong, then
- * accounts, then rooms. It
+ * Numbers at the top, then what players reported as wrong, then the
+ * Voices (beta) settings, then accounts, then rooms. It
  * is a working screen rather than a dashboard: everything on it is
  * either a figure somebody acts on or a control that changes something.
  *
@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Card from './ui/Card';
+import VoicesAdmin from './VoicesAdmin';
 import { Ban, Check, Flag, Loader2, RefreshCw, Search, ShieldAlert, Users } from 'lucide-react';
 import { ROLES, TIERS } from '@/app/lib/geo/server/roles';
 
@@ -220,6 +221,8 @@ export default function AdminClient() {
           </table>
         </Card>
       </section>
+
+      <VoicesAdmin />
 
       <section className="mt-10" aria-label="Accounts">
         <div className="flex flex-wrap items-center justify-between gap-3">

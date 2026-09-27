@@ -128,6 +128,10 @@ export const GAME_RATE_LIMITS = {
   // "Something wrong?" on the answer screen. A person reports a round
   // or two, not dozens; repeats are also stored once (server/reports.js).
   '/api/geo/script/report': { windowMs: 60000, maxRequests: 10 },
+  // Voices (beta): a round plays two to six clips, and a replay asks for
+  // them again (the browser usually has them). Every clip is reached
+  // through a sealed round, so this slows a scraper, not a bill.
+  '/api/geo/voice/clip': { windowMs: 60000, maxRequests: 240 },
   // A round is a burst of free metadata probes on the server; one
   // person plays a handful a minute, and a retry after "no imagery"
   // must not lock them out.

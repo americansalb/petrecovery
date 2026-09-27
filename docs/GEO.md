@@ -577,6 +577,29 @@ once the fix ships. The founder asked for it after questioning French on
 Haiti's map: one person disagreeing is an opinion, the same complaint
 from many people is a bug (`app/lib/geo/server/reports.js`).
 
+**Voices (beta)** (2026-09-27). The same round, heard instead of read:
+`/geo/script/play?voice=1`. The founder picks an ElevenLabs voice for a
+language on `/geo/admin` (from the account's own list, or a pasted voice
+id), presses Listen to hear the language's first sentence in it, and
+switches it on; a Voices game draws only from the languages that are on,
+starting with the ones he knows v3 speaks well. The round sends the
+browser its sealed token and how many sentences it has, and nothing
+else: no text and no script id, because for Tamil or Thai the alphabet
+is the answer. Each sentence is its own clip, fetched through the token
+from `GET /api/geo/voice/clip?t=&n=`, so a player can only ever hear a
+round the server dealt. The first request for a sentence makes it with
+ElevenLabs (`eleven_v3`, 64 kbps MP3) and stores it in `GeoVoiceClip`,
+keyed by model, voice and text; every later round plays the stored copy,
+so each sentence is paid for once per voice, and changing a voice starts
+that language's audio over. Only corpus sentences are ever sent, never
+anything a player typed, and `GEO_VOICE_DAILY_CHARACTERS` (20,000) caps a
+day's new audio on top of that. The key is `ELEVENLABS_API_KEY`, server
+only; without it stored audio still plays and new sentences fail with a
+plain message. The guess is scored by the Script endpoint as usual, and
+its result now carries the text, so the reveal shows what was said
+(`app/lib/geo/server/voice.js`, `app/geo/components/script/VoicePrompt.js`,
+`app/geo/components/VoicesAdmin.js`).
+
 **One curation rule matters more than the size of the pool: strip proper
 nouns.** A sentence containing a city name answers itself, and so does a
 digit or a sentence that names its own language. This is checked rather
