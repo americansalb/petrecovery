@@ -137,7 +137,7 @@ function PetShell({ children }) {
 
           {activeCase && (
             <Link
-              href={`/mission-control?mission=${activeCase.caseNumber}`}
+              href={`/cases/${encodeURIComponent(activeCase.caseNumber)}`}
               className="flex items-center gap-2 text-care-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2 hover:bg-red-100 transition-colors"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {pet?.name} is missing
@@ -199,7 +199,7 @@ function PetShell({ children }) {
         <div className="lg:hidden px-4 sm:px-6 pt-5 bg-care-surface border-b border-care-line">
           <PetIdentity pet={pet} />
           {activeCase && (
-            <Link href={`/mission-control?mission=${activeCase.caseNumber}`} className="inline-flex items-center gap-1.5 mt-3 text-care-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
+            <Link href={`/cases/${encodeURIComponent(activeCase.caseNumber)}`} className="inline-flex items-center gap-1.5 mt-3 text-care-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2.5 py-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Missing
             </Link>
           )}

@@ -2,24 +2,29 @@
 
 /**
  * A pet's public page, the one most people reach first from a link in a
- * group chat. From the top it answers: which pet, where and when it was
- * last seen, and what to do now (report a sighting, call the owner,
- * share). Below that come the map, sightings and updates, other ways to
- * help, and the flyer kit when the report has one.
+ * group chat, and the one place where everyone helping with the pet meets.
+ * From the top it answers: which pet, where and when it was last seen, and
+ * what to do now (report a sighting, call the owner, share). Below that,
+ * "How you can help" gathers the rest: search on the map (Mission Control,
+ * one tap away), the Rescue Force's search party and needs for the pet, and
+ * what anyone can do. Then the map, what happened, the flyer kit when the
+ * report has one, and the force's other pets.
  *
  * The link preview is built by the server page (page.js). This fetches
- * the public case, which never includes the owner's email. Wording comes
- * from app/lib/caseLabels.js, shared with the Lost & Found board.
+ * the public case, which never includes the owner's email, and the force's
+ * part (/api/public/missions/[caseNumber]/help, app/lib/petRoom.js).
+ * Wording comes from app/lib/caseLabels.js, shared with the Lost & Found
+ * board.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
-  ChevronLeft, MapPin, Clock, Eye, Phone, Share2, Printer, Building2, Users,
-  HeartHandshake, Radar, PawPrint, ExternalLink, Megaphone,
+  ChevronLeft, MapPin, Clock, Eye, Phone, Share2, Printer, Building2,
+  HeartHandshake, PawPrint, ExternalLink, Megaphone,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui';
@@ -33,9 +38,9 @@ import {
 import { PIN_ONLY_LABEL, looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { speciesLabel } from '@/app/lib/species';
 import { getBaseUrl } from '@/app/lib/config';
-import useInstrument, { INSTRUMENTS } from '@/app/hooks/useInstrument';
 import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
-import { Activity, RecoveryKitPanel, ShareSheet, SightingSheet, StickyActions, WaysToHelp } from './components';
+import JoinForceSheet from '@/app/components/help/JoinForceSheet';
+import { Activity, HowToHelp, OtherPets, RecoveryKitPanel, ShareSheet, SightingSheet, StickyActions } from './components';
 
 const LastSeenMap = dynamic(() => import('./components/LastSeenMap'), {
   ssr: false,
@@ -51,6 +56,22 @@ const PRIMARY_LINK =
   'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-flash-400 px-6 py-3 text-base font-semibold text-midnight-900 shadow-sm transition hover:bg-flash-500';
 const ICON_BUTTON =
   'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-midnight-100 text-midnight-700 transition hover:bg-midnight-200';
+
+// The force's part of the page when there is none, or it did not load.
+const NO_ROOM = { force: null, member: false, needs: [], done: [], party: null, searchingNow: 0, others: [] };
+
+/** A computer screen: the map sits beside the page instead of in it. */
+function useWide() {
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return wide;
+}
 
 /* ------------------------------- Page states ------------------------------ */
 
@@ -132,15 +153,17 @@ function HotSighting({ s }) {
 export default function CasePageClient() {
   const { caseNumber } = useParams();
   const { data: session, status: authStatus } = useSession();
-  const { instrument } = useInstrument();
+  const wide = useWide();
 
   const [c, setC] = useState(null);
   const [state, setState] = useState('loading'); // loading | ready | missing | busy | failed
   const [attempt, setAttempt] = useState(0);
-  const [sheet, setSheet] = useState(null); // 'share' | 'sighting' | 'home'
+  const [room, setRoom] = useState(null); // the force's part; null until it loads
+  const [sheet, setSheet] = useState(null); // 'share' | 'sighting' | 'home' | 'join'
   const [kitReady, setKitReady] = useState(false);
   const [savingHome, setSavingHome] = useState(false);
   const [homeError, setHomeError] = useState(null);
+  const afterJoin = useRef(null);
 
   useEffect(() => {
     if (!caseNumber) return undefined;
@@ -165,12 +188,41 @@ export default function CasePageClient() {
     };
   }, [caseNumber, attempt]);
 
+  // The force looking for the pet, its needs for the pet and the rest
+  // (app/lib/petRoom.js). Again when the viewer signs in, and after they act.
+  const loadRoom = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/public/missions/${encodeURIComponent(caseNumber)}/help`, { cache: 'no-store' });
+      setRoom(res.ok ? await res.json() : NO_ROOM);
+    } catch {
+      setRoom((r) => r || NO_ROOM);
+    }
+  }, [caseNumber]);
+
+  useEffect(() => {
+    if (caseNumber && authStatus !== 'loading') loadRoom();
+  }, [caseNumber, authStatus, attempt, loadRoom]);
+
   const retry = () => {
     setState('loading');
     setAttempt((n) => n + 1);
   };
   const closeSheet = useCallback(() => setSheet(null), []);
   const onKitChange = useCallback((empty) => setKitReady(!empty), []);
+
+  // Someone who is not in the force taps a need: they join first, then
+  // what they tapped goes through.
+  const openJoin = useCallback((then) => {
+    afterJoin.current = then || null;
+    setSheet('join');
+  }, []);
+  const onJoined = useCallback(async () => {
+    setSheet(null);
+    await loadRoom();
+    const then = afterJoin.current;
+    afterJoin.current = null;
+    if (then) then();
+  }, [loadRoom]);
 
   if (state === 'loading') return <Loading />;
   if (state === 'missing') {
@@ -237,14 +289,17 @@ export default function CasePageClient() {
     },
   ].filter(Boolean);
 
+  const postedBy = contactName ? `Posted by ${contactName}, ${isFound ? `who found ${petName ? petName : `this ${species}`}` : 'the owner'}` : '';
+
   const backHref = isFound ? '/lost-and-found?tab=found' : status.key === 'home' ? '/lost-and-found?tab=reunited' : '/lost-and-found';
   const hot = open && sightings[0] && Date.now() - new Date(sightings[0].sightedAt).getTime() <= HOT_SIGHTING_MS ? sightings[0] : null;
 
   /* ---------------------------------- Links ---------------------------------- */
 
-  const missionHref = `/mission-control?mission=${encodeURIComponent(c.id)}`;
+  // Mission Control, the search map. "Search on the map" is the way in; by
+  // case number, so its way back out lands on this page's own address.
+  const missionHref = `/mission-control?mission=${encodeURIComponent(caseRef)}`;
   const reportSightingHref = signedIn ? `${missionHref}&action=sighting` : `/join/${encodeURIComponent(c.id)}`;
-  const joinHref = signedIn ? missionHref : `/join/${encodeURIComponent(c.id)}`;
   const directionsHref = hasCoords ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null;
   const sheltersHref = !pinOnly
     ? `/shelters?near=${encodeURIComponent(place)}`
@@ -297,14 +352,14 @@ export default function CasePageClient() {
     }
   };
 
-  /* ------------------------------ Other ways to help ------------------------------ */
+  /* ------------------------------ What anyone can do ------------------------------ */
 
   const flyerItem = kitReady
     ? { key: 'flyer', icon: Printer, label: 'Print a flyer', sub: `Put it up near where ${name} was last seen.`, href: '#share-kit' }
     : signedIn
       ? { key: 'flyer', icon: Printer, label: 'Print a flyer', sub: `Put it up near where ${name} was last seen.`, href: `${missionHref}&tab=flyer` }
       : null;
-  const helpItems =
+  const ways =
     status.key === 'lost'
       ? [
           { key: 'share', icon: Share2, label: 'Share this page', sub: 'Post it in local groups and neighborhood apps.', onClick: share },
@@ -316,15 +371,17 @@ export default function CasePageClient() {
             href: sheltersHref,
           },
           flyerItem,
-          {
-            key: 'join',
-            icon: Users,
-            label: 'Join the search',
-            sub: signedIn ? 'Open the search in Mission Control.' : 'Sign up to search the area. No account needed.',
-            href: joinHref,
-          },
         ].filter(Boolean)
       : [];
+
+  // Where the story starts and, for a pet back home, ends ("What happened").
+  const startedAt = c.lastSeenAt || c.createdAt;
+  const marks = [
+    isFound
+      ? { kind: 'found', text: `${Name} was found${nearText}`, at: startedAt }
+      : { kind: 'lost', text: `${Name} went missing${nearText}`, at: startedAt },
+    status.key === 'home' && c.resolvedAt && { kind: 'home', text: `${Name} is back home`, at: c.resolvedAt },
+  ].filter(Boolean);
 
   /* ---------------------------------- Actions ---------------------------------- */
 
@@ -405,16 +462,89 @@ export default function CasePageClient() {
 
   /* ----------------------------------- View ----------------------------------- */
 
+  const force = room?.force || null;
+  const mapSection = open ? (
+    // Only while the search is open. Once the pet is home the exact spot
+    // (often the family's own street) helps nobody, and the town in the
+    // facts above says enough.
+    <section aria-labelledby="map-heading" className="overflow-hidden rounded-2xl bg-white ring-1 ring-midnight-200">
+      <div className="px-5 pb-4 pt-5 sm:px-6">
+        <h2 id="map-heading" className="text-lg font-semibold text-midnight-900">
+          {isFound ? `Where ${name} was found` : sightings.length ? `Where ${name} has been` : `Where ${name} was last seen`}
+        </h2>
+        <p className="mt-1 break-words text-midnight-500">
+          {c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress)
+            ? c.lastSeenAddress
+            : hasCoords
+              ? 'The spot pinned on the map'
+              : 'The report does not give a location.'}
+        </p>
+      </div>
+      {hasCoords && (
+        <>
+          {/* isolate keeps Leaflet's own z-indexes (400 to 1000) inside the
+              map, so its zoom buttons never paint over this page's dialogs. */}
+          <div className="relative isolate h-64 sm:h-80">
+            <LastSeenMap
+              lat={lat}
+              lng={lng}
+              address={c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress) ? c.lastSeenAddress : ''}
+              sightings={sightings}
+              found={isFound}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-midnight-100 px-5 py-2 text-sm sm:px-6">
+            {/* Same colours as the pins in LastSeenMap.js */}
+            <span className="inline-flex items-center gap-1.5 text-midnight-600">
+              <span className={`h-2.5 w-2.5 rounded-full ${isFound ? PET_BG.found : PET_BG.lost}`} aria-hidden="true" />
+              {isFound ? 'Found here' : 'Last seen'}
+            </span>
+            {sightings.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-midnight-600">
+                <span className={`h-2.5 w-2.5 rounded-full ${PET_BG.seen}`} aria-hidden="true" />
+                Sighting
+              </span>
+            )}
+            <a
+              href={directionsHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto inline-flex items-center gap-1 font-medium text-midnight-700 hover:text-midnight-900"
+            >
+              Open in Google Maps
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          </div>
+        </>
+      )}
+    </section>
+  ) : null;
+  const others = <OtherPets force={force} pets={room?.others} />;
+
   return (
     <div className="min-h-screen bg-midnight-50">
       <header className="border-b border-midnight-200 bg-white">
-        <div className="mx-auto max-w-5xl px-4 pb-8 pt-3 sm:pt-5">
-          <Link href={backHref} className="-ml-1 inline-flex items-center gap-1 px-1 text-sm font-medium text-midnight-500 hover:text-midnight-900">
-            <ChevronLeft size={16} aria-hidden="true" />
-            Lost &amp; Found
-          </Link>
+        <div className="mx-auto max-w-5xl px-4 pb-8 pt-1 sm:pt-3">
+          {/* Back to the force looking for the pet, or to Lost & Found. Held
+              empty until the page knows which, so the words never swap. */}
+          {!room ? (
+            <span className="block h-11" aria-hidden="true" />
+          ) : force ? (
+            <Link
+              href={`/rescue-forces/${force.id}`}
+              className="-ml-1 inline-flex max-w-full items-center gap-1 px-1 text-sm font-medium text-midnight-500 hover:text-midnight-900"
+            >
+              <ChevronLeft size={16} className="shrink-0" aria-hidden="true" />
+              <span className="truncate">{force.name}</span>
+            </Link>
+          ) : (
+            <Link href={backHref} className="-ml-1 inline-flex items-center gap-1 px-1 text-sm font-medium text-midnight-500 hover:text-midnight-900">
+              <ChevronLeft size={16} aria-hidden="true" />
+              Lost &amp; Found
+            </Link>
+          )}
 
-          <div className="mt-2 grid gap-6 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-10">
+          <div className="mt-1 grid gap-6 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:gap-10">
             <Photo c={c} alt={`Photo of ${title}`} />
 
             <div className="min-w-0">
@@ -433,6 +563,7 @@ export default function CasePageClient() {
                   </li>
                 ))}
               </ul>
+              {postedBy && <p className="mt-3 text-sm text-midnight-500">{postedBy}</p>}
 
               <div id={ACTIONS_ID} className="mt-6">
                 {actions}
@@ -446,116 +577,64 @@ export default function CasePageClient() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-6 px-4 pb-40 pt-6 lg:pb-12">
-        {hot && <HotSighting s={hot} />}
+      <main className="mx-auto max-w-5xl px-4 pb-40 pt-6 lg:pb-12">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start">
+          <div className="min-w-0 space-y-6">
+            {hot && <HotSighting s={hot} />}
 
-        {isOwner && open && (
-          <section className="flex flex-col gap-4 rounded-2xl bg-midnight-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-semibold">This is your report</p>
-              <p className="text-sm text-midnight-300">Manage the search from Mission Control.</p>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button href={missionHref} leftIcon={Radar}>
-                {instrument === INSTRUMENTS.COMMAND ? 'Open Command Center' : 'Open Mission Control'}
-              </Button>
-              {/* A plain button: Button's outline variant is dark text for a
-                  light page, and its classes are joined, not merged, so they
-                  can't be overridden for this dark panel. */}
-              <button
-                type="button"
-                onClick={() => setSheet('home')}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/30 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-white/60 hover:bg-white/10"
-              >
-                <HeartHandshake className="h-4 w-4" aria-hidden="true" />
-                Mark as reunited
-              </button>
-            </div>
-          </section>
-        )}
-
-        <div className={`grid gap-6 ${helpItems.length ? 'lg:grid-cols-3' : ''}`}>
-          <div className={`min-w-0 space-y-6 ${helpItems.length ? 'lg:col-span-2' : ''}`}>
-            {/* Only while the search is open. Once the pet is home the exact
-                spot (often the family's own street) helps nobody, and the
-                town in the facts above says enough. */}
-            {open && (
-            <section aria-labelledby="map-heading" className="overflow-hidden rounded-2xl bg-white ring-1 ring-midnight-200">
-              <div className="px-5 pb-4 pt-5 sm:px-6">
-                <h2 id="map-heading" className="text-lg font-semibold text-midnight-900">
-                  {isFound ? `Where ${name} was found` : `Where ${name} was last seen`}
-                </h2>
-                <p className="mt-1 break-words text-midnight-500">
-                  {c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress)
-                    ? c.lastSeenAddress
-                    : hasCoords
-                      ? 'The spot pinned on the map'
-                      : 'The report does not give a location.'}
-                </p>
-              </div>
-              {hasCoords && (
-                <>
-                  {/* isolate keeps Leaflet's own z-indexes (400 to 1000) inside the
-                      map, so its zoom buttons never paint over this page's dialogs. */}
-                  <div className="relative isolate h-64 sm:h-80">
-                    <LastSeenMap
-                      lat={lat}
-                      lng={lng}
-                      address={c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress) ? c.lastSeenAddress : ''}
-                      sightings={sightings}
-                      found={isFound}
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-midnight-100 px-5 py-2 text-sm sm:px-6">
-                    {/* Same colours as the pins in LastSeenMap.js */}
-                    <span className="inline-flex items-center gap-1.5 text-midnight-600">
-                      <span className={`h-2.5 w-2.5 rounded-full ${isFound ? PET_BG.found : PET_BG.lost}`} aria-hidden="true" />
-                      {isFound ? 'Found here' : 'Last seen'}
-                    </span>
-                    {sightings.length > 0 && (
-                      <span className="inline-flex items-center gap-1.5 text-midnight-600">
-                        <span className={`h-2.5 w-2.5 rounded-full ${PET_BG.seen}`} aria-hidden="true" />
-                        Sighting
-                      </span>
-                    )}
-                    <span className="ml-auto flex flex-wrap items-center gap-x-4">
-                      {signedIn && open && (
-                        <Link href={missionHref} className="inline-flex items-center font-medium text-midnight-700 hover:text-midnight-900">
-                          Open the search map
-                        </Link>
-                      )}
-                      <a
-                        href={directionsHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-medium text-midnight-700 hover:text-midnight-900"
-                      >
-                        Open in Google Maps
-                        <ExternalLink size={14} aria-hidden="true" />
-                      </a>
-                    </span>
-                  </div>
-                </>
-              )}
-            </section>
+            {isOwner && open && (
+              <section className="flex flex-col gap-4 rounded-2xl bg-midnight-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold">This is your report</p>
+                  <p className="text-sm text-midnight-300">When {name} is home, mark it here.</p>
+                </div>
+                {/* A plain button: Button's outline variant is dark text for a
+                    light page, and its classes are joined, not merged, so they
+                    can't be overridden for this dark panel. */}
+                <button
+                  type="button"
+                  onClick={() => setSheet('home')}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/30 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-white/60 hover:bg-white/10"
+                >
+                  <HeartHandshake className="h-4 w-4" aria-hidden="true" />
+                  Mark as reunited
+                </button>
+              </section>
             )}
+
+            {open && (
+              <HowToHelp
+                name={name}
+                lost={status.key === 'lost'}
+                room={room}
+                searchHref={missionHref}
+                ways={ways}
+                onJoin={openJoin}
+                onChanged={loadRoom}
+              />
+            )}
+
+            {!wide && mapSection}
 
             <Activity
               sightings={sightings}
               updates={updates}
-              reportedAt={c.createdAt}
+              done={room?.done || []}
+              marks={marks}
               emptyText={open ? 'No sightings reported yet.' : 'No sightings were reported.'}
             />
 
             {open && <RecoveryKitPanel caseNumber={caseRef} petName={petName || title} onEmptyChange={onKitChange} />}
 
-            {!helpItems.length && <p className="text-center text-xs text-midnight-400">Case {caseRef}</p>}
+            {!wide && others}
+
+            <p className="text-center text-xs text-midnight-400">Case {caseRef}</p>
           </div>
 
-          {helpItems.length > 0 && (
-            <aside className="min-w-0 space-y-4">
-              <WaysToHelp items={helpItems} />
-              <p className="text-center text-xs text-midnight-400">Case {caseRef}</p>
+          {wide && (mapSection || room?.others?.length > 0) && (
+            <aside className="min-w-0 space-y-6">
+              {mapSection}
+              {others}
             </aside>
           )}
         </div>
@@ -600,6 +679,15 @@ export default function CasePageClient() {
       />
       {sheet === 'home' && (
         <MarkReunitedModal mission={c} onClose={closeSheet} onConfirm={confirmHome} isSaving={savingHome} error={homeError} />
+      )}
+      {force && (
+        <JoinForceSheet
+          open={sheet === 'join'}
+          onClose={closeSheet}
+          force={force}
+          signedIn={signedIn}
+          onJoined={onJoined}
+        />
       )}
     </div>
   );

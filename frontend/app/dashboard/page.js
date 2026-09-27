@@ -200,7 +200,7 @@ export default function DashboardPage() {
         {missingPets.map((p) => (
           <Link
             key={p.id}
-            href={`/mission-control?mission=${p.missing.caseId}`}
+            href={`/cases/${encodeURIComponent(p.missing.caseNumber)}`}
             /* On a phone the headline needs the full width, so the action
                drops to its own full-width row instead of squeezing the
                sentence into three lines beside it. */
@@ -342,7 +342,7 @@ export default function DashboardPage() {
                   <Label>Searches you joined</Label>
                   <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
                     {helping.slice(0, 4).map((m) => (
-                      <Link key={m.id} href={`/mission-control?mission=${m.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
+                      <Link key={m.id} href={`/cases/${encodeURIComponent(m.missionNumber || m.id)}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
                         <p className="flex-1 min-w-0 text-sm text-midnight-700 truncate">
                           <span className="font-bold text-midnight-900">{m.petName}</span>
                           {m.mySquad ? ` · with ${m.mySquad}` : ''}
@@ -366,7 +366,7 @@ export default function DashboardPage() {
                   </Label>
                   <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
                     {forcePets.slice(0, 4).map((p) => (
-                      <Link key={p.id} href={`/mission-control?mission=${encodeURIComponent(p.caseNumber)}`} className="flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition">
+                      <Link key={p.id} href={`/cases/${encodeURIComponent(p.caseNumber)}`} className="flex items-center gap-3.5 px-4 py-3 hover:bg-slate-50 transition">
                         {p.petPhotoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.petPhotoUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
@@ -406,7 +406,7 @@ export default function DashboardPage() {
                   <Label>Near you</Label>
                   <div className="rounded-xl border border-midnight-100 bg-white divide-y divide-midnight-100 overflow-hidden">
                     {urgentNearby.slice(0, 3).map((a) => (
-                      <Link key={a.id} href={`/mission-control?mission=${a.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
+                      <Link key={a.id} href={`/cases/${encodeURIComponent(a.caseNumber || a.id)}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-midnight-900 truncate">{a.petName}</p>
                           <p className="text-[13px] text-midnight-400">{a.distance} · missing {elapsed(a.hoursMissing)}</p>

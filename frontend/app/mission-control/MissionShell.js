@@ -622,7 +622,14 @@ function MissionShellContent() {
   }
 
   if (showWaiverModal) {
-    return <WaiverModal isOpen={true} onAccepted={() => window.location.reload()} />;
+    // Closing it goes back to the pet's page, where the way in was.
+    return (
+      <WaiverModal
+        isOpen={true}
+        onAccepted={() => window.location.reload()}
+        onClose={() => router.push(missionId ? `/cases/${encodeURIComponent(missionId)}` : '/dashboard')}
+      />
+    );
   }
 
   if (!activeMission) {

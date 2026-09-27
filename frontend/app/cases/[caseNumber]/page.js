@@ -7,6 +7,7 @@
 
 import prisma from '@/app/lib/prisma';
 import {
+  missionWhere,
   missionShareSelect,
   missionShareMetadata,
   genericShareMetadata,
@@ -17,8 +18,9 @@ export async function generateMetadata({ params }) {
   const { caseNumber } = params;
 
   try {
-    const caseData = await prisma.case.findUnique({
-      where: { caseNumber },
+    // A case number, or a case id (older links and push alerts use ids).
+    const caseData = await prisma.case.findFirst({
+      where: missionWhere(caseNumber),
       select: missionShareSelect,
     });
 
@@ -30,7 +32,7 @@ export async function generateMetadata({ params }) {
     }
 
     return missionShareMetadata(caseData, {
-      canonicalPath: `/cases/${caseNumber}`,
+      canonicalPath: `/cases/${caseData.caseNumber}`,
       // The canonical case page is the one mission URL that should rank,
       // and only while the search is live
       index: caseData.status === 'ACTIVE' || caseData.status === 'IN_PROGRESS',
