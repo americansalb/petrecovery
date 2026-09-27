@@ -1,7 +1,8 @@
 /**
- * A Rescue Force's page, Discussion tab: announcements from its leaders and
- * posts from its members, with likes and comments (./UpdatesClient.js, the
- * force's /announcements and /posts APIs). It was the Updates page.
+ * A Rescue Force's page, Discussion tab: the force's posts, laid out like a
+ * group (./DiscussionClient.js): what leaders pinned, search parties coming
+ * up, every post newest first, and Topics (where to start, the pets, the
+ * kinds of post, with counts from app/lib/forceDiscussion.js).
  *
  * Members only: posts can hold owners' addresses and search plans. Anyone
  * else sees what the tab is for and the way in (./LockedDiscussion.js).
@@ -9,10 +10,13 @@
  */
 
 import { notFound } from 'next/navigation';
+import prisma from '@/app/lib/prisma';
 import { getForceViewer } from '@/app/lib/forceViewer';
+import { getForcePage } from '@/app/lib/forcePage';
+import { discussionSummary } from '@/app/lib/forceDiscussion';
 import { FORCE_COMMAND_ROLES } from '@/app/lib/forceRoles';
 import { forceMetadata } from '../forceMetadata';
-import UpdatesClient from './UpdatesClient';
+import DiscussionClient from './DiscussionClient';
 import LockedDiscussion from './LockedDiscussion';
 
 export const dynamic = 'force-dynamic';
@@ -28,14 +32,21 @@ export default async function ForceDiscussionPage({ params }) {
   if (!viewer.force) notFound();
   if (!viewer.membership && !viewer.isAdmin) return <LockedDiscussion />;
 
+  const data = await getForcePage(id);
+  const live = (data?.pets || []).filter((p) => p.status === 'lost' || p.status === 'found');
+  const [summary, me] = await Promise.all([
+    discussionSummary(id, live),
+    prisma.user.findUnique({ where: { id: viewer.userId }, select: { firstName: true } }),
+  ]);
+
   return (
-    <div className="mx-auto max-w-3xl px-4 pb-24 pt-5 lg:pb-10">
-      <UpdatesClient
-        forceId={id}
-        userId={viewer.userId}
-        canPost={Boolean(viewer.membership)}
-        canAnnounce={FORCE_COMMAND_ROLES.includes(viewer.membership?.role)}
-      />
-    </div>
+    <DiscussionClient
+      forceId={id}
+      canPost={Boolean(viewer.membership)}
+      canAnnounce={FORCE_COMMAND_ROLES.includes(viewer.membership?.role)}
+      myName={(me?.firstName || '').trim()}
+      pets={live.map((p) => ({ id: p.id, name: p.name }))}
+      summary={summary}
+    />
   );
 }

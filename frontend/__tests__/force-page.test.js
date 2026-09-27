@@ -18,6 +18,7 @@ jest.mock('@/app/lib/prisma', () => ({
     case: { findMany: jest.fn() },
     squadTask: { groupBy: jest.fn(), findMany: jest.fn() },
     squadActivity: { findMany: jest.fn() },
+    user: { findUnique: jest.fn() },
   },
 }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
@@ -27,7 +28,8 @@ jest.mock('@/app/lib/forceViewer', () => ({ __esModule: true, getForceViewer: je
 jest.mock('next/navigation', () => ({ __esModule: true, notFound: jest.fn(() => { throw new Error('notFound'); }) }));
 // The tabs' client views are not under test here, only what the server hands them.
 jest.mock('@/app/rescue-forces/[id]/(tabs)/needs/NeedsTab', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/app/rescue-forces/[id]/(tabs)/discussion/UpdatesClient', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/app/rescue-forces/[id]/(tabs)/discussion/DiscussionClient', () => ({ __esModule: true, default: () => null }));
+jest.mock('@/app/lib/forceDiscussion', () => ({ __esModule: true, discussionSummary: jest.fn(async () => ({ topics: {}, pets: [] })) }));
 jest.mock('@/app/rescue-forces/[id]/(tabs)/discussion/LockedDiscussion', () => ({ __esModule: true, default: () => null }));
 
 import fs from 'fs';
@@ -41,7 +43,7 @@ import { clearForceAreaCache } from '@/app/lib/forceDirectory';
 import ForceNeedsPage from '@/app/rescue-forces/[id]/(tabs)/needs/page';
 import ForceDiscussionPage from '@/app/rescue-forces/[id]/(tabs)/discussion/page';
 import LockedDiscussion from '@/app/rescue-forces/[id]/(tabs)/discussion/LockedDiscussion';
-import UpdatesClient from '@/app/rescue-forces/[id]/(tabs)/discussion/UpdatesClient';
+import DiscussionClient from '@/app/rescue-forces/[id]/(tabs)/discussion/DiscussionClient';
 
 const HOUR = 3600e3;
 const FORCE = {
@@ -230,10 +232,14 @@ describe('the tabs for someone who is not a member', () => {
     getForceViewer.mockResolvedValue({ force: FORCE, userId: 'u-x', membership: null, isAdmin: false });
     expect((await ForceDiscussionPage({ params })).type).toBe(LockedDiscussion);
 
+    answer({ userId: 'u-mike' });
+    prisma.user.findUnique.mockResolvedValue({ firstName: 'Mike' });
     getForceViewer.mockResolvedValue({ force: FORCE, userId: 'u-mike', membership: { role: 'MEMBER' }, isAdmin: false });
     const page = await ForceDiscussionPage({ params: Promise.resolve({ id: 'force-austin' }) });
-    expect(page.props.children.type).toBe(UpdatesClient);
-    expect(page.props.children.props).toMatchObject({ canPost: true, canAnnounce: false });
+    expect(page.type).toBe(DiscussionClient);
+    expect(page.props).toMatchObject({ canPost: true, canAnnounce: false, myName: 'Mike' });
+    // The composer offers the pets still being looked for, not the reunited ones.
+    expect(page.props.pets.map((p) => p.name)).toEqual(['Max', 'Found dog', 'Luna']);
   });
 });
 
