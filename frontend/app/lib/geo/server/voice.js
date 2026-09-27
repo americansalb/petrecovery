@@ -309,7 +309,8 @@ async function elevenLabs(path, { method = 'GET', body, accept = 'application/js
   return response;
 }
 
-const aboutOf = (...parts) => parts.map((part) => clean(part, 40)).filter(Boolean).join(', ').slice(0, 120);
+// ElevenLabs writes some labels as identifiers ("middle_aged").
+const aboutOf = (...parts) => parts.map((part) => clean(part, 40).replace(/_/g, ' ')).filter(Boolean).join(', ').slice(0, 120);
 
 /**
  * The voices in the ElevenLabs account ("My Voices" and ElevenLabs' own),

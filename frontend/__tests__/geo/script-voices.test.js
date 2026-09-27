@@ -423,12 +423,16 @@ describe('finding voices on ElevenLabs', () => {
       voices: [
         { voice_id: GEORGE, public_owner_id: owner, name: 'Maya', accent: 'gujarati', gender: 'female', age: 'young', description: 'Warm and clear', language: 'gu', preview_url: 'https://storage.googleapis.com/m.mp3', cloned_by_count: 12 },
         { voice_id: ADAM, public_owner_id: 'x', name: 'No owner' },
+        { voice_id: 'KiranVoice0002', public_owner_id: owner, name: 'Kiran', accent: 'ahmedabad', gender: 'male', age: 'middle_aged', language: 'gu' },
       ],
       has_more: true,
     }));
     const found = await voice.libraryVoices({ language: 'gu', search: 'warm', gender: 'female', page: 1, fetchImpl, env: { ELEVENLABS_API_KEY: 'k' } });
     expect(found).toEqual({
-      voices: [{ voiceId: GEORGE, ownerId: owner, name: 'Maya', about: 'gujarati, female, young', description: 'Warm and clear', language: 'gu', previewUrl: 'https://storage.googleapis.com/m.mp3', uses: 12 }],
+      voices: [
+        { voiceId: GEORGE, ownerId: owner, name: 'Maya', about: 'gujarati, female, young', description: 'Warm and clear', language: 'gu', previewUrl: 'https://storage.googleapis.com/m.mp3', uses: 12 },
+        { voiceId: 'KiranVoice0002', ownerId: owner, name: 'Kiran', about: 'ahmedabad, male, middle aged', description: '', language: 'gu', previewUrl: '', uses: 0 },
+      ],
       hasMore: true,
     });
     expect(fetchImpl.mock.calls[0][0]).toBe('https://api.elevenlabs.io/v1/shared-voices?page_size=24&page=1&language=gu&search=warm&gender=female');
