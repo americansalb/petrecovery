@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { waiverRefusal } from '@/app/lib/waiver';
 import { getPointsService } from '@/lib/actions';
 import { quickJoinCase } from '@/app/lib/volunteer/quickJoin';
 
@@ -309,8 +310,12 @@ export async function POST(request, { params }) {
     const { action } = body;
 
     switch (action) {
-      case 'start':
+      case 'start': {
+        // Going out to search takes the safety waiver (app/lib/waiver.js).
+        const refusal = await waiverRefusal(user.id, missionId);
+        if (refusal) return refusal;
         return handleStart(user.id, missionId, body);
+      }
       case 'ping':
         return handlePing(body);
       // The live client (useSearchSession) sends 'mark' with a { point } object,

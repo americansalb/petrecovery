@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
+import { waiverRefusal } from '@/app/lib/waiver';
 
 /**
  * POST /api/rescue-forces/[id]/cases/[missionId]/help
@@ -29,6 +30,10 @@ export async function POST(request, { params }) {
     if (!membership) {
       return NextResponse.json({ error: 'Not a rescue force member' }, { status: 403 });
     }
+
+    // Joining the search takes the safety waiver (app/lib/waiver.js).
+    const refusal = await waiverRefusal(session.user.id, missionId);
+    if (refusal) return refusal;
 
     // Find the case assignment for this squad
     const assignment = await prisma.caseAssignment.findFirst({

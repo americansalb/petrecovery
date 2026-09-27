@@ -140,34 +140,16 @@ export async function GET(request, { params }) {
       }, { status: 404 });
     }
 
-    // Check waiver acceptance - skip for case owners
+    // Mission Control opens for anyone signed in. The safety waiver is asked
+    // for at the first search action instead (app/lib/waiver.js; the search,
+    // block and join routes refuse without it), so here it only tells the
+    // page whether to ask.
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { waiverAcceptedAt: true }
+      select: { waiverAcceptedAt: true, role: true }
     });
-
-    if (!user?.waiverAcceptedAt && missionData.reporterId !== session.user.id) {
-      await logEvent({
-        event_type: 'case.detail_failed',
-        resource_type: 'mission',
-        resource_id: params.missionId,
-        action: 'read',
-        result: 'failure',
-        error_code: 'WAIVER_NOT_ACCEPTED',
-        error_message: 'User attempted to view case without accepting liability waiver',
-        actor_user_id: session.user.id,
-        actor_role: session.user.role || 'USER',
-        metadata: { missionId: params.missionId }
-      });
-
-      const encodedReturnUrl = encodeURIComponent('/admin/missions/' + params.missionId);
-      return NextResponse.json({
-        error: 'Liability waiver required',
-        code: 'WAIVER_NOT_ACCEPTED',
-        message: 'You must accept the liability waiver before viewing cases.',
-        redirectTo: '/legal/consent?returnUrl=' + encodedReturnUrl
-      }, { status: 403 });
-    }
+    const isOwner = missionData.reporterId === session.user.id;
+    const isAdmin = user?.role === 'ADMIN';
 
     const responseTime = Date.now() - startTime;
 
@@ -192,8 +174,23 @@ export async function GET(request, { params }) {
     // Normalize photo URL before returning
     const normalizedCase = {
       ...missionData,
-      petPhotoUrl: normalizePhotoUrl(missionData.petPhotoUrl)
+      petPhotoUrl: normalizePhotoUrl(missionData.petPhotoUrl),
+      viewer: { isOwner, waiverAccepted: Boolean(user?.waiverAcceptedAt) || isOwner }
     };
+
+    // Helpers see the pet, the search and the team, not how to reach the
+    // owner by email or where the owner was when they reported (often
+    // home). The phone and first name are on the public page already.
+    if (!isOwner && !isAdmin) {
+      delete normalizedCase.ownerEmail;
+      delete normalizedCase.reporterLatitude;
+      delete normalizedCase.reporterLongitude;
+      delete normalizedCase.reporterToLastSeenMiles;
+      if (normalizedCase.reporter) {
+        const { email, ...reporter } = normalizedCase.reporter;
+        normalizedCase.reporter = reporter;
+      }
+    }
 
     // Return case data directly (without wrapping in { case: ... })
     return NextResponse.json(normalizedCase);
