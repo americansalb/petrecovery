@@ -922,3 +922,155 @@ img {
   border: 3px solid #ffffff;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
 }
+
+/* Rescue Forces directory map (app/rescue-forces/ForceDirectoryMap.js):
+   each force's area is a yellow shape and a white chip with its town's
+   name opens it. A red dot (phone) or "3 missing" (computer) marks a force
+   with pets missing now. Zoomed out to whole states (.is-far), and
+   wherever two names would overlap (.is-dot), chips shrink to yellow
+   dots. */
+.force-map.leaflet-container {
+  background: #e2e8f0; /* midnight-200 while tiles load or when blocked */
+  font-family: inherit;
+}
+.leaflet-container a.force-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 11px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
+  transform: translate(-50%, -50%);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.leaflet-container a.force-chip:hover,
+.leaflet-container a.force-chip.is-lit {
+  background: #0f172a;
+  color: #ffffff;
+}
+.leaflet-container a.force-chip:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 2px;
+}
+.force-chip-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: #dc2626;
+}
+.force-chip-count {
+  display: none;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+@media (min-width: 1024px) {
+  .leaflet-container a.force-chip {
+    gap: 8px;
+    padding: 7px 14px;
+    font-size: 15px;
+  }
+  .leaflet-container a.force-chip.has-missing {
+    padding-right: 8px;
+  }
+  .force-chip-dot {
+    display: none;
+  }
+  .force-chip-count {
+    display: inline-block;
+  }
+}
+/* A dot is a 16px yellow circle drawn inside a 32px link, so it stays easy
+   to tap (the site-wide 44px link minimum is lifted here: at 44px the dots
+   of neighboring towns would cover each other's names). */
+.force-map.is-far a.force-chip,
+.leaflet-container a.force-chip.is-dot {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.force-map.is-far a.force-chip::before,
+.leaflet-container a.force-chip.is-dot::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  background: #facc15;
+  border: 2px solid #0f172a;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+.force-map.is-far a.force-chip:hover::before,
+.leaflet-container a.force-chip.is-dot:hover::before {
+  background: #0f172a;
+  border-color: #facc15;
+}
+.force-map.is-far .force-chip-name,
+.force-map.is-far .force-chip-count,
+.force-chip.is-dot .force-chip-name,
+.force-chip.is-dot .force-chip-count {
+  display: none;
+}
+.force-map.is-far .force-chip-dot,
+.force-chip.is-dot .force-chip-dot {
+  display: block;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  border: 1.5px solid #ffffff;
+}
+.force-origin {
+  position: relative;
+}
+.force-origin-dot {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  background: #0f172a;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 6px rgba(15, 23, 42, 0.18);
+}
+.force-origin.is-me .force-origin-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.22);
+}
+.force-origin-tag {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.force-origin.is-me .force-origin-tag {
+  background: #1d4ed8;
+}
