@@ -4,6 +4,9 @@
  * (app/rescue-forces/[id]/(tabs)/needs) and /api/rescue-forces/[id]/needs,
  * which the phone apps can use too.
  *
+ * A member adds a need for one of the force's pets (createNeed; the
+ * suggestions come from app/lib/needOptions.js).
+ *
  * A need is a SquadTask that is open (not done, not blocked) and not one
  * of the owner's own to-dos (role OWNER). It asks for `peopleNeeded`
  * people. A member takes it (a TaskParticipant, ACTIVE), can drop it
@@ -15,6 +18,7 @@
 import prisma from '@/app/lib/prisma';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { caseStatus, caseTitle } from '@/app/lib/caseLabels';
+import { NEED_KINDS, NEED_WHENS, needOptions, needTitle, sameNeed } from '@/app/lib/needOptions';
 
 export const OPEN_NEED_STATUSES = ['AVAILABLE', 'IN_PROGRESS', 'NEEDS_HELP'];
 const TAKEN = ['ACTIVE', 'COMPLETED'];
@@ -207,4 +211,112 @@ export async function actOnNeed({ forceId, needId, userId, action }) {
     }),
   ]);
   return { mine: 'done', closed };
+}
+
+// A phone number or a house number in a need: people reach the owner from
+// the pet's page, and a need's title is public.
+const PHONE = /\d{3}[\s.)-]*\d{3}[\s.-]*\d{4}/;
+const HOUSE_NUMBER = /\b\d{1,5}\s+[a-z]+(\s[a-z]+)?\s(st|street|ave|avenue|rd|road|dr|drive|ln|lane|blvd|boulevard|way|ct|court|pl|place)\b/i;
+const NOTE_MAX = 140;
+const TITLE_MAX = 80;
+
+/**
+ * Add a need for one of the force's pets, for an active member. `body`:
+ * { caseId, kind: area | doors | flyers | shelter | other, placeId?,
+ * shelterId?, when: today | tonight | tomorrow | weekend, people: 1-20,
+ * title? (for other), note?, anyway? }. The title is written here from the
+ * place or shelter, so it never carries a house number. A need the pet
+ * already has comes back as NeedError 409 with `duplicate` set, unless
+ * `anyway`. Returns { id, title }.
+ */
+export async function createNeed({ forceId, userId, body }) {
+  const kind = NEED_KINDS[body.kind] ? body.kind : null;
+  if (!kind) throw new NeedError('Pick what kind of need it is.', 400);
+  const when = NEED_WHENS[body.when] ? body.when : 'today';
+  const people = Math.round(Number(body.people));
+  if (!Number.isFinite(people) || people < 1 || people > 20) throw new NeedError('Ask for 1 to 20 people.', 400);
+
+  const [membership, assignment] = await Promise.all([
+    prisma.rescueForceMember.findFirst({ where: { rescueSquadId: forceId, userId, isActive: true }, select: { id: true } }),
+    body.caseId
+      ? prisma.caseAssignment.findFirst({
+          where: { rescueSquadId: forceId, missionId: String(body.caseId) },
+          select: {
+            case: {
+              select: {
+                id: true,
+                status: true,
+                reportType: true,
+                petName: true,
+                petSpecies: true,
+                reporterId: true,
+                lastSeenAddress: true,
+                lastSeenLatitude: true,
+                lastSeenLongitude: true,
+              },
+            },
+          },
+        })
+      : null,
+  ]);
+  if (!membership) throw new NeedError('Join this Rescue Force to add a need.', 403);
+  const pet = assignment?.case;
+  if (!pet) throw new NeedError('That pet is not one this Rescue Force is looking for.', 400);
+  if (!isCaseOpen(pet.status)) throw new NeedError('This pet is not missing any more.', 409);
+
+  const open = await prisma.squadTask.findMany({
+    where: { rescueSquadId: forceId, caseId: pet.id, status: { in: OPEN_NEED_STATUSES }, role: { not: 'OWNER' } },
+    select: { id: true, title: true, shelterId: true, peopleNeeded: true, participants: { select: { status: true } } },
+  });
+  const { places, shelters } = await needOptions(pet, open);
+  const place = body.placeId ? places.find((p) => p.id === body.placeId) || null : null;
+  const shelter = body.shelterId ? shelters.find((s) => s.id === body.shelterId) || null : null;
+  if (body.placeId && !place) throw new NeedError('Pick one of the places on the list.', 400);
+  if (kind === 'shelter' && !shelter) throw new NeedError('Pick a shelter from the list.', 400);
+
+  const title = (kind === 'other' ? String(body.title || '').trim().replace(/\s+/g, ' ') : needTitle(kind, { place, shelter })).slice(0, TITLE_MAX);
+  if (!title) throw new NeedError(kind === 'other' ? 'Say what needs doing.' : 'Pick where.', 400);
+  const note = String(body.note || '').trim();
+  if (note.length > NOTE_MAX) throw new NeedError(`Please keep the note under ${NOTE_MAX} letters.`, 400);
+  // Only what the person typed: a title written from a place ("near I-35
+  // Frontage Rd") is already free of house numbers.
+  const typed = `${kind === 'other' ? title : ''} ${note}`;
+  if (PHONE.test(typed)) throw new NeedError("Please leave out phone numbers. People reach the owner from the pet's page.", 400);
+  if (HOUSE_NUMBER.test(typed)) throw new NeedError('Please leave out house numbers. Name a street or a park instead.', 400);
+
+  if (!body.anyway) {
+    const same = sameNeed(open, { kind, title, shelterId: shelter?.id });
+    if (same) {
+      const taken = same.participants.filter((p) => TAKEN.includes(p.status)).length;
+      const error = new NeedError(`${caseTitle(pet)} already has this need: ${same.title}.`, 409);
+      error.duplicate = { id: same.id, title: same.title, taken, peopleNeeded: Math.max(1, same.peopleNeeded || 1) };
+      throw error;
+    }
+  }
+
+  const byOwner = pet.reporterId === userId;
+  const need = await prisma.squadTask.create({
+    data: {
+      rescueSquadId: forceId,
+      caseId: pet.id,
+      title,
+      description: [`${NEED_WHENS[when]}.`, note].filter(Boolean).join(' '),
+      type: NEED_KINDS[kind].type,
+      taskType: NEED_KINDS[kind].taskType,
+      priority: byOwner ? 'HIGH' : 'MEDIUM',
+      priorityScore: NEED_KINDS[kind].score + (byOwner ? 10 : 0),
+      status: 'AVAILABLE',
+      role: 'SQUAD',
+      peopleNeeded: people,
+      ownerRequested: byOwner,
+      ownerRequestedAt: byOwner ? new Date() : null,
+      address: place?.label || null,
+      latitude: place?.lat ?? null,
+      longitude: place?.lng ?? null,
+      shelterId: shelter?.id || null,
+      createdById: userId,
+    },
+    select: { id: true, title: true },
+  });
+  return need;
 }
