@@ -15,6 +15,9 @@ import crypto from 'crypto';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
+import { forceAreas } from '@/app/lib/forceDirectory';
+import { areaCovers } from '@/app/lib/maps/forceArea';
+import { fillForceOutlineSoon } from '@/app/lib/forceOutlines';
 
 // Allow large body for base64 image uploads and longer timeout
 export const maxDuration = 30;
@@ -411,11 +414,16 @@ export async function POST(request) {
       });
     }
 
-    // Find and assign to rescue forces based on location type
-    // Use squad's coverage area (radiusMiles) + 1 mile buffer for all location types
+    // Find and assign to rescue forces. A report reaches a force when it is
+    // inside the force's town outline or within a mile of it; a force with
+    // no outline yet uses its circle (radiusMiles) plus the same mile
+    // (areaCovers in app/lib/maps/forceArea.js).
     let assignedSquad = null;
     let assignedSquads = [];
-    const COVERAGE_BUFFER = 1; // Add 1 mile to squad's coverage radius
+    const COVERAGE_BUFFER = 1; // miles past the town line (or the circle)
+    // No town outline reaches farther than this from its force's center
+    // (app/lib/maps/townOutline.js), so farther forces are not read.
+    const OUTLINE_REACH_MILES = 60;
 
     try {
       const squads = await prisma.rescueForce.findMany({
@@ -428,6 +436,7 @@ export async function POST(request) {
           centerLongitude: true,
           radiusMiles: true,
           isAcceptingCases: true,
+          updatedAt: true,
         },
       });
 
@@ -447,6 +456,20 @@ export async function POST(request) {
           effectiveRadius: squad.radiusMiles + COVERAGE_BUFFER, // Squad coverage + buffer
         }));
 
+      // Which forces cover the report: their town outline plus a mile, or
+      // their circle plus a mile until the outline is looked up.
+      const reportPoint = { lat: center[0], lng: center[1] };
+      const reachable = squadsWithDistance.filter((squad) => squad.distance <= OUTLINE_REACH_MILES);
+      const outlineOf = await forceAreas(reachable, { maxPoints: 600 });
+      for (const squad of squadsWithDistance) {
+        const area = squad.distance <= OUTLINE_REACH_MILES ? outlineOf(squad.id) : null;
+        squad.covers = areaCovers(
+          { area, lat: squad.centerLatitude, lng: squad.centerLongitude, radiusMiles: squad.radiusMiles },
+          reportPoint,
+          COVERAGE_BUFFER
+        );
+      }
+
       console.log('[Report Debug] Squads with valid coordinates:', squadsWithDistance.length);
       // Log a few closest squads with their coverage
       const closestSquads = [...squadsWithDistance].sort((a, b) => a.distance - b.distance).slice(0, 5);
@@ -455,16 +478,16 @@ export async function POST(request) {
         city: s.city,
         distance: s.distance.toFixed(2),
         coverageRadius: s.effectiveRadius,
-        withinCoverage: s.distance <= s.effectiveRadius
+        withinCoverage: s.covers
       })));
 
       // Determine which squads to notify - use squad's actual coverage area
       // A squad is notified if the report location falls within their coverage radius
       let squadsToNotify = [];
 
-      // Check if report falls within each squad's coverage area (distance <= squad.radiusMiles + buffer)
+      // Check if report falls within each squad's coverage area (its outline or circle, plus a mile)
       squadsToNotify = squadsWithDistance.filter(squad => {
-        const withinCoverage = squad.distance <= squad.effectiveRadius;
+        const withinCoverage = squad.covers;
 
         if (withinCoverage) {
           console.log('[Report Debug] Report within squad coverage:', {
@@ -526,6 +549,8 @@ export async function POST(request) {
         });
 
         console.log('[Report Debug] Auto-created squad:', { id: newSquad.id, name: newSquad.name });
+        // Its town's outline, looked up in the background (app/lib/forceOutlines.js).
+        fillForceOutlineSoon(newSquad);
 
         // Add the auto-created squad to the list
         squadsToNotify.push({
@@ -539,7 +564,7 @@ export async function POST(request) {
         // These are squads whose coverage doesn't reach the report, but are close enough to help
         const NEARBY_ASSIST_RADIUS = 10; // miles
         const nearbyAssistSquads = squadsWithDistance.filter(squad =>
-          squad.distance <= NEARBY_ASSIST_RADIUS && squad.distance > squad.effectiveRadius && squad.isAcceptingCases !== false
+          squad.distance <= NEARBY_ASSIST_RADIUS && !squad.covers && squad.isAcceptingCases !== false
         );
 
         if (nearbyAssistSquads.length > 0) {

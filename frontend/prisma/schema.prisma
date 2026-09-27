@@ -952,6 +952,9 @@ model RescueForce {
   centerLongitude Float?
   radiusMiles     Int          @default(5)
   customBoundary  String? // JSON: GeoJSON polygon for custom coverage
+  // When the town's outline was last looked up in OpenStreetMap
+  // (app/lib/forceOutlines.js); a force whose town had none is tried again later.
+  outlineCheckedAt DateTime?
 
   // Specializations
   specializesInDogs  Boolean @default(true)
