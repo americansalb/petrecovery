@@ -56,7 +56,11 @@ export function normalizeScriptConfig(raw = {}) {
   const rounds = SCRIPT_ROUND_OPTIONS.includes(Number(raw.rounds)) ? Number(raw.rounds) : 5;
   const timer = SCRIPT_TIME_OPTIONS.includes(Number(raw.timer)) ? Number(raw.timer) : 0;
   const seed = typeof raw.seed === 'string' && raw.seed.trim() ? raw.seed.trim().slice(0, 40) : '';
-  return { rounds, timer, seed };
+  // Voices (beta): the same round, heard instead of read, from the
+  // languages an admin has given a voice (server/voice.js). Only carried
+  // when on, so a plain Script link stays exactly what it was.
+  const voice = raw.voice === true || raw.voice === '1' || raw.voice === 'true';
+  return voice ? { rounds, timer, seed, voice } : { rounds, timer, seed };
 }
 
 /** Settings to a query string, so a link is a whole game. */
@@ -66,6 +70,7 @@ export function scriptConfigToQuery(config) {
   params.set('rounds', String(normal.rounds));
   if (normal.timer) params.set('timer', String(normal.timer));
   if (normal.seed) params.set('seed', normal.seed);
+  if (normal.voice) params.set('voice', '1');
   return params.toString();
 }
 

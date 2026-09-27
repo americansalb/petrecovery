@@ -24,8 +24,12 @@ import prisma from '@/app/lib/geo/server/db';
 import { languageByCode } from '../languages';
 import { scriptRoundFromToken } from './scriptGame';
 
-/** What a player can say is wrong, in the order the answer screen offers them. */
-export const REPORT_KINDS = Object.freeze(['area', 'hint', 'language', 'other']);
+/**
+ * What a player can say is wrong, in the order the answer screen offers
+ * them. `voice` ("How it sounds") is offered only after a Voices round,
+ * and the report keeps which voice read it (server/voice.js).
+ */
+export const REPORT_KINDS = Object.freeze(['area', 'hint', 'language', 'voice', 'other']);
 
 /** The longest note kept. A report is a pointer, not an essay. */
 export const REPORT_NOTE_MAX = 500;
@@ -73,12 +77,14 @@ function cleanGuess(guess) {
 export function reportFromRound({ token, kind, note, guess, now = Date.now(), env } = {}) {
   if (typeof token !== 'string' || !token) throw new ReportError('no_round', 'Send the round the report is about');
   if (!REPORT_KINDS.includes(kind)) throw new ReportError('bad_kind', 'Say what is wrong');
-  const { language, text } = scriptRoundFromToken({ token, now, env });
+  const { language, text, voice } = scriptRoundFromToken({ token, now, env });
+  if (kind === 'voice' && !voice) throw new ReportError('bad_kind', 'Only a round that was heard can be reported for how it sounds');
   return {
     language: language.code,
     kind,
     note: cleanNote(note),
     text: text || null,
+    voice,
     ...cleanGuess(guess),
   };
 }

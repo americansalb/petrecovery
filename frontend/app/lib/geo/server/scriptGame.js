@@ -79,9 +79,9 @@ function saltedSeed(seed, purpose, secret) {
  * always this array, so a seeded game from before the other pools were
  * removed draws the same languages it did.
  */
-export function drawLanguages(config, secret = '') {
+export function drawLanguages(config, secret = '', pool = LANGUAGES) {
   const { rounds, seed } = normalizeScriptConfig(config);
-  const source = LANGUAGES;
+  const source = pool;
   const rng = createRng(saltedSeed(seed || 'script', 'draw', secret));
   const picked = [];
   let bag = [...source];
@@ -98,15 +98,20 @@ export function drawLanguages(config, secret = '') {
  * sealed answer. `script` is not a leak. The player can see the
  * alphabet on screen; the client needs the id only to choose a font.
  */
-export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Date.now(), env } = {}) {
+function dealRound({ config: rawConfig, roundIndex = 0, env, pool = LANGUAGES, empty = 'No languages in that pool' }) {
   const config = normalizeScriptConfig(rawConfig);
   const { tokenSecret } = getGeoServerConfig(env);
   if (!tokenSecret) {
     throw new ScriptGameError('no_secret', 'Set NEXTAUTH_SECRET or GEO_TOKEN_SECRET before starting a game');
   }
   const index = Math.max(0, Math.min(config.rounds - 1, Math.floor(Number(roundIndex) || 0)));
-  const language = drawLanguages(config, tokenSecret)[index];
-  if (!language) throw new ScriptGameError('empty_pool', 'No languages in that pool');
+  const language = drawLanguages(config, tokenSecret, pool)[index];
+  if (!language) throw new ScriptGameError('empty_pool', empty);
+  return { config, tokenSecret, index, language };
+}
+
+export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Date.now(), env, pool = LANGUAGES } = {}) {
+  const { config, tokenSecret, index, language } = dealRound({ config: rawConfig, roundIndex, env, pool });
 
   const text = passageFor(language, config.seed, index, tokenSecret);
   if (!text) throw new ScriptGameError('no_samples', `No sample text for ${language.name}`);
@@ -128,6 +133,40 @@ export function createScriptRound({ config: rawConfig, roundIndex = 0, now = Dat
     script: language.script,
     text,
     token: sealToken({ c: language.code, i: index, seed: config.seed || '' }, { secret: tokenSecret, now }),
+  };
+}
+
+/**
+ * A Voices round (beta): the same round, heard instead of read.
+ *
+ * `voices` is { code: [voice] } for the languages that are on
+ * (server/voice.js, enabledVoices). The language is drawn only from
+ * those, and then one of its voices, weighted, from the seed, so a
+ * replayed game hears the same voices. The voice's id is sealed into the
+ * token with the answer: every clip of the round is read by it, and a
+ * report about how it sounded names it.
+ *
+ * The text stays on the server. The browser gets the sealed token and
+ * how many clips to play, and each clip is fetched through the token
+ * (app/api/geo/voice/clip), so nothing on the page names the answer
+ * before the guess. The guess is scored by the Script endpoint, which
+ * hands the text back with the reveal.
+ */
+export function createVoiceRound({ config: rawConfig, roundIndex = 0, now = Date.now(), env, voices = {} } = {}) {
+  const pool = LANGUAGES.filter((language) => voices[language.code]?.length);
+  const { config, tokenSecret, index, language } = dealRound({ config: rawConfig, roundIndex, env, pool, empty: 'No languages have a voice yet' });
+  const choices = voices[language.code];
+  const rng = createRng(saltedSeed(roundSeed(config.seed || 'script', index), 'voice', tokenSecret));
+  const voice = choices[weightedIndex(rng, choices.map((choice) => Number(choice.weight) || 1))];
+  const clips = passageSentences(language, config.seed, index, tokenSecret).length;
+  if (!clips) throw new ScriptGameError('no_samples', `No sample text for ${language.name}`);
+  // No script id either: in a Script round the alphabet is on screen
+  // anyway, but here it would be the only clue, and for Tamil or Thai
+  // it is the answer.
+  return {
+    roundIndex: index,
+    clips,
+    token: sealToken({ c: language.code, i: index, seed: config.seed || '', v: voice.id }, { secret: tokenSecret, now }),
   };
 }
 
@@ -160,9 +199,9 @@ const PASSAGE_MAX_SENTENCES = 6;
  * token, which keeps the token small and keeps the text out of anything
  * the browser could tamper with.
  */
-function passageFor(language, seed, index, tokenSecret) {
+export function passageSentences(language, seed, index, tokenSecret) {
   const samples = samplesFor(language.code);
-  if (!samples.length) return '';
+  if (!samples.length) return [];
   const rng = createRng(saltedSeed(roundSeed(seed || 'script', index), 'text', tokenSecret));
   const order = [...samples];
   for (let i = order.length - 1; i > 0; i--) {
@@ -178,9 +217,14 @@ function passageFor(language, seed, index, tokenSecret) {
     length += [...sentence].length;
     if (length >= enough || picked.length >= PASSAGE_MAX_SENTENCES) break;
   }
+  return picked;
+}
+
+function passageFor(language, seed, index, tokenSecret) {
   // Han and Japanese sentences end in their own full stop and run on
   // without a space; everything else is separated by one.
-  return picked.join(dense ? '' : ' ');
+  const dense = DENSE_SCRIPTS.has(language.script);
+  return passageSentences(language, seed, index, tokenSecret).join(dense ? '' : ' ');
 }
 
 /**
@@ -193,7 +237,13 @@ export function scriptRoundFromToken({ token, now = Date.now(), env } = {}) {
   const payload = openToken(token, { secret: tokenSecret, now });
   const language = languageByCode(payload.c);
   if (!language) throw new ScriptGameError('unknown_language', 'That round names a language the corpus no longer has');
-  return { language, roundIndex: payload.i, text: passageFor(language, payload.seed, payload.i, tokenSecret) };
+  return {
+    language,
+    roundIndex: payload.i,
+    text: passageFor(language, payload.seed, payload.i, tokenSecret),
+    // Voices (beta): the GeoVoice that read the round, if it was heard.
+    voice: typeof payload.v === 'string' && payload.v ? payload.v : null,
+  };
 }
 
 /**
@@ -227,6 +277,9 @@ export function evaluateScriptGuess({ token, guess, now = Date.now(), env } = {}
 
   return {
     kind: 'script',
+    // What the round showed, or in Voices what it said: the reveal needs
+    // it there, because a Voices round never sent it.
+    text,
     roundIndex: payload.i,
     seed: payload.seed || '',
     sizeKm,

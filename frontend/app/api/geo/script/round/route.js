@@ -8,11 +8,17 @@
  * No play meter. A script round makes no upstream request and costs
  * nothing, so there is nothing to meter; the rate limit in middleware.js
  * is the only thing standing between this and a scraper.
+ *
+ * With `voice` in the config it is a Voices round (beta): the token and
+ * how many clips to play, no text and no script id. The clips come from
+ * /api/geo/voice/clip.
  */
 
 import { NextResponse } from 'next/server';
 import { normalizeScriptConfig } from '@/app/lib/geo/script';
-import { createScriptRound, ScriptGameError } from '@/app/lib/geo/server/scriptGame';
+import { createScriptRound, createVoiceRound, ScriptGameError } from '@/app/lib/geo/server/scriptGame';
+import { enabledVoices } from '@/app/lib/geo/server/voice';
+import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 import { maybeSweep } from '@/app/lib/geo/server/sweep';
 import { prismaRoomStore } from '@/app/lib/geo/server/roomStore';
 
@@ -37,7 +43,11 @@ export async function POST(request) {
   maybeSweep(prismaRoomStore);
 
   try {
-    const round = createScriptRound({ config, roundIndex });
+    // Voices (beta): drawn only from the languages with a voice switched
+    // on, and sent without its text (server/scriptGame.js, createVoiceRound).
+    const round = config.voice
+      ? createVoiceRound({ config, roundIndex, voices: await enabledVoices() })
+      : createScriptRound({ config, roundIndex });
     return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof ScriptGameError) {
@@ -46,6 +56,6 @@ export async function POST(request) {
       return NextResponse.json({ error: error.message, code: error.code }, { status });
     }
     console.error('[geo/script/round] unexpected', error);
-    return NextResponse.json({ error: 'Could not build the round', code: 'internal' }, { status: 500 });
+    return NextResponse.json(schemaErrorBody(error, 'Could not build the round'), { status: 500 });
   }
 }
