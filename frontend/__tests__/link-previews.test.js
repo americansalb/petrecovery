@@ -28,7 +28,10 @@ const ENTITY_PAGES = [
   'reports/[id]/page.js',
   'alerts/[id]/page.js',
   'join/[missionId]/page.js',
-  'rescue-forces/[id]/page.js',
+  // A force's page is three tabs in a route group (the URLs have no "(tabs)").
+  'rescue-forces/[id]/(tabs)/page.js',
+  'rescue-forces/[id]/(tabs)/needs/page.js',
+  'rescue-forces/[id]/(tabs)/discussion/page.js',
   'hub/thread/[slug]/page.js',
   'hub/c/[slug]/page.js',
   'hub/u/[id]/page.js',
@@ -83,7 +86,6 @@ const KNOWN_PRIVATE = [
   'rescue-forces/[id]/members/page.js',
   'rescue-forces/[id]/mission-control/page.js',
   'rescue-forces/[id]/settings/page.js',
-  'rescue-forces/[id]/updates/page.js',
   'communities/[id]/page.js', // legacy; next.config redirects /communities/*
   // Not a page: it exists so an unmatched /geo/* URL reaches the game's
   // own not-found instead of the pet site's 404. It only ever calls

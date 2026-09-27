@@ -873,48 +873,6 @@ img {
 }
 
 
-/* Rescue Force territory map: light like every other map on the pet site.
-   A red dot is a pet missing now, the same red as the Lost & Found pins. */
-.territory-map.leaflet-container {
-  background: #e2e8f0; /* midnight-200 while tiles load */
-}
-.territory-pet {
-  display: block;
-  width: 16px;
-  height: 16px;
-  border-radius: 9999px;
-  background: #ef4444;
-  border: 3px solid #ffffff;
-  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.35);
-}
-.territory-zone-label {
-  display: block;
-  text-align: center;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 700;
-  color: #1e293b;
-  text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
-  pointer-events: none;
-}
-.territory-popup-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-}
-.territory-popup-link {
-  display: inline-flex;
-  align-items: center;
-  margin-top: 6px;
-  padding: 0 14px;
-  border-radius: 9999px;
-  background: #0f172a;
-  color: #fff !important;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
 /* Civic directory map (shelters): midnight
    pins carry identity, flash appears only on the selected place. */
 .civic-map.leaflet-container {
@@ -1061,6 +1019,57 @@ img {
   top: 5px;
   right: 5px;
   border: 1.5px solid #ffffff;
+}
+/* A Rescue Force's own map (app/rescue-forces/[id]/(tabs)/ForceMap.js):
+   each pet is its photo in a ring of its color (the ring color is set
+   inline from app/lib/petColors.js); a pet that is home adds a check. */
+.force-pet-wrap {
+  position: relative;
+  width: 42px;
+  height: 42px;
+}
+.leaflet-container a.force-pet-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 3px solid #dc2626;
+  background: #ffffff;
+  color: #0f172a;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.4);
+}
+.leaflet-container a.force-pet-pin img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.leaflet-container a.force-pet-pin:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 2px;
+}
+.force-pet-letter {
+  font-size: 16px;
+  font-weight: 800;
+}
+.force-pet-check {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  background: #059669 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 9px no-repeat;
+  pointer-events: none;
 }
 .force-origin {
   position: relative;

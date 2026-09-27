@@ -359,7 +359,7 @@ function FindYourForce() {
 // Three plain steps, each one what actually happens. This was three
 // icon-badge cards plus a footnote pointing back at the screenshot, and step
 // 2 said the force "sees the case the moment it lands": members are not
-// alerted, the report is posted in the force's updates.
+// alerted, the report is posted in the force's discussion.
 const STEPS = [
   {
     title: 'You report the pet',
@@ -367,7 +367,7 @@ const STEPS = [
   },
   {
     title: 'The Rescue Force for that area gets it',
-    body: "It is posted in the force's updates, where its members see it.",
+    body: "It is posted in the force's discussion, where its members see it.",
   },
   {
     title: 'Members search from Mission Control',
@@ -612,7 +612,7 @@ function FooterCta() {
           </h2>
           {/* It used to say "be reachable when a pet near you needs more
               eyes". Members are not alerted; they see each report in the
-              force's updates and on their dashboard. */}
+              force's discussion and on their dashboard. */}
           <p className="text-midnight-300 max-w-xl mx-auto mb-7">
             Join your town&apos;s Rescue Force. Members see each pet reported lost in
             their area and help search for it. Joining costs nothing.

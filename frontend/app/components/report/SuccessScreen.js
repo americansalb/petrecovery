@@ -199,7 +199,7 @@ export default function SuccessScreen({
             <div className="text-sm">
               <p className="font-bold text-[#0A0D26]">You&apos;ve joined {assignedSquad.name}</p>
               <p className="text-[#6B6459] mt-0.5">
-                {petName}&apos;s report is posted in the force&apos;s updates for its members.{' '}
+                {petName}&apos;s report is posted in the force&apos;s discussion for its members.{' '}
                 {assignedSquad.id && (
                   <Link href={`/rescue-forces/${assignedSquad.id}`} className="font-semibold text-[#0A0D26] underline underline-offset-2">
                     See the force
