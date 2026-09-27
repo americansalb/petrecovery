@@ -162,6 +162,10 @@ export const GAME_CSP_HOSTS = {
   script: ['https://cdn.apple-mapkit.com', 'https://maps.googleapis.com', 'https://maps.gstatic.com'],
   connect: ['https://*.apple-mapkit.com', 'https://*.ls.apple.com'],
   frame: ['https://*.apple.com', 'https://*.apple-mapkit.com', 'https://maps.apple.com'],
+  // Voices (beta): ElevenLabs' own voice previews on /geo/admin/voices,
+  // played straight from where ElevenLabs keeps them. Round audio comes
+  // from this site, so players never load anything from here.
+  media: ['https://storage.googleapis.com', 'https://*.elevenlabs.io'],
 };
 
 /**

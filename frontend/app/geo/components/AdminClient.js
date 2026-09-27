@@ -3,8 +3,8 @@
 /**
  * /geo/admin: the backend.
  *
- * Numbers at the top, then what players reported as wrong, then the
- * Voices (beta) settings, then accounts, then rooms. It
+ * Numbers at the top, then what players reported as wrong, then the way
+ * into Voices (beta), then accounts, then rooms. It
  * is a working screen rather than a dashboard: everything on it is
  * either a figure somebody acts on or a control that changes something.
  *
@@ -16,8 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Card from './ui/Card';
-import VoicesAdmin from './VoicesAdmin';
-import { Ban, Check, Flag, Loader2, RefreshCw, Search, ShieldAlert, Users } from 'lucide-react';
+import { ArrowRight, Ban, Check, Flag, Loader2, Mic, RefreshCw, Search, ShieldAlert, Users } from 'lucide-react';
 import { ROLES, TIERS } from '@/app/lib/geo/server/roles';
 
 const DENIALS = {
@@ -32,8 +31,44 @@ const REPORT_KINDS = {
   area: 'Where it is spoken',
   hint: 'A hint',
   language: 'Not this language',
+  voice: 'How it sounds',
   other: 'Something else',
 };
+
+/** The way into /geo/admin/voices, with where the beta stands. */
+function VoicesLink() {
+  const [overview, setOverview] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch('/api/geo/admin/voices', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => live && setOverview(body))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  const on = overview?.languages?.filter((row) => row.enabled).length ?? null;
+  const voices = overview?.languages?.reduce((sum, row) => sum + row.voices, 0) ?? null;
+  return (
+    <Card href="/geo/admin/voices" className="mt-10 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p className="flex items-center gap-2 text-lg font-bold text-white">
+          <Mic className="h-5 w-5 text-clay-300" />
+          Voices (beta)
+        </p>
+        <p className="mt-1 text-sm text-white/60">
+          The ElevenLabs voices that read Script rounds aloud.
+          {on !== null ? <> In games: {on}. Voices added: {voices}.</> : null}
+          {overview && !overview.keySet ? <span className="text-amber-300"> ELEVENLABS_API_KEY is not set.</span> : null}
+        </p>
+      </div>
+      <span className="inline-flex items-center gap-1 text-sm font-semibold text-clay-300">
+        Manage voices <ArrowRight className="h-4 w-4" />
+      </span>
+    </Card>
+  );
+}
 
 function Figure({ label, value, hint }) {
   return (
@@ -222,7 +257,7 @@ export default function AdminClient() {
         </Card>
       </section>
 
-      <VoicesAdmin />
+      <VoicesLink />
 
       <section className="mt-10" aria-label="Accounts">
         <div className="flex flex-wrap items-center justify-between gap-3">

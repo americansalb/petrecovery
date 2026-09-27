@@ -46,7 +46,7 @@ export async function POST(request) {
     // Voices (beta): drawn only from the languages with a voice switched
     // on, and sent without its text (server/scriptGame.js, createVoiceRound).
     const round = config.voice
-      ? createVoiceRound({ config, roundIndex, voiced: Object.keys(await enabledVoices()) })
+      ? createVoiceRound({ config, roundIndex, voices: await enabledVoices() })
       : createScriptRound({ config, roundIndex });
     return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {

@@ -578,27 +578,53 @@ Haiti's map: one person disagreeing is an opinion, the same complaint
 from many people is a bug (`app/lib/geo/server/reports.js`).
 
 **Voices (beta)** (2026-09-27). The same round, heard instead of read:
-`/geo/script/play?voice=1`. The founder picks an ElevenLabs voice for a
-language on `/geo/admin` (from the account's own list, or a pasted voice
-id), presses Listen to hear the language's first sentence in it, and
-switches it on; a Voices game draws only from the languages that are on,
-starting with the ones he knows v3 speaks well. The round sends the
-browser its sealed token and how many sentences it has, and nothing
-else: no text and no script id, because for Tamil or Thai the alphabet
-is the answer. Each sentence is its own clip, fetched through the token
-from `GET /api/geo/voice/clip?t=&n=`, so a player can only ever hear a
-round the server dealt. The first request for a sentence makes it with
+`/geo/script/play?voice=1`. The founder asked for the languages he knows
+ElevenLabs v3 speaks well to be the beta, with no files to download or
+upload, and for every language to have more than one voice.
+
+*Where it is run.* `/geo/admin/voices` lists every Script language
+(searchable; filtered to v3, on, voiced or all) and opens one at a time,
+with its address in the URL (`?lang=fra`). A language gets up to twelve
+voices, added three ways: from ElevenLabs' Voice Library, filtered to
+voices that speak it (adding one saves it to the account's My Voices,
+which is what lets the API use it); from the voices already in the
+account; or by pasting a voice id. Each voice has a free ElevenLabs
+preview, "Hear it" (v3 reading the language's first sentence), a list of
+every sentence to play one by one, "Remake" for a bad take (v3 reads a
+sentence differently each time), and "Make the rest" to make them all
+ahead of time. Settings per voice: on or off, how often it reads (less,
+normal, more: weights 1, 2, 4) and v3's delivery (creative, natural,
+robust: stability 0, 0.5, 1). A language goes on once it has a voice that
+is on, and goes off by itself when its last voice does.
+
+*What a round sends.* A Voices game draws only from languages that are
+on, then one of the language's voices by weight, from the seed, so a
+replay hears the same voices. The voice's id is sealed into the round
+token with the answer. The browser gets the token and how many sentences
+there are, and nothing else: no text and no script id, because for Tamil
+or Thai the alphabet is the answer. Each sentence is its own clip,
+fetched through the token from `GET /api/geo/voice/clip?t=&n=`, so a
+player can only hear a round the server dealt, and a voice switched off
+stops at once, mid-round included. The guess is scored by the Script
+endpoint as usual, and its result carries the text, so the reveal shows
+what was said. After a heard round, "Something wrong?" offers "How it
+sounds", and the report keeps which voice read it: the pile shows on
+`/geo/admin` with the others, and the count shows on the voice's card.
+
+*What it costs.* The first request for a sentence makes it with
 ElevenLabs (`eleven_v3`, 64 kbps MP3) and stores it in `GeoVoiceClip`,
-keyed by model, voice and text; every later round plays the stored copy,
-so each sentence is paid for once per voice, and changing a voice starts
-that language's audio over. Only corpus sentences are ever sent, never
-anything a player typed, and `GEO_VOICE_DAILY_CHARACTERS` (20,000) caps a
-day's new audio on top of that. The key is `ELEVENLABS_API_KEY`, server
-only; without it stored audio still plays and new sentences fail with a
-plain message. The guess is scored by the Script endpoint as usual, and
-its result now carries the text, so the reveal shows what was said
-(`app/lib/geo/server/voice.js`, `app/geo/components/script/VoicePrompt.js`,
-`app/geo/components/VoicesAdmin.js`).
+keyed by model, language, voice, delivery and text; every later round
+plays the stored copy, so each sentence is paid for once per voice and
+delivery. Removing a voice deletes its clips. Two requests for the same
+new clip share one ElevenLabs call. Only corpus sentences are ever sent,
+never anything a player typed, and `GEO_VOICE_DAILY_CHARACTERS` (20,000)
+caps a day's new audio on top of that; the admin screen shows the day's
+use against it. The key is `ELEVENLABS_API_KEY`, server only; without it
+stored audio still plays and nothing new can be made or looked up. The
+Voice Library previews play from ElevenLabs' storage, which is why the
+CSP has a `media-src` (`GAME_CSP_HOSTS.media` in `app/lib/geo/site.js`)
+(`app/lib/geo/server/voice.js`, `app/geo/components/voices/`,
+`app/geo/components/script/VoicePrompt.js`).
 
 **One curation rule matters more than the size of the pool: strip proper
 nouns.** A sentence containing a city name answers itself, and so does a

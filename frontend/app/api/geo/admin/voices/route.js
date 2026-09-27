@@ -1,41 +1,58 @@
 /**
- * GET  /api/geo/admin/voices
- * POST /api/geo/admin/voices   { language, voiceId, enabled }
+ * GET  /api/geo/admin/voices                 every Script language, for the list
+ * GET  /api/geo/admin/voices?language=<code>  one language: its voices and sentences
+ * POST /api/geo/admin/voices                 { action, ... }
  *
- * The Voices (beta) settings on /geo/admin: every Script language, the
- * ElevenLabs voice it speaks with, whether it is switched on, and how
- * many of its clips are stored (server/voice.js), plus the voices on the
- * ElevenLabs account to pick from. Whether the API key is set is reported
- * as a yes or no; the key itself never leaves the server.
+ * The Voices (beta) settings behind /geo/admin/voices (server/voice.js).
+ * POST actions:
+ *   language  { language, enabled }             switch a language in or out
+ *   add       { language, voiceId, name, about, previewUrl, ownerId? }
+ *             a voice from the account, a pasted id, or with `ownerId` a
+ *             Voice Library voice, which is saved to My Voices first
+ *   update    { id, enabled?, weight?, delivery? }
+ *   remove    { id }                            the voice and its clips
+ * Whether the API key is set is reported as a yes or no; the key itself
+ * never leaves the server.
  */
 
 import { NextResponse } from 'next/server';
 import { AdminDenied, requireAdmin } from '@/app/lib/geo/server/admin';
-import { LANGUAGES } from '@/app/lib/geo/languages';
-import { accountVoices, saveVoiceSetting, V3_LANGUAGES, voiceSettings, VoiceError } from '@/app/lib/geo/server/voice';
+import {
+  addVoice,
+  languageVoices,
+  removeVoice,
+  saveLibraryVoice,
+  setLanguageEnabled,
+  updateVoice,
+  voiceOverview,
+  VoiceError,
+} from '@/app/lib/geo/server/voice';
 import { schemaErrorBody } from '@/app/lib/geo/server/schemaError';
 
 export const dynamic = 'force-dynamic';
 
-const NO_STORE = { headers: { 'Cache-Control': 'no-store' } };
+const NO_STORE = { 'Cache-Control': 'no-store' };
+const STATUS_FOR = { no_key: 503, daily_cap: 429, upstream: 502 };
+
+function failure(error, where) {
+  if (error instanceof AdminDenied) return NextResponse.json({ error: error.reason }, { status: 403, headers: NO_STORE });
+  if (error instanceof VoiceError) {
+    // An admin is told what ElevenLabs said, so a refusal can be acted on.
+    const message = error.detail ? `${error.message}: ${error.detail}` : error.message;
+    return NextResponse.json({ error: message, code: error.code }, { status: STATUS_FOR[error.code] || 400, headers: NO_STORE });
+  }
+  console.error(`[geo/admin/voices] ${where}`, error?.message || error);
+  return NextResponse.json(schemaErrorBody(error, 'server_error'), { status: 500, headers: NO_STORE });
+}
 
 export async function GET(request) {
   try {
     await requireAdmin(request);
-    const [settings, voices] = await Promise.all([voiceSettings(), accountVoices()]);
-    const languages = LANGUAGES.map((language) => ({
-      code: language.code,
-      name: language.name,
-      v3: V3_LANGUAGES.includes(language.code),
-      voiceId: settings[language.code]?.voiceId || '',
-      enabled: Boolean(settings[language.code]?.enabled),
-      clips: settings[language.code]?.clips || 0,
-    }));
-    return NextResponse.json({ keySet: Boolean(process.env.ELEVENLABS_API_KEY), voices, languages }, NO_STORE);
+    const code = new URL(request.url).searchParams.get('language');
+    const body = code ? { language: await languageVoices(code) } : await voiceOverview();
+    return NextResponse.json(body, { headers: NO_STORE });
   } catch (error) {
-    if (error instanceof AdminDenied) return NextResponse.json({ error: error.reason }, { status: 403 });
-    console.error('[geo/admin/voices]', error?.message || error);
-    return NextResponse.json(schemaErrorBody(error, 'server_error'), { status: 500, ...NO_STORE });
+    return failure(error, 'GET');
   }
 }
 
@@ -43,12 +60,28 @@ export async function POST(request) {
   try {
     await requireAdmin(request);
     const body = await request.json().catch(() => ({}));
-    const row = await saveVoiceSetting({ language: body?.language, voiceId: body?.voiceId, enabled: body?.enabled });
-    return NextResponse.json({ ok: true, voiceId: row.voiceId, enabled: row.enabled }, NO_STORE);
+    switch (body?.action) {
+      case 'language': {
+        const row = await setLanguageEnabled({ language: body.language, enabled: body.enabled });
+        return NextResponse.json({ ok: true, enabled: row.enabled }, { headers: NO_STORE });
+      }
+      case 'add': {
+        const voiceId = body.ownerId ? await saveLibraryVoice({ ownerId: body.ownerId, voiceId: body.voiceId, name: body.name }) : body.voiceId;
+        const voice = await addVoice({ language: body.language, voiceId, name: body.name, about: body.about, previewUrl: body.previewUrl });
+        return NextResponse.json({ ok: true, id: voice.id }, { headers: NO_STORE });
+      }
+      case 'update': {
+        const { voice, languageOff } = await updateVoice({ id: body.id, enabled: body.enabled, weight: body.weight, delivery: body.delivery });
+        return NextResponse.json({ ok: true, enabled: voice.enabled, weight: voice.weight, delivery: voice.delivery, languageOff }, { headers: NO_STORE });
+      }
+      case 'remove': {
+        const { languageOff } = await removeVoice({ id: body.id });
+        return NextResponse.json({ ok: true, languageOff }, { headers: NO_STORE });
+      }
+      default:
+        return NextResponse.json({ error: 'Unknown action' }, { status: 400, headers: NO_STORE });
+    }
   } catch (error) {
-    if (error instanceof AdminDenied) return NextResponse.json({ error: error.reason }, { status: 403 });
-    if (error instanceof VoiceError) return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
-    console.error('[geo/admin/voices]', error?.message || error);
-    return NextResponse.json(schemaErrorBody(error, 'server_error'), { status: 500, ...NO_STORE });
+    return failure(error, 'POST');
   }
 }

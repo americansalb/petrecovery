@@ -225,6 +225,7 @@ function addSecurityHeaders(response) {
       // and Apps Script web apps; script iframes serve from
       // googleusercontent)
       `frame-src 'self' https://www.google.com ${GAME_CSP_HOSTS.frame.join(' ')} https://docs.google.com https://script.google.com https://*.googleusercontent.com`,
+      `media-src 'self' ${GAME_CSP_HOSTS.media.join(' ')}`,
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

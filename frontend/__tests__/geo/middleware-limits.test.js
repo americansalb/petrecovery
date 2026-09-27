@@ -84,7 +84,7 @@ describe('the game s rate limits reach middleware in one piece', () => {
 describe('the map hosts and the short paths', () => {
   test('middleware spreads the game s CSP hosts rather than listing them', () => {
     expect(middleware).toContain('GAME_CSP_HOSTS');
-    for (const directive of ['script', 'connect', 'frame']) {
+    for (const directive of ['script', 'connect', 'frame', 'media']) {
       expect(GAME_CSP_HOSTS[directive].length).toBeGreaterThan(0);
       for (const host of GAME_CSP_HOSTS[directive]) expect(host.startsWith('https://')).toBe(true);
     }

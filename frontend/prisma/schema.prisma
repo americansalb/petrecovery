@@ -6188,6 +6188,8 @@ model GeoScriptReport {
   guessLat  Float?
   guessLng  Float?
   ipHash    String?
+  // Voices (beta): the GeoVoice that read the round, for "How it sounds".
+  voice     String?
   status    String   @default("open")
   createdAt DateTime @default(now())
 
@@ -6195,20 +6197,41 @@ model GeoScriptReport {
   @@index([ipHash, language, kind, createdAt])
 }
 
-// Voices (beta, docs/GEO.md "Voices"): which ElevenLabs voice speaks a
-// language, and whether that language is in the beta. Set on /geo/admin;
-// a language is only drawn for a Voices round once an admin has heard
-// its voice and switched it on.
+// Voices (beta, docs/GEO.md "Voices"): a Script language played by ear.
+// Switched on at /geo/admin/voices once it has at least one voice that is
+// on; only languages that are on are drawn for a Voices round.
 model GeoVoiceLanguage {
   language  String   @id
-  voiceId   String
   enabled   Boolean  @default(false)
   updatedAt DateTime @updatedAt
 }
 
+// One ElevenLabs voice for one language. A round picks one of the
+// language's voices that are on, `weight` times as often as a voice of
+// weight 1, and seals its id into the round token. `delivery` is v3's
+// stability setting (creative, natural or robust). `name`, `about` and
+// `previewUrl` are copied from ElevenLabs when the voice is added, so the
+// admin screen does not have to ask ElevenLabs to draw the list.
+model GeoVoice {
+  id         String   @id @default(cuid())
+  language   String
+  voiceId    String
+  name       String
+  about      String?
+  previewUrl String?
+  enabled    Boolean  @default(true)
+  weight     Int      @default(2)
+  delivery   String   @default("natural")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([language, voiceId])
+  @@index([language])
+}
+
 // Every clip ElevenLabs has made, kept so each sentence is paid for once.
-// `key` hashes the model, the voice and the text, so changing a
-// language's voice makes new clips rather than reusing the old one.
+// `key` hashes the model, the voice, the delivery and the text, so a
+// different voice or delivery makes new clips rather than reusing old ones.
 model GeoVoiceClip {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -6221,5 +6244,5 @@ model GeoVoiceClip {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
-  @@index([language])
+  @@index([language, voiceId])
 }

@@ -517,6 +517,7 @@ function ScriptPlayGame({ params }) {
         <Reveal
           result={result}
           round={round}
+          heard={Boolean(config.voice)}
           last={history.length >= config.rounds}
           onNext={next}
           selectedRegion={selectedRegion}
@@ -537,7 +538,7 @@ function endonymOf(answer) {
 }
 
 /** The answer, and how close the pin was to it. */
-function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
+function Reveal({ result, round, heard, last, onNext, selectedRegion, onRegion }) {
   const { answer } = result;
   const score = useCountUp(result.score);
   return (
@@ -580,7 +581,7 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
           <p className="mt-2 text-sm text-sand-600">{answer.scriptName} script · {answer.branch} · {answer.family}. About {answer.speakers} million speakers.</p>
           <Tells answer={answer} text={round?.text ?? result.text} script={round?.script ?? answer.script} />
         </details>
-        <ReportMistake key={round?.token || 'restored'} token={round?.token} answer={answer} guess={result.guess} />
+        <ReportMistake key={round?.token || 'restored'} token={round?.token} answer={answer} guess={result.guess} heard={heard} />
       </div>
       <button
         type="button"
@@ -604,7 +605,7 @@ function Reveal({ result, round, last, onNext, selectedRegion, onRegion }) {
  * disagrees with anything, and it needs the round token: a round
  * restored after a reload has none, so it has no button either.
  */
-function ReportMistake({ token, answer, guess }) {
+function ReportMistake({ token, answer, guess, heard }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState('');
   const [note, setNote] = useState('');
@@ -641,6 +642,9 @@ function ReportMistake({ token, answer, guess }) {
     ['area', 'Where it is spoken'],
     ['hint', 'A hint'],
     ['language', `It is not ${answer.name}`],
+    // Voices (beta): the voice or its pronunciation, sent with which
+    // voice read the round so the admin can drop a bad one.
+    ...(heard ? [['voice', 'How it sounds']] : []),
     ['other', 'Something else'],
   ];
   const send = async () => {
