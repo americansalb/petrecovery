@@ -3,8 +3,9 @@
 /**
  * BrowseMap: every pet on the board, on one map.
  *
- * Pins use the same three colours as the cards (lost, found, home), and
- * each opens a small card that links to the pet's page. The popup is
+ * Pins use the pet colors of app/lib/petColors.js, the same as the cards
+ * (a pet that is home has a check mark in its pin), and each opens a
+ * small card that links to the pet's page. The popup is
  * built from DOM nodes with textContent, never an HTML string: Leaflet
  * sets string popups with innerHTML, and a pet named `<img onerror=...>`
  * used to run as script for anyone who opened the map.
@@ -15,13 +16,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { caseStatus, caseTitle, caseDescriptor, casePlace } from '@/app/lib/caseLabels';
 import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
-
-const PIN_COLOR = {
-  lost: '#ef4444',
-  found: '#0ea5e9',
-  home: '#10b981',
-  closed: '#94a3b8',
-};
+import { PET_COLOR as PIN_COLOR, CHECK_SVG } from '@/app/lib/petColors';
 
 /** Only http(s) photo URLs go into an img element. */
 function safePhoto(url) {
@@ -103,11 +98,13 @@ export default function BrowseMap({ cases = [] }) {
     const bounds = L.latLngBounds([]);
     located.forEach((c) => {
       const { key } = caseStatus(c);
+      const home = key === 'home';
+      const size = home ? 20 : 18;
       const icon = L.divIcon({
         className: 'case-pin',
-        html: `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:${PIN_COLOR[key]};border:3px solid #fff;box-shadow:0 1px 6px rgba(15,23,42,0.35)"></span>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
+        html: `<span style="display:block;box-sizing:border-box;width:${size}px;height:${size}px;padding:${home ? 2 : 0}px;border-radius:9999px;background:${PIN_COLOR[key]};border:3px solid #fff;box-shadow:0 1px 6px rgba(15,23,42,0.35)">${home ? CHECK_SVG : ''}</span>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
         popupAnchor: [0, -10],
       });
       const marker = L.marker([c.lastSeenLatitude, c.lastSeenLongitude], { icon, title: caseTitle(c) }).addTo(map);

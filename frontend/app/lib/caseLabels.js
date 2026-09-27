@@ -28,12 +28,13 @@ function sentenceCase(s) {
 const HOME_RESOLUTIONS = new Set(['REUNITED', 'FOUND_BY_OWNER', 'FOUND_AT_SHELTER', 'CAME_HOME']);
 
 /**
- * Lost, found, home or closed: the one status a reader needs. A search
- * closed for any other reason (the owner stopped, or worse) reads as
- * closed, never as still lost, and the reason stays private.
+ * Lost, found, reunited (key `home`) or closed: the one status a reader
+ * needs. A search closed for any other reason (the owner stopped, or
+ * worse) reads as closed, never as still lost, and the reason stays
+ * private.
  */
 export function caseStatus(c) {
-  if (c.status === 'REUNITED' || HOME_RESOLUTIONS.has(c.resolution)) return { key: 'home', label: 'Home' };
+  if (c.status === 'REUNITED' || HOME_RESOLUTIONS.has(c.resolution)) return { key: 'home', label: 'Reunited' };
   if (c.status && !isCaseOpen(c.status)) return { key: 'closed', label: 'Closed' };
   if (c.reportType === 'FOUND') return { key: 'found', label: 'Found' };
   return { key: 'lost', label: 'Lost' };

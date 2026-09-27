@@ -159,6 +159,29 @@ html, body {
   overflow-x: clip;
 }
 
+/* Buttons: navy and yellow buttons are a soft shade of their own color,
+   lighter at the top. One rule here rather than a class on each of about
+   sixty buttons, so every new navy or yellow button gets it too. Pet
+   colors (app/lib/petColors.js) stay flat: a lost-pet red is a fact,
+   not a button. Only the background image changes, so each button's own
+   shadow, border and hover color classes still apply underneath. */
+a.bg-flash-400,
+button.bg-flash-400 {
+  background-image: linear-gradient(180deg, #fde047 0%, #facc15 100%);
+}
+a.bg-flash-400:hover,
+button.bg-flash-400:not(:disabled):hover {
+  background-image: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+}
+a.bg-midnight-900,
+button.bg-midnight-900 {
+  background-image: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+a.bg-midnight-900:hover,
+button.bg-midnight-900:not(:disabled):hover {
+  background-image: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+}
+
 /* Better touch targets for mobile */
 button, a, input[type="submit"], input[type="button"] {
   min-height: 44px;

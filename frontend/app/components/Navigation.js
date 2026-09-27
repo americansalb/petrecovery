@@ -39,7 +39,7 @@ import {
   MapPin,
   BarChart3,
   Bell,
-  CheckCircle,
+  HandHeart,
   User,
   LogOut,
   ChevronDown,
@@ -200,12 +200,13 @@ export default function Navigation() {
                         <div className="text-xs text-midnight-500">Get help finding your pet</div>
                       </div>
                     </Link>
-                    <Link href="/report/found" className="flex items-center gap-3 px-4 py-3 hover:bg-green-50 transition">
-                      <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
+                    {/* Blue is the found-pet color (app/lib/petColors.js); green means home. */}
+                    <Link href="/report/found" className="flex items-center gap-3 px-4 py-3 hover:bg-sky-50 transition">
+                      <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center">
+                        <HandHeart className="w-5 h-5 text-sky-700" />
                       </div>
                       <div>
-                        <div className="font-semibold text-green-600">Report Found Pet</div>
+                        <div className="font-semibold text-sky-700">Report Found Pet</div>
                         <div className="text-xs text-midnight-500">Help reunite a pet</div>
                       </div>
                     </Link>
@@ -387,9 +388,9 @@ export default function Navigation() {
             <Link
               href="/report/found"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex flex-col items-center gap-2 p-3 bg-green-700 text-white rounded-xl"
+              className="flex flex-col items-center gap-2 p-3 bg-sky-700 text-white rounded-xl"
             >
-              <CheckCircle className="w-5 h-5" />
+              <HandHeart className="w-5 h-5" />
               <span className="text-xs font-semibold">Found Pet</span>
             </Link>
           </div>

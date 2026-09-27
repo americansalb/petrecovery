@@ -24,7 +24,8 @@ import {
 
 import { Button } from '@/components/ui';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
-import { STATUS_DOT } from '@/app/lost-and-found/PetCard';
+import PetStatusDot from '@/app/components/PetStatusDot';
+import { PET_BG } from '@/app/lib/petColors';
 import {
   caseStatus, caseTitle, caseDescriptor, casePlace, caseTimeline, caseSize,
   caseDescription, casePhone, known, shortDate, timeAgo,
@@ -418,7 +419,7 @@ export default function CasePageClient() {
 
             <div className="min-w-0">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-midnight-100 px-3 py-1 text-sm font-semibold text-midnight-800">
-                <span className={`h-2 w-2 rounded-full ${STATUS_DOT[status.key]}`} aria-hidden="true" />
+                <PetStatusDot status={status.key} />
                 {status.label}
               </span>
               <h1 className="mt-3 break-words text-3xl font-bold tracking-tight text-midnight-900 sm:text-4xl">{title}</h1>
@@ -502,17 +503,18 @@ export default function CasePageClient() {
                       lng={lng}
                       address={c.lastSeenAddress && !looksLikeCoordinates(c.lastSeenAddress) ? c.lastSeenAddress : ''}
                       sightings={sightings}
+                      found={isFound}
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-midnight-100 px-5 py-2 text-sm sm:px-6">
                     {/* Same colours as the pins in LastSeenMap.js */}
                     <span className="inline-flex items-center gap-1.5 text-midnight-600">
-                      <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden="true" />
+                      <span className={`h-2.5 w-2.5 rounded-full ${isFound ? PET_BG.found : PET_BG.lost}`} aria-hidden="true" />
                       {isFound ? 'Found here' : 'Last seen'}
                     </span>
                     {sightings.length > 0 && (
                       <span className="inline-flex items-center gap-1.5 text-midnight-600">
-                        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" aria-hidden="true" />
+                        <span className={`h-2.5 w-2.5 rounded-full ${PET_BG.seen}`} aria-hidden="true" />
                         Sighting
                       </span>
                     )}

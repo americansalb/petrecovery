@@ -17,9 +17,7 @@ import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
 import { TILE_URL, tileLayerOptions } from '@/app/lib/maps/tiles';
 import { timeAgo } from '@/app/lib/caseLabels';
-
-export const LAST_SEEN_COLOR = '#ef4444';
-export const SIGHTING_COLOR = '#f59e0b';
+import { PET_COLOR } from '@/app/lib/petColors';
 
 function el(tag, style, text) {
   const node = document.createElement(tag);
@@ -37,7 +35,9 @@ function popup(title, lines) {
   return root;
 }
 
-export default function LastSeenMap({ lat, lng, address, sightings = [] }) {
+// The spot is red where a lost pet was last seen and blue where a found
+// pet was found; sightings are orange (app/lib/petColors.js).
+export default function LastSeenMap({ lat, lng, address, sightings = [], found = false }) {
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -67,15 +67,16 @@ export default function LastSeenMap({ lat, lng, address, sightings = [] }) {
         const sLat = Number(s.latitude);
         const sLng = Number(s.longitude);
         if (!Number.isFinite(sLat) || !Number.isFinite(sLng) || (sLat === 0 && sLng === 0)) return;
-        L.marker([sLat, sLng], { icon: dot(SIGHTING_COLOR, 16), title: 'Sighting' })
+        L.marker([sLat, sLng], { icon: dot(PET_COLOR.seen, 16), title: 'Sighting' })
           .bindPopup(() => popup('Sighting', [timeAgo(s.sightedAt), s.description]))
           .addTo(map);
         bounds.extend([sLat, sLng]);
       });
 
       // Drawn last so it sits above any sighting at the same spot.
-      L.marker([lat, lng], { icon: dot(LAST_SEEN_COLOR, 22), title: 'Last seen', zIndexOffset: 1000 })
-        .bindPopup(() => popup('Last seen', [address]))
+      const spot = found ? 'Found here' : 'Last seen';
+      L.marker([lat, lng], { icon: dot(found ? PET_COLOR.found : PET_COLOR.lost, 22), title: spot, zIndexOffset: 1000 })
+        .bindPopup(() => popup(spot, [address]))
         .addTo(map);
 
       if (!bounds.getNorthEast().equals(bounds.getSouthWest())) {
@@ -87,7 +88,7 @@ export default function LastSeenMap({ lat, lng, address, sightings = [] }) {
       cancelled = true;
       if (map) map.remove();
     };
-  }, [lat, lng, address, sightings]);
+  }, [lat, lng, address, sightings, found]);
 
   return <div ref={containerRef} className="h-full w-full" aria-label="Map of where the pet was last seen" />;
 }

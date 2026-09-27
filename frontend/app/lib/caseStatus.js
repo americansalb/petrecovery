@@ -29,11 +29,14 @@ const LABELS = {
   CLOSED_OTHER: 'Closed',
 };
 
+// The pet colors of app/lib/petColors.js: a pet still missing is red
+// whether or not a search has started, a sighting is orange, home is green.
+const LOST = { bg: '#fee2e2', border: '#dc2626', text: '#991b1b' };
 const COLORS = {
-  ACTIVE: { bg: '#fee2e2', border: '#dc2626', text: '#991b1b' },
-  IN_PROGRESS: { bg: '#fef3c7', border: '#d97706', text: '#92400e' },
-  SIGHTING_REPORTED: { bg: '#dbeafe', border: '#2563eb', text: '#1e40af' },
-  REUNITED: { bg: '#d1fae5', border: '#10b981', text: '#065f46' },
+  ACTIVE: LOST,
+  IN_PROGRESS: LOST,
+  SIGHTING_REPORTED: { bg: '#ffedd5', border: '#ea580c', text: '#9a3412' },
+  REUNITED: { bg: '#d1fae5', border: '#059669', text: '#065f46' },
   CLOSED_OTHER: { bg: '#f3f4f6', border: '#6b7280', text: '#374151' },
 };
 
