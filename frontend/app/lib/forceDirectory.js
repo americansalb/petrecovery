@@ -12,6 +12,7 @@
 
 import prisma from '@/app/lib/prisma';
 import { simplifyArea, areaCenter } from '@/app/lib/maps/forceArea';
+import { fillMissingOutlinesSoon } from '@/app/lib/forceOutlines';
 
 const OPEN_CASE_STATUSES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'];
 const LIVE_ASSIGNMENT_STATUSES = ['ACCEPTED', 'ACTIVE', 'STANDBY'];
@@ -51,6 +52,9 @@ export function clearForceAreaCache() {
 
 /** The directory's forces, busiest first; null when the database read fails. */
 export async function getForceDirectory() {
+  // Forces still drawn as a circle get their town's outline in the
+  // background; they show it on a later visit (app/lib/forceOutlines.js).
+  fillMissingOutlinesSoon();
   try {
     const rows = await prisma.rescueForce.findMany({
       where: { isActive: true, isDeleted: false },

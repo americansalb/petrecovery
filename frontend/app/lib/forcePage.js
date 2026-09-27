@@ -24,6 +24,7 @@ import { caseStatus, caseTitle, timeAgo } from '@/app/lib/caseLabels';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { parsePlace } from '@/app/lib/placeLabel';
 import { OPEN_NEED_STATUSES } from '@/app/lib/forceNeeds';
+import { fillMissingOutlinesSoon } from '@/app/lib/forceOutlines';
 
 const OPEN_CASE_STATUSES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'];
 const LIVE_ASSIGNMENT_STATUSES = ['ACCEPTED', 'ACTIVE', 'STANDBY'];
@@ -106,6 +107,7 @@ async function readForcePage(id) {
     },
   });
   if (!force) return null;
+  fillMissingOutlinesSoon();
 
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id || null;

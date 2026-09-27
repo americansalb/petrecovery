@@ -21,7 +21,7 @@ import nextDynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Loader2, LocateFixed, PawPrint, Plus, Shield, X } from 'lucide-react';
 import { normalizeState } from '@/app/lib/usStates';
-import { areaContains, milesBetween } from '@/app/lib/maps/forceArea';
+import { areaCovers, milesBetween } from '@/app/lib/maps/forceArea';
 import { PET_TEXT } from '@/app/lib/petColors';
 import TownPicker, { townLabel } from './TownPicker';
 
@@ -49,7 +49,11 @@ function missingText(n) {
   return `${plural(n, 'pet', 'pets')} missing now`;
 }
 
-/** The forces to list for a place: inside or within 25 miles, the covering one first. */
+/**
+ * The forces to list for a place: covering it or within 25 miles, the
+ * covering one first. Covering is the rule new reports follow: inside the
+ * town line or within a mile of it (areaCovers).
+ */
 function forcesNear(forces, origin) {
   if (origin.lat == null) {
     // The town could not be placed on the map; fall back to its name.
@@ -58,7 +62,7 @@ function forcesNear(forces, origin) {
   }
   return forces
     .filter((f) => f.lat != null)
-    .map((f) => ({ ...f, inside: areaContains(f, origin), miles: milesBetween(origin, f) }))
+    .map((f) => ({ ...f, inside: areaCovers(f, origin), miles: milesBetween(origin, f) }))
     .filter((f) => f.inside || f.miles <= NEAR_MILES)
     .sort((a, b) => Number(b.inside) - Number(a.inside) || a.miles - b.miles);
 }

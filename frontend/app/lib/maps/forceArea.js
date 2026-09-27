@@ -9,8 +9,13 @@
  * dropped: at directory scale they are invisible.
  *
  * The result is a list of rings of [lat, lng] pairs, the order Leaflet
- * takes. A force without an outline (every force created automatically
- * from a report) is its center and `radiusMiles` instead.
+ * takes. A force without an outline is its center and `radiusMiles`
+ * instead. Forces set up automatically from a report get their town's
+ * outline looked up after the fact (app/lib/forceOutlines.js).
+ *
+ * `areaCovers` is the matching rule: a pet belongs to a force's area when
+ * it is inside the outline or within a mile of its edge, so a pet lost
+ * just over the town line still reaches the town's force.
  *
  * No imports: the server page and the browser both use this file.
  */
@@ -169,6 +174,71 @@ function inRing(lat, lng, ring) {
     if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
+}
+
+/**
+ * Every outer ring of a stored outline as [lat, lng], unthinned: for
+ * checking a point against the town line rather than drawing it.
+ */
+export function outlineRings(raw) {
+  let geo = raw;
+  if (typeof raw === 'string') {
+    try {
+      geo = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  return outerRings(geo)
+    .filter((r) => Array.isArray(r) && r.length >= 4 && r.every(isLngLat))
+    .map((r) => r.map(([lng, lat]) => [lat, lng]));
+}
+
+/** Miles from a point to the segment a-b, flat-earth: fine at town scale. */
+function milesToSegment(point, a, b) {
+  const kx = 69.172 * Math.cos((point.lat * Math.PI) / 180);
+  const ky = 69.0;
+  const ax = (a[1] - point.lng) * kx;
+  const ay = (a[0] - point.lat) * ky;
+  const bx = (b[1] - point.lng) * kx;
+  const by = (b[0] - point.lat) * ky;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = dx * dx + dy * dy;
+  const t = len === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len));
+  const x = ax + t * dx;
+  const y = ay + t * dy;
+  return Math.sqrt(x * x + y * y);
+}
+
+/**
+ * How far a point is outside an outline (rings of [lat, lng]), in miles:
+ * 0 inside it, otherwise the distance to its nearest edge.
+ */
+export function milesOutside(rings, point) {
+  if (!Array.isArray(rings) || rings.length === 0 || !point) return Infinity;
+  if (rings.some((ring) => inRing(point.lat, point.lng, ring))) return 0;
+  let best = Infinity;
+  for (const ring of rings) {
+    for (let i = 1; i < ring.length; i++) best = Math.min(best, milesToSegment(point, ring[i - 1], ring[i]));
+  }
+  return best;
+}
+
+/** How far outside a town's line a pet can be and still be the town's force's pet. */
+export const EDGE_MILES = 1;
+
+/**
+ * Whether a pet at { lat, lng } is the force's to look for: inside its
+ * outline or within `edgeMiles` of it; for a force with no outline, within
+ * its circle plus the same margin. `force` has `area` (rings of [lat, lng])
+ * or `lat`, `lng` and `radiusMiles`.
+ */
+export function areaCovers(force, point, edgeMiles = EDGE_MILES) {
+  if (!point) return false;
+  if (Array.isArray(force.area) && force.area.length > 0) return milesOutside(force.area, point) <= edgeMiles;
+  if (force.lat == null || force.lng == null) return false;
+  return milesBetween(point, { lat: force.lat, lng: force.lng }) <= (force.radiusMiles || 5) + edgeMiles;
 }
 
 /**
