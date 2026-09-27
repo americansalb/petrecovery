@@ -65,6 +65,17 @@ test('the search lists a force that has no state', async () => {
   expect(found[0].squad).toMatchObject({ id: 'force-portland', name: 'Portland Pet Rescue', memberCount: 4 });
 });
 
+test('the answer says where the search was measured from', async () => {
+  // The directory map puts the searched town there, and lists the forces
+  // around that point.
+  getServerSession.mockResolvedValue(null);
+  prisma.rescueForce.findMany.mockResolvedValue([]);
+
+  const res = await GET(new Request(`http://localhost/api/rescue-forces?search=Portland&country=CA&lat=${PORTLAND.lat}&lng=${PORTLAND.lng}&radius=25`));
+  const body = await res.json();
+  expect(body.searchLocation).toMatchObject({ latitude: PORTLAND.lat, longitude: PORTLAND.lng });
+});
+
 test('a force far away is still left out', async () => {
   getServerSession.mockResolvedValue(null);
   prisma.rescueForce.findMany.mockResolvedValue([{ ...AUTO_FORCE, centerLatitude: 43.66, centerLongitude: -70.26 }]); // Portland, Maine

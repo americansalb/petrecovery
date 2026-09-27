@@ -17,7 +17,22 @@ export function townLabel(s) {
   return [s.city, s.state_id].filter(Boolean).join(', ');
 }
 
-export default function TownPicker({ id, text, onTextChange, onPick, onEnter, placeholder = 'Town or ZIP code', autoFocus }) {
+// The field's size and border; `inputClassName` replaces them (the directory
+// uses a larger field than the Start a Rescue Force form).
+const DEFAULT_INPUT = 'rounded-xl border border-midnight-200 py-3';
+
+export default function TownPicker({
+  id,
+  text,
+  onTextChange,
+  onPick,
+  onEnter,
+  placeholder = 'Town or ZIP code',
+  autoFocus,
+  inputClassName = DEFAULT_INPUT,
+  // Pass null when a visible <label htmlFor={id}> names the field.
+  ariaLabel = placeholder,
+}) {
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -103,7 +118,7 @@ export default function TownPicker({ id, text, onTextChange, onPick, onEnter, pl
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        aria-label={placeholder}
+        aria-label={ariaLabel || undefined}
         role="combobox"
         aria-expanded={showList}
         aria-controls={listId}
@@ -111,7 +126,7 @@ export default function TownPicker({ id, text, onTextChange, onPick, onEnter, pl
         aria-activedescendant={active >= 0 ? `${id}-option-${active}` : undefined}
         autoComplete="off"
         autoFocus={autoFocus}
-        className="w-full rounded-xl border border-midnight-200 bg-white py-3 pl-11 pr-3 text-midnight-900 placeholder:text-midnight-400 outline-none focus:border-midnight-400 focus:ring-2 focus:ring-flash-400"
+        className={`w-full bg-white pl-11 pr-3 text-midnight-900 placeholder:text-midnight-400 outline-none focus:border-midnight-400 focus:ring-2 focus:ring-flash-400 ${inputClassName}`}
       />
       {showList && (
         <ul id={listId} role="listbox" className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-auto rounded-xl bg-white py-1 shadow-lg ring-1 ring-midnight-200">

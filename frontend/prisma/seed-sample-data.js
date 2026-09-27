@@ -410,6 +410,65 @@ async function main() {
     });
   }
 
+  // Luna is missing in Austin too, so the directory shows two faces there.
+  await prisma.caseAssignment.upsert({
+    where: { missionId_rescueSquadId: { missionId: cases['AUS-2026-0002'].id, rescueSquadId: force.id } },
+    update: {},
+    create: { missionId: cases['AUS-2026-0002'].id, rescueSquadId: force.id, status: 'ACTIVE', acceptedById: admin.id },
+  });
+
+  // Neighboring forces, so the directory map has areas to draw: two with
+  // a town outline (rough hand-drawn shapes, [lng, lat] like the outlines
+  // stored from OpenStreetMap) and two with only a center and radius, like
+  // the forces created automatically from reports.
+  const outline = (points) => JSON.stringify({ type: 'Polygon', coordinates: [[...points, points[0]]] });
+  const AUSTIN_OUTLINE = outline([
+    [-97.92, 30.2], [-97.88, 30.33], [-97.83, 30.42], [-97.74, 30.45], [-97.66, 30.43],
+    [-97.58, 30.37], [-97.56, 30.27], [-97.6, 30.17], [-97.7, 30.11], [-97.83, 30.13],
+  ]);
+  if (!force.customBoundary) {
+    force = await prisma.rescueForce.update({ where: { id: force.id }, data: { customBoundary: AUSTIN_OUTLINE } });
+  }
+  const neighborDefs = [
+    {
+      city: 'Round Rock', zipCode: '78664', lat: 30.5083, lng: -97.6789, radiusMiles: 5, crew: [[david.id, 'FOUNDER'], [mike.id, 'MEMBER']],
+      customBoundary: outline([
+        [-97.75, 30.5], [-97.72, 30.55], [-97.66, 30.57], [-97.6, 30.55], [-97.58, 30.5],
+        [-97.61, 30.47], [-97.68, 30.46], [-97.74, 30.47],
+      ]),
+    },
+    { city: 'Pflugerville', zipCode: '78660', lat: 30.4394, lng: -97.62, radiusMiles: 4, crew: [[sarah.id, 'FOUNDER']] },
+    { city: 'Cedar Park', zipCode: '78613', lat: 30.5052, lng: -97.8203, radiusMiles: 4, crew: [[mike.id, 'FOUNDER']] },
+  ];
+  for (const n of neighborDefs) {
+    const name = `${n.city} Rescue Force`;
+    let neighbor = await prisma.rescueForce.findFirst({ where: { name } });
+    if (!neighbor) {
+      neighbor = await prisma.rescueForce.create({
+        data: {
+          name,
+          city: n.city,
+          state: 'TX',
+          country: 'US',
+          zipCode: n.zipCode,
+          zipCodes: JSON.stringify([n.zipCode]),
+          centerLatitude: n.lat,
+          centerLongitude: n.lng,
+          radiusMiles: n.radiusMiles,
+          customBoundary: n.customBoundary || null,
+        },
+      });
+    }
+    for (const [userId, role] of n.crew) {
+      await prisma.rescueForceMember.upsert({
+        where: { rescueSquadId_userId: { rescueSquadId: neighbor.id, userId } },
+        update: {},
+        create: { rescueSquadId: neighbor.id, userId, role },
+      });
+    }
+  }
+  console.log('neighboring forces ok');
+
   // Squad activity, tasks, posts
   if (!(await prisma.squadActivity.findFirst({ where: { rescueSquadId: force.id } }))) {
     const acts = [

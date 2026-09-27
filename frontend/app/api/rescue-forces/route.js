@@ -316,7 +316,11 @@ export async function GET(request) {
       searchLocation: {
         cities: allCitiesInZip,
         state: userState,
-        zipCode
+        zipCode,
+        // Where the search was measured from, so a map can show the town
+        // (null when the town could not be placed).
+        latitude: searchLat ?? null,
+        longitude: searchLng ?? null,
       },
     });
   } catch (error) {
