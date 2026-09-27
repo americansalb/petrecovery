@@ -23,11 +23,10 @@ import { areaCenter } from '@/app/lib/maps/forceArea';
 import { caseStatus, caseTitle, timeAgo } from '@/app/lib/caseLabels';
 import { looksLikeCoordinates } from '@/app/lib/maps/reverseLabel';
 import { parsePlace } from '@/app/lib/placeLabel';
+import { OPEN_NEED_STATUSES } from '@/app/lib/forceNeeds';
 
 const OPEN_CASE_STATUSES = ['ACTIVE', 'IN_PROGRESS', 'SIGHTING_REPORTED'];
 const LIVE_ASSIGNMENT_STATUSES = ['ACCEPTED', 'ACTIVE', 'STANDBY'];
-/** A need nobody has finished yet. BLOCKED waits on something else, so it is not asked of anyone. */
-export const OPEN_NEED_STATUSES = ['AVAILABLE', 'IN_PROGRESS', 'NEEDS_HELP'];
 const LEADER_ROLES = ['FOUNDER', 'LEADER', 'ADMINISTRATOR'];
 const ROLE_ORDER = { FOUNDER: 0, LEADER: 1, ADMINISTRATOR: 2 };
 const REUNITED_SHOWN = 30;

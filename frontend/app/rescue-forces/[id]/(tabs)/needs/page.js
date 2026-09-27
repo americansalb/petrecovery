@@ -1,16 +1,19 @@
 /**
- * A Rescue Force's page, Needs tab: what its searches need done right now
- * (the force's open SquadTasks), each with its pet. Owners and leaders ask;
- * members take one on.
+ * A Rescue Force's page, Needs tab: what its searches need done right now,
+ * each with its pet, and what members finished lately
+ * (app/lib/forceNeeds.js). Members take a need, give it back, or mark it
+ * done here; anyone else is asked to join first.
  *
  * Everyone sees what is needed, which is the point of the tab for someone
- * deciding whether to join. The details under a need (notes, places) are
- * for members, like the tasks API they come from.
+ * deciding whether to join. The notes under a need (places, times) are
+ * for members.
  */
 
 import { notFound } from 'next/navigation';
-import prisma from '@/app/lib/prisma';
-import { getForcePage, OPEN_NEED_STATUSES } from '@/app/lib/forcePage';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/lib/auth';
+import { getForcePage } from '@/app/lib/forcePage';
+import { listNeeds, recentNeedActivity } from '@/app/lib/forceNeeds';
 import { timeAgo } from '@/app/lib/caseLabels';
 import { forceMetadata } from '../forceMetadata';
 import NeedsTab from './NeedsTab';
@@ -27,39 +30,18 @@ export default async function ForceNeedsPage({ params }) {
   const data = await getForcePage(id);
   if (!data) notFound();
   const member = data.viewer.isMember || data.viewer.isAdmin;
+  const session = await getServerSession(authOptions);
+  const userId = data.viewer.isMember ? session?.user?.id || null : null;
 
-  const rows = await prisma.squadTask.findMany({
-    where: { rescueSquadId: id, status: { in: OPEN_NEED_STATUSES }, role: { not: 'OWNER' } },
-    orderBy: [{ priorityScore: 'desc' }, { createdAt: 'desc' }],
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      caseId: true,
-      ownerRequested: true,
-      ownerRequestedHelp: true,
-      createdAt: true,
-      _count: { select: { participants: { where: { status: 'ACTIVE' } } } },
-    },
-    take: 100,
-  });
-
-  // A need belongs to a pet still being looked for, or to the whole force.
-  const petById = new Map(data.pets.filter((p) => p.status === 'lost' || p.status === 'found').map((p) => [p.id, p]));
-  const needs = rows
-    .filter((n) => !n.caseId || petById.has(n.caseId))
-    .map((n) => {
-      const pet = n.caseId ? petById.get(n.caseId) : null;
-      return {
-        id: n.id,
-        title: n.title,
-        details: member ? n.description || null : null,
-        asked: `Asked ${timeAgo(n.createdAt)}`,
-        people: n._count.participants,
-        byOwner: n.ownerRequested || n.ownerRequestedHelp,
-        pet: pet ? { name: pet.name, photo: pet.photo, species: pet.species, caseNumber: pet.caseNumber, status: pet.status } : null,
-      };
-    });
-
-  return <NeedsTab needs={needs} />;
+  const [needs, recent] = await Promise.all([
+    listNeeds(id, { userId, member }),
+    recentNeedActivity(id, { userId: session?.user?.id || null }),
+  ]);
+  // Times as words here, so the page and the browser agree on them.
+  return (
+    <NeedsTab
+      needs={needs.map((n) => ({ ...n, asked: `Asked ${timeAgo(n.askedAt)}` }))}
+      recent={recent.map((a) => ({ ...a, when: timeAgo(a.at) }))}
+    />
+  );
 }

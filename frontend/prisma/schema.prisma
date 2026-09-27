@@ -1320,6 +1320,9 @@ model SquadTask {
   shelter   Shelter? @relation(fields: [shelterId], references: [id])
 
   // Collaboration (multiple people can work on same task)
+  // How many people the need asks for ("2 of 4 people"). It closes when this
+  // many have marked it done (POST /api/rescue-forces/[id]/needs/[needId]).
+  peopleNeeded  Int               @default(1)
   needsHelp     Boolean           @default(false)
   blockedReason String? // Why task is blocked (e.g., "Shelter closed")
   participants  TaskParticipant[]

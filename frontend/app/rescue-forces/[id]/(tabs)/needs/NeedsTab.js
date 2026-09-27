@@ -2,20 +2,28 @@
 
 /**
  * The Needs tab: what the force's searches need done now, most urgent
- * first, each with its pet's photo, when it was asked, and how many people
- * are on it. A member opens the pet's search map to take one; a visitor is
- * asked to join first.
+ * first, and what members finished lately. A member taps "I will do it",
+ * then "Done" when finished (or "I can't after all"); anyone else is asked
+ * to join first. The rules are in app/lib/forceNeeds.js; this page only
+ * posts to /api/rescue-forces/[id]/needs/[needId] and refreshes.
  */
 
-import { useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { ChevronRight, Loader2, Shield, UserPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Check, Loader2, Shield } from 'lucide-react';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
+import { PET_COLOR } from '@/app/lib/petColors';
 import { useForce } from '../ForceShell';
 
-function peopleText(n) {
-  if (n === 0) return 'Nobody on it yet';
-  return n === 1 ? '1 person on it' : `${n} people on it`;
+/** Who is on it, in words: "Nobody yet, 3 needed", "2 of 4 people". */
+export function peopleLine(n) {
+  if (n.peopleNeeded === 1) {
+    if (n.mine) return '';
+    return n.taken === 0 ? 'Nobody on it yet' : 'Someone is on it';
+  }
+  if (n.taken === 0) return `Nobody yet, ${n.peopleNeeded} needed`;
+  return `${n.taken} of ${n.peopleNeeded} people`;
 }
 
 function PetFace({ pet }) {
@@ -28,85 +36,179 @@ function PetFace({ pet }) {
       </span>
     );
   }
-  if (!pet.photo || failed) {
-    return (
-      <span className={`${box} flex items-center justify-center bg-midnight-100 text-midnight-400`} aria-hidden="true">
+  const ring = { boxShadow: `0 0 0 2px #fff, 0 0 0 4px ${PET_COLOR[pet.status] || PET_COLOR.closed}` };
+  const face =
+    !pet.photo || failed ? (
+      <span className={`${box} flex items-center justify-center bg-midnight-100 text-midnight-400`} style={ring}>
         <SpeciesIcon species={String(pet.species || '').toUpperCase()} size={24} />
       </span>
+    ) : (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={pet.photo} alt="" loading="lazy" onError={() => setFailed(true)} className={`${box} bg-midnight-100 object-cover`} style={ring} />
     );
-  }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={pet.photo} alt="" loading="lazy" onError={() => setFailed(true)} className={`${box} bg-midnight-100 object-cover`} />
+    <Link href={`/cases/${encodeURIComponent(pet.caseNumber)}`} aria-label={`${pet.name}'s page`} className="m-1 shrink-0">
+      {face}
+    </Link>
   );
 }
 
-export default function NeedsTab({ needs }) {
+export default function NeedsTab({ needs, recent }) {
   const { force, viewer, join, joining } = useForce();
-  const member = viewer.isMember || viewer.isAdmin;
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+  const [inflight, setInflight] = useState(false);
+  const [active, setActive] = useState(null); // `${needId}:${action}`, until the page has the new state
+  const [errors, setErrors] = useState({});
+  const member = viewer.isMember;
+  const working = inflight || refreshing;
+
+  useEffect(() => {
+    if (!inflight && !refreshing) setActive(null);
+  }, [inflight, refreshing]);
+
+  async function act(need, action) {
+    if (!member) {
+      join();
+      return;
+    }
+    setActive(`${need.id}:${action}`);
+    setInflight(true);
+    setErrors((e) => ({ ...e, [need.id]: '' }));
+    try {
+      const res = await fetch(`/api/rescue-forces/${force.id}/needs/${need.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'That did not go through. Try again in a moment.');
+      startRefresh(() => router.refresh());
+    } catch (e) {
+      setErrors((x) => ({ ...x, [need.id]: e.message }));
+    } finally {
+      setInflight(false);
+    }
+  }
+
+  const spinning = (need, action) => active === `${need.id}:${action}`;
 
   return (
     <div className="mx-auto max-w-3xl px-4 pb-24 pt-5 lg:pb-10">
       <h2 className="text-xl font-extrabold tracking-tight text-midnight-900">Help needed right now</h2>
       <p className="mt-1 text-[15px] text-midnight-600">
         {member
-          ? "Owners and leaders asked for these. To take one, open the pet's search map."
+          ? 'Owners and leaders asked for these. Pick one near you.'
           : `Owners and leaders asked for these. Join ${force.name} to take one on.`}
       </p>
-
-      {!member && (
-        <button
-          type="button"
-          onClick={join}
-          disabled={joining}
-          className="mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-[14px] bg-flash-400 text-base font-extrabold text-midnight-900 shadow-[0_2px_6px_rgba(202,138,4,0.28)] disabled:opacity-60 sm:w-auto sm:px-7"
-        >
-          {joining ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <UserPlus className="h-5 w-5" aria-hidden="true" />}
-          Join to help
-        </button>
-      )}
 
       {needs.length === 0 ? (
         <p className="mt-5 rounded-2xl bg-midnight-50 px-5 py-6 text-midnight-600 ring-1 ring-midnight-200">
           Nothing is needed right now.
         </p>
       ) : (
-        <ul className="mt-5 space-y-2.5">
+        <ul className="mt-5 space-y-3">
           {needs.map((n) => {
-            const body = (
-              <>
-                <PetFace pet={n.pet} />
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="font-bold leading-snug text-midnight-900">{n.title}</span>
-                  <span className="text-sm text-midnight-600">
-                    {[n.pet ? n.pet.name : 'The whole force', n.asked, peopleText(n.people)].join(' · ')}
-                  </span>
-                  {n.byOwner && (
-                    <span className="mt-0.5 self-start rounded-full bg-midnight-100 px-2 py-0.5 text-xs font-bold text-midnight-700">
-                      Asked by the owner
-                    </span>
-                  )}
-                  {n.details && <span className="mt-1 whitespace-pre-line text-sm text-midnight-700">{n.details}</span>}
-                </span>
-              </>
-            );
+            const full = n.taken >= n.peopleNeeded && !n.mine;
+            const people = peopleLine(n);
             return (
-              <li key={n.id}>
-                {member && n.pet ? (
-                  <Link
-                    href={`/mission-control?mission=${encodeURIComponent(n.pet.caseNumber)}`}
-                    className="flex items-start gap-3.5 rounded-2xl border-2 border-midnight-200 bg-white p-3.5 transition hover:border-midnight-300"
-                  >
-                    {body}
-                    <ChevronRight className="mt-4 h-5 w-5 shrink-0 text-midnight-400" aria-hidden="true" />
-                  </Link>
-                ) : (
-                  <div className="flex items-start gap-3.5 rounded-2xl border-2 border-midnight-200 bg-white p-3.5">{body}</div>
-                )}
+              <li
+                key={n.id}
+                className={`rounded-2xl border-2 bg-white p-3.5 ${
+                  n.mine === 'on' ? 'border-midnight-900' : n.byOwner ? 'border-flash-400' : 'border-flash-200'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <PetFace pet={n.pet} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold leading-snug text-midnight-900">{n.title}</p>
+                    <p className="mt-0.5 text-sm text-midnight-600">
+                      {[n.pet ? n.pet.name : 'The whole force', n.asked, people].filter(Boolean).join(' · ')}
+                    </p>
+                    {n.byOwner && (
+                      <span className="mt-1 inline-block rounded-full bg-flash-100 px-2 py-0.5 text-xs font-bold text-flash-900">
+                        Asked by the owner
+                      </span>
+                    )}
+                    {n.details && <p className="mt-1.5 whitespace-pre-line text-sm text-midnight-700">{n.details}</p>}
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  {n.mine === 'on' ? (
+                    <div>
+                      <p className="text-sm font-semibold text-midnight-800">You are on it. Tap Done when you finish.</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <button
+                          type="button"
+                          onClick={() => act(n, 'done')}
+                          disabled={working}
+                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-midnight-900 px-5 font-bold text-white disabled:opacity-60"
+                        >
+                          {spinning(n, 'done') ? (
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+                          )}
+                          Done
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => act(n, 'drop')}
+                          disabled={working}
+                          className="text-sm font-semibold text-midnight-600 underline underline-offset-4 hover:text-midnight-900 disabled:opacity-60"
+                        >
+                          I can&apos;t after all
+                        </button>
+                      </div>
+                    </div>
+                  ) : n.mine === 'done' ? (
+                    <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-midnight-700">
+                      <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
+                      You did your part. It needs {n.peopleNeeded - n.done} more.
+                    </p>
+                  ) : full ? (
+                    <p className="text-sm font-semibold text-midnight-500">Enough people are on it.</p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => act(n, 'take')}
+                      disabled={working || (!member && joining)}
+                      className="inline-flex h-11 items-center gap-2 rounded-xl bg-flash-400 px-5 font-bold text-midnight-900 shadow-[0_2px_6px_rgba(202,138,4,0.28)] disabled:opacity-60"
+                    >
+                      {spinning(n, 'take') && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                      I will do it
+                    </button>
+                  )}
+                  {errors[n.id] && (
+                    <p role="alert" className="mt-2 text-sm text-red-700">
+                      {errors[n.id]}
+                    </p>
+                  )}
+                </div>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {recent.length > 0 && (
+        <section aria-labelledby="recent-heading" className="mt-8">
+          <h2 id="recent-heading" className="text-lg font-extrabold tracking-tight text-midnight-900">
+            Recent activity
+          </h2>
+          <ul className="mt-2 divide-y divide-midnight-100">
+            {recent.map((a) => (
+              <li key={a.id} className="flex items-start gap-3 py-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-midnight-100 text-midnight-700" aria-hidden="true">
+                  <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                </span>
+                <span className="min-w-0 flex-1 text-[15px] text-midnight-800">{a.text}</span>
+                <span className="shrink-0 text-sm text-midnight-500">{a.when}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

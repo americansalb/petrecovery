@@ -15,7 +15,9 @@ jest.mock('@/app/lib/prisma', () => ({
     rescueForce: { findFirst: jest.fn(), findMany: jest.fn() },
     rescueForceMember: { findMany: jest.fn() },
     caseAssignment: { findMany: jest.fn() },
+    case: { findMany: jest.fn() },
     squadTask: { groupBy: jest.fn(), findMany: jest.fn() },
+    squadActivity: { findMany: jest.fn() },
   },
 }));
 jest.mock('next-auth', () => ({ __esModule: true, getServerSession: jest.fn() }));
@@ -174,27 +176,51 @@ describe('the tabs for someone who is not a member', () => {
   const params = Promise.resolve({ id: 'force-austin' });
 
   function needRows() {
+    const at = new Date(Date.now() - 2 * HOUR);
     return [
-      { id: 'n1', title: 'Search the greenbelt', description: 'Meet at 4412 Oak St', caseId: 'case-max', ownerRequested: true, ownerRequestedHelp: false, createdAt: new Date(), _count: { participants: 1 } },
-      { id: 'n2', title: 'Put up flyers on Lamar', description: null, caseId: null, ownerRequested: false, ownerRequestedHelp: false, createdAt: new Date(), _count: { participants: 0 } },
-      { id: 'n3', title: 'Check the shelter', description: null, caseId: 'case-closed', ownerRequested: false, ownerRequestedHelp: false, createdAt: new Date(), _count: { participants: 0 } },
+      { id: 'n1', title: 'Search the greenbelt', description: 'Meet at 4412 Oak St', caseId: 'case-max', peopleNeeded: 3, ownerRequested: true, ownerRequestedHelp: false, createdAt: at, participants: [{ userId: 'u-mike', status: 'ACTIVE' }, { userId: 'u-x', status: 'LEFT' }] },
+      { id: 'n2', title: 'Put up flyers on Lamar', description: null, caseId: null, peopleNeeded: 1, ownerRequested: false, ownerRequestedHelp: false, createdAt: at, participants: [] },
+      { id: 'n3', title: 'Check the shelter', description: null, caseId: 'case-closed', peopleNeeded: 1, ownerRequested: false, ownerRequestedHelp: false, createdAt: at, participants: [] },
     ];
   }
 
-  test('Needs: everyone sees what is needed; only members see the notes', async () => {
-    answer();
+  function answerNeeds() {
     prisma.squadTask.findMany.mockResolvedValue(needRows());
-    const visitor = (await ForceNeedsPage({ params })).props.needs;
-    expect(visitor.map((n) => n.id)).toEqual(['n1', 'n2']); // not the closed pet's
-    expect(visitor[0]).toMatchObject({ title: 'Search the greenbelt', details: null, people: 1, byOwner: true });
-    expect(visitor[0].pet).toMatchObject({ name: 'Max', caseNumber: 'AUS-2026-0001' });
+    prisma.case.findMany.mockResolvedValue([
+      kase({}),
+      kase({ id: 'case-closed', caseNumber: 'AUS-2026-0009', status: 'REUNITED' }),
+    ]);
+    prisma.squadActivity.findMany.mockResolvedValue([
+      { id: 'a1', details: 'Call the animal center', actorId: 'u-mike', createdAt: new Date(), actor: { firstName: 'Mike' } },
+    ]);
+  }
+
+  test('Needs: everyone sees what is needed; only members see the notes and their own place', async () => {
+    answer();
+    answerNeeds();
+    const page = await ForceNeedsPage({ params });
+    const visitor = page.props.needs;
+    expect(visitor.map((n) => n.id)).toEqual(['n1', 'n2']); // not the reunited pet's
+    expect(visitor[0]).toMatchObject({
+      title: 'Search the greenbelt',
+      details: null,
+      mine: null,
+      peopleNeeded: 3,
+      onIt: 1,
+      taken: 1,
+      byOwner: true,
+      asked: 'Asked 2 hours ago',
+    });
+    expect(visitor[0].pet).toMatchObject({ name: 'Max', caseNumber: 'AUS-2026-0001', status: 'lost' });
     expect(visitor[1].pet).toBeNull();
+    expect(page.props.recent).toEqual([expect.objectContaining({ text: 'Mike finished: Call the animal center' })]);
 
     clearForceAreaCache();
     answer({ userId: 'u-mike' });
-    prisma.squadTask.findMany.mockResolvedValue(needRows());
-    const member = (await ForceNeedsPage({ params: Promise.resolve({ id: 'force-austin' }) })).props.needs;
-    expect(member[0].details).toBe('Meet at 4412 Oak St');
+    answerNeeds();
+    const member = await ForceNeedsPage({ params: Promise.resolve({ id: 'force-austin' }) });
+    expect(member.props.needs[0]).toMatchObject({ details: 'Meet at 4412 Oak St', mine: 'on' });
+    expect(member.props.recent[0].text).toBe('You finished: Call the animal center');
 
     // Owner-only tasks are not the force's needs.
     expect(prisma.squadTask.findMany.mock.calls[0][0].where).toMatchObject({ role: { not: 'OWNER' } });
