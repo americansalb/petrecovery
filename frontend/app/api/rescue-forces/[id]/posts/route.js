@@ -4,14 +4,22 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { isAdmin } from '@/app/lib/authz';
 import { memberName } from '@/app/lib/forceRoles';
+import { POST_TOPICS, checkPostFields, PostInputError } from '@/app/lib/forceDiscussion';
+import { caseStatus, caseTitle } from '@/app/lib/caseLabels';
+
+const PAGE = 20;
 
 /**
  * GET /api/rescue-forces/[id]/posts
  *
- * List posts with sorting and filtering
+ * The force's Discussion feed, newest first, 20 at a time.
  * Query params:
  *  - sort: 'hot' | 'new' | 'top' (default: 'hot')
  *  - divisionId: filter by division (optional)
+ *  - topic: SIGHTING | SEARCH_PARTY | QUESTION | FLYERS | HELLO (optional)
+ *  - caseId: posts about one pet (optional)
+ *  - before: an ISO time; posts older than it ("Show older posts")
+ *  - upcoming=1: search parties still to come, soonest first
  */
 export async function GET(request, { params }) {
   try {
@@ -19,17 +27,27 @@ export async function GET(request, { params }) {
     const { searchParams } = new URL(request.url);
     const sort = searchParams.get('sort') || 'hot';
     const divisionId = searchParams.get('divisionId');
+    const topic = POST_TOPICS[searchParams.get('topic')] ? searchParams.get('topic') : null;
+    const caseId = searchParams.get('caseId') || null;
+    const before = searchParams.get('before') ? new Date(searchParams.get('before')) : null;
+    const upcoming = searchParams.get('upcoming') === '1';
 
     // Build where clause
     const where = {
       rescueSquadId: id,
       isDeleted: false,
       ...(divisionId && { divisionId }),
+      ...(topic && { topic }),
+      ...(caseId && { caseId }),
+      ...(before && !Number.isNaN(before.getTime()) && { createdAt: { lt: before } }),
+      ...(upcoming && { topic: 'SEARCH_PARTY', eventAt: { gte: new Date() } }),
     };
 
     // Determine sorting
     let orderBy;
-    if (sort === 'new') {
+    if (upcoming) {
+      orderBy = { eventAt: 'asc' };
+    } else if (sort === 'new') {
       orderBy = { createdAt: 'desc' };
     } else if (sort === 'top') {
       orderBy = { upvotes: 'desc' };
@@ -139,8 +157,32 @@ export async function GET(request, { params }) {
           },
         },
       },
-      take: 50,
+      take: PAGE + 1,
     });
+    const hasMore = posts.length > PAGE;
+    if (hasMore) posts.pop();
+
+    // The pet each post is about, and who is going to each search party.
+    const postIds = posts.map((p) => p.id);
+    const caseIds = [...new Set(posts.map((p) => p.caseId).filter(Boolean))];
+    const [cases, going, goingCounts] = await Promise.all([
+      caseIds.length
+        ? prisma.case.findMany({
+            where: { id: { in: caseIds } },
+            select: { id: true, caseNumber: true, status: true, reportType: true, resolution: true, petName: true, petSpecies: true, petPhotoUrl: true },
+          })
+        : [],
+      postIds.length
+        ? prisma.squadPostGoing.findMany({
+            where: { postId: { in: postIds } },
+            orderBy: { createdAt: 'asc' },
+            select: { postId: true, userId: true, user: { select: { firstName: true } } },
+          })
+        : [],
+      postIds.length ? prisma.squadPostGoing.groupBy({ by: ['postId'], where: { postId: { in: postIds } }, _count: { _all: true } }) : [],
+    ]);
+    const caseById = new Map(cases.map((c) => [c.id, c]));
+    const goingCount = new Map(goingCounts.map((g) => [g.postId, g._count._all]));
 
     // Get author roles
     const authorIds = posts.map(p => p.authorId);
@@ -174,6 +216,8 @@ export async function GET(request, { params }) {
         }));
       };
 
+      const pet = post.caseId ? caseById.get(post.caseId) : null;
+      const goingHere = going.filter((g) => g.postId === post.id);
       return {
         id: post.id,
         authorId: post.authorId,
@@ -184,6 +228,15 @@ export async function GET(request, { params }) {
         title: post.title,
         content: post.content,
         imageUrl: post.imageUrl,
+        topic: post.topic || null,
+        pet: pet
+          ? { id: pet.id, name: caseTitle(pet), caseNumber: pet.caseNumber, photo: pet.petPhotoUrl || null, status: caseStatus(pet).key }
+          : null,
+        eventAt: post.eventAt || null,
+        eventPlace: post.eventPlace || null,
+        goingCount: goingCount.get(post.id) || 0,
+        goingNames: goingHere.slice(0, 5).map((g) => (g.user?.firstName || '').trim() || 'A member'),
+        iAmGoing: goingHere.some((g) => g.userId === currentUserId),
         upvotes: post.upvotes,
         downvotes: post.downvotes,
         commentCount: post.commentCount,
@@ -195,6 +248,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json({
       posts: formattedPosts,
+      hasMore,
     });
   } catch (error) {
     console.error('========================================');
@@ -273,6 +327,15 @@ export async function POST(request, { params }) {
       }
     }
 
+    // What it is about, which pet, and a search party's time and place.
+    let fields;
+    try {
+      fields = await checkPostFields(id, body);
+    } catch (e) {
+      if (e instanceof PostInputError) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
+    }
+
     // Create post
     const post = await prisma.squadPost.create({
       data: {
@@ -282,6 +345,7 @@ export async function POST(request, { params }) {
         content: content.trim(),
         imageUrl: imageUrl || null,
         divisionId: divisionId || null,
+        ...fields,
       },
       include: {
         author: {
@@ -312,6 +376,12 @@ export async function POST(request, { params }) {
         title: post.title,
         content: post.content,
         imageUrl: post.imageUrl,
+        topic: post.topic,
+        eventAt: post.eventAt,
+        eventPlace: post.eventPlace,
+        goingCount: 0,
+        goingNames: [],
+        iAmGoing: false,
         upvotes: 0,
         downvotes: 0,
         commentCount: 0,

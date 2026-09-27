@@ -77,6 +77,7 @@ model User {
   squadPosts             SquadPost[]
   squadPostComments      SquadPostComment[]
   squadPostVotes         SquadPostVote[]
+  squadPostGoing         SquadPostGoing[]
   squadCommentVotes      SquadCommentVote[]
   taskParticipations     TaskParticipant[]
 
@@ -1406,11 +1407,22 @@ model SquadPost {
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
 
+  // What it is about, for the Discussion tab's topics: SIGHTING,
+  // SEARCH_PARTY, QUESTION, FLYERS, HELLO; null for anything else.
+  topic      String?
+  // The pet it is about: a Case assigned to this force.
+  caseId     String?
+  // A search party's time and meeting place (topic SEARCH_PARTY).
+  eventAt    DateTime?
+  eventPlace String?
+
   // Relations
   comments SquadPostComment[]
   votes    SquadPostVote[]
+  going    SquadPostGoing[]
 
   @@index([rescueSquadId, createdAt])
+  @@index([rescueSquadId, topic])
   @@index([divisionId])
   @@index([authorId])
   @@index([createdAt])
@@ -1472,6 +1484,20 @@ model SquadPostVote {
 
   @@unique([postId, userId])
   @@index([postId])
+  @@index([userId])
+}
+
+// "I am going" on a search party post (SquadPost topic SEARCH_PARTY).
+model SquadPostGoing {
+  id     String    @id @default(cuid())
+  postId String
+  post   SquadPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
   @@index([userId])
 }
 

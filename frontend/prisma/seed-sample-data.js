@@ -540,6 +540,47 @@ async function main() {
     });
   }
 
+  // The Discussion's kinds of post: a sighting, a search party with people
+  // going, a question and a hello, and a leader's pinned announcement.
+  if (!(await prisma.squadPost.findFirst({ where: { rescueSquadId: force.id, topic: { not: null } } }))) {
+    const saturday = new Date();
+    saturday.setDate(saturday.getDate() + ((6 - saturday.getDay() + 7) % 7 || 7));
+    saturday.setHours(9, 0, 0, 0);
+    const party = await prisma.squadPost.create({
+      data: {
+        rescueSquadId: force.id,
+        authorId: sarah.id,
+        topic: 'SEARCH_PARTY',
+        caseId: maxCase.id,
+        eventAt: saturday,
+        eventPlace: 'Zilker Park, main parking lot',
+        content: 'We will split into pairs and walk the greenbelt trails. Bring water and a leash.',
+      },
+    });
+    for (const userId of [sarah.id, david.id]) {
+      await prisma.squadPostGoing.create({ data: { postId: party.id, userId } });
+    }
+    const topical = [
+      [mike.id, 'SIGHTING', maxCase.id, 'Saw a golden dog by Barton Springs Pool around 4 pm, heading toward the trailhead. He ran when I called, so I stopped.', 5],
+      [david.id, 'QUESTION', null, 'Does anyone have a humane trap we can borrow for a shy cat?', 1],
+      [admin.id, 'HELLO', null, 'Hi all, I live near Mueller and can help on weekday evenings.', 3],
+    ];
+    for (const [authorId, topic, caseId, content, upvotes] of topical) {
+      await prisma.squadPost.create({ data: { rescueSquadId: force.id, authorId, topic, caseId, content, upvotes } });
+    }
+  }
+  if (!(await prisma.squadActivity.findFirst({ where: { rescueSquadId: force.id, type: 'ANNOUNCEMENT' } }))) {
+    await prisma.squadActivity.create({
+      data: {
+        rescueSquadId: force.id,
+        type: 'ANNOUNCEMENT',
+        actorId: sarah.id,
+        message: 'Search in pairs. Never chase a scared pet. When you see one, post it here with the time and the place.',
+        details: JSON.stringify({ title: 'How we search. Read this first.', isPinned: true }),
+      },
+    });
+  }
+
   // ---- Forum (hub) ----
   const catDefs = [
     ['Lost Pet Help', 'lost-pet-help', 'Tips and coordination for active lost pet searches', '🆘', '#ef4444'],
