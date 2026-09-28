@@ -1418,6 +1418,10 @@ model SquadPost {
   // A search party's time and meeting place (topic SEARCH_PARTY).
   eventAt    DateTime?
   eventPlace String?
+  // An automatic post about the pet in caseId, posted as the force
+  // (app/lib/forceFeed.js): LOST, FOUND, SIGHTING, HOME. Null for a
+  // member's own post.
+  kind       String?
 
   // Relations
   comments SquadPostComment[]

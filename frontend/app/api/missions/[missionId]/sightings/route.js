@@ -13,6 +13,8 @@ import { logEvent } from '@/lib/logging';
 import { sendEmail } from '@/app/lib/email';
 import { sendPushToUser, isPushConfigured } from '@/app/lib/push';
 import { getEmailBaseUrl } from '@/app/lib/config';
+import { placeName } from '@/app/lib/needOptions';
+import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,6 +129,8 @@ export async function POST(request, { params }) {
         caseNumber: true,
         status: true,
         petName: true,
+        petSpecies: true,
+        reportType: true,
         // The Case relation is named `reporter`; `reportedBy` only exists
         // on CaseSighting. The old name 500'd every sighting report.
         reporter: {
@@ -213,6 +217,21 @@ export async function POST(request, { params }) {
           isUpdate: true
         }
       });
+    }
+
+    // The sighting in the Discussion of each force looking for the pet, as
+    // the person who saw it (app/lib/forceFeed.js). Never fails the report.
+    try {
+      const forceIds = await forcesOf(missionData.id);
+      if (forceIds.length) {
+        const seen = feedPost('SIGHTING', missionData, {
+          place: placeName(address),
+          note: [description, directionOfTravel ? `Heading ${String(directionOfTravel).toLowerCase()}.` : ''].filter(Boolean).join(' '),
+        });
+        await postToForces({ forceIds, authorId: reportedById, caseId: missionData.id, kind: 'SIGHTING', ...seen });
+      }
+    } catch (feedError) {
+      console.error('[Sighting] force post failed:', feedError?.message);
     }
 
     // Send notifications (non-blocking)

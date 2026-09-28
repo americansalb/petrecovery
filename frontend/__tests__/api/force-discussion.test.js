@@ -1,7 +1,7 @@
 /**
  * A Rescue Force's Discussion (app/lib/forceDiscussion.js and the posts
  * APIs): what a post may be about, a search party's time and place, the
- * Topics counts, and "I am going".
+ * feed's pet cards, and "I am going".
  */
 
 jest.mock('@/app/lib/prisma', () => ({
@@ -21,7 +21,7 @@ jest.mock('@/app/lib/authz', () => ({ __esModule: true, isAdmin: jest.fn(async (
 
 import prisma from '@/app/lib/prisma';
 import { getServerSession } from 'next-auth';
-import { checkPostFields, discussionSummary, PostInputError } from '@/app/lib/forceDiscussion';
+import { checkPostFields, PostInputError } from '@/app/lib/forceDiscussion';
 import { POST as createPost, GET as listPosts } from '@/app/api/rescue-forces/[id]/posts/route';
 import { POST as setGoing } from '@/app/api/rescue-forces/[id]/posts/[postId]/going/route';
 
@@ -57,39 +57,6 @@ describe('checkPostFields', () => {
     expect(ok).toMatchObject({ topic: 'SEARCH_PARTY', eventPlace: 'Zilker Park, main lot' });
     expect(ok.eventAt.toISOString()).toBe(soon);
   });
-});
-
-test('discussionSummary: counts per topic, parties to come, posts per pet', async () => {
-  prisma.squadPost.groupBy.mockImplementation(async (args) =>
-    args.by[0] === 'topic'
-      ? [
-          { topic: 'SIGHTING', _count: { _all: 7 } },
-          { topic: 'QUESTION', _count: { _all: 2 } },
-        ]
-      : [{ caseId: 'case-max', _count: { _all: 3 } }]
-  );
-  prisma.squadPost.count.mockResolvedValue(4);
-  prisma.squadPost.findMany.mockResolvedValue([{ id: 'p1', caseId: 'case-max' }]);
-
-  const summary = await discussionSummary(
-    FORCE,
-    [
-      { id: 'case-max', name: 'Max', status: 'lost' },
-      { id: 'case-luna', name: 'Luna', status: 'lost' },
-      { id: 'case-biscuit', name: 'Biscuit', status: 'home' },
-    ],
-    NOW
-  );
-  expect(summary.topics).toMatchObject({
-    SEARCH_PARTY: { upcoming: 1 },
-    SIGHTING: { thisWeek: 4, total: 7 },
-    QUESTION: { total: 2 },
-    FLYERS: { total: 0 },
-  });
-  expect(summary.pets.map((p) => [p.name, p.posts, p.parties])).toEqual([
-    ['Max', 3, 1],
-    ['Luna', 0, 0],
-  ]);
 });
 
 describe('posting', () => {
@@ -140,6 +107,32 @@ test('the feed filters by topic and pet, pages with before, and lists parties to
   const upcoming = prisma.squadPost.findMany.mock.calls[2][0];
   expect(upcoming.where).toMatchObject({ topic: 'SEARCH_PARTY', eventAt: { gte: expect.any(Date) } });
   expect(upcoming.orderBy).toEqual({ eventAt: 'asc' });
+});
+
+test("the feed's pet cards: the force's automatic posts get their pet, older ones from the case number in the text", async () => {
+  prisma.rescueForceMember.findFirst.mockResolvedValue({ id: 'member-mike' });
+  prisma.rescueForceMember.findMany.mockResolvedValue([]);
+  prisma.squadPostGoing.findMany.mockResolvedValue([]);
+  prisma.squadPostGoing.groupBy.mockResolvedValue([]);
+  const base = { authorId: 'u-jamie', author: { firstName: 'Jamie' }, comments: [], votes: [], upvotes: 0, commentCount: 0, createdAt: NOW };
+  prisma.squadPost.findMany.mockResolvedValue([
+    { ...base, id: 'p-new', caseId: 'case-max', kind: 'SIGHTING', title: 'Max was seen near the pool', content: 'Heading west.' },
+    { ...base, id: 'p-old', caseId: null, kind: null, title: 'Rocket is missing', content: 'Rocket, a brown dog, was reported lost near Andrew Zilker Road. Case #AUS-2026-HXEN47.' },
+    { ...base, id: 'p-words', caseId: null, kind: null, title: null, content: 'Anyone have a trap? Case #AUS-2026-HXEN47 needs one.' },
+  ]);
+  prisma.case.findMany.mockResolvedValue([
+    { id: 'case-max', caseNumber: 'AUS-2026-0001', status: 'ACTIVE', reportType: 'LOST', petName: 'Max', petSpecies: 'DOG', petBreed: 'Golden Retriever', petColor: 'Golden', petPhotoUrl: 'https://cdn/max.jpg', lastSeenAddress: '2100 Barton Springs Rd, Austin, TX', lastSeenAt: new Date('2026-09-24T10:00:00Z'), resolvedAt: null },
+    { id: 'case-rocket', caseNumber: 'AUS-2026-HXEN47', status: 'ACTIVE', reportType: 'LOST', petName: 'Rocket', petSpecies: 'DOG', petBreed: null, petColor: 'Brown', petPhotoUrl: null, lastSeenAddress: 'Andrew Zilker Road, Austin, Travis County, Texas, 78703, United States', lastSeenAt: new Date('2026-09-24T10:00:00Z'), resolvedAt: null },
+  ]);
+
+  const res = await listPosts(new Request(`http://localhost/api/rescue-forces/${FORCE}/posts?sort=new`), { params: { id: FORCE } });
+  expect(res.status).toBe(200);
+  const { posts } = await res.json();
+  expect(prisma.case.findMany.mock.calls[0][0].where).toEqual({ OR: [{ id: { in: ['case-max'] } }, { caseNumber: { in: ['AUS-2026-HXEN47'] } }] });
+  expect(posts[0]).toMatchObject({ kind: 'SIGHTING', pet: { name: 'Max', caseNumber: 'AUS-2026-0001', status: 'lost', line: 'Golden Retriever', near: 'Barton Springs Rd', photo: 'https://cdn/max.jpg' } });
+  expect(posts[1]).toMatchObject({ kind: 'LOST', pet: { name: 'Rocket', caseNumber: 'AUS-2026-HXEN47', line: 'Dog, brown', near: 'Andrew Zilker Road' } });
+  // A member's own words stay words, whatever case number they mention.
+  expect(posts[2]).toMatchObject({ kind: null, pet: null });
 });
 
 describe('I am going', () => {

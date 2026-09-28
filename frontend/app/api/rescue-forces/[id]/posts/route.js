@@ -6,8 +6,12 @@ import { isAdmin } from '@/app/lib/authz';
 import { memberName } from '@/app/lib/forceRoles';
 import { POST_TOPICS, checkPostFields, PostInputError } from '@/app/lib/forceDiscussion';
 import { caseStatus, caseTitle } from '@/app/lib/caseLabels';
+import { placeName } from '@/app/lib/needOptions';
+import { kindOf, petLine } from '@/app/lib/forceFeed';
 
 const PAGE = 20;
+// A case number in an older automatic post's text ("Case #AUS-2026-HXEN47").
+const CASE_NUMBER_IN_TEXT = /#?\b([A-Z]{3,4}-\d{4}-[0-9A-Z]{4,6})\b/;
 
 /**
  * GET /api/rescue-forces/[id]/posts
@@ -163,13 +167,31 @@ export async function GET(request, { params }) {
     if (hasMore) posts.pop();
 
     // The pet each post is about, and who is going to each search party.
+    // An older automatic post named the pet only by its case number in the
+    // text; it gets its pet from that, so it draws as a pet card too.
     const postIds = posts.map((p) => p.id);
+    const numberIn = (p) => (!p.caseId && kindOf(p) ? (p.content || '').match(CASE_NUMBER_IN_TEXT)?.[1] || null : null);
     const caseIds = [...new Set(posts.map((p) => p.caseId).filter(Boolean))];
+    const numbers = [...new Set(posts.map(numberIn).filter(Boolean))];
     const [cases, going, goingCounts] = await Promise.all([
-      caseIds.length
+      caseIds.length || numbers.length
         ? prisma.case.findMany({
-            where: { id: { in: caseIds } },
-            select: { id: true, caseNumber: true, status: true, reportType: true, resolution: true, petName: true, petSpecies: true, petPhotoUrl: true },
+            where: { OR: [{ id: { in: caseIds } }, { caseNumber: { in: numbers } }] },
+            select: {
+              id: true,
+              caseNumber: true,
+              status: true,
+              reportType: true,
+              resolution: true,
+              petName: true,
+              petSpecies: true,
+              petBreed: true,
+              petColor: true,
+              petPhotoUrl: true,
+              lastSeenAddress: true,
+              lastSeenAt: true,
+              resolvedAt: true,
+            },
           })
         : [],
       postIds.length
@@ -182,6 +204,7 @@ export async function GET(request, { params }) {
       postIds.length ? prisma.squadPostGoing.groupBy({ by: ['postId'], where: { postId: { in: postIds } }, _count: { _all: true } }) : [],
     ]);
     const caseById = new Map(cases.map((c) => [c.id, c]));
+    const caseByNumber = new Map(cases.map((c) => [c.caseNumber, c]));
     const goingCount = new Map(goingCounts.map((g) => [g.postId, g._count._all]));
 
     // Get author roles
@@ -216,7 +239,7 @@ export async function GET(request, { params }) {
         }));
       };
 
-      const pet = post.caseId ? caseById.get(post.caseId) : null;
+      const pet = (post.caseId ? caseById.get(post.caseId) : caseByNumber.get(numberIn(post))) || null;
       const goingHere = going.filter((g) => g.postId === post.id);
       return {
         id: post.id,
@@ -230,8 +253,22 @@ export async function GET(request, { params }) {
         imageUrl: post.imageUrl,
         topic: post.topic || null,
         pet: pet
-          ? { id: pet.id, name: caseTitle(pet), caseNumber: pet.caseNumber, photo: pet.petPhotoUrl || null, status: caseStatus(pet).key }
+          ? {
+              id: pet.id,
+              name: caseTitle(pet),
+              caseNumber: pet.caseNumber,
+              photo: pet.petPhotoUrl || null,
+              status: caseStatus(pet).key,
+              species: pet.petSpecies || null,
+              // For the feed's pet cards: what it looks like, where, since when.
+              line: petLine(pet),
+              near: placeName(pet.lastSeenAddress),
+              since: pet.lastSeenAt || null,
+              home: pet.resolvedAt || null,
+            }
           : null,
+        // The force's automatic post about the pet, or null for a member's own.
+        kind: kindOf(post),
         eventAt: post.eventAt || null,
         eventPlace: post.eventPlace || null,
         goingCount: goingCount.get(post.id) || 0,
@@ -290,7 +327,8 @@ export async function POST(request, { params }) {
     const body = await request.json();
     const { title, content, imageUrl, divisionId } = body;
 
-    if (!content?.trim()) {
+    // A search party says enough with its time and place.
+    if (!content?.trim() && String(body.topic || '').toUpperCase() !== 'SEARCH_PARTY') {
       return NextResponse.json(
         { error: 'Post content is required' },
         { status: 400 }
@@ -342,7 +380,7 @@ export async function POST(request, { params }) {
         rescueSquadId: id,
         authorId: session.user.id,
         title: title?.trim() || null,
-        content: content.trim(),
+        content: (content || '').trim(),
         imageUrl: imageUrl || null,
         divisionId: divisionId || null,
         ...fields,

@@ -14,6 +14,7 @@ import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
 import { logEvent } from '@/lib/logging';
 import { createInAppNotification } from '@/app/lib/notifications-inapp';
+import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -153,6 +154,7 @@ export async function POST(request, { params }) {
           caseNumber: true,
           petName: true,
           petSpecies: true,
+          reportType: true,
           status: true,
           resolution: true,
           resolutionNotes: true,
@@ -197,6 +199,18 @@ export async function POST(request, { params }) {
         response_time_ms: responseTime
       }
     });
+
+    // "Max is home" in the Discussion of each force that was looking for the
+    // pet (app/lib/forceFeed.js). Never fails the status change.
+    if (status === 'REUNITED') {
+      try {
+        const forceIds = await forcesOf(params.missionId);
+        const home = feedPost('HOME', updatedMission);
+        await postToForces({ forceIds, authorId: session.user.id, caseId: params.missionId, kind: 'HOME', ...home });
+      } catch (feedError) {
+        console.error('[Status] force post failed:', feedError?.message);
+      }
+    }
 
     // CRIT-D: on a terminal status change, tell the people who were searching.
     // Active mission volunteers get the resolution news (so they can stop), in-app

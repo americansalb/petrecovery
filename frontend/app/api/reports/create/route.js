@@ -16,6 +16,7 @@ import { getEmailBaseUrl } from '@/app/lib/config';
 import { withRateLimitAsync, RateLimitPresets, rateLimitResponse } from '@/app/lib/rateLimit';
 import { withCaseNumberRetry } from '@/app/lib/caseNumber';
 import { forcesCovering, alertForceMembers } from '@/app/lib/forceCoverage';
+import { feedPost } from '@/app/lib/forceFeed';
 import { fillForceOutlineSoon } from '@/app/lib/forceOutlines';
 
 // Allow large body for base64 image uploads and longer timeout
@@ -593,33 +594,25 @@ export async function POST(request) {
             // Plain words: these show in the force's Updates tab, where the
             // case number becomes a link to the pet's page. They used to be
             // emoji banners with markdown asterisks nothing rendered.
-            // "a brown dog": petType is stored as the enum value ("DOG").
-            const petTypeDisplay = String(petType || 'pet').toLowerCase().replace(/_/g, ' ');
-            const described = `${petName}, a ${[String(color || '').toLowerCase(), petTypeDisplay].filter(Boolean).join(' ')}${breed ? ` (${breed})` : ''}`;
-            const lostRecently = timeElapsed === 'less_than_hour' ? ' Lost within the last hour.' : '';
-            let postTitle;
-            let postContent;
-            if (squad.isAutoCreated) {
-              postTitle = `${petName} is missing`;
-              postContent = `${described}, was reported lost near ${lastSeenAddress}.${lostRecently} This force was set up for ${squad.city || 'this town'} with that report. Case #${report.caseNumber}.`;
-            } else if (isNearbyAssist) {
-              postTitle = `${petName} is missing nearby`;
-              postContent = `${described}, was reported lost ${distanceText ? `${distanceText}, ` : ''}just outside this force's area, near ${lastSeenAddress}.${lostRecently} Case #${report.caseNumber}.`;
-            } else {
-              postTitle = `${petName} is missing`;
-              postContent = `${described}, was reported lost near ${lastSeenAddress}.${lostRecently} If you are nearby, keep an eye out and report any sighting on the pet's page. Case #${report.caseNumber}.`;
-            }
+            // The force's automatic post about the pet (app/lib/forceFeed.js):
+            // the Discussion draws it as a pet card, from the report itself.
+            const note = squad.isAutoCreated
+              ? `This force was set up for ${squad.city || 'this town'} with this report.`
+              : isNearbyAssist
+                ? `Just outside this force's area${distanceText ? `, ${distanceText}` : ''}.`
+                : timeElapsed === 'less_than_hour'
+                  ? 'Lost within the last hour.'
+                  : '';
+            const { title: postTitle, content: postContent } = feedPost('LOST', report, { note: note || undefined });
 
             await prisma.squadPost.create({
               data: {
                 rescueSquadId: squad.id,
                 authorId: user.id,
+                caseId: report.id,
+                kind: 'LOST',
                 title: postTitle,
                 content: postContent,
-                // isSystemPost / isPinned are NOT columns on SquadPost -
-                // confirmed against both prisma/schema.prisma and the raw DDL in
-                // app/api/admin/migrate. Passing them made this create throw,
-                // which the catch below swallowed.
               }
             });
             console.log('[Report Debug] Created mascot post for squad:', squad.name, isNearbyAssist ? '(nearby assist)' : '');

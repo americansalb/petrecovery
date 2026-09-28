@@ -29,7 +29,6 @@ jest.mock('next/navigation', () => ({ __esModule: true, notFound: jest.fn(() => 
 // The tabs' client views are not under test here, only what the server hands them.
 jest.mock('@/app/rescue-forces/[id]/(tabs)/needs/NeedsTab', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/app/rescue-forces/[id]/(tabs)/discussion/DiscussionClient', () => ({ __esModule: true, default: () => null }));
-jest.mock('@/app/lib/forceDiscussion', () => ({ __esModule: true, discussionSummary: jest.fn(async () => ({ topics: {}, pets: [] })) }));
 jest.mock('@/app/rescue-forces/[id]/(tabs)/discussion/LockedDiscussion', () => ({ __esModule: true, default: () => null }));
 
 import fs from 'fs';
