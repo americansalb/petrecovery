@@ -24,6 +24,7 @@ import { normalizeState } from '@/app/lib/usStates';
 import { areaCovers, milesBetween } from '@/app/lib/maps/forceArea';
 import { PET_TEXT } from '@/app/lib/petColors';
 import TownPicker, { townLabel } from './TownPicker';
+import { createHref, outcomeHref, startForce } from './startForce';
 
 const ForceDirectoryMap = nextDynamic(() => import('./ForceDirectoryMap'), {
   ssr: false,
@@ -77,6 +78,10 @@ export default function ForceDirectory({ forces }) {
   const [origin, setOrigin] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | searching | locating | empty | notfound | failed | nolocation
   const [problemLabel, setProblemLabel] = useState('');
+  // The town searched, when there is one: what "Start a Rescue Force" starts.
+  const [town, setTown] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const [startProblem, setStartProblem] = useState('');
   const [hoverId, setHoverId] = useState(null);
   // Each search or Near me takes a number; an answer for an older one is dropped.
   const latest = useRef(0);
@@ -94,6 +99,7 @@ export default function ForceDirectory({ forces }) {
     setStatus('searching');
     const params = new URLSearchParams({ radius: String(NEAR_MILES) });
     let label;
+    let parsed = null;
     if (suggestion) {
       label = townLabel(suggestion);
       params.set('search', suggestion.city);
@@ -104,7 +110,7 @@ export default function ForceDirectory({ forces }) {
         if (suggestion.lng != null) params.set('lng', String(suggestion.lng));
       }
     } else {
-      const parsed = parseTyped(typed);
+      parsed = parseTyped(typed);
       label = typed.trim();
       params.set('search', parsed.zip || parsed.city);
       if (parsed.state) params.set('state', parsed.state);
@@ -129,6 +135,18 @@ export default function ForceDirectory({ forces }) {
         lng: placed ? at.longitude : null,
         towns: at.cities || [],
       });
+      // The town as picked, or as the search placed it (a ZIP code gives
+      // its first town), so a force can be started here in one tap.
+      setTown(
+        suggestion || {
+          city: at.cities?.[0] || parsed?.city || label,
+          state_id: at.state || parsed?.state || '',
+          country: 'US',
+          zips: at.zipCode ? [String(at.zipCode)] : [],
+          ...(placed ? { lat: at.latitude, lng: at.longitude } : {}),
+        }
+      );
+      setStartProblem('');
       setStatus('idle');
     } catch {
       if (mine === latest.current) setStatus('failed');
@@ -156,6 +174,7 @@ export default function ForceDirectory({ forces }) {
       (pos) => {
         if (mine !== latest.current) return;
         setOrigin({ kind: 'me', label: 'you', lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setTown(null);
         setText('');
         setStatus('idle');
       },
@@ -167,8 +186,26 @@ export default function ForceDirectory({ forces }) {
   function showAll() {
     latest.current += 1;
     setOrigin(null);
+    setTown(null);
     setText('');
     setStatus('idle');
+  }
+
+  // "Start Waco Rescue Force", from the card that says there is none: one
+  // tap for a signed-in member. Signed out, or the waiver not accepted yet:
+  // that page first, then the Start page starts it (app/rescue-forces/startForce.js).
+  async function startHere() {
+    if (!town || starting) return;
+    setStarting(true);
+    setStartProblem('');
+    const outcome = await startForce(town);
+    const href = outcomeHref(outcome, town);
+    if (href) {
+      router.push(href);
+      return;
+    }
+    setStartProblem(outcome.message);
+    setStarting(false);
   }
 
   // Deep link: /rescue-forces?q=Austin, TX
@@ -323,13 +360,17 @@ export default function ForceDirectory({ forces }) {
                     : `No Rescue Force near ${placeName} yet`
                 }
                 onShowAll={origin && all.length > 0 ? showAll : null}
+                town={town}
+                onStart={startHere}
+                starting={starting}
+                problem={startProblem}
               />
             )}
 
             {list.length > 0 && (
               <p className="pt-4 text-center text-[15px] text-midnight-600">
                 Your town is not here?{' '}
-                <Link href="/rescue-forces/create" className="font-bold text-midnight-900 underline-offset-4 hover:underline">
+                <Link href={createHref(town)} className="font-bold text-midnight-900 underline-offset-4 hover:underline">
                   Start a Rescue Force
                 </Link>
               </p>
@@ -406,19 +447,34 @@ function PetFace({ photo }) {
   );
 }
 
-function NoForce({ title, onShowAll }) {
+/**
+ * No force for the place searched. With the town known, the button starts
+ * its force right here; from "Near me" (no town name) it opens the Start
+ * page.
+ */
+function NoForce({ title, onShowAll, town, onStart, starting, problem }) {
+  const button = `mt-3 flex h-[52px] items-center justify-center gap-2 rounded-[14px] text-base font-extrabold transition ${YELLOW_BUTTON}`;
   return (
     <div className="rounded-2xl border-2 border-dashed border-midnight-300 bg-midnight-50 p-[18px]">
       <p className="text-[17px] font-bold text-midnight-900">{title}</p>
       <p className="mt-2 text-[15px] leading-relaxed text-midnight-600">
         Start one. Neighbors who live there can join it, and lost pets reported there will show up in it.
       </p>
-      <Link
-        href="/rescue-forces/create"
-        className={`mt-3 flex h-[52px] items-center justify-center rounded-[14px] text-base font-extrabold transition ${YELLOW_BUTTON}`}
-      >
-        Start a Rescue Force
-      </Link>
+      {town ? (
+        <button type="button" onClick={onStart} disabled={starting} className={`${button} w-full disabled:opacity-70`}>
+          {starting ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <Plus className="h-5 w-5" aria-hidden="true" />}
+          {starting ? 'Starting' : `Start ${town.city} Rescue Force`}
+        </button>
+      ) : (
+        <Link href="/rescue-forces/create" className={button}>
+          Start a Rescue Force
+        </Link>
+      )}
+      {problem && (
+        <p role="alert" className="mt-2 text-sm text-red-700">
+          {problem}
+        </p>
+      )}
       {onShowAll && (
         <button
           type="button"
