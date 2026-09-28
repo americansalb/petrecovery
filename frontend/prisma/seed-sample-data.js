@@ -540,8 +540,10 @@ async function main() {
     });
   }
 
-  // The Discussion's kinds of post: a sighting, a search party with people
-  // going, a question and a hello, and a leader's pinned announcement.
+  // The Discussion's kinds of post: a search party with people going, a
+  // question and a hello, the force's automatic posts about its pets (Max
+  // reported lost, a sighting of him, Biscuit home), and a leader's pinned
+  // announcement.
   if (!(await prisma.squadPost.findFirst({ where: { rescueSquadId: force.id, topic: { not: null } } }))) {
     const saturday = new Date();
     saturday.setDate(saturday.getDate() + ((6 - saturday.getDay() + 7) % 7 || 7));
@@ -560,13 +562,26 @@ async function main() {
     for (const userId of [sarah.id, david.id]) {
       await prisma.squadPostGoing.create({ data: { postId: party.id, userId } });
     }
-    const topical = [
-      [mike.id, 'SIGHTING', maxCase.id, 'Saw a golden dog by Barton Springs Pool around 4 pm, heading toward the trailhead. He ran when I called, so I stopped.', 5],
-      [david.id, 'QUESTION', null, 'Does anyone have a humane trap we can borrow for a shy cat?', 1],
-      [admin.id, 'HELLO', null, 'Hi all, I live near Mueller and can help on weekday evenings.', 3],
+    const plain = [
+      [david.id, 'Does anyone have a humane trap we can borrow for a shy cat?', 1],
+      [admin.id, 'Hi all, I live near Mueller and can help on weekday evenings.', 3],
     ];
-    for (const [authorId, topic, caseId, content, upvotes] of topical) {
-      await prisma.squadPost.create({ data: { rescueSquadId: force.id, authorId, topic, caseId, content, upvotes } });
+    for (const [authorId, content, upvotes] of plain) {
+      await prisma.squadPost.create({ data: { rescueSquadId: force.id, authorId, content, upvotes } });
+    }
+  }
+  // The force's automatic posts (app/lib/forceFeed.js), drawn as pet cards.
+  if (!(await prisma.squadPost.findFirst({ where: { rescueSquadId: force.id, kind: { not: null } } }))) {
+    const biscuit = cases['AUS-2025-0099'];
+    const automatic = [
+      [maxCase.reporterId, maxCase.id, 'LOST', 'Max is missing', 'Golden Retriever. Last seen near Zilker Park.', maxCase.createdAt, 0],
+      [mike.id, maxCase.id, 'SIGHTING', 'Max was seen near Barton Springs Pool', 'Saw a golden dog by Barton Springs Pool around 4 pm, heading toward the trailhead. He ran when I called, so I stopped.', null, 5],
+      [biscuit.reporterId, biscuit.id, 'HOME', 'Biscuit is home', 'Biscuit is back with the family.', biscuit.resolvedAt, 12],
+    ];
+    for (const [authorId, caseId, kind, title, content, createdAt, upvotes] of automatic) {
+      await prisma.squadPost.create({
+        data: { rescueSquadId: force.id, authorId, caseId, kind, title, content, upvotes, ...(createdAt ? { createdAt } : {}) },
+      });
     }
   }
   if (!(await prisma.squadActivity.findFirst({ where: { rescueSquadId: force.id, type: 'ANNOUNCEMENT' } }))) {

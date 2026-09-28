@@ -1,11 +1,13 @@
 /**
- * A Rescue Force's Discussion: what a post can be about, the checks a new
- * post goes through, and the Topics view's counts. The feed itself is
- * /api/rescue-forces/[id]/posts; "I am going" is .../posts/[postId]/going.
+ * A Rescue Force's Discussion: what a post can be about, and the checks a
+ * new post goes through. The feed itself is /api/rescue-forces/[id]/posts;
+ * "I am going" is .../posts/[postId]/going; the force's automatic posts
+ * about its pets are app/lib/forceFeed.js.
  *
- * A post can be about one pet (a case assigned to the force) and have a
- * topic. A search party is a post with a time and a place to meet, and
- * members say they are going.
+ * A post can be about one pet (a case assigned to the force). A search
+ * party is a post with topic SEARCH_PARTY, a time and a place to meet, and
+ * members say they are going. The other topics are from the Discussion's
+ * first form, kept so older posts still read.
  */
 
 import prisma from '@/app/lib/prisma';
@@ -18,7 +20,6 @@ export const POST_TOPICS = {
   HELLO: 'Say hello',
 };
 
-const WEEK = 7 * 24 * 3600e3;
 const PLACE_MAX = 140;
 
 export class PostInputError extends Error {}
@@ -52,62 +53,4 @@ export async function checkPostFields(forceId, body, now = new Date()) {
   }
 
   return { topic, caseId, eventAt, eventPlace };
-}
-
-/**
- * The Topics view: how many posts of each kind, the search parties still
- * to come, and the pets being looked for with how many posts are about each.
- * `pets` is the force page's pet list (app/lib/forcePage.js).
- */
-export async function discussionSummary(forceId, pets = [], now = new Date()) {
-  const live = pets.filter((p) => p.status === 'lost' || p.status === 'found');
-  const [byTopic, sightingsThisWeek, upcoming, byPet] = await Promise.all([
-    prisma.squadPost.groupBy({
-      by: ['topic'],
-      where: { rescueSquadId: forceId, isDeleted: false, topic: { not: null } },
-      _count: { _all: true },
-    }),
-    prisma.squadPost.count({
-      where: { rescueSquadId: forceId, isDeleted: false, topic: 'SIGHTING', createdAt: { gte: new Date(now.getTime() - WEEK) } },
-    }),
-    prisma.squadPost.findMany({
-      where: { rescueSquadId: forceId, isDeleted: false, topic: 'SEARCH_PARTY', eventAt: { gte: now } },
-      orderBy: { eventAt: 'asc' },
-      select: { id: true, caseId: true },
-      take: 20,
-    }),
-    live.length
-      ? prisma.squadPost.groupBy({
-          by: ['caseId'],
-          where: { rescueSquadId: forceId, isDeleted: false, caseId: { in: live.map((p) => p.id) } },
-          _count: { _all: true },
-        })
-      : [],
-  ]);
-
-  const topicCount = Object.fromEntries(byTopic.map((r) => [r.topic, r._count._all]));
-  const postsByPet = new Map(byPet.map((r) => [r.caseId, r._count._all]));
-  const partiesByPet = new Map();
-  upcoming.forEach((p) => {
-    if (p.caseId) partiesByPet.set(p.caseId, (partiesByPet.get(p.caseId) || 0) + 1);
-  });
-
-  return {
-    topics: {
-      SEARCH_PARTY: { upcoming: upcoming.length },
-      SIGHTING: { thisWeek: sightingsThisWeek, total: topicCount.SIGHTING || 0 },
-      QUESTION: { total: topicCount.QUESTION || 0 },
-      FLYERS: { total: topicCount.FLYERS || 0 },
-      HELLO: { total: topicCount.HELLO || 0 },
-    },
-    pets: live.map((p) => ({
-      id: p.id,
-      name: p.name,
-      photo: p.photo,
-      species: p.species,
-      status: p.status,
-      posts: postsByPet.get(p.id) || 0,
-      parties: partiesByPet.get(p.id) || 0,
-    })),
-  };
 }

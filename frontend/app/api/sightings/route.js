@@ -13,6 +13,8 @@ import { createInAppNotification } from '@/app/lib/notifications-inapp';
 import { sendEmail } from '@/app/lib/email';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import crypto from 'crypto';
+import { placeName } from '@/app/lib/needOptions';
+import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,6 +105,13 @@ export async function POST(request) {
             photoUrls: '[]'
           }
         });
+        // The sighting in the Discussion of each force looking for the pet
+        // (app/lib/forceFeed.js).
+        const forceIds = await forcesOf(caseExists.id);
+        if (forceIds.length) {
+          const seen = feedPost('SIGHTING', caseExists, { place: placeName(location), note: details });
+          await postToForces({ forceIds, authorId: session.user.id, caseId: caseExists.id, kind: 'SIGHTING', ...seen });
+        }
       }
     } catch (err) {
       // CaseSighting creation is optional, don't fail the whole request

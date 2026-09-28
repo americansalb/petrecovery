@@ -17,6 +17,7 @@ import { areaCovers, milesBetween, EDGE_MILES } from '@/app/lib/maps/forceArea';
 import { placeName } from '@/app/lib/needOptions';
 import { caseTitle } from '@/app/lib/caseLabels';
 import { speciesLabel } from '@/app/lib/species';
+import { feedPost } from '@/app/lib/forceFeed';
 
 // No town outline reaches farther than this from its force's center
 // (app/lib/maps/townOutline.js), so farther forces are not read.
@@ -119,8 +120,8 @@ export async function routeFoundReport(report, { forces = null, reporterId = nul
   const point = { lat: Number(report.lastSeenLatitude), lng: Number(report.lastSeenLongitude) };
   if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return [];
   const covering = (await forcesCovering(point, { forces })).filter((f) => f.covers && f.isAcceptingCases !== false);
-  const place = placeName(report.lastSeenAddress);
-  const kind = speciesLabel(report.petSpecies).toLowerCase();
+  // The force's automatic post (app/lib/forceFeed.js): a pet card in its Discussion.
+  const { title, content } = feedPost('FOUND', report);
   const routed = [];
   for (const force of covering) {
     try {
@@ -136,13 +137,7 @@ export async function routeFoundReport(report, { forces = null, reporterId = nul
     if (!post) continue;
     try {
       await prisma.squadPost.create({
-        data: {
-          rescueSquadId: force.id,
-          authorId: reporterId || report.reporterId,
-          title: `A ${kind} was found${place ? ` near ${place}` : ''}`,
-          content: `Someone found a ${kind}${place ? ` near ${place}` : ''} and reported it. Is it one of the pets this force is looking for? See the report: Case #${report.caseNumber}.`,
-          caseId: report.id,
-        },
+        data: { rescueSquadId: force.id, authorId: reporterId || report.reporterId, caseId: report.id, kind: 'FOUND', title, content },
       });
     } catch (error) {
       console.error('[found] post failed:', error.message);
@@ -164,7 +159,17 @@ export async function routeFoundReports({ limit = 50, now = new Date() } = {}) {
       createdAt: { gte: new Date(now.getTime() - FOUND_ROUTED_DAYS * 24 * 3600e3) },
       assignments: { none: {} },
     },
-    select: { id: true, caseNumber: true, reporterId: true, petSpecies: true, lastSeenAddress: true, lastSeenLatitude: true, lastSeenLongitude: true },
+    select: {
+      id: true,
+      caseNumber: true,
+      reporterId: true,
+      reportType: true,
+      petName: true,
+      petSpecies: true,
+      lastSeenAddress: true,
+      lastSeenLatitude: true,
+      lastSeenLongitude: true,
+    },
     orderBy: { createdAt: 'desc' },
     take: limit,
   });

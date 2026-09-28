@@ -125,8 +125,9 @@ describe('found pets reach the forces around them', () => {
     expect(prisma.squadPost.create.mock.calls[0][0].data).toMatchObject({
       rescueSquadId: 'f-clinton',
       caseId: 'case-found',
+      kind: 'FOUND',
       title: 'A cat was found near Riverview Park',
-      content: 'Someone found a cat near Riverview Park and reported it. Is it one of the pets this force is looking for? See the report: Case #CLI-2026-0002.',
+      content: 'Someone found a cat near Riverview Park and reported it. Is it one of the pets this force is looking for?',
     });
   });
 
