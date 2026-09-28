@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowRight, ChevronRight, Map as MapIcon } from 'lucide-react';
 import { SpeciesIcon } from '@/app/components/icons/SpeciesIcons';
 import PetStatusDot from '@/app/components/PetStatusDot';
 import { PET_TEXT } from '@/app/lib/petColors';
@@ -39,11 +39,17 @@ function PetPhoto({ pet }) {
   );
 }
 
-function PetRow({ pet }) {
+/**
+ * A member's tap on a lost pet opens the search map (Mission Control) for
+ * that pet, where the searching happens; the map's back link is the pet's
+ * page. Anyone else, and a found or reunited pet, opens the pet's page.
+ */
+function PetRow({ pet, toMap }) {
+  const ref = encodeURIComponent(pet.caseNumber);
   return (
     <li>
       <Link
-        href={`/cases/${encodeURIComponent(pet.caseNumber)}`}
+        href={toMap ? `/mission-control?mission=${ref}` : `/cases/${ref}`}
         className="flex items-center gap-3.5 rounded-2xl border-2 border-midnight-200 bg-white p-3 transition hover:border-midnight-300 hover:shadow-[0_4px_14px_rgba(15,23,42,0.08)]"
       >
         <PetPhoto pet={pet} />
@@ -60,14 +66,20 @@ function PetRow({ pet }) {
             </span>
           )}
         </span>
-        <ChevronRight className="h-5 w-5 shrink-0 text-midnight-400" aria-hidden="true" />
+        {toMap ? (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-midnight-900 text-flash-400" aria-label="Search on the map">
+            <MapIcon className="h-5 w-5" aria-hidden="true" />
+          </span>
+        ) : (
+          <ChevronRight className="h-5 w-5 shrink-0 text-midnight-400" aria-hidden="true" />
+        )}
       </Link>
     </li>
   );
 }
 
 export default function PetsTab({ justCreated }) {
-  const { force, pets, shown, toggle } = useForce();
+  const { force, pets, shown, toggle, viewer } = useForce();
   const counts = { lost: 0, found: 0, home: 0 };
   pets.forEach((p) => {
     if (counts[p.status] != null) counts[p.status] += 1;
@@ -114,7 +126,7 @@ export default function PetsTab({ justCreated }) {
         ) : (
           <ul className="mt-3.5 space-y-2.5">
             {list.map((pet) => (
-              <PetRow key={pet.id} pet={pet} />
+              <PetRow key={pet.id} pet={pet} toMap={Boolean(viewer?.isMember) && pet.status === 'lost'} />
             ))}
           </ul>
         )}

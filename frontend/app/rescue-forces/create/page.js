@@ -9,18 +9,24 @@
  * radius, and the API threw every one of them away. A description,
  * specialties and divisions are set later, from the force's own settings.
  *
+ * The directory sends the town it searched in the URL
+ * (app/rescue-forces/startForce.js), so nobody types it twice: the field
+ * is filled in, and with `start=1` (the directory's one-tap Start, after a
+ * sign-in or the waiver) the force is started on arrival.
+ *
  * The API's two refusals are handled here instead of shown as a dead end:
- * the volunteer waiver (a link to accept it, then back here) and a town
- * that already has a force (a link to that force).
+ * the volunteer waiver (a link to accept it, then back here to start) and
+ * a town that already has a force (a link to that force).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui';
 import TownPicker, { townLabel } from '../TownPicker';
+import { createHref, outcomeHref, startForce, townFromParams } from '../startForce';
 
 export default function CreateForcePage() {
   const { status } = useSession();
@@ -29,50 +35,51 @@ export default function CreateForcePage() {
   const [town, setTown] = useState(null);
   const [creating, setCreating] = useState(false);
   const [problem, setProblem] = useState(null); // { kind: 'waiver' | 'exists' | 'error', message, forceId }
+  const startOnArrival = useRef(false);
+
+  // The town from the URL, once: the directory's search, or the way back
+  // from sign-in or the waiver.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const given = townFromParams(params);
+    if (!given) return;
+    setTown(given);
+    setText(townLabel(given));
+    startOnArrival.current = params.get('start') === '1';
+  }, []);
 
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/login?callbackUrl=/rescue-forces/create');
+    if (status !== 'unauthenticated') return;
+    // Back here, with the same town, after signing in.
+    const here = window.location.pathname + window.location.search;
+    router.push(`/login?callbackUrl=${encodeURIComponent(here)}`);
   }, [status, router]);
 
   async function create(e) {
-    e.preventDefault();
+    e?.preventDefault();
     if (!town || creating) return;
     setCreating(true);
     setProblem(null);
-    const international = town.country && town.country !== 'US';
-    try {
-      const res = await fetch('/api/rescue-forces', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          city: town.city,
-          state: town.state_id,
-          country: town.country || 'US',
-          zipCode: !international && town.zips?.length ? town.zips[0] : undefined,
-          ...(town.lat != null && town.lng != null ? { lat: town.lat, lng: town.lng } : {}),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.squad?.id) {
-        router.push(`/rescue-forces/${data.squad.id}?created=true`);
-        return;
-      }
-      if (res.status === 401) {
-        router.push('/login?callbackUrl=/rescue-forces/create');
-        return;
-      }
-      if (res.status === 403 && data.redirectTo) {
-        setProblem({ kind: 'waiver' });
-      } else if (data.code === 'FORCE_EXISTS') {
-        setProblem({ kind: 'exists', forceId: data.existingForceId });
-      } else {
-        setProblem({ kind: 'error', message: data.error || 'The force could not be created. Try again in a moment.' });
-      }
-    } catch {
-      setProblem({ kind: 'error', message: 'The request did not go through. Check your connection and try again.' });
+    const outcome = await startForce(town);
+    if (outcome.ok || outcome.kind === 'signin') {
+      router.push(outcomeHref(outcome, town));
+      return;
     }
+    if (outcome.kind === 'waiver') setProblem({ kind: 'waiver' });
+    else if (outcome.kind === 'exists') setProblem({ kind: 'exists', forceId: outcome.forceId });
+    else setProblem({ kind: 'error', message: outcome.message });
     setCreating(false);
   }
+
+  // The directory's one-tap Start, or the way back from sign-in or the
+  // waiver: start the force as soon as the person is known to be signed in.
+  useEffect(() => {
+    if (status !== 'authenticated' || !startOnArrival.current || !town) return;
+    startOnArrival.current = false;
+    create();
+    // create reads the state it needs when it runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, town]);
 
   if (status !== 'authenticated') {
     return (
@@ -117,7 +124,7 @@ export default function CreateForcePage() {
               }}
               onPick={setTown}
               placeholder="Start typing your town"
-              autoFocus
+              autoFocus={!town}
             />
           </div>
           <p className="mt-2 text-sm text-midnight-500">
@@ -134,11 +141,12 @@ export default function CreateForcePage() {
             <div role="alert" className="mt-5 rounded-xl bg-amber-50 p-4 text-amber-900 ring-1 ring-amber-200">
               <p>Rescue Force volunteers accept a liability waiver first, because searches can involve physical risk.</p>
               <Link
-                href={`/legal/consent?returnUrl=${encodeURIComponent('/rescue-forces/create')}`}
+                href={`/legal/consent?returnUrl=${encodeURIComponent(createHref(town, { start: true }))}`}
                 className="mt-2 inline-flex items-center font-semibold underline underline-offset-4"
               >
                 Read and accept the waiver
               </Link>
+              <p className="mt-1 text-sm">{name} starts as soon as you have.</p>
             </div>
           )}
           {problem?.kind === 'exists' && (

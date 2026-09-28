@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   ChevronLeft, MapPin, Clock, Eye, Phone, Share2, Printer, Building2,
-  HeartHandshake, PawPrint, ExternalLink, Megaphone,
+  HeartHandshake, PawPrint, ExternalLink, Megaphone, Map as MapIcon,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui';
@@ -56,6 +56,11 @@ const PRIMARY_LINK =
   'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-flash-400 px-6 py-3 text-base font-semibold text-midnight-900 shadow-sm transition hover:bg-flash-500';
 const ICON_BUTTON =
   'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-midnight-100 text-midnight-700 transition hover:bg-midnight-200';
+// "Search on the map": the way into Mission Control, first for anyone
+// signed in (the force's members, the owner). a.bg-midnight-900 gets its
+// shading from app/globals.css.
+const DARK_LINK =
+  'inline-flex items-center justify-center gap-2 rounded-xl bg-midnight-900 px-4 py-3 text-base font-semibold text-white shadow-sm transition hover:bg-midnight-800';
 
 // The force's part of the page when there is none, or it did not load.
 const NO_ROOM = { force: null, member: false, needs: [], done: [], party: null, searchingNow: 0, others: [] };
@@ -390,13 +395,27 @@ export default function CasePageClient() {
     // The owner's own page: no "I've seen" or "Call the owner" (that is them).
     // Their tools are in the panel below.
     actions = (
-      <Button size="lg" fullWidth leftIcon={Share2} onClick={share}>
-        Share this page
-      </Button>
+      <div className="space-y-3">
+        {status.key === 'lost' && (
+          <Link href={missionHref} className={`${DARK_LINK} w-full`}>
+            <MapIcon className="h-4 w-4" aria-hidden="true" />
+            Search on the map
+          </Link>
+        )}
+        <Button size="lg" fullWidth leftIcon={Share2} onClick={share}>
+          Share this page
+        </Button>
+      </div>
     );
   } else if (status.key === 'lost') {
     actions = (
       <div className="space-y-3">
+        {signedIn && (
+          <Link href={missionHref} className={`${DARK_LINK} w-full`}>
+            <MapIcon className="h-4 w-4" aria-hidden="true" />
+            Search on the map
+          </Link>
+        )}
         <Button size="lg" fullWidth leftIcon={Eye} onClick={() => setSheet('sighting')}>
           I&apos;ve seen {name}
         </Button>
@@ -641,15 +660,29 @@ export default function CasePageClient() {
         </div>
       </main>
 
-      {status.key === 'lost' && !isOwner && (
+      {/* Signed in (the force's members, the owner): the map first, since
+          that is where the searching happens. A visitor: "I've seen". */}
+      {status.key === 'lost' && (
         <StickyActions watchId={ACTIONS_ID}>
-          <Button size="lg" className="flex-1" leftIcon={Eye} onClick={() => setSheet('sighting')}>
-            I&apos;ve seen {name}
-          </Button>
+          {signedIn ? (
+            <Link href={missionHref} className={`${DARK_LINK} flex-1`}>
+              <MapIcon className="h-4 w-4" aria-hidden="true" />
+              Search on the map
+            </Link>
+          ) : (
+            <Button size="lg" className="flex-1" leftIcon={Eye} onClick={() => setSheet('sighting')}>
+              I&apos;ve seen {name}
+            </Button>
+          )}
+          {signedIn && !isOwner && (
+            <button type="button" onClick={() => setSheet('sighting')} aria-label={`I've seen ${name}`} className={ICON_BUTTON}>
+              <Eye size={20} aria-hidden="true" />
+            </button>
+          )}
           <button type="button" onClick={share} aria-label="Share" className={ICON_BUTTON}>
             <Share2 size={20} aria-hidden="true" />
           </button>
-          {phone && (
+          {phone && !isOwner && (
             <a href={`tel:${phone.tel}`} aria-label="Call the owner" className={ICON_BUTTON}>
               <Phone size={20} aria-hidden="true" />
             </a>
