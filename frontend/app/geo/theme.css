@@ -15,18 +15,25 @@
  * This is the replacement: one small set of colours, one type scale,
  * and one version of each control, used by every rebuilt screen.
  *
- *   canvas   #0B0F14   the page. Neutral near-black, a touch of blue.
- *   surface  #141A22   a card on the page
- *   raised   #1C232D   a control, a hover, a selected segment
- *   line     #262E3A   every border
- *   fg       #F0F3F6   text
- *   muted    #A6B0BD   secondary text (8.7:1 on canvas)
- *   subtle   #7C8694   hints and placeholders (4.7:1 on surface)
- *   accent   #2563EB   ocean blue: every primary action, every
- *                      selection, every focus ring (white on it 5.2:1)
- *   good     #4AC484   forest: close, correct, gained
- *   warm     #F2A962   clay: scores, points, streaks
+ *   canvas   #08141C   the page: deep ocean at night
+ *   surface  #0F2533   a card on the page
+ *   raised   #12293A   a control, a hover, a selected segment
+ *   line     #1E3A48   every border
+ *   fg       #EEF2EF   text
+ *   muted    #A9BBC3   secondary text (9.6:1 on canvas)
+ *   subtle   #7C929D   hints and placeholders (5.0:1 on surface)
+ *   action   #E8875A   clay: the one main action on a screen, with
+ *                      ink text on it (6.8:1)
+ *   accent   #2B7A99   ocean: selections, with white text (4.8:1)
+ *   accent-fg #7CC8DC  sky: links and the focus ring
+ *   good     #5CC58C   forest: close, correct, gained, saved
+ *   warm     #F2B36B   scores, points, streaks
  *   bad      #F17474   errors
+ *
+ * Redrawn 2026-10-09 from the founder's brief to make it "as beautiful
+ * and intuitive as possible": the main button became clay, so the one
+ * thing to press on each screen is the warm thing on a cold sea, and
+ * selection stayed ocean so the two never read as the same job.
  *
  * The founder's palette (ocean, forest, clay: docs/PROBABLY_EARTH_UI.md)
  * is kept, and given one job each instead of being sprayed across
@@ -35,22 +42,38 @@
  */
 
 .geo-surface {
-  --pe-canvas: 11 15 20;
-  --pe-surface: 20 26 34;
-  --pe-raised: 28 35 45;
-  --pe-line: 38 46 58;
-  --pe-line-strong: 58 68 82;
-  --pe-fg: 240 243 246;
-  --pe-muted: 166 176 189;
-  --pe-subtle: 124 134 148;
-  --pe-accent: 37 99 235;
-  --pe-accent-hover: 29 78 216;
-  --pe-accent-fg: 125 170 255;
-  --pe-good: 74 196 132;
-  --pe-warm: 242 169 98;
+  --pe-canvas: 8 20 28;
+  --pe-surface: 15 37 51;
+  --pe-raised: 18 41 58;
+  --pe-line: 30 58 72;
+  --pe-line-strong: 46 81 99;
+  --pe-fg: 238 242 239;
+  --pe-muted: 169 187 195;
+  --pe-subtle: 124 146 157;
+  --pe-action: 232 135 90;
+  --pe-action-hover: 240 154 112;
+  --pe-on-action: 26 14 8;
+  --pe-accent: 43 122 153;
+  --pe-accent-hover: 36 104 131;
+  --pe-accent-fg: 124 200 220;
+  --pe-good: 92 197 140;
+  --pe-warm: 242 179 107;
   --pe-bad: 241 116 116;
   background: rgb(var(--pe-canvas));
   color: rgb(var(--pe-fg));
+  font-family: var(--pe-font-body, ui-sans-serif), system-ui, sans-serif;
+}
+
+/* Scores, clocks and coordinates: one figure width, so a count that
+   climbs does not shuffle sideways. */
+.geo-surface .pe-num {
+  font-family: var(--pe-font-mono, ui-monospace), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.geo-surface .pe-display {
+  font-family: var(--pe-font-display, inherit), var(--pe-font-body, ui-sans-serif), sans-serif;
+  letter-spacing: -0.02em;
 }
 
 /* One focus ring, everywhere. It was a lime ring four pixels out. */
@@ -61,6 +84,10 @@
 
 /* ---- Type ----------------------------------------------------------- */
 
+.geo-surface .ui-h1,
+.geo-surface .ui-h2 {
+  font-family: var(--pe-font-display, inherit), var(--pe-font-body, ui-sans-serif), sans-serif;
+}
 .geo-surface .ui-h1 {
   font-size: 30px;
   line-height: 1.15;
@@ -104,7 +131,9 @@
   --pe-fg: 43 38 32;
   --pe-muted: 110 99 84;
   --pe-subtle: 140 128 110;
-  --pe-accent-fg: 29 78 216;
+  --pe-accent: 31 95 122;
+  --pe-accent-hover: 26 80 103;
+  --pe-accent-fg: 31 95 122;
   --pe-good: 21 128 61;
   --pe-warm: 180 83 9;
   --pe-bad: 185 28 28;
@@ -148,11 +177,12 @@
   width: 100%;
 }
 .geo-surface .ui-btn--primary {
-  background: rgb(var(--pe-accent));
-  color: #fff;
+  background: rgb(var(--pe-action));
+  color: rgb(var(--pe-on-action));
+  font-weight: 700;
 }
 .geo-surface .ui-btn--primary:hover:not(:disabled):not([aria-disabled='true']) {
-  background: rgb(var(--pe-accent-hover));
+  background: rgb(var(--pe-action-hover));
 }
 .geo-surface .ui-btn--secondary {
   background: rgb(var(--pe-raised));
@@ -393,14 +423,19 @@
   letter-spacing: -0.01em;
   color: rgb(var(--pe-fg));
 }
+.geo-surface .ui-brand {
+  font-family: var(--pe-font-display, inherit), var(--pe-font-body, ui-sans-serif), sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+}
 .geo-surface .ui-brand-mark {
   display: grid;
   place-items: center;
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: rgb(var(--pe-accent));
-  color: #fff;
+  background: transparent;
+  color: rgb(var(--pe-accent-fg));
 }
 .geo-surface .ui-nav {
   display: none;
@@ -439,6 +474,12 @@
 @media (min-width: 720px) {
   .geo-surface .ui-account-slot {
     width: 148px;
+  }
+  /* A guest's slot carries the Guest chip as well as Sign in, and is
+     that width on every page a guest sees. */
+  .geo-surface .ui-account-slot[data-guest] {
+    width: auto;
+    min-width: 148px;
   }
 }
 .geo-surface .ui-account {

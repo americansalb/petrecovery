@@ -203,12 +203,20 @@ export async function recordChallengeRound(store, { profileId, key, index, score
 /**
  * The board for a challenge: finished entries ranked, how many started
  * and finished, and the asking profile's own row with its rank.
+ *
+ * `accountsOnly` is what the routes ask for: the boards people see list
+ * signed-in players only (founder, 2026-10-09: competing needs an
+ * account). A guest who finished is still recorded, and is answered
+ * with `you.held: true` and the place the score would take among the
+ * posted ones. Making an account binds the guest's profile to it
+ * (server/profiles.js, resolveProfile), and the entry is on the board
+ * from then on with nothing copied anywhere.
  */
-export async function challengeBoard(store, { key, rounds = DAILY_ROUNDS, limit = 20, profileId = null }) {
+export async function challengeBoard(store, { key, rounds = DAILY_ROUNDS, limit = 20, profileId = null, accountsOnly = false }) {
   const [rows, players, finished, mine] = await Promise.all([
-    store.listChallengeBoard(key, { rounds, limit }),
-    store.countChallengeEntries(key),
-    store.countChallengeEntries(key, { rounds }),
+    store.listChallengeBoard(key, { rounds, limit, accountsOnly }),
+    store.countChallengeEntries(key, { accountsOnly }),
+    store.countChallengeEntries(key, { rounds, accountsOnly }),
     profileId ? store.getChallengeEntry(profileId, key) : null,
   ]);
   const board = rows.map((row, i) => ({
@@ -221,8 +229,10 @@ export async function challengeBoard(store, { key, rounds = DAILY_ROUNDS, limit 
   }));
   let you = entryView(mine, rounds);
   if (you) {
-    const rank = you.finished ? 1 + (await store.countChallengeBetter(key, { rounds, total: mine.total, finishedAt: mine.finishedAt })) : null;
-    you = { ...you, rank, name: (await store.getProfileById(profileId))?.name || 'Player' };
+    const owner = await store.getProfileById(profileId);
+    const held = accountsOnly && !owner?.accountId;
+    const rank = you.finished ? 1 + (await store.countChallengeBetter(key, { rounds, total: mine.total, finishedAt: mine.finishedAt, accountsOnly })) : null;
+    you = { ...you, rank, name: owner?.name || 'Player', held };
   }
   const final = store.getChallengeFinal ? await store.getChallengeFinal(key) : null;
   return { key, rounds, players, finished, board, you, finalizedAt: final ? toMs(final.finalizedAt) : null };

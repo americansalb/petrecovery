@@ -16,8 +16,10 @@ jest.mock('next/dynamic', () => () => function Map(props) {
 });
 jest.mock('@/app/geo/lib/appleMapKit', () => ({ initializeMapKit: async () => { throw new Error('keyless test'); }, mapKitAuth: () => 'failed', onMapKitAuth: jest.fn() }));
 jest.mock('@/app/geo/lib/savedGame', () => ({ useSavedGame: () => ({ ready: true, saveError: '' }) }));
-jest.mock('@/app/geo/components/KeepThis', () => () => null);
-jest.mock('@/app/geo/components/SaveGameButton', () => () => null);
+jest.mock('@/app/geo/components/guest/SaveScore', () => () => null);
+jest.mock('@/app/geo/components/guest/GuestTag', () => () => null);
+// This browser already has a play profile, so the round is the first request.
+jest.mock('@/app/geo/lib/profile', () => ({ profileHeaders: () => ({ 'x-geo-profile': 'test-profile' }), ensureProfile: async () => ({}) }));
 
 const answer = { name: 'Japanese', endonym: '日本語', scriptName: 'Japanese', regions: [{ name: 'Honshu', rings: [[[135, 35], [136, 35], [136, 36], [135, 35]]] }] };
 

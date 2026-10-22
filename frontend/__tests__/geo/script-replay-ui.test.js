@@ -10,8 +10,8 @@ jest.mock('next/dynamic', () => () => function Map({ onPin }) {
 });
 jest.mock('@/app/geo/lib/appleMapKit', () => ({ initializeMapKit: async () => { throw new Error('keyless test'); }, mapKitAuth: () => 'failed', onMapKitAuth: jest.fn() }));
 jest.mock('@/app/geo/lib/savedGame', () => ({ useSavedGame: () => ({ ready: true, saveError: '' }) }));
-jest.mock('@/app/geo/components/KeepThis', () => () => null);
-jest.mock('@/app/geo/components/SaveGameButton', () => () => null);
+jest.mock('@/app/geo/components/guest/SaveScore', () => () => null);
+jest.mock('@/app/geo/components/guest/GuestTag', () => () => null);
 jest.mock('@/app/geo/components/script/ScriptSample', () => function Sample({ text }) { return <p>{text}</p>; });
 afterEach(() => jest.useRealTimers());
 

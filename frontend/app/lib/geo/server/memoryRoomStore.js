@@ -373,20 +373,20 @@ export function createMemoryRoomStore() {
       const row = challengeEntries.get(`${profileId}|${key}`);
       return row ? { ...row } : null;
     },
-    async listChallengeBoard(key, { rounds, limit = 20 }) {
+    async listChallengeBoard(key, { rounds, limit = 20, accountsOnly = false }) {
       return [...challengeEntries.values()]
-        .filter((e) => e.key === key && e.rounds >= rounds)
+        .filter((e) => e.key === key && e.rounds >= rounds && (!accountsOnly || profiles.get(e.profileId)?.accountId))
         .sort((a, b) => b.total - a.total || (a.finishedAt?.getTime() || 0) - (b.finishedAt?.getTime() || 0))
         .slice(0, limit)
         .map((e) => ({ ...e, profile: { id: e.profileId, name: profiles.get(e.profileId)?.name || 'Player', equipped: profiles.get(e.profileId)?.equipped || null } }));
     },
-    async countChallengeEntries(key, { rounds } = {}) {
-      return [...challengeEntries.values()].filter((e) => e.key === key && (!rounds || e.rounds >= rounds)).length;
+    async countChallengeEntries(key, { rounds, accountsOnly = false } = {}) {
+      return [...challengeEntries.values()].filter((e) => e.key === key && (!rounds || e.rounds >= rounds) && (!accountsOnly || profiles.get(e.profileId)?.accountId)).length;
     },
-    async countChallengeBetter(key, { rounds, total, finishedAt }) {
+    async countChallengeBetter(key, { rounds, total, finishedAt, accountsOnly = false }) {
       const mine = finishedAt instanceof Date ? finishedAt.getTime() : Number(finishedAt) || 0;
       return [...challengeEntries.values()].filter(
-        (e) => e.key === key && e.rounds >= rounds && (e.total > total || (e.total === total && (e.finishedAt?.getTime() || 0) < mine))
+        (e) => e.key === key && e.rounds >= rounds && (!accountsOnly || profiles.get(e.profileId)?.accountId) && (e.total > total || (e.total === total && (e.finishedAt?.getTime() || 0) < mine))
       ).length;
     },
     // The weekly cup's prizes, paid once per week (server/challenges.js)

@@ -48,7 +48,16 @@ writing, and everything below depends on them.
   "100% free, no paid option"). This replaces an earlier three-layer
   plan that had a paid tier in it; what is recorded here is the
   decision, and only the decision. Host and admin are roles, not tiers.
-- **Never force an account, always offer one.** Founder, 2026-09-16:
+- **Guests get a trial; saving and competing need an account.**
+  Founder, 2026-10-09: guests get a free trial that cannot be abused,
+  and to save or compete they make an account, which has to be obvious
+  without anybody thinking about it. This replaced the 2026-09-16 rule
+  below that the account "gates nothing". Design approved 2026-10-22:
+  three games a day as a guest, the daily held off the board until
+  there is an account, Ranked and the cup for accounts only. The rules
+  are `docs/GEO.md`, "The guest pass".
+- **Never force an account, always offer one.** (Superseded in part
+  by the rule above.) Founder, 2026-09-16:
   "when we say no account needed, that is not the same as not giving
   them the option or not encouraging them to make one", and "it should
   be very easy to sign up". So the ask is one field and one button, it
@@ -143,7 +152,10 @@ when all of it is done, and there is a test that says so.
 - **4. The end of a game.** Done. Score, the rounds, then the account
   ask (`KeepThis`), then the share actions. The ask renders for guests
   only, says what an account is for rather than what it unlocks, and
-  gates nothing. `appleSolo` asserts a guest sees it.
+  gates nothing. `appleSolo` asserts a guest sees it. Since 2026-10-09
+  the ask is Save this score (`guest/SaveScore.js`), framed in the
+  action colour with the email field in it, and a held daily says the
+  place it would take.
 - **5. Accounts.** Done, ahead of 3 and 4 because the founder asked for
   the account layers directly. Guest, signed in, role and tier: see
   `docs/GEO.md`, "Accounts".

@@ -12,8 +12,8 @@ jest.mock('next/dynamic', () => () => function Map(props) {
 });
 jest.mock('@/app/geo/lib/appleMapKit', () => ({ initializeMapKit: async () => { throw new Error('keyless test'); }, mapKitAuth: () => 'failed', onMapKitAuth: jest.fn() }));
 jest.mock('@/app/geo/lib/savedGame', () => ({ useSavedGame: () => ({ ready: true, saveError: '' }) }));
-jest.mock('@/app/geo/components/KeepThis', () => () => null);
-jest.mock('@/app/geo/components/SaveGameButton', () => () => null);
+jest.mock('@/app/geo/components/guest/SaveScore', () => () => null);
+jest.mock('@/app/geo/components/guest/GuestTag', () => () => null);
 
 test('even old prototype links use pin gameplay, reveal all regions and focus without starting a new page', async () => {
   global.fetch = jest.fn(async (url, options) => {

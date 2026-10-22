@@ -105,7 +105,8 @@ API, all under `frontend/app/api/geo/`:
 | Endpoint | Method | Does |
 |---|---|---|
 | `config` | GET | Whether the game is set up, today's daily seed, the day's limits, the country list. Never a secret. |
-| `round` | POST `{ config, roundIndex, attempt }` | A round and its sealed answer token: a short list of coordinates to try. |
+| `round` | POST `{ config, roundIndex, attempt, ticket }` | A round and its sealed answer token: a short list of coordinates to try. For a guest, also the game's `ticket` and the guest pass count ("The guest pass" below); Ranked and the cup answer a guest with 401 `account_required`. |
+| `guest` | GET | Today's guest pass for this browser: `{ guest, limit, used, left, resetAt, network }`, or `{ guest: false }` when signed in. |
 | `guess` | POST `{ token, guess }` | Scores the guess against the token and reveals the answer. `guess` is `{lat,lng}`, `{countryCode}` for streaks, or `null` when the timer ran out. |
 | `og` | GET `?s=<code>` | The 1200x630 link-preview PNG for a share code (satori + resvg, same pipeline as the lost-pet social cards). |
 | `rooms` | GET / POST `{ name, hostName, settings }` | Public rooms active in the last 20 minutes / open a room (returns the host's player token). |
@@ -712,12 +713,13 @@ not become one: that was the founder's answer on 2026-09-10 to what a
 standalone account means, and it is what phase 1.7 of the split
 implements (`docs/PROBABLY_EARTH_SPLIT.md`, D1).
 
-**Playing needs no account.** A browser mints a play token the first
-time it joins a room or asks for a profile, keeps it in localStorage,
-and sends it as `x-geo-profile`. That is the whole identity for
-anonymous play and always has been. The only thing an account buys is
-that the profile follows you to a second device and survives a cleared
-browser.
+**Playing starts without an account.** A browser mints a play token
+the first time it asks for a profile or a round, keeps it in
+localStorage, and sends it as `x-geo-profile`. That is the whole
+identity for guest play. A guest has a few games a day and cannot
+compete ("The guest pass" below); an account lifts the daily limit,
+puts results on the boards, and lets the profile follow you to a
+second device and survive a cleared browser.
 
 **How it works.** Give an address, get a link. No password, so there is
 nothing to leak, nothing to reset, and nothing an attacker can reuse
@@ -1112,15 +1114,88 @@ probablyearth.com is on its allowlist, so MapKit draws there from the
 first request.
 
 
+## The guest pass
+
+Founder, 2026-10-09: guests get a free trial that cannot be abused, and
+saving or competing needs an account, made obvious enough that nobody
+has to think about it. The design was approved on 2026-10-22 with the
+numbers below.
+
+| | Guest | Account |
+|---|---|---|
+| Street and Script | 3 games a day, both together | no guest limit (the play meter's ceiling still applies) |
+| The daily | playable; the score is held off the board | on the board |
+| Ranked, weekly cup | refused (`account_required`), with a practice game on the same rules | yes |
+| Multiplayer | needs an account, as before | yes |
+
+**What counts is a game, held together by a ticket**
+(`app/lib/geo/server/guestPass.js`). The first round a guest asks for
+without a ticket starts a game: it is counted, and a sealed ticket comes
+back, bound to the game (Street or Script), its seed and the player.
+Every later round of that game sends the ticket, and so does a reload
+(`app/geo/lib/guestPass.js` keeps it in localStorage). A round without a
+ticket is another game, so asking for round three of a hundred seeds
+spends the allowance rather than getting round it. A game with no seed
+draws fresh places every time, so no ticket ever fits one; both play
+pages always send a seed. Tickets are sealed under their own key, so a
+ticket never opens as a round token or the other way round.
+
+**Counted where clearing the browser does not reset it.** Per play
+profile and per hashed address, in `GeoUsage` under the `guest` bucket.
+Both play pages make a profile before their first round, so the person
+is what is counted. The round routes never make one for a request that
+has none (that would be a row for every headerless request a scraper
+sends): such a request is counted by its address alone. A signed-in
+account without a profile yet is given its own, so it is never taken
+for a guest. The address limit is looser, because an
+address is a household, an office or a phone network: it is the
+backstop for a browser that keeps clearing itself, and when it is what
+ran out the screen says "on this network" rather than telling someone
+they played games they never played. A rounds ceiling sits under both,
+for Country streak, which has no end.
+
+| Limit | Default | Env |
+|---|---|---|
+| Games per guest per UTC day | 3 | `GEO_GUEST_GAMES` |
+| Games per address per day | 20 | `GEO_GUEST_GAMES_PER_IP` |
+| Rounds per guest per day | 60 | `GEO_GUEST_ROUNDS` |
+| Rounds per address per day | 240 | `GEO_GUEST_ROUNDS_PER_IP` |
+
+A refusal is a 429 with code `guest_limit`, `resetAt`, `network` and
+`limit`. Nothing is written until the round is made, so a round that
+fails to build costs nothing. Signed-in players are not counted here.
+
+**The boards list accounts only.** `challengeBoard(..., { accountsOnly })`
+is what the daily and cup routes ask for. A guest who finished today's
+five is still recorded, and is answered with `you.held: true` and the
+place the score would take. Making an account binds the guest's profile
+to it (`resolveProfile`, and `bindAccount` on the code or link), so the
+entry is on the board from then on with nothing copied. An existing
+account signing in on a new browser does not take that browser's guest
+profile ("Signing in never merges two profiles"), so its held score
+stays held.
+
+**On screen** (`app/geo/components/guest/`): the Guest chip in the
+header with one dot a game, the note under Play, "Guests can play" and
+"Account needed" on the menu's challenges, the Guest or account
+comparison with its sign-up field, "Guest game 1 of 3 · Not saved" in a
+round, Save this score (or Post your score for a held daily) at the end
+of a game, the limit screen, and the Ranked and cup gate. Every one of
+them offers the account in place, with the same email-and-code form.
+
 ## Accounts: guest, signed in, role, tier
 
 Three layers, decided by the founder on 2026-09-16, deliberately
 independent of each other (`app/lib/geo/server/roles.js`).
 
-**Guest or signed in.** A browser plays with no account at all. Signing
-in binds that browser's play profile to an email so the history, the
-rating and the badges survive a new device. Nothing about the game is
-withheld from a guest: the account is for keeping, not for unlocking.
+**Guest or signed in.** A browser plays with no account at all, within
+the guest pass: three games a day, Street and Script, and the daily
+held off the board ("The guest pass" below). Signing in binds that
+browser's play profile to an email so the points, the badges and a held
+daily score come with it and survive a new device, and it is what
+competing needs: Ranked, the weekly cup, the boards and multiplayer.
+This replaced "nothing is withheld from a guest" on the founder's
+direction of 2026-10-09.
 
 **Role**: `player`, `host`, `admin`. What the account may DO. A host can
 run rooms for a group; an admin reaches `/geo/admin`.
@@ -1350,7 +1425,7 @@ with a fake, so the imagery is not a dependency:
 
 ```bash
 npm i --no-save playwright-core                  # not a project dependency
-DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
+DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough GEO_GUEST_GAMES_PER_IP=500 npm run dev &
 node scripts/geo-e2e/run.js                      # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
 GEO_E2E_ONLY=pinGame node scripts/geo-e2e/run.js    # one scenario
 ```

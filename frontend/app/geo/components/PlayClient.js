@@ -37,6 +37,10 @@ import { useSavedGame } from '../lib/savedGame';
 import { ignoreGameShortcut } from '../lib/mapKeyboard';
 import { useOpenFrom, usePresence } from '../lib/motion';
 import { playerMessage } from '../lib/networkError';
+import { takeRoundReply, ticketFor } from '../lib/guestPass';
+import { isSignedIn } from '../lib/session';
+import GuestLimit from './guest/GuestLimit';
+import AccountGate from './guest/AccountGate';
 
 const MAP_SIZES = ['small', 'medium', 'large'];
 const DESKTOP_SIZE = {
@@ -45,10 +49,10 @@ const DESKTOP_SIZE = {
   large: 'sm:w-[44rem] sm:h-[32rem]',
 };
 
-function Panel({ children }) {
+function Panel({ children, wide = false }) {
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-pe-canvas/95 p-4">
-      <div className="w-full max-w-lg">{children}</div>
+    <div className={`absolute inset-0 z-40 flex justify-center overflow-y-auto bg-pe-canvas/95 p-4 ${wide ? 'items-start sm:items-center' : 'items-center'}`}>
+      <div className={`w-full ${wide ? 'max-w-4xl py-8' : 'max-w-lg'}`}>{children}</div>
     </div>
   );
 }
@@ -220,7 +224,9 @@ function StreetPlayGame({ params }) {
       const res = await fetch('/api/geo/round', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...profileHeaders() },
-        body: JSON.stringify({ config: s.config, roundIndex: s.roundIndex, attempt: s.attempt }),
+        // The guest pass's ticket for this game, when it has one: its
+        // later rounds and a reload are then not new games (lib/guestPass.js).
+        body: JSON.stringify({ config: s.config, roundIndex: s.roundIndex, attempt: s.attempt, ticket: ticketFor('street', s.config.seed) }),
       });
       const data = await res.json().catch(() => ({}));
       if (id !== requestRef.current) return;
@@ -228,12 +234,15 @@ function StreetPlayGame({ params }) {
         const error = new Error(data.error || 'Could not start the round');
         error.code = data.code;
         error.resetAt = data.resetAt || null;
+        error.network = Boolean(data.network);
+        error.limit = data.limit || null;
         throw error;
       }
+      takeRoundReply('street', s.config.seed, data);
       dispatch({ type: 'load_success', round: data.round });
     } catch (error) {
       if (id !== requestRef.current) return;
-      dispatch({ type: 'load_error', error: { message: playerMessage(error, 'Could not start the round'), code: error.code, resetAt: error.resetAt || null } });
+      dispatch({ type: 'load_error', error: { message: playerMessage(error, 'Could not start the round'), code: error.code, resetAt: error.resetAt || null, network: error.network || false, limit: error.limit || null } });
     }
   }, []);
 
@@ -245,11 +254,26 @@ function StreetPlayGame({ params }) {
   // a ranked round opened from anywhere that had not already made a
   // profile was handed over and then refused a score.
   const needsProfile = isChallengeMode(config.mode);
+  // Ranked and the weekly cup need an account (founder, 2026-10-09). A
+  // guest is asked here, before a round is asked for; the server refuses
+  // one anyway, and that refusal opens the same screen.
+  const competing = config.mode === 'ranked' || config.mode === 'cup';
+  const [gate, setGate] = useState(null);
   useEffect(() => {
-    if (!saveReady || !configured || sdkError || state.status !== 'idle') return;
+    if (competing && !isSignedIn()) setGate(config.mode);
+  }, [competing, config.mode]);
+  useEffect(() => {
+    if (state.status === 'error' && state.error?.code === 'account_required') setGate(config.mode);
+  }, [state.status, state.error, config.mode]);
+  const signedInNow = () => {
+    setGate(null);
+    if (stateRef.current.status === 'error') dispatch({ type: 'retry' });
+  };
+  useEffect(() => {
+    if (!saveReady || !configured || sdkError || state.status !== 'idle' || gate) return;
     if (needsProfile && !profileSettled) return;
     startRound();
-  }, [saveReady, configured, sdkError, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled]);
+  }, [saveReady, configured, sdkError, state.status, state.roundIndex, state.attempt, startRound, needsProfile, profileSettled, gate]);
 
   // "No imagery" twice in a row is bad luck; a third time we say so.
   // An unresponsive provider is not bad luck and is never retried: it
@@ -661,7 +685,27 @@ function StreetPlayGame({ params }) {
       {configured && !sdkReady && !sdkError && server ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-pe-canvas text-pe-muted">Loading Look Around</div>
       ) : null}
-      {state.status === 'error' && !autoRetrying && !sdkError && !serverError ? (
+      {gate ? (
+        <Panel>
+          <Card tone="panel">
+            <AccountGate mode={gate} returnTo={`/geo/play?${configToParams(config)}`} onAuthenticated={signedInNow} />
+          </Card>
+        </Panel>
+      ) : null}
+      {state.status === 'error' && state.error?.code === 'guest_limit' && !gate ? (
+        <Panel wide>
+          <Card tone="panel">
+            <GuestLimit
+              resetAt={state.error.resetAt}
+              network={state.error.network}
+              limit={state.error.limit || 3}
+              returnTo={`/geo/play?${configToParams(config)}`}
+              onAuthenticated={() => dispatch({ type: 'retry' })}
+            />
+          </Card>
+        </Panel>
+      ) : null}
+      {state.status === 'error' && !autoRetrying && !sdkError && !serverError && !['guest_limit', 'account_required'].includes(state.error?.code) ? (
         <ErrorPanel
           title={
             metered

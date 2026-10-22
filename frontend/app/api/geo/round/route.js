@@ -8,6 +8,12 @@
  * The play meter runs first (docs/GEO.md, "The play meter"): the day's
  * ceiling, the speed limit and the site's day. A refusal is a 429 with a
  * code and our words.
+ *
+ * Then the guest pass (server/guestPass.js): a player without an account
+ * has a few games a day, held together by a sealed `ticket` that comes
+ * back with a game's first round and goes out with every later one.
+ * Ranked and the weekly cup are refused to guests outright: a rating and
+ * a prize have to belong to one person.
  */
 
 import { NextResponse } from 'next/server';
@@ -21,6 +27,9 @@ import { checkRound, recordRound } from '@/app/lib/geo/server/meter';
 import { meterErrorResponse, speedLimiter, subjectsFor } from '@/app/lib/geo/server/meterRequest';
 import { MeterError } from '@/app/lib/geo/meter';
 import { maybeSweep } from '@/app/lib/geo/server/sweep';
+import { admitGuestRound, GuestPassError } from '@/app/lib/geo/server/guestPass';
+import { guestPassErrorResponse, roundSubjects } from '@/app/lib/geo/server/guestRequest';
+import { getGeoServerConfig } from '@/app/lib/geo/server/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +68,16 @@ export async function POST(request) {
   // round that cannot be counted is better than a round that cannot be
   // played, and the site's day is a shared-quota guard rather than a
   // bill.
-  const subjects = await subjectsFor(request);
+  const subjects = await roundSubjects(request, subjectsFor);
+  // Ranked moves a rating and the cup pays prizes, so both belong to an
+  // account (founder, 2026-10-09). The play page asks a guest to make
+  // one before it ever gets here; this is the rule, not the prompt.
+  if ((config.mode === 'ranked' || config.mode === 'cup') && !subjects.signedIn) {
+    return NextResponse.json(
+      { error: config.mode === 'ranked' ? 'Ranked needs an account.' : 'The weekly cup needs an account.', code: 'account_required' },
+      { status: 401, headers: { 'Cache-Control': 'no-store' } }
+    );
+  }
   // The daily and the cup are scored on a shared board, so they are
   // played as somebody. Without this, a round could be opened with no
   // identity, its answer read from /api/geo/guess for free, and then
@@ -79,10 +97,23 @@ export async function POST(request) {
     console.error('[geo/round] meter', error?.message || error);
   }
 
+  let pass = null;
+  try {
+    pass = await admitGuestRound(prismaRoomStore, { subjects, kind: 'street', seed: config.seed, ticket: body?.ticket, secret: getGeoServerConfig().tokenSecret });
+  } catch (error) {
+    if (error instanceof GuestPassError) return guestPassErrorResponse(error);
+    // The pass could not be read. Like the meter above, a round that
+    // cannot be counted is better than one that cannot be played.
+    console.error('[geo/round] guest pass', error?.message || error);
+  }
+
   try {
     const round = await createRound({ config, roundIndex, attempt, subject: subjects.profileId || '', cache: prismaRoundCache });
     if (decision) await recordRound(prismaRoomStore, { subjects });
-    return NextResponse.json({ ok: true, config, round }, { headers: { 'Cache-Control': 'no-store' } });
+    // A guest gets the game's ticket and the new count; a signed-in
+    // player is told they are not counted, so a stale count clears.
+    const guest = pass?.guest ? { ticket: pass.ticket, allowance: await pass.record() } : pass ? { allowance: { guest: false } } : null;
+    return NextResponse.json({ ok: true, config, round, guest }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof GeoGameError || error instanceof GeoSamplerError) {
       const status = STATUS_FOR[error.code] || 400;

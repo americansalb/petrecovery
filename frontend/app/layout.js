@@ -55,7 +55,12 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable}>
+    // suppressHydrationWarning: the game's layout marks <html> with
+    // data-geo-profile from an inline script before React hydrates
+    // (app/geo/layout.js), on purpose, so that attribute never matches
+    // the server's HTML. This silences that one element's attributes
+    // only; everything inside it is still checked.
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       {/* Leaflet's CSS ships inside each map component's own chunk (imported
           from node_modules), so text-only pages load no map assets at all. */}
       <body className="m-0 p-0 font-sans antialiased bg-midnight-50 text-midnight-900">

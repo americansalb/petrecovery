@@ -44,7 +44,12 @@ async function main() {
     cwd: path.resolve(__dirname, '..'),
     env: { ...process.env, NODE_ENV: 'production', NODE_OPTIONS: '',
       NEXT_TELEMETRY_DISABLED: '1', GEO_TOKEN_SECRET: 'memory-smoke-qa-only-secret',
-      NEXTAUTH_SECRET: 'memory-smoke-qa-only-auth' },
+      NEXTAUTH_SECRET: 'memory-smoke-qa-only-auth',
+      // Every cycle plays a Script game from one address for two
+      // minutes or more, and a re-run on the same day adds to the count:
+      // the guest pass's address backstop (docs/GEO.md) is not what this
+      // gate measures, so it is lifted here.
+      GEO_GUEST_GAMES_PER_IP: '100000', GEO_GUEST_ROUNDS_PER_IP: '100000' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let failure;
@@ -78,12 +83,16 @@ async function main() {
         '/geo/signin', '/api/geo/config', '/api/geo/rooms', '/api/geo/leaderboard?ladder=script']) {
         await get('probablyearth.com', route);
       }
+      // One game per cycle: its first round hands back the guest pass's
+      // ticket, and the later rounds carry it, as the play page does.
+      let ticket;
       for (let roundIndex = 0; roundIndex < 3; roundIndex++) {
         const round = await get('probablyearth.com', '/api/geo/script/round', {
-          method: 'POST', body: { config: { seed: 'memory-smoke', rounds: 3 }, roundIndex },
+          method: 'POST', body: { config: { seed: 'memory-smoke', rounds: 3 }, roundIndex, ticket },
         });
         const payload = JSON.parse(round.text);
         assert.equal(payload.ok, true, 'Script gameplay must produce a round');
+        ticket = ticket || payload.guest?.ticket;
         const scored = await get('probablyearth.com', '/api/geo/script/guess', {
           method: 'POST', body: { token: payload.round.token, guess: { lat: 35, lng: 139 } },
         });

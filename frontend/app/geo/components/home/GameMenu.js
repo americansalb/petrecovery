@@ -18,7 +18,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
+  Check,
   Compass,
+  Lock,
   Play,
   SlidersHorizontal,
   Users,
@@ -41,13 +43,17 @@ import { latestSavedGame } from '../../lib/savedGame';
 import { safeReturnTo } from '@/app/lib/geo/authReturn';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { scriptConfigToQuery } from '@/app/lib/geo/script';
+import { useGuestPass, untilReset } from '../../lib/guestPass';
+import GuestDots from '../guest/GuestDots';
+import AccountDialog from '../AccountDialog';
+import SignInCard from '../SignInCard';
 
 /**
  * One line of the lists under the scene: the name, what it is, and the
  * player's own standing when the server has said (never a placeholder
  * standing for atmosphere). The whole row is the link.
  */
-function MenuRow({ href, marker, title, detail, status = "" }) {
+function MenuRow({ href, marker, title, detail, status = "", access = null }) {
   return (
     <Link
       href={href}
@@ -57,7 +63,17 @@ function MenuRow({ href, marker, title, detail, status = "" }) {
       <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-6">
         <h3 className="font-semibold text-pe-fg sm:w-36 sm:shrink-0">{title}</h3>
         <p className="mt-0.5 text-sm text-pe-muted sm:mt-0 sm:flex-1">{detail}</p>
-        {status ? (
+        {/* For a guest, whether this is open to them, said before they
+            press it rather than after (founder, 2026-10-09). */}
+        {access ? (
+          <p className="pe-fade-in mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 sm:mt-0 sm:w-72 sm:shrink-0">
+            <span className="pe-access" data-access={access.open ? "open" : "account"}>
+              {access.open ? <Check size={13} aria-hidden="true" /> : <Lock size={13} aria-hidden="true" />}
+              {access.open ? "Guests can play" : "Account needed"}
+            </span>
+            <span className="text-xs text-pe-subtle">{access.note}</span>
+          </p>
+        ) : status ? (
           <p className="pe-fade-in mt-1 text-sm font-medium text-pe-accent-fg sm:mt-0 sm:text-right">{status}</p>
         ) : null}
       </div>
@@ -81,6 +97,9 @@ export default function GameMenu() {
   const [cup, setCup] = useState(null);
   const [solo, setSolo] = useState(null);
   const [answered, setAnswered] = useState({});
+  const [asking, setAsking] = useState(false);
+  const pass = useGuestPass();
+  const guest = Boolean(pass?.guest);
   const script = game === "script";
 
   useEffect(() => {
@@ -210,9 +229,39 @@ export default function GameMenu() {
                 <p>
                   {imagery === false && !script
                     ? "Street is unavailable here. Try Script."
-                    : `${DEFAULT_CONFIG.rounds} rounds · No timer · Free`}
+                    : `${DEFAULT_CONFIG.rounds} rounds · No timer · ${guest || !pass ? "No sign-up to play" : "Free"}`}
                 </p>
               </div>
+              {/* The guest pass, said up front: how many games are left
+                  and what an account adds, so the end of the third game
+                  is never the first a guest hears of it. */}
+              {guest ? (
+                <div className="pe-guest-note pe-fade-in" data-guest-note>
+                  <GuestDots left={pass.left} limit={pass.limit} size={10} />
+                  {pass.left > 0 ? (
+                    <p>
+                      <strong>
+                        {pass.left === pass.limit
+                          ? `You have ${pass.limit} guest games today.`
+                          : `${pass.left} of ${pass.limit} guest games left today.`}
+                      </strong>{" "}
+                      To save your scores, go on the boards and play more,{" "}
+                      <button type="button" onClick={() => setAsking(true)}>make an account</button>. It takes your email
+                      and nothing else.
+                    </p>
+                  ) : (
+                    <p>
+                      <strong>
+                        {pass.network
+                          ? "Guest games on this network are used up for today."
+                          : `You've played your ${pass.limit} guest games today.`}
+                      </strong>{" "}
+                      <button type="button" onClick={() => setAsking(true)}>Make an account</button> to keep playing now, or
+                      come back in <span className="pe-num">{untilReset(pass.resetAt)}</span>.
+                    </p>
+                  )}
+                </div>
+              ) : null}
             </div>
             <div className="pe-dock-foot">
               {savedGame?.url ? <Link href={safeReturnTo(savedGame.url, '/geo')}><Play size={15} /> Continue {savedGame.kind === 'script' ? 'Script' : 'Street'}</Link> : null}
@@ -287,6 +336,7 @@ export default function GameMenu() {
               marker="data-menu-daily"
               title="Daily"
               detail={`${MODES.daily.fixed.rounds} places · No timer · Same places for everyone`}
+              access={guest ? { open: true, note: "Your score goes on the board when you make an account." } : null}
               status={
                 answered.daily && daily?.you?.rank
                   ? `You’re ${ordinal(daily.you.rank)} of ${daily.finished} today`
@@ -300,6 +350,7 @@ export default function GameMenu() {
               marker="data-menu-ranked"
               title="Ranked"
               detail={`${MODES.ranked.fixed.rounds} rounds · ${MODES.ranked.fixed.time} seconds · No moving`}
+              access={guest ? { open: false, note: "A rating has to belong to one person." } : null}
               status={
                 answered.solo
                   ? solo?.games >= PROVISIONAL_GAMES
@@ -313,10 +364,49 @@ export default function GameMenu() {
               marker="data-menu-cup"
               title="Weekly cup"
               detail={`${MODES.cup.fixed.rounds} places · One entry a week`}
+              access={guest ? { open: false, note: "One entry per person, so it is tied to an account." } : null}
               status={cup?.endsAt ? `Ends ${untilText(cup.endsAt)}` : ""}
             />
           </div>
         </section>
+
+        {/* Guest or account, side by side, for a guest only: what each
+            gets, in a few words a line, and the one field that makes an
+            account. Copy states what is true today and nothing more
+            (CLAUDE.md, site copy). */}
+        {guest ? (
+          <section className="pe-compare pt-12 sm:pt-16" aria-labelledby="compare-title" data-guest-compare>
+            <h2 id="compare-title" className="ui-h2">Guest or account</h2>
+            <p className="mt-1 text-sm text-pe-muted">
+              An account is your email address. There is no password: we email you a code, and the code signs you in.
+            </p>
+            <div className="pe-compare-grid mt-6">
+              <div className="pe-compare-guest">
+                <h3>Playing as a guest</h3>
+                <ul>
+                  <li>Script and Street</li>
+                  <li>{pass.limit} games a day</li>
+                  <li>Today&apos;s daily, held until you post it</li>
+                  <li>Your games kept on this browser</li>
+                </ul>
+              </div>
+              <div className="pe-compare-account">
+                <h3>With an account</h3>
+                <ul>
+                  <li><Check size={16} aria-hidden="true" />More than {pass.limit} games a day</li>
+                  <li><Check size={16} aria-hidden="true" />Daily board, Ranked, weekly cup</li>
+                  <li><Check size={16} aria-hidden="true" />Multiplayer with friends</li>
+                  <li><Check size={16} aria-hidden="true" />A rating and a league</li>
+                  <li><Check size={16} aria-hidden="true" />Your guest points come with you</li>
+                  <li><Check size={16} aria-hidden="true" />The same profile on any device</li>
+                </ul>
+                <div className="mt-5">
+                  <SignInCard requireName returnTo="/geo" submitLabel="Create my account" />
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="pe-home-practice pt-10" aria-labelledby="more-title">
           <h2 id="more-title" className="ui-h2">More ways to play</h2>
@@ -333,6 +423,15 @@ export default function GameMenu() {
           </div>
         </section>
       </div>
+      {asking ? (
+        <AccountDialog
+          title="Make an account"
+          intro={`Guests get ${pass?.limit || 3} games a day. Make an account to play more, keep your points and board scores on any device, and play Ranked, the weekly cup and multiplayer. It\u2019s free: your email and a code.`}
+          returnTo="/geo"
+          onClose={() => setAsking(false)}
+          onAuthenticated={() => setAsking(false)}
+        />
+      ) : null}
     </main>
   );
 }

@@ -85,18 +85,22 @@ test('the primitives exist and say what they are for', () => {
 });
 
 test('the primary button clears AA on its own surface', () => {
-  // Ocean blue with white text (theme.css). The old primary was rust
-  // with a painted 3D edge (founder, 2026-09-23: "ugly"); before that,
-  // white on clay-500 was 3.68:1 and shipped on every screen.
+  // Clay with ink text since 2026-10-09 (theme.css, action): the one
+  // thing to press is the warm thing on the dark sea. Before that it was
+  // ocean blue with white; before that rust with a painted 3D edge
+  // (founder, 2026-09-23: "ugly"); before that white on clay-500 at
+  // 3.68:1, which is why the text on clay is ink now, never white.
   const theme = fs.readFileSync(path.join(GEO, 'theme.css'), 'utf8');
-  const rgb = theme.match(/--pe-accent:\s*(\d+) (\d+) (\d+);/).slice(1).map(Number);
+  const token = (name) => theme.match(new RegExp(`--pe-${name}:\\s*(\\d+) (\\d+) (\\d+);`)).slice(1).map(Number);
   const lum = ([r, g, b]) => {
     const f = (c) => { const x = c / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
   };
-  const contrast = (1.05) / (lum(rgb) + 0.05);
-  expect(contrast).toBeGreaterThanOrEqual(4.5);
-  expect(theme).toMatch(/\.ui-btn--primary \{\s*background: rgb\(var\(--pe-accent\)\);\s*color: #fff;/);
+  const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+  expect(ratio(token('action'), token('on-action'))).toBeGreaterThanOrEqual(4.5);
+  // Selections keep white text on ocean, so that pair is held too.
+  expect(ratio(token('accent'), [255, 255, 255])).toBeGreaterThanOrEqual(4.5);
+  expect(theme).toMatch(/\.ui-btn--primary \{\s*background: rgb\(var\(--pe-action\)\);\s*color: rgb\(var\(--pe-on-action\)\);/);
   const button = fs.readFileSync(path.join(UI, 'Button.js'), 'utf8');
   expect(button).toContain('`ui-btn--${kind}`');
 });

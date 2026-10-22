@@ -30,7 +30,7 @@ export async function GET(request) {
     const jobs = [finalizeCup(prismaRoomStore, key, now)];
     if (key === thisWeek) jobs.push(finalizeCup(prismaRoomStore, cupKeyFor(now - 7 * 86400000), now));
     await Promise.all(jobs.map((job) => job.catch((error) => console.error('[geo/cup] prizes', error?.message || error))));
-    const board = await challengeBoard(prismaRoomStore, { key, rounds: CUP_ROUNDS, profileId });
+    const board = await challengeBoard(prismaRoomStore, { key, rounds: CUP_ROUNDS, profileId, accountsOnly: true });
     return NextResponse.json({ ok: true, week: key.slice(4), endsAt: cupEndsAt(key), prizes: CUP_PRIZES, ...board }, NO_STORE);
   } catch (error) {
     console.error('[geo/cup]', error);

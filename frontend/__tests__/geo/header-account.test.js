@@ -128,3 +128,23 @@ test('the account slot is there whether or not it holds anything', async () => {
   // A fixed width where the links are beside it (the desktop bar).
   expect(css).toMatch(/\.ui-account-slot \{\s*width: \d+px;/);
 });
+
+test('a guest sees how many of today\'s guest games are left, beside Sign in', async () => {
+  // Founder, 2026-10-09: the trial has to be obvious without thinking
+  // about it, so the count is in the bar on every page, not only at the
+  // end of the third game.
+  global.fetch = jest.fn(async (url) => ({
+    ok: true,
+    json: async () =>
+      String(url).includes('/api/geo/guest')
+        ? { ok: true, guest: true, limit: 3, used: 1, left: 2, resetAt: Date.now() + 3600000, network: false }
+        : { ok: true, signedIn: false, email: null, account: null },
+  }));
+  // The count is one answer per page, cached; earlier tests in this file
+  // left one behind. A session change is what drops it in the app too.
+  await act(async () => { window.dispatchEvent(new Event('geo:session-changed')); });
+  await act(async () => { render(<GeoHeader />); });
+  const chip = await screen.findByRole('button', { name: /Playing as a guest\. 2 games left today\. Make an account/ });
+  expect(chip).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/geo/signin');
+});

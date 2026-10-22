@@ -16,8 +16,12 @@
  * The rooms, daily, ranked, profile and admin scenarios write to the
  * database, so they need a DATABASE_URL (see docs/GEO.md).
  *
+ * Every scenario plays from one address, and a guest has three games a
+ * day from a profile and twenty from an address (docs/GEO.md, "The guest
+ * pass"), so raise the address backstop for a full run.
+ *
  * Setup (from frontend/):
- *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough npm run dev &
+ *   DATABASE_URL=postgresql://... GEO_TOKEN_SECRET=anything-long-enough GEO_GUEST_GAMES_PER_IP=500 npm run dev &
  *   npm i --no-save playwright-core        # not a project dependency
  *   node scripts/geo-e2e/run.js            # BASE_URL, CHROME_PATH, GEO_E2E_OUT optional
  *   GEO_E2E_ONLY=pinGame node scripts/geo-e2e/run.js   # one scenario (coldOpen, admin, menuOffline, pinGame, streak, timer, backgrounded, regionPill, formats, keyboard, mobile, rooms, duel, appleSolo, appleRoom, appleRefused, firstRun, daily, ranked, profile, script, scriptFallback)
@@ -145,6 +149,33 @@ async function pinApple(page) {
 }
 
 /** The result map must really have a box on screen, not just exist. */
+/**
+ * Sign a page in the way a person finishes it: the emailed link, then
+ * one press of Sign in (api/geo/auth/verify says why a link alone does
+ * not). The token is written straight to the database, so this needs
+ * DATABASE_URL, like the scenarios that call it.
+ */
+async function signInByLink(page, email) {
+  const { PrismaClient } = require('@prisma/client');
+  const { createHash, randomUUID } = require('node:crypto');
+  const prisma = new PrismaClient();
+  try {
+    const token = randomUUID().replace(/-/g, '');
+    const tokenHash = createHash('sha256').update(`reunitepets-geo-login:${token}`).digest('hex');
+    // The browser's play profile, recorded on the link the way
+    // /api/geo/auth/request records it, so the account takes this
+    // browser's games with it rather than starting empty.
+    const playToken = await page.evaluate(() => localStorage.getItem('geo:profile:v1') || '');
+    const profile = playToken ? await prisma.geoProfile.findUnique({ where: { tokenHash: createHash('sha256').update(playToken).digest('hex') } }) : null;
+    await prisma.geoLoginToken.create({ data: { tokenHash, email, profileId: profile?.id || null, expiresAt: new Date(Date.now() + 600000) } });
+    await page.goto(`${BASE}/api/geo/auth/verify?token=${token}`, { waitUntil: 'domcontentloaded' });
+    await page.click('button[type=submit]:has-text("Sign in")', { timeout: 30000 });
+    await page.waitForFunction(() => document.cookie.includes('geo_signed_in=1'), null, { timeout: 30000 });
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 async function expectMapVisible(page, where) {
   const box = await page.evaluate(() => {
     const host = document.querySelector('[data-fake-mapkit]')?.parentElement;
@@ -401,10 +432,12 @@ async function appleSolo(browser) {
   await page.waitForSelector('[data-fake-mapkit]', { timeout: 10000 });
   if (!(await page.getAttribute('a[href*="/geo/share?s="]', 'href'))) throw new Error('no share link on the Apple summary');
   // The account ask, at the one moment there is something worth keeping
-  // (founder: never force it, always offer it). A guest must see it.
-  await page.waitForSelector('[data-keep-this]', { timeout: 15000 });
-  const keep = await page.textContent('[data-keep-this]');
-  log('account ask on the summary:', /Keep this game/.test(keep || ''));
+  // (founder, 2026-10-09: saving needs an account, and it has to be
+  // obvious). A guest must see it, with the field in it.
+  await page.waitForSelector('[data-save-score]', { timeout: 15000 });
+  const keep = await page.textContent('[data-save-score]');
+  log('account ask on the summary:', /Save this score/.test(keep || ''));
+  if (!(await page.locator('[data-save-score] input[type=email]').count())) throw new Error('the save panel has no email field');
   // "free", not "costs nothing" (founder, 2026-09-17: "WHY NOT SAY
   // FREE"). The house rule allows the price in the present tense.
   if (!/\bfree\b/i.test(keep || '')) throw new Error('the account ask does not say it is free');
@@ -505,10 +538,15 @@ async function appleRoom(browser) {
 async function ranked(browser) {
   log('\n== ranked ==');
   const playSet = async (page, label) => {
-    // Through the Rankings page, the way a player arrives. Going
-    // straight to the play URL races the profile this browser is about
-    // to be given, and a ranked round is refused to anyone but the
-    // profile that opened it.
+    // Ranked needs an account (founder, 2026-10-09): a guest who opens
+    // it is asked for one, and offered the same rules as practice.
+    await page.goto(`${BASE}/geo/play?mode=ranked`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-account-gate="ranked"]', { timeout: 60000 });
+    if (!(await page.locator('a:has-text("Practice with Ranked rules")').count())) throw new Error('the Ranked gate offers no practice game');
+    await signInByLink(page, `harness-ranked-${label.replace(/\W/g, '')}-${Date.now()}@localdev.test`);
+    // Through the menu, the way a player arrives. Going straight to the
+    // play URL races the profile this browser is about to be given, and
+    // a ranked round is refused to anyone but the profile that opened it.
     await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('[data-menu-ranked]', { timeout: 60000 });
     await page.click('[data-menu-ranked]');
@@ -592,8 +630,11 @@ async function coldOpen(browser) {
   // ways to play", which is the catalogue that used to be buried in the
   // standings page; what it must not have is a second thing competing
   // to be the game.
-  const starts = await page.locator('button:visible').count();
-  log('buttons on the menu:', starts);
+  // Not counted: the Script/Street choice (it chooses, it does not
+  // start), and the account asks a guest sees (the Guest chip, the note
+  // under Play and the sign-up form), none of which starts a game.
+  const starts = await page.locator('main button:visible:not([aria-pressed]):not([data-guest-chip])').filter({ hasNotText: /account/i }).count();
+  log('buttons on the menu that start a game:', starts);
   if (starts !== 1) throw new Error(`the menu should have one button, found ${starts}`);
 
   // The quick start asks for nothing: no field sits above it, so a
@@ -688,17 +729,23 @@ async function daily(browser) {
   }
   await page.click('button:has-text("See results")');
   await page.waitForSelector('text=/of 25,000/', { timeout: 20000 });
-  const rankLine = 'text=/You are \\d+(st|nd|rd|th) of \\d+ who finished/';
-  await page.waitForSelector(rankLine, { timeout: 20000 });
-  log('daily summary:', await page.textContent(rankLine));
+  // A guest's daily is held off the board (founder, 2026-10-09: competing
+  // needs an account), with the place it would take and the way to post it.
+  const heldLine = 'text=/Your score would be \\d+(st|nd|rd|th) of \\d+/';
+  await page.waitForSelector(heldLine, { timeout: 20000 });
+  await page.waitForSelector('[data-held-row]', { timeout: 20000 });
+  await page.waitForSelector('[data-save-score]:has-text("Post your score")', { timeout: 20000 });
+  log('daily summary, held:', await page.textContent(heldLine));
   await shot(page, 'daily-summary');
   const shareHref = await page.getAttribute('a[href*="/geo/share?s="]', 'href');
 
+  // Making an account posts it: the guest profile becomes the account's.
+  await signInByLink(page, `harness-daily-${Date.now()}@localdev.test`);
   await page.goto(`${BASE}/geo`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-menu-daily]:has-text("You are")', { timeout: 20000 });
+  await page.waitForSelector('[data-menu-daily]:has-text("You\u2019re")', { timeout: 20000 });
   const board = (await page.textContent('[data-menu-daily]')).replace(/\s+/g, ' ');
   log('daily board:', board.slice(0, 160));
-  if (!/You are \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the board should show your rank');
+  if (!/You\u2019re \d+(st|nd|rd|th) of \d+/.test(board)) throw new Error('the board should show your rank once you have an account');
   await page.waitForSelector('[data-menu-cup]:has-text("Ends")', { timeout: 20000 });
   const cupText = (await page.textContent('[data-menu-cup]')).replace(/\s+/g, ' ');
   if (!/Ends in/.test(cupText)) throw new Error('the cup card should say when the week ends');

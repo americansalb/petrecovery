@@ -11,7 +11,7 @@ import { render } from '@testing-library/react';
 import GameHud from '@/app/geo/components/GameHud';
 
 jest.mock('next/link', () => function Link({ children, href, ...rest }) { return <a href={href} {...rest}>{children}</a>; });
-jest.mock('@/app/geo/components/SaveGameButton', () => () => null);
+jest.mock('@/app/geo/components/guest/GuestTag', () => () => null);
 
 const base = { score: 0, streak: 0, secondsLeft: NaN, showMapControls: true, onReturn() {}, onToggleMobileMap() {} };
 

@@ -24,7 +24,7 @@ import { RotateCcw, X, Map as MapIcon } from 'lucide-react';
 import { formatScore } from '@/app/lib/geo/distance';
 import { REVEAL, useTween } from '../lib/motion';
 import { MODES } from '@/app/lib/geo/modes';
-import SaveGameButton from './SaveGameButton';
+import GuestTag from './guest/GuestTag';
 
 export function TimerRing({ secondsLeft, total }) {
   const fraction =
@@ -104,7 +104,6 @@ export default function GameHud({
   onToggleMobileMap,
   notice,
   showMapControls,
-  saveUrl,
 }) {
   const isStreak = config.mode === 'streak';
   const shownScore = useTween(score, { delayMs: REVEAL.lineDelayMs, durationMs: REVEAL.lineMs });
@@ -201,7 +200,9 @@ export default function GameHud({
         ) : null}
         {/* On a phone it is bottom left, beside the way back to the
             start, because the top row is full there. */}
-        {saveUrl ? <SaveGameButton returnTo={saveUrl} className={`pointer-events-auto ${iconButton} hidden sm:flex`} /> : null}
+        {/* A guest is told which of today's guest games this is, and
+            that it is not saved; pressing it asks for an account. */}
+        <GuestTag className="pointer-events-auto hidden sm:inline-flex" />
         <Link
           href="/geo"
           className={`pointer-events-auto ${iconButton}`}
@@ -240,7 +241,7 @@ export default function GameHud({
                 <RotateCcw className="h-5 w-5" />
               </button>
             ) : null}
-            {saveUrl ? <SaveGameButton returnTo={saveUrl} className={`${iconButton} sm:hidden`} /> : null}
+            <GuestTag className="inline-flex sm:hidden" />
           </div>
           {/* One line, and only the part that is true for this game: an
             NMPZ round that says "drag to look around" is a lie.
