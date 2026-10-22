@@ -33,7 +33,7 @@ afterEach(() => { jest.clearAllMocks(); });
 test('a signed-out player is offered an account, from the navigation, on every screen', async () => {
   answer({ ok: true, signedIn: false, email: null, account: null });
   await act(async () => { render(<GeoHeader />); });
-  const cta = await screen.findByRole('link', { name: 'Sign in' });
+  const cta = await screen.findByRole('link', { name: 'Sign up or sign in' });
   expect(cta).toHaveAttribute('href', '/geo/signin');
 });
 
@@ -42,7 +42,7 @@ test('a signed-in player gets their account, not another invitation to sign up',
   await act(async () => { render(<GeoHeader />); });
   const who = await screen.findByRole('link', { name: /kevin/i });
   expect(who).toHaveAttribute('href', '/geo/me');
-  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Sign up or sign in' })).toBeNull();
 });
 
 test('the cookie answers before the network does', async () => {
@@ -54,7 +54,7 @@ test('the cookie answers before the network does', async () => {
   await act(async () => { render(<GeoHeader />); });
   // No email yet, so the control names itself "Account" until one arrives.
   expect(await screen.findByRole('link', { name: 'Account' })).toHaveAttribute('href', '/geo/me');
-  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Sign up or sign in' })).toBeNull();
 
   isSignedIn.mockReturnValue(false);
 });
@@ -67,18 +67,18 @@ test('a refused auth/me never demotes a signed-in player to a signup prompt', as
   global.fetch = jest.fn(async () => ({ ok: false, status: 429, json: async () => ({}) }));
   await act(async () => { render(<GeoHeader />); });
   await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Sign up or sign in' })).toBeNull();
   isSignedIn.mockReturnValue(false);
 });
 
 test('signing in without a navigation updates the bar', async () => {
   answer({ ok: true, signedIn: false, email: null, account: null });
   await act(async () => { render(<GeoHeader />); });
-  await screen.findByRole('link', { name: 'Sign in' });
+  await screen.findByRole('link', { name: 'Sign up or sign in' });
 
   answer({ ok: true, signedIn: true, email: 'kevin@example.test', account: { email: 'kevin@example.test' } });
   await act(async () => { window.dispatchEvent(new Event('geo:session-changed')); });
-  await waitFor(() => expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull());
+  await waitFor(() => expect(screen.queryByRole('link', { name: 'Sign up or sign in' })).toBeNull());
   expect(screen.getByRole('link', { name: /kevin/i })).toBeInTheDocument();
 });
 
@@ -90,7 +90,7 @@ test('the bar does not offer to take you to the page you are reading', async () 
   nav.usePathname = () => '/geo/signin';
   answer({ ok: true, signedIn: false, email: null, account: null });
   await act(async () => { render(<GeoHeader />); });
-  expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Sign up or sign in' })).toBeNull();
   nav.usePathname = was;
 });
 
@@ -129,7 +129,7 @@ test('the account slot is there whether or not it holds anything', async () => {
   expect(css).toMatch(/\.ui-account-slot \{\s*width: \d+px;/);
 });
 
-test('a guest sees how many of today\'s guest games are left, beside Sign in', async () => {
+test('a guest sees how many of today\'s guest games are left, beside Sign up or sign in', async () => {
   // Founder, 2026-10-09: the trial has to be obvious without thinking
   // about it, so the count is in the bar on every page, not only at the
   // end of the third game.
@@ -144,7 +144,19 @@ test('a guest sees how many of today\'s guest games are left, beside Sign in', a
   // left one behind. A session change is what drops it in the app too.
   await act(async () => { window.dispatchEvent(new Event('geo:session-changed')); });
   await act(async () => { render(<GeoHeader />); });
-  const chip = await screen.findByRole('button', { name: /Playing as a guest\. 2 games left today\. Make an account/ });
+  const chip = await screen.findByRole('button', { name: /Playing as a guest\. 2 games left today\. Sign up or sign in/ });
   expect(chip).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/geo/signin');
+  expect(screen.getByRole('link', { name: 'Sign up or sign in' })).toHaveAttribute('href', '/geo/signin');
+});
+
+test('signing up and signing in are named as one step, in the bar and on the form', async () => {
+  // Founder, 2026-10-22: "it's not clear that sign in is the same thing
+  // as sign up". A bare "Sign in" reads as a door for people who already
+  // have an account, so neither the bar nor the form says it alone.
+  const fs = require('fs');
+  const path = require('path');
+  const read = (rel) => fs.readFileSync(path.resolve(__dirname, '../../app/geo', rel), 'utf8');
+  expect(read('components/GeoHeader.js')).toMatch(/>\s*Sign up or sign in\s*</);
+  expect(read('signin/page.js')).toContain('Sign up or sign in');
+  expect(read('components/SignInCard.js')).toContain("New here or coming back? It&apos;s the same step.");
 });

@@ -83,7 +83,7 @@ test('a guest is offered an account rather than a rename', async () => {
   expect(screen.queryByRole('heading', { name: /^Player/ })).toBeNull();
   expect(screen.queryByText(PROMPT)).toBeNull();
   expect(screen.getByText(/Not signed in/)).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/geo/signin?next=%2Fgeo%2Fme');
+  expect(screen.getByRole('link', { name: 'Sign up or sign in' })).toHaveAttribute('href', '/geo/signin?next=%2Fgeo%2Fme');
 });
 
 test('a guest who chose a name is shown by it, and still told this is one browser', async () => {

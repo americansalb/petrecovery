@@ -38,8 +38,8 @@ export default function GeoSignInPage() {
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back
       </Link>
-      <h1 className="ui-h1 mt-6">Sign in</h1>
-      <p className="ui-lead mt-2">Keep your scores, rating and badges on every device.</p>
+      <h1 className="ui-h1 mt-6">Sign up or sign in</h1>
+      <p className="ui-lead mt-2">One step for both. Your account keeps your scores, rating and badges on every device.</p>
       <div className="ui-card mt-8 p-5 sm:p-6">
         {/* useSearchParams needs a boundary or the whole route opts out
             of static rendering at build time. */}
