@@ -1,0 +1,376 @@
+/**
+ * The guest pass and the account ask (components/guest/): the dots,
+ * the header chip, the tag in a round, the note under Play, the access
+ * labels on the menu, the comparison, the save panel, the limit and the
+ * Ranked gate. Built on theme.css's tokens, so each one comes out right
+ * on the dark game and on Script's paper alike.
+ */
+
+/* ---- The dots ------------------------------------------------------- */
+
+.geo-surface .pe-guest-dots {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+.geo-surface .pe-guest-dots > span {
+  border-radius: 999px;
+  background: rgb(var(--pe-line-strong));
+}
+.geo-surface .pe-guest-dots > span[data-left] {
+  background: rgb(var(--pe-good));
+}
+
+/* ---- The header chip ------------------------------------------------ */
+
+.geo-surface .ui-account-slot[data-guest] {
+  gap: 8px;
+  align-items: center;
+}
+.geo-surface .pe-guest-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgb(var(--pe-line-strong));
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(var(--pe-fg));
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--pe-dur-fast, 180ms) ease;
+}
+.geo-surface .pe-guest-chip:hover {
+  background: rgb(var(--pe-raised));
+}
+.geo-surface .pe-guest-chip[data-empty] {
+  border-color: rgb(var(--pe-action) / 0.55);
+  background: rgb(var(--pe-action) / 0.08);
+}
+.geo-surface .pe-guest-chip-name {
+  font-weight: 700;
+}
+.geo-surface .pe-guest-chip-left {
+  display: none;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .pe-guest-chip[data-empty] .pe-guest-chip-left {
+  color: rgb(var(--pe-warm));
+}
+@media (min-width: 1000px) {
+  .geo-surface .pe-guest-chip-left {
+    display: inline;
+  }
+}
+
+/* ---- The tag in a round --------------------------------------------- */
+
+/* No display here: the HUD places it with Tailwind's responsive
+   display classes (one copy for a phone, one for a desktop), and a
+   display set here would out-rank them and show both. */
+.geo-surface .pe-guest-tag {
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px dashed rgb(var(--pe-line-strong));
+  border-radius: 999px;
+  background: rgb(var(--pe-canvas) / 0.8);
+  color: rgb(var(--pe-muted));
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.geo-surface .pe-guest-tag:hover {
+  color: rgb(var(--pe-fg));
+  border-style: solid;
+}
+.geo-surface .pe-paper .pe-guest-tag {
+  background: rgb(var(--pe-surface) / 0.95);
+}
+
+/* ---- The note under Play -------------------------------------------- */
+
+.geo-surface .pe-guest-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 560px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgb(var(--pe-line));
+  border-radius: 14px;
+  background: rgb(var(--pe-surface) / 0.85);
+}
+.geo-surface .pe-guest-note .pe-guest-dots {
+  padding-top: 6px;
+}
+.geo-surface .pe-guest-note p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .pe-guest-note strong {
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .pe-guest-note button {
+  /* A link in a sentence: inline, so the line it sits on keeps its
+     height (WCAG exempts inline links from the target size). */
+  display: inline;
+  min-height: 0;
+  line-height: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgb(var(--pe-accent-fg));
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* ---- Access labels on the menu -------------------------------------- */
+
+.geo-surface .pe-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.geo-surface .pe-access[data-access='open'] {
+  background: rgb(var(--pe-good) / 0.14);
+  color: rgb(var(--pe-good));
+}
+.geo-surface .pe-access[data-access='account'] {
+  background: rgb(var(--pe-warm) / 0.14);
+  color: rgb(var(--pe-warm));
+}
+
+/* ---- Guest or account ----------------------------------------------- */
+
+.geo-surface .pe-compare-grid {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 860px) {
+  .geo-surface .pe-compare-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 40px;
+    align-items: start;
+  }
+}
+.geo-surface .pe-compare h3 {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .pe-compare ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 16px;
+}
+.geo-surface .pe-compare-guest {
+  padding-top: 8px;
+}
+.geo-surface .pe-compare-guest li::before {
+  content: '·';
+  margin-right: 10px;
+  color: rgb(var(--pe-subtle));
+}
+.geo-surface .pe-compare-account {
+  padding: 24px;
+  border: 1px solid rgb(var(--pe-line-strong));
+  border-radius: 20px;
+  background: rgb(var(--pe-surface));
+}
+.geo-surface .pe-compare-account h3 {
+  color: rgb(var(--pe-accent-fg));
+}
+@media (min-width: 640px) {
+  .geo-surface .pe-compare-account ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 20px;
+  }
+}
+.geo-surface .pe-compare-account li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.geo-surface .pe-compare-account li svg {
+  flex: none;
+  color: rgb(var(--pe-good));
+  transform: translateY(2px);
+}
+
+/* ---- Save this score ------------------------------------------------- */
+
+.geo-surface .pe-save-score {
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border: 2px solid rgb(var(--pe-action));
+  border-radius: 20px;
+  background: rgb(var(--pe-surface));
+  box-shadow: 0 24px 60px rgb(var(--pe-action) / 0.12);
+}
+.geo-surface .pe-save-score h2 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .pe-save-score-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgb(var(--pe-warm));
+}
+.geo-surface .pe-save-score-place {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed rgb(var(--pe-line-strong));
+  border-radius: 12px;
+  font-size: 15px;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .pe-save-score-place strong {
+  font-size: 18px;
+  color: rgb(var(--pe-warm));
+}
+.geo-surface .pe-save-score-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(var(--pe-subtle));
+}
+.geo-surface .pe-save-score--done {
+  border-color: rgb(var(--pe-good));
+  box-shadow: none;
+}
+.geo-surface .pe-save-score-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-weight: 600;
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .pe-save-score-done svg {
+  color: rgb(var(--pe-good));
+}
+
+/* A held daily score, drawn apart from the board it is not on yet. */
+.geo-surface .pe-held-row {
+  padding: 6px 8px;
+  border: 1.5px dashed rgb(var(--pe-action));
+  border-radius: 10px;
+  background: rgb(var(--pe-action) / 0.08);
+}
+
+/* ---- The guest games are used up ------------------------------------ */
+
+.geo-surface .pe-guest-limit {
+  display: grid;
+  gap: 32px;
+}
+@media (min-width: 860px) {
+  .geo-surface .pe-guest-limit:not(.pe-guest-limit--compact) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+    gap: 48px;
+    align-items: start;
+  }
+}
+.geo-surface .pe-guest-limit h1 {
+  margin: 0;
+  font-size: clamp(32px, 4.4vw, 48px);
+  font-weight: 800;
+  line-height: 1.02;
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .pe-guest-limit-copy {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.geo-surface .pe-guest-limit-copy p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .pe-guest-limit-later {
+  font-size: 15px !important;
+}
+.geo-surface .pe-guest-limit-back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--pe-accent-fg));
+}
+
+/* ---- Ranked and the cup ask for an account --------------------------- */
+
+.geo-surface .pe-account-gate-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  font-size: 13px;
+  color: rgb(var(--pe-subtle));
+}
+.geo-surface .pe-account-gate-or span {
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgb(var(--pe-line));
+}
+.geo-surface .pe-account-gate-practice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 60px;
+  padding: 10px 16px;
+  border: 1.5px solid rgb(var(--pe-line-strong));
+  border-radius: 14px;
+  color: rgb(var(--pe-fg));
+}
+.geo-surface .pe-account-gate-practice:hover {
+  background: rgb(var(--pe-raised));
+}
+.geo-surface .pe-account-gate-practice span {
+  display: grid;
+  gap: 2px;
+}
+.geo-surface .pe-account-gate-practice small {
+  font-size: 13px;
+  color: rgb(var(--pe-muted));
+}

@@ -9,8 +9,10 @@ jest.mock('next/navigation', () => ({ useSearchParams: () => params }));
 jest.mock('next/dynamic', () => () => function Map() { return <div>Map</div>; });
 jest.mock('@/app/geo/lib/appleMapKit', () => ({ initializeMapKit: async () => { throw new Error('keyless'); }, mapKitAuth: () => 'failed', onMapKitAuth: jest.fn() }));
 jest.mock('@/app/geo/lib/session', () => ({ isSignedIn: () => false }));
-jest.mock('@/app/geo/components/KeepThis', () => () => null);
-jest.mock('@/app/geo/components/SaveGameButton', () => () => null);
+jest.mock('@/app/geo/components/guest/SaveScore', () => () => null);
+jest.mock('@/app/geo/components/guest/GuestTag', () => () => null);
+// This browser already has a play profile, so the round is the first request.
+jest.mock('@/app/geo/lib/profile', () => ({ profileHeaders: () => ({ 'x-geo-profile': 'test-profile' }), ensureProfile: async () => ({}) }));
 jest.mock('@/app/geo/components/script/ScriptSample', () => function Sample({ text }) { return <p>{text}</p>; });
 
 test('plain refresh restores the scored round; a fresh replay key starts over', async () => {

@@ -12,10 +12,10 @@ jest.mock('next/dynamic', () => () => function Map({ onPin }) {
 });
 jest.mock('@/app/geo/lib/appleMapKit', () => ({ initializeMapKit: async () => { throw new Error('keyless'); }, mapKitAuth: () => 'failed', onMapKitAuth: jest.fn() }));
 jest.mock('@/app/geo/lib/session', () => ({ isSignedIn: () => false }));
-jest.mock('@/app/geo/lib/profile', () => ({ profileHeaders: () => ({}) }));
+jest.mock('@/app/geo/lib/profile', () => ({ profileHeaders: () => ({}), ensureProfile: async () => ({}) }));
 jest.mock('@/app/geo/lib/serverConfig', () => ({ loadGeoConfig: async () => ({ providers: { apple: { configured: true } } }) }));
-jest.mock('@/app/geo/components/KeepThis', () => () => null);
-jest.mock('@/app/geo/components/SaveGameButton', () => () => null);
+jest.mock('@/app/geo/components/guest/SaveScore', () => () => null);
+jest.mock('@/app/geo/components/guest/GuestTag', () => () => null);
 jest.mock('@/app/geo/components/script/ScriptSample', () => function Sample({ text }) { return <p>{text}</p>; });
 
 beforeEach(() => {

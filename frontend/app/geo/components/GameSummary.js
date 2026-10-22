@@ -19,7 +19,7 @@ import {
 import { configToParams, describeConfig } from '@/app/lib/geo/modes';
 import { randomSeedString } from '@/app/lib/geo/random';
 import { shareText, summaryHeadline, scoreGlyph } from '@/app/lib/geo/share';
-import KeepThis from './KeepThis';
+import SaveScore from './guest/SaveScore';
 import RankEmblem from './RankEmblem';
 import { useCountUp } from '../lib/countUp';
 
@@ -85,13 +85,20 @@ function DailyBoard({ daily, cup = false }) {
   if (!daily) return null;
   const you = daily.you;
   const what = cup ? "this week's ten" : "today's five";
+  // A held guest score, placed where it would rank among the top five,
+  // or after them when it would rank lower.
+  const held = you?.held && you.rank ? { held: true, rank: you.rank, total: you.total } : null;
+  const rows = (daily.board || []).slice(0, 5);
+  if (held) rows.splice(Math.min(held.rank - 1, rows.length), 0, held);
   return (
     <Card pad="sm" className="mt-4">
       <p className="text-sm font-semibold text-pe-fg">
         {cup ? "This week's board" : "Today's board"}
       </p>
       <p className="mt-1 text-sm text-pe-muted">
-        {you?.rank
+        {you?.held && you.rank
+          ? `Your score would be ${ordinal(you.rank)} of ${daily.finished + 1}. The board lists players with an account, so it goes up when you save it below.`
+          : you?.rank
           ? `You are ${ordinal(you.rank)} of ${daily.finished} who finished ${what}.`
           : you
             ? `Your ${you.rounds} of ${daily.rounds} rounds are in.`
@@ -101,17 +108,29 @@ function DailyBoard({ daily, cup = false }) {
           : ''}
         {cup ? ' Prizes go out when the week ends.' : ''}
       </p>
-      {daily.board?.length ? (
+      {daily.board?.length || held ? (
         <ol className="mt-2 space-y-0.5 text-sm">
-          {daily.board.slice(0, 5).map((row) => (
-            <li key={row.profileId} className="flex items-center gap-2">
-              <span className="w-6 tabular-nums text-pe-subtle">{row.rank}</span>
-              <span className="flex-1 truncate">{row.name}</span>
-              <span className="font-semibold tabular-nums text-pe-warm">
-                {formatScore(row.total)}
-              </span>
-            </li>
-          ))}
+          {rows.map((row) =>
+            row.held ? (
+              /* Where the held score would sit: not on the board, so
+                 drawn apart from it, with a dashed edge. */
+              <li key="held" className="pe-held-row flex items-center gap-2" data-held-row>
+                <span className="w-6 tabular-nums text-pe-warm">{row.rank}</span>
+                <span className="flex-1 truncate font-semibold">
+                  You <span className="font-normal text-pe-muted">· not posted</span>
+                </span>
+                <span className="font-semibold tabular-nums text-pe-warm">{formatScore(row.total)}</span>
+              </li>
+            ) : (
+              <li key={row.profileId} className="flex items-center gap-2">
+                <span className="w-6 tabular-nums text-pe-subtle">{row.rank}</span>
+                <span className="flex-1 truncate">{row.name}</span>
+                <span className="font-semibold tabular-nums text-pe-warm">
+                  {formatScore(row.total)}
+                </span>
+              </li>
+            ),
+          )}
         </ol>
       ) : null}
     </Card>
@@ -275,10 +294,15 @@ export default function GameSummary({
         <DailyBoard daily={daily} cup={config.mode === 'cup'} />
         <RankedResult rated={rated} />
 
-        {/* The account ask, at the one moment there is something worth
-            keeping. It renders for guests only and gates nothing: the
-            score above is already recorded in this browser. */}
-        <KeepThis returnTo={resumeUrl || `/geo/share?s=${encodeURIComponent(code)}`} />
+        {/* Save it: the account ask, at the one moment there is
+            something worth keeping, for guests only. A finished daily
+            that is held off the board says the place it would take
+            (guest/SaveScore.js). */}
+        <SaveScore
+          returnTo={resumeUrl || `/geo/share?s=${encodeURIComponent(code)}`}
+          held={config.mode === 'daily' && daily?.you?.held ? daily.you : null}
+          className="mt-5"
+        />
 
         <div className="mt-4 flex flex-wrap gap-2">
           <button

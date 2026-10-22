@@ -58,17 +58,18 @@
 }
 .geo-surface .pe-home--immersive .pe-hero-copy h1 {
   margin: 25px 0 18px;
+  font-family: var(--pe-font-display, inherit), var(--pe-font-body, ui-sans-serif), sans-serif;
   font-size: clamp(76px, 7.2vw, 108px);
-  line-height: 0.9;
-  letter-spacing: -0.075em;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
   font-weight: 800;
 }
 .geo-surface .pe-home--immersive .pe-hero-copy h1 em {
   color: rgb(var(--pe-accent-fg));
 }
 .geo-surface .pe-home--immersive .pe-hero-description {
-  max-width: 370px;
-  font-size: 14px;
+  max-width: 420px;
+  font-size: 18px;
   line-height: 1.7;
   color: rgb(var(--pe-fg) / 0.85);
 }
@@ -102,7 +103,7 @@
 }
 .geo-surface .pe-home--immersive .pe-mode-choice[aria-pressed="true"] {
   border-bottom: 2px solid rgb(var(--pe-accent-fg));
-  background: linear-gradient(0deg, rgb(var(--pe-accent) / 0.22), transparent);
+  background: rgb(var(--pe-accent) / 0.16);
 }
 .geo-surface .pe-home--immersive .pe-mode-choice strong {
   font-size: 20px;
@@ -129,18 +130,23 @@
 .geo-surface .pe-home--immersive .pe-launch {
   max-width: 100%;
 }
+/* The one thing to press: clay on the sea, the biggest control on the
+   page, in the display face (theme.css, action). */
 .geo-surface .pe-home--immersive .pe-play-button {
-  min-height: 57px;
-  font-size: 17px;
+  min-height: 68px;
+  font-family: var(--pe-font-display, inherit), var(--pe-font-body, ui-sans-serif), sans-serif;
+  font-size: 22px;
+  font-weight: 800;
   max-width: 100%;
-  padding-inline: 24px;
-  border-radius: 14px;
+  padding-inline: 26px;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgb(var(--pe-action) / 0.28);
 }
 .geo-surface .pe-home--immersive .pe-launch > p {
   text-align: left;
-  color: rgb(var(--pe-fg) / 0.75);
+  color: rgb(var(--pe-fg) / 0.8);
   margin-top: 13px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .geo-surface .pe-home--immersive .pe-dock-foot {
   border: 0;
@@ -318,10 +324,12 @@
 
 @media (max-width: 760px) {
   .geo-surface .pe-home--immersive .pe-hero-copy h1 {
-    font-size: 68px;
-  }
-  .geo-surface .pe-home--immersive .pe-world--script .pe-hero-copy h1 {
     font-size: 64px;
+    letter-spacing: -0.05em;
+  }
+  /* Narrower beside the Script artwork: "Where on" stays one line. */
+  .geo-surface .pe-home--immersive .pe-world--script .pe-hero-copy h1 {
+    font-size: 54px;
   }
   .geo-surface .pe-home--immersive .pe-world--script .pe-hero-copy {
     max-width: 270px;

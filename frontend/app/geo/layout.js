@@ -16,10 +16,13 @@ import './accounts.css';
 // The interface's colours, type and controls (v2). After the per-screen
 // sheets above, which it replaces screen by screen.
 import './theme.css';
+// The guest pass and the account ask, on theme.css's tokens.
+import './guest.css';
 // Last, so the game's one motion vocabulary sits over the per-screen
 // sheets above it (app/geo/motion.css).
 import './motion.css';
 import { scriptShowcaseFonts } from './script/fonts';
+import { uiFonts } from './fonts';
 
 export const metadata = { ...buildShareMetadata({
   // A globe, because the pet site's logo on a geography game was the
@@ -46,7 +49,7 @@ export const metadata = { ...buildShareMetadata({
 export default function GeoLayout({ children }) {
   return (
     <div
-      className={`geo-surface min-h-[100dvh] bg-pe-canvas text-pe-fg ${scriptShowcaseFonts}`}
+      className={`geo-surface min-h-[100dvh] bg-pe-canvas text-pe-fg ${uiFonts} ${scriptShowcaseFonts}`}
     >
       {/* The pet site's <main> carries `pb-16` for its mobile tab bar,
           which the game does not render. That padding is outside this

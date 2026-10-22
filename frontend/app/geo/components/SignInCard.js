@@ -29,7 +29,7 @@
  * no account at all; this is how a player keeps their progress.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, LogOut, Mail, Trash2 } from 'lucide-react';
 import { DEFAULT_PLAYER_NAME } from '@/app/lib/geo/rooms';
@@ -77,8 +77,15 @@ export default function SignInCard({
   // Where to go once signed in. Only the sign-in page sets it; a dialog
   // or a card on another screen stays where it is.
   continueTo = '',
+  // The first button's words. "Continue" on the sign-in page; a card
+  // that exists to save a score says that instead (guest/SaveScore.js).
+  submitLabel = 'Continue',
 }) {
   const router = useRouter();
+  // Its own field ids: the menu, the end of a game and a dialog can each
+  // hold one of these at once, and two inputs sharing an id send a
+  // label's click to the wrong one.
+  const uid = useId().replace(/:/g, '');
   const [step, setStep] = useState('checking');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -432,9 +439,9 @@ export default function SignInCard({
           <p className="mt-1 text-sm text-pe-muted">What should other players see you as? You can change it later.</p>
         </div>
         <div className="ui-field">
-          <label className="ui-label" htmlFor="geo-signin-name">Player name</label>
+          <label className="ui-label" htmlFor={`geo-signin-name-${uid}`}>Player name</label>
           <input
-            id="geo-signin-name"
+            id={`geo-signin-name-${uid}`}
             className="ui-input"
             type="text"
             maxLength={20}
@@ -513,9 +520,9 @@ export default function SignInCard({
           </div>
         </div>
         <div className="ui-field">
-          <label className="ui-label" htmlFor="geo-signin-code">Code</label>
+          <label className="ui-label" htmlFor={`geo-signin-code-${uid}`}>Code</label>
           <input
-            id="geo-signin-code"
+            id={`geo-signin-code-${uid}`}
             className="ui-input ui-input--code"
             type="text"
             inputMode="numeric"
@@ -527,9 +534,9 @@ export default function SignInCard({
             onChange={(e) => typeCode(e.target.value)}
             placeholder="······"
             aria-invalid={error ? 'true' : undefined}
-            aria-describedby="geo-signin-code-help"
+            aria-describedby={`geo-signin-code-help-${uid}`}
           />
-          <p id="geo-signin-code-help" className="ui-hint">
+          <p id={`geo-signin-code-help-${uid}`} className="ui-hint">
             The email also has a Sign in button. Either one works, for fifteen minutes.
           </p>
         </div>
@@ -558,9 +565,9 @@ export default function SignInCard({
   return (
     <form key="email" method="post" onSubmit={sendCode} className="pe-swap grid gap-4">
       <div className="ui-field">
-        <label className="ui-label" htmlFor="geo-signin-email">Email</label>
+        <label className="ui-label" htmlFor={`geo-signin-email-${uid}`}>Email</label>
         <input
-          id="geo-signin-email"
+          id={`geo-signin-email-${uid}`}
           className="ui-input"
           type="email"
           autoComplete="email"
@@ -576,7 +583,7 @@ export default function SignInCard({
       {error ? <p role="alert" className="ui-error">{error}</p> : null}
       {note ? <p className="ui-hint">{note}</p> : null}
       <button type="submit" disabled={busy} className="ui-btn ui-btn--primary ui-btn--block">
-        {busy ? 'Sending…' : 'Continue'}
+        {busy ? 'Sending…' : submitLabel}
       </button>
       <p className="ui-small">
         We&apos;ll email you a 6-digit code. No password. New here? This creates your free account.

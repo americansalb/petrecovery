@@ -19,6 +19,7 @@ import { Compass, ShieldCheck, Trophy, UserRound, Users } from 'lucide-react';
 import { isGameTakeover as siteTakeover } from '@/app/lib/geo/site';
 import { isSignedIn } from '../lib/session';
 import { loadName } from '../lib/useRoom';
+import GuestChip from './guest/GuestChip';
 
 const SITE_NAME = process.env.NEXT_PUBLIC_GEO_SITE_NAME || 'Probably Earth';
 
@@ -159,9 +160,13 @@ export default function GeoHeader() {
               between a Sign in button and a name (the founder's rule for
               the pet site's bar, and the reason for it holds here: a bar
               that rearranges itself reads as broken). */}
-          <div className="ui-account-slot" data-account-slot>
+          {/* A guest also gets the Guest chip here: how many of today's
+              guest games are left, on every page, so the trial is never
+              a surprise (guest/GuestChip.js, server/guestPass.js). */}
+          <div className="ui-account-slot" data-account-slot data-guest={signedIn === false ? '' : undefined}>
+            {signedIn === false ? <GuestChip /> : null}
             {signedIn === false && !pathname.startsWith('/geo/signin') ? (
-              <Link href="/geo/signin" className="pe-fade-in ui-btn ui-btn--primary ui-btn--sm">
+              <Link href="/geo/signin" className="pe-fade-in ui-btn ui-btn--secondary ui-btn--sm">
                 Sign in
               </Link>
             ) : null}

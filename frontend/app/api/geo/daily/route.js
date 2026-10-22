@@ -5,6 +5,10 @@
  * everyone who finished today's five, ranked, how many started, and your
  * own row with its rank when the request carries a profile. Today by
  * default; any past day by date.
+ *
+ * The board lists signed-in players only. A guest who played today's
+ * five gets their row back as `you.held` with the place it would take,
+ * and it goes on the board when they make an account.
  */
 
 import { NextResponse } from 'next/server';
@@ -23,7 +27,7 @@ export async function GET(request) {
   const day = /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) ? date : new Date().toISOString().slice(0, 10);
   try {
     const { profileId } = await subjectsFor(request);
-    const board = await challengeBoard(prismaRoomStore, { key: dailyKeyFor(`${day}T00:00:00Z`), profileId });
+    const board = await challengeBoard(prismaRoomStore, { key: dailyKeyFor(`${day}T00:00:00Z`), profileId, accountsOnly: true });
     return NextResponse.json({ ok: true, date: day, ...board }, NO_STORE);
   } catch (error) {
     console.error('[geo/daily]', error);

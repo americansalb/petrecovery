@@ -31,6 +31,19 @@ const { GET: getDaily } = require('@/app/api/geo/daily/route');
 const { GET: getShop, POST: postShop } = require('@/app/api/geo/shop/route');
 const { GET: getCup } = require('@/app/api/geo/cup/route');
 const { openToken, sealToken } = require('@/app/lib/geo/server/tokens');
+const { sealSession } = require('@/app/lib/geo/server/identity');
+
+/**
+ * Headers for a signed-in player on this IP: an account in the store,
+ * its session cookie, and its play profile. Competing needs an account
+ * (founder, 2026-10-09), so the boards below are played signed in.
+ */
+async function signedIn(name, ip) {
+  const account = await memoryStore.createAccount({ email: `${name.toLowerCase()}@example.test` });
+  const cookie = `geo_session=${sealSession({ accountId: account.id, email: account.email })}`;
+  const profile = await (await postProfile(request({ name }, { 'x-test-ip': ip, cookie }))).json();
+  return { 'x-test-ip': ip, cookie, ...(profile.token ? { 'x-geo-profile': profile.token } : {}) };
+}
 
 /**
  * The token a round can be scored with. A Google round has one; an
@@ -201,8 +214,7 @@ describe('POST /api/geo/guess', () => {
   });
 
   test("a daily round lands on today's board for the profile, first guess only, and the board answers with your rank", async () => {
-    const registered = await (await postProfile(request({ name: 'Ada' }, { 'x-test-ip': '198.51.100.20' }))).json();
-    const mine = { 'x-test-ip': '198.51.100.20', 'x-geo-profile': registered.token };
+    const mine = await signedIn('Ada', '198.51.100.20');
     const today = new Date().toISOString().slice(0, 10);
     const totals = [];
     for (let i = 0; i < 5; i++) {
@@ -249,8 +261,12 @@ describe('POST /api/geo/guess', () => {
   });
 
   test("a cup round lands on this week's board, and the cup route says when the week ends and what it pays", async () => {
-    const registered = await (await postProfile(request({ name: 'Cupper' }, { 'x-test-ip': '198.51.100.40' }))).json();
-    const mine = { 'x-test-ip': '198.51.100.40', 'x-geo-profile': registered.token };
+    // The cup pays prizes, so a guest is asked for an account first.
+    const guest = await postRound(request({ config: { mode: 'cup' }, roundIndex: 0 }, { 'x-test-ip': '198.51.100.41' }));
+    expect(guest.status).toBe(401);
+    expect((await guest.json()).code).toBe('account_required');
+
+    const mine = await signedIn('Cupper', '198.51.100.40');
     const round = (await (await postRound(request({ config: { mode: 'cup' }, roundIndex: 0 }, mine))).json()).round;
     const answer = openToken(roundToken(round), { secret: TOKEN_SECRET });
     const { challenge } = await (await postGuess(request({ token: roundToken(round), guess: { lat: answer.lat, lng: answer.lng } }, mine))).json();

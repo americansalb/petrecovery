@@ -100,6 +100,8 @@ export const GAME_RATE_LIMITS = {
   '/api/geo/rooms': { windowMs: 60000, maxRequests: 180 },
   '/api/geo/matchmaking': { windowMs: 60000, maxRequests: 60 },
   '/api/geo/profile': { windowMs: 60000, maxRequests: 30 },
+  // The guest pass count: the header reads it once a page.
+  '/api/geo/guest': { windowMs: 60000, maxRequests: 60 },
   '/api/geo/save': { windowMs: 60000, maxRequests: 30 },
   '/api/geo/leaderboard': { windowMs: 60000, maxRequests: 30 },
   // Sign-in sends mail, so it gets the strictest bucket in the game:

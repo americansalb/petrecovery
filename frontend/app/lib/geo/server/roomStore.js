@@ -331,22 +331,27 @@ export function databaseStoreFor(prisma) { return {
   getChallengeEntry(profileId, key) {
     return prisma.geoChallengeEntry.findUnique({ where: { profileId_key: { profileId, key } } });
   },
-  listChallengeBoard(key, { rounds, limit = 20 }) {
+  // `accountsOnly`: the boards people see list signed-in players only
+  // (server/challenges.js, challengeBoard). A guest's entry stays held
+  // until the profile is bound to an account.
+  listChallengeBoard(key, { rounds, limit = 20, accountsOnly = false }) {
     return prisma.geoChallengeEntry.findMany({
-      where: { key, rounds: { gte: rounds } },
+      where: { key, rounds: { gte: rounds }, ...(accountsOnly ? { profile: { accountId: { not: null } } } : {}) },
       orderBy: [{ total: 'desc' }, { finishedAt: 'asc' }],
       take: limit,
       include: { profile: { select: { id: true, name: true, equipped: true } } },
     });
   },
-  countChallengeEntries(key, { rounds } = {}) {
-    return prisma.geoChallengeEntry.count({ where: rounds ? { key, rounds: { gte: rounds } } : { key } });
+  countChallengeEntries(key, { rounds, accountsOnly = false } = {}) {
+    const posted = accountsOnly ? { profile: { accountId: { not: null } } } : {};
+    return prisma.geoChallengeEntry.count({ where: rounds ? { key, rounds: { gte: rounds }, ...posted } : { key, ...posted } });
   },
-  countChallengeBetter(key, { rounds, total, finishedAt }) {
+  countChallengeBetter(key, { rounds, total, finishedAt, accountsOnly = false }) {
     return prisma.geoChallengeEntry.count({
       where: {
         key,
         rounds: { gte: rounds },
+        ...(accountsOnly ? { profile: { accountId: { not: null } } } : {}),
         OR: [{ total: { gt: total } }, { total, finishedAt: { lt: finishedAt } }],
       },
     });

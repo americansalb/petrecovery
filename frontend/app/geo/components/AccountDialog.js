@@ -8,7 +8,18 @@ import { prefersReducedMotion } from '../lib/motion';
 /** How long the sheet takes to leave: pe-dialog-out in motion.css. */
 export const DIALOG_EXIT_MS = 180;
 
-export default function AccountDialog({ onClose, returnTo, name, onNameChange, onAuthenticated }) {
+export default function AccountDialog({
+  onClose,
+  returnTo,
+  name,
+  onNameChange,
+  onAuthenticated,
+  // Multiplayer opened this first, so its words are the default. The
+  // guest pass opens it too (guest/), with its own reason for asking.
+  title = 'Sign in to play together',
+  intro = 'Other players see who they are playing, so multiplayer needs an account. It\u2019s free: your email and a code.',
+  submitLabel,
+}) {
   const dialog = useRef(null);
   const leaving = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -42,10 +53,10 @@ export default function AccountDialog({ onClose, returnTo, name, onNameChange, o
     >
       <div className="pe-account-sheet ui-card">
         <button type="button" onClick={leave} className="pe-account-close ui-btn ui-btn--ghost ui-btn--sm" aria-label="Close"><X size={20} /></button>
-        <h2 id="account-dialog-title" className="ui-h2 pr-10">Sign in to play together</h2>
-        <p className="mt-1 text-sm text-pe-muted">Other players see who they are playing, so multiplayer needs an account. It&apos;s free: your email and a code.</p>
+        <h2 id="account-dialog-title" className="ui-h2 pr-10">{title}</h2>
+        <p className="mt-1 text-sm text-pe-muted">{intro}</p>
         <div className="mt-5">
-          <SignInCard requireName playerName={name} onPlayerNameChange={onNameChange} returnTo={returnTo} onAuthenticated={onAuthenticated} />
+          <SignInCard requireName playerName={name} onPlayerNameChange={onNameChange} returnTo={returnTo} onAuthenticated={onAuthenticated} submitLabel={submitLabel} />
         </div>
       </div>
     </dialog>

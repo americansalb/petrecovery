@@ -41,10 +41,15 @@ import {
 import AppleScriptMap from './AppleScriptMap';
 import ScriptSample from './ScriptSample';
 import VoicePrompt from './VoicePrompt';
-import KeepThis from '../KeepThis';
-import SaveGameButton from '../SaveGameButton';
+import SaveScore from '../guest/SaveScore';
+import GuestTag from '../guest/GuestTag';
 import { useSavedGame } from '../../lib/savedGame';
 import { playerMessage } from '../../lib/networkError';
+import { takeRoundReply, ticketFor } from '../../lib/guestPass';
+import { ensureProfile, profileHeaders } from '../../lib/profile';
+import { loadName } from '../../lib/useRoom';
+import GuestLimit from '../guest/GuestLimit';
+import Card from '../ui/Card';
 // The screen's own stylesheet: the light palette the map is drawn in,
 // and the animations. Imported here rather than by the map, which is
 // loaded late, so the sentence and the panels animate before the map's
@@ -130,6 +135,8 @@ function ScriptPlayGame({ params }) {
   const [round, setRound] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // The guest games are used up for today (server/guestPass.js).
+  const [guestLimit, setGuestLimit] = useState(null);
   const [pin, setPin] = useState(null);
   const [result, setResult] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState(null);
@@ -250,15 +257,26 @@ function ScriptPlayGame({ params }) {
     setPin(null);
     setResult(null);
     setSelectedRegion(null);
-    fetch('/api/geo/script/round', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config, roundIndex }),
-    })
+    // A play profile first, on a browser that has none, so the guest
+    // pass counts this person rather than everyone behind the address.
+    // A failure plays on without one; the address is counted instead.
+    (profileHeaders()['x-geo-profile'] ? Promise.resolve() : Promise.resolve().then(() => ensureProfile(loadName())).catch(() => {}))
+      .then(() => fetch('/api/geo/script/round', {
+        method: 'POST',
+        // The play profile and this game's ticket, so the guest pass counts
+        // the game once however many rounds and reloads it takes.
+        headers: { 'Content-Type': 'application/json', ...profileHeaders() },
+        body: JSON.stringify({ config, roundIndex, ticket: ticketFor('script', config.seed) }),
+      }))
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
+        if (response.status === 429 && data?.code === 'guest_limit') {
+          if (live) setGuestLimit({ resetAt: data.resetAt, network: Boolean(data.network), limit: data.limit || 3 });
+          throw new Error(data.error);
+        }
         if (!response.ok)
           throw new Error(data?.error || 'Could not start the round');
+        takeRoundReply('script', config.seed, data);
         if (live) {
           setRound(data.round);
           setSecondsLeft(config.timer || 0);
@@ -346,6 +364,27 @@ function ScriptPlayGame({ params }) {
     );
   }
 
+  if (guestLimit) {
+    return (
+      <div className="pe-paper fixed inset-0 z-[60] overflow-y-auto bg-[#f4efe4] p-4 text-sand-900">
+        <div className="mx-auto max-w-4xl py-8 sm:py-16">
+          <Card tone="panel">
+            <GuestLimit
+              resetAt={guestLimit.resetAt}
+              network={guestLimit.network}
+              limit={guestLimit.limit}
+              returnTo={resumeUrl}
+              onAuthenticated={() => {
+                setGuestLimit(null);
+                setAttempt((n) => n + 1);
+              }}
+            />
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pe-script-round pe-paper fixed inset-0 z-[60] flex flex-col bg-[#f4efe4] text-sand-900">
       {/* The sentence gets the top of the screen and the map gets the
@@ -375,7 +414,8 @@ function ScriptPlayGame({ params }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {history.length > 0 ? <SaveGameButton returnTo={resumeUrl} className={ICON_BUTTON} /> : null}
+            <GuestTag className="hidden sm:inline-flex" />
+            <GuestTag compact className="inline-flex sm:hidden" />
             {config.timer ? (
               <div
                 className={`flex items-center gap-2 px-3 py-2 ${secondsLeft <= 10 ? 'rounded-full border border-red-300 bg-red-50 shadow-sm' : PILL}`}
@@ -797,9 +837,9 @@ function Summary({ config, history, total, resumeUrl, saveError }) {
           </Link>
         </div>
 
-        {/* The account ask, after the way on and before the recap. It sat
-            between "Your rounds" and the rounds, as a dark box on paper. */}
-        <KeepThis returnTo={resumeUrl} />
+        {/* Save it: the account ask, for a guest, after the way on and
+            before the recap (guest/SaveScore.js). */}
+        <SaveScore returnTo={resumeUrl} className="mt-6" />
         {saveError ? <p role="status" className="mt-3 text-sm text-pe-bad">{saveError}</p> : null}
 
         <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-sand-500">
