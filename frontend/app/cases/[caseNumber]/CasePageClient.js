@@ -193,6 +193,15 @@ export default function CasePageClient() {
     };
   }, [caseNumber, attempt]);
 
+  // The homepage's "I've seen Linda" buttons link here with ?seen=1: open the
+  // sighting sheet as soon as the report has loaded, if it is still open.
+  useEffect(() => {
+    if (state !== 'ready' || !c) return;
+    if (new URLSearchParams(window.location.search).get('seen') !== '1') return;
+    const key = caseStatus(c).key;
+    if (key === 'lost' || key === 'found') setSheet('sighting');
+  }, [state, c]);
+
   // The force looking for the pet, its needs for the pet and the rest
   // (app/lib/petRoom.js). Again when the viewer signs in, and after they act.
   const loadRoom = useCallback(async () => {
