@@ -16,7 +16,7 @@ export default function AccountDialog({
   onAuthenticated,
   // Multiplayer opened this first, so its words are the default. The
   // guest pass opens it too (guest/), with its own reason for asking.
-  title = 'Sign in to play together',
+  title = 'Sign up or sign in to play together',
   intro = 'Other players see who they are playing, so multiplayer needs an account. It\u2019s free: your email and a code.',
   submitLabel,
 }) {

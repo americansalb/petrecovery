@@ -33,7 +33,7 @@ export default function GuestChip() {
         className="pe-guest-chip pe-fade-in"
         data-guest-chip
         data-empty={pass.left <= 0 ? '' : undefined}
-        aria-label={`Playing as a guest. ${leftText(pass)}. Make an account`}
+        aria-label={`Playing as a guest. ${leftText(pass)}. Sign up or sign in`}
         onClick={() => setOpen(true)}
       >
         <span className="pe-guest-chip-name">Guest</span>
@@ -42,7 +42,7 @@ export default function GuestChip() {
       </button>
       {open ? (
         <AccountDialog
-          title="Make an account"
+          title="Sign up or sign in"
           intro={`Guests get ${pass.limit} games a day. Make an account to play more, keep your points and board scores on any device, and play Ranked, the weekly cup and multiplayer. It’s free: your email and a code.`}
           returnTo={pathname}
           onClose={() => setOpen(false)}

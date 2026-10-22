@@ -27,8 +27,11 @@
   gap: 8px;
   align-items: center;
 }
+/* Not on a phone, and not between 720 and 900px where the four links
+   join the bar: there is room for the name, the links and "Sign up or
+   sign in", and the count is under Play on the menu and in every round. */
 .geo-surface .pe-guest-chip {
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 8px;
   min-height: 44px;
@@ -41,6 +44,11 @@
   white-space: nowrap;
   cursor: pointer;
   transition: background-color var(--pe-dur-fast, 180ms) ease;
+}
+@media (min-width: 640px) and (max-width: 719px), (min-width: 900px) {
+  .geo-surface .pe-guest-chip {
+    display: inline-flex;
+  }
 }
 .geo-surface .pe-guest-chip:hover {
   background: rgb(var(--pe-raised));
@@ -373,4 +381,22 @@
 .geo-surface .pe-account-gate-practice small {
   font-size: 13px;
   color: rgb(var(--pe-muted));
+}
+
+/* ---- Sign up and sign in are one step --------------------------------- */
+
+/* The first line of the sign-in form, wherever it appears: new players
+   took "Sign in" for a door that was not theirs (founder, 2026-10-22). */
+.geo-surface .pe-signin-same {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgb(var(--pe-accent) / 0.12);
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgb(var(--pe-muted));
+}
+.geo-surface .pe-signin-same strong {
+  display: block;
+  color: rgb(var(--pe-fg));
 }

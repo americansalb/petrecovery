@@ -543,7 +543,7 @@ export default function SignInCard({
         {error ? <p role="alert" className="ui-error">{error}</p> : null}
         {note ? <p className="ui-hint">{note}</p> : null}
         <button type="submit" disabled={busy || code.length !== 6} className="ui-btn ui-btn--primary ui-btn--block">
-          {busy ? 'Checking…' : 'Sign in'}
+          {busy ? 'Checking…' : 'Continue'}
         </button>
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <button
@@ -561,9 +561,17 @@ export default function SignInCard({
     );
   }
 
-  // The first step: an address, and nothing else to decide.
+  // The first step: an address, and nothing else to decide. Its first
+  // line says that signing up and signing in are the same step, because
+  // "Sign in" on its own reads as a door for people who already have an
+  // account (founder, 2026-10-22: "it's not clear that sign in is the
+  // same thing as sign up").
   return (
     <form key="email" method="post" onSubmit={sendCode} className="pe-swap grid gap-4">
+      <p className="pe-signin-same" data-signin-same>
+        <strong>New here or coming back? It&apos;s the same step.</strong> Enter your email and we&apos;ll send you a
+        6-digit code. A new email gets a new account.
+      </p>
       <div className="ui-field">
         <label className="ui-label" htmlFor={`geo-signin-email-${uid}`}>Email</label>
         <input
@@ -585,9 +593,7 @@ export default function SignInCard({
       <button type="submit" disabled={busy} className="ui-btn ui-btn--primary ui-btn--block">
         {busy ? 'Sending…' : submitLabel}
       </button>
-      <p className="ui-small">
-        We&apos;ll email you a 6-digit code. No password. New here? This creates your free account.
-      </p>
+      <p className="ui-small">No password. Free, no card.</p>
       {phoneAvailable ? (
         <button type="button" disabled={busy} className="ui-btn ui-btn--ghost ui-btn--block" onClick={() => { setError(''); setStep('phone'); }}>
           Use a phone number instead

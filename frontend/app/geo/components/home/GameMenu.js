@@ -425,7 +425,7 @@ export default function GameMenu() {
       </div>
       {asking ? (
         <AccountDialog
-          title="Make an account"
+          title="Sign up or sign in"
           intro={`Guests get ${pass?.limit || 3} games a day. Make an account to play more, keep your points and board scores on any device, and play Ranked, the weekly cup and multiplayer. It\u2019s free: your email and a code.`}
           returnTo="/geo"
           onClose={() => setAsking(false)}

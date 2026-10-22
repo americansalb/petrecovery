@@ -725,6 +725,12 @@ second device and survive a cleared browser.
 nothing to leak, nothing to reset, and nothing an attacker can reuse
 from another site's breach.
 
+**Signing up and signing in are one step, and the screens say so**
+(founder, 2026-10-22: "it's not clear that sign in is the same thing as
+sign up"). Every entry is labelled "Sign up or sign in", never "Sign in"
+alone, and the form's first line reads "New here or coming back? It's
+the same step." A new email gets a new account.
+
 | Piece | Where |
 |---|---|
 | The link, its expiry and its single use | `app/lib/geo/server/accounts.js` |

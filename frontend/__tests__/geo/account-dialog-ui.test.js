@@ -17,7 +17,7 @@ afterEach(() => {
   delete window.matchMedia;
 });
 
-const dialogNode = () => screen.getByRole('dialog', { name: 'Sign in to play together', hidden: true });
+const dialogNode = () => screen.getByRole('dialog', { name: 'Sign up or sign in to play together', hidden: true });
 
 test('an account dialog opened from the noninteractive HUD restores pointer events and can close', () => {
   jest.useFakeTimers();

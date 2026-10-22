@@ -90,7 +90,7 @@ export default function PhoneSignIn({ onAuthenticated, onUseEmail }) {
       )}
       {error ? <p role="alert" className="ui-error">{error}</p> : null}
       <button type="submit" disabled={busy} className="ui-btn ui-btn--primary ui-btn--block">
-        {busy ? 'Please wait…' : challenge ? 'Sign in' : 'Send code'}
+        {busy ? 'Please wait…' : challenge ? 'Continue' : 'Send code'}
       </button>
       <div className="flex flex-wrap justify-between gap-2">
         {challenge ? (

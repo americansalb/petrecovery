@@ -56,7 +56,7 @@ function Intro({ open }) {
         In Probably Earth, players hear a language and guess where in the world it is spoken. Read a few sentences aloud and they will hear your voice.
       </p>
       <ol className="mx-auto mt-6 grid max-w-xl gap-2 text-left text-sm text-pe-muted sm:grid-cols-3 sm:text-center">
-        <li><span className="font-semibold text-pe-fg">1.</span> Sign in with your email</li>
+        <li><span className="font-semibold text-pe-fg">1.</span> Sign up or sign in with your email (the same step)</li>
         <li><span className="font-semibold text-pe-fg">2.</span> Pick your language</li>
         <li><span className="font-semibold text-pe-fg">3.</span> Read each sentence aloud</li>
       </ol>

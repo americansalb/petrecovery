@@ -165,9 +165,13 @@ export default function GeoHeader() {
               a surprise (guest/GuestChip.js, server/guestPass.js). */}
           <div className="ui-account-slot" data-account-slot data-guest={signedIn === false ? '' : undefined}>
             {signedIn === false ? <GuestChip /> : null}
+            {/* "Sign up or sign in", never "Sign in" alone: it is one
+                step (an email and a code), and a new player read "Sign
+                in" as a door for people who already have an account
+                (founder, 2026-10-22). */}
             {signedIn === false && !pathname.startsWith('/geo/signin') ? (
               <Link href="/geo/signin" className="pe-fade-in ui-btn ui-btn--secondary ui-btn--sm">
-                Sign in
+                Sign up or sign in
               </Link>
             ) : null}
             {signedIn === true ? (

@@ -474,11 +474,11 @@ export default function ProfileClient() {
       {profile && !profile.signedIn ? (
         <Card pad="sm" className="pe-fade-in mt-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-pe-muted">
-            Your games are saved in this browser only. Sign in to keep them
-            on every device.
+            Your games are saved in this browser only. Sign up or sign in to
+            keep them on every device. It&apos;s the same step.
           </p>
           <Link href="/geo/signin?next=%2Fgeo%2Fme" className="ui-btn ui-btn--primary">
-            Sign in
+            Sign up or sign in
           </Link>
         </Card>
       ) : null}
