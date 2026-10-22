@@ -13,6 +13,17 @@ const nextConfig = {
   // Build optimizations for memory and speed
   productionBrowserSourceMaps: false,
 
+  // ESLint does not run inside `next build`: CI's "Lint & Type Check" job
+  // lints every push and PR (`next lint --max-warnings`). In the build it
+  // only added memory and time. The build's type check and lint sat just
+  // under Node's default ~2 GB heap, went over it on Render (every deploy
+  // after #364 failed with "JavaScript heap out of memory" at "Linting and
+  // checking validity of types"), so `npm run build` also gives next build
+  // a 4 GB heap. Type checking still runs in the build.
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   // Ensure static files needed at runtime are copied to standalone output
   // Keep the pure-JS render stack (react-pdf) and the resvg native addon out
   // of the webpack server bundle — require()'d from node_modules at runtime.

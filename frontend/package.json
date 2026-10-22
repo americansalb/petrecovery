@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/ensure-build-tools.js && prisma generate && node scripts/db-sync.js && rm -rf .next && next build",
+    "build": "node scripts/ensure-build-tools.js && prisma generate && node scripts/db-sync.js && rm -rf .next && NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "node scripts/boot.js",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
