@@ -90,6 +90,7 @@ test('no force looking for the pet: only who is searching', async () => {
     party: null,
     searchingNow: 1,
     others: [],
+    owner: null,
   });
   // A force that withdrew is not looking any more; a deleted one is gone.
   expect(prisma.caseAssignment.findMany.mock.calls[0][0].where).toMatchObject({

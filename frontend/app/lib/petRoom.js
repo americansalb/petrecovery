@@ -121,9 +121,19 @@ async function otherPets(forceId, caseId) {
 export async function getPetRoom(caseRef, { userId = null, now = new Date() } = {}) {
   const pet = await prisma.case.findUnique({
     where: CASE_ID.test(String(caseRef)) ? { id: caseRef } : { caseNumber: String(caseRef) },
-    select: { id: true, status: true },
+    select: {
+      id: true,
+      status: true,
+      reporter: { select: { firstName: true } },
+      missionControl: { select: { ownerStatus: true, ownerLastUpdate: true } },
+    },
   });
   if (!pet) return null;
+  // Where the owner is, as they last said it (Mission Control's owner
+  // status): the team sees "Avery is out searching" beside the needs.
+  const owner = pet.missionControl?.ownerStatus
+    ? { name: (pet.reporter?.firstName || '').trim() || 'The owner', status: pet.missionControl.ownerStatus, since: pet.missionControl.ownerLastUpdate?.toISOString() || null }
+    : null;
 
   const open = isCaseOpen(pet.status);
   const [assignments, searching] = await Promise.all([
@@ -135,7 +145,7 @@ export async function getPetRoom(caseRef, { userId = null, now = new Date() } = 
     open ? searchingNow(pet.id, now) : 0,
   ]);
 
-  const empty = { force: null, member: false, needs: [], done: [], party: null, searchingNow: searching, others: [] };
+  const empty = { force: null, member: false, needs: [], done: [], party: null, searchingNow: searching, others: [], owner };
   const forces = assignments.map((a) => a.rescueSquad).filter(Boolean);
   if (!forces.length) return empty;
 

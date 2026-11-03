@@ -24,7 +24,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import {
   ChevronLeft, MapPin, Clock, Eye, Phone, Share2, Printer, Building2,
-  HeartHandshake, PawPrint, ExternalLink, Megaphone, Map as MapIcon,
+  PawPrint, ExternalLink, Megaphone, Map as MapIcon,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui';
@@ -40,7 +40,7 @@ import { speciesLabel } from '@/app/lib/species';
 import { getBaseUrl } from '@/app/lib/config';
 import MarkReunitedModal from '@/app/mission-control/components/overlays/MarkReunitedModal';
 import JoinForceSheet from '@/app/components/help/JoinForceSheet';
-import { Activity, HowToHelp, OtherPets, RecoveryKitPanel, ShareSheet, SightingSheet, StickyActions } from './components';
+import { Activity, HowToHelp, OtherPets, OwnerPanel, RecoveryKitPanel, ShareSheet, SightingSheet, StickyActions } from './components';
 
 const LastSeenMap = dynamic(() => import('./components/LastSeenMap'), {
   ssr: false,
@@ -611,23 +611,17 @@ export default function CasePageClient() {
             {hot && <HotSighting s={hot} />}
 
             {isOwner && open && (
-              <section className="flex flex-col gap-4 rounded-2xl bg-midnight-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-semibold">This is your report</p>
-                  <p className="text-sm text-midnight-300">When {name} is home, mark it here.</p>
-                </div>
-                {/* A plain button: Button's outline variant is dark text for a
-                    light page, and its classes are joined, not merged, so they
-                    can't be overridden for this dark panel. */}
-                <button
-                  type="button"
-                  onClick={() => setSheet('home')}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/30 px-4 py-2.5 text-sm font-semibold text-white transition hover:border-white/60 hover:bg-white/10"
-                >
-                  <HeartHandshake className="h-4 w-4" aria-hidden="true" />
-                  Mark as reunited
-                </button>
-              </section>
+              <OwnerPanel
+                caseId={c.id}
+                name={name}
+                phone={phone}
+                ownerStatus={room?.owner?.status || null}
+                onChanged={() => {
+                  setAttempt((n) => n + 1);
+                  loadRoom();
+                }}
+                onReunited={() => setSheet('home')}
+              />
             )}
 
             {open && (

@@ -26,6 +26,7 @@ import WaysToHelp from './WaysToHelp';
 import HelpIntake from './HelpIntake';
 
 const DONE_SHOWN = 5;
+const OWNER_STATUS_WORDS = { SEARCHING: 'out searching', AT_HOME: 'at home', AT_SHELTER: 'at a shelter', MAKING_FLYERS: 'making flyers', SETTING_TRAP: 'setting a trap' };
 
 export default function HowToHelp({ name, caseId, caseNumber, signedIn, lost, room, searchHref, ways, onJoin, onChanged }) {
   const [active, setActive] = useState(null); // `${needId}:${action}` while it goes through
@@ -78,6 +79,12 @@ export default function HowToHelp({ name, caseId, caseNumber, signedIn, lost, ro
       <h2 id="help-heading" className="text-lg font-semibold text-midnight-900">
         How you can help
       </h2>
+      {room?.owner && (
+        <p className="mt-1 text-sm font-semibold text-midnight-800">
+          {room.owner.name} is {OWNER_STATUS_WORDS[room.owner.status] || 'out there'}
+          {room.owner.since ? `, since ${timeAgo(room.owner.since)}` : ''}.
+        </p>
+      )}
       {force && (
         <p className="mt-1 text-midnight-600">
           <Link
