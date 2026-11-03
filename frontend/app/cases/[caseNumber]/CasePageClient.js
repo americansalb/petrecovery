@@ -634,6 +634,8 @@ export default function CasePageClient() {
               <HowToHelp
                 name={name}
                 caseId={c.id}
+                caseNumber={caseRef}
+                signedIn={signedIn}
                 lost={status.key === 'lost'}
                 room={room}
                 searchHref={missionHref}

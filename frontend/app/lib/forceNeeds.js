@@ -21,6 +21,12 @@ import { caseStatus, caseTitle } from '@/app/lib/caseLabels';
 import { NEED_KINDS, NEED_WHENS, needOptions, needTitle, sameNeed } from '@/app/lib/needOptions';
 
 export const OPEN_NEED_STATUSES = ['AVAILABLE', 'IN_PROGRESS', 'NEEDS_HELP'];
+
+/** The need kind a stored taskType belongs to ('other' when it is none of ours). */
+export function kindOfTaskType(taskType) {
+  const found = Object.entries(NEED_KINDS).find(([, def]) => def.taskType === taskType);
+  return found ? found[0] : 'other';
+}
 const TAKEN = ['ACTIVE', 'COMPLETED'];
 
 function counts(participants) {
@@ -47,6 +53,9 @@ export async function listNeeds(forceId, { userId = null, member = false, caseId
       ownerRequested: true,
       ownerRequestedHelp: true,
       createdAt: true,
+      taskType: true,
+      latitude: true,
+      longitude: true,
       participants: { select: { userId: true, status: true } },
     },
     take: 100,
@@ -81,6 +90,11 @@ export async function listNeeds(forceId, { userId = null, member = false, caseId
         title: r.title,
         details: member ? r.description || null : null,
         askedAt: r.createdAt.toISOString(),
+        // What kind of need (area, doors, flyers, shelter, other): the job
+        // picker matches it to how someone said they can help.
+        kind: kindOfTaskType(r.taskType),
+        lat: r.latitude ?? null,
+        lng: r.longitude ?? null,
         peopleNeeded: Math.max(1, r.peopleNeeded || 1),
         ...counts(r.participants),
         byOwner: r.ownerRequested || r.ownerRequestedHelp,

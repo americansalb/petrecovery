@@ -2,8 +2,9 @@
 
 /**
  * "How you can help" on a pet's page: everything someone can do for this
- * pet, in one place. Search on the map (Mission Control: this button is the
- * one way in from the pet's page), the next search party, the needs the
+ * pet, in one place. First the question (HelpIntake: how and when, and the
+ * search hands back one job), then search on the map (Mission Control:
+ * this button is the one way in from the pet's page), the next search party, the needs the
  * Rescue Force looking for the pet has for it, what anyone can do (share,
  * check shelters, print a flyer), and what is already done, so nobody does
  * it twice.
@@ -22,10 +23,11 @@ import SearchPartyCard from '@/app/components/help/SearchPartyCard';
 import AddNeedSheet from '@/app/components/help/AddNeedSheet';
 import { timeAgo } from '@/app/lib/caseLabels';
 import WaysToHelp from './WaysToHelp';
+import HelpIntake from './HelpIntake';
 
 const DONE_SHOWN = 5;
 
-export default function HowToHelp({ name, caseId, lost, room, searchHref, ways, onJoin, onChanged }) {
+export default function HowToHelp({ name, caseId, caseNumber, signedIn, lost, room, searchHref, ways, onJoin, onChanged }) {
   const [active, setActive] = useState(null); // `${needId}:${action}` while it goes through
   const [errors, setErrors] = useState({});
   const [adding, setAdding] = useState(false);
@@ -90,6 +92,19 @@ export default function HowToHelp({ name, caseId, lost, room, searchHref, ways, 
 
       {(lost || party || needs.length > 0) && (
         <div className="mt-4 space-y-3">
+          {lost && caseNumber && (
+            <HelpIntake
+              name={name}
+              caseId={caseId}
+              caseNumber={caseNumber}
+              signedIn={signedIn}
+              member={member}
+              force={force}
+              missionHref={searchHref}
+              onJoin={onJoin}
+              onChanged={onChanged}
+            />
+          )}
           {lost && (
             <Link
               href={searchHref}

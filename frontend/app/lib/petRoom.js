@@ -64,7 +64,7 @@ export async function searchingNow(caseId, now = new Date()) {
 }
 
 /** The pet's next search party. Where it meets only for members. */
-async function nextParty(forceId, caseId, { userId, member, now }) {
+export async function nextParty(forceId, caseId, { userId, member, now }) {
   const post = await prisma.squadPost.findFirst({
     where: { rescueSquadId: forceId, caseId, isDeleted: false, topic: 'SEARCH_PARTY', eventAt: { gte: now } },
     orderBy: { eventAt: 'asc' },
