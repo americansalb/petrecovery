@@ -21,6 +21,8 @@ import prisma from '@/app/lib/prisma';
 import { waiverRefusal } from '@/app/lib/waiver';
 import { broadcast } from '@/app/lib/sse/missionStream';
 import { cellLabel, CLAIM_TTL_MS } from '@/app/lib/searchGrid';
+import { forcesOf } from '@/app/lib/forceFeed';
+import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
 
@@ -150,6 +152,23 @@ export async function PATCH(request, { params }) {
           { status: 409 }
         );
       }
+      // A freed block next to the trail is worth waking the members on
+      // duty for; the tap lands on the map with this block selected.
+      forcesOf(missionId)
+        .then(async (forceIds) => {
+          if (!forceIds.length) return;
+          const pet = await prisma.case.findUnique({ where: { id: missionId }, select: { petName: true, caseNumber: true } });
+          await wakeForces({
+            forceIds,
+            exceptUserId: userId,
+            kind: WAKE_KINDS.BLOCK_FREE,
+            title: `${label} is free again`,
+            body: `Nobody is walking it for ${pet?.petName || 'the pet'}. Claim it if you are near.`,
+            url: `/mission-control?mission=${encodeURIComponent(pet?.caseNumber || missionId)}&cell=${encodeURIComponent(cellId)}`,
+            data: { caseId: missionId, cellId },
+          });
+        })
+        .catch((err) => console.warn('Block wake failed:', err?.message));
     } else if (action === 'searched') {
       // Only the holder can mark it - "searched" means someone walked it,
       // and the row records who.

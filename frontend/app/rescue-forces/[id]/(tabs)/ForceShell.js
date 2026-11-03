@@ -20,6 +20,7 @@ import Link from 'next/link';
 import nextDynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { Check, ChevronLeft, Loader2, Lock, Share2, Shield, UserPlus } from 'lucide-react';
+import DutySwitch from './DutySwitch';
 import { getBaseUrl } from '@/app/lib/config';
 import ShareSheet from '@/app/cases/[caseNumber]/components/ShareSheet';
 import JoinForceSheet from '@/app/components/help/JoinForceSheet';
@@ -85,7 +86,7 @@ function ForceBadge({ force, className }) {
 }
 
 export default function ForceShell({ data, children }) {
-  const { force, members, pets, needsCount, viewer } = data;
+  const { force, members, pets, needsCount, viewer, onDuty = 0 } = data;
   const router = useRouter();
   const pathname = usePathname() || '';
   const wide = useWide();
@@ -97,7 +98,7 @@ export default function ForceShell({ data, children }) {
   const base = `/rescue-forces/${force.id}`;
   const canReadDiscussion = viewer.isMember || viewer.isAdmin;
   const leader = members.find((m) => LEADER_ROLES.includes(m.role) && m.name);
-  const count = `${members.length} ${members.length === 1 ? 'member' : 'members'}`;
+  const count = `${members.length} ${members.length === 1 ? 'member' : 'members'}${onDuty > 0 ? ` · ${onDuty} on duty` : ''}`;
   const shareUrl = `${getBaseUrl()}${base}`;
   const shareText = `${force.name}: neighbors who help find lost pets${force.city ? ` in ${force.city}` : ''}.`;
 
@@ -218,6 +219,7 @@ export default function ForceShell({ data, children }) {
             </div>
 
             <div className="mt-3.5 lg:mt-0 lg:shrink-0">
+              {viewer.isMember && <DutySwitch forceId={force.id} onDutyUntil={viewer.onDutyUntil} onChanged={() => router.refresh()} />}
               <div className="flex gap-2.5">
                 {viewer.isMember ? (
                   <button

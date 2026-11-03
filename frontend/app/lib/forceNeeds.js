@@ -19,6 +19,7 @@ import prisma from '@/app/lib/prisma';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { caseStatus, caseTitle } from '@/app/lib/caseLabels';
 import { NEED_KINDS, NEED_WHENS, needOptions, needTitle, sameNeed } from '@/app/lib/needOptions';
+import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 
 export const OPEN_NEED_STATUSES = ['AVAILABLE', 'IN_PROGRESS', 'NEEDS_HELP'];
 
@@ -260,6 +261,7 @@ export async function createNeed({ forceId, userId, body }) {
               select: {
                 id: true,
                 status: true,
+                caseNumber: true,
                 reportType: true,
                 petName: true,
                 petSpecies: true,
@@ -331,6 +333,18 @@ export async function createNeed({ forceId, userId, body }) {
       createdById: userId,
     },
     select: { id: true, title: true },
+  });
+
+  // A need is a job someone can take right now: the members on duty hear
+  // of it, and the tap lands on the pet's page, where "I will do it" is.
+  wakeForces({
+    forceIds: [forceId],
+    exceptUserId: userId,
+    kind: WAKE_KINDS.NEED,
+    title: `${caseTitle(pet)} needs: ${title}`,
+    body: `${NEED_WHENS[when]}. ${people === 1 ? 'One person' : `${people} people`} wanted${byOwner ? '. The owner asked.' : '.'}`,
+    url: `/cases/${encodeURIComponent(pet.caseNumber)}`,
+    data: { caseId: pet.id, needId: need.id },
   });
   return need;
 }

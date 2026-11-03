@@ -1056,6 +1056,11 @@ model RescueForceMember {
   // Availability
   availabilityStatus AvailabilityStatus @default(AVAILABLE)
   unavailableUntil   DateTime?
+  // On duty until this moment (app/lib/duty.js): a member who said they
+  // are around for the next hours. Pushes about a sighting, a freed block
+  // or a need that fits go to members on duty; everyone else gets the
+  // bell and the daily digest. Null or past means off duty.
+  onDutyUntil DateTime?
 
   joinedAt DateTime  @default(now())
   leftAt   DateTime?

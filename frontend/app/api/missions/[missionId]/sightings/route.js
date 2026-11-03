@@ -15,6 +15,7 @@ import { sendPushToUser, isPushConfigured } from '@/app/lib/push';
 import { getEmailBaseUrl } from '@/app/lib/config';
 import { placeName } from '@/app/lib/needOptions';
 import { feedPost, forcesOf, postToForces } from '@/app/lib/forceFeed';
+import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 
 export const dynamic = 'force-dynamic';
 
@@ -229,6 +230,18 @@ export async function POST(request, { params }) {
           note: [description, directionOfTravel ? `Heading ${String(directionOfTravel).toLowerCase()}.` : ''].filter(Boolean).join(' '),
         });
         await postToForces({ forceIds, authorId: reportedById, caseId: missionData.id, kind: 'SIGHTING', ...seen });
+        // The members on duty are woken: a sighting is the moment a search
+        // party forms. The tap lands on the pet's page, where the one job is.
+        const where = placeName(address);
+        wakeForces({
+          forceIds,
+          exceptUserId: reportedById,
+          kind: WAKE_KINDS.SIGHTING,
+          title: `${missionData.petName || 'The pet'} was just seen`,
+          body: [where ? `Near ${where}.` : null, directionOfTravel ? `Heading ${String(directionOfTravel).toLowerCase()}.` : null, "Don't chase. Say where it goes."].filter(Boolean).join(' '),
+          url: `/cases/${encodeURIComponent(missionData.caseNumber)}`,
+          data: { caseId: missionData.id },
+        });
       }
     } catch (feedError) {
       console.error('[Sighting] force post failed:', feedError?.message);
@@ -282,7 +295,7 @@ export async function POST(request, { params }) {
 
       // Push notification (non-blocking)
       if (isPushConfigured()) {
-        sendPushToUser(missionData.reporter.id, {
+        sendPushToUser(prisma, missionData.reporter.id, {
           title: `🚨 New Sighting of ${petName}!`,
           body: `${confidenceLabel.charAt(0).toUpperCase() + confidenceLabel.slice(1)} sighting reported ${address ? `near ${address}` : 'nearby'}`,
           url: missionUrl
@@ -328,7 +341,7 @@ export async function POST(request, { params }) {
 
         // Push (non-blocking)
         if (isPushConfigured()) {
-          sendPushToUser(member.id, {
+          sendPushToUser(prisma, member.id, {
             title: `📍 New Sighting - ${petName}`,
             body: `${confidenceLabel.charAt(0).toUpperCase() + confidenceLabel.slice(1)} sighting ${address ? `near ${address}` : 'reported'}`,
             url: missionUrl

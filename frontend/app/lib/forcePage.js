@@ -18,6 +18,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import { getUserRole } from '@/app/lib/authz';
 import prisma from '@/app/lib/prisma';
+import { isOnDuty } from '@/app/lib/duty';
 import { forceAreas } from '@/app/lib/forceAreas';
 import { areaCenter } from '@/app/lib/maps/forceArea';
 import { caseStatus, caseTitle, timeAgo } from '@/app/lib/caseLabels';
@@ -116,7 +117,7 @@ async function readForcePage(id) {
     prisma.rescueForceMember.findMany({
       where: { rescueSquadId: id, isActive: true },
       orderBy: { joinedAt: 'asc' },
-      select: { id: true, role: true, user: { select: { id: true, firstName: true, profileImage: true } } },
+      select: { id: true, role: true, onDutyUntil: true, user: { select: { id: true, firstName: true, profileImage: true } } },
     }),
     prisma.caseAssignment.findMany({
       where: { rescueSquadId: id, status: { in: LIVE_ASSIGNMENT_STATUSES }, case: { status: { in: OPEN_CASE_STATUSES } } },
@@ -163,6 +164,8 @@ async function readForcePage(id) {
     .sort((a, b) => (ROLE_ORDER[a.role] ?? 9) - (ROLE_ORDER[b.role] ?? 9));
 
   const mine = userId ? members.find((m) => m.user.id === userId) : null;
+  const now = new Date();
+  const onDuty = members.filter((m) => isOnDuty(m, now)).length;
   const area = areaOf(force.id);
   const center =
     force.centerLatitude != null && force.centerLongitude != null
@@ -184,11 +187,13 @@ async function readForcePage(id) {
       area,
     },
     members: people,
+    onDuty,
     pets,
     needsCount,
     viewer: {
       signedIn: Boolean(userId),
       isMember: Boolean(mine),
+      onDutyUntil: mine && isOnDuty(mine, now) ? mine.onDutyUntil.toISOString() : null,
       isLeader: LEADER_ROLES.includes(mine?.role),
       isAdmin: platformRole === 'ADMIN',
       role: mine?.role || null,
