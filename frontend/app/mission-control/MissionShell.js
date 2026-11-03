@@ -51,6 +51,7 @@ import CommandPanel from './components/desktop/CommandPanel';
 import OperationsRail from './components/desktop/OperationsRail';
 import { buildActivityItems } from './components/regions/ActivityLog';
 import SightingFormModal from './components/modals/SightingFormModal';
+import UpdateModal from './components/modals/UpdateModal';
 import FlyerPickerModal from './components/FlyerPickerModal';
 import HelperBriefOverlay from './components/overlays/HelperBriefOverlay';
 import MarkReunitedModal from './components/overlays/MarkReunitedModal';
@@ -161,6 +162,30 @@ function MissionShellContent() {
     [gridBoard.cells, selectedCellId]
   );
 
+  // The best block nobody is walking: what a helper with no block is asked
+  // to claim. Someone already holding one is walking it, not picking.
+  const nextBlock = useMemo(() => {
+    if (gridBoard.myCell) return null;
+    const open = gridBoard.cells
+      .filter((c) => c.status === 'UNSEARCHED' || c.status === 'NEEDS_REVISIT')
+      .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    return open[0] ? { id: open[0].id, label: open[0].label } : null;
+  }, [gridBoard.cells, gridBoard.myCell]);
+
+  // ?cell= from the pet's page: the block a job just claimed, selected and
+  // in view, so the map opens on the person's own job.
+  const cellLinkDoneRef = useRef(false);
+  useEffect(() => {
+    if (cellLinkDoneRef.current || !gridBoard.cells.length) return;
+    const wanted = new URLSearchParams(window.location.search).get('cell');
+    if (!wanted) return;
+    const cell = gridBoard.cells.find((c) => c.id === wanted);
+    if (!cell) return;
+    cellLinkDoneRef.current = true;
+    setSelectedCellId(cell.id);
+    setFocusPoint({ lat: cell.centerLatitude, lng: cell.centerLongitude, zoom: 17, key: `cell-${cell.id}` });
+  }, [gridBoard.cells]);
+
   const handleCellClick = useCallback((cell) => {
     gridBoard.clearActionError();
     setSelectedCellId((prev) => (prev === cell.id ? null : cell.id));
@@ -213,6 +238,7 @@ function MissionShellContent() {
   const [reunitedError, setReunitedError] = useState(null);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [showFlyerPicker, setShowFlyerPicker] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
   // The safety waiver is asked for at the first search action, not when the
   // map opens: the action waits here while the person reads and signs.
   const [waitingOnWaiver, setWaitingOnWaiver] = useState(null);
@@ -484,6 +510,10 @@ function MissionShellContent() {
     onHeadingThere: afterWaiver(handleHeadingThere),
     onJoin: afterWaiver(handleJoinMission),
     onSeeCelebration: () => setCelebrationOpen(true),
+    nextBlock,
+    isClaiming: gridBoard.acting,
+    onClaimBlock: afterWaiver((cell) => handleClaimCell(cell.id)),
+    onPostUpdate: () => setShowUpdate(true),
   };
 
   const checklistProps = {
@@ -491,7 +521,11 @@ function MissionShellContent() {
     petName: activeMission?.petName,
     sheltersTotal: pois?.length || 0,
     showBoost: ms.isOwner && !!activeMission?.adFundEnabled,
-    excludeAction: getPrimaryActionId(ms.stateId, ms.role, instrument),
+    isOwner: ms.isOwner,
+    nextBlock,
+    onClaimBlock: afterWaiver((cell) => handleClaimCell(cell.id)),
+    onPostUpdate: () => setShowUpdate(true),
+    excludeAction: getPrimaryActionId(ms.stateId, ms.role, instrument, { nextBlock }),
     highlight: checklistHighlight,
     onShare: () => handleShare(false),
     onReportSighting: () => setShowSightingForm(true),
@@ -713,6 +747,7 @@ function MissionShellContent() {
           searched={gridBoard.searchedCells}
           inProgress={gridBoard.inProgressCells}
           total={gridBoard.totalCells}
+          hidden={!isCommand && detent !== DETENTS.PEEK}
         />
         {!isArchived && (
           <CellActionSheet
@@ -813,6 +848,18 @@ function MissionShellContent() {
             }}
           />
         </div>
+      )}
+
+      {showUpdate && (
+        <UpdateModal
+          missionId={activeMission.id}
+          petName={activeMission.petName}
+          onClose={() => setShowUpdate(false)}
+          onPosted={() => {
+            setShowUpdate(false);
+            showNotification('success', 'Posted. Everyone helping sees it.');
+          }}
+        />
       )}
 
       {showSightingForm && (

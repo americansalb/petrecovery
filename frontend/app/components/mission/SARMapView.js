@@ -612,32 +612,44 @@ export default function SARMapView({
     gridLayersRef.current = [];
     if (!gridCells || gridCells.length === 0) return;
 
+    // The three blocks worth starting on, named on the map so the board
+    // speaks before anyone taps it.
+    const startHere = new Set(
+      gridCells
+        .filter((c) => c.status === 'UNSEARCHED' && (c.priority || 0) >= 8)
+        .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+        .slice(0, 3)
+        .map((c) => c.id)
+    );
+
     gridCells.forEach((cell) => {
       const bounds = [[cell.southLat, cell.westLng], [cell.northLat, cell.eastLng]];
       const selected = cell.id === selectedCellId;
 
       let style;
       if (cell.status === 'SEARCHED') {
-        style = { color: '#10b981', weight: 1, opacity: 0.35, fillColor: '#10b981', fillOpacity: 0.18 };
+        // Walked: ink on the map. Navy, never green: green means home.
+        style = { color: '#ffffff', weight: 1, opacity: 0.55, fillColor: '#0f172a', fillOpacity: 0.42 };
       } else if (cell.status === 'PET_FOUND') {
         style = { color: '#10b981', weight: 2, opacity: 0.9, fillColor: '#10b981', fillOpacity: 0.5 };
       } else if (cell.status === 'IN_PROGRESS') {
         style = {
-          color: '#facc15', weight: cell.mine ? 2.5 : 1.5, opacity: 0.75,
+          color: '#facc15', weight: cell.mine ? 2.5 : 1.5, opacity: 0.85,
           dashArray: '6 5', fillColor: '#facc15', fillOpacity: 0.14,
         };
       } else if (cell.status === 'NEEDS_REVISIT') {
-        style = { color: '#94a3b8', weight: 0.8, opacity: 0.3, fillColor: '#64748b', fillOpacity: 0.2 };
+        // Walked in poor light: worth another look. Dotted amber, no fill.
+        style = { color: '#f59e0b', weight: 1.5, opacity: 0.85, dashArray: '2 5', fillColor: '#f59e0b', fillOpacity: 0.05 };
       } else if (cell.status === 'CLOSED') {
         style = { color: '#020617', weight: 0.5, opacity: 0.2, fillColor: '#020617', fillOpacity: 0.4 };
       } else {
         // UNSEARCHED: near-invisible so the board reads as work-done, not
-        // work-left. High-priority cells whisper amber: start here.
-        const hot = (cell.priority || 0) >= 8;
+        // work-left. The blocks to start on are outlined in flash and named.
+        const hot = startHere.has(cell.id);
         style = {
-          color: hot ? '#facc15' : '#ffffff', weight: hot ? 1 : 0.6,
-          opacity: hot ? 0.45 : 0.16, fillColor: hot ? '#facc15' : '#ffffff',
-          fillOpacity: hot ? 0.05 : 0.02,
+          color: hot ? '#facc15' : '#ffffff', weight: hot ? 2 : 0.6,
+          opacity: hot ? 0.9 : 0.16, fillColor: hot ? '#facc15' : '#ffffff',
+          fillOpacity: hot ? 0.08 : 0.02,
         };
       }
       if (selected) {
@@ -648,6 +660,20 @@ export default function SARMapView({
       if (onCellClick && !isEditMode) rect.on('click', () => onCellClick(cell));
       rect.addTo(mapInstance.current);
       gridLayersRef.current.push(rect);
+
+      if (cell.status === 'UNSEARCHED' && startHere.has(cell.id) && !selected) {
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;color:#fde047;` +
+            `font:800 11px/1.1 Inter,system-ui,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,.9);white-space:nowrap;">` +
+            `<span>${cell.label || ''}</span><span style="font-size:8px;letter-spacing:.08em;">START HERE</span></div>`,
+          iconSize: [60, 24],
+          iconAnchor: [30, 12],
+        });
+        const marker = L.marker([cell.centerLatitude, cell.centerLongitude], { icon, interactive: false, zIndexOffset: 300 });
+        marker.addTo(mapInstance.current);
+        gridLayersRef.current.push(marker);
+      }
 
       if (cell.status === 'IN_PROGRESS' && cell.claimedById) {
         const color = holderColor(cell.claimedById, cell.mine);

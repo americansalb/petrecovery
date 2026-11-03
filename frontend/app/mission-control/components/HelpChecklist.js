@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { Share2, Eye, Printer, Phone, Rocket, Check, ChevronRight } from 'lucide-react';
+import { Share2, Eye, Printer, Phone, Rocket, Check, ChevronRight, MessageSquare, Grid2x2 } from 'lucide-react';
 
 const ACTIONS_EVENT = 'mc:actions';
 
@@ -85,6 +85,10 @@ export default function HelpChecklist({
   showBoost = false,
   excludeAction = null,
   highlight = false,
+  isOwner = false,
+  nextBlock = null, // { id, label }: the best unwalked block, for a helper
+  onClaimBlock,
+  onPostUpdate,
   onShare,
   onReportSighting,
   onFlyer,
@@ -104,6 +108,28 @@ export default function HelpChecklist({
   const sharedCount = flags.share || 0;
 
   const rows = [
+    // The owner's own rows: never "I've seen" (that is them), always a way
+    // to tell everyone helping something.
+    ...(isOwner
+      ? [{
+          id: 'update',
+          icon: MessageSquare,
+          label: 'Tell everyone helping something',
+          sub: 'What he answers to, where he hides, what not to do',
+          done: false,
+          onClick: onPostUpdate,
+        }]
+      : []),
+    ...(!isOwner && nextBlock
+      ? [{
+          id: 'claim',
+          icon: Grid2x2,
+          label: `Claim ${nextBlock.label} and walk it`,
+          sub: 'Nobody else is sent there while you have it',
+          done: false,
+          onClick: () => onClaimBlock?.(nextBlock),
+        }]
+      : []),
     {
       id: 'share',
       icon: Share2,
@@ -112,14 +138,16 @@ export default function HelpChecklist({
       done: sharedCount > 0,
       onClick: onShare,
     },
-    {
-      id: 'sighting',
-      icon: Eye,
-      label: `I've seen ${petName}`,
-      sub: 'Report a sighting - even if unsure',
-      done: false,
-      onClick: onReportSighting,
-    },
+    ...(!isOwner
+      ? [{
+          id: 'sighting',
+          icon: Eye,
+          label: `I've seen ${petName}`,
+          sub: 'Report a sighting - even if unsure',
+          done: false,
+          onClick: onReportSighting,
+        }]
+      : []),
     {
       id: 'flyer',
       icon: Printer,

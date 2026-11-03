@@ -1,7 +1,8 @@
 'use client';
 
 /**
- * TaskBoard - the coordinator's checklist, finally real
+ * TaskBoard - the force's needs for this pet, the same rows the pet's
+ * page and the force's Needs tab show (SquadTask), in the words they use.
  *
  * Wired to the SquadTask API (tasks used to live in localStorage and
  * evaporate). Tasks belong to the force working the case, so the board
@@ -64,7 +65,7 @@ export default function TaskBoard({ missionId, canCreate = true }) {
         await load();
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Could not create the task');
+        setError(data.error || 'Could not add the need');
       }
     } catch (e) {
       setError('Network error');
@@ -108,14 +109,14 @@ export default function TaskBoard({ missionId, canCreate = true }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') create(); }}
-            placeholder="Add a task: flyer Clark St, call the shelter..."
+            placeholder="Add a need: flyers on Clark St, call the shelter..."
             className="flex-1 min-w-0 h-10 px-3 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-flash-400"
           />
           <button
             type="button"
             onClick={create}
             disabled={!title.trim() || creating}
-            aria-label="Add task"
+            aria-label="Add need"
             className="shrink-0 w-10 h-10 rounded-xl bg-flash-400 text-midnight-950 flex items-center justify-center hover:bg-flash-300 transition disabled:opacity-50"
           >
             {creating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={18} />}
@@ -128,7 +129,7 @@ export default function TaskBoard({ missionId, canCreate = true }) {
         <div className="text-center py-5">
           <Shield size={20} className="text-slate-600 mx-auto mb-2" />
           <p className="text-sm text-slate-500">
-            Tasks unlock when a rescue force takes the case.
+            Needs appear once a Rescue Force takes the pet on.
           </p>
         </div>
       ) : (
@@ -144,7 +145,7 @@ export default function TaskBoard({ missionId, canCreate = true }) {
                   type="button"
                   onClick={() => !completed && complete(task)}
                   disabled={completed || busyId === task.id}
-                  aria-label={completed ? 'Completed' : `Complete ${task.title}`}
+                  aria-label={completed ? 'Done' : `Done: ${task.title}`}
                   className={`shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition ${completed ? 'bg-emerald-500 border-emerald-500 text-midnight-950' : 'border-slate-600 text-transparent hover:border-emerald-400'}`}
                 >
                   {busyId === task.id ? <Loader2 size={13} className="animate-spin text-slate-400" /> : <Check size={15} strokeWidth={3} />}
