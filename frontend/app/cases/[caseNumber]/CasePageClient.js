@@ -313,7 +313,7 @@ export default function CasePageClient() {
   // Mission Control, the search map. "Search on the map" is the way in; by
   // case number, so its way back out lands on this page's own address.
   const missionHref = `/mission-control?mission=${encodeURIComponent(caseRef)}`;
-  const reportSightingHref = signedIn ? `${missionHref}&action=sighting` : `/join/${encodeURIComponent(c.id)}`;
+  const reportSightingHref = signedIn ? `${missionHref}&action=sighting` : `/join/${encodeURIComponent(c.id)}?action=sighting`;
   const directionsHref = hasCoords ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}` : null;
   const sheltersHref = !pinOnly
     ? `/shelters?near=${encodeURIComponent(place)}`

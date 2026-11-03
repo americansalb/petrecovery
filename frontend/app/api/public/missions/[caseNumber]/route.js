@@ -98,6 +98,7 @@ export async function GET(request, { params }) {
             certaintyLevel: true,
             photoUrls: true,
             isVerified: true,
+            reporterName: true,
             reportedBy: {
               select: { firstName: true }
             }
@@ -197,9 +198,10 @@ export async function GET(request, { params }) {
         // 'Deleted' (api/account/delete). The public page was printing
         // "Deleted reported a sighting" as if that were a person's name.
         reporterName:
-          !s.reportedBy?.firstName || s.reportedBy.firstName === 'Deleted'
+          s.reporterName
+          || (!s.reportedBy?.firstName || s.reportedBy.firstName === 'Deleted'
             ? 'A neighbor'
-            : s.reportedBy.firstName
+            : s.reportedBy.firstName)
       })),
       sightingsCount: missionData.sightings?.length || 0,
       // Updates for timeline

@@ -12,6 +12,7 @@ import {
   missionShareMetadata,
   genericShareMetadata,
 } from '@/app/lib/shareMetadata';
+import { Suspense } from 'react';
 import JoinPageClient from './JoinPageClient';
 
 export async function generateMetadata({ params }) {
@@ -28,6 +29,12 @@ export async function generateMetadata({ params }) {
   }
 }
 
+// The client reads ?action= with useSearchParams, which needs a Suspense
+// boundary above it or the build refuses to prerender the route.
 export default function JoinMissionPage() {
-  return <JoinPageClient />;
+  return (
+    <Suspense fallback={null}>
+      <JoinPageClient />
+    </Suspense>
+  );
 }

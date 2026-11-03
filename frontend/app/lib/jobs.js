@@ -14,7 +14,9 @@ import { listNeeds } from '@/app/lib/forceNeeds';
 import { nextParty } from '@/app/lib/petRoom';
 import { openBlocks } from '@/app/lib/searchBoard';
 import { distanceMeters } from '@/app/lib/searchGrid';
-import { speciesLabel } from '@/app/lib/species';
+import { briefFor } from '@/app/lib/brief';
+
+export { briefFor };
 
 export const WAYS = {
   foot: { label: 'On foot', kinds: ['area', 'doors', 'flyers', 'other'] },
@@ -125,48 +127,6 @@ export function rankJobs({ blocks = [], needs = [], party = null, way = 'foot', 
   return jobs;
 }
 
-/** The four lines someone reads before a job. Plain, and about this pet. */
-export function briefFor({ way, pet }) {
-  const name = pet?.petName || `the ${speciesLabel(pet?.petSpecies).toLowerCase()}`;
-  const dog = String(pet?.petSpecies || '').toUpperCase() === 'DOG';
-  const cat = String(pet?.petSpecies || '').toUpperCase() === 'CAT';
-  const look = cat
-    ? 'Look low and close: under decks and cars, in sheds and garages, behind bins. A scared cat hides within a few houses and goes quiet.'
-    : 'Look low: under decks, in open garages and sheds, along creeks and fences. A scared pet hides and goes quiet.';
-  const call = dog
-    ? `Call "${name}" once a minute in a calm voice, then listen.`
-    : cat
-      ? `Say ${name}'s name softly now and then, and shake a treat bag. Listen more than you call.`
-      : `Say ${name}'s name now and then, then listen.`;
-  const never = dog
-    ? `If you see ${name}, don't chase or call out. Sit down, look away, tap "I saw ${name}". The owner's voice is what ${name} comes to.`
-    : `If you see ${name}, don't chase. Note where and which way, tap "I saw ${name}", and keep your distance.`;
-  if (way === 'home') {
-    return [
-      `Say you are calling about a lost ${speciesLabel(pet?.petSpecies).toLowerCase()} named ${name}${pet?.petColor ? `, ${String(pet.petColor).toLowerCase()}` : ''}${pet?.petBreed ? `, ${pet.petBreed}` : ''}.`,
-      'Ask whether any animal matching came in since the date lost, and whether they can note the case number.',
-      'Write down who you spoke to and when. Tap Done and it goes on the record for everyone.',
-      'If they have a match, tap "I saw" and the owner is told at once.',
-    ];
-  }
-  if (way === 'car') {
-    return [
-      'Drive slowly with the windows down. Pets move along edges: creeks, fence lines, the backs of lots.',
-      call,
-      never,
-      'Your drive records as you go, so the team sees what you covered.',
-    ];
-  }
-  if (way === 'gear') {
-    return [
-      'A gear job comes with its own instructions from the coordinator. Check with them before setting anything.',
-      look,
-      never,
-      'Photos of what you set up go on the record so the next person can check it.',
-    ];
-  }
-  return ['Walk every street in the block. Your path records as you go.', look, call, never];
-}
 
 /**
  * The one job for this person, and a few alternatives. `member` is whether

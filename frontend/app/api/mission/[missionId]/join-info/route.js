@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/app/lib/prisma';
 import { missionWhere } from '@/app/lib/shareMetadata';
 import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
+import { placeName } from '@/app/lib/needOptions';
 
 export async function GET(request, { params }) {
   try {
@@ -27,6 +28,9 @@ export async function GET(request, { params }) {
         petBreed: true,
         petColor: true,
         petPhotoUrl: true,
+        lastSeenAddress: true,
+        lastSeenAt: true,
+        reporter: { select: { firstName: true } },
         missionControl: {
           select: {
             id: true,
@@ -70,6 +74,11 @@ export async function GET(request, { params }) {
         color: mission.petColor,
         photoUrl: mission.petPhotoUrl,
       },
+      // The neighbourhood, never the house number: this page is open to
+      // anyone holding the link.
+      lastSeenPlace: placeName(mission.lastSeenAddress) || null,
+      lastSeenAt: mission.lastSeenAt,
+      owner: { name: (mission.reporter?.firstName || '').trim() || null },
       stats: {
         activeVolunteers: mc?.activeVolunteers.length || 0,
         zonesSearched: mc?.zones.filter((z) => z.status === 'SEARCHED').length || 0,
