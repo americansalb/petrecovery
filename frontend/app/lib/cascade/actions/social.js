@@ -11,6 +11,7 @@ export async function runSocial(ctx) {
   const shared = await ctx.getShared();
   const cardShared = {
     qrDataUrl: shared.qrDataUrl,
+    photos: shared.photos,
     photoDataUrl: shared.photoDataUrl,
     headline: ctx.results.ai_copy?.headline,
     plea: ctx.results.ai_copy?.plea,

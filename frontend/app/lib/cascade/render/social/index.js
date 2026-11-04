@@ -5,9 +5,14 @@
  * inside the fn so webpack never tries to bundle the resvg native `.node`
  * (which it can't parse). Node runtime only. Callers isolate a resvg load
  * failure and simply omit the social asset - the flyers (pure JS) still work.
+ *
+ * The photo is cut to its frame's shape around the pet first (render/photo.js,
+ * SOCIAL_FRAMES in ../flyers/plan.js): satori has no object-position.
  */
 
 import { normalizeFlyerData } from '../flyers/normalize';
+import { SOCIAL_FRAMES } from '../flyers/plan';
+import { cropPhoto } from '../photo';
 
 export const SOCIAL_SIZES = {
   SOCIAL_OG: { size: 'og', width: 1200, height: 630, label: 'Link preview (1200×630)' },
@@ -16,9 +21,9 @@ export const SOCIAL_SIZES = {
 };
 
 /**
- * @param {object} caseData Case row
+ * @param {object} caseData Case row (+ pet)
  * @param {'SOCIAL_OG'|'SOCIAL_SQUARE'|'SOCIAL_STORY'} kind
- * @param {{photoDataUrl?:string, qrDataUrl?:string, description?:string}} shared
+ * @param {{photos?:Array, photoDataUrl?:string, qrDataUrl?:string, description?:string}} shared
  * @returns {Promise<{buffer:Buffer, width:number, height:number}>}
  */
 export async function generateSocialCard(caseData, kind, shared = {}) {
@@ -30,10 +35,12 @@ export async function generateSocialCard(caseData, kind, shared = {}) {
   ]);
 
   const spec = SOCIAL_SIZES[kind] || SOCIAL_SIZES.SOCIAL_OG;
-  const norm = normalizeFlyerData(caseData, shared);
-  const data = { ...norm, chips: norm.chips.join('  •  ') };
+  const data = normalizeFlyerData(caseData, shared);
+  const frame = SOCIAL_FRAMES[spec.size];
+  const photo = data.photos[0] || null;
+  const photoSrc = photo ? await cropPhoto(photo, frame.w / frame.h) : null;
 
-  const svg = await satori(<SocialCard data={data} size={spec.size} />, {
+  const svg = await satori(<SocialCard data={data} size={spec.size} photoSrc={photoSrc} />, {
     width: spec.width,
     height: spec.height,
     fonts: fonts.SATORI_FONTS,
