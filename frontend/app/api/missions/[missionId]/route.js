@@ -3,6 +3,7 @@
  * Phase 13-14: Lost Pet Missions MVP (TASK-C02)
  *
  * GET /api/missions/[id] - Get single case with notes
+ * PATCH /api/missions/[id] - The owner changes the photo, the description or the phone on the report
  * DELETE /api/missions/[id] - Delete a case (admin only)
  */
 
@@ -349,5 +350,76 @@ export async function DELETE(request, { params }) {
       error: 'Failed to delete case',
       message: error.message
     }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/missions/[id] - the owner (or an admin) changes what the
+ * report says: a better photo, a line about the pet, the phone finders
+ * call. Nothing else on the report moves here; where it was lost and when
+ * are what the search is built on.
+ */
+const DESCRIPTION_MAX = 1000;
+
+export async function PATCH(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Sign in first.' }, { status: 401 });
+    }
+    const id = params.missionId;
+    const existing = await prisma.case.findUnique({ where: { id }, select: { id: true, reporterId: true, caseNumber: true } });
+    if (!existing) return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    const isOwner = existing.reporterId === session.user.id;
+    const isAdmin = session.user.role === 'ADMIN';
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: 'Only the owner can change this report.' }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const data = {};
+    if (body.petPhotoUrl !== undefined) {
+      const url = String(body.petPhotoUrl || '').trim();
+      if (!/^https:\/\/[^\s]+$/i.test(url)) {
+        return NextResponse.json({ error: 'Upload the photo first, then send its address.' }, { status: 400 });
+      }
+      data.petPhotoUrl = url;
+    }
+    if (body.petDescription !== undefined) {
+      const text = String(body.petDescription || '').trim();
+      if (text.length > DESCRIPTION_MAX) {
+        return NextResponse.json({ error: `Keep the description under ${DESCRIPTION_MAX} letters.` }, { status: 400 });
+      }
+      data.petDescription = text;
+    }
+    if (body.ownerPhone !== undefined) {
+      const digits = String(body.ownerPhone || '').replace(/\D/g, '');
+      if (digits.length < 10) {
+        return NextResponse.json({ error: 'A phone number needs at least 10 digits.' }, { status: 400 });
+      }
+      data.ownerPhone = String(body.ownerPhone).trim();
+    }
+    if (!Object.keys(data).length) {
+      return NextResponse.json({ error: 'Nothing to change.' }, { status: 400 });
+    }
+
+    const updated = await prisma.case.update({
+      where: { id },
+      data,
+      select: { id: true, caseNumber: true, petPhotoUrl: true, petDescription: true, ownerPhone: true },
+    });
+    await logEvent({
+      event_type: 'case.edited',
+      actor_user_id: session.user.id,
+      resource_type: 'case',
+      resource_id: id,
+      action: 'update',
+      result: 'success',
+      metadata: { fields: Object.keys(data) },
+    }).catch(() => {});
+    return NextResponse.json({ success: true, case: updated });
+  } catch (error) {
+    console.error('Case edit failed:', error);
+    return NextResponse.json({ error: 'Could not save that. Try again in a moment.' }, { status: 500 });
   }
 }

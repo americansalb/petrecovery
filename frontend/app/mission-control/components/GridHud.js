@@ -26,8 +26,10 @@ function minutesAgo(iso, now = Date.now()) {
   return `${Math.floor(hours / 24)}d`;
 }
 
-export function CoverageStrip({ searched, inProgress, total }) {
-  if (!total) return null;
+export function CoverageStrip({ searched, inProgress, total, hidden = false }) {
+  // On a phone the strip sits on the map; once the sheet is pulled up it
+  // would float over the sheet's own words, so it steps aside.
+  if (!total || hidden) return null;
   const done = Math.round((searched / total) * 100);
 
   return (

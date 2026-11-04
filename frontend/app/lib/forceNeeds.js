@@ -19,8 +19,15 @@ import prisma from '@/app/lib/prisma';
 import { isCaseOpen } from '@/app/lib/caseStatus';
 import { caseStatus, caseTitle } from '@/app/lib/caseLabels';
 import { NEED_KINDS, NEED_WHENS, needOptions, needTitle, sameNeed } from '@/app/lib/needOptions';
+import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
 
 export const OPEN_NEED_STATUSES = ['AVAILABLE', 'IN_PROGRESS', 'NEEDS_HELP'];
+
+/** The need kind a stored taskType belongs to ('other' when it is none of ours). */
+export function kindOfTaskType(taskType) {
+  const found = Object.entries(NEED_KINDS).find(([, def]) => def.taskType === taskType);
+  return found ? found[0] : 'other';
+}
 const TAKEN = ['ACTIVE', 'COMPLETED'];
 
 function counts(participants) {
@@ -47,6 +54,9 @@ export async function listNeeds(forceId, { userId = null, member = false, caseId
       ownerRequested: true,
       ownerRequestedHelp: true,
       createdAt: true,
+      taskType: true,
+      latitude: true,
+      longitude: true,
       participants: { select: { userId: true, status: true } },
     },
     take: 100,
@@ -81,6 +91,11 @@ export async function listNeeds(forceId, { userId = null, member = false, caseId
         title: r.title,
         details: member ? r.description || null : null,
         askedAt: r.createdAt.toISOString(),
+        // What kind of need (area, doors, flyers, shelter, other): the job
+        // picker matches it to how someone said they can help.
+        kind: kindOfTaskType(r.taskType),
+        lat: r.latitude ?? null,
+        lng: r.longitude ?? null,
         peopleNeeded: Math.max(1, r.peopleNeeded || 1),
         ...counts(r.participants),
         byOwner: r.ownerRequested || r.ownerRequestedHelp,
@@ -246,6 +261,7 @@ export async function createNeed({ forceId, userId, body }) {
               select: {
                 id: true,
                 status: true,
+                caseNumber: true,
                 reportType: true,
                 petName: true,
                 petSpecies: true,
@@ -317,6 +333,18 @@ export async function createNeed({ forceId, userId, body }) {
       createdById: userId,
     },
     select: { id: true, title: true },
+  });
+
+  // A need is a job someone can take right now: the members on duty hear
+  // of it, and the tap lands on the pet's page, where "I will do it" is.
+  wakeForces({
+    forceIds: [forceId],
+    exceptUserId: userId,
+    kind: WAKE_KINDS.NEED,
+    title: `${caseTitle(pet)} needs: ${title}`,
+    body: `${NEED_WHENS[when]}. ${people === 1 ? 'One person' : `${people} people`} wanted${byOwner ? '. The owner asked.' : '.'}`,
+    url: `/cases/${encodeURIComponent(pet.caseNumber)}`,
+    data: { caseId: pet.id, needId: need.id },
   });
   return need;
 }

@@ -1,8 +1,10 @@
 // Pieces of a pet's public page (../CasePageClient.js). LastSeenMap is not
 // here: the page loads it with next/dynamic so Leaflet never runs on the server.
 export { default as Activity } from './Activity';
+export { default as HelpIntake } from './HelpIntake';
 export { default as HowToHelp } from './HowToHelp';
 export { default as OtherPets } from './OtherPets';
+export { default as OwnerPanel } from './OwnerPanel';
 export { default as RecoveryKitPanel } from './RecoveryKitPanel';
 export { default as ShareSheet } from './ShareSheet';
 export { default as SightingSheet } from './SightingSheet';

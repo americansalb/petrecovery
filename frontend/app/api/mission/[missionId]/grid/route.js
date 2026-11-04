@@ -20,64 +20,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/lib/auth';
 import prisma from '@/app/lib/prisma';
-import { generateGrid, cellLabel, CLAIM_TTL_MS } from '@/app/lib/searchGrid';
+import { cellLabel } from '@/app/lib/searchGrid';
+import { ensureGrid, sweepStaleClaims } from '@/app/lib/searchBoard';
 import { logEvent } from '@/lib/logging';
 import crypto from 'crypto';
-
-async function createGridForCase(caseData, correlationId) {
-  const sightings = (caseData.sightings || [])
-    .filter((s) => s.latitude != null && s.longitude != null)
-    .map((s) => ({ lat: s.latitude, lng: s.longitude, at: s.sightedAt || s.createdAt }));
-
-  const { radiusMeters, cellSizeMeters, cells } = generateGrid({
-    center: { lat: caseData.lastSeenLatitude, lng: caseData.lastSeenLongitude },
-    searchRadiusMiles: caseData.searchRadius,
-    sightings,
-  });
-
-  try {
-    const grid = await prisma.searchGrid.create({
-      data: {
-        caseId: caseData.id,
-        centerLatitude: caseData.lastSeenLatitude,
-        centerLongitude: caseData.lastSeenLongitude,
-        radiusMiles: radiusMeters / 1609.344,
-        cellSizeMeters,
-        totalCells: cells.length,
-        cells: {
-          create: cells.map((c) => ({
-            row: c.row,
-            col: c.col,
-            centerLatitude: c.centerLatitude,
-            centerLongitude: c.centerLongitude,
-            northLat: c.northLat,
-            southLat: c.southLat,
-            eastLng: c.eastLng,
-            westLng: c.westLng,
-            priority: c.priority,
-          })),
-        },
-      },
-      select: { id: true },
-    });
-
-    await logEvent({
-      event_type: 'grid.created',
-      correlation_id: correlationId,
-      resource_type: 'case',
-      resource_id: caseData.id,
-      action: 'create',
-      result: 'success',
-      metadata: { cells: cells.length, cellSizeMeters },
-    }).catch(() => {});
-
-    return grid;
-  } catch (error) {
-    // P2002 on caseId: a concurrent first-GET won the race. Read theirs.
-    if (error?.code === 'P2002') return null;
-    throw error;
-  }
-}
 
 export async function GET(request, { params }) {
   const correlationId = crypto.randomUUID();
@@ -88,49 +34,23 @@ export async function GET(request, { params }) {
     }
 
     const { missionId } = params;
-    const caseData = await prisma.case.findUnique({
-      where: { id: missionId },
-      select: {
-        id: true,
-        lastSeenLatitude: true,
-        lastSeenLongitude: true,
-        searchRadius: true,
-        sightings: {
-          select: { latitude: true, longitude: true, sightedAt: true, createdAt: true },
-          orderBy: { sightedAt: 'desc' },
-          take: 20,
-        },
-      },
-    });
-
-    if (!caseData) {
+    const exists = await prisma.case.findUnique({ where: { id: missionId }, select: { id: true } });
+    if (!exists) {
       return NextResponse.json({ error: 'Case not found' }, { status: 404 });
     }
-    if (caseData.lastSeenLatitude == null || caseData.lastSeenLongitude == null) {
+
+    // The grid, created on first use (app/lib/searchBoard.js, shared with
+    // the job picker so a pet's page can offer a block before the map opens).
+    const grid = await ensureGrid(missionId, correlationId);
+    if (!grid) {
       return NextResponse.json(
         { error: 'This case has no last-seen location, so there is no area to grid.', code: 'NO_LOCATION' },
         { status: 409 }
       );
     }
 
-    let grid = await prisma.searchGrid.findUnique({
-      where: { caseId: caseData.id },
-      select: { id: true },
-    });
-    if (!grid) {
-      grid = (await createGridForCase(caseData, correlationId)) ||
-        (await prisma.searchGrid.findUnique({ where: { caseId: caseData.id }, select: { id: true } }));
-    }
-
     // Dinner sweep: expired claims revert so the block is takeable again.
-    await prisma.gridCell.updateMany({
-      where: {
-        gridId: grid.id,
-        status: 'IN_PROGRESS',
-        claimedAt: { lt: new Date(Date.now() - CLAIM_TTL_MS) },
-      },
-      data: { status: 'UNSEARCHED', claimedById: null, claimedAt: null },
-    });
+    await sweepStaleClaims(grid.id);
 
     const full = await prisma.searchGrid.findUnique({
       where: { id: grid.id },

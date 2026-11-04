@@ -4,7 +4,7 @@
  * OperationsRail - the coordinator's right hand (command instrument)
  *
  * Four worktabs as a real segmented control: Activity (the paper
- * trail + Add note), Chat, Tasks, Shelters. Controlled from outside
+ * trail + Add note), Chat, Needs, Shelters. Controlled from outside
  * so the mission panel's checklist can jump straight to a tab
  * ("Call nearby shelters" → Shelters).
  */
@@ -19,7 +19,7 @@ import ShelterList from '../regions/ShelterList';
 const TABS = [
   { id: 'activity', label: 'Activity', icon: FileText },
   { id: 'chat', label: 'Chat', icon: MessageCircle },
-  { id: 'tasks', label: 'Tasks', icon: ListChecks },
+  { id: 'tasks', label: 'Needs', icon: ListChecks },
   { id: 'shelters', label: 'Shelters', icon: Building2 },
 ];
 

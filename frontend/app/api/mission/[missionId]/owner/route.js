@@ -17,6 +17,7 @@ import {
   sendThankYou,
   getFilteredSightings,
 } from '@/app/lib/missionControl/ownerHub';
+import { ensureMissionControl } from '@/app/lib/missionControl/ensure';
 
 export async function GET(request, { params }) {
   try {
@@ -85,10 +86,9 @@ export async function POST(request, { params }) {
     const body = await request.json();
     const { action, ...data } = body;
 
-    const mission = await prisma.missionControl.findUnique({
-      where: { caseId: missionId },
-      select: { id: true }
-    });
+    // A case posted from the report wizard has no MissionControl row until
+    // someone opens the board; the owner's status must not wait for that.
+    const mission = await ensureMissionControl(missionId, { id: true });
 
     if (!mission) {
       return NextResponse.json(

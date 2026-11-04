@@ -8,6 +8,8 @@ import { POST_TOPICS, checkPostFields, PostInputError } from '@/app/lib/forceDis
 import { caseStatus, caseTitle } from '@/app/lib/caseLabels';
 import { placeName } from '@/app/lib/needOptions';
 import { kindOf, petLine } from '@/app/lib/forceFeed';
+import { wakeForces, WAKE_KINDS } from '@/app/lib/wake';
+import { partyWhen } from '@/app/lib/partyWhen';
 
 const PAGE = 20;
 // A case number in an older automatic post's text ("Case #AUS-2026-HXEN47").
@@ -401,6 +403,24 @@ export async function POST(request, { params }) {
         },
       },
     });
+
+    // A search party is worth waking everyone in the force for, on duty or
+    // not: the tap lands on the pet's page, where "I am going" is.
+    if (post.topic === 'SEARCH_PARTY' && post.eventAt) {
+      const pet = post.caseId
+        ? await prisma.case.findUnique({ where: { id: post.caseId }, select: { petName: true, caseNumber: true } }).catch(() => null)
+        : null;
+      wakeForces({
+        forceIds: [id],
+        exceptUserId: session.user.id,
+        kind: WAKE_KINDS.PARTY,
+        title: pet?.petName ? `Search party for ${pet.petName}` : 'A search party is planned',
+        body: `${partyWhen(post.eventAt)}${post.eventPlace ? `, ${post.eventPlace}` : ''}. Say if you are going.`,
+        url: pet?.caseNumber ? `/cases/${encodeURIComponent(pet.caseNumber)}` : `/rescue-forces/${id}/discussion`,
+        everyone: true,
+        data: { postId: post.id, caseId: post.caseId || null },
+      });
+    }
 
     return NextResponse.json({
       success: true,
